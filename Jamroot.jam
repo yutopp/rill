@@ -1,0 +1,89 @@
+import os ; 
+import path ;
+
+####################
+#
+project stark
+    : requirements
+        <define>BOOST_ALL_NO_LIB
+        <include>$(boost-root)
+        <include>$(ytl-part-root)
+        <include>$(dependency-path)
+        <library>/boost/test//boost_unit_test_framework
+        <link>static
+        <warnings>all
+        <toolset>gcc:<cxxflags>-Wextra
+        <toolset>gcc:<cxxflags>-Wno-unused-local-typedefs
+        <toolset>gcc:<cxxflags>-pedantic
+        <toolset>gcc:<cxxflags>-std=c++11
+    ;
+
+
+####################
+# Boost path
+
+path-constant boost-root : [ os.environ BOOST_ROOT ] ;
+use-project /boost : $(boost-root) ;
+
+
+
+####################
+# YTL lib
+
+path-constant ytl-part-root : ./ ;
+use-project /ytl : $(ytl-part-root) ;
+
+
+
+####################
+# libary path solver
+
+# add path to $(dependency-path)
+rule solve_library_path ( ytl-libname : path_env_name ) {
+    # search outer path
+    local target_path = [ path.join $(ytl-part-root) ".." $(ytl-libname) ] ;
+    
+    ECHO "This library requires \"$(ytl-libname)\". Already installed?" ;
+    ECHO "candidate \"$(target_path)\"" ;
+    
+    if ! [ path.exists $(target_path) ] {
+        ECHO "? -> path" $(target_path) "was not found." ;
+        ECHO "candidate ENV( $(path_env_name) )" ;
+        
+        # if not found, use environment variable
+        target_path = [ os.environ $(path_env_name) ] ;
+        if ! $(target_path) {
+            ECHO "! -> ENV( $(path_env_name) ) was not set." ;
+            ECHO "! -> also you can add [[ -s$(path_env_name)=/path/to/$(ytl-libname) ]] to command line options." ;
+            EXIT ;
+        }
+        ECHO "candidate \"$(target_path)\" <- ENV( $(path_env_name) )" ;
+        
+        if ! [ path.exists $(target_path) ] {
+            ECHO "! -> path" $(target_path) "was not found." ;
+            EXIT ;
+        }
+    }
+    
+    path-constant dependency-path : $(dependency-path) [ path.make $(target_path) ] ;
+}
+
+
+
+####################
+# ytl.assembler dependency
+
+ECHO "===== dependency =====" ;
+
+
+#
+# ytl-base
+solve_library_path "ytl-base" : "YTL_BASE_ROOT" ;
+
+
+
+ECHO "======================" ;
+ECHO ;
+
+
+
