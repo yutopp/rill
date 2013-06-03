@@ -4,7 +4,10 @@
 
 int main()
 {
-    parse( "!a = !a12\n");
+    auto const v = parse( "1*2 ;");
+    for( auto const& s : v.product ) {
+        s->eval();
+    }
 
     {char c; std::cin >> c;}
 }
