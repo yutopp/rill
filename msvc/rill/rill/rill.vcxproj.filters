@@ -1,0 +1,53 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="rill">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="libs">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="libs\rill">
+      <UniqueIdentifier>{dfcabf89-edc0-46b2-83f1-ddffa9fb9c18}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="libs\rill\src">
+      <UniqueIdentifier>{b22394e9-50b5-4ca6-880a-aebb44f6e540}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tools">
+      <UniqueIdentifier>{e0d28430-1472-4b2b-a27e-51ffd70e496d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tools\compiler">
+      <UniqueIdentifier>{a471a479-4c8c-479b-8312-a487ca62c577}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tools\compiler\src">
+      <UniqueIdentifier>{ba64c7d2-3c91-42ed-805e-f949963d763d}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\rill\environment.hpp">
+      <Filter>rill</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\environment_fwd.hpp">
+      <Filter>rill</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\parser.hpp">
+      <Filter>rill</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\structs.hpp">
+      <Filter>rill</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\libs\rill\src\environment.cpp">
+      <Filter>libs\rill\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\libs\rill\src\structs.cpp">
+      <Filter>libs\rill\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\tools\compiler\src\main.cpp">
+      <Filter>tools\compiler\src</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

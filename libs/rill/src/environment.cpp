@@ -1,5 +1,5 @@
-#include "environment.hpp"
-#include "structs.hpp"
+#include <rill/structs.hpp>
+#include <rill/environment.hpp>
 
     environment::environment()
         : symbol_type_( symbol_types::root_c )
