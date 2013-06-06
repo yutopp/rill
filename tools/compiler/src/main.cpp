@@ -2,13 +2,11 @@
 
 #include <rill/parser.hpp>
 
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
-#include <boost/enable_shared_from_this.hpp>
+#include <memory>
 
 
 #include <rill/environment.hpp>
-#include <rill/structs.hpp>
+
 
 struct compile_time_runtime
 {
@@ -28,16 +26,16 @@ void run( const_environment_ptr const& env, T const& prog )
 
 int main()
 {
-    auto const root_env = boost::make_shared<environment>();
+    auto const root_env = std::make_shared<environment>();
 
     {
-        auto add_int_int = boost::make_shared<native_function_definition_statement>(
+        auto add_int_int = std::make_shared<native_function_definition_statement>(
             "+"
             , []( std::vector<value_ptr> const& args ) -> value_ptr {
                 std::cout << args.size() << std::endl;
-                return boost::make_shared<literal::int32_value>(
-                          boost::dynamic_pointer_cast<literal::int32_value>( args[0] )->get_value()
-                          + boost::dynamic_pointer_cast<literal::int32_value>( args[1] )->get_value()
+                return std::make_shared<literal::int32_value>(
+                          std::dynamic_pointer_cast<literal::int32_value>( args[0] )->get_value()
+                          + std::dynamic_pointer_cast<literal::int32_value>( args[1] )->get_value()
                           );
               }
             );

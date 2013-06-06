@@ -1,13 +1,13 @@
-#include <rill/structs.hpp>
 #include <rill/environment.hpp>
-
-
+#include <rill/value.hpp>
+#include <rill/expression.hpp>
+#include <rill/statement.hpp>
 
     value::value()
     {}
 
     value::value( std::string const& simple_typename )
-        : type_labal_( boost::make_shared<literal::simple_type_value>( simple_typename ) )
+        : type_labal_( std::make_shared<literal::simple_type_value>( simple_typename ) )
     {}
 
     value::~value() {}
@@ -44,7 +44,7 @@ namespace literal
     // 
         type_value::type_value( bool const is_template_type, symbol_value::native_string_type const& simple_typename )
             : is_template_( is_template_type )
-            , simple_typename_( boost::make_shared<symbol_value>( simple_typename ) )
+            , simple_typename_( std::make_shared<symbol_value>( simple_typename ) )
         {}
 
         type_value::~type_value() {}
@@ -136,10 +136,10 @@ namespace literal
         v.push_back( evaled_lhs );
         v.push_back( evaled_rhs );
         ee->get_stmt();
-        boost::dynamic_pointer_cast<native_function_definition_statement>( ee->get_stmt() )->call( v );
+        std::dynamic_pointer_cast<native_function_definition_statement>( ee->get_stmt() )->call( v );
 
 
-        return boost::make_shared<value>( /**lhs_->eval() + *rhs_->eval()*/ );
+        return std::make_shared<value>( /**lhs_->eval() + *rhs_->eval()*/ );
     }
 
 
@@ -214,7 +214,7 @@ namespace literal
 
     void native_function_definition_statement::call( std::vector<value_ptr> const& args ) const
     {
-        std::cout << boost::dynamic_pointer_cast<literal::int32_value>( callee_( args ) )->get_value() << std::endl;;
+        std::cout << std::dynamic_pointer_cast<literal::int32_value>( callee_( args ) )->get_value() << std::endl;;
         //expression_->eval( env );
     }
 

@@ -27,9 +27,11 @@ namespace ascii = boost::spirit::ascii;
 
 
 
-#include "structs.hpp"
+#include "value.hpp"
+#include "expression.hpp"
+#include "statement.hpp"
 
-
+#include "environment.hpp"
 
 
 

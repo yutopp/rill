@@ -1,11 +1,9 @@
 #pragma once
 
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
-#include <boost/enable_shared_from_this.hpp>
+#include <memory>
 #include <unordered_map>
 
-#include "structs.hpp"
+#include "statement.hpp"
 
 typedef unsigned int    symbol_types_mask_t;
 enum struct symbol_types : symbol_types_mask_t
@@ -14,12 +12,12 @@ enum struct symbol_types : symbol_types_mask_t
 };
 
 class environment
-    : public boost::enable_shared_from_this<environment>
+    : public std::enable_shared_from_this<environment>
 {
     typedef environment                         self_type;
-    typedef boost::weak_ptr<self_type>            self_weak_pointer;
-    typedef boost::shared_ptr<self_type>          self_pointer;
-    typedef boost::shared_ptr<self_type const>    self_const_pointer;
+    typedef std::weak_ptr<self_type>            self_weak_pointer;
+    typedef std::shared_ptr<self_type>          self_pointer;
+    typedef std::shared_ptr<self_type const>    self_const_pointer;
     typedef std::string                         symbol_type;
 
 public:

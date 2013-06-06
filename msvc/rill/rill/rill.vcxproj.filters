@@ -24,6 +24,9 @@
     <Filter Include="tools\compiler\src">
       <UniqueIdentifier>{ba64c7d2-3c91-42ed-805e-f949963d763d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="rill\element">
+      <UniqueIdentifier>{9ec2fdd5-e8b1-4ab6-a9f8-48c72c09f1af}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\rill\environment.hpp">
@@ -37,6 +40,15 @@
     </ClInclude>
     <ClInclude Include="..\..\..\rill\structs.hpp">
       <Filter>rill</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\expression.hpp">
+      <Filter>rill\element</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\value.hpp">
+      <Filter>rill\element</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\statement.hpp">
+      <Filter>rill\element</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

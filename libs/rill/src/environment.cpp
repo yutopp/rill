@@ -1,5 +1,7 @@
-#include <rill/structs.hpp>
 #include <rill/environment.hpp>
+#include <rill/value.hpp>
+#include <rill/expression.hpp>
+#include <rill/statement.hpp>
 
     environment::environment()
         : symbol_type_( symbol_types::root_c )
@@ -25,7 +27,7 @@
             exit( -1 );
         }
 
-        return nodes_[symbol] = boost::make_shared<self_type>( shared_from_this(), sp );
+        return nodes_[symbol] = std::make_shared<self_type>( shared_from_this(), sp );
     }
 
     auto environment::lookup_env( std::string const& name ) const

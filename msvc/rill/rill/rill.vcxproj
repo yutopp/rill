@@ -66,8 +66,11 @@
   <ItemGroup>
     <ClInclude Include="..\..\..\rill\environment.hpp" />
     <ClInclude Include="..\..\..\rill\environment_fwd.hpp" />
+    <ClInclude Include="..\..\..\rill\expression.hpp" />
     <ClInclude Include="..\..\..\rill\parser.hpp" />
+    <ClInclude Include="..\..\..\rill\statement.hpp" />
     <ClInclude Include="..\..\..\rill\structs.hpp" />
+    <ClInclude Include="..\..\..\rill\value.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\libs\rill\src\environment.cpp" />
