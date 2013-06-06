@@ -25,180 +25,9 @@ namespace phx = boost::phoenix;
 namespace qi = boost::spirit::qi;
 namespace ascii = boost::spirit::ascii;
 
-// ----------------------------------------------------------------------
-// ----------------------------------------------------------------------
-//
-// values
-//
-// ----------------------------------------------------------------------
-// ----------------------------------------------------------------------
-enum struct value_spec
-{
-    constatnt = 0
-};
 
 
-
-class value
-{
-public:
-    virtual ~value() {}
-};
-typedef std::shared_ptr<value> value_ptr;
-
-class managed_value
-{
-};
-
-class literal_value
-    : public value
-{
-public:
-    virtual ~literal_value() {}
-};
-
-namespace literal
-{
-    class string_value
-        : public literal_value
-    {
-    public:
-        int32_value() {}
-
-    public:
-        static call_method()
-        {
-        }
-
-    private:
-    };
-
-    class int32_value
-        : public literal_value
-    {
-    public:
-        int32_value() {}
-
-    public:
-        static call_method()
-        {
-        }
-
-    private:
-    };
-}
-
-value_ptr make_value()
-{
-
-}
-
-
-// ----------------------------------------------------------------------
-// ----------------------------------------------------------------------
-//
-// expressions
-//
-// ----------------------------------------------------------------------
-// ----------------------------------------------------------------------
-class expression
-{
-public:
-    virtual ~expression() {}
-
-public:
-    virtual value_ptr eval() =0;
-};
-typedef std::shared_ptr<expression> expression_ptr;
-
-
-class term_expression
-    : public expression
-{
-public:
-    term_expression( int i )
-        : value_( std::make_shared<value>( i ) )
-    {}
-
-public:
-    value_ptr eval()
-    {
-        return value_;
-    }
-
-private:
-    value_ptr value_;
-};
-typedef std::shared_ptr<term_expression> term_expression_ptr;
-
-
-class binary_expression
-    : public expression
-{
-public:
-    binary_expression( expression_ptr const& lhs, std::string const& op, expression_ptr const& rhs )
-        : lhs_( lhs )
-        , op_( op )
-        , rhs_( rhs )
-    {}
-
-public:
-    value_ptr eval()
-    {
-        return std::make_shared<value>( *lhs_->eval() + *rhs_->eval() );
-    }
-
-private:
-    expression_ptr lhs_;
-    std::string op_;
-    expression_ptr rhs_;
-};
-typedef std::shared_ptr<binary_expression> binary_expression_ptr;
-
-
-// ----------------------------------------------------------------------
-// ----------------------------------------------------------------------
-//
-// statements
-//
-// ----------------------------------------------------------------------
-// ----------------------------------------------------------------------
-class statement
-{
-public:
-    virtual ~statement() {}
-
-public:
-    virtual void eval() =0;
-};
-typedef std::shared_ptr<statement> statement_ptr;
-
-
-class expression_statement
-    : public statement
-{
-public:
-    expression_statement( expression_ptr const& expr )
-        : expression_( expr )
-    {}
-
-public:
-    void eval()
-    {
-        std::cout << *expression_->eval() << std::endl;
-    }
-
-private:
-    expression_ptr expression_;
-};
-typedef std::shared_ptr<expression_statement> expression_statement_ptr;
-
-
-
-typedef std::string symbol;
-typedef std::vector<statement_ptr>  program;
-
-
+#include "structs.hpp"
 
 
 
@@ -246,7 +75,7 @@ public:
 
 
         outer_0_expression_
-            = ( term_expression_ >> "+" >> term_expression_ )[
+            = ( term_expression_ >> "*" >> term_expression_ )[
                 qi::_val
                     = phx::construct<binary_expression_ptr>(
                         phx::new_<binary_expression>(
@@ -260,14 +89,26 @@ public:
             ;
 
         term_expression_
-            = ( qi::int_ )[
+            = ( integer_literal_ )[
                 qi::_val
                     = phx::construct<term_expression_ptr>(
                         phx::new_<term_expression>(
                             qi::_1
                             )
                         )
-            ];
+              ];
+
+
+        integer_literal_
+            = ( qi::int_ )[
+                qi::_val
+                    = phx::construct<literal::int32_value_ptr>(
+                        phx::new_<literal::int32_value>(
+                            qi::_1
+                            )
+                        )
+                
+              ];
 /*        //
         top_level_statement_.name( "top_level_statement" );
         top_level_statement_ %= (
@@ -323,6 +164,8 @@ private:
 
     qi::rule<input_iterator, binary_expression_ptr(), ascii::space_type> outer_0_expression_;
     qi::rule<input_iterator, term_expression_ptr(), ascii::space_type> term_expression_;
+
+    qi::rule<input_iterator, value_ptr(), ascii::space_type> integer_literal_;
 /*
     qi::rule<input_iterator, statement(), ascii::space_type> top_level_statement_, statement_;
     qi::rule<input_iterator, assignment_statement(), ascii::space_type> assignment_statement_;
@@ -339,6 +182,11 @@ struct result
 {
     program product;
 };
+
+
+
+
+
 
 
 
@@ -370,7 +218,7 @@ try
     result r = { std::move( p ) };
     return r;
 }
-catch( qi::expectation_failure<input_iterator> const& e )
+catch( qi::expectation_failure<input_iterator> const& /*e*/ )
 {
     result r = {};
     return r;
