@@ -3,7 +3,9 @@
 #include <rill/expression.hpp>
 #include <rill/statement.hpp>
 
-    environment::environment()
+
+/*
+    single_identifier_environment_base::environment()
         : symbol_type_( symbol_types::root_c )
     {}
 
@@ -16,43 +18,84 @@
     environment::~environment()
     {}
 
+*/
 
-    auto environment::add_function( statement_ptr const& sp )
-        -> environment::self_pointer
+    auto single_identifier_environment_base::add_function(
+        function_definition_statement_base_ptr const& sp
+        ) -> env_pointer
     {
-        symbol_type const symbol = "+";
+        auto const name = sp->get_symbol_name()->get_native_symbol_string();
 
-        if ( nodes_.find( symbol ) != nodes_.cend() ) {
+        /*
+        if ( is_exist( symbol_name ) ) {
             // throw
             exit( -1 );
-        }
+        }*/
 
-        return nodes_[symbol] = std::make_shared<self_type>( shared_from_this(), sp );
+        auto const p = std::make_shared<has_parameter_environment>( shared_from_this(), sp );
+        //p->add_overload( shared_from_this(), sp->get_parameter_list(), sp );
+        //sp->get_parameter_list();
+
+        instanced_env_[name] = p;
+
+        return instanced_env_[name];
     }
 
-    auto environment::lookup_env( std::string const& name ) const
-        -> environment::self_const_pointer
+
+    auto single_identifier_environment_base::add_class( class_definition_statement_ptr const& sp )
+        -> env_pointer
     {
-        symbol_type const symbol = name;
+        auto const& name = sp->get_symbol_name()->get_native_symbol_string();
 
-        auto const& it = nodes_.find( symbol );
-        if ( it != nodes_.cend() ) {
-            return it->second;
+        instanced_env_[name] = std::make_shared<class_identifier_environment>( shared_from_this(), sp );
 
-        } else {
+        return instanced_env_[name];
+    }
+
+
+
+
+    
+
+
+    auto single_identifier_environment_base::lookup_env( /*TODO: change to identifier_ptr*/native_string_type const& name ) const
+        -> env_const_pointer
+    {
+        if ( auto const env = is_exist_in_instanced( name ) ) {
+            return *env;
+
+        }/* else {
             if ( has_parent() ) {
                 return parent_.lock()->lookup_env( name );
             } else {
                 return nullptr;
             }
-        }
+        }*/
+
+        exit( -1 );
+        return nullptr;
     }
 
+/*
     auto environment::get_stmt() const
         -> statement_ptr
     {
         return syntax_tree_;
     }
+
+
+ auto environment::is_exist( symbol_type const& symbol_name ) const
+        -> boost::optional<environment::self_pointer>
+ {
+     auto const& it = nodes_.find( symbol_name );
+     if ( it != nodes_.cend() )
+         return it->second;
+
+     return boost::none;
+ }
+
+
+
 
 
     bool environment::is_root() const
@@ -64,3 +107,4 @@
     {
         return is_root() && !parent_.expired();
     }
+    */

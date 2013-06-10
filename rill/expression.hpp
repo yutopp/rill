@@ -48,14 +48,14 @@ class binary_expression
     : public expression
 {
 public:
-    binary_expression( expression_ptr const& lhs, std::string const& op, expression_ptr const& rhs );
+    binary_expression( expression_ptr const& lhs, literal::identifier_value_ptr const& op, expression_ptr const& rhs );
 
 public:
     value_ptr eval( const_environment_ptr const& env );
 
 private:
     expression_ptr lhs_;
-    std::string op_;
+    literal::identifier_value_ptr op_;
     expression_ptr rhs_;
 };
 typedef std::shared_ptr<binary_expression> binary_expression_ptr;

@@ -38,11 +38,11 @@ namespace ascii = boost::spirit::ascii;
 
 
 
-typedef std::string                     input_type;
-typedef input_type::const_iterator      input_iterator;
 
+
+template<typename StringT, typename Iterator>
 class code_grammer
-    : public qi::grammar<input_iterator, program(), qi::locals<input_type>, ascii::space_type>
+    : public qi::grammar<Iterator, program(), qi::locals<StringT>, ascii::space_type>
 {
 public:
     code_grammer()
@@ -60,7 +60,8 @@ public:
         top_level_statement_.name( "top_level_statement" );
         top_level_statement_
             %= ( expression_statement_
-               ) > ";" > ( qi::eol | qi::eoi );
+               ) > ";" > ( qi::eol | qi::eoi )
+            ;
 
         //
         expression_statement_
@@ -82,7 +83,11 @@ public:
                     = phx::construct<binary_expression_ptr>(
                         phx::new_<binary_expression>(
                             qi::_1,
-                            phx::val( "dd" ),
+                            phx::bind( &literal::make_binary_operator_identifier,
+                                phx::construct<literal::symbol_value_ptr>(
+                                    phx::new_<literal::symbol_value>( "*" )
+                                    )
+                                ),
                             qi::_2
                             )
                         )
@@ -98,7 +103,8 @@ public:
                             qi::_1
                             )
                         )
-              ];
+              ]
+            ;
 
 
         integer_literal_
@@ -111,6 +117,49 @@ public:
                         )
                 
               ];
+
+        //auto p = ( -native_symbol_ )[ phx::if_else( qi::_0, phx::construct<literal::symbol_value_ptr>(), phx::construct<literal::symbol_value_ptr>() )]
+
+/**/
+        parameter_list_
+            = qi::lit( '(' ) >> ( parameter_pair_ % ',' ) >> qi::lit( ')' )
+            ;
+
+        parameter_pair_
+            = identifier_literal_ >> -identifier_literal_ >> -integer_literal_
+            ;
+
+        identifier_literal_
+           = simple_identifier_literal_;
+
+        simple_identifier_literal_
+            = native_symbol_string_[
+                qi::_val
+                    = phx::construct<literal::simple_identifier_value_ptr>(
+                        phx::new_<literal::simple_identifier_value>(
+                            qi::_1
+                            )
+                        )
+              ]
+            ;
+
+        native_symbol_
+            = native_symbol_string_[
+                qi::_val
+                    = phx::construct<literal::symbol_value_ptr>(
+                        phx::new_<literal::symbol_value>(
+                            qi::_1
+                            )
+                        )
+              ]
+            ;
+
+        native_symbol_string_
+            = qi::lexeme[ ascii::char_( "a-zA-Z" ) >> *ascii::alnum ]
+            ;
+
+
+
 /*        //
         top_level_statement_.name( "top_level_statement" );
         top_level_statement_ %= (
@@ -167,7 +216,17 @@ private:
     qi::rule<input_iterator, binary_expression_ptr(), ascii::space_type> outer_0_expression_;
     qi::rule<input_iterator, term_expression_ptr(), ascii::space_type> term_expression_;
 
-    qi::rule<input_iterator, value_ptr(), ascii::space_type> integer_literal_;
+    qi::rule<input_iterator, literal::int32_value_ptr(), ascii::space_type> integer_literal_;
+
+    qi::rule<input_iterator, parameter_list(), ascii::space_type> parameter_list_;
+    qi::rule<input_iterator, parameter_pair(), ascii::space_type> parameter_pair_;
+
+    qi::rule<input_iterator, literal::identifier_value_ptr(), ascii::space_type> identifier_literal_;
+    qi::rule<input_iterator, literal::simple_identifier_value_ptr(), ascii::space_type> simple_identifier_literal_;
+
+    qi::rule<input_iterator, literal::symbol_value_ptr()> native_symbol_;
+    qi::rule<input_iterator, native_string_t()> native_symbol_string_;
+
 /*
     qi::rule<input_iterator, statement(), ascii::space_type> top_level_statement_, statement_;
     qi::rule<input_iterator, assignment_statement(), ascii::space_type> assignment_statement_;
@@ -178,50 +237,3 @@ private:
 
     qi::rule<input_iterator, symbol()> lower_symbol_, upper_symbol_;*/
 };
-
-
-struct result
-{
-    program product;
-};
-
-
-
-
-
-
-
-
-
-
-
-
-auto parse( input_type const& source ) -> result
-try
-{
-    auto first      = source.cbegin();
-    auto const last = source.cend();
-
-    code_grammer grammer;
-    program p;
-
-    bool const success = qi::phrase_parse(
-                            first, last,
-                            grammer,
-                            boost::spirit::ascii::space,
-                            p
-                            );
-    if ( success ) {
-        std::cout << "true => " << ( first == last ) << std::endl;
-    } else {
-        std::cout << "false" << std::endl;
-    }
-
-    result r = { std::move( p ) };
-    return r;
-}
-catch( qi::expectation_failure<input_iterator> const& /*e*/ )
-{
-    result r = {};
-    return r;
-}
