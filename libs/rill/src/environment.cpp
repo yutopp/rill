@@ -24,7 +24,7 @@
         function_definition_statement_base_ptr const& sp
         ) -> env_pointer
     {
-        auto const name = sp->get_symbol_name()->get_native_symbol_string();
+        auto const name = sp->get_identifier()->get_last_symbol()->get_native_symbol_string();
 
         /*
         if ( is_exist( symbol_name ) ) {
@@ -58,9 +58,11 @@
     
 
 
-    auto single_identifier_environment_base::lookup_env( /*TODO: change to identifier_ptr*/native_string_type const& name ) const
+    auto single_identifier_environment_base::lookup_env( literal::identifier_value_ptr const& identifier ) const
         -> env_const_pointer
     {
+        auto const& name = identifier->get_last_symbol()->get_native_symbol_string(); // TODO: change to do namespace search.
+
         if ( auto const env = is_exist_in_instanced( name ) ) {
             return *env;
 

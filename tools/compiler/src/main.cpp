@@ -131,8 +131,8 @@ int main()
 
         auto add_int_int = std::make_shared<native_function_definition_statement>(
             bin_op_function_name,
-            int_type,
             parameters,
+            int_type,
             []( std::vector<value_ptr> const& args ) -> value_ptr {
                 std::cout << args.size() << std::endl;
                 return std::make_shared<literal::int32_value>(

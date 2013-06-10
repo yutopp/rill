@@ -27,6 +27,9 @@
     <Filter Include="rill\element">
       <UniqueIdentifier>{9ec2fdd5-e8b1-4ab6-a9f8-48c72c09f1af}</UniqueIdentifier>
     </Filter>
+    <Filter Include="rill\pass">
+      <UniqueIdentifier>{f310b27c-8456-4d30-a951-52b633c38ddc}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\rill\environment.hpp">
@@ -36,9 +39,6 @@
       <Filter>rill</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\rill\parser.hpp">
-      <Filter>rill</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\rill\structs.hpp">
       <Filter>rill</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\rill\expression.hpp">
@@ -53,20 +53,26 @@
     <ClInclude Include="..\..\..\rill\tree_visitor_base.hpp">
       <Filter>rill\element</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\rill\instantiation_and_semantic_analysis_pass.hpp">
-      <Filter>rill</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\rill\interpret_pass.hpp">
-      <Filter>rill</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\rill\make_syntax_tree.hpp">
       <Filter>rill</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\rill\statement_fwd.hpp">
-      <Filter>rill</Filter>
+      <Filter>rill\element</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\rill\list_identifier_pass.hpp">
-      <Filter>rill</Filter>
+      <Filter>rill\pass</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\interpret_pass.hpp">
+      <Filter>rill\pass</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\instantiation_and_semantic_analysis_pass.hpp">
+      <Filter>rill\pass</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\expression_fwd.hpp">
+      <Filter>rill\element</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\value_fwd.hpp">
+      <Filter>rill\element</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -75,9 +81,6 @@
     </ClCompile>
     <ClCompile Include="..\..\..\tools\compiler\src\main.cpp">
       <Filter>tools\compiler\src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\libs\rill\src\expression.cpp">
-      <Filter>libs\rill\src</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\libs\rill\src\value.cpp">
       <Filter>libs\rill\src</Filter>

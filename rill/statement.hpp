@@ -55,7 +55,7 @@ struct template_statement
 
 
 
-class expression_statement
+struct expression_statement
     : public statement
 {
     ADAPT_STATEMENT_VISITOR( expression_statement )
@@ -65,7 +65,7 @@ public:
         : expression_( expr )
     {}
 
-private:
+public:
     expression_ptr const expression_;
 };
 
@@ -81,19 +81,19 @@ struct function_definition_statement_base
 public:
     function_definition_statement_base(
         literal::identifier_value_ptr const& symbol_name,
-        literal::identifier_value_ptr const& return_type,
-        parameter_list const& parameter_list
+        parameter_list const& parameter_list,
+        literal::identifier_value_ptr const& return_type
         )
-        : symbol_name_( symbol_name )
-        , return_type_( return_type )
+        : identifier_( symbol_name )
         , parameter_list_( parameter_list )
+        , return_type_( return_type )
     {}
 
 public:
-    auto get_symbol_name() const
+    auto get_identifier() const
         -> literal::identifier_value_ptr
     {
-        return symbol_name_;
+        return identifier_;
     }
 
     auto get_parameter_list() const
@@ -103,9 +103,9 @@ public:
     }
 
 private:
-    literal::identifier_value_ptr symbol_name_;
-    literal::identifier_value_ptr return_type_;
+    literal::identifier_value_ptr identifier_;
     parameter_list parameter_list_;
+    literal::identifier_value_ptr return_type_;
 };
 
 
@@ -173,26 +173,16 @@ struct native_function_definition_statement
 public:
     native_function_definition_statement(
         literal::identifier_value_ptr const& symbol_name,
-        literal::identifier_value_ptr const& return_type,
         parameter_list const& parameter_list,
+        literal::identifier_value_ptr const& return_type,
         native_function_t const& callee
         )
-        : function_definition_statement_base( symbol_name, return_type, parameter_list )
+        : function_definition_statement_base( symbol_name, parameter_list, return_type )
         , callee_( callee )
     {}
 
-public:/*
-    void setup_environment( environment_ptr const& ) const;
-
-    void call( std::vector<value_ptr> const& ) const;
-
-    void eval( const_environment_ptr const& env ) const;
-
-    void instantiation( environment_ptr const& root_env ) const;
-    void semantic_analysis( environment_ptr const& root_env ) const;*/
-
-private:
-    native_function_t callee_;
+public:
+    native_function_t const callee_;
 };
 
 
@@ -214,7 +204,7 @@ public:
 public:
     //void setup_environment( environment_ptr const& ) const {}
 
-    auto get_identifier_name() const
+    auto get_identifier() const
         -> literal::identifier_value_ptr
     {
         return identifier_;
@@ -225,8 +215,6 @@ public:
     {
         return identifier_->get_last_symbol();
     }
-
-    //void eval( const_environment_ptr const& env ) const {}
 
 private:
     literal::identifier_value_ptr identifier_;

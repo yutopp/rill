@@ -11,13 +11,13 @@
 #include <boost/spirit/include/phoenix_bind.hpp>
 
 #include <boost/fusion/include/adapt_struct.hpp>
-#include <boost/variant/recursive_variant.hpp>
-#include <boost/foreach.hpp>
+//#include <boost/variant/recursive_variant.hpp>
+//#include <boost/foreach.hpp>
 
 #include <iostream>
-#include <fstream>
+//#include <fstream>
 #include <string>
-#include <vector>
+//#include <vector>
 #include <memory>
 
 namespace fusion = boost::fusion;
@@ -31,7 +31,7 @@ namespace ascii = boost::spirit::ascii;
 #include "expression.hpp"
 #include "statement.hpp"
 
-#include "environment.hpp"
+//#include "environment.hpp"
 
 
 

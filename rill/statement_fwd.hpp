@@ -26,7 +26,7 @@ struct template_statement;
 
 
 
-class expression_statement;
+struct expression_statement;
 typedef std::shared_ptr<expression_statement> expression_statement_ptr;
 
 

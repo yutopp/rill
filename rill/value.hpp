@@ -2,7 +2,7 @@
 
 #include <vector>
 #include <string>
-#include <memory>
+#include "value_fwd.hpp"
 
 #include "environment_fwd.hpp"
 
@@ -20,39 +20,37 @@ enum struct value_spec
 };
 
 
-// forward declare
-namespace literal
-{
-    class identifier_value;
-}
-
 
 typedef std::string     native_string_t;
 
-class value
+
+
+struct value
 {
     typedef std::shared_ptr<literal::identifier_value const>  typed_label_type;
 
 public:
-    value();
+    value() {}
     value( native_string_t const& simple_typename );
 
-    virtual ~value();
+    virtual ~value() {}
 
 public:
-    bool is_typed() const;
+    bool is_typed() const
+    {
+        return type_labal_.use_count() != 0;
+    }
 
-    auto type() const -> typed_label_type;
-
-private:
+public:
     typed_label_type type_labal_;
 };
-typedef std::shared_ptr<value> value_ptr;
 
-//
-class managed_value
-{
-};
+
+
+
+
+
+
 
 //
 class literal_value
@@ -66,7 +64,8 @@ public:
         : value( name )
     {}
 
-    virtual ~literal_value();
+    virtual ~literal_value()
+    {};
 };
 
 
@@ -76,14 +75,16 @@ public:
 
 namespace literal
 {
-    class symbol_value
+    struct symbol_value
         : public literal_value
     {
     public:
         typedef std::string     native_string_type;
 
     public:
-        symbol_value( native_string_type const& );
+        symbol_value( native_string_type const& name )
+            : value_( name )
+        {}
 
     public:
         auto get_native_symbol_string() const
@@ -95,7 +96,6 @@ namespace literal
     private:
         native_string_type value_;
     };
-    typedef std::shared_ptr<symbol_value> symbol_value_ptr;
 
     inline auto make_symbol(
         symbol_value::native_string_type const& native_symbol_name
@@ -120,7 +120,7 @@ namespace literal
 
 
     // 
-    class identifier_value
+    struct identifier_value
         : public literal_value
     {
     public:
@@ -134,13 +134,6 @@ namespace literal
 
     public:
         bool is_template() const;
-
-        // test implementetion TODO: remove it
-        auto get_native_symbol_string() const
-            -> native_string_t
-        {
-            return simple_name_->get_native_symbol_string();
-        }
 
         virtual auto template_parameters() const -> template_parameters_pointer;
 
@@ -165,7 +158,7 @@ namespace literal
 
 
     //
-    class simple_identifier_value
+    struct simple_identifier_value
         : public identifier_value
     {
     public:
@@ -212,7 +205,7 @@ namespace literal
 
 
 
-    class int32_value
+    struct int32_value
         : public literal_value
     {
     public:
@@ -221,8 +214,8 @@ namespace literal
     public:
         int get_value() const;
 
-    private:
-        int value_;
+    public:
+        int const value_;
     };
     typedef std::shared_ptr<int32_value> int32_value_ptr;
 }
@@ -269,3 +262,11 @@ inline auto make_parameter_list(
 
     return pl;
 }
+
+
+
+
+
+
+#include <iostream>
+std::ostream& operator<<( std::ostream& os, value_ptr const& vp );

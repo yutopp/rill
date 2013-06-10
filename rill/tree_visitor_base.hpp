@@ -4,8 +4,8 @@
 
 #include "environment_fwd.hpp"
 
-//#include "value.hpp"
-//#include "expression.hpp"
+#include "value_fwd.hpp"
+#include "expression_fwd.hpp"
 #include "statement_fwd.hpp"
 
 struct tree_visitor_base
@@ -28,16 +28,20 @@ public:
 
 
     // expression
+    virtual value_ptr operator()( term_expression const& s, environment_ptr const& env ) const =0;
+    virtual value_ptr operator()( binary_expression const& s, environment_ptr const& env ) const =0;
 
     // value
 
 public:
     // filter outdated object
     template<typename T>
-    void operator()( T const& node, environment_ptr const& env ) const
+    nullptr_t operator()( T const& node, environment_ptr const& env ) const
     {
         std::cerr
             << "DEBUG: message. please implement it!" << std::endl
             << "-> " << typeid(T).name() << std::endl;
+
+        return nullptr;
     }
 };

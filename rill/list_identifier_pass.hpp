@@ -26,4 +26,16 @@ struct list_identifier_pass
     {
         //env->add_class( s );
     }
+
+
+    //
+    value_ptr operator()( term_expression const& s, environment_ptr const& env ) const
+    {
+        return nullptr;
+    }
+
+    value_ptr operator()( binary_expression const& s, environment_ptr const& env ) const
+    {
+        return nullptr;
+    }
 };

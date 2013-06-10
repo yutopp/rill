@@ -61,7 +61,7 @@ public:
     virtual auto add_class( class_definition_statement_ptr const& ) -> env_pointer { return nullptr; }
     virtual auto add_function( function_definition_statement_base_ptr const& ) -> env_pointer { return nullptr; }
 
-    virtual auto lookup_env( native_string_type const& name ) const
+    virtual auto lookup_env( literal::identifier_value_ptr const& name ) const
         -> env_const_pointer =0;
 
     virtual auto get_stmt() const
@@ -89,7 +89,7 @@ public:
     {}
 
 public:
-    auto lookup_env( native_string_type const& name ) const
+    auto lookup_env( literal::identifier_value_ptr const& name ) const
         -> env_const_pointer RILL_CXX11_OVERRIDE
     { return nullptr; };
 
@@ -124,7 +124,7 @@ public:
 
 
 
-    auto lookup_env( native_string_type const& name ) const
+    auto lookup_env( literal::identifier_value_ptr const& name ) const
         -> env_const_pointer;
     
     virtual auto get_stmt() const
@@ -204,7 +204,7 @@ public:
     {}
 
 public:
-    auto lookup_env( native_string_type const& name ) const
+    auto lookup_env( literal::identifier_value_ptr const& name ) const
         -> env_const_pointer
     { return nullptr; };
 

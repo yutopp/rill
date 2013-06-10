@@ -2,12 +2,12 @@
 
 #include <vector>
 #include <string>
-#include <memory>
+#include "expression_fwd.hpp"
 
 #include "value.hpp"
 
 #include "environment_fwd.hpp"
-
+#include "tree_visitor_base.hpp"
 
 // ----------------------------------------------------------------------
 // ----------------------------------------------------------------------
@@ -16,46 +16,58 @@
 //
 // ----------------------------------------------------------------------
 // ----------------------------------------------------------------------
-class expression
+struct expression
 {
 public:
-    virtual ~expression();
+    virtual ~expression() {}
 
 public:
-    virtual value_ptr eval( const_environment_ptr const& env ) =0;
+    virtual value_ptr dispatch( tree_visitor_base const&, environment_ptr const& ) const =0;
 };
-typedef std::shared_ptr<expression> expression_ptr;
+
+//
+#define ADAPT_EXPRESSION_VISITOR( class_name ) \
+    public: \
+        virtual value_ptr dispatch( tree_visitor_base const& visitor, environment_ptr const& env ) const \
+        { \
+            return visitor( *this, env ); \
+        }
 
 
 
-class term_expression
+struct term_expression
     : public expression
 {
-public:
-    term_expression( value_ptr const& v );
+    ADAPT_EXPRESSION_VISITOR( term_expression )
 
 public:
-    value_ptr eval( const_environment_ptr const& env );
+    term_expression( value_ptr const& v )
+        : value_( v )
+    {}
 
-private:
-    value_ptr value_;
+public:
+    value_ptr const value_;
 };
-typedef std::shared_ptr<term_expression> term_expression_ptr;
 
 
 
-class binary_expression
+struct binary_expression
     : public expression
 {
-public:
-    binary_expression( expression_ptr const& lhs, literal::identifier_value_ptr const& op, expression_ptr const& rhs );
+    ADAPT_EXPRESSION_VISITOR( binary_expression )
 
 public:
-    value_ptr eval( const_environment_ptr const& env );
+    binary_expression( expression_ptr const& lhs, literal::identifier_value_ptr const& op, expression_ptr const& rhs )
+        : lhs_( lhs )
+        , op_( op )
+        , rhs_( rhs )
+    {}
 
-private:
-    expression_ptr lhs_;
-    literal::identifier_value_ptr op_;
-    expression_ptr rhs_;
+public:
+    expression_ptr const lhs_;
+    literal::identifier_value_ptr const op_;
+    expression_ptr const rhs_;
 };
-typedef std::shared_ptr<binary_expression> binary_expression_ptr;
+
+
+#undef ADAPT_EXPRESSION_VISITOR

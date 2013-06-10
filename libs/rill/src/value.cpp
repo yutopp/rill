@@ -6,32 +6,11 @@
 
 #include <rill/environment.hpp>
 
-    //
-    value::value()
-    {}
 
-    value::value( std::string const& simple_typename )
+
+    value::value( native_string_t const& simple_typename )
         : type_labal_( std::make_shared<literal::simple_identifier_value>( simple_typename ) )
     {}
-
-    value::~value() {}
-
-    bool value::is_typed() const
-    {
-        return !type_labal_.use_count() != 0;
-    }
-
-    auto value::type() const -> typed_label_type
-    {
-        return type_labal_;
-    }
-
-
-
-
-//
-literal_value::~literal_value() {}
-
 
 
 
@@ -39,9 +18,7 @@ literal_value::~literal_value() {}
 
 namespace literal
 {
-        symbol_value::symbol_value( native_string_type const& )
-        {
-        }
+
 
 
 
@@ -92,4 +69,22 @@ namespace literal
         {
             return value_;
         }
+}
+
+
+std::ostream& operator<<( std::ostream& os, value_ptr const& vp )
+{
+    os << "!debug value output: " << std::endl;
+    if ( vp->is_typed() ) {
+        os << "  type  is " << vp->type_labal_->get_last_symbol()->get_native_symbol_string() << std::endl;
+        if ( vp->type_labal_->get_last_symbol()->get_native_symbol_string() == "int" ) {
+            os << "  value is " << std::dynamic_pointer_cast<literal::int32_value>( vp )->value_ << std::endl;
+        } else {
+            os << "  value is unknown." << std::endl;
+        }
+    } else {
+        os << "  NOT typed value." << std::endl;
+    }
+
+    return os;
 }
