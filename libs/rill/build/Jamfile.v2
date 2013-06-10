@@ -1,0 +1,27 @@
+project rill/lib
+    : source-location ../src
+    : requirements
+        <warnings>all
+        <toolset>gcc:<cxxflags>-Wextra
+        <toolset>gcc:<cxxflags>-pedantic
+        <toolset>gcc:<cxxflags>-Wno-long-long
+        <toolset>clang:<cxxflags>-Wextra
+        <toolset>clang:<cxxflags>-pedantic
+        <toolset>clang:<cxxflags>-Wno-long-long
+    : usage-requirements
+    ;
+
+SOURCES =
+    value
+	environment
+	make_syntax_tree
+	;
+
+ 
+lib librill
+    : $(SOURCES).cpp
+    :
+        <link>shared:<define>BOOST_ALL_DYN_LINK=1
+        <link>static:<define>BOOST_All_STATIC_LINK=1
+    ;
+
