@@ -223,27 +223,38 @@ namespace literal
 
 struct parameter_pair
 {
-    literal::identifier_value_ptr type;
     literal::identifier_value_ptr name;
+    literal::identifier_value_ptr type;
     value_ptr default_value; // TODO: change to expresison
 };
 
 #include <boost/fusion/include/adapt_struct.hpp>
 BOOST_FUSION_ADAPT_STRUCT(
     parameter_pair,
-    (literal::identifier_value_ptr,   type)
     (literal::identifier_value_ptr, name)
-    (value_ptr,                 default_value)
+    (literal::identifier_value_ptr, type)
+    (value_ptr,                     default_value)
 )
 
 inline auto make_parameter_pair(
+    literal::identifier_value_ptr const& name,
     literal::identifier_value_ptr const& type,
-    literal::identifier_value_ptr const& name = nullptr,
     value_ptr const& default_value = nullptr
     )
     -> parameter_pair
 {
-    parameter_pair ap = { type, name, default_value };
+    parameter_pair ap = { name, type, default_value };
+
+    return ap;
+}
+
+inline auto make_parameter_pair(
+    literal::identifier_value_ptr const& type,
+    value_ptr const& default_value = nullptr
+    )
+    -> parameter_pair
+{
+    parameter_pair ap = { nullptr, type, default_value };
 
     return ap;
 }

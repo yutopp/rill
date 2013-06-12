@@ -33,6 +33,44 @@ public:
             return visitor( *this, env ); \
         }
 
+typedef std::vector<expression_ptr>     expression_list;
+
+
+
+struct binary_operator_expression
+    : public expression
+{
+    ADAPT_EXPRESSION_VISITOR( binary_operator_expression )
+
+public:
+    binary_operator_expression( expression_ptr const& lhs, literal::identifier_value_ptr const& op, expression_ptr const& rhs )
+        : lhs_( lhs )
+        , op_( op )
+        , rhs_( rhs )
+    {}
+
+public:
+    expression_ptr const lhs_;
+    literal::identifier_value_ptr const op_;
+    expression_ptr const rhs_;
+};
+
+
+struct function_call_expression
+    : public expression
+{
+    ADAPT_EXPRESSION_VISITOR( function_call_expression )
+
+public:
+    function_call_expression( literal::identifier_value_ptr const& caller, expression_list const& arguments )
+        : caller_( caller )
+        , arguments_( arguments )
+    {}
+
+public:
+    literal::identifier_value_ptr const caller_;
+    expression_list const arguments_;
+};
 
 
 struct term_expression
@@ -48,26 +86,5 @@ public:
 public:
     value_ptr const value_;
 };
-
-
-
-struct binary_expression
-    : public expression
-{
-    ADAPT_EXPRESSION_VISITOR( binary_expression )
-
-public:
-    binary_expression( expression_ptr const& lhs, literal::identifier_value_ptr const& op, expression_ptr const& rhs )
-        : lhs_( lhs )
-        , op_( op )
-        , rhs_( rhs )
-    {}
-
-public:
-    expression_ptr const lhs_;
-    literal::identifier_value_ptr const op_;
-    expression_ptr const rhs_;
-};
-
 
 #undef ADAPT_EXPRESSION_VISITOR

@@ -30,6 +30,9 @@
     <Filter Include="rill\pass">
       <UniqueIdentifier>{f310b27c-8456-4d30-a951-52b633c38ddc}</UniqueIdentifier>
     </Filter>
+    <Filter Include="rill\config">
+      <UniqueIdentifier>{b9647729-911b-4582-855e-02527336bf8c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\rill\environment.hpp">
@@ -73,6 +76,9 @@
     </ClInclude>
     <ClInclude Include="..\..\..\rill\value_fwd.hpp">
       <Filter>rill\element</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\config\macros.hpp">
+      <Filter>rill\config</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

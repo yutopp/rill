@@ -2,37 +2,16 @@ import os ;
 import path ;
 
 ####################
-#
-project stark
-    : requirements
-        <define>BOOST_ALL_NO_LIB
-        <include>$(boost-root)
-        <include>$(ytl-part-root)
-        <include>$(dependency-path)
-        <library>/boost/test//boost_unit_test_framework
-        <link>static
-        <warnings>all
-        <toolset>gcc:<cxxflags>-Wextra
-        <toolset>gcc:<cxxflags>-Wno-unused-local-typedefs
-        <toolset>gcc:<cxxflags>-pedantic
-        <toolset>gcc:<cxxflags>-std=c++11
-    ;
-
-
-####################
 # Boost path
 
 path-constant boost-root : [ os.environ BOOST_ROOT ] ;
 use-project /boost : $(boost-root) ;
 
 
-
 ####################
 # YTL lib
 
-path-constant ytl-part-root : ./ ;
-use-project /ytl : $(ytl-part-root) ;
-
+path-constant ytl-dists-root : ./ ;
 
 
 ####################
@@ -41,7 +20,7 @@ use-project /ytl : $(ytl-part-root) ;
 # add path to $(dependency-path)
 rule solve_library_path ( ytl-libname : path_env_name ) {
     # search outer path
-    local target_path = [ path.join $(ytl-part-root) ".." $(ytl-libname) ] ;
+    local target_path = [ path.join $(ytl-dists-root) ".." $(ytl-libname) ] ;
     
     ECHO "This library requires \"$(ytl-libname)\". Already installed?" ;
     ECHO "candidate \"$(target_path)\"" ;
@@ -69,16 +48,15 @@ rule solve_library_path ( ytl-libname : path_env_name ) {
 }
 
 
-
 ####################
-# ytl.assembler dependency
+# ytl libraries dependency
 
 ECHO "===== dependency =====" ;
 
 
 #
 # ytl-base
-solve_library_path "ytl-base" : "YTL_BASE_ROOT" ;
+# solve_library_path "ytl-base" : "YTL_BASE_ROOT" ;
 
 
 
@@ -86,4 +64,18 @@ ECHO "======================" ;
 ECHO ;
 
 
-
+####################
+# project
+project rill
+    : requirements
+        <define>BOOST_ALL_NO_LIB
+        <include>$(boost-root)
+        <include>$(ytl-dists-root)
+        <include>$(dependency-path)
+        #<link>static
+        <warnings>all
+        <toolset>gcc:<cxxflags>-Wextra
+        <toolset>gcc:<cxxflags>-Wno-unused-local-typedefs
+        <toolset>gcc:<cxxflags>-pedantic
+        <toolset>gcc:<cxxflags>-std=c++11
+    ;

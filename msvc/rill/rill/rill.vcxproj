@@ -64,6 +64,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\rill\config\macros.hpp" />
     <ClInclude Include="..\..\..\rill\expression_fwd.hpp" />
     <ClInclude Include="..\..\..\rill\instantiation_and_semantic_analysis_pass.hpp" />
     <ClInclude Include="..\..\..\rill\interpret_pass.hpp" />

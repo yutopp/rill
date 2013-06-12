@@ -29,6 +29,9 @@ struct interpret_pass<runtime_interpret_tag>
             << s.expression_->dispatch( *this, env ) << std::endl;
     }
 
+    void operator()( function_definition_statement& s, environment_ptr const& env ) const
+    {
+    }
     // virtual void operator()( native_function_definition_statement const& s, environment_ptr const& env ) const =0;
 
     void operator()( class_definition_statement const& s, environment_ptr const& env ) const
@@ -38,12 +41,7 @@ struct interpret_pass<runtime_interpret_tag>
 
 
     //
-    value_ptr operator()( term_expression const& s, environment_ptr const& env ) const
-    {
-        return s.value_ /* todo call dispatch */;
-    }
-
-    value_ptr operator()( binary_expression const& s, environment_ptr const& env ) const
+    value_ptr operator()( binary_operator_expression const& s, environment_ptr const& env ) const
     {
         // test implementation
 
@@ -61,5 +59,15 @@ struct interpret_pass<runtime_interpret_tag>
         v.push_back( evaled_rhs );
 
         return std::dynamic_pointer_cast<native_function_definition_statement>( ee->get_stmt() )->callee_( v );
+    }
+
+    value_ptr operator()( function_call_expression const& s, environment_ptr const& env ) const
+    {
+        return nullptr;
+    }
+
+    value_ptr operator()( term_expression const& s, environment_ptr const& env ) const
+    {
+        return s.value_ /* todo call dispatch */;
     }
 };

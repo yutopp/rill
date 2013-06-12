@@ -17,7 +17,7 @@
 #include <iostream>
 //#include <fstream>
 #include <string>
-//#include <vector>
+#include <vector>
 #include <memory>
 
 namespace fusion = boost::fusion;
@@ -35,7 +35,17 @@ namespace ascii = boost::spirit::ascii;
 
 
 
-
+auto make_binary_operator_tree( expression_ptr const& lhs, native_string_t const& op, expression_ptr const& rhs )
+    -> expression_ptr
+{
+    return std::make_shared<binary_operator_expression>(
+            lhs,
+            literal::make_binary_operator_identifier(
+                std::make_shared<literal::symbol_value>( op )
+                ),
+            rhs
+            );
+}
 
 
 
@@ -54,18 +64,46 @@ public:
 
         //
         program_.name( "program" );
-        program_ %= *top_level_statement_;
+        program_ %= top_level_statement_ > ( qi::eol | qi::eoi );// 
 
         //
         top_level_statement_.name( "top_level_statement" );
         top_level_statement_
-            %= ( expression_statement_
-               ) > ";" > ( qi::eol | qi::eoi )
+            %= *( expression_statement_
+                | function_definition_statement_
+                )
             ;
+        
+        //
+        //block_ = 
+
+        //top_level_statement_
+
+        //
+        function_definition_statement_
+            = ( qi::lit( "def" )
+              > identifier_literal_
+              > parameter_list_
+              > qi::lit( ":" )
+              > identifier_literal_
+              > qi::lit( "{" ) > top_level_statement_ > qi::lit( "}" )
+              )[
+                qi::_val
+                    = phx::construct<function_definition_statement_ptr>(
+                        phx::new_<function_definition_statement>(
+                            qi::_1,
+                            qi::_2,
+                            qi::_3,
+                            qi::_4
+                            )
+                        )
+              ]
+            ;
+
 
         //
         expression_statement_
-            = outer_0_expression_[
+            = ( expression_priority_[ExpressionHierarchyNum-1] >> statement_termination_ )[
                 qi::_val
                     = phx::construct<expression_statement_ptr>(
                         phx::new_<expression_statement>(
@@ -77,33 +115,41 @@ public:
 
 
 
-        outer_0_expression_
-            = ( term_expression_ >> "*" >> term_expression_ )[
-                qi::_val
-                    = phx::construct<binary_expression_ptr>(
-                        phx::new_<binary_expression>(
-                            qi::_1,
-                            phx::bind( &literal::make_binary_operator_identifier,
-                                phx::construct<literal::symbol_value_ptr>(
-                                    phx::new_<literal::symbol_value>( "*" )
-                                    )
-                                ),
-                            qi::_2
-                            )
-                        )
-              ]
-            | term_expression_
+
+
+
+
+
+
+        expression_priority_[2]
+            = expression_priority_[1][qi::_val = qi::_1]
+            >> *( ( qi::lit( "+" ) >> expression_priority_[1] )[qi::_val = phx::bind( &make_binary_operator_tree, qi::_val, "+", qi::_1 )]
+                | ( qi::lit( "-" ) >> expression_priority_[1] )[qi::_val = phx::bind( &make_binary_operator_tree, qi::_val, "-", qi::_1 )]
+                )
+            ;
+
+        expression_priority_[1]
+            = expression_priority_[0][qi::_val = qi::_1]
+            >> *( ( qi::lit( "*" ) >> expression_priority_[0] )[qi::_val = phx::bind( &make_binary_operator_tree, qi::_val, "*", qi::_1 )]
+                | ( qi::lit( "/" ) >> expression_priority_[0] )[qi::_val = phx::bind( &make_binary_operator_tree, qi::_val, "/", qi::_1 )]
+                )
+            ;
+
+        expression_priority_[0]
+            %= term_expression_
             ;
 
         term_expression_
-            = ( integer_literal_ )[
-                qi::_val
-                    = phx::construct<term_expression_ptr>(
+            = ( integer_literal_
+               )[
+                   qi::_val = phx::construct<term_expression_ptr>(
                         phx::new_<term_expression>(
                             qi::_1
                             )
                         )
-              ]
+               ]
+             | ( ( qi::lit( '(' ) >> expression_priority_[ExpressionHierarchyNum-1] >> qi::lit( ')' ) )[qi::_val = qi::_1]
+               )
             ;
 
 
@@ -126,7 +172,8 @@ public:
             ;
 
         parameter_pair_
-            = identifier_literal_ >> -identifier_literal_ >> -integer_literal_
+           // name( optional )      | type                 | default_initializer( optional )
+            = -identifier_literal_ >> qi::lit( ':' ) >> identifier_literal_ >> -( qi::lit( '(' ) > integer_literal_ > qi::lit( ')' ) )
             ;
 
         identifier_literal_
@@ -155,9 +202,11 @@ public:
             ;
 
         native_symbol_string_
-            = qi::lexeme[ ascii::char_( "a-zA-Z" ) >> *ascii::alnum ]
+            = qi::lexeme[ ascii::char_( "a-zA-Z" ) >> *ascii::alnum ] // TODO: add '_' charactor
             ;
 
+        //
+        statement_termination_ = qi::lit( ';' );
 
 
 /*        //
@@ -193,16 +242,17 @@ public:
         upper_symbol_ %= qi::lexeme[ ascii::char_("A-Z") >> *ascii::alnum ];*/
 
 
-        //
-        qi::on_error<qi::fail>
+        // error handring...
+        // if failed, show error messages and force accept this grammer step.
+        qi::on_error<qi::accept>
         (
             program_,
             std::cout
-                << phx::val("Error! Expecting ")
-                << _4                               // what failed?
-                << phx::val(" here: \"")
-                << phx::construct<std::string>(_3, _2)   // iterators to error-pos, end
-                << phx::val("\"")
+                << phx::val( "Error! Expecting " )
+                << _4                                       // what failed?
+                << phx::val( " here: \"" )
+                << phx::construct<std::string>( _3, _2 )    // iterators to error-pos, end
+                << phx::val( "\"" )
                 << std::endl
         );
     }
@@ -210,11 +260,13 @@ public:
 private:
     qi::rule<input_iterator, program(), qi::locals<input_type>, ascii::space_type> program_;
 
-    qi::rule<input_iterator, statement_ptr(), ascii::space_type> top_level_statement_;
+    qi::rule<input_iterator, statement_list(), ascii::space_type> top_level_statement_;
+    qi::rule<input_iterator, function_definition_statement_ptr(), ascii::space_type> function_definition_statement_;
     qi::rule<input_iterator, expression_statement_ptr(), ascii::space_type> expression_statement_;
 
-    qi::rule<input_iterator, binary_expression_ptr(), ascii::space_type> outer_0_expression_;
-    qi::rule<input_iterator, term_expression_ptr(), ascii::space_type> term_expression_;
+    static std::size_t const ExpressionHierarchyNum = 3;
+    qi::rule<input_iterator, expression_ptr(), ascii::space_type> expression_priority_[ExpressionHierarchyNum];
+    qi::rule<input_iterator, expression_ptr(), ascii::space_type> term_expression_;
 
     qi::rule<input_iterator, literal::int32_value_ptr(), ascii::space_type> integer_literal_;
 
@@ -226,6 +278,8 @@ private:
 
     qi::rule<input_iterator, literal::symbol_value_ptr()> native_symbol_;
     qi::rule<input_iterator, native_string_t()> native_symbol_string_;
+
+    qi::rule<input_iterator, void()> statement_termination_;
 
 /*
     qi::rule<input_iterator, statement(), ascii::space_type> top_level_statement_, statement_;

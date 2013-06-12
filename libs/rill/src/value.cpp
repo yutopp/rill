@@ -8,6 +8,7 @@
 
 
 
+    // value's constructor
     value::value( native_string_t const& simple_typename )
         : type_labal_( std::make_shared<literal::simple_identifier_value>( simple_typename ) )
     {}

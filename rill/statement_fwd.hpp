@@ -38,21 +38,8 @@ typedef std::shared_ptr<function_definition_statement_base> function_definition_
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+struct function_definition_statement;
+typedef std::shared_ptr<function_definition_statement> function_definition_statement_ptr;
 
 
 
@@ -63,7 +50,7 @@ typedef std::shared_ptr<native_function_definition_statement> native_function_de
 
 
 
-
+//////////
 struct class_definition_statement;
 typedef std::shared_ptr<class_definition_statement> class_definition_statement_ptr;
 

@@ -18,7 +18,7 @@ try
                             p
                             );
     if ( success ) {
-        std::cout << "true => " << ( first == last ) << std::endl;
+        std::cout << "true => " << ( first == last ) << " (1 is ok)" << std::endl;
     } else {
         std::cout << "false" << std::endl;
     }

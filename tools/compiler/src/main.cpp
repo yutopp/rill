@@ -2,6 +2,8 @@
 
 #include <rill/make_syntax_tree.hpp>
 
+#include <fstream>
+#include <iterator>
 #include <memory>
 
 
@@ -118,38 +120,78 @@ int main()
         //
         root_env->add_class( class_definition );
 
+        {
+            auto const bin_op_function_name
+                = literal::make_binary_operator_identifier( literal::make_symbol( "+" ) );
 
-        auto const bin_op_function_name
-            = literal::make_binary_operator_identifier( literal::make_symbol( "*" ) );
-
-        //
-        auto const parameters
-            = make_parameter_list(
-                    make_parameter_pair( int_type )
-                    );
+            //
+            auto const parameters
+                = make_parameter_list(
+                        make_parameter_pair( int_type )
+                        );
 
 
-        auto add_int_int = std::make_shared<native_function_definition_statement>(
-            bin_op_function_name,
-            parameters,
-            int_type,
-            []( std::vector<value_ptr> const& args ) -> value_ptr {
-                std::cout << args.size() << std::endl;
-                return std::make_shared<literal::int32_value>(
-                          std::dynamic_pointer_cast<literal::int32_value>( args[0] )->get_value()
-                          * std::dynamic_pointer_cast<literal::int32_value>( args[1] )->get_value()
-                          );
-              }
-            );
+            auto add_int_int = std::make_shared<native_function_definition_statement>(
+                bin_op_function_name,
+                parameters,
+                int_type,
+                []( std::vector<value_ptr> const& args ) -> value_ptr {
+                    //std::cout << args.size() << std::endl;
+                    return std::make_shared<literal::int32_value>(
+                              std::dynamic_pointer_cast<literal::int32_value>( args[0] )->get_value()
+                              + std::dynamic_pointer_cast<literal::int32_value>( args[1] )->get_value()
+                              );
+                  }
+                );
 
-        root_env->add_function( add_int_int );
-        //auto const int_class_env = root_env->add_class( "int" );
+            root_env->add_function( add_int_int );
+        }
 
-        //int_class_env->add_method( "+", "int", "int", "int" );
+        {
+            auto const bin_op_function_name
+                = literal::make_binary_operator_identifier( literal::make_symbol( "*" ) );
+
+            //
+            auto const parameters
+                = make_parameter_list(
+                        make_parameter_pair( int_type )
+                        );
+
+
+            auto add_int_int = std::make_shared<native_function_definition_statement>(
+                bin_op_function_name,
+                parameters,
+                int_type,
+                []( std::vector<value_ptr> const& args ) -> value_ptr {
+                    //std::cout << args.size() << std::endl;
+                    return std::make_shared<literal::int32_value>(
+                              std::dynamic_pointer_cast<literal::int32_value>( args[0] )->get_value()
+                              * std::dynamic_pointer_cast<literal::int32_value>( args[1] )->get_value()
+                              );
+                  }
+                );
+
+            root_env->add_function( add_int_int );
+        }
     }
 
     // first(lexical & syntax)
-    auto const v = make_syntax_tree( "4 *		2 ;");
+    auto ifs = std::ifstream( "input.rill" );
+    if ( !ifs ) {
+        std::cerr << "input.rill was not found..." << std::endl;
+        exit( -100 );
+    }
+    std::istreambuf_iterator<char> const begin = ifs, end;
+    native_string_t const input_source_code( begin, end );
+    std::cout
+        << "inputs are:" << std::endl
+        << input_source_code << std::endl;
+
+    auto const v = make_syntax_tree( input_source_code );
+
+    // debug
+    std::cout
+        << "Top statements size: " << v.product.size() << std::endl;
 
     // second(1st pass. prove identifier)
     make_environment( root_env, v.product );

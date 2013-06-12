@@ -22,6 +22,8 @@
 //
 // ----------------------------------------------------------------------
 // ----------------------------------------------------------------------
+
+// 
 struct statement
 {
     virtual ~statement()
@@ -40,8 +42,10 @@ public:
         }
 
 
+//
+typedef std::vector<statement_ptr>  statement_list;
 
-
+typedef std::vector<statement_ptr>  program;
 
 
 
@@ -89,6 +93,9 @@ public:
         , return_type_( return_type )
     {}
 
+    virtual ~function_definition_statement_base()
+    {}
+
 public:
     auto get_identifier() const
         -> literal::identifier_value_ptr
@@ -110,51 +117,27 @@ private:
 
 
 
-
-
-
-
-
-
-
-
-/*
-class function_definition_statement
+struct function_definition_statement
     : public function_definition_statement_base
 {
-public:
-    function_definition_statement( expression_ptr const& expr );
+    ADAPT_STATEMENT_VISITOR( function_definition_statement )
 
 public:
-    void setup_environment( environment_ptr const& ) const;
+    function_definition_statement(
+        literal::identifier_value_ptr const& symbol_name,
+        parameter_list const& parameter_list,
+        literal::identifier_value_ptr const& return_type,
+        statement_list const& statements
+        )
+        : function_definition_statement_base( symbol_name, parameter_list, return_type )
+        , statements_( statements )
+    {}
 
-    void eval( const_environment_ptr const& env ) const;
+public:
 
-    void instantiation( environment_ptr const& root_env ) const;
-    void semantic_analysis( environment_ptr const& root_env ) const;
-
-    auto get_symbol_name() const
-        -> literal::symbol_value_ptr
-    {
-        return nullptr;
-    }
-
-private:
-    expression_ptr expression_;
+public:
+    statement_list const statements_;
 };
-typedef std::shared_ptr<function_definition_statement> function_definition_statement_ptr;
-
-
-
-*/
-
-
-
-
-
-
-
-
 
 
 
@@ -238,12 +221,22 @@ inline auto make_native_class( literal::identifier_value_ptr const& class_name )
 
 
 
-typedef std::vector<statement_ptr>  program;
-
-typedef std::vector<statement_ptr>  statement_list;
 
 
 
+struct block_statement
+    : public statement
+{
+    ADAPT_STATEMENT_VISITOR( block_statement )
+
+public:
+    block_statement( statement_list const& statements )
+        : statements_( statements )
+    {}
+
+public:
+    statement_list statements_;
+};
 
 
 #undef ADAPT_STATEMENT_VISITOR

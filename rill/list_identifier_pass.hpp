@@ -20,6 +20,9 @@ struct list_identifier_pass
         // nothing to do...
     }
 
+    void operator()( function_definition_statement& s, environment_ptr const& env ) const
+    {
+    }
     // virtual void operator()( native_function_definition_statement const& s, environment_ptr const& env ) const =0;
 
     void operator()( class_definition_statement const& s, environment_ptr const& env ) const
@@ -29,12 +32,17 @@ struct list_identifier_pass
 
 
     //
-    value_ptr operator()( term_expression const& s, environment_ptr const& env ) const
+    value_ptr operator()( binary_operator_expression const& s, environment_ptr const& env ) const
     {
         return nullptr;
     }
 
-    value_ptr operator()( binary_expression const& s, environment_ptr const& env ) const
+    value_ptr operator()( function_call_expression const& s, environment_ptr const& env ) const
+    {
+        return nullptr;
+    }
+
+    value_ptr operator()( term_expression const& s, environment_ptr const& env ) const
     {
         return nullptr;
     }

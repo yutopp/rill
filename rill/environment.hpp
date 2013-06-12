@@ -1,12 +1,13 @@
 #pragma once
 
-#define RILL_CXX11_FINAL
-#define RILL_CXX11_OVERRIDE
+
 
 #include <memory>
 #include <unordered_map>
 
 #include <boost/optional.hpp>
+
+#include "config/macros.hpp"
 
 #include "value.hpp"
 #include "expression.hpp"
