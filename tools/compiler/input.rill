@@ -1,1 +1,9 @@
-../../msvc/rill/rill/input.rill
+4 *		(2 + 1)
+	* 8
+	
+	+ 4;
+
+def foo( hoge: int ): int*
+{
+    5*10;
+}

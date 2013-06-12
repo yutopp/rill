@@ -1,4 +1,4 @@
-use-project /rill/lib : /home/yutopp/rill/libs/rill/build ;
+use-project /rill/lib : $(rill-root)/libs/rill/build ;
 
 project rill/compiler
     : source-location src

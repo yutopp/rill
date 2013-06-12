@@ -2,6 +2,10 @@ import os ;
 import path ;
 
 ####################
+# Rill path
+path-constant rill-root : . ;
+
+####################
 # Boost path
 
 path-constant boost-root : [ os.environ BOOST_ROOT ] ;
