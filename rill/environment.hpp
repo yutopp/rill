@@ -90,12 +90,12 @@ public:
     {}
 
 public:
-    auto lookup_env( literal::identifier_value_ptr const& name ) const
-        -> env_const_pointer RILL_CXX11_OVERRIDE
+    auto lookup_env( literal::identifier_value_ptr const& name ) const RILL_CXX11_OVERRIDE
+        -> env_const_pointer
     { return nullptr; };
 
-    auto get_stmt() const
-        -> statement_ptr RILL_CXX11_OVERRIDE
+    auto get_stmt() const RILL_CXX11_OVERRIDE
+        -> statement_ptr
     { return nullptr; }
 
 private:
@@ -182,8 +182,8 @@ public:
     {}
 
 public:
-    auto get_stmt() const
-        -> statement_ptr RILL_CXX11_OVERRIDE
+    auto get_stmt() const RILL_CXX11_OVERRIDE
+        -> statement_ptr
     { return sp_; };
 
 private:
@@ -209,8 +209,8 @@ public:
         -> env_const_pointer
     { return nullptr; };
 
-    auto get_stmt() const
-        -> statement_ptr RILL_CXX11_OVERRIDE
+    auto get_stmt() const RILL_CXX11_OVERRIDE
+        -> statement_ptr
     { return sp_; }
 
 public:

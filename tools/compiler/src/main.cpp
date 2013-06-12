@@ -176,7 +176,7 @@ int main()
     }
 
     // first(lexical & syntax)
-    auto ifs = std::ifstream( "input.rill" );
+    std::ifstream ifs( "input.rill" );
     if ( !ifs ) {
         std::cerr << "input.rill was not found..." << std::endl;
         exit( -100 );

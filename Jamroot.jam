@@ -72,10 +72,9 @@ project rill
         <include>$(boost-root)
         <include>$(ytl-dists-root)
         <include>$(dependency-path)
-        #<link>static
+        <link>static
         <warnings>all
         <toolset>gcc:<cxxflags>-Wextra
-        <toolset>gcc:<cxxflags>-Wno-unused-local-typedefs
         <toolset>gcc:<cxxflags>-pedantic
         <toolset>gcc:<cxxflags>-std=c++11
     ;

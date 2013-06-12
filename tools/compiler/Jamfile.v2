@@ -1,26 +1,25 @@
-project rill/lib
-    : source-location ../src
+use-project /rill/lib : /home/yutopp/rill/libs/rill/build ;
+
+project rill/compiler
+    : source-location src
     : requirements
         <warnings>all
         <toolset>gcc:<cxxflags>-Wextra
         <toolset>gcc:<cxxflags>-pedantic
         <toolset>gcc:<cxxflags>-std=c++11
-        <toolset>gcc:<cxxflags>-ftemplate-depth=1024
         <toolset>clang:<cxxflags>-Wextra
         <toolset>clang:<cxxflags>-pedantic
         <toolset>clang:<cxxflags>-std=c++11
-        <toolset>clang:<cxxflags>-ftemplate-depth=1024
+        <library>/rill/lib//librill
     : usage-requirements
     ;
 
 SOURCES =
-    value
-	environment
-	make_syntax_tree
+    main
 	;
 
  
-lib librill
+exe rillc
     : $(SOURCES).cpp
     :
         <link>shared:<define>BOOST_ALL_DYN_LINK=1

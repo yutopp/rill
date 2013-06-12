@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <cstddef>
 
 #include "environment_fwd.hpp"
 
@@ -37,7 +38,7 @@ public:
 public:
     // filter outdated object
     template<typename T>
-    nullptr_t operator()( T const& node, environment_ptr const& env ) const
+    std::nullptr_t operator()( T const&, environment_ptr const& ) const
     {
         std::cerr
             << "DEBUG: message. please implement it!" << std::endl

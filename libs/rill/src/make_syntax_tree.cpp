@@ -28,6 +28,7 @@ try
 }
 catch( qi::expectation_failure<input_iterator> const& /*e*/ )
 {
-    result r = {};
+    program p;
+    result r = { std::move( p ) /* TODO: insert error*/ };
     return r;
 }

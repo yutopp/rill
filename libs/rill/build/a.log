@@ -1,0 +1,16 @@
+/usr/share/boost-build/build/project.jam:266: unbalanced parentheses
+warning: mismatched versions of Boost.Build engine and core
+warning: Boost.Build engine (/home/yutopp/boost_1_53_0/b2) is 2011.12.00
+warning: Boost.Build core (at /usr/share/boost-build) is 2011.04-svn
+===== dependency =====
+======================
+
+...patience...
+...patience...
+...found 2193 targets...
+...updating 3 targets...
+gcc.compile.c++ bin/gcc-4.7/debug/link-static/make_syntax_tree.o
+../src/make_syntax_tree.cpp: In function ‘result make_syntax_tree(const input_type&)’:
+../src/make_syntax_tree.cpp:31:17: warning: missing initializer for member ‘result::product’ [-Wmissing-field-initializers]
+gcc.archive bin/gcc-4.7/debug/link-static/librill.a
+...updated 3 targets...
