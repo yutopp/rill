@@ -193,12 +193,6 @@ public:
         return identifier_;
     }
 
-    auto get_symbol_name() const
-        -> literal::symbol_value_ptr
-    {
-        return identifier_->get_last_symbol();
-    }
-
 private:
     literal::identifier_value_ptr identifier_;
 };

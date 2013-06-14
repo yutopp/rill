@@ -2,6 +2,9 @@
 
 #include <vector>
 #include <string>
+
+#include "config/macros.hpp"
+
 #include "value_fwd.hpp"
 
 #include "environment_fwd.hpp"
@@ -27,8 +30,6 @@ typedef std::string     native_string_t;
 
 struct value
 {
-    typedef std::shared_ptr<literal::identifier_value const>  typed_label_type;
-
 public:
     // basic constructor
     value()
@@ -40,13 +41,13 @@ public:
     virtual ~value() {}
 
 public:
-    bool is_typed() const
+    bool is_intrinsic_type() const
     {
-        return type_labal_.use_count() != 0;
+        return intrinsic_typed_identifier_.use_count() != 0;
     }
 
 public:
-    typed_label_type type_labal_;
+    std::shared_ptr<literal::single_identifier_value const> intrinsic_typed_identifier_;
 };
 
 
@@ -86,7 +87,7 @@ namespace literal
         typedef std::string     native_string_type;
 
     public:
-        symbol_value( native_string_t const& name )
+        explicit symbol_value( native_string_t const& name )
             : value_( name )
         {}
 
@@ -147,7 +148,7 @@ namespace literal
         // template<typename... T>
         //identifier_value( T&&... nests )
         template<typename T>
-        identifier_value( T&& nests )
+        explicit identifier_value( T&& nests )
             : ppp_( std::forward<T>( nests ) )
         {}
 
@@ -166,7 +167,12 @@ namespace literal
     };
 
 
-
+    // TODO: add support for namespaces
+    inline auto make_identifier( single_identifier_value_base_ptr const& p )
+        -> identifier_value_ptr
+    {
+        return std::make_shared<identifier_value>( p );
+    }
 
 
 
@@ -220,19 +226,26 @@ namespace literal
     typedef std::shared_ptr<simple_identifier_value> simple_identifier_value_ptr;
     */
 
-    inline auto make_simple_identifier( native_string_t const& simple_typename )
-        -> simple_identifier_value_ptr
+    inline auto make_single_identifier( native_string_t const& simple_typename )
+        -> single_identifier_value_ptr
     {
-        return std::make_shared<simple_identifier_value>( simple_typename );
+        return std::make_shared<single_identifier_value>( simple_typename );
     }
 
 
     inline auto make_binary_operator_identifier(
+        native_string_t const& symbol_name
+        )
+        -> single_identifier_value_ptr
+    {
+        return make_single_identifier( "%binary%operator_" + symbol_name );
+    }
+    inline auto make_binary_operator_identifier(
         symbol_value_ptr const& symbol_name
         )
-        -> simple_identifier_value_ptr
+        -> single_identifier_value_ptr
     {
-        return make_simple_identifier( "%binary%operator_" + symbol_name->get_native_symbol_string() );
+        return make_binary_operator_identifier( symbol_name->get_native_symbol_string() );
     }
     // TODO: add overload function that implement template specified operator
 
@@ -294,6 +307,7 @@ BOOST_FUSION_ADAPT_STRUCT(
     (literal::identifier_value_ptr, type)
     (value_ptr,                     default_value)
 )
+
 
 inline auto make_parameter_pair(
     literal::identifier_value_ptr const& name,

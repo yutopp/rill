@@ -110,12 +110,12 @@ int main()
 
     // operator +
     auto const operator_add
-        = literal::make_binary_operator_symbol( literal::make_symbol( "+" ) );
+        = literal::make_single_identifier( "+" );
     root_env->pre_construct( kind::function_k, operator_add );
 
     // operator *
     auto const operator_multiply
-        = literal::make_binary_operator_symbol( literal::make_symbol( "*" ) );
+        = literal::make_single_identifier( "*" );
     root_env->pre_construct( kind::function_k, operator_multiply );
 
 
@@ -123,21 +123,21 @@ int main()
         // add int class definitions and operators
 
         auto const int_type
-            = literal::make_simple_identifier( "int" );
+            = literal::make_single_identifier( "int" );
 
+        /*
         auto const class_definition
             = make_native_class( int_type );
+            */
 
         //
-        root_env->add_class( class_definition );
+        //root_env->add_class( class_definition );
 
         {
-            auto const function_name = literal::make_simple_identifier( operator_add->get_native_symbol_string() );
-
             //
             auto const parameters
                 = make_parameter_list(
-                        make_parameter_pair( int_type )
+                        make_parameter_pair( make_identifier( int_type ) )
                         );
 
             /*
@@ -162,7 +162,7 @@ int main()
                   }
                 );*/
 
-            root_env->construct( kind::function_k, function_name, parameters );
+            root_env->construct( kind::function_k, operator_add, parameters );
         }
         /*
         {

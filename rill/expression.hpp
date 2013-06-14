@@ -43,7 +43,7 @@ struct binary_operator_expression
     ADAPT_EXPRESSION_VISITOR( binary_operator_expression )
 
 public:
-    binary_operator_expression( expression_ptr const& lhs, literal::identifier_value_ptr const& op, expression_ptr const& rhs )
+    binary_operator_expression( expression_ptr const& lhs, literal::single_identifier_value_ptr const& op, expression_ptr const& rhs )
         : lhs_( lhs )
         , op_( op )
         , rhs_( rhs )
@@ -51,7 +51,7 @@ public:
 
 public:
     expression_ptr const lhs_;
-    literal::identifier_value_ptr const op_;
+    literal::single_identifier_value_ptr const op_;
     expression_ptr const rhs_;
 };
 

@@ -48,11 +48,11 @@ struct interpret_pass<runtime_interpret_tag>
         auto const& evaled_lhs = s.lhs_->dispatch( *this, env );
         auto const& evaled_rhs = s.rhs_->dispatch( *this, env );
 
-        auto const& ee = env->lookup_env( s.op_ );
+       /* auto const& ee = nullptr;// env->lookup_env( s.op_ );
         if ( !ee ) {
             // throw
             exit( -2 );
-        }
+        }*/
 
         std::vector<value_ptr> v;
         v.push_back( evaled_lhs );

@@ -10,8 +10,7 @@
 
     // value's constructor
     value::value( native_string_t const& simple_typename )
-        : type_labal_( std::make_shared<literal::single_identifier_value>( 
-        std::make_shared<literal::identifier_value>( simple_typename ) ) )
+        : intrinsic_typed_identifier_( std::make_shared<literal::single_identifier_value const>( simple_typename ) )
     {}
 
 
@@ -41,9 +40,9 @@ std::ostream& operator<<( std::ostream& os, value_ptr const& vp )
     os << "!debug value output: " << std::endl;
 
     if ( vp ) {
-        if ( vp->is_typed() ) {
-            os << "  type  is " << vp->type_labal_->get_last_symbol()->get_native_symbol_string() << std::endl;
-            if ( vp->type_labal_->get_last_symbol()->get_native_symbol_string() == "int" ) {
+        if ( vp->is_intrinsic_type() ) {
+            os << "  type  is " << vp->intrinsic_typed_identifier_->get_base_symbol()->get_native_symbol_string() << std::endl;
+            if ( vp->intrinsic_typed_identifier_->get_base_symbol()->get_native_symbol_string() == "int" ) {
                 os << "  value is " << std::dynamic_pointer_cast<literal::int32_value>( vp )->value_ << std::endl;
             } else {
                 os << "  value is unknown." << std::endl;

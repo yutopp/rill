@@ -40,9 +40,7 @@ auto make_binary_operator_tree( expression_ptr const& lhs, native_string_t const
 {
     return std::make_shared<binary_operator_expression>(
             lhs,
-            literal::make_binary_operator_identifier(
-                std::make_shared<literal::symbol_value>( op )
-                ),
+            literal::make_binary_operator_identifier( op ),
             rhs
             );
 }
@@ -215,7 +213,7 @@ public:
 
         identifier_.name( "identifier" );
         identifier_
-           = single_identifier_
+            = single_identifier_[qi::_val = phx::bind( &literal::make_identifier, qi::_1)]
            ;
             // TODO: should +( single_identifier_ | single_template_identifier_ )
 
@@ -226,7 +224,7 @@ public:
         single_identifier_
             = native_symbol_string_[
                 qi::_val
-                    = phx::construct<literal::single_identifier_value>(
+                    = phx::construct<literal::single_identifier_value_ptr>(
                         phx::new_<literal::single_identifier_value>(
                             qi::_1
                             )

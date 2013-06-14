@@ -24,13 +24,15 @@
         function_definition_statement_base_ptr const& sp
         ) -> env_pointer
     {
+        return nullptr;
+        /*
         auto const name = sp->get_identifier()->get_last_symbol()->get_native_symbol_string();
 
         /*
         if ( is_exist( symbol_name ) ) {
             // throw
             exit( -1 );
-        }*/
+        }*
 
         //auto const p = std::make_shared<has_parameter_environment>( shared_from_this(), sp );
         //p->add_overload( shared_from_this(), sp->get_parameter_list(), sp );
@@ -38,19 +40,21 @@
 
         instanced_env_[name] = nullptr;//p;
 
-        return instanced_env_[name];
+        return instanced_env_[name];*/
     }
 
 
     auto single_identifier_environment_base::add_class( class_definition_statement_ptr const& sp )
         -> env_pointer
     {
+        return nullptr;
+        /*
         auto const& name = sp->get_symbol_name()->get_native_symbol_string();
 
         instanced_env_[name] = std::make_shared<class_identifier_environment>( shared_from_this(), sp );
 
         return instanced_env_[name];
-    }
+   */ }
 
 
 
@@ -61,6 +65,7 @@
     auto single_identifier_environment_base::lookup_env( literal::identifier_value_ptr const& identifier ) const
         -> env_const_pointer
     {
+        /*
         auto const& name = identifier->get_last_symbol()->get_native_symbol_string(); // TODO: change to do namespace search.
 
         if ( auto const env = is_exist_in_instanced( name ) ) {
@@ -72,9 +77,9 @@
             } else {
                 return nullptr;
             }
-        }*/
+        }*
 
-        exit( -1 );
+        exit( -1 );*/
         return nullptr;
     }
 
@@ -101,7 +106,7 @@
     {
         // TODO: add existance check
 
-        auto const& env = instanced_env_[name->get_last_symbol()->get_native_symbol_string()];
+        auto const& env = instanced_env_[name->get_base_symbol()->get_native_symbol_string()];
 
         if ( env->symbol_kind() != kind::type_value::function_e ) {
             exit( -900 );
