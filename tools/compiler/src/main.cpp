@@ -108,6 +108,17 @@ int main()
 {
     auto const root_env = std::make_shared<root_environment>();
 
+    // operator +
+    auto const operator_add
+        = literal::make_binary_operator_symbol( literal::make_symbol( "+" ) );
+    root_env->pre_construct( kind::function_k, operator_add );
+
+    // operator *
+    auto const operator_multiply
+        = literal::make_binary_operator_symbol( literal::make_symbol( "*" ) );
+    root_env->pre_construct( kind::function_k, operator_multiply );
+
+
     {
         // add int class definitions and operators
 
@@ -121,8 +132,7 @@ int main()
         root_env->add_class( class_definition );
 
         {
-            auto const bin_op_function_name
-                = literal::make_binary_operator_identifier( literal::make_symbol( "+" ) );
+            auto const function_name = literal::make_simple_identifier( operator_add->get_native_symbol_string() );
 
             //
             auto const parameters
@@ -130,7 +140,15 @@ int main()
                         make_parameter_pair( int_type )
                         );
 
-
+            /*
+            statement_list sl;
+            sl.push_back(
+                std::make_shared<expression_statement>(
+                    std::make_shared<embedded_function_call_expression>(
+                        )
+                    )
+                );
+            
             auto add_int_int = std::make_shared<native_function_definition_statement>(
                 bin_op_function_name,
                 parameters,
@@ -142,11 +160,11 @@ int main()
                               + std::dynamic_pointer_cast<literal::int32_value>( args[1] )->get_value()
                               );
                   }
-                );
+                );*/
 
-            root_env->add_function( add_int_int );
+            root_env->construct( kind::function_k, function_name, parameters );
         }
-
+        /*
         {
             auto const bin_op_function_name
                 = literal::make_binary_operator_identifier( literal::make_symbol( "*" ) );
@@ -172,7 +190,7 @@ int main()
                 );
 
             root_env->add_function( add_int_int );
-        }
+        }*/
     }
 
     // first(lexical & syntax)

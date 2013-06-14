@@ -53,9 +53,6 @@
     <ClInclude Include="..\..\..\rill\statement.hpp">
       <Filter>rill\element</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\rill\tree_visitor_base.hpp">
-      <Filter>rill\element</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\rill\make_syntax_tree.hpp">
       <Filter>rill</Filter>
     </ClInclude>
@@ -79,6 +76,9 @@
     </ClInclude>
     <ClInclude Include="..\..\..\rill\config\macros.hpp">
       <Filter>rill\config</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\tree_visitor_base.hpp">
+      <Filter>rill\pass</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -56,21 +56,40 @@ public:
 };
 
 
-struct function_call_expression
+struct call_expression
     : public expression
 {
-    ADAPT_EXPRESSION_VISITOR( function_call_expression )
+    ADAPT_EXPRESSION_VISITOR( call_expression )
 
 public:
-    function_call_expression( literal::identifier_value_ptr const& caller, expression_list const& arguments )
-        : caller_( caller )
+    call_expression( literal::identifier_value_ptr const& caller, expression_list const& arguments )
+        : reciever_( caller )
         , arguments_( arguments )
     {}
 
 public:
-    literal::identifier_value_ptr const caller_;
+    literal::identifier_value_ptr const reciever_;
     expression_list const arguments_;
 };
+
+
+//
+struct embedded_function_call_expression
+    : public expression
+{
+    ADAPT_EXPRESSION_VISITOR( embedded_function_call_expression )
+
+public:
+    embedded_function_call_expression( literal::identifier_value_ptr const& caller, expression_list const& arguments )
+        : reciever_( caller )
+        , arguments_( arguments )
+    {}
+
+public:
+    literal::identifier_value_ptr const reciever_;
+    expression_list const arguments_;
+};
+
 
 
 struct term_expression

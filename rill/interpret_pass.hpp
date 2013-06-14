@@ -29,7 +29,7 @@ struct interpret_pass<runtime_interpret_tag>
             << s.expression_->dispatch( *this, env ) << std::endl;
     }
 
-    void operator()( function_definition_statement& s, environment_ptr const& env ) const
+    void operator()( function_definition_statement const& s, environment_ptr const& env ) const
     {
     }
     // virtual void operator()( native_function_definition_statement const& s, environment_ptr const& env ) const =0;
@@ -61,7 +61,12 @@ struct interpret_pass<runtime_interpret_tag>
         return std::dynamic_pointer_cast<native_function_definition_statement>( ee->get_stmt() )->callee_( v );
     }
 
-    value_ptr operator()( function_call_expression const& s, environment_ptr const& env ) const
+    value_ptr operator()( call_expression const& s, environment_ptr const& env ) const
+    {
+        return nullptr;
+    }
+
+    value_ptr operator()( embedded_function_call_expression const& s, environment_ptr const& env ) const
     {
         return nullptr;
     }

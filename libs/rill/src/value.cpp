@@ -76,15 +76,20 @@ namespace literal
 std::ostream& operator<<( std::ostream& os, value_ptr const& vp )
 {
     os << "!debug value output: " << std::endl;
-    if ( vp->is_typed() ) {
-        os << "  type  is " << vp->type_labal_->get_last_symbol()->get_native_symbol_string() << std::endl;
-        if ( vp->type_labal_->get_last_symbol()->get_native_symbol_string() == "int" ) {
-            os << "  value is " << std::dynamic_pointer_cast<literal::int32_value>( vp )->value_ << std::endl;
+
+    if ( vp ) {
+        if ( vp->is_typed() ) {
+            os << "  type  is " << vp->type_labal_->get_last_symbol()->get_native_symbol_string() << std::endl;
+            if ( vp->type_labal_->get_last_symbol()->get_native_symbol_string() == "int" ) {
+                os << "  value is " << std::dynamic_pointer_cast<literal::int32_value>( vp )->value_ << std::endl;
+            } else {
+                os << "  value is unknown." << std::endl;
+            }
         } else {
-            os << "  value is unknown." << std::endl;
+            os << "  NOT typed value." << std::endl;
         }
     } else {
-        os << "  NOT typed value." << std::endl;
+        os << "  ERROR: nullptr is setted." << std::endl;
     }
 
     return os;

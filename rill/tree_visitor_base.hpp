@@ -22,7 +22,7 @@ public:
     // virtual void operator()( template_statement const& s, environment_ptr const& env ) const =0;
 
     virtual void operator()( expression_statement const& s, environment_ptr const& env ) const =0;
-    virtual void operator()( function_definition_statement& s, environment_ptr const& env ) const =0;
+    virtual void operator()( function_definition_statement const& s, environment_ptr const& env ) const =0;
     // virtual void operator()( native_function_definition_statement const& s, environment_ptr const& env ) const =0;
 
     virtual void operator()( class_definition_statement const& s, environment_ptr const& env ) const =0;
@@ -30,7 +30,8 @@ public:
 
     // expression
     virtual value_ptr operator()( binary_operator_expression const& s, environment_ptr const& env ) const =0;
-    virtual value_ptr operator()( function_call_expression const& s, environment_ptr const& env ) const =0;
+    virtual value_ptr operator()( call_expression const& s, environment_ptr const& env ) const =0;
+    virtual value_ptr operator()( embedded_function_call_expression const& s, environment_ptr const& env ) const =0;
     virtual value_ptr operator()( term_expression const& s, environment_ptr const& env ) const =0;
 
     // value

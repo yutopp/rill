@@ -69,8 +69,8 @@ public:
         //
         top_level_statement_.name( "top_level_statement" );
         top_level_statement_
-            %= *( expression_statement_
-                | function_definition_statement_
+            %= *( function_definition_statement_
+                | expression_statement_
                 )
             ;
         
@@ -82,11 +82,11 @@ public:
         //
         function_definition_statement_
             = ( qi::lit( "def" )
-              > identifier_literal_
-              > parameter_list_
-              > qi::lit( ":" )
-              > identifier_literal_
-              > qi::lit( "{" ) > top_level_statement_ > qi::lit( "}" )
+             > identifier_
+             > parameter_list_
+             > qi::lit( ":" )
+             > identifier_
+             > qi::lit( "{" ) > top_level_statement_ > qi::lit( "}" )
               )[
                 qi::_val
                     = phx::construct<function_definition_statement_ptr>(
@@ -103,7 +103,7 @@ public:
 
         //
         expression_statement_
-            = ( expression_priority_[ExpressionHierarchyNum-1] >> statement_termination_ )[
+            = ( expression_ > statement_termination_ )[
                 qi::_val
                     = phx::construct<expression_statement_ptr>(
                         phx::new_<expression_statement>(
@@ -113,32 +113,63 @@ public:
               ]
             ;
 
-
-
-
-
-
-
-
-
-        expression_priority_[2]
-            = expression_priority_[1][qi::_val = qi::_1]
-            >> *( ( qi::lit( "+" ) >> expression_priority_[1] )[qi::_val = phx::bind( &make_binary_operator_tree, qi::_val, "+", qi::_1 )]
-                | ( qi::lit( "-" ) >> expression_priority_[1] )[qi::_val = phx::bind( &make_binary_operator_tree, qi::_val, "-", qi::_1 )]
-                )
+        expression_
+            %= expression_priority_[ExpressionHierarchyNum-1]
             ;
 
-        expression_priority_[1]
-            = expression_priority_[0][qi::_val = qi::_1]
-            >> *( ( qi::lit( "*" ) >> expression_priority_[0] )[qi::_val = phx::bind( &make_binary_operator_tree, qi::_val, "*", qi::_1 )]
-                | ( qi::lit( "/" ) >> expression_priority_[0] )[qi::_val = phx::bind( &make_binary_operator_tree, qi::_val, "/", qi::_1 )]
-                )
+        {
+            auto const priority = 3u;
+            expression_priority_[priority]
+                = expression_priority_[priority-1][qi::_val = qi::_1]
+                >> *( ( qi::lit( "+" ) >> expression_priority_[priority-1] )[qi::_val = phx::bind( &make_binary_operator_tree, qi::_val, "+", qi::_1 )]
+                    | ( qi::lit( "-" ) >> expression_priority_[priority-1] )[qi::_val = phx::bind( &make_binary_operator_tree, qi::_val, "-", qi::_1 )]
+                    )
+                ;
+        }
+
+        {
+            auto const priority = 2u;
+            expression_priority_[priority]
+                = expression_priority_[priority-1][qi::_val = qi::_1]
+                >> *( ( qi::lit( "*" ) >> expression_priority_[priority-1] )[qi::_val = phx::bind( &make_binary_operator_tree, qi::_val, "*", qi::_1 )]
+                    | ( qi::lit( "/" ) >> expression_priority_[priority-1] )[qi::_val = phx::bind( &make_binary_operator_tree, qi::_val, "/", qi::_1 )]
+                    )
+                ;
+        }
+
+        {
+            auto const priority = 1u;
+            expression_priority_[priority]
+               %= call_expression_
+                | expression_priority_[priority-1]
+//                | 
+                ;
+        }
+
+        {
+            auto const priority = 0u;
+            expression_priority_[priority]
+                %= term_expression_[qi::_val = qi::_1]
+                | ( ( qi::lit( '(' ) >> expression_ >> qi::lit( ')' ) ) )[qi::_val = qi::_1]
+                ;
+        }
+
+        // call expression
+        call_expression_
+            = ( identifier_
+              >> argument_list_
+              )[
+                qi::_val
+                    = phx::construct<call_expression_ptr>(
+                        phx::new_<call_expression>(
+                            qi::_1,
+                            qi::_2
+                            )
+                        )
+              ]
             ;
 
-        expression_priority_[0]
-            %= term_expression_
-            ;
-
+        // termination
         term_expression_
             = ( integer_literal_
                )[
@@ -148,8 +179,7 @@ public:
                             )
                         )
                ]
-             | ( ( qi::lit( '(' ) >> expression_priority_[ExpressionHierarchyNum-1] >> qi::lit( ')' ) )[qi::_val = qi::_1]
-               )
+
             ;
 
 
@@ -167,17 +197,29 @@ public:
         //auto p = ( -native_symbol_ )[ phx::if_else( qi::_0, phx::construct<literal::symbol_value_ptr>(), phx::construct<literal::symbol_value_ptr>() )]
 
 /**/
+        argument_list_.name( "argument_list" );
+        argument_list_
+            = qi::lit( '(' ) >> ( expression_ % ',' ) >> qi::lit( ')' )
+            ;
+
+        parameter_list_.name( "parameter_list" );
         parameter_list_
             = qi::lit( '(' ) >> ( parameter_pair_ % ',' ) >> qi::lit( ')' )
             ;
 
+        parameter_pair_.name( "parameter_pair" );
         parameter_pair_
            // name( optional )      | type                 | default_initializer( optional )
-            = -identifier_literal_ >> qi::lit( ':' ) >> identifier_literal_ >> -( qi::lit( '(' ) > integer_literal_ > qi::lit( ')' ) )
+            = -identifier_ >> qi::lit( ':' ) >> identifier_ >> -( qi::lit( '(' ) > integer_literal_ > qi::lit( ')' ) )
             ;
 
-        identifier_literal_
+        identifier_.name( "identifier" );
+        identifier_
            = simple_identifier_literal_;
+
+        // instanced_identifier
+
+        // static_identifier_
 
         simple_identifier_literal_
             = native_symbol_string_[
@@ -190,6 +232,9 @@ public:
               ]
             ;
 
+        // template_identifier_
+
+        native_symbol_.name( "native_symbol" );
         native_symbol_
             = native_symbol_string_[
                 qi::_val
@@ -201,11 +246,13 @@ public:
               ]
             ;
 
+        native_symbol_string_.name( "native_symbol_string" );
         native_symbol_string_
             = qi::lexeme[ ascii::char_( "a-zA-Z" ) >> *ascii::alnum ] // TODO: add '_' charactor
             ;
 
         //
+        statement_termination_.name( "semicolon" );
         statement_termination_ = qi::lit( ';' );
 
 
@@ -249,8 +296,8 @@ public:
             program_,
             std::cout
                 << phx::val( "Error! Expecting " )
-                << _4                                       // what failed?
-                << phx::val( " here: \"" )
+                << _4 << std::endl                          // what failed?
+                << phx::val( "here: \"" )
                 << phx::construct<std::string>( _3, _2 )    // iterators to error-pos, end
                 << phx::val( "\"" )
                 << std::endl
@@ -264,16 +311,18 @@ private:
     qi::rule<input_iterator, function_definition_statement_ptr(), ascii::space_type> function_definition_statement_;
     qi::rule<input_iterator, expression_statement_ptr(), ascii::space_type> expression_statement_;
 
-    static std::size_t const ExpressionHierarchyNum = 3;
-    qi::rule<input_iterator, expression_ptr(), ascii::space_type> expression_priority_[ExpressionHierarchyNum];
-    qi::rule<input_iterator, expression_ptr(), ascii::space_type> term_expression_;
+    static std::size_t const ExpressionHierarchyNum = 4;
+    qi::rule<input_iterator, expression_ptr(), ascii::space_type> expression_, expression_priority_[ExpressionHierarchyNum];
+    qi::rule<input_iterator, expression_list(), ascii::space_type> argument_list_;
+    qi::rule<input_iterator, call_expression_ptr(), ascii::space_type> call_expression_;
+    qi::rule<input_iterator, term_expression_ptr(), ascii::space_type> term_expression_;
 
     qi::rule<input_iterator, literal::int32_value_ptr(), ascii::space_type> integer_literal_;
 
     qi::rule<input_iterator, parameter_list(), ascii::space_type> parameter_list_;
     qi::rule<input_iterator, parameter_pair(), ascii::space_type> parameter_pair_;
 
-    qi::rule<input_iterator, literal::identifier_value_ptr(), ascii::space_type> identifier_literal_;
+    qi::rule<input_iterator, literal::identifier_value_ptr(), ascii::space_type> identifier_;
     qi::rule<input_iterator, literal::simple_identifier_value_ptr(), ascii::space_type> simple_identifier_literal_;
 
     qi::rule<input_iterator, literal::symbol_value_ptr()> native_symbol_;

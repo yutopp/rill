@@ -32,11 +32,11 @@
             exit( -1 );
         }*/
 
-        auto const p = std::make_shared<has_parameter_environment>( shared_from_this(), sp );
+        //auto const p = std::make_shared<has_parameter_environment>( shared_from_this(), sp );
         //p->add_overload( shared_from_this(), sp->get_parameter_list(), sp );
         //sp->get_parameter_list();
 
-        instanced_env_[name] = p;
+        instanced_env_[name] = nullptr;//p;
 
         return instanced_env_[name];
     }
@@ -76,6 +76,41 @@
 
         exit( -1 );
         return nullptr;
+    }
+
+
+    auto single_identifier_environment_base::pre_construct(
+        kind::function_tag,
+        literal::symbol_value_ptr const& name
+        )
+        -> env_pointer
+    {
+        // make uncomplete env
+        auto const& w_env = std::make_shared<has_parameter_environment<function_symbol_environment>>( shared_from_this() );
+
+        instanced_env_[name->get_native_symbol_string()] = w_env;
+        return w_env;
+    }
+
+    auto single_identifier_environment_base::construct(
+        kind::function_tag,
+        literal::identifier_value_ptr const& name,
+        parameter_list const& plist
+        )
+        -> env_pointer
+    {
+        // TODO: add existance check
+
+        auto const& env = instanced_env_[name->get_last_symbol()->get_native_symbol_string()];
+
+        if ( env->symbol_kind() != kind::type_value::function_e ) {
+            exit( -900 );
+        }
+
+        auto const& f_env = std::dynamic_pointer_cast<has_parameter_environment<function_symbol_environment>>( env );
+        auto const& function = f_env->add_overload( plist );
+
+        return function;
     }
 
 /*

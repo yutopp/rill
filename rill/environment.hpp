@@ -4,7 +4,9 @@
 
 #include <memory>
 #include <unordered_map>
+#include <bitset>
 
+#include <boost/detail/bitmask.hpp>
 #include <boost/optional.hpp>
 
 #include "config/macros.hpp"
@@ -33,6 +35,36 @@ enum struct symbol_kind
 };
 
 
+
+struct common_spec
+{
+    enum
+    {
+        unique_symbol = ( 1 << 0 )
+    };
+};
+std::size_t const common_spec_num = 1;
+typedef std::bitset<common_spec_num> common_spec_flags_t;
+
+
+
+
+namespace kind
+{
+    struct function_tag {};
+    auto const function_k = function_tag();
+
+    struct class_tag {};
+    auto const class_k = class_tag();
+
+    enum struct type_value
+    {
+        none_e,
+        function_e,
+        class_e
+    };
+}
+
 template<typename>
 struct kind_classifier;
 
@@ -43,6 +75,17 @@ struct kind_classifier<function_definition_statement_base_ptr>
     static const symbol_kind value = symbol_kind::function_k;
 };
 
+
+enum struct error_code
+{
+};
+
+
+enum struct length_type
+{
+    fixed,
+    variable
+};
 
 
 
@@ -63,15 +106,50 @@ public:
     virtual auto add_function( function_definition_statement_base_ptr const& ) -> env_pointer { return nullptr; }
 
     virtual auto lookup_env( literal::identifier_value_ptr const& name ) const
-        -> env_const_pointer =0;
+        -> env_const_pointer { return nullptr; }
 
     virtual auto get_stmt() const
-        -> statement_ptr = 0;
+        -> statement_ptr{ return nullptr;}
 
-public:
-    virtual bool is_root() const { return false; }
+    //
+    virtual auto pre_construct(
+        kind::function_tag,
+        literal::symbol_value_ptr const& name
+        ) -> env_pointer { return nullptr; }
+    //virtual auto pre_construct( kind::class_tag, literal::symbol_value_ptr const& name ) -> env_pointer;
+
+    virtual auto construct(
+        kind::function_tag,
+        literal::identifier_value_ptr const&,
+        parameter_list const&
+        ) -> env_pointer { return nullptr; }
+
+    //
+    virtual auto symbol_kind() const
+        -> kind::type_value =0;
+    /*
+    auto root_env() -> env_pointer
+    {
+        auto p = shared_from_this();
+        while( !p->is_root() )
+            p = p->parent_env();
+
+        return p;
+    }*/
+    /*
+    struct managed_env
+    {
+    };
+
+    template<typename Env>
+    auto make_managed_env()
+    {
+        //auto const env = 
+    }*/
 
 private:
+    virtual auto is_root() const -> bool { return false; }
+    virtual auto parent_env() const -> env_pointer { return nullptr; }
 };
 //typedef environment::self_pointer           environment_ptr;
 //typedef environment::const_self_pointer     const_environment_ptr;
@@ -90,6 +168,12 @@ public:
     {}
 
 public:
+    auto symbol_kind() const RILL_CXX11_OVERRIDE
+        -> kind::type_value
+    {
+        return kind::type_value::none_e; // TODO: make template_e
+    }
+
     auto lookup_env( literal::identifier_value_ptr const& name ) const RILL_CXX11_OVERRIDE
         -> env_const_pointer
     { return nullptr; };
@@ -97,6 +181,13 @@ public:
     auto get_stmt() const RILL_CXX11_OVERRIDE
         -> statement_ptr
     { return nullptr; }
+
+private:
+    auto parent_env() const RILL_CXX11_OVERRIDE
+        -> env_pointer
+    {
+        return parent_.lock();
+    }
 
 private:
     env_weak_pointer parent_;
@@ -132,6 +223,13 @@ public:
         -> statement_ptr
     { return nullptr; }
 
+
+
+    //
+    virtual auto is_incomplete() const
+        -> bool { return false; }
+
+
     
     auto is_exist_in_instanced( native_string_type const& name ) const
         -> boost::optional<env_pointer>
@@ -142,6 +240,31 @@ public:
 
         return boost::none;
     }
+
+    /*
+    auto is_same_pre_declared_type( literal::identifier_value_ptr const& name, symbol_kind const& kind ) const
+        -> bool
+    {
+
+    }*/
+
+    auto pre_construct(
+        kind::function_tag,
+        literal::symbol_value_ptr const& name
+        ) RILL_CXX11_OVERRIDE
+        -> env_pointer;
+
+    auto construct(
+        kind::function_tag,
+        literal::identifier_value_ptr const& name,
+        parameter_list const&
+        ) RILL_CXX11_OVERRIDE
+        -> env_pointer;
+    /*
+    auto pre_construct( kind::class_tag, literal::identifier_value_ptr const& name ) RILL_CXX11_OVERRIDE
+        -> env_pointer;
+    {
+    }*/
 
 private:
     std::unordered_map<native_string_type, env_pointer> instanced_env_;
@@ -156,15 +279,167 @@ class root_environment RILL_CXX11_FINAL
 public:
     root_environment() {}
 
-public:
+private:
+    auto symbol_kind() const RILL_CXX11_OVERRIDE
+        -> kind::type_value
+    {
+        return kind::type_value::none_e;
+    }
+
     bool is_root() const RILL_CXX11_OVERRIDE
     {
         return true;
     }
 
+    auto parent_env() const RILL_CXX11_OVERRIDE
+        -> env_pointer
+    {
+        assert( false );
+        return nullptr;
+    }
 private:
 
 };
+
+
+
+
+
+
+
+class function_symbol_environment;
+typedef std::shared_ptr<function_symbol_environment>        function_symbol_environment_ptr;
+typedef std::shared_ptr<function_symbol_environment const>  const_function_symbol_environment_ptr;
+
+//
+class function_symbol_environment RILL_CXX11_FINAL
+    : public single_identifier_environment_base
+{
+public:
+    static kind::type_value const KindValue = kind::type_value::function_e;
+
+public:
+    function_symbol_environment( env_weak_pointer const& parent/*, statement_list const&*/ )
+        : parent_( parent )
+    {}
+
+public:
+    auto symbol_kind() const RILL_CXX11_OVERRIDE
+        -> kind::type_value
+    {
+        return KindValue;
+    }
+
+    auto is_incomplete() const RILL_CXX11_OVERRIDE
+        -> bool
+    {
+        return false;
+    }
+
+    auto get_stmt() const RILL_CXX11_OVERRIDE
+        -> statement_ptr
+    { return nullptr; };
+
+private:
+    auto parent_env() const RILL_CXX11_OVERRIDE
+        -> env_pointer
+    {
+        return parent_.lock();
+    }
+
+private:
+    env_weak_pointer parent_;
+    //bool is_incomplete_;
+    //symbol_kind kind_;
+};
+
+
+
+
+
+
+
+
+
+template<typename InlineEnvironment>
+class has_parameter_environment RILL_CXX11_FINAL
+    : public environment
+{
+public:
+    static kind::type_value const KindValue = InlineEnvironment::KindValue;
+
+public:
+    has_parameter_environment( environment_ptr const& parent )
+        : parent_( parent )
+    {}
+
+public:
+    auto symbol_kind() const RILL_CXX11_OVERRIDE
+        -> kind::type_value
+    {
+        return KindValue;
+    }
+
+    auto add_overload( parameter_list const& parameter/*, function_definition_statement_base_ptr const& sp*/ )
+        -> environment_ptr
+    {
+        p_ = std::make_shared<InlineEnvironment>( parent_/*, parameter*/ );
+        return p_;
+    }
+
+    auto lookup( environment_ptr const& parent, parameter_list const& parameter ) const
+        -> const_environment_ptr
+    {
+        if ( parameter.size() == 2 ) {
+            return ppp_;
+            //if ( parameter[0].type->type()-> )
+        }
+
+        return nullptr;
+    }
+
+private:
+    auto parent_env() const RILL_CXX11_OVERRIDE
+        -> env_pointer
+    {
+        return parent_.lock();
+    }
+
+private:
+    env_weak_pointer parent_;
+
+    // todo map
+    std::shared_ptr<InlineEnvironment> p_;
+    //const_environment_ptr ppp_;
+};
+
+
+/*
+class has_parameter_environment RILL_CXX11_FINAL
+    : public environment
+{
+public:
+    has_parameter_environment( env_weak_pointer const& parent, function_definition_statement_base_ptr const& sp )
+        : parent_( parent )
+        , sp_( sp )
+    {}
+
+public:
+    auto lookup_env( literal::identifier_value_ptr const& name ) const
+        -> env_const_pointer
+    { return nullptr; };
+
+    auto get_stmt() const RILL_CXX11_OVERRIDE
+        -> statement_ptr
+    { return sp_; }
+
+public:
+    env_weak_pointer parent_;
+    function_definition_statement_base_ptr sp_;
+};*/
+
+
+
 
 
 
@@ -174,6 +449,9 @@ private:
 class class_identifier_environment RILL_CXX11_FINAL
     : public single_identifier_environment_base
 {
+public:
+    static kind::type_value const KindValue = kind::type_value::class_e;
+
 public:
     class_identifier_environment( env_weak_pointer const& parent, class_definition_statement_ptr const& sp )
         : parent_( parent )
@@ -186,6 +464,25 @@ public:
         -> statement_ptr
     { return sp_; };
 
+    auto symbol_kind() const RILL_CXX11_OVERRIDE
+        -> kind::type_value
+    {
+        return KindValue;
+    }
+
+    auto is_incomplete() const RILL_CXX11_OVERRIDE
+        -> bool
+    {
+        return true;
+    }
+
+private:
+    auto parent_env() const RILL_CXX11_OVERRIDE
+        -> env_pointer
+    {
+        return parent_.lock();
+    }
+
 private:
     env_weak_pointer parent_;
 
@@ -193,7 +490,7 @@ private:
     //symbol_kind kind_;
 };
 
-
+/*
 //
 class has_parameter_environment RILL_CXX11_FINAL
     : public environment
@@ -218,7 +515,7 @@ public:
     function_definition_statement_base_ptr sp_;
 };
 
-
+*/
 
 
 

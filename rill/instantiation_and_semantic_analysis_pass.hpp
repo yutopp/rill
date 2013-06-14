@@ -20,7 +20,7 @@ struct instantiation_and_semantic_analysis_pass
         // nothing to do...
     }
 
-    void operator()( function_definition_statement& s, environment_ptr const& env ) const
+    void operator()( function_definition_statement const& s, environment_ptr const& env ) const
     {
     }
     // virtual void operator()( native_function_definition_statement const& s, environment_ptr const& env ) const =0;
@@ -36,7 +36,12 @@ struct instantiation_and_semantic_analysis_pass
         return nullptr;
     }
 
-    value_ptr operator()( function_call_expression const& s, environment_ptr const& env ) const
+    value_ptr operator()( call_expression const& s, environment_ptr const& env ) const
+    {
+        return nullptr;
+    }
+
+    value_ptr operator()( embedded_function_call_expression const& s, environment_ptr const& env ) const
     {
         return nullptr;
     }

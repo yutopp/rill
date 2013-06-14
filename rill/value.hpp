@@ -186,7 +186,18 @@ namespace literal
     {
         return make_simple_identifier( "%binary%operator_" + symbol_name->get_native_symbol_string() );
     }
-    // TODO: add overload function that implement template specifierd operator
+    // TODO: add overload function that implement template specified operator
+
+    inline auto make_binary_operator_symbol(
+        symbol_value_ptr const& symbol_name
+        )
+        -> symbol_value_ptr
+    {
+        return make_symbol( "%binary%operator_" + symbol_name->get_native_symbol_string() );
+    }
+
+
+
 
 /*
 

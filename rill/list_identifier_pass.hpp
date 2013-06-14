@@ -6,6 +6,7 @@
 #include "statement.hpp"
 #include "expression.hpp"
 
+// semantic_analysis::list_identifier_pass
 struct list_identifier_pass
     : public tree_visitor_base
 {
@@ -20,8 +21,10 @@ struct list_identifier_pass
         // nothing to do...
     }
 
-    void operator()( function_definition_statement& s, environment_ptr const& env ) const
+    void operator()( function_definition_statement const& s, environment_ptr const& env ) const
     {
+        // TODO: check s->identifier is SINGLE.
+        // env->pre_construct( kind::function_k, s.get_identifier()->get_last_symbol() );
     }
     // virtual void operator()( native_function_definition_statement const& s, environment_ptr const& env ) const =0;
 
@@ -37,7 +40,12 @@ struct list_identifier_pass
         return nullptr;
     }
 
-    value_ptr operator()( function_call_expression const& s, environment_ptr const& env ) const
+    value_ptr operator()( call_expression const& s, environment_ptr const& env ) const
+    {
+        return nullptr;
+    }
+
+    value_ptr operator()( embedded_function_call_expression const& s, environment_ptr const& env ) const
     {
         return nullptr;
     }
