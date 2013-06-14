@@ -6,6 +6,10 @@ struct value;
 typedef std::shared_ptr<value> value_ptr;
 
 
+typedef std::vector<value_ptr>                      template_argument_list;
+typedef std::shared_ptr<template_argument_list>     template_argument_list_ptr;
+
+
 //
 class literal_value;
 
@@ -26,15 +30,12 @@ namespace literal
 
 
 
+    //
+    struct single_identifier_value_base;
+    typedef std::shared_ptr<single_identifier_value_base> single_identifier_value_base_ptr;
 
 
-
-
-
-
-
-
-    // 
+    //
     struct identifier_value;
     typedef std::shared_ptr<identifier_value> identifier_value_ptr;
 
@@ -42,16 +43,15 @@ namespace literal
 
 
 
+    // 
+    class single_identifier_value;
+    typedef std::shared_ptr<single_identifier_value> single_identifier_value_ptr;
 
-
-
+/*
     //
-    struct simple_identifier_value;
-    typedef std::shared_ptr<simple_identifier_value> simple_identifier_value_ptr;
-
-
-
-
+    struct single_template_identifier_value;
+    typedef std::shared_ptr<single_template_identifier_value> single_template_identifier_value_ptr;
+*/
 
 
 

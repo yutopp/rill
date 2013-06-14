@@ -215,17 +215,19 @@ public:
 
         identifier_.name( "identifier" );
         identifier_
-           = simple_identifier_literal_;
+           = single_identifier_
+           ;
+            // TODO: should +( single_identifier_ | single_template_identifier_ )
 
         // instanced_identifier
 
         // static_identifier_
 
-        simple_identifier_literal_
+        single_identifier_
             = native_symbol_string_[
                 qi::_val
-                    = phx::construct<literal::simple_identifier_value_ptr>(
-                        phx::new_<literal::simple_identifier_value>(
+                    = phx::construct<literal::single_identifier_value>(
+                        phx::new_<literal::single_identifier_value>(
                             qi::_1
                             )
                         )
@@ -323,7 +325,7 @@ private:
     qi::rule<input_iterator, parameter_pair(), ascii::space_type> parameter_pair_;
 
     qi::rule<input_iterator, literal::identifier_value_ptr(), ascii::space_type> identifier_;
-    qi::rule<input_iterator, literal::simple_identifier_value_ptr(), ascii::space_type> simple_identifier_literal_;
+    qi::rule<input_iterator, literal::single_identifier_value_ptr(), ascii::space_type> single_identifier_;
 
     qi::rule<input_iterator, literal::symbol_value_ptr()> native_symbol_;
     qi::rule<input_iterator, native_string_t()> native_symbol_string_;

@@ -58,7 +58,7 @@ struct interpret_pass<runtime_interpret_tag>
         v.push_back( evaled_lhs );
         v.push_back( evaled_rhs );
 
-        return std::dynamic_pointer_cast<native_function_definition_statement>( ee->get_stmt() )->callee_( v );
+        return nullptr; //std::dynamic_pointer_cast<native_function_definition_statement>( ee->get_stmt() )->callee_( v );
     }
 
     value_ptr operator()( call_expression const& s, environment_ptr const& env ) const

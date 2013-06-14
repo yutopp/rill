@@ -114,13 +114,13 @@ public:
     //
     virtual auto pre_construct(
         kind::function_tag,
-        literal::symbol_value_ptr const& name
+        literal::single_identifier_value_ptr const& name
         ) -> env_pointer { return nullptr; }
     //virtual auto pre_construct( kind::class_tag, literal::symbol_value_ptr const& name ) -> env_pointer;
 
     virtual auto construct(
         kind::function_tag,
-        literal::identifier_value_ptr const&,
+        literal::single_identifier_value_base_ptr const&,
         parameter_list const&
         ) -> env_pointer { return nullptr; }
 
@@ -250,13 +250,13 @@ public:
 
     auto pre_construct(
         kind::function_tag,
-        literal::symbol_value_ptr const& name
+        literal::single_identifier_value_ptr const& name
         ) RILL_CXX11_OVERRIDE
         -> env_pointer;
 
     auto construct(
         kind::function_tag,
-        literal::identifier_value_ptr const& name,
+        literal::single_identifier_value_base_ptr const& name,
         parameter_list const&
         ) RILL_CXX11_OVERRIDE
         -> env_pointer;

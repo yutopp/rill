@@ -30,7 +30,11 @@ struct value
     typedef std::shared_ptr<literal::identifier_value const>  typed_label_type;
 
 public:
-    value() {}
+    // basic constructor
+    value()
+    {}
+
+    // specify value's type name
     value( native_string_t const& simple_typename );
 
     virtual ~value() {}
@@ -82,24 +86,29 @@ namespace literal
         typedef std::string     native_string_type;
 
     public:
-        symbol_value( native_string_type const& name )
+        symbol_value( native_string_t const& name )
             : value_( name )
         {}
 
     public:
+        // deplicated
         auto get_native_symbol_string() const
             -> native_string_type
         {
             return value_;
         }
 
+        auto get_native_string() const
+            -> native_string_t const&
+        {
+            return value_;
+        }
+
     private:
-        native_string_type value_;
+        native_string_t value_;
     };
 
-    inline auto make_symbol(
-        symbol_value::native_string_type const& native_symbol_name
-        )
+    inline auto make_symbol( native_string_t const& native_symbol_name )
         -> symbol_value_ptr
     {
         return std::make_shared<symbol_value>( native_symbol_name );
@@ -114,49 +123,88 @@ namespace literal
 
 
 
+    struct single_identifier_value_base
+        : literal_value
+    {
+    public:
+        virtual ~single_identifier_value_base() {}
 
-
+    public:
+        virtual bool is_template() const =0;
+        virtual auto get_base_symbol() const
+            -> symbol_value_ptr =0;
+        virtual auto template_argument() const
+            -> template_argument_list_ptr =0;
+    };
 
 
 
     // 
-    struct identifier_value
+    struct identifier_value RILL_CXX11_FINAL
         : public literal_value
     {
     public:
-        typedef std::vector<value_ptr>                      template_parameters_type;
-        typedef std::unique_ptr<template_parameters_type>   template_parameters_pointer;
+        // template<typename... T>
+        //identifier_value( T&&... nests )
+        template<typename T>
+        identifier_value( T&& nests )
+            : ppp_( std::forward<T>( nests ) )
+        {}
 
     public:
-        identifier_value( bool const is_template_type, symbol_value::native_string_type const& simple_typename );
-
-        virtual ~identifier_value();
+        // deplicated
+        auto get_last_identifier() const
+            -> single_identifier_value_base_ptr
+        {
+            //return nest_.back();
+            return ppp_;
+        }
 
     public:
-        bool is_template() const;
+        //std::vector<single_identifier_value_base_ptr> const nest_;
+        single_identifier_value_base_ptr const ppp_;
+    };
 
-        virtual auto template_parameters() const -> template_parameters_pointer;
 
-        //
-        auto get_last_symbol() const
+
+
+
+
+    class single_identifier_value
+        : public single_identifier_value_base
+    {
+    public:
+        single_identifier_value( native_string_t const& single_identifier_string )
+            : base_name_( make_symbol( single_identifier_string ) )
+        {}
+
+        single_identifier_value( symbol_value_ptr const& single_identifier_symbol )
+            : base_name_( single_identifier_symbol )
+        {}
+
+    public:
+        bool is_template() const RILL_CXX11_OVERRIDE
+        {
+            return false;
+        }
+
+        auto get_base_symbol() const RILL_CXX11_OVERRIDE
             -> symbol_value_ptr
         {
-            return simple_name_;
+            return base_name_;
+        }
+
+        auto template_argument() const RILL_CXX11_OVERRIDE
+            -> template_argument_list_ptr
+        {
+            return nullptr;
         }
 
     private:
-        bool is_template_;
-        symbol_value_ptr simple_name_; // TODO: support namespace and so on
+        symbol_value_ptr base_name_;
     };
-    typedef std::shared_ptr<identifier_value> identifier_value_ptr;
 
-
-
-
-
-
-
-
+    /*
     //
     struct simple_identifier_value
         : public identifier_value
@@ -170,7 +218,7 @@ namespace literal
     private:
     };
     typedef std::shared_ptr<simple_identifier_value> simple_identifier_value_ptr;
-
+    */
 
     inline auto make_simple_identifier( native_string_t const& simple_typename )
         -> simple_identifier_value_ptr
