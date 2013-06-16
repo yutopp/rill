@@ -33,6 +33,12 @@
     <Filter Include="rill\config">
       <UniqueIdentifier>{b9647729-911b-4582-855e-02527336bf8c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="rill\interpreter">
+      <UniqueIdentifier>{e43fd181-291c-409e-9db4-c625d09055e7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="libs\rill\src\interpreter">
+      <UniqueIdentifier>{f7595717-27b7-412c-ba6a-31c75f9319ce}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\rill\environment.hpp">
@@ -80,6 +86,18 @@
     <ClInclude Include="..\..\..\rill\tree_visitor_base.hpp">
       <Filter>rill\pass</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\rill\interpreter\runner.hpp">
+      <Filter>rill\interpreter</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\interpreter\interpreter.hpp">
+      <Filter>rill\interpreter</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\interpreter\invoke.hpp">
+      <Filter>rill\interpreter</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\interpreter\runtime.hpp">
+      <Filter>rill\interpreter</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\libs\rill\src\environment.cpp">
@@ -94,5 +112,11 @@
     <ClCompile Include="..\..\..\libs\rill\src\make_syntax_tree.cpp">
       <Filter>libs\rill\src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\libs\rill\src\interpreter\interpreter.cpp">
+      <Filter>libs\rill\src\interpreter</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\libs\rill\build\Jamfile.v2" />
   </ItemGroup>
 </Project>

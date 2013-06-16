@@ -18,7 +18,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v110</PlatformToolset>
+    <PlatformToolset>v120_CTP_Nov2012</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -67,6 +67,10 @@
     <ClInclude Include="..\..\..\rill\config\macros.hpp" />
     <ClInclude Include="..\..\..\rill\expression_fwd.hpp" />
     <ClInclude Include="..\..\..\rill\instantiation_and_semantic_analysis_pass.hpp" />
+    <ClInclude Include="..\..\..\rill\interpreter\invoke.hpp" />
+    <ClInclude Include="..\..\..\rill\interpreter\interpreter.hpp" />
+    <ClInclude Include="..\..\..\rill\interpreter\runner.hpp" />
+    <ClInclude Include="..\..\..\rill\interpreter\runtime.hpp" />
     <ClInclude Include="..\..\..\rill\interpret_pass.hpp" />
     <ClInclude Include="..\..\..\rill\list_identifier_pass.hpp" />
     <ClInclude Include="..\..\..\rill\environment.hpp" />
@@ -82,9 +86,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\libs\rill\src\environment.cpp" />
+    <ClCompile Include="..\..\..\libs\rill\src\interpreter\interpreter.cpp" />
     <ClCompile Include="..\..\..\libs\rill\src\make_syntax_tree.cpp" />
     <ClCompile Include="..\..\..\libs\rill\src\value.cpp" />
     <ClCompile Include="..\..\..\tools\compiler\src\main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\libs\rill\build\Jamfile.v2" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

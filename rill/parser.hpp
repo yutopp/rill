@@ -62,29 +62,52 @@ public:
 
         //
         program_.name( "program" );
-        program_ %= top_level_statement_ > ( qi::eol | qi::eoi );// 
+        program_ %= top_level_statements_ > ( qi::eol | qi::eoi );// 
 
         //
-        top_level_statement_.name( "top_level_statement" );
-        top_level_statement_
+        top_level_statements_.name( "top_level_statements" );
+        top_level_statements_
             %= *( function_definition_statement_
                 | expression_statement_
                 )
             ;
         
+        function_body_statements_
+            %= *( return_statement_
+                | expression_statement_
+                )
+            ;
         //
         //block_ = 
 
         //top_level_statement_
 
+        return_statement_
+            = qi::lit( "return" )
+            > ( expression_ > statement_termination_ )[
+                qi::_val
+                    = phx::construct<return_statement_ptr>(
+                        phx::new_<return_statement>(
+                            qi::_1
+                            )
+                        )
+              ]
+            ;
+
+        //
+        function_body_block_
+            %= qi::lit( "{" ) >> function_body_statements_ >> qi::lit( "}" )
+            ;
+
+        //function_body_expression_
         //
         function_definition_statement_
             = ( qi::lit( "def" )
-             > identifier_
-             > parameter_list_
-             > qi::lit( ":" )
-             > identifier_
-             > qi::lit( "{" ) > top_level_statement_ > qi::lit( "}" )
+            > identifier_
+            > parameter_list_
+            > qi::lit( ":" )
+            > identifier_
+            > ( function_body_block_ | function_body_block_ )
               )[
                 qi::_val
                     = phx::construct<function_definition_statement_ptr>(
@@ -307,7 +330,10 @@ public:
 private:
     qi::rule<input_iterator, program(), qi::locals<input_type>, ascii::space_type> program_;
 
-    qi::rule<input_iterator, statement_list(), ascii::space_type> top_level_statement_;
+    qi::rule<input_iterator, statement_list(), ascii::space_type> top_level_statements_, function_body_statements_;
+    qi::rule<input_iterator, statement_list(), ascii::space_type> function_body_block_, function_body_expression_;
+
+    qi::rule<input_iterator, return_statement_ptr(), ascii::space_type> return_statement_;
     qi::rule<input_iterator, function_definition_statement_ptr(), ascii::space_type> function_definition_statement_;
     qi::rule<input_iterator, expression_statement_ptr(), ascii::space_type> expression_statement_;
 

@@ -1,10 +1,14 @@
 #pragma once
 
 #include <memory>
+#include <vector>
 
 struct value;
-typedef std::shared_ptr<value> value_ptr;
+typedef std::shared_ptr<value>          value_ptr;
+typedef std::shared_ptr<value const>    const_value_ptr;
 
+typedef std::vector<value_ptr const>    argument_list;
+typedef std::shared_ptr<argument_list>  argument_list_ptr;
 
 typedef std::vector<value_ptr>                      template_argument_list;
 typedef std::shared_ptr<template_argument_list>     template_argument_list_ptr;
@@ -32,8 +36,8 @@ namespace literal
 
     //
     struct single_identifier_value_base;
-    typedef std::shared_ptr<single_identifier_value_base> single_identifier_value_base_ptr;
-
+    typedef std::shared_ptr<single_identifier_value_base>       single_identifier_value_base_ptr;
+    typedef std::shared_ptr<single_identifier_value_base const> const_single_identifier_value_base_ptr;
 
     //
     struct identifier_value;
@@ -45,7 +49,8 @@ namespace literal
 
     // 
     class single_identifier_value;
-    typedef std::shared_ptr<single_identifier_value> single_identifier_value_ptr;
+    typedef std::shared_ptr<single_identifier_value>        single_identifier_value_ptr;
+    typedef std::shared_ptr<single_identifier_value const>  const_single_identifier_value_ptr;
 
 /*
     //
@@ -59,4 +64,5 @@ namespace literal
     typedef std::shared_ptr<int32_value> int32_value_ptr;
 }
 
-
+#include <iostream>
+std::ostream& operator<<( std::ostream& os, value const& vp );

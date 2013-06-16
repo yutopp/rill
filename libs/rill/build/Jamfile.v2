@@ -15,9 +15,10 @@ project rill/lib
 
 SOURCES =
     value
-	environment
-	make_syntax_tree
-	;
+    environment
+    make_syntax_tree
+    interpreter/interpreter
+    ;
 
  
 lib librill

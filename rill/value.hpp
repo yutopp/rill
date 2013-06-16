@@ -8,7 +8,7 @@
 #include "value_fwd.hpp"
 
 #include "environment_fwd.hpp"
-
+#include "tree_visitor_base.hpp"
 
 // ----------------------------------------------------------------------
 // ----------------------------------------------------------------------
@@ -44,6 +44,12 @@ public:
     bool is_intrinsic_type() const
     {
         return intrinsic_typed_identifier_.use_count() != 0;
+    }
+
+public:
+    const_environment_ptr dispatch( tree_visitor_base const& visitor, environment_ptr const& env ) const
+    {
+        return visitor( *this, env );
     }
 
 public:
@@ -352,5 +358,3 @@ inline auto make_parameter_list(
 
 
 
-#include <iostream>
-std::ostream& operator<<( std::ostream& os, value_ptr const& vp );

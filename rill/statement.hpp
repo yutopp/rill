@@ -43,9 +43,7 @@ public:
 
 
 //
-typedef std::vector<statement_ptr>  statement_list;
 
-typedef std::vector<statement_ptr>  program;
 
 
 
@@ -140,10 +138,21 @@ public:
 };
 
 
+struct return_statement
+    : public statement
+{
+    ADAPT_STATEMENT_VISITOR( return_statement )
 
+public:
+    return_statement( expression_ptr const& expr )
+        : expression_( expr )
+    {}
 
+public:
+    expression_ptr const expression_;
+};
 
-
+/*
 
 #include <functional>
 typedef std::function<value_ptr(std::vector<value_ptr> const&)> native_function_t;
@@ -167,7 +176,7 @@ public:
 public:
     native_function_t const callee_;
 };
-
+*/
 
 
 

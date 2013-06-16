@@ -3,6 +3,18 @@
 #include <rill/expression.hpp>
 #include <rill/statement.hpp>
 
+std::ostream& operator<<( std::ostream& os, environment const& env )
+{
+    os << "DEBUG: environment" << std::endl;
+    auto& e = env;
+    std::string indent = "  ";
+    while( !e.is_root() ) {
+        e.dump( os, indent );
+        e.get_parent_env();
+        indent += "  ";
+    }
+    return e.dump( os, indent );
+}
 
 /*
     single_identifier_environment_base::environment()
@@ -63,7 +75,7 @@
 
 
     auto single_identifier_environment_base::lookup_env( literal::identifier_value_ptr const& identifier ) const
-        -> env_const_pointer
+        -> const_env_pointer
     {
         /*
         auto const& name = identifier->get_last_symbol()->get_native_symbol_string(); // TODO: change to do namespace search.
@@ -84,6 +96,20 @@
     }
 
 
+    auto single_identifier_environment_base::lookup( literal::const_single_identifier_value_base_ptr const& name ) const
+        -> const_env_pointer
+    {
+        if ( name->is_template() ) {
+            // TODO: add template support
+            return nullptr;
+
+        } else {
+            auto const it = instanced_env_.find( name->get_base_symbol()->get_native_string() );
+
+            return ( it != instanced_env_.end() ) ? it->second : is_root() ? nullptr : get_parent_env()->lookup( name );
+        }
+    }
+
     auto single_identifier_environment_base::pre_construct(
         kind::function_tag,
         literal::single_identifier_value_ptr const& name
@@ -91,16 +117,17 @@
         -> env_pointer
     {
         // make uncomplete env
-        auto const& w_env = std::make_shared<has_parameter_environment<function_symbol_environment>>( shared_from_this() );
+        auto const& w_env = allocate_env<has_parameter_environment<function_symbol_environment>>( shared_from_this() );
 
-        instanced_env_[name->get_base_symbol()->get_native_string()] = w_env;
-        return w_env;
+        instanced_env_[name->get_base_symbol()->get_native_string()] = w_env.pointer;
+        return w_env.pointer;
     }
 
     auto single_identifier_environment_base::construct(
         kind::function_tag,
         literal::single_identifier_value_base_ptr const& name,
-        parameter_list const& plist
+        parameter_list const& plist,
+        statement_list const& statements
         )
         -> env_pointer
     {
@@ -108,16 +135,52 @@
 
         auto const& env = instanced_env_[name->get_base_symbol()->get_native_symbol_string()];
 
-        if ( env->symbol_kind() != kind::type_value::function_e ) {
+        if (  env->symbol_kind() != kind::type_value::parameter_wrapper_e
+           || std::dynamic_pointer_cast<has_parameter_environment_base>( env )->get_inner_symbol_kind() != kind::type_value::function_e
+           ) {
             exit( -900 );
         }
 
         auto const& f_env = std::dynamic_pointer_cast<has_parameter_environment<function_symbol_environment>>( env );
-        auto const& function = f_env->add_overload( plist );
+        auto const& function = f_env->add_overload( plist, statements );
 
         return function;
     }
 
+
+
+
+    auto single_identifier_environment_base::pre_construct(
+        kind::class_tag,
+        literal::single_identifier_value_ptr const& name
+        )
+        -> env_pointer
+    {
+        // make uncomplete env
+        auto const& w_env = allocate_env<class_symbol_environment>( shared_from_this() );
+
+        instanced_env_[name->get_base_symbol()->get_native_string()] = w_env.pointer;
+        return w_env.pointer;
+    }
+
+    auto single_identifier_environment_base::construct(
+        kind::class_tag,
+        literal::single_identifier_value_base_ptr const& name
+        )
+        -> env_pointer
+    {
+        // TODO: add existance check
+
+        auto const& env = instanced_env_[name->get_base_symbol()->get_native_symbol_string()];
+
+        if ( env->symbol_kind() != kind::type_value::class_e ) {
+            exit( -900 );
+        }
+
+        auto const& c_env = std::dynamic_pointer_cast<class_symbol_environment>( env );
+
+        return c_env;
+    }
 /*
     auto environment::get_stmt() const
         -> statement_ptr

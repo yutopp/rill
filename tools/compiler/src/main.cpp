@@ -99,23 +99,20 @@ void interpret_program( environment_ptr const& env, T const& statements )
         interpret( iasap, *s, env );
 }
 
+#include <rill/interpreter/interpreter.hpp>
 
-
-
-
-
-int main()
+void sample()
 {
     auto const root_env = std::make_shared<root_environment>();
 
     // operator +
     auto const operator_add
-        = literal::make_single_identifier( "+" );
+        = literal::make_binary_operator_identifier( "+" );
     root_env->pre_construct( kind::function_k, operator_add );
 
     // operator *
     auto const operator_multiply
-        = literal::make_single_identifier( "*" );
+        = literal::make_binary_operator_identifier( "*" );
     root_env->pre_construct( kind::function_k, operator_multiply );
 
 
@@ -124,6 +121,10 @@ int main()
 
         auto const int_type
             = literal::make_single_identifier( "int" );
+
+        root_env->pre_construct( kind::class_k, int_type );
+        root_env->construct( kind::class_k, int_type );
+
 
         /*
         auto const class_definition
@@ -135,21 +136,28 @@ int main()
 
         {
             //
-            auto const parameters
-                = make_parameter_list(
-                        make_parameter_pair( make_identifier( int_type ) )
-                        );
+            parameter_list parameters;
+            parameters.push_back( make_parameter_pair( make_identifier( int_type ) ) );
+            parameters.push_back( make_parameter_pair( make_identifier( int_type ) ) );
 
-            /*
+            
             statement_list sl;
             sl.push_back(
-                std::make_shared<expression_statement>(
+                std::make_shared<return_statement>(
                     std::make_shared<embedded_function_call_expression>(
+                        []( std::vector<value_ptr const> const& args ) -> value_ptr {
+                            std::cout << args.size() << std::endl;
+
+                            return std::make_shared<literal::int32_value>(
+                                std::dynamic_pointer_cast<literal::int32_value>( args[0] )->get_value()
+                                + std::dynamic_pointer_cast<literal::int32_value>( args[1] )->get_value()
+                                );
+                        }
                         )
                     )
                 );
             
-            auto add_int_int = std::make_shared<native_function_definition_statement>(
+            /*auto add_int_int = std::make_shared<native_function_definition_statement>(
                 bin_op_function_name,
                 parameters,
                 int_type,
@@ -162,7 +170,46 @@ int main()
                   }
                 );*/
 
-            root_env->construct( kind::function_k, operator_add, parameters );
+            root_env->construct( kind::function_k, operator_add, parameters, sl );
+        }
+
+        {
+            //
+            parameter_list parameters;
+            parameters.push_back( make_parameter_pair( make_identifier( int_type ) ) );
+            parameters.push_back( make_parameter_pair( make_identifier( int_type ) ) );
+
+            
+            statement_list sl;
+            sl.push_back(
+                std::make_shared<return_statement>(
+                    std::make_shared<embedded_function_call_expression>(
+                        []( std::vector<value_ptr const> const& args ) -> value_ptr {
+                            std::cout << args.size() << std::endl;
+
+                            return std::make_shared<literal::int32_value>(
+                                std::dynamic_pointer_cast<literal::int32_value>( args[0] )->get_value()
+                                * std::dynamic_pointer_cast<literal::int32_value>( args[1] )->get_value()
+                                );
+                        }
+                        )
+                    )
+                );
+            
+            /*auto add_int_int = std::make_shared<native_function_definition_statement>(
+                bin_op_function_name,
+                parameters,
+                int_type,
+                []( std::vector<value_ptr> const& args ) -> value_ptr {
+                    //std::cout << args.size() << std::endl;
+                    return std::make_shared<literal::int32_value>(
+                              std::dynamic_pointer_cast<literal::int32_value>( args[0] )->get_value()
+                              + std::dynamic_pointer_cast<literal::int32_value>( args[1] )->get_value()
+                              );
+                  }
+                );*/
+
+            root_env->construct( kind::function_k, operator_multiply, parameters, sl );
         }
         /*
         {
@@ -228,9 +275,15 @@ int main()
         //stmt->semantic_analysis( root_env );
     }
 
-
     // last( debug )
-    interpret_program<runtime_interpret_tag>( root_env, v.product );
+    rill::interpreter::run( root_env, v.product );
+}
+
+
+
+int main()
+{
+    sample();
 
 
     {char c; std::cin >> c;}

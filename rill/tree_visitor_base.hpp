@@ -3,11 +3,25 @@
 #include <iostream>
 #include <cstddef>
 
+#include "config/macros.hpp"
+
 #include "environment_fwd.hpp"
 
 #include "value_fwd.hpp"
 #include "expression_fwd.hpp"
 #include "statement_fwd.hpp"
+
+struct value_env_pair_t
+{
+    value_ptr value;
+    const_environment_ptr env;
+};
+value_env_pair_t const nullexpr;
+
+
+
+std::ostream& operator<<( std::ostream& os, value_env_pair_t const& v );
+
 
 struct tree_visitor_base
 {
@@ -22,6 +36,7 @@ public:
     // virtual void operator()( template_statement const& s, environment_ptr const& env ) const =0;
 
     virtual void operator()( expression_statement const& s, environment_ptr const& env ) const =0;
+    virtual void operator()( return_statement const& s, environment_ptr const& env ) const =0;
     virtual void operator()( function_definition_statement const& s, environment_ptr const& env ) const =0;
     // virtual void operator()( native_function_definition_statement const& s, environment_ptr const& env ) const =0;
 
@@ -29,12 +44,13 @@ public:
 
 
     // expression
-    virtual value_ptr operator()( binary_operator_expression const& s, environment_ptr const& env ) const =0;
-    virtual value_ptr operator()( call_expression const& s, environment_ptr const& env ) const =0;
-    virtual value_ptr operator()( embedded_function_call_expression const& s, environment_ptr const& env ) const =0;
-    virtual value_ptr operator()( term_expression const& s, environment_ptr const& env ) const =0;
+    virtual value_env_pair_t operator()( binary_operator_expression const& s, environment_ptr const& env ) const =0;
+    virtual value_env_pair_t operator()( call_expression const& s, environment_ptr const& env ) const =0;
+    virtual value_env_pair_t operator()( embedded_function_call_expression const& s, environment_ptr const& env ) const =0;
+    virtual value_env_pair_t operator()( term_expression const& s, environment_ptr const& env ) const =0;
 
     // value
+    virtual const_environment_ptr operator()( value const& s, environment_ptr const& env ) const =0;
 
 public:
     // filter outdated object

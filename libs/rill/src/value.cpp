@@ -35,24 +35,33 @@ namespace literal
 }
 
 
-std::ostream& operator<<( std::ostream& os, value_ptr const& vp )
+std::ostream& operator<<( std::ostream& os, value const& vp )
 {
-    os << "!debug value output: " << std::endl;
-
-    if ( vp ) {
-        if ( vp->is_intrinsic_type() ) {
-            os << "  type  is " << vp->intrinsic_typed_identifier_->get_base_symbol()->get_native_symbol_string() << std::endl;
-            if ( vp->intrinsic_typed_identifier_->get_base_symbol()->get_native_symbol_string() == "int" ) {
-                os << "  value is " << std::dynamic_pointer_cast<literal::int32_value>( vp )->value_ << std::endl;
-            } else {
-                os << "  value is unknown." << std::endl;
-            }
+    if ( vp.is_intrinsic_type() ) {
+        os << "  type  is " << vp.intrinsic_typed_identifier_->get_base_symbol()->get_native_symbol_string() << std::endl;
+        if ( vp.intrinsic_typed_identifier_->get_base_symbol()->get_native_symbol_string() == "int" ) {
+            os << "  value is " << dynamic_cast<literal::int32_value const*>( &vp )->value_ << std::endl;
         } else {
-            os << "  NOT typed value." << std::endl;
+            os << "  value is unknown." << std::endl;
         }
+    } else {
+        os << "  NOT typed value." << std::endl;
+    }
+
+    return os;
+}
+
+
+std::ostream& operator<<( std::ostream& os, value_env_pair_t const& v )
+{
+    os << "!debug value_envid_pair_t output: " << std::endl;
+    if ( v.value ) {
+        os << *(v.value);
+        os << "  Env id is " << ( v.env ? v.env->get_id() : 0 ) << std::endl;
+
     } else {
         os << "  ERROR: nullptr is setted." << std::endl;
     }
-
+    
     return os;
 }

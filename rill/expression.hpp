@@ -22,13 +22,13 @@ public:
     virtual ~expression() {}
 
 public:
-    virtual value_ptr dispatch( tree_visitor_base const&, environment_ptr const& ) const =0;
+    virtual value_env_pair_t dispatch( tree_visitor_base const&, environment_ptr const& ) const =0;
 };
 
 //
 #define ADAPT_EXPRESSION_VISITOR( class_name ) \
     public: \
-        virtual value_ptr dispatch( tree_visitor_base const& visitor, environment_ptr const& env ) const \
+        virtual value_env_pair_t dispatch( tree_visitor_base const& visitor, environment_ptr const& env ) const \
         { \
             return visitor( *this, env ); \
         }
@@ -74,20 +74,21 @@ public:
 
 
 //
+#include <functional>
+typedef std::function<value_ptr (std::vector<value_ptr const> const&)> embedded_callback_function_t;
+
 struct embedded_function_call_expression
     : public expression
 {
     ADAPT_EXPRESSION_VISITOR( embedded_function_call_expression )
 
 public:
-    embedded_function_call_expression( literal::identifier_value_ptr const& caller, expression_list const& arguments )
-        : reciever_( caller )
-        , arguments_( arguments )
+    embedded_function_call_expression( embedded_callback_function_t const& reciever )
+        : reciever_( reciever )
     {}
 
 public:
-    literal::identifier_value_ptr const reciever_;
-    expression_list const arguments_;
+    embedded_callback_function_t const reciever_;
 };
 
 
