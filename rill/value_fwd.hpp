@@ -41,8 +41,8 @@ namespace literal
 
     //
     struct identifier_value;
-    typedef std::shared_ptr<identifier_value> identifier_value_ptr;
-
+    typedef std::shared_ptr<identifier_value>       identifier_value_ptr;
+    typedef std::shared_ptr<identifier_value const> const_identifier_value_ptr;
 
 
 

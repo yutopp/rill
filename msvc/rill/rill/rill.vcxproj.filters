@@ -74,12 +74,6 @@
     <ClInclude Include="..\..\..\rill\statement_fwd.hpp">
       <Filter>rill\element</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\rill\list_identifier_pass.hpp">
-      <Filter>rill\pass</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\rill\instantiation_and_semantic_analysis_pass.hpp">
-      <Filter>rill\pass</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\rill\expression_fwd.hpp">
       <Filter>rill\element</Filter>
     </ClInclude>
@@ -144,5 +138,9 @@
     <None Include="..\..\..\libs\rill\build\Jamfile.v2">
       <Filter>libs\rill\build</Filter>
     </None>
+    <None Include="..\..\..\tools\compiler\Jamfile.v2">
+      <Filter>tools\compiler</Filter>
+    </None>
+    <None Include="..\..\..\Jamroot.jam" />
   </ItemGroup>
 </Project>

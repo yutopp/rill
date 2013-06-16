@@ -160,19 +160,69 @@ public:
     }
 
 public:
-    virtual auto add_class( class_definition_statement_ptr const& ) -> env_pointer { return nullptr; }
-    virtual auto add_function( function_definition_statement_base_ptr const& ) -> env_pointer { return nullptr; }
-
-    virtual auto lookup_env( literal::identifier_value_ptr const& name ) const
-        -> const_env_pointer { return nullptr; }
-
+    //
     virtual auto lookup( literal::const_single_identifier_value_base_ptr const& name )
-        -> env_pointer { return nullptr; }
+        -> env_pointer =0;
     virtual auto lookup( literal::const_single_identifier_value_base_ptr const& name ) const
-        -> const_env_pointer { return nullptr; }
+        -> const_env_pointer =0;
 
-    virtual auto get_stmt() const
-        -> statement_ptr{ return nullptr;}
+    //
+    virtual auto find_on_env( literal::const_single_identifier_value_base_ptr const& name )
+        -> env_pointer =0;
+    virtual auto find_on_env( literal::const_single_identifier_value_base_ptr const& name ) const
+        -> const_env_pointer =0;
+
+    template<typename F>
+    auto nest_lookup( literal::identifier_value_ptr const& ids, F const& failed_callback )
+        -> env_pointer
+    {
+        env_pointer env = shared_from_this();
+
+        for( auto const& id : ids->nest_ ) {
+            auto const& temp_env = env;
+            if ( env == shared_from_this() ) {
+                env = env->lookup( id );
+            } else {
+                env = env->find_on_env( id );
+            }
+
+            if ( env == nullptr ) {
+                env = failed_callback( temp_env, id );
+                if ( env == nullptr )
+                    break;
+            }
+        }
+        return env;
+    }
+
+    auto nest_lookup( literal::identifier_value_ptr const& ids )
+        -> env_pointer
+    {
+        return nest_lookup( ids, []( env_pointer const&, literal::single_identifier_value_base_ptr const& ){ return nullptr; } );
+    }
+
+    template<typename F>
+    auto nest_lookup( literal::identifier_value_ptr const& ids ) const
+        -> const_env_pointer
+    {
+        const_env_pointer env = shared_from_this();
+
+        for( auto const& id : ids->nest_ ) {
+            if ( env == shared_from_this() ) {
+                env = env->lookup( id );
+            } else {
+                env = env->find_on_env( id );
+            }
+
+            if ( env == nullptr )
+                break;
+        }
+        return env;
+    }
+
+
+
+
 
     //
     virtual auto pre_construct(
@@ -187,10 +237,6 @@ public:
         parameter_list const&,
         statement_list const&
         ) -> env_pointer { return nullptr; }
-
-    // deprecated
-    virtual auto symbol_kind() const
-        -> kind::type_value =0;
 
     virtual auto get_symbol_kind() const
         -> kind::type_value =0;
@@ -267,13 +313,15 @@ public:
         return kind::type_value::none_e; // TODO: change to template_e
     }
 
-    auto lookup_env( literal::identifier_value_ptr const& name ) const RILL_CXX11_OVERRIDE
-        -> const_env_pointer
-    { return nullptr; };
-
-    auto get_stmt() const RILL_CXX11_OVERRIDE
-        -> statement_ptr
-    { return nullptr; }
+    // not implemented
+    auto lookup( literal::const_single_identifier_value_base_ptr const& name ) RILL_CXX11_OVERRIDE
+        -> env_pointer { assert( false ); return nullptr; }
+    auto lookup( literal::const_single_identifier_value_base_ptr const& name ) const RILL_CXX11_OVERRIDE
+        -> const_env_pointer { assert( false ); return nullptr; }
+    auto find_on_env( literal::const_single_identifier_value_base_ptr const& name ) RILL_CXX11_OVERRIDE
+        -> env_pointer { assert( false ); return nullptr; }
+    auto find_on_env( literal::const_single_identifier_value_base_ptr const& name ) const RILL_CXX11_OVERRIDE
+        -> const_env_pointer { assert( false ); return nullptr; }
 
 private:
     std::unordered_map<native_string_type, environment_ptr> simple_env_;
@@ -301,24 +349,18 @@ public:
     virtual ~single_identifier_environment_base() {};
 
 public:
-    virtual auto add_class( class_definition_statement_ptr const& ) -> env_pointer;
-
-    virtual auto add_function( function_definition_statement_base_ptr const& ) -> env_pointer;
-
-
-
-
-    auto lookup_env( literal::identifier_value_ptr const& name ) const
-        -> const_env_pointer;
-
     auto lookup( literal::const_single_identifier_value_base_ptr const& name ) RILL_CXX11_OVERRIDE
         -> env_pointer;
     auto lookup( literal::const_single_identifier_value_base_ptr const& name ) const RILL_CXX11_OVERRIDE
         -> const_env_pointer;
 
-    virtual auto get_stmt() const
-        -> statement_ptr
-    { return nullptr; }
+    //
+    auto find_on_env( literal::const_single_identifier_value_base_ptr const& name ) RILL_CXX11_OVERRIDE
+        -> env_pointer;
+    auto find_on_env( literal::const_single_identifier_value_base_ptr const& name ) const RILL_CXX11_OVERRIDE
+        -> const_env_pointer;
+
+
 
 
 
@@ -383,7 +425,7 @@ public:
         os  << indent << "single_identifier_environment_base" << std::endl;
         for( auto const& ins : instanced_env_ ) {
             os << indent
-               << "symbol: " << ins.first
+               << "-> symbol: " << ins.first
                << " / id: " << ins.second->get_id()
                << " / symbol kind: " << static_cast<int>( ins.second->get_symbol_kind() ) << std::endl;
         }
@@ -406,12 +448,6 @@ public:
     {}
 
 private:
-    auto symbol_kind() const RILL_CXX11_OVERRIDE
-        -> kind::type_value
-    {
-        return kind::type_value::none_e;
-    }
-
     auto get_symbol_kind() const RILL_CXX11_OVERRIDE
         -> kind::type_value
     {
@@ -451,12 +487,6 @@ public:
     {}
 
 public:
-    auto symbol_kind() const RILL_CXX11_OVERRIDE
-        -> kind::type_value
-    {
-        return KindValue;
-    }
-
     auto get_symbol_kind() const RILL_CXX11_OVERRIDE
         -> kind::type_value
     {
@@ -468,10 +498,6 @@ public:
     {
         return false;
     }
-
-    auto get_stmt() const RILL_CXX11_OVERRIDE
-        -> statement_ptr
-    { return nullptr; };
 
     auto get_statement_list() const
         -> statement_list const&
@@ -504,12 +530,29 @@ public:
         -> const_environment_ptr =0;*/
 };
 
+#include <boost/range/adaptor/transformed.hpp>
+
+#include <boost/algorithm/string/join.hpp>
+
 typedef std::string parameter_hash_t;
-inline auto make_parameter_hash( environment_id_list const& id_list )
+
+template<typename EnvIds>
+inline auto make_parameter_hash( EnvIds const& id_list )
     -> parameter_hash_t
 {
-    return std::to_string( id_list.size() );
+    return  std::to_string( id_list.size() )
+            + "_"
+            + boost::algorithm::join(
+                id_list
+                | boost::adaptors::transformed(
+                    std::function<std::string (environment_id_t const&)>( []( environment_id_t const& id ){ return std::to_string( id ); } )
+                    ),
+                "%"
+                );
 }
+
+
+
 
 
 template<typename InlineEnvironment>
@@ -525,19 +568,12 @@ public:
     {}
 
 public:
-    auto symbol_kind() const RILL_CXX11_OVERRIDE
-        -> kind::type_value
-    {
-        return kind::type_value::parameter_wrapper_e;
-    }
-
     auto get_symbol_kind() const RILL_CXX11_OVERRIDE
         -> kind::type_value
     {
         return kind::type_value::parameter_wrapper_e;
     }
 
-    
     auto get_inner_symbol_kind() const RILL_CXX11_OVERRIDE
         -> kind::type_value
     {
@@ -547,10 +583,59 @@ public:
     auto add_overload( parameter_list const& parameter, statement_list const& statements ) RILL_CXX11_OVERRIDE
         -> env_pointer
     {
-        p_ = allocate_env<InlineEnvironment>( get_parent_env(), statements ).pointer;
-        return p_;
+        auto const ns_range
+            = parameter
+            | boost::adaptors::transformed(
+                std::function<const_env_pointer (parameter_pair const&)>(
+                    [this]( parameter_pair const& pp ) {
+                        return this->nest_lookup( pp.type );
+                    } )
+                )
+            ;
+
+        for( auto const& ns : ns_range ) {
+            if ( ns == nullptr )
+                return nullptr;
+        }
+
+        auto const env_ids_range
+            = ns_range
+            | boost::adaptors::transformed(
+                std::function<environment_id_t (const_env_pointer const&)>(
+                    []( const_env_pointer const& e ) {
+                        return e->get_id();
+                    } )
+                )
+            ;
+
+        auto const& f = allocate_env<InlineEnvironment>( get_parent_env(), statements ).pointer;
+
+        // TODO: add duplicate check
+        overloads_[make_parameter_hash( env_ids_range )] = f;
+
+        return f;
     }
 
+    auto solve_overload( environment_id_list const& args_env_ids ) const
+        -> std::shared_ptr<InlineEnvironment>
+    {
+//        std::cout << "solve_overload? hash: " << make_parameter_hash( args_env_ids ) << std::endl;
+
+        auto const it = overloads_.find( make_parameter_hash( args_env_ids ) );
+
+        return it != overloads_.cend() ? it->second : nullptr;
+    }
+
+    // delegate lookup
+    auto lookup( literal::const_single_identifier_value_base_ptr const& name ) RILL_CXX11_OVERRIDE
+        -> env_pointer { return get_parent_env()->lookup( name ); }
+    auto lookup( literal::const_single_identifier_value_base_ptr const& name ) const RILL_CXX11_OVERRIDE
+        -> const_env_pointer { return get_parent_env()->lookup( name ); }
+    auto find_on_env( literal::const_single_identifier_value_base_ptr const& name ) RILL_CXX11_OVERRIDE
+        -> env_pointer { return get_parent_env()->find_on_env( name ); }
+    auto find_on_env( literal::const_single_identifier_value_base_ptr const& name ) const RILL_CXX11_OVERRIDE
+        -> const_env_pointer { return get_parent_env()->find_on_env( name ); }
+/*
     auto lookup( environment_ptr const& parent, parameter_list const& parameter ) const
         -> const_environment_ptr
     {
@@ -560,20 +645,27 @@ public:
         }
 
         return nullptr;
-    }
+    }*/
 
-    auto solve_overload( environment_id_list const& args_env_id ) const
-        -> std::shared_ptr<InlineEnvironment>
+
+
+    auto dump( std::ostream& os, std::string const& indent ) const RILL_CXX11_OVERRIDE
+        -> std::ostream&
     {
-        // std::cout << "solve_overload? hash: " << make_parameter_hash( args_env_id ) << std::endl;
-
-        return p_;
+        os  << indent << "has_parameter_environment" << std::endl;
+/*        for( auto const& ins : instanced_env_ ) {
+            os << indent
+               << "symbol: " << ins.first
+               << " / id: " << ins.second->get_id()
+               << " / symbol kind: " << static_cast<int>( ins.second->get_symbol_kind() ) << std::endl;
+        }*/
+        return os;
     }
-
 private:
 
     // todo map
     std::shared_ptr<InlineEnvironment> p_;
+    std::unordered_map<parameter_hash_t, std::shared_ptr<InlineEnvironment>> overloads_;
     //const_environment_ptr ppp_;
 };
 
@@ -623,16 +715,6 @@ public:
     {}
 
 public:
-    auto get_stmt() const RILL_CXX11_OVERRIDE
-        -> statement_ptr
-    { return nullptr; };
-
-    auto symbol_kind() const RILL_CXX11_OVERRIDE
-        -> kind::type_value
-    {
-        return KindValue;
-    }
-
     auto get_symbol_kind() const RILL_CXX11_OVERRIDE
         -> kind::type_value
     {
@@ -645,7 +727,18 @@ public:
         return true;
     }
 
-
+    auto dump( std::ostream& os, std::string const& indent ) const RILL_CXX11_OVERRIDE
+        -> std::ostream&
+    {
+        os  << indent << "class_symbol_environment" << std::endl;
+/*        for( auto const& ins : instanced_env_ ) {
+            os << indent
+               << "symbol: " << ins.first
+               << " / id: " << ins.second->get_id()
+               << " / symbol kind: " << static_cast<int>( ins.second->get_symbol_kind() ) << std::endl;
+        }*/
+        return os;
+    }
 
 private:
 

@@ -53,22 +53,18 @@ namespace rill
             // check and instantiate nested identifier
             // TODO: instance nested
 
-            const_environment_ptr target_env = env;
-            for( auto const& it=e.reciever_->ppp_;;/*auto const& it = e.reciever->identifier_->cbegin(); it<std::prev( e.reciever->identifier_->cend() ); ++it*/) {
-                target_env = target_env->lookup( /* * */it );
-                if ( target_env == nullptr ) {
-                    if ( (/* * */it)->is_template() ) {
-
-
-                    } else {
-                        // 
-                        std::cout << "noname ERROR!!!" << std::endl;
-                        break;
-                    }
-                }
-
-                break; /*TODO: remove it*/
-            }
+            const_environment_ptr const target_env
+                = env->nest_lookup(
+                    e.reciever_,
+                    []( environment_ptr const& current_env, literal::single_identifier_value_base_ptr const& id ) {
+                        if ( id->is_template() ) {
+                            // TODO: add instatntiation
+                            return nullptr;
+                        } else {
+                            std::cout << "noname ERROR!!!" << std::endl;
+                            return nullptr;
+                        }
+                    } );
 
             environment_id_list ids;
             for( auto const& arg : e.arguments_ ) {
