@@ -32,7 +32,7 @@ void run( const_environment_ptr const& env, T const& prog )
 
 #include <rill/list_identifier_pass.hpp>
 #include <rill/instantiation_and_semantic_analysis_pass.hpp>
-#include <rill/interpret_pass.hpp>
+
 
 template<typename Node, typename EnvironmentPtr>
 auto list_identifier( list_identifier_pass const& pass, Node const& node, EnvironmentPtr const& env )
@@ -77,27 +77,6 @@ void check_semantic_and_instantiation( environment_ptr const& env, T const& stat
 }
 
 
-
-template<typename Tag, typename Node, typename EnvironmentPtr>
-auto interpret(
-    interpret_pass<Tag> const& pass,
-    Node const& node,
-    EnvironmentPtr const& env
-    )
-    -> decltype( node.dispatch( pass, env ) )
-{
-    return node.dispatch( pass, env );
-}
-
-
-template<typename Tag, typename T>
-void interpret_program( environment_ptr const& env, T const& statements )
-{
-    interpret_pass<Tag> iasap;
-    
-    for( auto const& s : statements )
-        interpret( iasap, *s, env );
-}
 
 #include <rill/interpreter/interpreter.hpp>
 

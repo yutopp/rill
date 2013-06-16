@@ -140,17 +140,5 @@ namespace rill
             }
         }
 
-
-
-        /*
-        runtime::runtime()
-        {
-        }*/
-
-
-
-
-
-
     } // namespace interpreter
 } // namespace rill

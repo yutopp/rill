@@ -71,7 +71,6 @@
     <ClInclude Include="..\..\..\rill\interpreter\interpreter.hpp" />
     <ClInclude Include="..\..\..\rill\interpreter\runner.hpp" />
     <ClInclude Include="..\..\..\rill\interpreter\runtime.hpp" />
-    <ClInclude Include="..\..\..\rill\interpret_pass.hpp" />
     <ClInclude Include="..\..\..\rill\list_identifier_pass.hpp" />
     <ClInclude Include="..\..\..\rill\environment.hpp" />
     <ClInclude Include="..\..\..\rill\environment_fwd.hpp" />
@@ -86,7 +85,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\libs\rill\src\environment.cpp" />
-    <ClCompile Include="..\..\..\libs\rill\src\interpreter\interpreter.cpp" />
+    <ClCompile Include="..\..\..\libs\rill\src\interpreter\runner.cpp" />
     <ClCompile Include="..\..\..\libs\rill\src\make_syntax_tree.cpp" />
     <ClCompile Include="..\..\..\libs\rill\src\value.cpp" />
     <ClCompile Include="..\..\..\tools\compiler\src\main.cpp" />
