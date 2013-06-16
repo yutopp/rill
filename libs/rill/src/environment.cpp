@@ -7,13 +7,19 @@ std::ostream& operator<<( std::ostream& os, environment_ptr const& env )
 {
     os << "DEBUG: environment" << std::endl;
     auto e = env;
-    std::string indent = "  ";
-    while( !e->is_root() ) {
-        e->dump( os, indent );
-        e = e->get_parent_env();
-        indent += "  ";
+    std::string indent = "^ ";
+
+    if ( e ) {
+        while( !e->is_root() ) {
+            e->dump( os, indent );
+            e = e->get_parent_env();
+            indent += "  ";
+        }
+        return e->dump( os, indent );
+    } else {
+        os << indent << "nullptr." << std::endl;
+        return os;
     }
-    return e->dump( os, indent );
 }
 
 /*
@@ -32,67 +38,23 @@ std::ostream& operator<<( std::ostream& os, environment_ptr const& env )
 
 */
 
-    auto single_identifier_environment_base::add_function(
-        function_definition_statement_base_ptr const& sp
-        ) -> env_pointer
-    {
-        return nullptr;
-        /*
-        auto const name = sp->get_identifier()->get_last_symbol()->get_native_symbol_string();
-
-        /*
-        if ( is_exist( symbol_name ) ) {
-            // throw
-            exit( -1 );
-        }*
-
-        //auto const p = std::make_shared<has_parameter_environment>( shared_from_this(), sp );
-        //p->add_overload( shared_from_this(), sp->get_parameter_list(), sp );
-        //sp->get_parameter_list();
-
-        instanced_env_[name] = nullptr;//p;
-
-        return instanced_env_[name];*/
-    }
 
 
-    auto single_identifier_environment_base::add_class( class_definition_statement_ptr const& sp )
+    //
+    auto single_identifier_environment_base::find_on_env( literal::const_single_identifier_value_base_ptr const& name )
         -> env_pointer
     {
-        return nullptr;
-        /*
-        auto const& name = sp->get_symbol_name()->get_native_symbol_string();
+        auto const it = instanced_env_.find( name->get_base_symbol()->get_native_string() );
 
-        instanced_env_[name] = std::make_shared<class_identifier_environment>( shared_from_this(), sp );
+        return ( it != instanced_env_.end() ) ? it->second : nullptr;
+    }
 
-        return instanced_env_[name];
-   */ }
-
-
-
-
-    
-
-
-    auto single_identifier_environment_base::lookup_env( literal::identifier_value_ptr const& identifier ) const
+    auto single_identifier_environment_base::find_on_env( literal::const_single_identifier_value_base_ptr const& name ) const
         -> const_env_pointer
     {
-        /*
-        auto const& name = identifier->get_last_symbol()->get_native_symbol_string(); // TODO: change to do namespace search.
+        auto const it = instanced_env_.find( name->get_base_symbol()->get_native_string() );
 
-        if ( auto const env = is_exist_in_instanced( name ) ) {
-            return *env;
-
-        }/* else {
-            if ( has_parent() ) {
-                return parent_.lock()->lookup_env( name );
-            } else {
-                return nullptr;
-            }
-        }*
-
-        exit( -1 );*/
-        return nullptr;
+        return ( it != instanced_env_.end() ) ? it->second : nullptr;
     }
 
 
@@ -104,9 +66,14 @@ std::ostream& operator<<( std::ostream& os, environment_ptr const& env )
             return nullptr;
 
         } else {
-            auto const it = instanced_env_.find( name->get_base_symbol()->get_native_string() );
+            auto const s = find_on_env( name );
 
-            return ( it != instanced_env_.end() ) ? it->second : is_root() ? nullptr : get_parent_env()->lookup( name );
+            return s
+                    ? s
+                    : is_root()
+                        ? nullptr
+                        : get_parent_env()->lookup( name )
+                        ;
         }
     }
 
@@ -118,11 +85,17 @@ std::ostream& operator<<( std::ostream& os, environment_ptr const& env )
             return nullptr;
 
         } else {
-            auto const it = instanced_env_.find( name->get_base_symbol()->get_native_string() );
+            auto const s = find_on_env( name );
 
-            return ( it != instanced_env_.end() ) ? it->second : is_root() ? nullptr : get_parent_env()->lookup( name );
+            return s
+                    ? s
+                    : is_root()
+                        ? nullptr
+                        : get_parent_env()->lookup( name )
+                        ;
         }
     }
+
 
     auto single_identifier_environment_base::pre_construct(
         kind::function_tag,
@@ -149,7 +122,7 @@ std::ostream& operator<<( std::ostream& os, environment_ptr const& env )
 
         auto const& env = instanced_env_[name->get_base_symbol()->get_native_symbol_string()];
 
-        if (  env->symbol_kind() != kind::type_value::parameter_wrapper_e
+        if (  env->get_symbol_kind() != kind::type_value::parameter_wrapper_e
            || std::dynamic_pointer_cast<has_parameter_environment_base>( env )->get_inner_symbol_kind() != kind::type_value::function_e
            ) {
             exit( -900 );
@@ -187,7 +160,7 @@ std::ostream& operator<<( std::ostream& os, environment_ptr const& env )
 
         auto const& env = instanced_env_[name->get_base_symbol()->get_native_symbol_string()];
 
-        if ( env->symbol_kind() != kind::type_value::class_e ) {
+        if ( env->get_symbol_kind() != kind::type_value::class_e ) {
             exit( -900 );
         }
 
@@ -196,11 +169,6 @@ std::ostream& operator<<( std::ostream& os, environment_ptr const& env )
         return c_env;
     }
 /*
-    auto environment::get_stmt() const
-        -> statement_ptr
-    {
-        return syntax_tree_;
-    }
 
 
  auto environment::is_exist( symbol_type const& symbol_name ) const

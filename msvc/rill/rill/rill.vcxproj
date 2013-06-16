@@ -66,12 +66,10 @@
   <ItemGroup>
     <ClInclude Include="..\..\..\rill\config\macros.hpp" />
     <ClInclude Include="..\..\..\rill\expression_fwd.hpp" />
-    <ClInclude Include="..\..\..\rill\instantiation_and_semantic_analysis_pass.hpp" />
     <ClInclude Include="..\..\..\rill\interpreter\invoke.hpp" />
     <ClInclude Include="..\..\..\rill\interpreter\interpreter.hpp" />
     <ClInclude Include="..\..\..\rill\interpreter\runner.hpp" />
     <ClInclude Include="..\..\..\rill\interpreter\runtime.hpp" />
-    <ClInclude Include="..\..\..\rill\list_identifier_pass.hpp" />
     <ClInclude Include="..\..\..\rill\environment.hpp" />
     <ClInclude Include="..\..\..\rill\environment_fwd.hpp" />
     <ClInclude Include="..\..\..\rill\expression.hpp" />

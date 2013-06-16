@@ -74,12 +74,6 @@
     <ClInclude Include="..\..\..\rill\statement_fwd.hpp">
       <Filter>rill\element</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\rill\list_identifier_pass.hpp">
-      <Filter>rill\pass</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\rill\instantiation_and_semantic_analysis_pass.hpp">
-      <Filter>rill\pass</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\rill\expression_fwd.hpp">
       <Filter>rill\element</Filter>
     </ClInclude>

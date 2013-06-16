@@ -151,30 +151,25 @@ namespace literal
         : public literal_value
     {
     public:
-        // template<typename... T>
-        //identifier_value( T&&... nests )
-        template<typename T>
-        explicit identifier_value( T&& nests )
-            : ppp_( std::forward<T>( nests ) )
+        explicit identifier_value( std::vector<single_identifier_value_base_ptr> const& nests )
+            : nest_( nests )
         {}
 
     public:
         auto get_last_identifier() const
             -> single_identifier_value_base_ptr
         {
-            //return nest_.back();
-            return ppp_;
+            return nest_.back();
         }
 
         auto nest_size() const
             -> std::size_t
         {
-            return 1;
+            return nest_.size();
         }
 
     public:
-        //std::vector<single_identifier_value_base_ptr> const nest_;
-        single_identifier_value_base_ptr const ppp_;
+        std::vector<single_identifier_value_base_ptr> const nest_;
     };
 
 
@@ -182,7 +177,8 @@ namespace literal
     inline auto make_identifier( single_identifier_value_base_ptr const& p )
         -> identifier_value_ptr
     {
-        return std::make_shared<identifier_value>( p );
+        std::vector<single_identifier_value_base_ptr> const l( 1, p );
+        return std::make_shared<identifier_value>( l );
     }
 
 
