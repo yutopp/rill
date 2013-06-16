@@ -8,13 +8,17 @@
 #pragma once
 
 
-
+#include <cassert>
 #include <memory>
 #include <unordered_map>
 #include <bitset>
+#include <utility>
+#include <boost/range/adaptor/transformed.hpp>
 
-#include <boost/detail/bitmask.hpp>
-#include <boost/optional.hpp>
+#include <boost/algorithm/string/join.hpp>
+
+//#include <boost/detail/bitmask.hpp>
+//#include <boost/optional.hpp>
 
 #include "config/macros.hpp"
 
@@ -132,7 +136,7 @@ private:
 
 struct root_initialize_tag {};
 
-#include <utility>
+
 class environment
     : public std::enable_shared_from_this<environment>
 {
@@ -234,15 +238,24 @@ public:
     //
     virtual auto pre_construct(
         kind::function_tag,
-        literal::single_identifier_value_base_ptr const& name
+        literal::single_identifier_value_base_ptr const&
         ) -> env_pointer { return nullptr; }
-    //virtual auto pre_construct( kind::class_tag, literal::symbol_value_ptr const& name ) -> env_pointer;
 
     virtual auto construct(
         kind::function_tag,
         literal::single_identifier_value_base_ptr const&,
         parameter_list const&,
         statement_list const&
+        ) -> env_pointer { return nullptr; }
+
+    virtual auto pre_construct(
+        kind::class_tag,
+        literal::single_identifier_value_ptr const&
+        )  -> env_pointer { return nullptr; }
+
+    virtual auto construct(
+        kind::class_tag,
+        literal::single_identifier_value_base_ptr const&
         ) -> env_pointer { return nullptr; }
 
     virtual auto get_symbol_kind() const
@@ -314,21 +327,21 @@ public:
     {}
 
 public:
-    auto symbol_kind() const RILL_CXX11_OVERRIDE
-        -> kind::type_value
+    auto get_symbol_kind() const
+        -> kind::type_value RILL_CXX11_OVERRIDE
     {
         return kind::type_value::none_e; // TODO: change to template_e
     }
 
     // not implemented
-    auto lookup( literal::const_single_identifier_value_base_ptr const& name ) RILL_CXX11_OVERRIDE
-        -> env_pointer { assert( false ); return nullptr; }
-    auto lookup( literal::const_single_identifier_value_base_ptr const& name ) const RILL_CXX11_OVERRIDE
-        -> const_env_pointer { assert( false ); return nullptr; }
-    auto find_on_env( literal::const_single_identifier_value_base_ptr const& name ) RILL_CXX11_OVERRIDE
-        -> env_pointer { assert( false ); return nullptr; }
-    auto find_on_env( literal::const_single_identifier_value_base_ptr const& name ) const RILL_CXX11_OVERRIDE
-        -> const_env_pointer { assert( false ); return nullptr; }
+    auto lookup( literal::const_single_identifier_value_base_ptr const& )
+        -> env_pointer RILL_CXX11_OVERRIDE { assert( false ); return nullptr; }
+    auto lookup( literal::const_single_identifier_value_base_ptr const& ) const
+        -> const_env_pointer RILL_CXX11_OVERRIDE { assert( false ); return nullptr; }
+    auto find_on_env( literal::const_single_identifier_value_base_ptr const& )
+        -> env_pointer RILL_CXX11_OVERRIDE { assert( false ); return nullptr; }
+    auto find_on_env( literal::const_single_identifier_value_base_ptr const& ) const
+        -> const_env_pointer RILL_CXX11_OVERRIDE { assert( false ); return nullptr; }
 
 private:
     std::unordered_map<native_string_type, environment_ptr> simple_env_;
@@ -356,16 +369,16 @@ public:
     virtual ~single_identifier_environment_base() {};
 
 public:
-    auto lookup( literal::const_single_identifier_value_base_ptr const& name ) RILL_CXX11_OVERRIDE
-        -> env_pointer;
-    auto lookup( literal::const_single_identifier_value_base_ptr const& name ) const RILL_CXX11_OVERRIDE
-        -> const_env_pointer;
+    auto lookup( literal::const_single_identifier_value_base_ptr const& )
+        -> env_pointer RILL_CXX11_OVERRIDE;
+    auto lookup( literal::const_single_identifier_value_base_ptr const& ) const
+        -> const_env_pointer RILL_CXX11_OVERRIDE;
 
     //
-    auto find_on_env( literal::const_single_identifier_value_base_ptr const& name ) RILL_CXX11_OVERRIDE
-        -> env_pointer;
-    auto find_on_env( literal::const_single_identifier_value_base_ptr const& name ) const RILL_CXX11_OVERRIDE
-        -> const_env_pointer;
+    auto find_on_env( literal::const_single_identifier_value_base_ptr const& )
+        -> env_pointer RILL_CXX11_OVERRIDE;
+    auto find_on_env( literal::const_single_identifier_value_base_ptr const& ) const
+        -> const_env_pointer RILL_CXX11_OVERRIDE;
 
 
 
@@ -376,7 +389,7 @@ public:
         -> bool { return false; }
 
 
-    
+/*
     auto is_exist_in_instanced( native_string_type const& name ) const
         -> boost::optional<env_pointer>
     {
@@ -385,7 +398,7 @@ public:
             return it->second;
 
         return boost::none;
-    }
+    }*/
 
     /*
     auto is_same_pre_declared_type( literal::identifier_value_ptr const& name, symbol_kind const& kind ) const
@@ -397,37 +410,33 @@ public:
     auto pre_construct(
         kind::function_tag,
         literal::single_identifier_value_base_ptr const& name
-        ) RILL_CXX11_OVERRIDE
-        -> env_pointer;
+        )  -> env_pointer RILL_CXX11_OVERRIDE;
 
     auto construct(
         kind::function_tag,
         literal::single_identifier_value_base_ptr const& name,
         parameter_list const&,
         statement_list const& statements
-        ) RILL_CXX11_OVERRIDE
-        -> env_pointer;
+        ) -> env_pointer RILL_CXX11_OVERRIDE;
 
 
     auto pre_construct(
         kind::class_tag,
         literal::single_identifier_value_ptr const& name
-        ) RILL_CXX11_OVERRIDE
-        -> env_pointer;
+        ) -> env_pointer RILL_CXX11_OVERRIDE;
 
     auto construct(
         kind::class_tag,
         literal::single_identifier_value_base_ptr const& name
-        ) RILL_CXX11_OVERRIDE
-        -> env_pointer;
+        ) -> env_pointer RILL_CXX11_OVERRIDE;
     /*
     auto pre_construct( kind::class_tag, literal::identifier_value_ptr const& name ) RILL_CXX11_OVERRIDE
         -> env_pointer;
     {
     }*/
 
-    auto dump( std::ostream& os, std::string const& indent ) const RILL_CXX11_OVERRIDE
-        -> std::ostream&
+    auto dump( std::ostream& os, std::string const& indent ) const
+        -> std::ostream& RILL_CXX11_OVERRIDE
     {
         os  << indent << "single_identifier_environment_base" << std::endl;
         for( auto const& ins : instanced_env_ ) {
@@ -436,6 +445,7 @@ public:
                << " / id: " << ins.second->get_id()
                << " / symbol kind: " << static_cast<int>( ins.second->get_symbol_kind() ) << std::endl;
         }
+
         return os;
     }
 
@@ -455,8 +465,8 @@ public:
     {}
 
 private:
-    auto get_symbol_kind() const RILL_CXX11_OVERRIDE
-        -> kind::type_value
+    auto get_symbol_kind() const
+        -> kind::type_value RILL_CXX11_OVERRIDE
     {
         return kind::type_value::none_e;
     }
@@ -494,14 +504,14 @@ public:
     {}
 
 public:
-    auto get_symbol_kind() const RILL_CXX11_OVERRIDE
-        -> kind::type_value
+    auto get_symbol_kind() const
+        -> kind::type_value RILL_CXX11_OVERRIDE
     {
         return KindValue;
     }
 
-    auto is_incomplete() const RILL_CXX11_OVERRIDE
-        -> bool
+    auto is_incomplete() const
+        -> bool RILL_CXX11_OVERRIDE
     {
         return false;
     }
@@ -527,7 +537,7 @@ public:
     {}
 
 public:
-    virtual auto get_inner_symbol_kind() const RILL_CXX11_OVERRIDE
+    virtual auto get_inner_symbol_kind() const
         -> kind::type_value =0;
  /*
     virtual auto add_overload( parameter_list const& parameter/*, function_definition_statement_base_ptr const& sp* )
@@ -537,9 +547,6 @@ public:
         -> const_environment_ptr =0;*/
 };
 
-#include <boost/range/adaptor/transformed.hpp>
-
-#include <boost/algorithm/string/join.hpp>
 
 typedef std::string parameter_hash_t;
 
@@ -575,19 +582,19 @@ public:
     {}
 
 public:
-    auto get_symbol_kind() const RILL_CXX11_OVERRIDE
-        -> kind::type_value
+    auto get_symbol_kind() const
+        -> kind::type_value RILL_CXX11_OVERRIDE
     {
         return kind::type_value::parameter_wrapper_e;
     }
 
-    auto get_inner_symbol_kind() const RILL_CXX11_OVERRIDE
-        -> kind::type_value
+    auto get_inner_symbol_kind() const
+        -> kind::type_value  RILL_CXX11_OVERRIDE
     {
         return KindValue;
     }
 
-    auto add_overload( parameter_list const& parameter, statement_list const& statements ) RILL_CXX11_OVERRIDE
+    auto add_overload( parameter_list const& parameter, statement_list const& statements )
         -> env_pointer
     {
         auto const ns_range
@@ -634,14 +641,14 @@ public:
     }
 
     // delegate lookup
-    auto lookup( literal::const_single_identifier_value_base_ptr const& name ) RILL_CXX11_OVERRIDE
-        -> env_pointer { return get_parent_env()->lookup( name ); }
-    auto lookup( literal::const_single_identifier_value_base_ptr const& name ) const RILL_CXX11_OVERRIDE
-        -> const_env_pointer { return get_parent_env()->lookup( name ); }
-    auto find_on_env( literal::const_single_identifier_value_base_ptr const& name ) RILL_CXX11_OVERRIDE
-        -> env_pointer { return get_parent_env()->find_on_env( name ); }
-    auto find_on_env( literal::const_single_identifier_value_base_ptr const& name ) const RILL_CXX11_OVERRIDE
-        -> const_env_pointer { return get_parent_env()->find_on_env( name ); }
+    auto lookup( literal::const_single_identifier_value_base_ptr const& name )
+        -> env_pointer RILL_CXX11_OVERRIDE { return get_parent_env()->lookup( name ); }
+    auto lookup( literal::const_single_identifier_value_base_ptr const& name ) const
+        -> const_env_pointer RILL_CXX11_OVERRIDE { return get_parent_env()->lookup( name ); }
+    auto find_on_env( literal::const_single_identifier_value_base_ptr const& name )
+        -> env_pointer RILL_CXX11_OVERRIDE { return get_parent_env()->find_on_env( name ); }
+    auto find_on_env( literal::const_single_identifier_value_base_ptr const& name ) const
+        -> const_env_pointer RILL_CXX11_OVERRIDE { return get_parent_env()->find_on_env( name ); }
 /*
     auto lookup( environment_ptr const& parent, parameter_list const& parameter ) const
         -> const_environment_ptr
@@ -656,8 +663,8 @@ public:
 
 
 
-    auto dump( std::ostream& os, std::string const& indent ) const RILL_CXX11_OVERRIDE
-        -> std::ostream&
+    auto dump( std::ostream& os, std::string const& indent ) const
+        -> std::ostream& RILL_CXX11_OVERRIDE
     {
         os  << indent << "has_parameter_environment" << std::endl;
 /*        for( auto const& ins : instanced_env_ ) {
@@ -722,20 +729,20 @@ public:
     {}
 
 public:
-    auto get_symbol_kind() const RILL_CXX11_OVERRIDE
-        -> kind::type_value
+    auto get_symbol_kind() const
+        -> kind::type_value RILL_CXX11_OVERRIDE
     {
         return KindValue;
     }
 
-    auto is_incomplete() const RILL_CXX11_OVERRIDE
-        -> bool
+    auto is_incomplete() const
+        -> bool RILL_CXX11_OVERRIDE
     {
         return true;
     }
 
-    auto dump( std::ostream& os, std::string const& indent ) const RILL_CXX11_OVERRIDE
-        -> std::ostream&
+    auto dump( std::ostream& os, std::string const& indent ) const
+        -> std::ostream& RILL_CXX11_OVERRIDE
     {
         os  << indent << "class_symbol_environment" << std::endl;
 /*        for( auto const& ins : instanced_env_ ) {

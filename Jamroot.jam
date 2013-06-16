@@ -84,8 +84,10 @@ project rill
         <include>$(ytl-dists-root)
         <include>$(dependency-path)
         <link>static
-        <warnings>all
-        <toolset>gcc:<cxxflags>-Wextra
+#        <warnings>all
+#        <toolset>gcc:<cxxflags>-Wextra
         <toolset>gcc:<cxxflags>-pedantic
         <toolset>gcc:<cxxflags>-std=c++11
+        <toolset>gcc:<cxxflags>-Wunused-local-typedefs
+        <toolset>gcc:<cxxflags>-Wunused-parameter
     ;

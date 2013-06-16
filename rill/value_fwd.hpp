@@ -14,7 +14,7 @@ struct value;
 typedef std::shared_ptr<value>          value_ptr;
 typedef std::shared_ptr<value const>    const_value_ptr;
 
-typedef std::vector<value_ptr const>    argument_list;
+typedef std::vector<const_value_ptr>    argument_list;
 typedef std::shared_ptr<argument_list>  argument_list_ptr;
 
 typedef std::vector<value_ptr>                      template_argument_list;

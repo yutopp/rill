@@ -9,6 +9,7 @@
 
 #include <memory>
 #include <vector>
+#include <limits>
 
 typedef std::size_t    environment_id_t;
 auto const environment_id_limit = std::numeric_limits<environment_id_t>::max();

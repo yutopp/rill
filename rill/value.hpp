@@ -208,14 +208,14 @@ namespace literal
             return false;
         }
 
-        auto get_base_symbol() const RILL_CXX11_OVERRIDE
-            -> symbol_value_ptr
+        auto get_base_symbol() const
+            -> symbol_value_ptr RILL_CXX11_OVERRIDE
         {
             return base_name_;
         }
 
-        auto template_argument() const RILL_CXX11_OVERRIDE
-            -> template_argument_list_ptr
+        auto template_argument() const
+            -> template_argument_list_ptr RILL_CXX11_OVERRIDE
         {
             return nullptr;
         }

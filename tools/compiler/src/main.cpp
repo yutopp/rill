@@ -80,12 +80,12 @@ void sample()
             sl.push_back(
                 std::make_shared<return_statement>(
                     std::make_shared<embedded_function_call_expression>(
-                        []( std::vector<value_ptr const> const& args ) -> value_ptr {
+                        []( std::vector<const_value_ptr> const& args ) -> value_ptr {
                             //std::cout << args.size() << std::endl;
 
                             return std::make_shared<literal::int32_value>(
-                                std::dynamic_pointer_cast<literal::int32_value>( args[0] )->get_value()
-                                + std::dynamic_pointer_cast<literal::int32_value>( args[1] )->get_value()
+                                std::dynamic_pointer_cast<literal::int32_value const>( args[0] )->get_value()
+                                + std::dynamic_pointer_cast<literal::int32_value const>( args[1] )->get_value()
                                 );
                         }
                         )
@@ -119,12 +119,12 @@ void sample()
             sl.push_back(
                 std::make_shared<return_statement>(
                     std::make_shared<embedded_function_call_expression>(
-                        []( std::vector<value_ptr const> const& args ) -> value_ptr {
+                        []( std::vector<const_value_ptr> const& args ) -> value_ptr {
                             //std::cout << args.size() << std::endl;
 
                             return std::make_shared<literal::int32_value>(
-                                std::dynamic_pointer_cast<literal::int32_value>( args[0] )->get_value()
-                                * std::dynamic_pointer_cast<literal::int32_value>( args[1] )->get_value()
+                                std::dynamic_pointer_cast<literal::int32_value const>( args[0] )->get_value()
+                                * std::dynamic_pointer_cast<literal::int32_value const>( args[1] )->get_value()
                                 );
                         }
                         )
@@ -199,16 +199,8 @@ void sample()
 
     // second(2nd pass. )
     rill::semantic_analysis::check_and_instantiation( root_env, v.product );
-    for( auto const& stmt : v.product ) {
-        //stmt->setup_environment( root_env );
-    }
 
-    // second path(check symbol and do instantiation)
-    for( auto const& stmt : v.product ) {
 
-        //stmt->instantiation( root_env );
-        //stmt->semantic_analysis( root_env );
-    }
 
     // last( debug )
     rill::interpreter::run( root_env, v.product );

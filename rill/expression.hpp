@@ -82,7 +82,7 @@ public:
 
 //
 #include <functional>
-typedef std::function<value_ptr (std::vector<value_ptr const> const&)> embedded_callback_function_t;
+typedef std::function<value_ptr (std::vector<const_value_ptr> const&)> embedded_callback_function_t;
 
 struct embedded_function_call_expression
     : public expression
