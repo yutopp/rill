@@ -3,17 +3,17 @@
 #include <rill/expression.hpp>
 #include <rill/statement.hpp>
 
-std::ostream& operator<<( std::ostream& os, environment const& env )
+std::ostream& operator<<( std::ostream& os, environment_ptr const& env )
 {
     os << "DEBUG: environment" << std::endl;
-    auto& e = env;
+    auto e = env;
     std::string indent = "  ";
-    while( !e.is_root() ) {
-        e.dump( os, indent );
-        e.get_parent_env();
+    while( !e->is_root() ) {
+        e->dump( os, indent );
+        e = e->get_parent_env();
         indent += "  ";
     }
-    return e.dump( os, indent );
+    return e->dump( os, indent );
 }
 
 /*
@@ -96,6 +96,20 @@ std::ostream& operator<<( std::ostream& os, environment const& env )
     }
 
 
+    auto single_identifier_environment_base::lookup( literal::const_single_identifier_value_base_ptr const& name )
+        -> env_pointer
+    {
+        if ( name->is_template() ) {
+            // TODO: add template support
+            return nullptr;
+
+        } else {
+            auto const it = instanced_env_.find( name->get_base_symbol()->get_native_string() );
+
+            return ( it != instanced_env_.end() ) ? it->second : is_root() ? nullptr : get_parent_env()->lookup( name );
+        }
+    }
+
     auto single_identifier_environment_base::lookup( literal::const_single_identifier_value_base_ptr const& name ) const
         -> const_env_pointer
     {
@@ -112,7 +126,7 @@ std::ostream& operator<<( std::ostream& os, environment const& env )
 
     auto single_identifier_environment_base::pre_construct(
         kind::function_tag,
-        literal::single_identifier_value_ptr const& name
+        literal::single_identifier_value_base_ptr const& name
         )
         -> env_pointer
     {

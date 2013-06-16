@@ -22,6 +22,19 @@ value_env_pair_t const nullexpr;
 
 std::ostream& operator<<( std::ostream& os, value_env_pair_t const& v );
 
+inline auto make_value_env_pair( value_ptr const& v, const_environment_ptr const& e )
+    -> value_env_pair_t
+{
+    value_env_pair_t r = { v, e };
+    return r;
+}
+
+inline auto make_value_env_pair( const_environment_ptr const& e )
+    -> value_env_pair_t
+{
+    value_env_pair_t r = { nullptr, e };
+    return r;
+}
 
 struct tree_visitor_base
 {

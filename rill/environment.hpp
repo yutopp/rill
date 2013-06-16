@@ -143,7 +143,7 @@ public:
         : id_( envitonment_id_undefined )
         , managed_( std::make_shared<environment_allocator<env_type>>() )
     {
-        std::cout << ">> environment allocated" << std::endl;
+//        std::cout << ">> environment allocated" << std::endl;
     }
     
     environment( environment_id_t const& id, weak_env_pointer const& parent )
@@ -151,12 +151,12 @@ public:
         , parent_( parent )
         , managed_( parent.lock()->managed_ )
     {
-        std::cout << ">> environment allocated(inner)" << std::endl;
+//        std::cout << ">> environment allocated(inner)" << std::endl;
     }
 
     ~environment()
     {
-        std::cout << "<< environment DEallocated" << std::endl;
+//        std::cout << "<< environment DEallocated" << std::endl;
     }
 
 public:
@@ -166,6 +166,8 @@ public:
     virtual auto lookup_env( literal::identifier_value_ptr const& name ) const
         -> const_env_pointer { return nullptr; }
 
+    virtual auto lookup( literal::const_single_identifier_value_base_ptr const& name )
+        -> env_pointer { return nullptr; }
     virtual auto lookup( literal::const_single_identifier_value_base_ptr const& name ) const
         -> const_env_pointer { return nullptr; }
 
@@ -175,7 +177,7 @@ public:
     //
     virtual auto pre_construct(
         kind::function_tag,
-        literal::single_identifier_value_ptr const& name
+        literal::single_identifier_value_base_ptr const& name
         ) -> env_pointer { return nullptr; }
     //virtual auto pre_construct( kind::class_tag, literal::symbol_value_ptr const& name ) -> env_pointer;
 
@@ -240,7 +242,7 @@ private:
 //typedef environment::weak_self_pointer      weak_environment_ptr;
 
 
-std::ostream& operator<<( std::ostream& os, environment const& env );
+std::ostream& operator<<( std::ostream& os, environment_ptr const& env );
 
 
 
@@ -309,6 +311,8 @@ public:
     auto lookup_env( literal::identifier_value_ptr const& name ) const
         -> const_env_pointer;
 
+    auto lookup( literal::const_single_identifier_value_base_ptr const& name ) RILL_CXX11_OVERRIDE
+        -> env_pointer;
     auto lookup( literal::const_single_identifier_value_base_ptr const& name ) const RILL_CXX11_OVERRIDE
         -> const_env_pointer;
 
@@ -343,7 +347,7 @@ public:
 
     auto pre_construct(
         kind::function_tag,
-        literal::single_identifier_value_ptr const& name
+        literal::single_identifier_value_base_ptr const& name
         ) RILL_CXX11_OVERRIDE
         -> env_pointer;
 
@@ -376,7 +380,6 @@ public:
     auto dump( std::ostream& os, std::string const& indent ) const RILL_CXX11_OVERRIDE
         -> std::ostream&
     {
-
         os  << indent << "single_identifier_environment_base" << std::endl;
         for( auto const& ins : instanced_env_ ) {
             os << indent
@@ -562,7 +565,7 @@ public:
     auto solve_overload( environment_id_list const& args_env_id ) const
         -> std::shared_ptr<InlineEnvironment>
     {
-        std::cout << "solve_overload? hash: " << make_parameter_hash( args_env_id ) << std::endl;
+        // std::cout << "solve_overload? hash: " << make_parameter_hash( args_env_id ) << std::endl;
 
         return p_;
     }

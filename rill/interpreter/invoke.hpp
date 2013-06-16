@@ -1,5 +1,5 @@
-#ifndef RILL_INTERPRETER_CALL_HPP
-#define RILL_INTERPRETER_CALL_HPP
+#ifndef RILL_INTERPRETER_INVOKE_HPP
+#define RILL_INTERPRETER_INVOKE_HPP
 
 #include "runner.hpp"
 
@@ -36,4 +36,4 @@ namespace rill
     } // namespace interpreter
 } // namespace rill
 
-#endif /*RILL_INTERPRETER_CALL_HPP*/
+#endif /*RILL_INTERPRETER_INVOKE_HPP*/

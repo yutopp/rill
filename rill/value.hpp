@@ -159,12 +159,17 @@ namespace literal
         {}
 
     public:
-        // deplicated
         auto get_last_identifier() const
             -> single_identifier_value_base_ptr
         {
             //return nest_.back();
             return ppp_;
+        }
+
+        auto nest_size() const
+            -> std::size_t
+        {
+            return 1;
         }
 
     public:

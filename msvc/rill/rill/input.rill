@@ -2,8 +2,16 @@
 	* 8
 	
 	+ 6;
+
 foo( 20 );
+
 def foo( hoge: int ): int
 {
-    5*10;
+    return 5*10;
 }
+
+
+foo( 10 ) + 2 * 5;
+
+
+

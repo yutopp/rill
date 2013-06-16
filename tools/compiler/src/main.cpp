@@ -26,58 +26,7 @@ void run( const_environment_ptr const& env, T const& prog )
 
 
 
-
-
-
-
-#include <rill/list_identifier_pass.hpp>
-#include <rill/instantiation_and_semantic_analysis_pass.hpp>
-
-
-template<typename Node, typename EnvironmentPtr>
-auto list_identifier( list_identifier_pass const& pass, Node const& node, EnvironmentPtr const& env )
-    -> decltype( node.dispatch( pass, env ) )
-{
-    return node.dispatch( pass, env );
-}
-
-
-template<typename T>
-void make_environment( environment_ptr const& env, T const& statements )
-{
-    // program has an ownership
-    list_identifier_pass lip;
-
-    for( auto const& s : statements )
-        list_identifier( lip, *s, env );
-}
-
-
-
-
-template<typename Node, typename EnvironmentPtr>
-auto instantiation_and_semantic_analysis(
-    instantiation_and_semantic_analysis_pass const& pass,
-    Node const& node,
-    EnvironmentPtr const& env
-    )
-    -> decltype( node.dispatch( pass, env ) )
-{
-    return node.dispatch( pass, env );
-}
-
-
-template<typename T>
-void check_semantic_and_instantiation( environment_ptr const& env, T const& statements )
-{
-    instantiation_and_semantic_analysis_pass iasap;
-    
-    for( auto const& s : statements )
-        instantiation_and_semantic_analysis( iasap, *s, env );
-}
-
-
-
+#include <rill/semantic_analysis/semantic_analysis.hpp>
 #include <rill/interpreter/interpreter.hpp>
 
 void sample()
@@ -125,7 +74,7 @@ void sample()
                 std::make_shared<return_statement>(
                     std::make_shared<embedded_function_call_expression>(
                         []( std::vector<value_ptr const> const& args ) -> value_ptr {
-                            std::cout << args.size() << std::endl;
+                            //std::cout << args.size() << std::endl;
 
                             return std::make_shared<literal::int32_value>(
                                 std::dynamic_pointer_cast<literal::int32_value>( args[0] )->get_value()
@@ -164,7 +113,7 @@ void sample()
                 std::make_shared<return_statement>(
                     std::make_shared<embedded_function_call_expression>(
                         []( std::vector<value_ptr const> const& args ) -> value_ptr {
-                            std::cout << args.size() << std::endl;
+                            //std::cout << args.size() << std::endl;
 
                             return std::make_shared<literal::int32_value>(
                                 std::dynamic_pointer_cast<literal::int32_value>( args[0] )->get_value()
@@ -238,11 +187,11 @@ void sample()
         << "Top statements size: " << v.product.size() << std::endl;
 
     // second(1st pass. prove identifier)
-    make_environment( root_env, v.product );
+    rill::semantic_analysis::list_identifier( root_env, v.product );
 
 
     // second(2nd pass. )
-    check_semantic_and_instantiation( root_env, v.product );
+    rill::semantic_analysis::check_and_instantiation( root_env, v.product );
     for( auto const& stmt : v.product ) {
         //stmt->setup_environment( root_env );
     }

@@ -39,6 +39,15 @@
     <Filter Include="libs\rill\src\interpreter">
       <UniqueIdentifier>{f7595717-27b7-412c-ba6a-31c75f9319ce}</UniqueIdentifier>
     </Filter>
+    <Filter Include="rill\semantic_analysis">
+      <UniqueIdentifier>{365e642d-6a15-4652-be31-4d945a82825a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="libs\rill\src\semantic_analysis">
+      <UniqueIdentifier>{da88b201-a2f6-4b57-8b83-e88fa4d43146}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="libs\rill\build">
+      <UniqueIdentifier>{e025a4f0-9520-46cc-8617-542f6610a679}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\rill\environment.hpp">
@@ -95,6 +104,18 @@
     <ClInclude Include="..\..\..\rill\interpreter\runtime.hpp">
       <Filter>rill\interpreter</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\rill\semantic_analysis\invoke.hpp">
+      <Filter>rill\semantic_analysis</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\semantic_analysis\list_identifier_visitor.hpp">
+      <Filter>rill\semantic_analysis</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\semantic_analysis\check_and_instantiation_visitor.hpp">
+      <Filter>rill\semantic_analysis</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\semantic_analysis\semantic_analysis.hpp">
+      <Filter>rill\semantic_analysis</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\libs\rill\src\environment.cpp">
@@ -112,8 +133,16 @@
     <ClCompile Include="..\..\..\libs\rill\src\interpreter\runner.cpp">
       <Filter>libs\rill\src\interpreter</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\list_identifier_visitor.cpp">
+      <Filter>libs\rill\src\semantic_analysis</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\check_and_instantiation.cpp">
+      <Filter>libs\rill\src\semantic_analysis</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\..\libs\rill\build\Jamfile.v2" />
+    <None Include="..\..\..\libs\rill\build\Jamfile.v2">
+      <Filter>libs\rill\build</Filter>
+    </None>
   </ItemGroup>
 </Project>

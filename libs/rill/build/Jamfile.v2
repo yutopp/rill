@@ -17,7 +17,9 @@ SOURCES =
     value
     environment
     make_syntax_tree
-    interpreter/interpreter
+    interpreter/runner
+    semantic_analysis/list_identifier_visitor
+    semantic_analysis/check_and_instantiation
     ;
 
  

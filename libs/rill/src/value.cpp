@@ -57,7 +57,7 @@ std::ostream& operator<<( std::ostream& os, value_env_pair_t const& v )
     os << "!debug value_envid_pair_t output: " << std::endl;
     if ( v.value ) {
         os << *(v.value);
-        os << "  Env id is " << ( v.env ? v.env->get_id() : 0 ) << std::endl;
+        os << "  Envid is " << ( v.env ? v.env->get_id() : 0 ) << std::endl;
 
     } else {
         os << "  ERROR: nullptr is setted." << std::endl;
