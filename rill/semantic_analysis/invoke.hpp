@@ -54,6 +54,28 @@ namespace rill
                 check_and_instantiation_statement( visitor, s, env );
         }
 
+
+        //
+        //
+        //
+        template<typename NodePtr, typename EnvironmentPtr>
+        void analyse(
+            list_identifier_visitor const& lr,
+            check_and_instantiation_visitor const& cr,
+            NodePtr const& node, EnvironmentPtr const& env
+            )
+        {
+            list_identifier_statement( lr, env );
+            check_and_instantiation_statement( cr, env );
+        }
+
+        template<typename EnvironmentPtr, typename T>
+        void analyse( EnvironmentPtr const& env, T const& statements )
+        {
+            list_identifier( env, statements );
+            check_and_instantiation( env, statements );
+        }
+
     } // namespace semantic_analysis
 } // namespace rill
 

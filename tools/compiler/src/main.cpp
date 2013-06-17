@@ -175,6 +175,11 @@ void sample()
         }*/
     }
 
+
+    //
+    // syntax analysis
+    //
+
     // first(lexical & syntax)
     std::ifstream ifs( "input.rill" );
     if ( !ifs ) {
@@ -193,12 +198,18 @@ void sample()
     std::cout
         << "Top statements size: " << v.product.size() << std::endl;
 
-    // second(1st pass. prove identifier)
-    rill::semantic_analysis::list_identifier( root_env, v.product );
 
+    //
+    // semantic analysis
+    //
 
+    // construct environment(symbol tabel)
+    // following steps are processed recursive
+    // first(1st pass. prove identifier)
+    //   list all of identifiers
     // second(2nd pass. )
-    rill::semantic_analysis::check_and_instantiation( root_env, v.product );
+    //   check identifiers type and template instantiation
+    rill::semantic_analysis::analyse( root_env, v.product );
 
 
 

@@ -38,12 +38,15 @@ namespace rill
 
             // construct function body
             auto const& f_env
-                = env->construct(
-                    kind::function_k,
-                    s.get_identifier()->get_last_identifier(),
-                    s.get_parameter_list(),
-                    s.statements_
-                    );
+                        = env->construct(
+                            kind::function_k,
+                            s.get_identifier()->get_last_identifier(),
+                            s.get_parameter_list(),
+                            s.statements_
+                            );
+
+            // 
+            f_env->pre_construct( kind::variable_k, 
         }
         void check_and_instantiation_visitor::operator()( class_definition_statement const& s, environment_ptr const& env ) const
         {

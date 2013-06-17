@@ -68,11 +68,15 @@ namespace kind
     struct class_tag {};
     auto const class_k = class_tag();
 
+    struct variable_tag {};
+    auto const variable_k = variable_tag();
+
     enum struct type_value
     {
         none_e,
         function_e,
         parameter_wrapper_e,
+        variable_e,
         class_e
     };
 }
@@ -183,6 +187,7 @@ public:
     virtual auto find_on_env( literal::const_single_identifier_value_base_ptr const& name ) const
         -> const_env_pointer =0;
 
+    //
     template<typename F>
     auto nest_lookup( literal::identifier_value_ptr const& ids, F const& failed_callback )
         -> env_pointer
@@ -234,30 +239,42 @@ public:
 
 
 
-
-    //
+    // function
     virtual auto pre_construct(
         kind::function_tag,
         literal::single_identifier_value_base_ptr const&
-        ) -> env_pointer { return nullptr; }
+        ) -> env_pointer { assert( false ); return nullptr; }
 
     virtual auto construct(
         kind::function_tag,
         literal::single_identifier_value_base_ptr const&,
         parameter_list const&,
         statement_list const&
-        ) -> env_pointer { return nullptr; }
+        ) -> env_pointer { assert( false ); return nullptr; }
 
+    // variable
+    virtual auto pre_construct(
+        kind::variable_tag,
+        literal::single_identifier_value_base_ptr const&
+        ) -> env_pointer { assert( false ); return nullptr; }
+
+    virtual auto construct(
+        kind::variable_tag,
+        literal::single_identifier_value_base_ptr const&
+        ) -> env_pointer { assert( false ); return nullptr; }
+
+    // class
     virtual auto pre_construct(
         kind::class_tag,
         literal::single_identifier_value_ptr const&
-        )  -> env_pointer { return nullptr; }
+        )  -> env_pointer { assert( false ); return nullptr; }
 
     virtual auto construct(
         kind::class_tag,
         literal::single_identifier_value_base_ptr const&
-        ) -> env_pointer { return nullptr; }
+        ) -> env_pointer { assert( false ); return nullptr; }
 
+    //
     virtual auto get_symbol_kind() const
         -> kind::type_value =0;
     
@@ -333,16 +350,6 @@ public:
         return kind::type_value::none_e; // TODO: change to template_e
     }
 
-    // not implemented
-    auto lookup( literal::const_single_identifier_value_base_ptr const& )
-        -> env_pointer RILL_CXX11_OVERRIDE { assert( false ); return nullptr; }
-    auto lookup( literal::const_single_identifier_value_base_ptr const& ) const
-        -> const_env_pointer RILL_CXX11_OVERRIDE { assert( false ); return nullptr; }
-    auto find_on_env( literal::const_single_identifier_value_base_ptr const& )
-        -> env_pointer RILL_CXX11_OVERRIDE { assert( false ); return nullptr; }
-    auto find_on_env( literal::const_single_identifier_value_base_ptr const& ) const
-        -> const_env_pointer RILL_CXX11_OVERRIDE { assert( false ); return nullptr; }
-
 private:
     std::unordered_map<native_string_type, environment_ptr> simple_env_;
 };
@@ -407,6 +414,7 @@ public:
 
     }*/
 
+    // function
     auto pre_construct(
         kind::function_tag,
         literal::single_identifier_value_base_ptr const& name
@@ -419,7 +427,18 @@ public:
         statement_list const& statements
         ) -> env_pointer RILL_CXX11_OVERRIDE;
 
+    // variable
+    virtual auto pre_construct(
+        kind::variable_tag,
+        literal::single_identifier_value_base_ptr const&
+        ) -> env_pointer RILL_CXX11_OVERRIDE;
 
+    virtual auto construct(
+        kind::variable_tag,
+        literal::single_identifier_value_base_ptr const&
+        ) -> env_pointer RILL_CXX11_OVERRIDE;
+
+    // class
     auto pre_construct(
         kind::class_tag,
         literal::single_identifier_value_ptr const& name

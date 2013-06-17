@@ -11,5 +11,6 @@
 #include "list_identifier_visitor.hpp"
 #include "check_and_instantiation_visitor.hpp"
 #include "invoke.hpp"
+#include "helper.hpp"
 
 #endif /*#include "list_identifier_visitor.hpp"*/

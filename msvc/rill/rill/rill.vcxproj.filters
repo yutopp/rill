@@ -27,9 +27,6 @@
     <Filter Include="rill\element">
       <UniqueIdentifier>{9ec2fdd5-e8b1-4ab6-a9f8-48c72c09f1af}</UniqueIdentifier>
     </Filter>
-    <Filter Include="rill\pass">
-      <UniqueIdentifier>{f310b27c-8456-4d30-a951-52b633c38ddc}</UniqueIdentifier>
-    </Filter>
     <Filter Include="rill\config">
       <UniqueIdentifier>{b9647729-911b-4582-855e-02527336bf8c}</UniqueIdentifier>
     </Filter>
@@ -47,6 +44,9 @@
     </Filter>
     <Filter Include="libs\rill\build">
       <UniqueIdentifier>{e025a4f0-9520-46cc-8617-542f6610a679}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="rill\syntax_analysis">
+      <UniqueIdentifier>{aacaa0f6-206e-4fc2-900b-4ad0f78e29a5}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -83,9 +83,6 @@
     <ClInclude Include="..\..\..\rill\config\macros.hpp">
       <Filter>rill\config</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\rill\tree_visitor_base.hpp">
-      <Filter>rill\pass</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\rill\interpreter\runner.hpp">
       <Filter>rill\interpreter</Filter>
     </ClInclude>
@@ -109,6 +106,9 @@
     </ClInclude>
     <ClInclude Include="..\..\..\rill\semantic_analysis\semantic_analysis.hpp">
       <Filter>rill\semantic_analysis</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\tree_visitor_base.hpp">
+      <Filter>rill</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
