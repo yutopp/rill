@@ -308,6 +308,26 @@ namespace literal
 }
 
 
+
+struct variable_value
+    : public value
+{
+public:
+    variable_value( literal::identifier_value_ptr const& var )
+        : var_( var )
+    {}
+
+public:
+    literal::identifier_value_ptr var_;
+};
+
+
+
+
+
+
+
+
 struct parameter_pair
 {
     literal::identifier_value_ptr name;

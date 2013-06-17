@@ -6,5 +6,32 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#include <rill/semantic_analysis/helper.hpp>
+#include <iostream> // test
 
+#include <rill/semantic_analysis/helper.hpp>
+#include <rill/semantic_analysis/invoke.hpp>
+
+#include <rill/environment.hpp>
+#include <rill/value.hpp>
+
+namespace rill
+{
+    namespace semantic_analysis
+    {
+        auto lookup_with_instanciation( environment_ptr const& env, literal::const_identifier_value_ptr const& ids )
+            -> environment_ptr
+        {
+            return env->nest_lookup(
+                    ids,
+                    []( environment_ptr const& current_env, literal::const_single_identifier_value_base_ptr const& id ) {
+                        if ( id->is_template() ) {
+                            // TODO: add instatntiation
+                            return nullptr;
+                        } else {
+                            std::cout << "noname ERROR!!!" << std::endl;
+                            return nullptr;
+                        }
+                    } );
+        }
+    } // namespace semantic_analysis
+} // namespace rill

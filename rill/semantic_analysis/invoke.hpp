@@ -60,7 +60,7 @@ namespace rill
         //
         //
         template<typename NodePtr, typename EnvironmentPtr>
-        void analyse(
+        void analyse_statement(
             list_identifier_visitor const& lr,
             check_and_instantiation_visitor const& cr,
             NodePtr const& node, EnvironmentPtr const& env

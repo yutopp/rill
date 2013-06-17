@@ -132,6 +132,7 @@ namespace rill
                 = std::dynamic_pointer_cast<has_parameter_environment<function_symbol_environment> const>( parameter_wrapper_env );
 //            std::cout << "function id: " << generif_function_env->get_id() << std::endl;
 
+            // 
             environment_id_list ids;
             for( auto const& v : evaled_values )
                 ids.push_back( v.env->get_id() );
@@ -145,6 +146,13 @@ namespace rill
 
             // construct scope and execute function
             auto const& forward_scope = context_->push_entry_scope( args );
+
+            //
+            auto const& loader_env_ids = f->get_arg_load_env_ids();
+            for( std::size_t i=0; i<loader_env_ids.size(); ++i ) {
+                forward_scope->set_local_value( loader_env_ids[i], args[i] );
+            }
+            //f->
             run_with_scope_pop( context_, f, f->get_statement_list(), is_on_compile_time_ );
 
 //            std::cout << "!!!!!!!" << forward_scope->get_return_value() << std::endl;

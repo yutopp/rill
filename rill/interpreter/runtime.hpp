@@ -12,6 +12,7 @@
 #include <cassert>
 #include <stack>
 #include <memory>
+#include <map>
 #include <rill/value_fwd.hpp>
 
 namespace rill
@@ -21,6 +22,7 @@ namespace rill
         class runtime;
         typedef std::shared_ptr<runtime> runtime_ptr;
 
+        typedef std::map<environment_id_t, const_value_ptr> value_table_t;
 
         class scope
         {
@@ -52,8 +54,17 @@ namespace rill
                 return return_value_;
             }
 
+            auto set_local_value( environment_id_t const& slot_id, const_value_ptr const& val )
+                -> void
+            {
+                local_value_[slot_id] = val;
+                std::cout << "local_set: " << *val << std::endl;
+            }
+
         private:
             argument_list args_;
+
+            value_table_t local_value_;
             value_env_pair_t return_value_;
         };
         typedef std::shared_ptr<scope>          scope_ptr;

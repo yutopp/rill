@@ -147,17 +147,25 @@ auto single_identifier_environment_base::construct(
 // variable
 auto single_identifier_environment_base::pre_construct(
     kind::variable_tag,
-    literal::single_identifier_value_base_ptr const&
+    literal::single_identifier_value_base_ptr const& name
     ) -> env_pointer
 {
+    auto const& w_env = allocate_env<variable_symbol_environment>( shared_from_this() );
 
+    instanced_env_[name->get_base_symbol()->get_native_string()] = w_env.pointer;
+    return w_env.pointer;
 }
 
 auto single_identifier_environment_base::construct(
     kind::variable_tag,
-    literal::single_identifier_value_base_ptr const&
+    literal::single_identifier_value_base_ptr const& name,
+    environment_id_t const& value_type_env_id
     ) -> env_pointer
 {
+    auto const& w_env = allocate_env<variable_symbol_environment>( shared_from_this(), value_type_env_id );
+
+    instanced_env_[name->get_base_symbol()->get_native_string()] = w_env.pointer;
+    return w_env.pointer;
 }
 
 

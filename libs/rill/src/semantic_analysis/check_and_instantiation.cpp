@@ -8,12 +8,15 @@
 
 #include <rill/semantic_analysis/check_and_instantiation_visitor.hpp>
 #include <rill/semantic_analysis/invoke.hpp>
+#include <rill/semantic_analysis/helper.hpp>
 
 #include <rill/environment.hpp>
 
 #include <rill/statement.hpp>
 #include <rill/expression.hpp>
 #include <rill/value.hpp>
+
+#include <boost/range/adaptor/transformed.hpp>
 
 namespace rill
 {
@@ -37,17 +40,63 @@ namespace rill
             if ( s.get_identifier()->nest_size() != 1 )
                 std::cout << "function_definition_statement error!!!!!!!" << std::endl;//error()
 
+            // instantiation  !!! TYPES !!! parameter
+            bool is_type_instantiation_succeeded = true;
+            for( auto const& e : s.get_parameter_list() ) {
+                assert( e.type != nullptr );
+                if ( !lookup_with_instanciation( env, e.type ) )
+                    is_type_instantiation_succeeded = false;
+            }
+            if ( !is_type_instantiation_succeeded ) {
+                std::cout << "type parameter is not found....." << std::endl;
+                exit( -999 );
+            }
+
+
+
+            // TODO: add steady step to check
+            //     : OR CHANGE THE PARSER
+            assert( s.get_identifier()->nest_size() == 1 ); // can not use nested type here
+
             // construct function body
-            auto const& f_env
+            auto const& f_g_env
                         = env->construct(
                             kind::function_k,
                             s.get_identifier()->get_last_identifier(),
                             s.get_parameter_list(),
                             s.statements_
                             );
+            assert( f_g_env != nullptr );
+            auto const& f_env = std::dynamic_pointer_cast<function_symbol_environment>( f_g_env );
 
+            // construct argument variable symbol
+            for( auto const& e : s.get_parameter_list() ) {
+                assert( e.name != nullptr );
+                // TODO: add steady step to check
+                //     : OR CHANGE THE PARSER
+                assert( e.name->nest_size() == 1 ); // can not use nested type here
+
+                // construct Variable
+                auto const val_env = f_env->construct( kind::variable_k, e.name->get_last_identifier(), env->nest_lookup( e.type )->get_id() );
+                assert( f_env != 0 );
+
+                // specify entry variable holder
+                f_env->push_arg_load_env_id( f_env->get_id() );
+
+                // TODO: add step to despatch default values...
+/*                auto const def_value = e.default_value;
+                if ( def_value ) {
+                } else {
+                }*/
+            }
+
+            //
+            analyse( f_env, s.statements_ );
+
+
+            std::cout << env << std::endl;
             // 
-            f_env->pre_construct( kind::variable_k, 
+            //f_env->pre_construct( kind::variable_k, 
         }
         void check_and_instantiation_visitor::operator()( class_definition_statement const& s, environment_ptr const& env ) const
         {
@@ -64,18 +113,7 @@ namespace rill
             // check and instantiate nested identifier
             // TODO: instance nested
 
-            const_environment_ptr const target_env
-                = env->nest_lookup(
-                    e.reciever_,
-                    []( environment_ptr const& current_env, literal::single_identifier_value_base_ptr const& id ) {
-                        if ( id->is_template() ) {
-                            // TODO: add instatntiation
-                            return nullptr;
-                        } else {
-                            std::cout << "noname ERROR!!!" << std::endl;
-                            return nullptr;
-                        }
-                    } );
+            const_environment_ptr const target_env = lookup_with_instanciation( env, e.reciever_ );
 
             environment_id_list ids;
             for( auto const& arg : e.arguments_ ) {

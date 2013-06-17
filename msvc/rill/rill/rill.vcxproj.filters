@@ -110,6 +110,9 @@
     <ClInclude Include="..\..\..\rill\tree_visitor_base.hpp">
       <Filter>rill</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\rill\semantic_analysis\helper.hpp">
+      <Filter>rill\semantic_analysis</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\libs\rill\src\environment.cpp">
@@ -131,6 +134,9 @@
       <Filter>libs\rill\src\semantic_analysis</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\check_and_instantiation.cpp">
+      <Filter>libs\rill\src\semantic_analysis</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\helper.cpp">
       <Filter>libs\rill\src\semantic_analysis</Filter>
     </ClCompile>
   </ItemGroup>

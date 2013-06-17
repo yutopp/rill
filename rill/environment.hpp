@@ -190,7 +190,7 @@ public:
 
     //
     template<typename F>
-    auto nest_lookup( literal::identifier_value_ptr const& ids, F const& failed_callback )
+    auto nest_lookup( literal::const_identifier_value_ptr const& ids, F const& failed_callback )
         -> env_pointer
     {
         env_pointer env = shared_from_this();
@@ -212,14 +212,14 @@ public:
         return env;
     }
 
-    auto nest_lookup( literal::identifier_value_ptr const& ids )
+    auto nest_lookup( literal::const_identifier_value_ptr const& ids )
         -> env_pointer
     {
-        return nest_lookup( ids, []( env_pointer const&, literal::single_identifier_value_base_ptr const& ){ return nullptr; } );
+        return nest_lookup( ids, []( env_pointer const&, literal::const_single_identifier_value_base_ptr const& ){ return nullptr; } );
     }
 
     template<typename F>
-    auto nest_lookup( literal::identifier_value_ptr const& ids ) const
+    auto nest_lookup( literal::const_identifier_value_ptr const& ids ) const
         -> const_env_pointer
     {
         const_env_pointer env = shared_from_this();
@@ -261,7 +261,8 @@ public:
 
     virtual auto construct(
         kind::variable_tag,
-        literal::single_identifier_value_base_ptr const&
+        literal::single_identifier_value_base_ptr const&,
+        environment_id_t const&
         ) -> env_pointer { assert( false ); return nullptr; }
 
     // class
@@ -429,14 +430,15 @@ public:
         ) -> env_pointer RILL_CXX11_OVERRIDE;
 
     // variable
-    virtual auto pre_construct(
+    auto pre_construct(
         kind::variable_tag,
         literal::single_identifier_value_base_ptr const&
         ) -> env_pointer RILL_CXX11_OVERRIDE;
 
-    virtual auto construct(
+    auto construct(
         kind::variable_tag,
-        literal::single_identifier_value_base_ptr const&
+        literal::single_identifier_value_base_ptr const&,
+        environment_id_t const&
         ) -> env_pointer RILL_CXX11_OVERRIDE;
 
     // class
@@ -503,48 +505,9 @@ private:
 
 
 
+// TODO: add declare field delegater...
 
 
-
-class function_symbol_environment;
-typedef std::shared_ptr<function_symbol_environment>        function_symbol_environment_ptr;
-typedef std::shared_ptr<function_symbol_environment const>  const_function_symbol_environment_ptr;
-
-//
-class function_symbol_environment RILL_CXX11_FINAL
-    : public single_identifier_environment_base
-{
-public:
-    static kind::type_value const KindValue = kind::type_value::function_e;
-
-public:
-    function_symbol_environment( environment_id_t const& id, weak_env_pointer const& parent, statement_list const& statements )
-        : single_identifier_environment_base( id, parent )
-        , statements_( statements )
-    {}
-
-public:
-    auto get_symbol_kind() const
-        -> kind::type_value RILL_CXX11_OVERRIDE
-    {
-        return KindValue;
-    }
-
-    auto is_incomplete() const
-        -> bool RILL_CXX11_OVERRIDE
-    {
-        return false;
-    }
-
-    auto get_statement_list() const
-        -> statement_list const&
-    {
-        return statements_;
-    }
-
-private:
-    statement_list statements_;
-};
 
 
 
@@ -584,9 +547,6 @@ inline auto make_parameter_hash( EnvIds const& id_list )
                 "%"
                 );
 }
-
-
-
 
 
 template<typename InlineEnvironment>
@@ -704,37 +664,105 @@ private:
 };
 
 
-/*
-class has_parameter_environment RILL_CXX11_FINAL
-    : public environment
+
+//
+// function
+//
+class function_symbol_environment RILL_CXX11_FINAL
+    : public single_identifier_environment_base
 {
 public:
-    has_parameter_environment( env_weak_pointer const& parent, function_definition_statement_base_ptr const& sp )
-        : parent_( parent )
-        , sp_( sp )
+    static kind::type_value const KindValue = kind::type_value::function_e;
+
+public:
+    function_symbol_environment( environment_id_t const& id, weak_env_pointer const& parent, statement_list const& statements )
+        : single_identifier_environment_base( id, parent )
+        , statements_( statements )
     {}
 
 public:
-    auto lookup_env( literal::identifier_value_ptr const& name ) const
-        -> env_const_pointer
-    { return nullptr; };
+    auto get_symbol_kind() const
+        -> kind::type_value RILL_CXX11_OVERRIDE
+    {
+        return KindValue;
+    }
 
-    auto get_stmt() const RILL_CXX11_OVERRIDE
-        -> statement_ptr
-    { return sp_; }
+    auto is_incomplete() const
+        -> bool RILL_CXX11_OVERRIDE
+    {
+        return false;
+    }
+
+    auto get_statement_list() const
+        -> statement_list const&
+    {
+        return statements_;
+    }
+
+    auto push_arg_load_env_id( environment_id_t const& env_id )
+        -> void
+    {
+        arg_load_env_ids_.push_back( env_id );
+    }
+
+    auto get_arg_load_env_ids() const
+        -> std::vector<environment_id_t> const&
+    {
+        return arg_load_env_ids_;
+    }
+
+private:
+    statement_list statements_;
+    std::vector<environment_id_t> arg_load_env_ids_;
+};
+typedef std::shared_ptr<function_symbol_environment>        function_symbol_environment_ptr;
+typedef std::shared_ptr<function_symbol_environment const>  const_function_symbol_environment_ptr;
+
+
+
+//
+// variable
+//
+class variable_symbol_environment RILL_CXX11_FINAL
+    : public single_identifier_environment_base
+{
+public:
+    static kind::type_value const KindValue = kind::type_value::variable_e;
 
 public:
-    env_weak_pointer parent_;
-    function_definition_statement_base_ptr sp_;
-};*/
+    variable_symbol_environment( environment_id_t const& id, weak_env_pointer const& parent )
+        : single_identifier_environment_base( id, parent )
+        , value_type_env_id_( envitonment_id_undefined )
+    {}
+
+    variable_symbol_environment( environment_id_t const& id, weak_env_pointer const& parent, environment_id_t const& value_type_env_id )
+        : single_identifier_environment_base( id, parent )
+        , value_type_env_id_( value_type_env_id )
+    {}
+
+public:
+    auto get_symbol_kind() const
+        -> kind::type_value RILL_CXX11_OVERRIDE
+    {
+        return KindValue;
+    }
+
+    auto is_incomplete() const
+        -> bool RILL_CXX11_OVERRIDE
+    {
+        return value_type_env_id_ == envitonment_id_undefined;
+    }
+
+private:
+    environment_id_t value_type_env_id_;
+};
+typedef std::shared_ptr<variable_symbol_environment>        variable_symbol_environment_ptr;
+typedef std::shared_ptr<variable_symbol_environment const>  const_variable_symbol_environment_ptr;
 
 
 
-
-
-
-
-
+//
+//
 //
 class class_symbol_environment RILL_CXX11_FINAL
     : public single_identifier_environment_base

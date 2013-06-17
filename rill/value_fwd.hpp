@@ -26,10 +26,6 @@ typedef std::shared_ptr<template_argument_list>     template_argument_list_ptr;
 class literal_value;
 
 
-
-
-
-
 namespace literal
 {
     struct symbol_value;
@@ -71,6 +67,12 @@ namespace literal
     struct int32_value;
     typedef std::shared_ptr<int32_value> int32_value_ptr;
 }
+
+
+struct variable_value;
+typedef std::shared_ptr<variable_value>         variable_value_ptr;
+typedef std::shared_ptr<variable_value const>   const_variable_value_ptr;
+
 
 #include <iostream>
 std::ostream& operator<<( std::ostream& os, value const& vp );

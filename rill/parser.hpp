@@ -201,6 +201,7 @@ public:
         // termination
         term_expression_
             = ( integer_literal_
+              | variable_value_
                )[
                    qi::_val = phx::construct<term_expression_ptr>(
                         phx::new_<term_expression>(
@@ -208,10 +209,14 @@ public:
                             )
                         )
                ]
-
             ;
 
+        //
+        variable_value_
 
+
+
+        //
         integer_literal_
             = ( qi::int_ )[
                 qi::_val
@@ -351,6 +356,8 @@ private:
     qi::rule<input_iterator, call_expression_ptr(), ascii::space_type> call_expression_;
     qi::rule<input_iterator, term_expression_ptr(), ascii::space_type> term_expression_;
 
+
+    qi::rule<input_iterator, literal::int32_value_ptr(), ascii::space_type> variable_value_;
     qi::rule<input_iterator, literal::int32_value_ptr(), ascii::space_type> integer_literal_;
 
     qi::rule<input_iterator, parameter_list(), ascii::space_type> parameter_list_;
