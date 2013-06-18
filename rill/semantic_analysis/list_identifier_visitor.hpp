@@ -39,7 +39,8 @@ namespace rill
             value_env_pair_t operator()( term_expression const& e, environment_ptr const& env ) const RILL_CXX11_OVERRIDE;
 
             //
-            const_environment_ptr operator()( value const& v, environment_ptr const& env ) const RILL_CXX11_OVERRIDE;
+            const_environment_ptr operator()( literal_value const& v, environment_ptr const& env ) const RILL_CXX11_OVERRIDE;
+            auto operator()( variable_value const& s, environment_ptr const& env ) const -> const_environment_ptr RILL_CXX11_OVERRIDE;
         };
     } // namespace semantic_analysis
 } // namespace rill

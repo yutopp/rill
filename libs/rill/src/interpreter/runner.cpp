@@ -118,8 +118,8 @@ namespace rill
         value_env_pair_t runner::operator()( call_expression const& e, environment_ptr const& env ) const
         {
             std::vector<value_env_pair_t> evaled_values;
-            for( auto const& v : e.arguments_ )
-                evaled_values.push_back( v->dispatch( *this, env ) );
+            for( auto const& val : e.arguments_ )
+                evaled_values.push_back( val->dispatch( *this, env ) );
 
             // TODO: support full identifier support
             auto const& parameter_wrapper_env = env->lookup( e.reciever_->get_last_identifier() );
@@ -189,7 +189,7 @@ namespace rill
         }
 
         //
-        const_environment_ptr runner::operator()( value const& v, environment_ptr const& env ) const
+        auto runner::operator()( literal_value const& v, environment_ptr const& env ) const -> const_environment_ptr
         {
             if ( v.is_intrinsic_type() ) {
                 return env->lookup_env_on_root( v.intrinsic_typed_identifier_ );
@@ -200,5 +200,11 @@ namespace rill
             }
         }
 
+        auto runner::operator()( variable_value const& v, environment_ptr const& env ) const -> const_environment_ptr
+        {
+            return env->nest_lookup( v.variable_name_ );
+            assert( false );
+            return nullptr;
+        }
     } // namespace interpreter
 } // namespace rill

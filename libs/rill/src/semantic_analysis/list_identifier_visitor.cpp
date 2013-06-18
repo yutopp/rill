@@ -62,7 +62,11 @@ namespace rill
         }
         
         //
-        const_environment_ptr list_identifier_visitor::operator()( value const& v, environment_ptr const& env ) const
+        const_environment_ptr list_identifier_visitor::operator()( literal_value const& v, environment_ptr const& env ) const
+        {
+            return nullptr;
+        }
+        auto list_identifier_visitor::operator()( variable_value const& s, environment_ptr const& env ) const -> const_environment_ptr
         {
             return nullptr;
         }

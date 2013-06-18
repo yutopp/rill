@@ -55,7 +55,8 @@ public:
     }
 
 public:
-    const_environment_ptr dispatch( tree_visitor_base const& visitor, environment_ptr const& env ) const
+    virtual auto dispatch( tree_visitor_base const& visitor, environment_ptr const& env ) const
+        -> const_environment_ptr
     {
         return visitor( *this, env );
     }
@@ -64,7 +65,14 @@ public:
     std::shared_ptr<literal::single_identifier_value const> intrinsic_typed_identifier_;
 };
 
-
+//
+#define ADAPT_VALUE_VISITOR( class_name ) \
+    public: \
+        virtual auto dispatch( tree_visitor_base const& visitor, environment_ptr const& env ) const \
+            -> const_environment_ptr RILL_CXX11_OVERRIDE \
+        { \
+            return visitor( *this, env ); \
+        }
 
 
 
@@ -75,6 +83,8 @@ public:
 class literal_value
     : public value
 {
+    ADAPT_VALUE_VISITOR( litaral_value )
+
 public:
     literal_value()
     {}
@@ -312,13 +322,15 @@ namespace literal
 struct variable_value
     : public value
 {
+    ADAPT_VALUE_VISITOR( variable_value )
+
 public:
     variable_value( literal::identifier_value_ptr const& var )
-        : var_( var )
+        : variable_name_( var )
     {}
 
 public:
-    literal::identifier_value_ptr var_;
+    literal::identifier_value_ptr variable_name_;
 };
 
 

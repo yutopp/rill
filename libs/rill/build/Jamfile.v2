@@ -9,15 +9,7 @@
 project rill/lib
     : source-location ../src
     : requirements
-        <warnings>all
-        <toolset>gcc:<cxxflags>-Wextra
-        <toolset>gcc:<cxxflags>-pedantic
-        <toolset>gcc:<cxxflags>-std=c++11
-        <toolset>gcc:<cxxflags>-ftemplate-depth=1024
-        <toolset>clang:<cxxflags>-Wextra
-        <toolset>clang:<cxxflags>-pedantic
-        <toolset>clang:<cxxflags>-std=c++11
-        <toolset>clang:<cxxflags>-ftemplate-depth=1024
+        <c++-template-depth>1024
     : usage-requirements
     ;
 

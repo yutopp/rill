@@ -71,7 +71,8 @@ public:
     virtual value_env_pair_t operator()( term_expression const& s, environment_ptr const& env ) const =0;
 
     // value
-    virtual const_environment_ptr operator()( value const& s, environment_ptr const& env ) const =0;
+    virtual const_environment_ptr operator()( literal_value const& s, environment_ptr const& env ) const =0;
+    virtual auto operator()( variable_value const& s, environment_ptr const& env ) const -> const_environment_ptr =0;
 
 public:
     // filter outdated object

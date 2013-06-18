@@ -523,7 +523,7 @@ public:
     virtual auto get_inner_symbol_kind() const
         -> kind::type_value =0;
  /*
-    virtual auto add_overload( parameter_list const& parameter/*, function_definition_statement_base_ptr const& sp* )
+    virtual auto add_overload( parameter_list const& parameter, function_definition_statement_base_ptr const& sp* )
         -> env_pointer =0;
    
     virtual auto lookup( environment_ptr const& parent, parameter_list const& parameter ) const

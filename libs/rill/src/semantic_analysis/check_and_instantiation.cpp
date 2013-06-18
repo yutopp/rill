@@ -160,10 +160,13 @@ namespace rill
         }
         
         //
-        const_environment_ptr check_and_instantiation_visitor::operator()( value const& v, environment_ptr const& env ) const
+        const_environment_ptr check_and_instantiation_visitor::operator()( literal_value const& v, environment_ptr const& env ) const
         {
             return nullptr;
         }
-
+        auto check_and_instantiation_visitor::operator()( variable_value const& s, environment_ptr const& env ) const -> const_environment_ptr
+        {
+            return nullptr;
+        }
     } // namespace semantic_analysis
 } // namespace rill
