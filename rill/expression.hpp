@@ -30,13 +30,13 @@ public:
     virtual ~expression() {}
 
 public:
-    virtual value_env_pair_t dispatch( tree_visitor_base const&, environment_ptr const& ) const =0;
+    virtual environment_ptr dispatch( tree_visitor_base const&, environment_ptr const& ) const =0;
 };
 
 //
 #define ADAPT_EXPRESSION_VISITOR( class_name ) \
     public: \
-        virtual value_env_pair_t dispatch( tree_visitor_base const& visitor, environment_ptr const& env ) const \
+        virtual environment_ptr dispatch( tree_visitor_base const& visitor, environment_ptr const& env ) const \
         { \
             return visitor( *this, env ); \
         }
@@ -51,7 +51,7 @@ struct binary_operator_expression
     ADAPT_EXPRESSION_VISITOR( binary_operator_expression )
 
 public:
-    binary_operator_expression( expression_ptr const& lhs, literal::single_identifier_value_ptr const& op, expression_ptr const& rhs )
+    binary_operator_expression( expression_ptr const& lhs, intrinsic::single_identifier_value_ptr const& op, expression_ptr const& rhs )
         : lhs_( lhs )
         , op_( op )
         , rhs_( rhs )
@@ -59,7 +59,7 @@ public:
 
 public:
     expression_ptr const lhs_;
-    literal::single_identifier_value_ptr const op_;
+    intrinsic::single_identifier_value_ptr const op_;
     expression_ptr const rhs_;
 };
 
@@ -70,20 +70,20 @@ struct call_expression
     ADAPT_EXPRESSION_VISITOR( call_expression )
 
 public:
-    call_expression( literal::identifier_value_ptr const& caller, expression_list const& arguments )
+    call_expression( intrinsic::identifier_value_ptr const& caller, expression_list const& arguments )
         : reciever_( caller )
         , arguments_( arguments )
     {}
 
 public:
-    literal::identifier_value_ptr const reciever_;
+    intrinsic::identifier_value_ptr const reciever_;
     expression_list const arguments_;
 };
 
 
 //
 #include <functional>
-typedef std::function<value_ptr (std::vector<const_value_ptr> const&)> embedded_callback_function_t;
+typedef std::function<intrinsic::value_base_ptr (std::vector<const_value_ptr> const&)> embedded_callback_function_t;
 
 struct embedded_function_call_expression
     : public expression

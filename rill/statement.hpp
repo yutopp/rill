@@ -90,9 +90,9 @@ struct function_definition_statement_base
 
 public:
     function_definition_statement_base(
-        literal::identifier_value_ptr const& symbol_name,
+        intrinsic::identifier_value_ptr const& symbol_name,
         parameter_list const& parameter_list,
-        literal::identifier_value_ptr const& return_type
+        intrinsic::identifier_value_ptr const& return_type
         )
         : identifier_( symbol_name )
         , parameter_list_( parameter_list )
@@ -104,7 +104,7 @@ public:
 
 public:
     auto get_identifier() const
-        -> literal::identifier_value_ptr
+        -> intrinsic::identifier_value_ptr
     {
         return identifier_;
     }
@@ -116,9 +116,9 @@ public:
     }
 
 private:
-    literal::identifier_value_ptr identifier_;
+    intrinsic::identifier_value_ptr identifier_;
     parameter_list parameter_list_;
-    literal::identifier_value_ptr return_type_;
+    intrinsic::identifier_value_ptr return_type_;
 };
 
 
@@ -130,9 +130,9 @@ struct function_definition_statement
 
 public:
     function_definition_statement(
-        literal::identifier_value_ptr const& symbol_name,
+        intrinsic::identifier_value_ptr const& symbol_name,
         parameter_list const& parameter_list,
-        literal::identifier_value_ptr const& return_type,
+        intrinsic::identifier_value_ptr const& return_type,
         statement_list const& statements
         )
         : function_definition_statement_base( symbol_name, parameter_list, return_type )
@@ -172,9 +172,9 @@ struct native_function_definition_statement
 
 public:
     native_function_definition_statement(
-        literal::identifier_value_ptr const& symbol_name,
+        intrinsic::identifier_value_ptr const& symbol_name,
         parameter_list const& parameter_list,
-        literal::identifier_value_ptr const& return_type,
+        intrinsic::identifier_value_ptr const& return_type,
         native_function_t const& callee
         )
         : function_definition_statement_base( symbol_name, parameter_list, return_type )
@@ -195,7 +195,7 @@ struct class_definition_statement
     ADAPT_STATEMENT_VISITOR( class_definition_statement )
 
 public:
-    class_definition_statement( literal::identifier_value_ptr const& identifier )
+    class_definition_statement( intrinsic::identifier_value_ptr const& identifier )
         : identifier_( identifier )
     {}
 
@@ -205,19 +205,19 @@ public:
     //void setup_environment( environment_ptr const& ) const {}
 
     auto get_identifier() const
-        -> literal::identifier_value_ptr
+        -> intrinsic::identifier_value_ptr
     {
         return identifier_;
     }
 
 private:
-    literal::identifier_value_ptr identifier_;
+    intrinsic::identifier_value_ptr identifier_;
 };
 
 
 
 // make native
-inline auto make_native_class( literal::identifier_value_ptr const& class_name )
+inline auto make_native_class( intrinsic::identifier_value_ptr const& class_name )
     -> class_definition_statement_ptr
 {
     // TODO: insert assert that checks class_name depth.

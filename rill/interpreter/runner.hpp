@@ -39,14 +39,14 @@ namespace rill
             void operator()( class_definition_statement const& s, environment_ptr const& env ) const RILL_CXX11_OVERRIDE;
 
             // expression
-            value_env_pair_t operator()( binary_operator_expression const& e, environment_ptr const& env ) const RILL_CXX11_OVERRIDE;
-            value_env_pair_t operator()( call_expression const& e, environment_ptr const& env ) const RILL_CXX11_OVERRIDE;
-            value_env_pair_t operator()( embedded_function_call_expression const& e, environment_ptr const& env ) const RILL_CXX11_OVERRIDE;
-            value_env_pair_t operator()( term_expression const& e, environment_ptr const& env ) const RILL_CXX11_OVERRIDE;
+            auto operator()( binary_operator_expression const& e, environment_ptr const& env ) const ->environment_ptr RILL_CXX11_OVERRIDE;
+            auto operator()( call_expression const& e, environment_ptr const& env ) const ->environment_ptr RILL_CXX11_OVERRIDE;
+            auto operator()( embedded_function_call_expression const& e, environment_ptr const& env ) const ->environment_ptr RILL_CXX11_OVERRIDE;
+            auto operator()( term_expression const& e, environment_ptr const& env ) const ->environment_ptr RILL_CXX11_OVERRIDE;
 
             //
-            const_environment_ptr operator()( literal_value const& v, environment_ptr const& env ) const RILL_CXX11_OVERRIDE;
-            auto operator()( variable_value const& s, environment_ptr const& env ) const -> const_environment_ptr RILL_CXX11_OVERRIDE;
+            auto operator()( intrinsic_value const& v, environment_ptr const& env ) const -> environment_ptr RILL_CXX11_OVERRIDE;
+            auto operator()( variable_value const& v, environment_ptr const& env ) const -> environment_ptr RILL_CXX11_OVERRIDE;
 
         private:
             context_ptr context_;

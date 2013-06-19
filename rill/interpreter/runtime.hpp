@@ -13,6 +13,7 @@
 #include <stack>
 #include <memory>
 #include <map>
+#include <unordered_map>
 #include <rill/value_fwd.hpp>
 
 namespace rill
@@ -24,105 +25,124 @@ namespace rill
 
         typedef std::map<environment_id_t, const_value_ptr> value_table_t;
 
+
+
         class scope
         {
         public:
             scope() {}
-            scope( argument_list const& args )
-                : args_( args )
-            {}
 
         public:
-            void push_value( const_value_ptr const& val )
-            {
-            };
-
-            auto get_args() const
-                -> argument_list const&
-            {
-                return args_;
-            }
-
-            void set_return_value( value_env_pair_t const& v )
-            {
-                return_value_ = v;
-            }
-
-            auto get_return_value() const
-                -> value_env_pair_t const&
-            {
-                return return_value_;
-            }
-
-            auto set_local_value( environment_id_t const& slot_id, const_value_ptr const& val )
-                -> void
-            {
-                local_value_[slot_id] = val;
-                std::cout << "local_set: " << *val << std::endl;
-            }
 
         private:
-            argument_list args_;
-
-            value_table_t local_value_;
-            value_env_pair_t return_value_;
         };
         typedef std::shared_ptr<scope>          scope_ptr;
         typedef std::shared_ptr<scope const>    const_scope_ptr;
 
+
+
+
+        enum struct stack_state
+        {
+            none
+        };
+
+
+
+        class value_wrapper
+        {
+        public:
+            value_wrapper( value_ptr const& vp, stack_state const& s = stack_state::none )
+                : value( vp )
+                , state( s )
+            {}
+
+            value_ptr value;
+            stack_state state;
+        };
+
+
+
+
+
+        //
+        // runtime context
+        //
         class context
         {
         public:
             context()
             {
-                push_scope();
+                push_new_scope();
             }
 
         public:
+            auto push_value( value_ptr const& v )
+                -> void
+            {
+                value_stack_.emplace( v );
+            }
+
+            auto pop_value()
+                -> value_wrapper
+            {
+                auto const p = value_stack_.top();
+                value_stack_.pop();
+
+                return p;
+            }
+
+            auto construct_variable( environment_id_t const& env_id, value_ptr const& val )
+                -> void
+            {
+                variable_map_[env_id] = val;
+            }
+
+            auto get_variable_value_by_id( environment_id_t const& env_id )
+                -> value_ptr
+            {
+                return variable_map_.at( env_id );
+            }
+
+            auto push_new_scope()
+                -> scope_ptr
+            {
+                auto const& sc = std::make_shared<scope>();
+
+                scope_stack_.emplace( sc );
+                return sc;
+            }
+
+            auto pop_scope()
+                -> void
+            {
+                scope_stack_.pop();
+            }
+
             auto current_scope()
                 -> scope_ptr
             {
                 return scope_stack_.top();
             }
 
-            auto current_scope() const
-                -> const_scope_ptr
+            auto current_stack_value()
+                -> value_ptr
             {
-                return scope_stack_.top();
-            }
-
-            auto push_scope()
-                -> scope_ptr
-            {
-                auto const s = std::make_shared<scope>();
-                scope_stack_.push( s );
-
-                return s;
-            }
-
-            auto push_entry_scope( argument_list const& args )
-                -> scope_ptr
-            {
-                auto const s = std::make_shared<scope>( args );
-                scope_stack_.push( s );
-
-                return s;
-            }
-
-            void pop_scope()
-            {
-                auto const s = current_scope();
-                assert( s != nullptr );
-
-                // s->unwind();
-                scope_stack_.pop();
+                return value_stack_.top().value;
             }
 
         private:
             std::weak_ptr<runtime> runtime_;
+
+            std::stack<value_wrapper> value_stack_;
+            std::unordered_map<environment_id_t, value_ptr> variable_map_;
+
             std::stack<scope_ptr> scope_stack_;
         };
         typedef std::shared_ptr<context> context_ptr;
+
+
+
 
         class runtime
         {

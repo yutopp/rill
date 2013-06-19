@@ -43,12 +43,12 @@ void sample()
 
     // operator +
     auto const operator_add
-        = literal::make_binary_operator_identifier( "+" );
+        = intrinsic::make_binary_operator_identifier( "+" );
     root_env->pre_construct( kind::function_k, operator_add );
 
     // operator *
     auto const operator_multiply
-        = literal::make_binary_operator_identifier( "*" );
+        = intrinsic::make_binary_operator_identifier( "*" );
     root_env->pre_construct( kind::function_k, operator_multiply );
 
 
@@ -56,7 +56,7 @@ void sample()
         // add int class definitions and operators
 
         auto const int_type
-            = literal::make_single_identifier( "int" );
+            = intrinsic::make_single_identifier( "int" );
 
         root_env->pre_construct( kind::class_k, int_type );
         root_env->construct( kind::class_k, int_type );
@@ -81,13 +81,13 @@ void sample()
             sl.push_back(
                 std::make_shared<return_statement>(
                     std::make_shared<embedded_function_call_expression>(
-                        []( std::vector<const_value_ptr> const& args ) -> value_ptr {
-                            //std::cout << args.size() << std::endl;
+                        []( std::vector<const_value_ptr> const& args ) -> intrinsic::value_base_ptr {
+                            std::cout << args.size() << std::endl;
 
-                            return std::make_shared<literal::int32_value>(
-                                std::dynamic_pointer_cast<literal::int32_value const>( args[0] )->get_value()
-                                + std::dynamic_pointer_cast<literal::int32_value const>( args[1] )->get_value()
-                                );
+                            return std::make_shared<intrinsic::int32_value>(
+                                    std::dynamic_pointer_cast<intrinsic::int32_value const>( args[0] )->get_value()
+                                    + std::dynamic_pointer_cast<intrinsic::int32_value const>( args[1] )->get_value()
+                                    );
                         }
                         )
                     )
@@ -99,9 +99,9 @@ void sample()
                 int_type,
                 []( std::vector<value_ptr> const& args ) -> value_ptr {
                     //std::cout << args.size() << std::endl;
-                    return std::make_shared<literal::int32_value>(
-                              std::dynamic_pointer_cast<literal::int32_value>( args[0] )->get_value()
-                              + std::dynamic_pointer_cast<literal::int32_value>( args[1] )->get_value()
+                    return std::make_shared<intrinsic::int32_value>(
+                              std::dynamic_pointer_cast<intrinsic::int32_value>( args[0] )->get_value()
+                              + std::dynamic_pointer_cast<intrinsic::int32_value>( args[1] )->get_value()
                               );
                   }
                 );*/
@@ -120,12 +120,12 @@ void sample()
             sl.push_back(
                 std::make_shared<return_statement>(
                     std::make_shared<embedded_function_call_expression>(
-                        []( std::vector<const_value_ptr> const& args ) -> value_ptr {
-                            //std::cout << args.size() << std::endl;
+                        []( std::vector<const_value_ptr> const& args ) -> intrinsic::value_base_ptr {
+                            std::cout << args.size() << std::endl;
 
-                            return std::make_shared<literal::int32_value>(
-                                std::dynamic_pointer_cast<literal::int32_value const>( args[0] )->get_value()
-                                * std::dynamic_pointer_cast<literal::int32_value const>( args[1] )->get_value()
+                            return std::make_shared<intrinsic::int32_value>(
+                                std::dynamic_pointer_cast<intrinsic::int32_value const>( args[0] )->get_value()
+                                * std::dynamic_pointer_cast<intrinsic::int32_value const>( args[1] )->get_value()
                                 );
                         }
                         )
@@ -138,9 +138,9 @@ void sample()
                 int_type,
                 []( std::vector<value_ptr> const& args ) -> value_ptr {
                     //std::cout << args.size() << std::endl;
-                    return std::make_shared<literal::int32_value>(
-                              std::dynamic_pointer_cast<literal::int32_value>( args[0] )->get_value()
-                              + std::dynamic_pointer_cast<literal::int32_value>( args[1] )->get_value()
+                    return std::make_shared<intrinsic::int32_value>(
+                              std::dynamic_pointer_cast<intrinsic::int32_value>( args[0] )->get_value()
+                              + std::dynamic_pointer_cast<intrinsic::int32_value>( args[1] )->get_value()
                               );
                   }
                 );*/
@@ -150,7 +150,7 @@ void sample()
         /*
         {
             auto const bin_op_function_name
-                = literal::make_binary_operator_identifier( literal::make_symbol( "*" ) );
+                = intrinsic::make_binary_operator_identifier( intrinsic::make_symbol( "*" ) );
 
             //
             auto const parameters
@@ -165,9 +165,9 @@ void sample()
                 int_type,
                 []( std::vector<value_ptr> const& args ) -> value_ptr {
                     //std::cout << args.size() << std::endl;
-                    return std::make_shared<literal::int32_value>(
-                              std::dynamic_pointer_cast<literal::int32_value>( args[0] )->get_value()
-                              * std::dynamic_pointer_cast<literal::int32_value>( args[1] )->get_value()
+                    return std::make_shared<intrinsic::int32_value>(
+                              std::dynamic_pointer_cast<intrinsic::int32_value>( args[0] )->get_value()
+                              * std::dynamic_pointer_cast<intrinsic::int32_value>( args[1] )->get_value()
                               );
                   }
                 );

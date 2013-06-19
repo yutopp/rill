@@ -18,12 +18,12 @@ namespace rill
 {
     namespace semantic_analysis
     {
-        auto lookup_with_instanciation( environment_ptr const& env, literal::const_identifier_value_ptr const& ids )
+        auto lookup_with_instanciation( environment_ptr const& env, intrinsic::const_identifier_value_ptr const& ids )
             -> environment_ptr
         {
             return env->nest_lookup(
                     ids,
-                    []( environment_ptr const& current_env, literal::const_single_identifier_value_base_ptr const& id ) {
+                    []( environment_ptr const& current_env, intrinsic::const_single_identifier_value_base_ptr const& id ) {
                         if ( id->is_template() ) {
                             // TODO: add instatntiation
                             return nullptr;

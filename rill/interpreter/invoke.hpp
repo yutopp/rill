@@ -23,22 +23,22 @@ namespace rill
         }
 
         template<typename EnvironmentPtr, typename T>
-        void run_with_scope_pop( context_ptr const& ctx, EnvironmentPtr const& env, T const& statements, bool const on_conpile_time = true )
+        void run_on_context( context_ptr const& ctx, EnvironmentPtr const& env, T const& statements, bool const on_conpile_time = true )
         {
             runner r( ctx, on_conpile_time );
 
             for( auto const& s : statements )
                 run_statement( r, s, env );
-
-            ctx->pop_scope();
         }
 
         template<typename EnvironmentPtr, typename T>
-        void run( EnvironmentPtr const& env, T const& statements, bool const on_conpile_time = true )
+        auto run( EnvironmentPtr const& env, T const& statements, bool const on_conpile_time = true )
+            -> std::shared_ptr<runtime>
         {
             auto const rt = std::make_shared<runtime>();
 
-            run_with_scope_pop( rt->create_context(), env, statements, on_conpile_time );
+            run_on_context( rt->create_context(), env, statements, on_conpile_time );
+            return rt;
         }
 
     } // namespace interpreter

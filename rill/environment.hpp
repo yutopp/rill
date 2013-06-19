@@ -135,11 +135,31 @@ public:
         return r;
     }
 
+    auto at( environment_id_t const& id )
+        -> std::weak_ptr<BaseEnvT>
+    {
+        assert( id >= 0 && id < nodes_.size() );
+        return nodes_.at( id );
+    }
+
+    auto at( environment_id_t const& id ) const
+        -> std::weak_ptr<BaseEnvT const>
+    {
+        assert( id >= 0 && id < nodes_.size() );
+        return nodes_.at( id );
+    }
+
 private:
     std::vector<std::weak_ptr<BaseEnvT>> nodes_;
 };
 
 struct root_initialize_tag {};
+
+
+
+
+
+
 
 
 class environment
@@ -151,6 +171,7 @@ public:
     typedef std::shared_ptr<env_type>           env_pointer;
     typedef std::shared_ptr<env_type const>     const_env_pointer;
     typedef std::weak_ptr<env_type>             weak_env_pointer;
+    typedef std::weak_ptr<env_type const>       const_weak_env_pointer;
 
     typedef native_string_t                     native_string_type;
 
@@ -159,7 +180,7 @@ public:
         : id_( envitonment_id_undefined )
         , managed_( std::make_shared<environment_allocator<env_type>>() )
     {
-//        std::cout << ">> environment allocated" << std::endl;
+        std::cout << ">> environment allocated" << std::endl;
     }
     
     environment( environment_id_t const& id, weak_env_pointer const& parent )
@@ -167,30 +188,30 @@ public:
         , parent_( parent )
         , managed_( parent.lock()->managed_ )
     {
-//        std::cout << ">> environment allocated(inner)" << std::endl;
+        std::cout << ">> environment allocated(inner)" << std::endl;
     }
 
-    ~environment()
+    virtual ~environment()
     {
-//        std::cout << "<< environment DEallocated" << std::endl;
+        std::cout << "<< environment DEallocated" << std::endl;
     }
 
 public:
     //
-    virtual auto lookup( literal::const_single_identifier_value_base_ptr const& name )
+    virtual auto lookup( intrinsic::const_single_identifier_value_base_ptr const& name )
         -> env_pointer =0;
-    virtual auto lookup( literal::const_single_identifier_value_base_ptr const& name ) const
+    virtual auto lookup( intrinsic::const_single_identifier_value_base_ptr const& name ) const
         -> const_env_pointer =0;
 
     //
-    virtual auto find_on_env( literal::const_single_identifier_value_base_ptr const& name )
+    virtual auto find_on_env( intrinsic::const_single_identifier_value_base_ptr const& name )
         -> env_pointer =0;
-    virtual auto find_on_env( literal::const_single_identifier_value_base_ptr const& name ) const
+    virtual auto find_on_env( intrinsic::const_single_identifier_value_base_ptr const& name ) const
         -> const_env_pointer =0;
 
     //
     template<typename F>
-    auto nest_lookup( literal::const_identifier_value_ptr const& ids, F const& failed_callback )
+    auto nest_lookup( intrinsic::const_identifier_value_ptr const& ids, F const& failed_callback )
         -> env_pointer
     {
         env_pointer env = shared_from_this();
@@ -212,14 +233,14 @@ public:
         return env;
     }
 
-    auto nest_lookup( literal::const_identifier_value_ptr const& ids )
+    auto nest_lookup( intrinsic::const_identifier_value_ptr const& ids )
         -> env_pointer
     {
-        return nest_lookup( ids, []( env_pointer const&, literal::const_single_identifier_value_base_ptr const& ){ return nullptr; } );
+        return nest_lookup( ids, []( env_pointer const&, intrinsic::const_single_identifier_value_base_ptr const& ){ return nullptr; } );
     }
 
     template<typename F>
-    auto nest_lookup( literal::const_identifier_value_ptr const& ids ) const
+    auto nest_lookup( intrinsic::const_identifier_value_ptr const& ids ) const
         -> const_env_pointer
     {
         const_env_pointer env = shared_from_this();
@@ -243,12 +264,12 @@ public:
     // function
     virtual auto pre_construct(
         kind::function_tag,
-        literal::single_identifier_value_base_ptr const&
+        intrinsic::single_identifier_value_base_ptr const&
         ) -> env_pointer { assert( false ); return nullptr; }
 
     virtual auto construct(
         kind::function_tag,
-        literal::single_identifier_value_base_ptr const&,
+        intrinsic::single_identifier_value_base_ptr const&,
         parameter_list const&,
         statement_list const&
         ) -> env_pointer { assert( false ); return nullptr; }
@@ -256,30 +277,40 @@ public:
     // variable
     virtual auto pre_construct(
         kind::variable_tag,
-        literal::single_identifier_value_base_ptr const&
+        intrinsic::single_identifier_value_base_ptr const&
         ) -> env_pointer { assert( false ); return nullptr; }
 
     virtual auto construct(
         kind::variable_tag,
-        literal::single_identifier_value_base_ptr const&,
+        intrinsic::single_identifier_value_base_ptr const&,
         environment_id_t const&
         ) -> env_pointer { assert( false ); return nullptr; }
 
     // class
     virtual auto pre_construct(
         kind::class_tag,
-        literal::single_identifier_value_ptr const&
+        intrinsic::single_identifier_value_ptr const&
         )  -> env_pointer { assert( false ); return nullptr; }
 
     virtual auto construct(
         kind::class_tag,
-        literal::single_identifier_value_base_ptr const&
+        intrinsic::single_identifier_value_base_ptr const&
         ) -> env_pointer { assert( false ); return nullptr; }
 
     //
     virtual auto get_symbol_kind() const
         -> kind::type_value =0;
-    
+
+    auto root_env()
+        -> env_pointer
+    {
+        auto p = shared_from_this();
+        while( !p->is_root() )
+            p = p->get_parent_env();
+
+        return p;
+    }
+
     auto root_env() const
         -> const_env_pointer
     {
@@ -290,11 +321,19 @@ public:
         return p;
     }
 
-    auto lookup_env_on_root( literal::const_single_identifier_value_ptr const& type_name ) const
+    auto lookup_on_root( intrinsic::const_single_identifier_value_ptr const& type_name )
+        -> env_pointer
+    {
+        return root_env()->lookup( type_name );
+    }
+    auto lookup_on_root( intrinsic::const_single_identifier_value_ptr const& type_name ) const
         -> const_env_pointer
     {
         return root_env()->lookup( type_name );
     }
+
+
+
 
     template<typename Env, typename... Args>
     auto allocate_env( Args&&... args )
@@ -302,6 +341,21 @@ public:
     {
         return managed_->allocate<Env>( /*std::forward<Args>( args )...*/ args... );
     }
+
+
+    auto get_env_at( environment_id_t const& id )
+        -> weak_env_pointer
+    {
+        return managed_->at( id );
+    }
+
+    auto get_env_at( environment_id_t const& id ) const
+        -> const_weak_env_pointer
+    {
+        return managed_->at( id );
+    }
+
+
 
     auto get_id() const
         -> environment_id_t
@@ -313,6 +367,11 @@ public:
     auto get_parent_env() -> env_pointer { return is_root() ? nullptr : parent_.lock(); }
     auto get_parent_env() const -> const_env_pointer { return is_root() ? nullptr : parent_.lock(); }
 
+
+
+    ///
+    ///
+    ///
     virtual auto dump( std::ostream& os, std::string const& indent ) const -> std::ostream& { return os; }
 
 
@@ -378,15 +437,15 @@ public:
     virtual ~single_identifier_environment_base() {};
 
 public:
-    auto lookup( literal::const_single_identifier_value_base_ptr const& )
+    auto lookup( intrinsic::const_single_identifier_value_base_ptr const& )
         -> env_pointer RILL_CXX11_OVERRIDE;
-    auto lookup( literal::const_single_identifier_value_base_ptr const& ) const
+    auto lookup( intrinsic::const_single_identifier_value_base_ptr const& ) const
         -> const_env_pointer RILL_CXX11_OVERRIDE;
 
     //
-    auto find_on_env( literal::const_single_identifier_value_base_ptr const& )
+    auto find_on_env( intrinsic::const_single_identifier_value_base_ptr const& )
         -> env_pointer RILL_CXX11_OVERRIDE;
-    auto find_on_env( literal::const_single_identifier_value_base_ptr const& ) const
+    auto find_on_env( intrinsic::const_single_identifier_value_base_ptr const& ) const
         -> const_env_pointer RILL_CXX11_OVERRIDE;
 
 
@@ -410,7 +469,7 @@ public:
     }*/
 
     /*
-    auto is_same_pre_declared_type( literal::identifier_value_ptr const& name, symbol_kind const& kind ) const
+    auto is_same_pre_declared_type( intrinsic::identifier_value_ptr const& name, symbol_kind const& kind ) const
         -> bool
     {
 
@@ -419,12 +478,12 @@ public:
     // function
     auto pre_construct(
         kind::function_tag,
-        literal::single_identifier_value_base_ptr const& name
+        intrinsic::single_identifier_value_base_ptr const& name
         )  -> env_pointer RILL_CXX11_OVERRIDE;
 
     auto construct(
         kind::function_tag,
-        literal::single_identifier_value_base_ptr const& name,
+        intrinsic::single_identifier_value_base_ptr const& name,
         parameter_list const&,
         statement_list const& statements
         ) -> env_pointer RILL_CXX11_OVERRIDE;
@@ -432,27 +491,27 @@ public:
     // variable
     auto pre_construct(
         kind::variable_tag,
-        literal::single_identifier_value_base_ptr const&
+        intrinsic::single_identifier_value_base_ptr const&
         ) -> env_pointer RILL_CXX11_OVERRIDE;
 
     auto construct(
         kind::variable_tag,
-        literal::single_identifier_value_base_ptr const&,
+        intrinsic::single_identifier_value_base_ptr const&,
         environment_id_t const&
         ) -> env_pointer RILL_CXX11_OVERRIDE;
 
     // class
     auto pre_construct(
         kind::class_tag,
-        literal::single_identifier_value_ptr const& name
+        intrinsic::single_identifier_value_ptr const& name
         ) -> env_pointer RILL_CXX11_OVERRIDE;
 
     auto construct(
         kind::class_tag,
-        literal::single_identifier_value_base_ptr const& name
+        intrinsic::single_identifier_value_base_ptr const& name
         ) -> env_pointer RILL_CXX11_OVERRIDE;
     /*
-    auto pre_construct( kind::class_tag, literal::identifier_value_ptr const& name ) RILL_CXX11_OVERRIDE
+    auto pre_construct( kind::class_tag, intrinsic::identifier_value_ptr const& name ) RILL_CXX11_OVERRIDE
         -> env_pointer;
     {
     }*/
@@ -461,6 +520,12 @@ public:
         -> std::ostream& RILL_CXX11_OVERRIDE
     {
         os  << indent << "single_identifier_environment_base" << std::endl;
+        return dump_include_env( os, indent );
+    }
+
+    auto dump_include_env( std::ostream& os, std::string const& indent ) const
+        -> std::ostream&
+    {
         for( auto const& ins : instanced_env_ ) {
             os << indent
                << "-> symbol: " << ins.first
@@ -475,6 +540,8 @@ private:
     std::unordered_map<native_string_type, env_pointer> instanced_env_;
     std::unordered_map<native_string_type, std::shared_ptr<template_environment>> template_env_;
 };
+
+
 
 
 // for root
@@ -518,6 +585,8 @@ public:
     has_parameter_environment_base( environment_id_t const id, weak_env_pointer const& parent )
         : environment( id, parent )
     {}
+
+    virtual ~has_parameter_environment_base() {}
 
 public:
     virtual auto get_inner_symbol_kind() const
@@ -621,13 +690,13 @@ public:
     }
 
     // delegate lookup
-    auto lookup( literal::const_single_identifier_value_base_ptr const& name )
+    auto lookup( intrinsic::const_single_identifier_value_base_ptr const& name )
         -> env_pointer RILL_CXX11_OVERRIDE { return get_parent_env()->lookup( name ); }
-    auto lookup( literal::const_single_identifier_value_base_ptr const& name ) const
+    auto lookup( intrinsic::const_single_identifier_value_base_ptr const& name ) const
         -> const_env_pointer RILL_CXX11_OVERRIDE { return get_parent_env()->lookup( name ); }
-    auto find_on_env( literal::const_single_identifier_value_base_ptr const& name )
+    auto find_on_env( intrinsic::const_single_identifier_value_base_ptr const& name )
         -> env_pointer RILL_CXX11_OVERRIDE { return get_parent_env()->find_on_env( name ); }
-    auto find_on_env( literal::const_single_identifier_value_base_ptr const& name ) const
+    auto find_on_env( intrinsic::const_single_identifier_value_base_ptr const& name ) const
         -> const_env_pointer RILL_CXX11_OVERRIDE { return get_parent_env()->find_on_env( name ); }
 /*
     auto lookup( environment_ptr const& parent, parameter_list const& parameter ) const
@@ -647,14 +716,9 @@ public:
         -> std::ostream& RILL_CXX11_OVERRIDE
     {
         os  << indent << "has_parameter_environment" << std::endl;
-/*        for( auto const& ins : instanced_env_ ) {
-            os << indent
-               << "symbol: " << ins.first
-               << " / id: " << ins.second->get_id()
-               << " / symbol kind: " << static_cast<int>( ins.second->get_symbol_kind() ) << std::endl;
-        }*/
         return os;
     }
+
 private:
 
     // todo map
@@ -711,6 +775,13 @@ public:
         return arg_load_env_ids_;
     }
 
+    auto dump( std::ostream& os, std::string const& indent ) const
+        -> std::ostream& RILL_CXX11_OVERRIDE
+    {
+        os  << indent << "function_symbol_environment" << std::endl;
+        return dump_include_env( os, indent );
+    }
+
 private:
     statement_list statements_;
     std::vector<environment_id_t> arg_load_env_ids_;
@@ -753,6 +824,25 @@ public:
         return value_type_env_id_ == envitonment_id_undefined;
     }
 
+    auto get_weak_type_env()
+        -> weak_environment_ptr
+    {
+        return get_env_at( value_type_env_id_ );
+    }
+    auto get_weak_type_env() const
+        -> const_weak_environment_ptr
+    {
+        return get_env_at( value_type_env_id_ );
+    }
+
+    auto dump( std::ostream& os, std::string const& indent ) const
+        -> std::ostream& RILL_CXX11_OVERRIDE
+    {
+        os << indent << "varialbe_environment" << std::endl;
+        os << indent << "  = return type  " << value_type_env_id_ << std::endl;
+        return dump_include_env( os, indent );
+    }
+
 private:
     environment_id_t value_type_env_id_;
 };
@@ -793,13 +883,7 @@ public:
         -> std::ostream& RILL_CXX11_OVERRIDE
     {
         os  << indent << "class_symbol_environment" << std::endl;
-/*        for( auto const& ins : instanced_env_ ) {
-            os << indent
-               << "symbol: " << ins.first
-               << " / id: " << ins.second->get_id()
-               << " / symbol kind: " << static_cast<int>( ins.second->get_symbol_kind() ) << std::endl;
-        }*/
-        return os;
+        return dump_include_env( os, indent );
     }
 
 private:
@@ -820,7 +904,7 @@ public:
     {}
 
 public:
-    auto lookup_env( literal::identifier_value_ptr const& name ) const
+    auto lookup_env( intrinsic::identifier_value_ptr const& name ) const
         -> env_const_pointer
     { return nullptr; };
 

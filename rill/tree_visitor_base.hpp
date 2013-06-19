@@ -19,30 +19,6 @@
 #include "expression_fwd.hpp"
 #include "statement_fwd.hpp"
 
-struct value_env_pair_t
-{
-    value_ptr value;
-    const_environment_ptr env;
-};
-value_env_pair_t const nullexpr;
-
-
-
-std::ostream& operator<<( std::ostream& os, value_env_pair_t const& v );
-
-inline auto make_value_env_pair( value_ptr const& v, const_environment_ptr const& e )
-    -> value_env_pair_t
-{
-    value_env_pair_t r = { v, e };
-    return r;
-}
-
-inline auto make_value_env_pair( const_environment_ptr const& e )
-    -> value_env_pair_t
-{
-    value_env_pair_t r = { nullptr, e };
-    return r;
-}
 
 struct tree_visitor_base
 {
@@ -65,14 +41,14 @@ public:
 
 
     // expression
-    virtual value_env_pair_t operator()( binary_operator_expression const& s, environment_ptr const& env ) const =0;
-    virtual value_env_pair_t operator()( call_expression const& s, environment_ptr const& env ) const =0;
-    virtual value_env_pair_t operator()( embedded_function_call_expression const& s, environment_ptr const& env ) const =0;
-    virtual value_env_pair_t operator()( term_expression const& s, environment_ptr const& env ) const =0;
+    virtual auto operator()( binary_operator_expression const& s, environment_ptr const& env ) const -> environment_ptr =0;
+    virtual auto operator()( call_expression const& s, environment_ptr const& env ) const -> environment_ptr =0 ;
+    virtual auto operator()( embedded_function_call_expression const& s, environment_ptr const& env ) const -> environment_ptr =0;
+    virtual auto operator()( term_expression const& s, environment_ptr const& env ) const -> environment_ptr =0;
 
     // value
-    virtual const_environment_ptr operator()( literal_value const& s, environment_ptr const& env ) const =0;
-    virtual auto operator()( variable_value const& s, environment_ptr const& env ) const -> const_environment_ptr =0;
+    virtual auto operator()( intrinsic_value const& s, environment_ptr const& env ) const -> environment_ptr =0;
+    virtual auto operator()( variable_value const& s, environment_ptr const& env ) const -> environment_ptr =0;
 
 public:
     // filter outdated object

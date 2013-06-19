@@ -16,39 +16,17 @@
 
 
 
-    // value's constructor
-    value::value( native_string_t const& simple_typename )
-        : intrinsic_typed_identifier_( std::make_shared<literal::single_identifier_value const>( simple_typename ) )
-    {}
-
-
-
-
-
-namespace literal
-{
-
-
-
-
-        int32_value::int32_value( int const v )
-            : literal_value( "int" )
-            , value_( v )
-        {}
-
-        int int32_value::get_value() const
-        {
-            return value_;
-        }
-}
-
-
 std::ostream& operator<<( std::ostream& os, value const& vp )
 {
-    if ( vp.is_intrinsic_type() ) {
-        os << "  type  is " << vp.intrinsic_typed_identifier_->get_base_symbol()->get_native_symbol_string() << std::endl;
-        if ( vp.intrinsic_typed_identifier_->get_base_symbol()->get_native_symbol_string() == "int" ) {
-            os << "  value is " << dynamic_cast<literal::int32_value const*>( &vp )->value_ << std::endl;
+    if ( vp.is_intrinsic() || vp.is_system() ) {
+        auto const& iv = vp.is_intrinsic()
+                        ? *dynamic_cast<intrinsic_value const&>( vp ).value_
+                        : dynamic_cast<intrinsic::value_base const&>( vp )
+                        ;
+        
+        os << "  type  is " << iv.get_native_type_name_string() << std::endl;
+        if ( iv.get_native_type_name_string() == "int" ) {
+            os << "  value is " << dynamic_cast<intrinsic::int32_value const&>( iv ).value_ << std::endl;
         } else {
             os << "  value is unknown." << std::endl;
         }
@@ -56,20 +34,5 @@ std::ostream& operator<<( std::ostream& os, value const& vp )
         os << "  NOT typed value." << std::endl;
     }
 
-    return os;
-}
-
-
-std::ostream& operator<<( std::ostream& os, value_env_pair_t const& v )
-{
-    os << "!debug value_envid_pair_t output: " << std::endl;
-    if ( v.value ) {
-        os << *(v.value);
-        os << "  Envid is " << ( v.env ? v.env->get_id() : 0 ) << std::endl;
-
-    } else {
-        os << "  ERROR: nullptr is setted." << std::endl;
-    }
-    
     return os;
 }

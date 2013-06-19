@@ -41,32 +41,32 @@ namespace rill
         }
         
         // expression
-        value_env_pair_t list_identifier_visitor::operator()( binary_operator_expression const& e, environment_ptr const& env ) const
-        {
-            return nullexpr;
-        }
-
-        value_env_pair_t list_identifier_visitor::operator()( call_expression const& e, environment_ptr const& env ) const
-        {
-            return nullexpr;
-        }
-
-        value_env_pair_t list_identifier_visitor::operator()( embedded_function_call_expression const& e, environment_ptr const& env ) const
-        {
-            return nullexpr;
-        }
-
-        value_env_pair_t list_identifier_visitor::operator()( term_expression const& e, environment_ptr const& env ) const
-        {
-            return nullexpr;
-        }
-        
-        //
-        const_environment_ptr list_identifier_visitor::operator()( literal_value const& v, environment_ptr const& env ) const
+        auto list_identifier_visitor::operator()( binary_operator_expression const& e, environment_ptr const& env ) const -> environment_ptr
         {
             return nullptr;
         }
-        auto list_identifier_visitor::operator()( variable_value const& s, environment_ptr const& env ) const -> const_environment_ptr
+
+        auto list_identifier_visitor::operator()( call_expression const& e, environment_ptr const& env ) const -> environment_ptr
+        {
+            return nullptr;
+        }
+
+        auto list_identifier_visitor::operator()( embedded_function_call_expression const& e, environment_ptr const& env ) const -> environment_ptr
+        {
+            return nullptr;
+        }
+
+        auto list_identifier_visitor::operator()( term_expression const& e, environment_ptr const& env ) const -> environment_ptr
+        {
+            return nullptr;
+        }
+        
+        //
+        auto list_identifier_visitor::operator()( intrinsic_value const& v, environment_ptr const& env ) const -> environment_ptr
+        {
+            return nullptr;
+        }
+        auto list_identifier_visitor::operator()( variable_value const& s, environment_ptr const& env ) const -> environment_ptr
         {
             return nullptr;
         }

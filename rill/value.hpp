@@ -39,37 +39,34 @@ typedef std::string     native_string_t;
 struct value
 {
 public:
-    // basic constructor
-    value()
-    {}
-
-    // specify value's type name
-    value( native_string_t const& simple_typename );
-
     virtual ~value() {}
 
 public:
-    bool is_intrinsic_type() const
+    virtual bool is_intrinsic() const
     {
-        return intrinsic_typed_identifier_.use_count() != 0;
+        return false;
     }
 
-public:
+    virtual bool is_system() const
+    {
+        return false;
+    }
+
     virtual auto dispatch( tree_visitor_base const& visitor, environment_ptr const& env ) const
-        -> const_environment_ptr
+        -> environment_ptr
     {
         return visitor( *this, env );
     }
 
 public:
-    std::shared_ptr<literal::single_identifier_value const> intrinsic_typed_identifier_;
+    
 };
 
 //
 #define ADAPT_VALUE_VISITOR( class_name ) \
     public: \
         virtual auto dispatch( tree_visitor_base const& visitor, environment_ptr const& env ) const \
-            -> const_environment_ptr RILL_CXX11_OVERRIDE \
+            -> environment_ptr RILL_CXX11_OVERRIDE \
         { \
             return visitor( *this, env ); \
         }
@@ -79,48 +76,44 @@ public:
 
 
 
-//
-class literal_value
-    : public value
+
+
+
+
+
+
+namespace intrinsic
 {
-    ADAPT_VALUE_VISITOR( litaral_value )
-
-public:
-    literal_value()
-    {}
-
-    literal_value( std::string const& name )
-        : value( name )
-    {}
-
-    virtual ~literal_value()
-    {};
-};
-
-
-
-
-
-
-namespace literal
-{
-    struct symbol_value
-        : public literal_value
+    struct value_base
+        : public value
     {
     public:
-        typedef std::string     native_string_type;
+        virtual ~value_base() {}
 
+    public:
+        bool is_system() const RILL_CXX11_OVERRIDE RILL_CXX11_FINAL
+        {
+            return true;
+        }
+
+        virtual auto get_native_type_name_string() const -> native_string_t =0;
+    };
+
+    //
+    // may be used for symbol literal
+    //
+    struct symbol_value
+        : public value_base
+    {
     public:
         explicit symbol_value( native_string_t const& name )
             : value_( name )
         {}
 
     public:
-        // deplicated
-        auto get_native_symbol_string() const
-            -> native_string_type
+        auto get_native_type_name_string() const -> native_string_t RILL_CXX11_OVERRIDE
         {
-            return value_;
+            return "symbol";
         }
 
         auto get_native_string() const
@@ -149,15 +142,17 @@ namespace literal
 
 
     struct single_identifier_value_base
-        : literal_value
+        : value_base
     {
     public:
         virtual ~single_identifier_value_base() {}
 
     public:
         virtual bool is_template() const =0;
+
         virtual auto get_base_symbol() const
             -> symbol_value_ptr =0;
+
         virtual auto template_argument() const
             -> template_argument_list_ptr =0;
     };
@@ -166,7 +161,7 @@ namespace literal
 
     // 
     struct identifier_value RILL_CXX11_FINAL
-        : public literal_value
+        : public value_base
     {
     public:
         explicit identifier_value( std::vector<single_identifier_value_base_ptr> const& nests )
@@ -174,6 +169,11 @@ namespace literal
         {}
 
     public:
+        auto get_native_type_name_string() const -> native_string_t RILL_CXX11_OVERRIDE
+        {
+            return "identifier";
+        }
+
         auto get_last_identifier() const
             -> single_identifier_value_base_ptr
         {
@@ -201,7 +201,7 @@ namespace literal
 
 
 
-    class single_identifier_value
+    class single_identifier_value RILL_CXX11_FINAL
         : public single_identifier_value_base
     {
     public:
@@ -214,6 +214,11 @@ namespace literal
         {}
 
     public:
+        auto get_native_type_name_string() const -> native_string_t RILL_CXX11_OVERRIDE
+        {
+            return "single_id"; // TODO: change name
+        }
+
         bool is_template() const RILL_CXX11_OVERRIDE
         {
             return false;
@@ -270,7 +275,7 @@ namespace literal
         )
         -> single_identifier_value_ptr
     {
-        return make_binary_operator_identifier( symbol_name->get_native_symbol_string() );
+        return make_binary_operator_identifier( symbol_name->get_native_string() );
     }
     // TODO: add overload function that implement template specified operator
 
@@ -279,7 +284,7 @@ namespace literal
         )
         -> symbol_value_ptr
     {
-        return make_symbol( "%binary%operator_" + symbol_name->get_native_symbol_string() );
+        return make_symbol( "%binary%operator_" + symbol_name->get_native_string() );
     }
 
 
@@ -302,20 +307,59 @@ namespace literal
 
 
 
-    struct int32_value
-        : public literal_value
+    struct int32_value RILL_CXX11_FINAL
+        : public value_base
     {
     public:
-        int32_value( int const v );
+        int32_value( int const v )
+            : value_( v )
+        {}
 
     public:
-        int get_value() const;
+        auto get_native_type_name_string() const -> native_string_t RILL_CXX11_OVERRIDE
+        {
+            return "int";
+        }
+
+        int get_value() const
+        {
+            return value_;
+        }
 
     public:
         int const value_;
     };
-    typedef std::shared_ptr<int32_value> int32_value_ptr;
+
 }
+
+
+
+
+//
+class intrinsic_value
+    : public value
+{
+    ADAPT_VALUE_VISITOR( intrinsic_value )
+
+public:
+    // specify value's type name
+    intrinsic_value( intrinsic::value_base_ptr const& iv )
+        : value_( iv )
+        , literal_type_name_( std::make_shared<intrinsic::single_identifier_value>( iv->get_native_type_name_string() ) )
+    {}
+
+    virtual ~intrinsic_value() {};
+
+public:
+    bool is_intrinsic() const RILL_CXX11_OVERRIDE RILL_CXX11_FINAL
+    {
+        return true;
+    }
+
+public:
+    intrinsic::value_base_ptr value_;
+    intrinsic::const_single_identifier_value_ptr literal_type_name_;
+};
 
 
 
@@ -325,12 +369,12 @@ struct variable_value
     ADAPT_VALUE_VISITOR( variable_value )
 
 public:
-    variable_value( literal::identifier_value_ptr const& var )
+    variable_value( intrinsic::identifier_value_ptr const& var )
         : variable_name_( var )
     {}
 
 public:
-    literal::identifier_value_ptr variable_name_;
+    intrinsic::identifier_value_ptr variable_name_;
 };
 
 
@@ -342,23 +386,23 @@ public:
 
 struct parameter_pair
 {
-    literal::identifier_value_ptr name;
-    literal::identifier_value_ptr type;
+    intrinsic::identifier_value_ptr name;
+    intrinsic::identifier_value_ptr type;
     value_ptr default_value; // TODO: change to expresison
 };
 
 #include <boost/fusion/include/adapt_struct.hpp>
 BOOST_FUSION_ADAPT_STRUCT(
     parameter_pair,
-    (literal::identifier_value_ptr, name)
-    (literal::identifier_value_ptr, type)
+    (intrinsic::identifier_value_ptr, name)
+    (intrinsic::identifier_value_ptr, type)
     (value_ptr,                     default_value)
 )
 
 
 inline auto make_parameter_pair(
-    literal::identifier_value_ptr const& name,
-    literal::identifier_value_ptr const& type,
+    intrinsic::identifier_value_ptr const& name,
+    intrinsic::identifier_value_ptr const& type,
     value_ptr const& default_value = nullptr
     )
     -> parameter_pair
@@ -369,7 +413,7 @@ inline auto make_parameter_pair(
 }
 
 inline auto make_parameter_pair(
-    literal::identifier_value_ptr const& type,
+    intrinsic::identifier_value_ptr const& type,
     value_ptr const& default_value = nullptr
     )
     -> parameter_pair

@@ -21,5 +21,7 @@ typedef std::vector<environment_id_t> environment_id_list;
 // forward decleration
 class environment;
 
-typedef std::shared_ptr<environment>            environment_ptr;
-typedef std::shared_ptr<environment const>      const_environment_ptr;
+typedef std::shared_ptr<environment>        environment_ptr;
+typedef std::shared_ptr<environment const>  const_environment_ptr;
+typedef std::weak_ptr<environment>          weak_environment_ptr;
+typedef std::weak_ptr<environment const>    const_weak_environment_ptr;

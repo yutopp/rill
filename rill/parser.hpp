@@ -48,7 +48,7 @@ auto make_binary_operator_tree( expression_ptr const& lhs, native_string_t const
 {
     return std::make_shared<binary_operator_expression>(
             lhs,
-            literal::make_binary_operator_identifier( op ),
+            intrinsic::make_binary_operator_identifier( op ),
             rhs
             );
 }
@@ -217,20 +217,22 @@ public:
               ]
             ;
 
-
         //
         integer_literal_
             = ( qi::int_ )[
                 qi::_val
-                    = phx::construct<literal::int32_value_ptr>(
-                        phx::new_<literal::int32_value>(
-                            qi::_1
+                    = phx::construct<intrinsic_value_ptr>(
+                        phx::new_<intrinsic_value>(
+                            phx::construct<intrinsic::int32_value_ptr>(
+                                phx::new_<intrinsic::int32_value>(
+                                    qi::_1
+                                    )
+                                )
                             )
                         )
-                
               ];
 
-        //auto p = ( -native_symbol_ )[ phx::if_else( qi::_0, phx::construct<literal::symbol_value_ptr>(), phx::construct<literal::symbol_value_ptr>() )]
+        //auto p = ( -native_symbol_ )[ phx::if_else( qi::_0, phx::construct<intrinsic::symbol_value_ptr>(), phx::construct<intrinsic::symbol_value_ptr>() )]
 
 /**/
         argument_list_.name( "argument_list" );
@@ -251,7 +253,7 @@ public:
 
         identifier_.name( "identifier" );
         identifier_
-            = single_identifier_[qi::_val = phx::bind( &literal::make_identifier, qi::_1)]
+            = single_identifier_[qi::_val = phx::bind( &intrinsic::make_identifier, qi::_1)]
            ;
             // TODO: should +( single_identifier_ | single_template_identifier_ )
 
@@ -262,8 +264,8 @@ public:
         single_identifier_
             = native_symbol_string_[
                 qi::_val
-                    = phx::construct<literal::single_identifier_value_ptr>(
-                        phx::new_<literal::single_identifier_value>(
+                    = phx::construct<intrinsic::single_identifier_value_ptr>(
+                        phx::new_<intrinsic::single_identifier_value>(
                             qi::_1
                             )
                         )
@@ -276,8 +278,8 @@ public:
         native_symbol_
             = native_symbol_string_[
                 qi::_val
-                    = phx::construct<literal::symbol_value_ptr>(
-                        phx::new_<literal::symbol_value>(
+                    = phx::construct<intrinsic::symbol_value_ptr>(
+                        phx::new_<intrinsic::symbol_value>(
                             qi::_1
                             )
                         )
@@ -361,15 +363,15 @@ private:
 
     qi::rule<input_iterator, variable_value_ptr(), ascii::space_type> variable_value_;
 
-    qi::rule<input_iterator, literal::int32_value_ptr(), ascii::space_type> integer_literal_;
+    qi::rule<input_iterator, intrinsic_value_ptr(), ascii::space_type> integer_literal_;
 
     qi::rule<input_iterator, parameter_list(), ascii::space_type> parameter_list_;
     qi::rule<input_iterator, parameter_pair(), ascii::space_type> parameter_pair_;
 
-    qi::rule<input_iterator, literal::identifier_value_ptr(), ascii::space_type> identifier_;
-    qi::rule<input_iterator, literal::single_identifier_value_ptr(), ascii::space_type> single_identifier_;
+    qi::rule<input_iterator, intrinsic::identifier_value_ptr(), ascii::space_type> identifier_;
+    qi::rule<input_iterator, intrinsic::single_identifier_value_ptr(), ascii::space_type> single_identifier_;
 
-    qi::rule<input_iterator, literal::symbol_value_ptr()> native_symbol_;
+    qi::rule<input_iterator, intrinsic::symbol_value_ptr()> native_symbol_;
     qi::rule<input_iterator, native_string_t()> native_symbol_string_;
 
     qi::rule<input_iterator, void()> statement_termination_;
