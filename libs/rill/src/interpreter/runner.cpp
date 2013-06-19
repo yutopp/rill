@@ -151,8 +151,9 @@ namespace rill
 
             // push values to context stack and evaluate type environment
             std::vector<environment_ptr> argument_type_env;
-            for( auto const& val : e.arguments_ )
+            for( auto const& val : e.arguments_ ) {
                 argument_type_env.push_back( val->dispatch( *this, env ) );
+            }
 
 
             // TODO: support full identifier support
@@ -273,6 +274,7 @@ namespace rill
             auto const& ref_val = context_->get_variable_value_by_id( val_env->get_id() );
             assert( ref_val != nullptr );
 
+            context_->push_value( ref_val );
 
             // return type environment
             return std::dynamic_pointer_cast<variable_symbol_environment>( val_env )->get_weak_type_env().lock();

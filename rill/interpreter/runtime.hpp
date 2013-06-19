@@ -81,6 +81,7 @@ namespace rill
                 -> void
             {
                 value_stack_.emplace( v );
+                std::cout << "Stack << " << *v << std::endl;
             }
 
             auto pop_value()
@@ -89,6 +90,7 @@ namespace rill
                 auto const p = value_stack_.top();
                 value_stack_.pop();
 
+                std::cout << "Stack >> " << *p.value << std::endl;
                 return p;
             }
 
