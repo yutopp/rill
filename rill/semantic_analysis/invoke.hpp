@@ -19,62 +19,92 @@ namespace rill
         //
         //
         //
-        template<typename NodePtr, typename EnvironmentPtr>
-        auto list_identifier_statement( list_identifier_visitor const& r, NodePtr const& node, EnvironmentPtr const& env )
-            -> decltype( node->dispatch( r, env ) )
-        {
-            return node->dispatch( r, env );
-        }
-
         template<typename EnvironmentPtr, typename T>
-        void list_identifier( EnvironmentPtr const& env, T const& statements )
+        auto list_identifier_statement( EnvironmentPtr const& env, T const& node )
+            -> decltype( node->dispatch( list_identifier_visitor(), env ) )
         {
             list_identifier_visitor visitor;
 
-            for( auto const& s : statements )
-                list_identifier_statement( visitor, s, env );
-        }
-
-
-        //
-        //
-        //
-        template<typename NodePtr, typename EnvironmentPtr>
-        auto check_and_instantiation_statement( check_and_instantiation_visitor const& r, NodePtr const& node, EnvironmentPtr const& env )
-            -> decltype( node->dispatch( r, env ) )
-        {
-            return node->dispatch( r, env );
+            return node->dispatch( visitor, env );
         }
 
         template<typename EnvironmentPtr, typename T>
-        void check_and_instantiation( EnvironmentPtr const& env, T const& statements )
+        void list_identifier( EnvironmentPtr const& env, std::vector<T> const& node_list )
+        {
+            list_identifier_visitor visitor;
+
+            for( auto const& node : node_list )
+                node->dispatch( visitor, env );
+        }
+
+
+
+        //
+        //
+        //
+        template<typename EnvironmentPtr, typename T>
+        auto determine_parameter_signature_statement( EnvironmentPtr const& env, T const& node )
+            -> bool
+        {
+            determine_parameter_signature_visitor visitor;
+            node->dispatch( visitor, env );
+
+            return visitor.get_solved_num() > 0;
+        }
+
+        template<typename EnvironmentPtr, typename T>
+        auto determine_parameter_signature( EnvironmentPtr const& env, std::vector<T> const& node_list )
+            -> std::size_t
+        {
+            determine_parameter_signature_visitor visitor;
+
+            for( auto const& node : node_list )
+                node->dispatch( visitor, env );
+
+            return visitor.get_solved_num();
+        }
+
+
+
+        //
+        //
+        //
+       template<typename EnvironmentPtr, typename T>
+        auto check_and_instantiation_statement( EnvironmentPtr const& env, T const& node )
+            -> decltype( node->dispatch( check_and_instantiation_visitor(), env ) )
         {
             check_and_instantiation_visitor visitor;
 
-            for( auto const& s : statements )
-                check_and_instantiation_statement( visitor, s, env );
+            return node->dispatch( visitor, env );
+        }
+
+        template<typename EnvironmentPtr, typename T>
+        void check_and_instantiation( EnvironmentPtr const& env, std::vector<T> const& node_list )
+        {
+            check_and_instantiation_visitor visitor;
+
+            for( auto const& node : node_list )
+                node->dispatch( visitor, env );
         }
 
 
         //
         //
         //
-        template<typename NodePtr, typename EnvironmentPtr>
-        void analyse_statement(
-            list_identifier_visitor const& lr,
-            check_and_instantiation_visitor const& cr,
-            NodePtr const& node, EnvironmentPtr const& env
-            )
+        template<typename EnvironmentPtr, typename T>
+        void analyse_statement( EnvironmentPtr const& env, T const& node )
         {
             list_identifier_statement( lr, env );
+            determine_parameter_signature_statement
             check_and_instantiation_statement( cr, env );
         }
 
         template<typename EnvironmentPtr, typename T>
-        void analyse( EnvironmentPtr const& env, T const& statements )
+        void analyse( EnvironmentPtr const& env, std::vector<T> const& node_list )
         {
-            list_identifier( env, statements );
-            check_and_instantiation( env, statements );
+            list_identifier( env, node_list );
+            determine_parameter_signature( env, node_list );
+            check_and_instantiation( env, node_list );
         }
 
     } // namespace semantic_analysis

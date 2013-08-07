@@ -31,10 +31,28 @@ namespace rill
         
         void check_and_instantiation_visitor::operator()( expression_statement const& s, environment_ptr const& env ) const
         {
+            s.expression_->dispatch( *this, env );
         }
+
+
         void check_and_instantiation_visitor::operator()( return_statement const& s, environment_ptr const& env ) const
         {
+            if ( env->get_symbol_kind() != kind::type_value::function_e ) {
+                std::cout << "return can not be written on there.....!!!!" << std::endl;
+                exit( -999 );
+            }
+
+            assert( env->get_symbol_kind() == kind::type_value::function_e );
+
+            // 
+            //auto const& evaled_type_env = s.expression_->dispatch( *this, env );
+
+            //
+            //auto const f_env = std::dynamic_pointer_cast<function_symbol_environment>( env );
+            //f_env->add_return_type_env_id( evaled_type_env->get_id() );
         }
+
+
         void check_and_instantiation_visitor::operator()( function_definition_statement const& s, environment_ptr const& env ) const
         {
             if ( s.get_identifier()->nest_size() != 1 )
@@ -94,7 +112,7 @@ namespace rill
             analyse( f_env, s.statements_ );
 
 
-            std::cout << env << std::endl;
+            std::cout << "Function env is" << f_env << std::endl;
             // 
             //f_env->pre_construct( kind::variable_k, 
         }
@@ -102,7 +120,11 @@ namespace rill
         {
         }
         
+
+        //
         // expression
+        // return type
+        //
         auto check_and_instantiation_visitor::operator()( binary_operator_expression const& e, environment_ptr const& env ) const -> environment_ptr
         {
             return nullptr;
@@ -114,10 +136,13 @@ namespace rill
             // TODO: instance nested
 
             const_environment_ptr const target_env = lookup_with_instanciation( env, e.reciever_ );
+            assert( target_env != 0 );
 
             environment_id_list ids;
             for( auto const& arg : e.arguments_ ) {
                 auto const& val_env = arg->dispatch( *this, env );
+                assert( val_env != 0 );
+
                 ids.push_back( val_env->get_id() );
             }
 
@@ -142,9 +167,11 @@ namespace rill
             //
             auto const& fb = f->solve_overload( ids );
             if ( fb == nullptr ) {
-                std::cout << "noname ERROR!!!" << std::endl;
+                std::cout << "nullprerer ERROR!!!" << std::endl;
                 return nullptr;
             }
+
+            std::cout << "bobobo " << (environment_ptr const&)f << std::endl;
 
             // TODO: add implicit type comversin
 
@@ -162,9 +189,11 @@ namespace rill
         }
         
         //
+        // returns type
+        //
         auto check_and_instantiation_visitor::operator()( intrinsic_value const& v, environment_ptr const& env ) const -> environment_ptr
         {
-            return nullptr;
+            return env->lookup( v.literal_type_name_ );
         }
         auto check_and_instantiation_visitor::operator()( variable_value const& s, environment_ptr const& env ) const -> environment_ptr
         {

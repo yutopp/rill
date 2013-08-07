@@ -106,7 +106,8 @@ void sample()
                   }
                 );*/
 
-            root_env->construct( kind::function_k, operator_add, parameters, sl );
+            // def +( :int, :int ): int => native
+            root_env->construct( kind::function_k, operator_add, parameters, make_identifier( int_type ), sl );
         }
 
         {
@@ -145,7 +146,7 @@ void sample()
                   }
                 );*/
 
-            root_env->construct( kind::function_k, operator_multiply, parameters, sl );
+            root_env->construct( kind::function_k, operator_multiply, parameters, make_identifier( int_type ), sl );
         }
         /*
         {
@@ -212,10 +213,27 @@ void sample()
     //   check identifiers type and template instantiation
     rill::semantic_analysis::analyse( root_env, v.product );
 
-
+    std::cout << " ========================== " << std::endl;
 
     // last( debug )
     rill::interpreter::run( root_env, v.product );
+
+
+
+
+
+    {
+        std::cout << "======================================" << std::endl;
+        auto env = root_env;
+        std::string in;
+        while( std::cin >> in ) {
+            std::cout << "!e => finish identifier manager." << std::endl;
+            if ( in == "!e" ) {
+                std::cout << "see you" << std::endl;
+                break;
+            }
+        }
+    }
 }
 
 
@@ -223,7 +241,4 @@ void sample()
 int main()
 {
     sample();
-
-
-    {char c; std::cin >> c;}
 }

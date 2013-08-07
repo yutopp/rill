@@ -123,6 +123,7 @@ auto single_identifier_environment_base::construct(
     kind::function_tag,
     intrinsic::single_identifier_value_base_ptr const& name,
     parameter_list const& plist,
+    intrinsic::identifier_value_ptr const& return_type,
     statement_list const& statements
     )
     -> env_pointer

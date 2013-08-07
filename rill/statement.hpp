@@ -115,7 +115,7 @@ public:
         return parameter_list_;
     }
 
-private:
+public:
     intrinsic::identifier_value_ptr identifier_;
     parameter_list parameter_list_;
     intrinsic::identifier_value_ptr return_type_;

@@ -14,5 +14,6 @@ def foo( hoge: int ): int
 foo( 10 ) + 2 * 5;
 
 
+val fuga: int( 50 );
 
 foo( 5 + 5 * 2 + (20 + 30*2 + 5) ) + 2 * 5;

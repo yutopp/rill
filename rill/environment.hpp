@@ -271,6 +271,7 @@ public:
         kind::function_tag,
         intrinsic::single_identifier_value_base_ptr const&,
         parameter_list const&,
+        intrinsic::identifier_value_ptr const&,
         statement_list const&
         ) -> env_pointer { assert( false ); return nullptr; }
 
@@ -478,14 +479,15 @@ public:
     // function
     auto pre_construct(
         kind::function_tag,
-        intrinsic::single_identifier_value_base_ptr const& name
+        intrinsic::single_identifier_value_base_ptr const&
         )  -> env_pointer RILL_CXX11_OVERRIDE;
 
     auto construct(
         kind::function_tag,
-        intrinsic::single_identifier_value_base_ptr const& name,
+        intrinsic::single_identifier_value_base_ptr const&,
         parameter_list const&,
-        statement_list const& statements
+        intrinsic::identifier_value_ptr const&,
+        statement_list const&
         ) -> env_pointer RILL_CXX11_OVERRIDE;
 
     // variable
@@ -716,16 +718,32 @@ public:
         -> std::ostream& RILL_CXX11_OVERRIDE
     {
         os  << indent << "has_parameter_environment" << std::endl;
+        for( auto const& p : overloads_ ) {
+            os << indent << p.first << std::endl
+               << indent << (environment_ptr const&)p.second << std::endl
+               << indent << "======" << std::endl;
+        }
         return os;
     }
 
 private:
-
-    // todo map
-    std::shared_ptr<InlineEnvironment> p_;
     std::unordered_map<parameter_hash_t, std::shared_ptr<InlineEnvironment>> overloads_;
-    //const_environment_ptr ppp_;
 };
+
+
+
+
+//
+//
+//
+template<typename Environment>
+class forward_reference_guard_environment
+    : public single_identifier_environment_base
+{
+public:
+private:
+};
+
 
 
 
@@ -775,6 +793,13 @@ public:
         return arg_load_env_ids_;
     }
 
+    auto add_return_type_env_id( environment_id_t const& env_id )
+        -> void
+    {
+        return_type_env_ids_.push_back( env_id );
+    }
+
+
     auto dump( std::ostream& os, std::string const& indent ) const
         -> std::ostream& RILL_CXX11_OVERRIDE
     {
@@ -785,6 +810,8 @@ public:
 private:
     statement_list statements_;
     std::vector<environment_id_t> arg_load_env_ids_;
+
+    std::vector<environment_id_t> return_type_env_ids_;
 };
 typedef std::shared_ptr<function_symbol_environment>        function_symbol_environment_ptr;
 typedef std::shared_ptr<function_symbol_environment const>  const_function_symbol_environment_ptr;
@@ -892,145 +919,3 @@ private:
     //symbol_kind kind_;
 };
 
-/*
-//
-class has_parameter_environment RILL_CXX11_FINAL
-    : public environment
-{
-public:
-    has_parameter_environment( env_weak_pointer const& parent, function_definition_statement_base_ptr const& sp )
-        : parent_( parent )
-        , sp_( sp )
-    {}
-
-public:
-    auto lookup_env( intrinsic::identifier_value_ptr const& name ) const
-        -> env_const_pointer
-    { return nullptr; };
-
-    auto get_stmt() const RILL_CXX11_OVERRIDE
-        -> statement_ptr
-    { return sp_; }
-
-public:
-    env_weak_pointer parent_;
-    function_definition_statement_base_ptr sp_;
-};
-
-*/
-
-
-
-
-
-
-/*
-
-
-
-
-
-class environment
-    : public std::enable_shared_from_this<environment>
-{
-    typedef environment                         self_type;
-    typedef std::weak_ptr<self_type>            self_weak_pointer;
-    typedef std::shared_ptr<self_type>          self_pointer;
-    typedef std::shared_ptr<self_type const>    self_const_pointer;
-    typedef std::string                         symbol_type;
-
-public:
-    environment();
-    environment( self_weak_pointer const& parent, statement_ptr const& s );
-    virtual ~environment();
-
-public:
-    //
-    auto add_function(
-        function_definition_statement_base_ptr const& sp
-        )
-        -> self_pointer;
-
-    // 
-    auto add_class(
-        native_class_definition_statement const& sp
-        )
-        -> self_pointer
-    {
-        return nullptr;
-    }
-
-
-
-    auto lookup_env( std::string const& name ) const
-        -> self_const_pointer;
-
-    auto get_stmt() const
-        -> statement_ptr;
-
-    auto is_exist( symbol_type const& ) const
-        -> boost::optional<self_pointer>;
-
-private:
-    bool is_root() const;
-    bool has_parent() const;
-
-private:
-    symbol_types symbol_type_;
-    statement_ptr syntax_tree_;
-
-    self_weak_pointer parent_;
-    std::unordered_map<symbol_type, self_pointer> simple_env_;
-    std::unordered_map<symbol_type, self_pointer> template_env_;
-};
-typedef std::shared_ptr<environment> environment_ptr;
-typedef std::shared_ptr<environment const> const_environment_ptr;
-
-
-
-
-class symbol_table
-{
-public:
-};
-
-
-
-class simple_identifier_table
-{
-};
-
-
-class has_arguments_identifier_table
-{
-public:
-    auto add_overload( environment_ptr const& parent, parameter_list const& parameter, function_definition_statement_base_ptr const& sp )
-        -> const_environment_ptr
-    {
-        ppp_ = std::make_shared<environment>( parent, sp );
-        return ppp_;
-    }
-
-    auto lookup( environment_ptr const& parent, parameter_list const& parameter ) const
-        -> const_environment_ptr
-    {
-        if ( parameter.size() == 2 ) {
-            return ppp_;
-            //if ( parameter[0].type->type()-> )
-        }
-
-        return nullptr;
-    }
-
-private:
-    const_environment_ptr ppp_;
-};
-
-class has_parameter_environment
-{
-public:
-
-};
-
-
-*/

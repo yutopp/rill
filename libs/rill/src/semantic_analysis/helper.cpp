@@ -18,6 +18,7 @@ namespace rill
 {
     namespace semantic_analysis
     {
+        // tODO: change name to lookup_with_template_instanciation
         auto lookup_with_instanciation( environment_ptr const& env, intrinsic::const_identifier_value_ptr const& ids )
             -> environment_ptr
         {
@@ -28,7 +29,7 @@ namespace rill
                             // TODO: add instatntiation
                             return nullptr;
                         } else {
-                            std::cout << "noname ERROR!!!" << std::endl;
+                            std::cout << "[[lookup_with_instanciation]]noname ERROR!!!" << std::endl;
                             return nullptr;
                         }
                     } );
