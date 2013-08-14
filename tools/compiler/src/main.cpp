@@ -8,7 +8,7 @@
 
 #include <iostream>
 
-#include <rill/make_syntax_tree.hpp>
+#include <rill/syntax_analysis/make_syntax_tree.hpp>
 
 #include <fstream>
 #include <iterator>
@@ -18,18 +18,7 @@
 #include <rill/environment.hpp>
 
 
-struct compile_time_runtime
-{
-};
 
-/*
-template<typename T>
-void run( const_environment_ptr const& env, T const& prog )
-{
-    for( auto const& stmt : prog ) {
-        stmt->eval( env );
-    }
-}*/
 
 
 
@@ -43,12 +32,12 @@ void sample()
 
     // operator +
     auto const operator_add
-        = intrinsic::make_binary_operator_identifier( "+" );
+        = rill::ast::intrinsic::make_binary_operator_identifier( "+" );
     root_env->pre_construct( kind::function_k, operator_add );
 
     // operator *
     auto const operator_multiply
-        = intrinsic::make_binary_operator_identifier( "*" );
+        = rill::ast::intrinsic::make_binary_operator_identifier( "*" );
     root_env->pre_construct( kind::function_k, operator_multiply );
 
 
@@ -56,7 +45,7 @@ void sample()
         // add int class definitions and operators
 
         auto const int_type
-            = intrinsic::make_single_identifier( "int" );
+            = rill::ast::intrinsic::make_single_identifier( "int" );
 
         root_env->pre_construct( kind::class_k, int_type );
         root_env->construct( kind::class_k, int_type );
@@ -194,29 +183,32 @@ void sample()
         << "inputs are:" << std::endl
         << input_source_code << std::endl;
 
-    auto const v = make_syntax_tree( input_source_code );
+    //
+    auto const syntax_tree = rill::syntax_analysis::make_syntax_tree( input_source_code );
 
     // debug
     std::cout
-        << "Top statements size: " << v.product.size() << std::endl;
+        << "Top statements size: " << syntax_tree->statements_.size() << std::endl;
 
 
     //
     // semantic analysis
     //
 
-    // construct environment(symbol tabel)
+    // construct environment(symbol table)
     // following steps are processed recursive
     // first(1st pass. prove identifier)
     //   list all of identifiers
     // second(2nd pass. )
     //   check identifiers type and template instantiation
-    rill::semantic_analysis::analyse( root_env, v.product );
+    rill::semantic_analysis::analyse( root_env, syntax_tree );
 
     std::cout << " ========================== " << std::endl;
 
+
+    // compile or interpret
     // last( debug )
-    rill::interpreter::run( root_env, v.product );
+    //rill::interpreter::run( root_env, v.statements_ );
 
 
 

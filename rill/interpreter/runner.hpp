@@ -22,31 +22,31 @@ namespace rill
             : public tree_visitor_base
         {
         public:
-            runner( context_ptr const&, bool const );
+            runner( context_ptr const&, bool );
 
         public:
             // statement_list
-            void operator()( statement_list const& ss, environment_ptr const& env ) const RILL_CXX11_OVERRIDE;
+            void operator()( ast::root const& ss, environment_ptr const& env ) const RILL_CXX11_OVERRIDE;
 
             // statement
             // virtual void operator()( template_statement const& s, environment_ptr const& env ) const =0;
 
-            void operator()( expression_statement const& s, environment_ptr const& env ) const RILL_CXX11_OVERRIDE;
-            void operator()( return_statement const& s, environment_ptr const& env ) const RILL_CXX11_OVERRIDE;
-            void operator()( function_definition_statement const& s, environment_ptr const& env ) const RILL_CXX11_OVERRIDE;
+            void operator()( ast::expression_statement const& s, environment_ptr const& env ) const RILL_CXX11_OVERRIDE;
+            void operator()( ast::return_statement const& s, environment_ptr const& env ) const RILL_CXX11_OVERRIDE;
+            void operator()( ast::function_definition_statement const& s, environment_ptr const& env ) const RILL_CXX11_OVERRIDE;
             // virtual void operator()( native_function_definition_statement const& s, environment_ptr const& env ) const =0;
 
-            void operator()( class_definition_statement const& s, environment_ptr const& env ) const RILL_CXX11_OVERRIDE;
+            void operator()( ast::class_definition_statement const& s, environment_ptr const& env ) const RILL_CXX11_OVERRIDE;
 
             // expression
-            auto operator()( binary_operator_expression const& e, environment_ptr const& env ) const ->environment_ptr RILL_CXX11_OVERRIDE;
-            auto operator()( call_expression const& e, environment_ptr const& env ) const ->environment_ptr RILL_CXX11_OVERRIDE;
-            auto operator()( embedded_function_call_expression const& e, environment_ptr const& env ) const ->environment_ptr RILL_CXX11_OVERRIDE;
-            auto operator()( term_expression const& e, environment_ptr const& env ) const ->environment_ptr RILL_CXX11_OVERRIDE;
+            auto operator()( ast::binary_operator_expression const& e, environment_ptr const& env ) const ->environment_ptr RILL_CXX11_OVERRIDE;
+            auto operator()( ast::call_expression const& e, environment_ptr const& env ) const ->environment_ptr RILL_CXX11_OVERRIDE;
+            auto operator()( ast::embedded_function_call_expression const& e, environment_ptr const& env ) const ->environment_ptr RILL_CXX11_OVERRIDE;
+            auto operator()( ast::term_expression const& e, environment_ptr const& env ) const ->environment_ptr RILL_CXX11_OVERRIDE;
 
             //
-            auto operator()( intrinsic_value const& v, environment_ptr const& env ) const -> environment_ptr RILL_CXX11_OVERRIDE;
-            auto operator()( variable_value const& v, environment_ptr const& env ) const -> environment_ptr RILL_CXX11_OVERRIDE;
+            auto operator()( ast::intrinsic_value const& v, environment_ptr const& env ) const -> environment_ptr RILL_CXX11_OVERRIDE;
+            auto operator()( ast::variable_value const& v, environment_ptr const& env ) const -> environment_ptr RILL_CXX11_OVERRIDE;
 
         private:
             context_ptr context_;

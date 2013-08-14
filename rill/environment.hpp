@@ -25,9 +25,12 @@
 
 #include "environment_fwd.hpp"
 
-#include "value.hpp"
-#include "expression.hpp"
-#include "statement.hpp"
+#include "ast/value.hpp"
+#include "ast/expression.hpp"
+#include "ast/statement.hpp"
+
+using namespace rill::ast;  // TODO: fix
+
 
 typedef unsigned int    symbol_types_mask_t;
 enum struct symbol_types : symbol_types_mask_t
@@ -733,16 +736,7 @@ private:
 
 
 
-//
-//
-//
-template<typename Environment>
-class forward_reference_guard_environment
-    : public single_identifier_environment_base
-{
-public:
-private:
-};
+
 
 
 

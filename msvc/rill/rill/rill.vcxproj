@@ -64,36 +64,43 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\rill\ast\expression.hpp" />
+    <ClInclude Include="..\..\..\rill\ast\expression_fwd.hpp" />
+    <ClInclude Include="..\..\..\rill\ast\root.hpp" />
+    <ClInclude Include="..\..\..\rill\ast\root_fwd.hpp" />
+    <ClInclude Include="..\..\..\rill\ast\statement.hpp" />
+    <ClInclude Include="..\..\..\rill\ast\statement_fwd.hpp" />
+    <ClInclude Include="..\..\..\rill\ast\value.hpp" />
+    <ClInclude Include="..\..\..\rill\ast\value_fwd.hpp" />
     <ClInclude Include="..\..\..\rill\config\macros.hpp" />
-    <ClInclude Include="..\..\..\rill\expression_fwd.hpp" />
     <ClInclude Include="..\..\..\rill\interpreter\invoke.hpp" />
     <ClInclude Include="..\..\..\rill\interpreter\interpreter.hpp" />
     <ClInclude Include="..\..\..\rill\interpreter\runner.hpp" />
     <ClInclude Include="..\..\..\rill\interpreter\runtime.hpp" />
     <ClInclude Include="..\..\..\rill\environment.hpp" />
     <ClInclude Include="..\..\..\rill\environment_fwd.hpp" />
-    <ClInclude Include="..\..\..\rill\expression.hpp" />
-    <ClInclude Include="..\..\..\rill\make_syntax_tree.hpp" />
-    <ClInclude Include="..\..\..\rill\parser.hpp" />
     <ClInclude Include="..\..\..\rill\semantic_analysis\check_and_instantiation_visitor.hpp" />
+    <ClInclude Include="..\..\..\rill\semantic_analysis\compiletime_interpreter\interpreter.hpp" />
+    <ClInclude Include="..\..\..\rill\semantic_analysis\compiletime_interpreter\invoke.hpp" />
+    <ClInclude Include="..\..\..\rill\semantic_analysis\compiletime_interpreter\runner.hpp" />
+    <ClInclude Include="..\..\..\rill\semantic_analysis\compiletime_interpreter\runtime.hpp" />
     <ClInclude Include="..\..\..\rill\semantic_analysis\helper.hpp" />
     <ClInclude Include="..\..\..\rill\semantic_analysis\invoke.hpp" />
     <ClInclude Include="..\..\..\rill\semantic_analysis\list_identifier_visitor.hpp" />
     <ClInclude Include="..\..\..\rill\semantic_analysis\semantic_analysis.hpp" />
-    <ClInclude Include="..\..\..\rill\statement.hpp" />
-    <ClInclude Include="..\..\..\rill\statement_fwd.hpp" />
+    <ClInclude Include="..\..\..\rill\syntax_analysis\make_syntax_tree.hpp" />
+    <ClInclude Include="..\..\..\rill\syntax_analysis\parser.hpp" />
     <ClInclude Include="..\..\..\rill\tree_visitor_base.hpp" />
-    <ClInclude Include="..\..\..\rill\value.hpp" />
-    <ClInclude Include="..\..\..\rill\value_fwd.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\libs\rill\src\ast\value.cpp" />
     <ClCompile Include="..\..\..\libs\rill\src\environment.cpp" />
     <ClCompile Include="..\..\..\libs\rill\src\interpreter\runner.cpp" />
-    <ClCompile Include="..\..\..\libs\rill\src\make_syntax_tree.cpp" />
     <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\check_and_instantiation.cpp" />
+    <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\compiletime_interpreter\runner.cpp" />
     <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\helper.cpp" />
     <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\list_identifier_visitor.cpp" />
-    <ClCompile Include="..\..\..\libs\rill\src\value.cpp" />
+    <ClCompile Include="..\..\..\libs\rill\src\syntax_analysis\make_syntax_tree.cpp" />
     <ClCompile Include="..\..\..\tools\compiler\src\main.cpp" />
   </ItemGroup>
   <ItemGroup>

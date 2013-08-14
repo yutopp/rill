@@ -6,44 +6,45 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 //
 
+
+//
+// Compile time interpreter
+// runner
+//
+
+
 #include <rill/interpreter/runner.hpp>
 #include <rill/interpreter/invoke.hpp>
 
+#include <rill/ast/root.hpp>
+#include <rill/ast/statement.hpp>
+#include <rill/ast/expression.hpp>
+#include <rill/ast/value.hpp>
+
 #include <rill/environment.hpp>
 
-#include <rill/statement.hpp>
-#include <rill/expression.hpp>
-#include <rill/value.hpp>
 
 namespace rill
 {
-
-
-
-
-
-
-
-
     namespace interpreter
     {
-        runner::runner( context_ptr const& ctx, bool const is_on_compile_time )
+        runner::runner( context_ptr const& ctx, bool is_on_compile_time )
             : context_( ctx )
             , is_on_compile_time_( is_on_compile_time )
         {}
 
         // statement_list
-        void runner::operator()( statement_list const& ss, environment_ptr const& env ) const
+        void runner::operator()( ast::root const& ss, environment_ptr const& env ) const
         {
-            // TODO: add return step
-            for( auto const& s : ss )
-                s->dispatch( *this, env );
+            //// TODO: add return step
+            //for( auto const& s : ss )
+            //    s->dispatch( *this, env );
         }
 
         // statement
         // virtual void operator()( template_statement const& s, environment_ptr const& env ) const =0;
 
-        void runner::operator()( expression_statement const& s, environment_ptr const& env ) const
+        void runner::operator()( ast::expression_statement const& s, environment_ptr const& env ) const
         {
             std::cout
                 << "in expression_statement dispach of runner" << std::endl
@@ -51,7 +52,7 @@ namespace rill
             std::cout << "Value(current stack top) => " << *context_->current_stack_value() << std::endl;
         }
 
-        void runner::operator()( return_statement const& s, environment_ptr const& env ) const
+        void runner::operator()( ast::return_statement const& s, environment_ptr const& env ) const
         {
             s.expression_->dispatch( *this, env );
 
@@ -59,17 +60,17 @@ namespace rill
             //context_->current_scope()->set_return_value( s.expression_->dispatch( *this, env ) );
         }
 
-        void runner::operator()( function_definition_statement const& s, environment_ptr const& env ) const
+        void runner::operator()( ast::function_definition_statement const& s, environment_ptr const& env ) const
         {}
 
         //void operator()( native_function_definition_statement const& s, environment_ptr const& env ) const =0;
 
-        void runner::operator()( class_definition_statement const& s, environment_ptr const& env ) const
+        void runner::operator()( ast::class_definition_statement const& s, environment_ptr const& env ) const
         {}
 
 
         // expression
-        auto runner::operator()( binary_operator_expression const& e, environment_ptr const& env ) const -> environment_ptr
+        auto runner::operator()( ast::binary_operator_expression const& e, environment_ptr const& env ) const -> environment_ptr
         {
             // evaluate values(and push to stack) and returned value type
             auto const& lhs_type_env = e.lhs_->dispatch( *this, env );
@@ -144,7 +145,7 @@ namespace rill
             // f->return_type_identifier
         }
 
-        auto runner::operator()( call_expression const& e, environment_ptr const& env ) const -> environment_ptr
+        auto runner::operator()( ast::call_expression const& e, environment_ptr const& env ) const -> environment_ptr
         {
             // make function entry step
 
@@ -219,7 +220,7 @@ namespace rill
         //
         // embeded function must return values in intrinsic namespace.
         //
-        auto runner::operator()( embedded_function_call_expression const& e, environment_ptr const& env ) const -> environment_ptr
+        auto runner::operator()( ast::embedded_function_call_expression const& e, environment_ptr const& env ) const -> environment_ptr
         {
             std::vector<const_value_ptr> args;
             args.push_back( context_->pop_value().value );
@@ -246,14 +247,14 @@ namespace rill
             return env->lookup( typed_val->literal_type_name_ );
         }
 
-        auto runner::operator()( term_expression const& e, environment_ptr const& env ) const -> environment_ptr
+        auto runner::operator()( ast::term_expression const& e, environment_ptr const& env ) const -> environment_ptr
         {
             return e.value_->dispatch( *this, env );
         }
 
 
         //
-        auto runner::operator()( intrinsic_value const& v, environment_ptr const& env ) const -> environment_ptr
+        auto runner::operator()( ast::intrinsic_value const& v, environment_ptr const& env ) const -> environment_ptr
         {
 //            std::cout << "Value => " << v << std::endl;
             context_->push_value( v.value_ );
@@ -261,7 +262,7 @@ namespace rill
             return env->lookup( v.literal_type_name_ );
         }
 
-        auto runner::operator()( variable_value const& v, environment_ptr const& env ) const -> environment_ptr
+        auto runner::operator()( ast::variable_value const& v, environment_ptr const& env ) const -> environment_ptr
         {
             // lookup variable name environment
             auto const& val_env = env->nest_lookup( v.variable_name_ );

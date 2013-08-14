@@ -11,8 +11,10 @@
 #include <rill/semantic_analysis/helper.hpp>
 #include <rill/semantic_analysis/invoke.hpp>
 
+#include <rill/ast/value.hpp>
+
 #include <rill/environment.hpp>
-#include <rill/value.hpp>
+
 
 namespace rill
 {

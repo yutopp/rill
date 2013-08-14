@@ -7,7 +7,7 @@ foo( 20 );
 
 def foo( hoge: int ): int
 {
-    return hoge*10;
+    return hoge * 10;
 }
 
 

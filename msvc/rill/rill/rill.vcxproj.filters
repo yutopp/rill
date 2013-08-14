@@ -24,9 +24,6 @@
     <Filter Include="tools\compiler\src">
       <UniqueIdentifier>{ba64c7d2-3c91-42ed-805e-f949963d763d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="rill\element">
-      <UniqueIdentifier>{9ec2fdd5-e8b1-4ab6-a9f8-48c72c09f1af}</UniqueIdentifier>
-    </Filter>
     <Filter Include="rill\config">
       <UniqueIdentifier>{b9647729-911b-4582-855e-02527336bf8c}</UniqueIdentifier>
     </Filter>
@@ -48,6 +45,21 @@
     <Filter Include="rill\syntax_analysis">
       <UniqueIdentifier>{aacaa0f6-206e-4fc2-900b-4ad0f78e29a5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="rill\semantic_analysis\compiletime_interpreter">
+      <UniqueIdentifier>{a050560f-e8d9-439e-a030-fe9e3c8cb207}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="libs\rill\src\semantic_analysis\compiletime_interpreter">
+      <UniqueIdentifier>{27265f94-3485-44dd-8266-d018de7ed1fe}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="rill\ast">
+      <UniqueIdentifier>{9ec2fdd5-e8b1-4ab6-a9f8-48c72c09f1af}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="libs\rill\src\ast">
+      <UniqueIdentifier>{2de4dbe1-da53-42e8-9473-6c3e25fb3ec2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="libs\rill\src\syntax_analysis">
+      <UniqueIdentifier>{ca583ee3-5773-4dab-8def-a7f3bee7a5d5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\rill\environment.hpp">
@@ -55,30 +67,6 @@
     </ClInclude>
     <ClInclude Include="..\..\..\rill\environment_fwd.hpp">
       <Filter>rill</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\rill\parser.hpp">
-      <Filter>rill</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\rill\expression.hpp">
-      <Filter>rill\element</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\rill\value.hpp">
-      <Filter>rill\element</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\rill\statement.hpp">
-      <Filter>rill\element</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\rill\make_syntax_tree.hpp">
-      <Filter>rill</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\rill\statement_fwd.hpp">
-      <Filter>rill\element</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\rill\expression_fwd.hpp">
-      <Filter>rill\element</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\rill\value_fwd.hpp">
-      <Filter>rill\element</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\rill\config\macros.hpp">
       <Filter>rill\config</Filter>
@@ -113,6 +101,48 @@
     <ClInclude Include="..\..\..\rill\semantic_analysis\helper.hpp">
       <Filter>rill\semantic_analysis</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\rill\semantic_analysis\compiletime_interpreter\interpreter.hpp">
+      <Filter>rill\semantic_analysis\compiletime_interpreter</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\semantic_analysis\compiletime_interpreter\invoke.hpp">
+      <Filter>rill\semantic_analysis\compiletime_interpreter</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\semantic_analysis\compiletime_interpreter\runner.hpp">
+      <Filter>rill\semantic_analysis\compiletime_interpreter</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\semantic_analysis\compiletime_interpreter\runtime.hpp">
+      <Filter>rill\semantic_analysis\compiletime_interpreter</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\ast\expression.hpp">
+      <Filter>rill\ast</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\ast\expression_fwd.hpp">
+      <Filter>rill\ast</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\ast\statement.hpp">
+      <Filter>rill\ast</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\ast\statement_fwd.hpp">
+      <Filter>rill\ast</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\ast\value.hpp">
+      <Filter>rill\ast</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\ast\value_fwd.hpp">
+      <Filter>rill\ast</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\ast\root.hpp">
+      <Filter>rill\ast</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\ast\root_fwd.hpp">
+      <Filter>rill\ast</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\syntax_analysis\make_syntax_tree.hpp">
+      <Filter>rill\syntax_analysis</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\syntax_analysis\parser.hpp">
+      <Filter>rill\syntax_analysis</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\libs\rill\src\environment.cpp">
@@ -120,12 +150,6 @@
     </ClCompile>
     <ClCompile Include="..\..\..\tools\compiler\src\main.cpp">
       <Filter>tools\compiler\src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\libs\rill\src\value.cpp">
-      <Filter>libs\rill\src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\libs\rill\src\make_syntax_tree.cpp">
-      <Filter>libs\rill\src</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\libs\rill\src\interpreter\runner.cpp">
       <Filter>libs\rill\src\interpreter</Filter>
@@ -138,6 +162,15 @@
     </ClCompile>
     <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\helper.cpp">
       <Filter>libs\rill\src\semantic_analysis</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\compiletime_interpreter\runner.cpp">
+      <Filter>libs\rill\src\semantic_analysis\compiletime_interpreter</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\libs\rill\src\syntax_analysis\make_syntax_tree.cpp">
+      <Filter>libs\rill\src\syntax_analysis</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\libs\rill\src\ast\value.cpp">
+      <Filter>libs\rill\src\ast</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

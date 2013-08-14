@@ -7,9 +7,9 @@
 //
 
 #include <rill/environment.hpp>
-#include <rill/value.hpp>
-#include <rill/expression.hpp>
-#include <rill/statement.hpp>
+#include <rill/ast/value.hpp>
+#include <rill/ast/expression.hpp>
+#include <rill/ast/statement.hpp>
 
 std::ostream& operator<<( std::ostream& os, environment_ptr const& env )
 {

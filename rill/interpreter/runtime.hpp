@@ -14,7 +14,8 @@
 #include <memory>
 #include <map>
 #include <unordered_map>
-#include <rill/value_fwd.hpp>
+
+#include <rill/ast/value_fwd.hpp>
 
 namespace rill
 {
@@ -23,7 +24,7 @@ namespace rill
         class runtime;
         typedef std::shared_ptr<runtime> runtime_ptr;
 
-        typedef std::map<environment_id_t, const_value_ptr> value_table_t;
+        typedef std::map<environment_id_t, ast::const_value_ptr> value_table_t;
 
 
 
@@ -52,12 +53,12 @@ namespace rill
         class value_wrapper
         {
         public:
-            value_wrapper( value_ptr const& vp, stack_state const& s = stack_state::none )
+            value_wrapper( ast::value_ptr const& vp, stack_state const& s = stack_state::none )
                 : value( vp )
                 , state( s )
             {}
 
-            value_ptr value;
+            ast::value_ptr value;
             stack_state state;
         };
 
@@ -77,7 +78,7 @@ namespace rill
             }
 
         public:
-            auto push_value( value_ptr const& v )
+            auto push_value( ast::value_ptr const& v )
                 -> void
             {
                 value_stack_.emplace( v );
@@ -94,14 +95,14 @@ namespace rill
                 return p;
             }
 
-            auto construct_variable( environment_id_t const& env_id, value_ptr const& val )
+            auto construct_variable( environment_id_t const& env_id, ast::value_ptr const& val )
                 -> void
             {
                 variable_map_[env_id] = val;
             }
 
             auto get_variable_value_by_id( environment_id_t const& env_id )
-                -> value_ptr
+                -> ast::value_ptr
             {
                 return variable_map_.at( env_id );
             }
@@ -128,7 +129,7 @@ namespace rill
             }
 
             auto current_stack_value()
-                -> value_ptr
+                -> ast::value_ptr
             {
                 return value_stack_.top().value;
             }
@@ -137,7 +138,7 @@ namespace rill
             std::weak_ptr<runtime> runtime_;
 
             std::stack<value_wrapper> value_stack_;
-            std::unordered_map<environment_id_t, value_ptr> variable_map_;
+            std::unordered_map<environment_id_t, ast::value_ptr> variable_map_;
 
             std::stack<scope_ptr> scope_stack_;
         };
