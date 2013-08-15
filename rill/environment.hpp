@@ -108,6 +108,14 @@ enum struct length_type
 };
 
 
+enum struct typed_process
+{
+    untyped,
+    processing,
+    typed
+};
+
+
 
 
 
@@ -123,6 +131,7 @@ public:
         std::shared_ptr<Env> pointer;
     };
 
+    //
     template<typename Env, typename... T>
     auto allocate( T&&... ts )
         -> result<Env>
@@ -132,12 +141,14 @@ public:
             exit( -999 );
 
         auto const p = std::make_shared<Env>( next_id, std::forward<T>( ts )... );
+        result<Env> r = { next_id, p };
+
         nodes_.push_back( p );
 
-        result<Env> r = { next_id, p };
         return r;
     }
 
+    //
     auto at( environment_id_t const& id )
         -> std::weak_ptr<BaseEnvT>
     {
@@ -145,6 +156,7 @@ public:
         return nodes_.at( id );
     }
 
+    //
     auto at( environment_id_t const& id ) const
         -> std::weak_ptr<BaseEnvT const>
     {
@@ -155,6 +167,7 @@ public:
 private:
     std::vector<std::weak_ptr<BaseEnvT>> nodes_;
 };
+
 
 struct root_initialize_tag {};
 
@@ -809,6 +822,7 @@ private:
 };
 typedef std::shared_ptr<function_symbol_environment>        function_symbol_environment_ptr;
 typedef std::shared_ptr<function_symbol_environment const>  const_function_symbol_environment_ptr;
+
 
 
 

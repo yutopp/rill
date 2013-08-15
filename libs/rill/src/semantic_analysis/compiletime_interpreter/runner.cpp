@@ -39,7 +39,11 @@ namespace rill
             // Root Scope
             void runner::operator()( ast::root const& ss, environment_ptr const& env ) const
             {
-                list_identifier( env, ss.statements_ );
+                collect_type_identifier( env, ss.statements_ );
+                collect_identifier( env, ss.statements_ );
+
+                for( auto const& node : ss.statements_ )
+                    node->dispatch( *this,  env );
             }
 
             // statement
@@ -62,7 +66,75 @@ namespace rill
             }
 
             void runner::operator()( ast::function_definition_statement const& s, environment_ptr const& env ) const
-            {}
+            {
+                /*
+                // TODO: remove this case in syntax analysis phase
+                if ( s.get_identifier()->nest_size() != 1 )
+                    std::cout << "function_definition_statement error!!!!!!! can not specified nested definition here." << std::endl;//error()
+
+
+                // TODO: add steady step to check
+                //     : OR CHANGE THE PARSER
+                assert( s.get_identifier()->nest_size() == 1 ); // can not use nested type here
+
+
+                // construct function environment in progress phase
+                auto const& f_g_env
+                        = env->construct(
+                                kind::function_k,
+                                s.get_identifier()->get_last_identifier(),
+                                s.get_parameter_list(),
+                                s.statements_
+                                );
+                assert( f_g_env != nullptr );
+                auto const& f_env = std::dynamic_pointer_cast<function_symbol_environment>( f_g_env );
+
+            // instantiation  !!! TYPES !!! parameter
+            bool is_type_instantiation_succeeded = true;
+            for( auto const& e : s.get_parameter_list() ) {
+                assert( e.type != nullptr );
+                if ( !lookup_with_instanciation( env, e.type ) )
+                    is_type_instantiation_succeeded = false;
+            }
+            if ( !is_type_instantiation_succeeded ) {
+                std::cout << "type parameter is not found....." << std::endl;
+                exit( -999 );
+            }
+
+
+
+
+
+
+            // construct argument variable symbol
+            for( auto const& e : s.get_parameter_list() ) {
+                assert( e.name != nullptr );
+                // TODO: add steady step to check
+                //     : OR CHANGE THE PARSER
+                assert( e.name->nest_size() == 1 ); // can not use nested type here
+
+                // construct parameter ariable
+                auto const val_env = f_env->construct( kind::variable_k, e.name->get_last_identifier(), env->nest_lookup( e.type )->get_id() );
+                assert( f_env != 0 );
+
+                // specify entry variable holder
+                f_env->push_arg_load_env_id( val_env->get_id() );
+
+                // TODO: add step to despatch default values...
+/*                auto const def_value = e.default_value;
+                if ( def_value ) {
+                } else {
+                }[]/
+            }
+
+            //
+            analyse( f_env, s.statements_ );
+            */
+
+//            std::cout << "Function env is" << f_env << std::endl;
+            // 
+            //f_env->pre_construct( kind::variable_k, 
+            }
 
             //void operator()( native_function_definition_statement const& s, environment_ptr const& env ) const =0;
 
@@ -148,6 +220,7 @@ namespace rill
                 // f->return_type_identifier
             }
 
+            //
             auto runner::operator()( ast::call_expression const& e, environment_ptr const& env ) const -> environment_ptr
             {
                 // make function entry step

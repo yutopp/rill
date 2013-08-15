@@ -85,6 +85,37 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
                 //block_ = 
 
                 //top_level_statement_
+                /*
+                variable_definition_statement_
+                    =
+
+                value_type_variable_declaration_
+                    = qi::lit( "val" )
+                    > ( /* add quarifiers... * )
+                    ;
+
+                //
+                reference_type_variable_declaration_
+                    = qi::lit( "ref" )
+                    > ( /* add quarifiers... * )
+                    ;
+*/
+
+                //
+                variable_definition_unit_
+                    = identifier_
+                    > ( qi::lit( '=' ) > expression_ )
+                    > type_specifier_
+                    ;
+
+                //
+                type_specifier_
+                    = ( qi::lit( ':' ) > type_expression_ )
+                    ;
+
+
+
+
 
                 return_statement_
                     = qi::lit( "return" )
@@ -98,6 +129,7 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
                       ]
                     ;
 
+
                 //
                 function_body_block_
                     %= qi::lit( "{" ) >> function_body_statements_ >> qi::lit( "}" )
@@ -109,8 +141,7 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
                     = ( qi::lit( "def" )
                     > identifier_
                     > parameter_list_
-                    > qi::lit( ":" )
-                    > identifier_
+                    > -( qi::lit( ":" ) >> identifier_ )
                     > ( function_body_block_ | function_body_block_ )
                       )[
                         qi::_val
@@ -137,6 +168,40 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
                                 )
                       ]
                     ;
+
+
+
+
+                //
+                type_expression_
+                    = type_identifier_expression_ | compiletime_return_type_expression_
+                    ;
+
+                //
+                type_identifier_expression_
+                    = identifier_[
+                        qi::_val
+                            = phx::construct<ast::type_identifier_expression_ptr>(
+                                phx::new_<ast::type_identifier_expression>(
+                                    qi::_1
+                                    )
+                                )
+                      ]
+                    ;
+
+                //
+                compiletime_return_type_expression_
+                    = ( qi::lit( '^' ) > expression_ )[
+                        qi::_val
+                            = phx::construct<ast::compiletime_return_type_expression_ptr>(
+                                phx::new_<ast::compiletime_return_type_expression>(
+                                    qi::_1
+                                    )
+                                )
+                      ]
+                    ;
+
+
 
                 expression_
                     %= expression_priority_[ExpressionHierarchyNum-1]
@@ -232,6 +297,7 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
 
                 //auto p = ( -native_symbol_ )[ phx::if_else( qi::_0, phx::construct<intrinsic::symbol_value_ptr>(), phx::construct<intrinsic::symbol_value_ptr>() )]
 
+                /*
                 auto
                 value_constructor_
                     = ( qi::string( "local" ) | qi::string( "heap" ) | qi::string( "gc" ) | qi::eps[phx::val( "local" )] )
@@ -256,7 +322,7 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
                     > single_identifier_
                     > ( qi::lit( ':' ) >> value_constructor_ )
                     ;
-
+*/
 
 
         /**/
@@ -388,6 +454,11 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
             qi::rule<Iterator, ast::expression_list(), ascii::space_type> argument_list_;
             qi::rule<Iterator, ast::call_expression_ptr(), ascii::space_type> call_expression_;
             qi::rule<Iterator, ast::term_expression_ptr(), ascii::space_type> term_expression_;
+
+
+            qi::rule<Iterator, ast::type_expression_ptr(), ascii::space_type> type_expression_;
+            qi::rule<Iterator, ast::type_identifier_expression_ptr(), ascii::space_type> type_identifier_expression_;
+            qi::rule<Iterator, ast::compiletime_return_type_expression_ptr(), ascii::space_type> compiletime_return_type_expression_;
 
 
             qi::rule<Iterator, ast::variable_value_ptr(), ascii::space_type> variable_value_;

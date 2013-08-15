@@ -37,5 +37,16 @@ namespace rill
         struct term_expression;
         typedef std::shared_ptr<term_expression> term_expression_ptr;
 
+
+        struct type_expression;
+        typedef std::shared_ptr<type_expression> type_expression_ptr;
+
+        struct type_identifier_expression;
+        typedef std::shared_ptr<type_identifier_expression> type_identifier_expression_ptr;
+
+        struct compiletime_return_type_expression;
+        typedef std::shared_ptr<compiletime_return_type_expression> compiletime_return_type_expression_ptr;
+
+
     } // namespace ast
 } // namespace rill

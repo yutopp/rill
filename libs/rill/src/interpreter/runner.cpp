@@ -28,10 +28,13 @@ namespace rill
 {
     namespace interpreter
     {
+        //
         runner::runner( context_ptr const& ctx, bool is_on_compile_time )
             : context_( ctx )
             , is_on_compile_time_( is_on_compile_time )
-        {}
+        {
+        }
+
 
         // statement_list
         void runner::operator()( ast::root const& ss, environment_ptr const& env ) const
@@ -41,9 +44,12 @@ namespace rill
             //    s->dispatch( *this, env );
         }
 
+
         // statement
         // virtual void operator()( template_statement const& s, environment_ptr const& env ) const =0;
 
+
+        // 
         void runner::operator()( ast::expression_statement const& s, environment_ptr const& env ) const
         {
             std::cout
@@ -52,6 +58,8 @@ namespace rill
             std::cout << "Value(current stack top) => " << *context_->current_stack_value() << std::endl;
         }
 
+
+        //
         void runner::operator()( ast::return_statement const& s, environment_ptr const& env ) const
         {
             s.expression_->dispatch( *this, env );
@@ -60,11 +68,17 @@ namespace rill
             //context_->current_scope()->set_return_value( s.expression_->dispatch( *this, env ) );
         }
 
+
+        //
         void runner::operator()( ast::function_definition_statement const& s, environment_ptr const& env ) const
-        {}
+        {
+
+        }
 
         //void operator()( native_function_definition_statement const& s, environment_ptr const& env ) const =0;
 
+
+        //
         void runner::operator()( ast::class_definition_statement const& s, environment_ptr const& env ) const
         {}
 
@@ -145,6 +159,8 @@ namespace rill
             // f->return_type_identifier
         }
 
+
+
         auto runner::operator()( ast::call_expression const& e, environment_ptr const& env ) const -> environment_ptr
         {
             // make function entry step
@@ -217,6 +233,7 @@ namespace rill
             return env->lookup( intrinsic::make_single_identifier( "int" ) ); // TODO: change to use function return type
         }
 
+
         //
         // embeded function must return values in intrinsic namespace.
         //
@@ -247,6 +264,8 @@ namespace rill
             return env->lookup( typed_val->literal_type_name_ );
         }
 
+
+        //
         auto runner::operator()( ast::term_expression const& e, environment_ptr const& env ) const -> environment_ptr
         {
             return e.value_->dispatch( *this, env );
@@ -262,6 +281,8 @@ namespace rill
             return env->lookup( v.literal_type_name_ );
         }
 
+
+        //
         auto runner::operator()( ast::variable_value const& v, environment_ptr const& env ) const -> environment_ptr
         {
             // lookup variable name environment

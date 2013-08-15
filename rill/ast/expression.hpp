@@ -43,10 +43,10 @@ namespace rill
         //
 #define ADAPT_EXPRESSION_VISITOR( class_name ) \
     public: \
-    virtual environment_ptr dispatch( tree_visitor_base const& visitor, environment_ptr const& env ) const \
-        { \
+    virtual environment_ptr dispatch( tree_visitor_base const& visitor, environment_ptr const& env ) const /* RILL_OVERRIDE */ \
+    { \
         return visitor( *this, env ); \
-        }
+    }
 
         typedef std::vector<expression_ptr>     expression_list;
 
@@ -122,6 +122,45 @@ namespace rill
             value_ptr const value_;
         };
 
+
+
+        struct type_expression
+            : public expression
+        {
+            ADAPT_EXPRESSION_VISITOR( type_expression )
+
+        public:
+        };
+
+        //
+        struct type_identifier_expression
+            : public type_expression
+        {
+            ADAPT_EXPRESSION_VISITOR( type_identifier_expression )
+
+        public:
+            type_identifier_expression( value_ptr const& v )
+                : value_( v )
+            {}
+
+        public:
+            value_ptr const value_;
+        };
+
+        //
+        struct compiletime_return_type_expression
+            : public type_expression
+        {
+            ADAPT_EXPRESSION_VISITOR( compiletime_return_type_expression )
+
+        public:
+            compiletime_return_type_expression( expression_ptr const& e )
+                : expression_( e )
+            {}
+
+        public:
+            expression_ptr expression_;
+        };
 
 #undef ADAPT_EXPRESSION_VISITOR
 

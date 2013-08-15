@@ -25,11 +25,12 @@ namespace rill
         {
             // ignore
         }
-        
+
         void list_identifier_visitor::operator()( ast::expression_statement const& s, environment_ptr const& env ) const
         {
             // ignore
         }
+
         void list_identifier_visitor::operator()( ast::return_statement const& s, environment_ptr const& env ) const
         {
             // ignore
@@ -42,10 +43,10 @@ namespace rill
             env->pre_construct( kind::function_k, s.get_identifier()->get_last_identifier() );
         }
 
-        //
+        // for classes
         void list_identifier_visitor::operator()( ast::class_definition_statement const& s, environment_ptr const& env ) const
         {
-            // TODO: implement
+            // ignore
         }
  
 

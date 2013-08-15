@@ -11,6 +11,7 @@
 
 #include <vector>
 
+#include "type_identifier_visitor.hpp"
 #include "list_identifier_visitor.hpp"
 #include "check_and_instantiation_visitor.hpp"
 
@@ -21,11 +22,40 @@ namespace rill
 {
     namespace semantic_analysis
     {
+        // TODO: add import collector
+
+
         //
         //
         //
         template<typename EnvironmentPtr, typename T>
-        auto list_identifier( EnvironmentPtr const& env, std::vector<T> const& nodes ) -> void
+        auto collect_type_identifier( EnvironmentPtr const& env, std::vector<T> const& nodes ) -> void
+        {
+            type_identifier_visitor visitor;
+
+            for( auto const& node : nodes )
+                node->dispatch( visitor, env );
+        }
+
+
+        //
+        //
+        //
+        template<typename EnvironmentPtr, typename T>
+        auto collect_type_identifier( EnvironmentPtr const& env, T const& node )
+            -> decltype( node->dispatch( type_identifier_visitor(), env ) )
+        {
+            type_identifier_visitor visitor;
+
+            return node->dispatch( visitor, env );
+        }
+
+
+        //
+        //
+        //
+        template<typename EnvironmentPtr, typename T>
+        auto collect_identifier( EnvironmentPtr const& env, std::vector<T> const& nodes ) -> void
         {
             list_identifier_visitor visitor;
 
@@ -38,7 +68,7 @@ namespace rill
         //
         //
         template<typename EnvironmentPtr, typename T>
-        auto list_identifier( EnvironmentPtr const& env, T const& node )
+        auto collect_identifier( EnvironmentPtr const& env, T const& node )
             -> decltype( node->dispatch( list_identifier_visitor(), env ) )
         {
             list_identifier_visitor visitor;

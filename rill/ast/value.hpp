@@ -74,19 +74,9 @@ namespace rill
     public: \
     virtual auto dispatch( tree_visitor_base const& visitor, environment_ptr const& env ) const \
     -> environment_ptr RILL_CXX11_OVERRIDE \
-        { \
+    { \
         return visitor( *this, env ); \
-        }
-
-
-
-
-
-
-
-
-
-
+    }
 
 
         namespace intrinsic
@@ -385,69 +375,7 @@ namespace rill
         };
 
 
-
-
-
-
-
-
-        struct parameter_pair
-        {
-            intrinsic::identifier_value_ptr name;
-            intrinsic::identifier_value_ptr type;
-            value_ptr default_value; // TODO: change to expresison
-        };
-
-
-
-
-
-        inline auto make_parameter_pair(
-            intrinsic::identifier_value_ptr const& name,
-            intrinsic::identifier_value_ptr const& type,
-            value_ptr const& default_value = nullptr
-            )
-            -> parameter_pair
-        {
-            parameter_pair ap = { name, type, default_value };
-
-            return ap;
-        }
-
-        inline auto make_parameter_pair(
-            intrinsic::identifier_value_ptr const& type,
-            value_ptr const& default_value = nullptr
-            )
-            -> parameter_pair
-        {
-            parameter_pair ap = { nullptr, type, default_value };
-
-            return ap;
-        }
-
-
-        typedef std::vector<parameter_pair> parameter_list;
-
-        // test imprementation
-        inline auto make_parameter_list(
-            parameter_pair const& pp
-            )
-            -> parameter_list
-        {
-            parameter_list pl;
-            pl.push_back( pp ); // test code
-
-            return pl;
-        }
-
+#undef ADAPT_VALUE_VISITOR
 
     } // namespace ast
 } // namespace rill
-
-
-BOOST_FUSION_ADAPT_STRUCT(
-    rill::ast::parameter_pair,
-    (rill::ast::intrinsic::identifier_value_ptr, name)
-    (rill::ast::intrinsic::identifier_value_ptr, type)
-    (rill::ast::value_ptr,                     default_value)
-    )

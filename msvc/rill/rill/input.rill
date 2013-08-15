@@ -10,6 +10,12 @@ def foo( hoge: int ): int
     return hoge*10;
 }
 
+def foo( fuga: int, hoge: int )
+{
+	return fuga * hoge;
+}
+
+foo( 80, 2 );
 
 foo( ( 10*2 )*(1+2*2   ) ) + 2 * 5;
 

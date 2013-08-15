@@ -201,6 +201,7 @@ void sample()
     //   list all of identifiers
     // second(2nd pass. )
     //   check identifiers type and template instantiation
+    std::cout << " = Semantic Analysis ====== " << std::endl;
     rill::semantic_analysis::analyse( root_env, syntax_tree );
 
     std::cout << " ========================== " << std::endl;
@@ -213,7 +214,7 @@ void sample()
 
 
 
-
+    // 
     {
         std::cout << "======================================" << std::endl;
         auto env = root_env;
@@ -226,6 +227,7 @@ void sample()
             }
         }
     }
+
 }
 
 

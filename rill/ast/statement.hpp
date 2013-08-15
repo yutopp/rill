@@ -11,6 +11,8 @@
 #include <vector>
 #include <string>
 
+#include <boost/optional.hpp>
+
 #include "../environment_fwd.hpp"
 #include "../tree_visitor_base.hpp"
 
@@ -93,7 +95,7 @@ namespace rill
             function_definition_statement_base(
                 intrinsic::identifier_value_ptr const& symbol_name,
                 parameter_list const& parameter_list,
-                intrinsic::identifier_value_ptr const& return_type
+                boost::optional<intrinsic::identifier_value_ptr> const& return_type
                 )
                 : identifier_( symbol_name )
                 , parameter_list_( parameter_list )
@@ -119,7 +121,7 @@ namespace rill
         public:
             intrinsic::identifier_value_ptr identifier_;
             parameter_list parameter_list_;
-            intrinsic::identifier_value_ptr return_type_;
+            boost::optional<intrinsic::identifier_value_ptr> return_type_;
         };
 
 
@@ -133,7 +135,7 @@ namespace rill
             function_definition_statement(
                 intrinsic::identifier_value_ptr const& symbol_name,
                 parameter_list const& parameter_list,
-                intrinsic::identifier_value_ptr const& return_type,
+                boost::optional<intrinsic::identifier_value_ptr> const& return_type,
                 statement_list const& statements
                 )
                 : function_definition_statement_base( symbol_name, parameter_list, return_type )
@@ -231,11 +233,6 @@ namespace rill
 
 
 
-
-
-
-
-
         struct block_statement
             : public statement
         {
@@ -253,5 +250,64 @@ namespace rill
 
 #undef ADAPT_STATEMENT_VISITOR
 
+
+
+        struct parameter_pair
+        {
+            intrinsic::identifier_value_ptr name;
+            type_expression_ptr type;
+            expression_ptr default_value;
+        };
+
+
+
+
+
+        inline auto make_parameter_pair(
+            intrinsic::identifier_value_ptr const& name,
+            intrinsic::identifier_value_ptr const& type,
+            value_ptr const& default_value = nullptr
+            )
+            -> parameter_pair
+        {
+            parameter_pair ap = { name, type, default_value };
+
+            return ap;
+        }
+
+        inline auto make_parameter_pair(
+            intrinsic::identifier_value_ptr const& type,
+            value_ptr const& default_value = nullptr
+            )
+            -> parameter_pair
+        {
+            parameter_pair ap = { nullptr, type, default_value };
+
+            return ap;
+        }
+
+
+        typedef std::vector<parameter_pair> parameter_list;
+
+        // test imprementation
+        inline auto make_parameter_list(
+            parameter_pair const& pp
+            )
+            -> parameter_list
+        {
+            parameter_list pl;
+            pl.push_back( pp ); // test code
+
+            return pl;
+        }
+
     } // namespace ast
 } // namespace rill
+
+
+BOOST_FUSION_ADAPT_STRUCT(
+    rill::ast::parameter_pair,
+    (rill::ast::intrinsic::identifier_value_ptr, name)
+    (rill::ast::intrinsic::identifier_value_ptr, type)
+    (rill::ast::value_ptr,                     default_value)
+    )
