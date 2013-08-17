@@ -129,6 +129,7 @@ auto single_identifier_environment_base::construct(
 {
     // TODO: add existance check
     auto const& env = instanced_env_[name->get_base_symbol()->get_native_string()];
+    assert( env != nullptr );
 
     if (  env->get_symbol_kind() != kind::type_value::parameter_wrapper_e
        || std::dynamic_pointer_cast<has_parameter_environment_base>( env )->get_inner_symbol_kind() != kind::type_value::function_e
@@ -137,8 +138,14 @@ auto single_identifier_environment_base::construct(
         exit( -900 );
     }
 
-    auto const& f_env = std::dynamic_pointer_cast<has_parameter_environment<function_symbol_environment>>( env );
+    auto const& parameter_env = std::dynamic_pointer_cast<has_parameter_environment<function_symbol_environment>>( env );
+    auto const& function_env_gen_pointer = parameter_env->allocate_inner_env( statements );
+
+    auto const& parameter_completed_function_env_pointer = builder( function_env_gen_pointer );
     //auto const& function = f_env->add_overload( plist, statements );
+
+
+    return parameter_completed_function_env_pointer;
 }
 /*
 auto single_identifier_environment_base::construct(

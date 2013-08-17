@@ -66,10 +66,12 @@ void sample()
         = rill::ast::intrinsic::make_binary_operator_identifier( "+" );
     root_env->pre_construct( kind::function_k, operator_add );
 
+/*
     // operator *
     auto const operator_multiply
         = rill::ast::intrinsic::make_binary_operator_identifier( "*" );
     root_env->pre_construct( kind::function_k, operator_multiply );
+    */
 
 
     {
@@ -112,10 +114,10 @@ void sample()
                     )
                 );
 
-            // 
+            // function definition
             root_env->construct( kind::function_k, operator_add, sl, []( function_symbol_environment_ptr const& fenv ) {
                 // ( :int, :int )
-
+                std::cout << "called!!" << std::endl;
                 return fenv;
             } );
         }
@@ -158,6 +160,8 @@ void sample()
                 );*/
 
             root_env->construct( kind::function_k, operator_multiply, parameters, make_identifier( int_type ), sl );
+
+            std::cout << "add ::: +( :int, :int ): int" << std::endl;
         }
 #endif
         /*

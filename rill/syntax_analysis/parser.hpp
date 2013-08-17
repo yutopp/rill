@@ -124,19 +124,20 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
                     = -identifier_ > ( value_primary_initializer_unit_ | value_secondary_initializer_unit_ )
                     ;
 
+                value_primary_initializer_unit_.name( "value_primary_initializer_unit" );
                 value_primary_initializer_unit_
-                    = ( qi::lit( '=' ) > expression_ )
-                    > -( qi::lit( ':' ) > type_specifier_ )
+                    = ( qi::lit( '=' ) > expression_ ) > -type_specifier_
                     ;
 
+                value_secondary_initializer_unit_.name( "value_secondary_initializer_unit" );
                 value_secondary_initializer_unit_
-                    = -( qi::lit( '=' ) > expression_ )
-                    > ( qi::lit( ':' ) > type_specifier_ )
+                    = -( qi::lit( '=' ) > expression_ ) > type_specifier_
                     ;
 
 
 
                 //
+                type_specifier_.name( "type_specifier" );
                 type_specifier_
                     = ( qi::lit( ':' ) > type_expression_ )
                     ;
@@ -165,6 +166,7 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
 
                 //function_body_expression_
                 //
+                function_definition_statement_.name( "function_definition_statement" );
                 function_definition_statement_
                     = ( qi::lit( "def" )
                     > identifier_
@@ -201,6 +203,7 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
 
 
                 //
+                type_expression_.name( "type_expression" );
                 type_expression_
                     = type_identifier_expression_ | compiletime_return_type_expression_
                     ;

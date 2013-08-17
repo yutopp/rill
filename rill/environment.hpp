@@ -677,6 +677,14 @@ public:
         return KindValue;
     }
 
+    template<typename... Args>
+    auto allocate_inner_env( Args&&... args )
+        -> std::shared_ptr<InlineEnvironment>
+    {
+        // parant environment is not this env but one rank top env
+        return allocate_env<InlineEnvironment>( get_parent_env(), std::forward<Args>( args )... ).pointer;
+    }
+
     auto add_overload( type_environment_list const& parameter, statement_list const& statements )
         -> env_pointer
     {
