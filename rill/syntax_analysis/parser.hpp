@@ -89,24 +89,52 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
                 variable_definition_statement_
                     =
 
-                value_type_variable_declaration_
+                value_type_variable_declaration_introducer_
                     = qi::lit( "val" )
-                    > ( /* add quarifiers... * )
+                    //> ( /* add quarifiers... * )
+                    > 
                     ;
 
                 //
-                reference_type_variable_declaration_
+                reference_type_variable_declaration_introducer_
                     = qi::lit( "ref" )
-                    > ( /* add quarifiers... * )
+                    //> ( /* add quarifiers... * )
                     ;
 */
 
-                //
-                variable_definition_unit_
-                    = identifier_
-                    > ( qi::lit( '=' ) > expression_ )
-                    > type_specifier_
+                variable_declaration_
+                    = variable_initializer_unit_
                     ;
+
+                parameter_variable_declaration_
+                    = variable_parameter_initializer_unit_
+                    ;
+
+                parameter_variable_declaration_list_.name( "parameter_variable_declaration__list" );
+                parameter_variable_declaration_list_
+                    = qi::lit( '(' ) >> ( parameter_variable_declaration_ % ',' ) >> qi::lit( ')' )
+                    ;
+
+                //
+                variable_initializer_unit_
+                    = identifier_ > ( value_primary_initializer_unit_ | value_secondary_initializer_unit_ )
+                    ;
+
+                variable_parameter_initializer_unit_
+                    = -identifier_ > ( value_primary_initializer_unit_ | value_secondary_initializer_unit_ )
+                    ;
+
+                value_primary_initializer_unit_
+                    = ( qi::lit( '=' ) > expression_ )
+                    > -( qi::lit( ':' ) > type_specifier_ )
+                    ;
+
+                value_secondary_initializer_unit_
+                    = -( qi::lit( '=' ) > expression_ )
+                    > ( qi::lit( ':' ) > type_specifier_ )
+                    ;
+
+
 
                 //
                 type_specifier_
@@ -140,7 +168,7 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
                 function_definition_statement_
                     = ( qi::lit( "def" )
                     > identifier_
-                    > parameter_list_
+                    > parameter_variable_declaration_list_
                     > -( qi::lit( ":" ) >> identifier_ )
                     > ( function_body_block_ | function_body_block_ )
                       )[
@@ -331,17 +359,20 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
                     = qi::lit( '(' ) >> ( expression_ % ',' ) >> qi::lit( ')' )
                     ;
 
+                /*
                 parameter_list_.name( "parameter_list" );
                 parameter_list_
                     = qi::lit( '(' ) >> ( parameter_pair_ % ',' ) >> qi::lit( ')' )
                     ;
+                    */
 
-                parameter_pair_.name( "parameter_pair" );
-                parameter_pair_
+                /*
+                parameter_variable_declaration_.name( "parameter_pair" );
+                parameter_variable_declaration_
                    // name( optional )      | type                 | default_initializer( optional )
                     = -identifier_ >> qi::lit( ':' ) >> identifier_ >> -( qi::lit( '(' ) > integer_literal_ > qi::lit( ')' ) )
                     ;
-
+                    */
 
                 //
                 //
@@ -349,7 +380,7 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
                 identifier_.name( "identifier" );
                 identifier_
                     = single_identifier_[qi::_val = phx::bind( &ast::intrinsic::make_identifier, qi::_1)]
-                   ;
+                    ;
                     // TODO: should +( single_identifier_ | single_template_identifier_ )
 
                 // instanced_identifier
@@ -449,6 +480,21 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
             qi::rule<Iterator, ast::function_definition_statement_ptr(), ascii::space_type> function_definition_statement_;
             qi::rule<Iterator, ast::expression_statement_ptr(), ascii::space_type> expression_statement_;
 
+            
+            qi::rule<Iterator, ast::variable_declaration(), ascii::space_type> variable_declaration_;
+            qi::rule<Iterator, ast::variable_declaration(), ascii::space_type> parameter_variable_declaration_;
+
+            qi::rule<Iterator, ast::parameter_list(), ascii::space_type> parameter_variable_declaration_list_;
+
+            qi::rule<Iterator, ast::variable_declaration_unit(), ascii::space_type> variable_initializer_unit_;
+            qi::rule<Iterator, ast::variable_declaration_unit(), ascii::space_type> variable_parameter_initializer_unit_;
+            qi::rule<Iterator, ast::value_initializer_unit(), ascii::space_type> value_primary_initializer_unit_;
+            qi::rule<Iterator, ast::value_initializer_unit(), ascii::space_type> value_secondary_initializer_unit_;
+
+
+
+            qi::rule<Iterator, ast::type_expression_ptr(), ascii::space_type> type_specifier_;
+
             static std::size_t const ExpressionHierarchyNum = 4;
             qi::rule<Iterator, ast::expression_ptr(), ascii::space_type> expression_, expression_priority_[ExpressionHierarchyNum];
             qi::rule<Iterator, ast::expression_list(), ascii::space_type> argument_list_;
@@ -465,8 +511,8 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
 
             qi::rule<Iterator, ast::intrinsic_value_ptr(), ascii::space_type> integer_literal_;
 
-            qi::rule<Iterator, ast::parameter_list(), ascii::space_type> parameter_list_;
-            qi::rule<Iterator, ast::parameter_pair(), ascii::space_type> parameter_pair_;
+            //qi::rule<Iterator, ast::parameter_list(), ascii::space_type> parameter_list_;
+            //qi::rule<Iterator, ast::variable_declaration_unit(), ascii::space_type> parameter_variable_declaration_;
 
             qi::rule<Iterator, ast::intrinsic::identifier_value_ptr(), ascii::space_type> identifier_;
             qi::rule<Iterator, ast::intrinsic::single_identifier_value_ptr(), ascii::space_type> single_identifier_;

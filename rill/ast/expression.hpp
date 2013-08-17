@@ -139,13 +139,15 @@ namespace rill
             ADAPT_EXPRESSION_VISITOR( type_identifier_expression )
 
         public:
-            type_identifier_expression( value_ptr const& v )
+            type_identifier_expression( intrinsic::identifier_value_ptr const& v )
                 : value_( v )
             {}
 
         public:
-            value_ptr const value_;
+            intrinsic::identifier_value_ptr const value_;
         };
+
+
 
         //
         struct compiletime_return_type_expression

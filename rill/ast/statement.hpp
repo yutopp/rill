@@ -53,11 +53,76 @@ namespace rill
         }
 
 
+
         //
+        struct value_initializer_unit
+        {
+            expression_ptr initializer;
+            type_expression_ptr type;
+        };
+
+        struct variable_declaration_unit
+        {
+            intrinsic::identifier_value_ptr name;
+            value_initializer_unit init_unit;
+        };
+
+        struct variable_declaration
+        {
+            // TODO: add declaration type information(Ex. val OR ref... and so on
+            
+            variable_declaration_unit decl_unit;
+        };
+
+        // TODO: change to declaration statement
+        typedef std::vector<variable_declaration> parameter_list;
+
+        /*
+        // TODO: change to declaration statement
+        inline auto make_variable_declaration(
+            intrinsic::identifier_value_ptr const& name = nullptr,
+            expression_ptr const& initializer = nullptr,
+            type_expression_ptr const& type = nullptr
+            )
+            -> variable_declaration_unit
+        {
+            value_initializer_unit vi = { initializer, type };
+            variable_declaration_unit du = { name, vi };
+
+            return du;
+        }
 
 
+        // TODO: change to declaration statement
+        inline auto make_variable_declaration(
+            intrinsic::identifier_value_ptr const& name = nullptr,
+            expression_ptr const& initializer = nullptr,
+            type_expression_ptr const& type = nullptr
+            )
+            -> variable_declaration_unit
+        {
+            value_initializer_unit vi = { initializer, type };
+            variable_declaration_unit du = { name, vi };
+
+            return du;
+        }
+        */
+/*
+        // test imprementation
+        inline auto make_parameter_list(
+            parameter_pair const& pp
+            )
+            -> parameter_list
+        {
+            parameter_list pl;
+            pl.push_back( pp ); // test code
+
+            return pl;
+        }
+        */
 
 
+        //
         template<typename Target>
         struct template_statement
             : statement
@@ -252,62 +317,31 @@ namespace rill
 
 
 
-        struct parameter_pair
-        {
-            intrinsic::identifier_value_ptr name;
-            type_expression_ptr type;
-            expression_ptr default_value;
-        };
 
 
 
 
 
-        inline auto make_parameter_pair(
-            intrinsic::identifier_value_ptr const& name,
-            intrinsic::identifier_value_ptr const& type,
-            value_ptr const& default_value = nullptr
-            )
-            -> parameter_pair
-        {
-            parameter_pair ap = { name, type, default_value };
-
-            return ap;
-        }
-
-        inline auto make_parameter_pair(
-            intrinsic::identifier_value_ptr const& type,
-            value_ptr const& default_value = nullptr
-            )
-            -> parameter_pair
-        {
-            parameter_pair ap = { nullptr, type, default_value };
-
-            return ap;
-        }
 
 
-        typedef std::vector<parameter_pair> parameter_list;
-
-        // test imprementation
-        inline auto make_parameter_list(
-            parameter_pair const& pp
-            )
-            -> parameter_list
-        {
-            parameter_list pl;
-            pl.push_back( pp ); // test code
-
-            return pl;
-        }
 
     } // namespace ast
 } // namespace rill
 
 
 BOOST_FUSION_ADAPT_STRUCT(
-    rill::ast::parameter_pair,
+    rill::ast::value_initializer_unit,
+    (rill::ast::expression_ptr,      initializer)
+    (rill::ast::type_expression_ptr, type)
+    )
+
+BOOST_FUSION_ADAPT_STRUCT(
+    rill::ast::variable_declaration_unit,
     (rill::ast::intrinsic::identifier_value_ptr, name)
-    (rill::ast::intrinsic::identifier_value_ptr, type)
-    (rill::ast::value_ptr,                     default_value)
+    (rill::ast::value_initializer_unit,          init_unit)
+    )
+
+BOOST_FUSION_ADAPT_STRUCT(
+    rill::ast::variable_declaration,
+    (rill::ast::variable_declaration_unit,  decl_unit)
     )

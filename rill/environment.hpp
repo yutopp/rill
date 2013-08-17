@@ -39,8 +39,6 @@ enum struct symbol_types : symbol_types_mask_t
 };
 
 
-class value_type_table_environment;
-class function_type_table_environment;
 
 
 enum struct symbol_kind
@@ -194,7 +192,7 @@ public:
 public:
     environment( root_initialize_tag )
         : id_( envitonment_id_undefined )
-        , managed_( std::make_shared<environment_allocator<env_type>>() )
+        , shared_env_memory_( std::make_shared<environment_allocator<env_type>>() )
     {
         std::cout << ">> environment allocated" << std::endl;
     }
@@ -202,7 +200,7 @@ public:
     environment( environment_id_t const& id, weak_env_pointer const& parent )
         : id_( id )
         , parent_( parent )
-        , managed_( parent.lock()->managed_ )
+        , shared_env_memory_( parent.lock()->shared_env_memory_ )
     {
         std::cout << ">> environment allocated(inner)" << std::endl;
     }
@@ -283,13 +281,20 @@ public:
         intrinsic::single_identifier_value_base_ptr const&
         ) -> env_pointer { assert( false ); return nullptr; }
 
+    typedef std::function<function_symbol_environment_ptr (function_symbol_environment_ptr const&)> function_env_generator_scope_type;
     virtual auto construct(
+        kind::function_tag,
+        intrinsic::single_identifier_value_base_ptr const& name,
+        statement_list const& statements,
+        function_env_generator_scope_type const& builder
+        ) -> env_pointer { assert( false ); return nullptr; }
+    /*virtual auto construct(
         kind::function_tag,
         intrinsic::single_identifier_value_base_ptr const&,
         parameter_list const&,
         intrinsic::identifier_value_ptr const&,
         statement_list const&
-        ) -> env_pointer { assert( false ); return nullptr; }
+        ) -> env_pointer { assert( false ); return nullptr; }*/
 
     // variable
     virtual auto pre_construct(
@@ -356,20 +361,20 @@ public:
     auto allocate_env( Args&&... args )
         -> typename environment_allocator<env_type>::result<Env>
     {
-        return managed_->allocate<Env>( /*std::forward<Args>( args )...*/ args... );
+        return shared_env_memory_->allocate<Env>( /*std::forward<Args>( args )...*/ args... );
     }
 
 
     auto get_env_at( environment_id_t const& id )
         -> weak_env_pointer
     {
-        return managed_->at( id );
+        return shared_env_memory_->at( id );
     }
 
     auto get_env_at( environment_id_t const& id ) const
         -> const_weak_env_pointer
     {
-        return managed_->at( id );
+        return shared_env_memory_->at( id );
     }
 
 
@@ -396,11 +401,8 @@ private:
     environment_id_t id_;
     weak_env_pointer parent_;
 
-    std::shared_ptr<environment_allocator<env_type>> managed_;
+    std::shared_ptr<environment_allocator<env_type>> shared_env_memory_;
 };
-//typedef environment::self_pointer           environment_ptr;
-//typedef environment::const_self_pointer     const_environment_ptr;
-//typedef environment::weak_self_pointer      weak_environment_ptr;
 
 
 std::ostream& operator<<( std::ostream& os, environment_ptr const& env );
@@ -497,7 +499,7 @@ public:
         kind::function_tag,
         intrinsic::single_identifier_value_base_ptr const&
         )  -> env_pointer RILL_CXX11_OVERRIDE;
-
+    /*
     auto construct(
         kind::function_tag,
         intrinsic::single_identifier_value_base_ptr const&,
@@ -505,8 +507,15 @@ public:
         intrinsic::identifier_value_ptr const&,
         statement_list const&
         ) -> env_pointer RILL_CXX11_OVERRIDE;
+        */
+    auto construct(
+        kind::function_tag,
+        intrinsic::single_identifier_value_base_ptr const& name,
+        statement_list const& statements,
+        function_env_generator_scope_type const& builder
+        ) -> env_pointer RILL_CXX11_OVERRIDE;
 
-    // variable
+    // variable(decl)
     auto pre_construct(
         kind::variable_tag,
         intrinsic::single_identifier_value_base_ptr const&
@@ -518,7 +527,7 @@ public:
         environment_id_t const&
         ) -> env_pointer RILL_CXX11_OVERRIDE;
 
-    // class
+    // class(type)
     auto pre_construct(
         kind::class_tag,
         intrinsic::single_identifier_value_ptr const& name
@@ -590,8 +599,6 @@ private:
 
 
 
-// TODO: add declare field delegater...
-
 
 
 
@@ -636,6 +643,15 @@ inline auto make_parameter_hash( EnvIds const& id_list )
 }
 
 
+
+// parameter_environment has list of class(type)_environments
+// it makes be able to overload
+// picked the type matched environments when look up
+
+// TODO: change to -> typedef std::vector<const_class_symbol_environment_ptr> type_environment_list;
+typedef std::vector<const_environment_ptr> type_environment_list;
+
+
 template<typename InlineEnvironment>
 class has_parameter_environment RILL_CXX11_FINAL
     : public has_parameter_environment_base
@@ -661,10 +677,10 @@ public:
         return KindValue;
     }
 
-    auto add_overload( parameter_list const& parameter, statement_list const& statements )
+    auto add_overload( type_environment_list const& parameter, statement_list const& statements )
         -> env_pointer
     {
-        auto const ns_range
+        /*auto const ns_range
             = parameter
             | boost::adaptors::transformed(
                 std::function<const_env_pointer (parameter_pair const&)>(
@@ -676,11 +692,12 @@ public:
 
         for( auto const& ns : ns_range ) {
             if ( ns == nullptr )
+                //
                 return nullptr;
-        }
+        }*/
 
         auto const env_ids_range
-            = ns_range
+            = parameter
             | boost::adaptors::transformed(
                 std::function<environment_id_t (const_env_pointer const&)>(
                     []( const_env_pointer const& e ) {
@@ -820,8 +837,8 @@ private:
 
     std::vector<environment_id_t> return_type_env_ids_;
 };
-typedef std::shared_ptr<function_symbol_environment>        function_symbol_environment_ptr;
-typedef std::shared_ptr<function_symbol_environment const>  const_function_symbol_environment_ptr;
+//typedef std::shared_ptr<function_symbol_environment>        function_symbol_environment_ptr;
+//typedef std::shared_ptr<function_symbol_environment const>  const_function_symbol_environment_ptr;
 
 
 
@@ -887,7 +904,7 @@ typedef std::shared_ptr<variable_symbol_environment const>  const_variable_symbo
 
 
 //
-//
+// class(type)
 //
 class class_symbol_environment RILL_CXX11_FINAL
     : public single_identifier_environment_base
@@ -926,4 +943,5 @@ private:
     //statement_list sp_;
     //symbol_kind kind_;
 };
-
+typedef std::shared_ptr<class_symbol_environment>        class_symbol_environment_ptr;
+typedef std::shared_ptr<class_symbol_environment const>  const_class_symbol_environment_ptr;

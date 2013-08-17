@@ -28,7 +28,38 @@
 
 void sample()
 {
+    //
+    // syntax analysis
+    //
+
+    // first(lexical & syntax)
+    std::ifstream ifs( "input.rill" );
+    if ( !ifs ) {
+        std::cerr << "input.rill was not found..." << std::endl;
+        exit( -100 );
+    }
+    std::istreambuf_iterator<char> const begin = ifs, end;
+    native_string_t const input_source_code( begin, end );
+    std::cout
+        << "inputs are:" << std::endl
+        << input_source_code << std::endl;
+
+    //
+    auto const syntax_tree = rill::syntax_analysis::make_syntax_tree( input_source_code );
+
+    // debug
+    std::cout
+        << "Top statements size: " << syntax_tree->statements_.size() << std::endl;
+
+
+
+    //
+    // prepareation for semantic analysis
+    // it makes core.lang
+    //
     auto const root_env = std::make_shared<root_environment>();
+
+    // TODO: add core.lang namespace
 
     // operator +
     auto const operator_add
@@ -48,7 +79,7 @@ void sample()
             = rill::ast::intrinsic::make_single_identifier( "int" );
 
         root_env->pre_construct( kind::class_k, int_type );
-        root_env->construct( kind::class_k, int_type );
+        auto const int_class_env = root_env->construct( kind::class_k, int_type );
 
 
         /*
@@ -61,11 +92,10 @@ void sample()
 
         {
             //
-            parameter_list parameters;
-            parameters.push_back( make_parameter_pair( make_identifier( int_type ) ) );
-            parameters.push_back( make_parameter_pair( make_identifier( int_type ) ) );
+            // def +( :int, :int ): int => native
+            //
 
-            
+            // function body
             statement_list sl;
             sl.push_back(
                 std::make_shared<return_statement>(
@@ -81,29 +111,21 @@ void sample()
                         )
                     )
                 );
-            
-            /*auto add_int_int = std::make_shared<native_function_definition_statement>(
-                bin_op_function_name,
-                parameters,
-                int_type,
-                []( std::vector<value_ptr> const& args ) -> value_ptr {
-                    //std::cout << args.size() << std::endl;
-                    return std::make_shared<intrinsic::int32_value>(
-                              std::dynamic_pointer_cast<intrinsic::int32_value>( args[0] )->get_value()
-                              + std::dynamic_pointer_cast<intrinsic::int32_value>( args[1] )->get_value()
-                              );
-                  }
-                );*/
 
-            // def +( :int, :int ): int => native
-            root_env->construct( kind::function_k, operator_add, parameters, make_identifier( int_type ), sl );
+            // 
+            root_env->construct( kind::function_k, operator_add, sl, []( function_symbol_environment_ptr const& fenv ) {
+                // ( :int, :int )
+
+                return fenv;
+            } );
         }
 
+#if 0
         {
-            //
-            parameter_list parameters;
-            parameters.push_back( make_parameter_pair( make_identifier( int_type ) ) );
-            parameters.push_back( make_parameter_pair( make_identifier( int_type ) ) );
+            // ( :int, :int )
+            type_environment_list parameters;
+            parameters.push_back( int_class_env );
+            parameters.push_back( int_class_env );
 
             
             statement_list sl;
@@ -137,6 +159,7 @@ void sample()
 
             root_env->construct( kind::function_k, operator_multiply, parameters, make_identifier( int_type ), sl );
         }
+#endif
         /*
         {
             auto const bin_op_function_name
@@ -167,28 +190,7 @@ void sample()
     }
 
 
-    //
-    // syntax analysis
-    //
 
-    // first(lexical & syntax)
-    std::ifstream ifs( "input.rill" );
-    if ( !ifs ) {
-        std::cerr << "input.rill was not found..." << std::endl;
-        exit( -100 );
-    }
-    std::istreambuf_iterator<char> const begin = ifs, end;
-    native_string_t const input_source_code( begin, end );
-    std::cout
-        << "inputs are:" << std::endl
-        << input_source_code << std::endl;
-
-    //
-    auto const syntax_tree = rill::syntax_analysis::make_syntax_tree( input_source_code );
-
-    // debug
-    std::cout
-        << "Top statements size: " << syntax_tree->statements_.size() << std::endl;
 
 
     //
