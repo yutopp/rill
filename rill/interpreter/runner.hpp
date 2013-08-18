@@ -44,6 +44,10 @@ namespace rill
             auto operator()( ast::embedded_function_call_expression const& e, environment_ptr const& env ) const ->environment_ptr RILL_CXX11_OVERRIDE;
             auto operator()( ast::term_expression const& e, environment_ptr const& env ) const ->environment_ptr RILL_CXX11_OVERRIDE;
 
+            auto operator()( ast::type_identifier_expression_ptr const&, environment_ptr const& ) const-> ast::intrinsic::identifier_value_ptr RILL_CXX11_OVERRIDE;
+            auto operator()( ast::compiletime_return_type_expression_ptr const&, environment_ptr const& ) const -> ast::intrinsic::identifier_value_ptr RILL_CXX11_OVERRIDE;
+
+
             //
             auto operator()( ast::intrinsic_value const& v, environment_ptr const& env ) const -> environment_ptr RILL_CXX11_OVERRIDE;
             auto operator()( ast::variable_value const& v, environment_ptr const& env ) const -> environment_ptr RILL_CXX11_OVERRIDE;

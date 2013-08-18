@@ -81,7 +81,7 @@ void sample()
             = rill::ast::intrinsic::make_single_identifier( "int" );
 
         root_env->pre_construct( kind::class_k, int_type );
-        auto const int_class_env = root_env->construct( kind::class_k, int_type );
+        auto const int_class_env_pointer = root_env->construct( kind::class_k, int_type );
 
 
         /*
@@ -115,11 +115,15 @@ void sample()
                 );
 
             // function definition
-            root_env->construct( kind::function_k, operator_add, sl, []( function_symbol_environment_ptr const& fenv ) {
+            root_env->construct( kind::function_k, operator_add, [&]( function_symbol_environment_ptr const& fenv ) {
                 // ( :int, :int )
                 std::cout << "called!!" << std::endl;
+
+                fenv->parameter_variable_construct( /*TODO: add attributes, */ nullptr, int_class_env_pointer );    // :int
+                fenv->parameter_variable_construct( /*TODO: add attributes, */ nullptr, int_class_env_pointer );    // :int
+
                 return fenv;
-            } );
+            }, sl );
         }
 
 #if 0
@@ -208,6 +212,7 @@ void sample()
     // second(2nd pass. )
     //   check identifiers type and template instantiation
     std::cout << " = Semantic Analysis ====== " << std::endl;
+
     rill::semantic_analysis::analyse( root_env, syntax_tree );
 
     std::cout << " ========================== " << std::endl;

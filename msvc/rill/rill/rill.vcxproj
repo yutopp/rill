@@ -98,7 +98,7 @@
     <ClCompile Include="..\..\..\libs\rill\src\environment.cpp" />
     <ClCompile Include="..\..\..\libs\rill\src\interpreter\runner.cpp" />
     <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\check_and_instantiation.cpp" />
-    <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\compiletime_interpreter\runner.cpp" />
+    <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\compiletime_interpreter\compiletime_runner.cpp" />
     <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\helper.cpp" />
     <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\list_identifier_visitor.cpp" />
     <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\type_identifier_visitor.cpp" />

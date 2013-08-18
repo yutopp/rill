@@ -166,9 +166,6 @@
     <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\helper.cpp">
       <Filter>libs\rill\src\semantic_analysis</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\compiletime_interpreter\runner.cpp">
-      <Filter>libs\rill\src\semantic_analysis\compiletime_interpreter</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\libs\rill\src\syntax_analysis\make_syntax_tree.cpp">
       <Filter>libs\rill\src\syntax_analysis</Filter>
     </ClCompile>
@@ -177,6 +174,9 @@
     </ClCompile>
     <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\type_identifier_visitor.cpp">
       <Filter>libs\rill\src\semantic_analysis</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\compiletime_interpreter\compiletime_runner.cpp">
+      <Filter>libs\rill\src\semantic_analysis\compiletime_interpreter</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

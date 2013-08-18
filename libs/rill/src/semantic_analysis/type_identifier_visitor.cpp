@@ -69,7 +69,16 @@ namespace rill
         {
             return nullptr;
         }
-        
+
+        auto type_identifier_visitor::operator()( ast::type_identifier_expression_ptr const&, environment_ptr const& ) const-> ast::intrinsic::identifier_value_ptr
+        {
+            return nullptr;
+        }
+
+        auto type_identifier_visitor::operator()( ast::compiletime_return_type_expression_ptr const&, environment_ptr const& ) const -> ast::intrinsic::identifier_value_ptr
+        {
+            return nullptr;
+        }
 
         //
         auto type_identifier_visitor::operator()( ast::intrinsic_value const& v, environment_ptr const& env ) const -> environment_ptr

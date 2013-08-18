@@ -67,47 +67,72 @@ namespace rill
 
             void runner::operator()( ast::function_definition_statement const& s, environment_ptr const& env ) const
             {
-                /*
                 // TODO: remove this case in syntax analysis phase
                 if ( s.get_identifier()->nest_size() != 1 )
                     std::cout << "function_definition_statement error!!!!!!! can not specified nested definition here." << std::endl;//error()
-
 
                 // TODO: add steady step to check
                 //     : OR CHANGE THE PARSER
                 assert( s.get_identifier()->nest_size() == 1 ); // can not use nested type here
 
 
-                // construct function environment in progress phase
-                auto const& f_g_env
-                        = env->construct(
-                                kind::function_k,
-                                s.get_identifier()->get_last_identifier(),
-                                s.get_parameter_list(),
-                                s.statements_
-                                );
-                assert( f_g_env != nullptr );
-                auto const& f_env = std::dynamic_pointer_cast<function_symbol_environment>( f_g_env );
 
-            // instantiation  !!! TYPES !!! parameter
-            bool is_type_instantiation_succeeded = true;
-            for( auto const& e : s.get_parameter_list() ) {
+
+                // construct function environment in progress phase
+                auto const& f_env
+                    = env->construct(
+                    kind::function_k,
+                    s.get_identifier()->get_last_identifier(),
+                    [&]( function_symbol_environment_ptr const& fenv ) {
+                        // parameter variable declaration
+                        for( auto const& e : s.get_parameter_list() ) {
+                            // 
+                            assert( e.decl_unit.init_unit.type != nullptr || e.decl_unit.init_unit.initializer != nullptr );
+
+                            //
+                            if ( e.decl_unit.init_unit.type ) {
+                                // type specified
+
+                                auto const& type_identifier_pointer = e.decl_unit.init_unit.type->dispatch( *this, env );
+#if 0
+                                if ( lookup_with_instanciation( env,  ) ) {
+                                    // declare
+                                    fenv->parameter_variable_construct( /*TODO: add attributes, */ nullptr, int_class_env_pointer );
+                                } else {
+                                    // type was not found, compilation error
+                                }
+#endif
+                            } else {
+                                // type inferenced by result of evaluated expression
+
+                                // TODO: implement type inference
+                                exit( -999 );
+                            }
+                        }
+                        return fenv;
+                }, s.statements_ );
+
+                assert( f_env != nullptr );
+                /*
+                // instantiation  !!! TYPES !!! parameter
+                bool is_type_instantiation_succeeded = true;
+                for( auto const& e : s.get_parameter_list() ) {
                 assert( e.type != nullptr );
                 if ( !lookup_with_instanciation( env, e.type ) )
-                    is_type_instantiation_succeeded = false;
-            }
-            if ( !is_type_instantiation_succeeded ) {
+                is_type_instantiation_succeeded = false;
+                }
+                if ( !is_type_instantiation_succeeded ) {
                 std::cout << "type parameter is not found....." << std::endl;
                 exit( -999 );
-            }
+                }
 
 
 
 
 
 
-            // construct argument variable symbol
-            for( auto const& e : s.get_parameter_list() ) {
+                // construct argument variable symbol
+                for( auto const& e : s.get_parameter_list() ) {
                 assert( e.name != nullptr );
                 // TODO: add steady step to check
                 //     : OR CHANGE THE PARSER
@@ -121,25 +146,26 @@ namespace rill
                 f_env->push_arg_load_env_id( val_env->get_id() );
 
                 // TODO: add step to despatch default values...
-/*                auto const def_value = e.default_value;
+                /*                auto const def_value = e.default_value;
                 if ( def_value ) {
                 } else {
                 }[]/
-            }
+                }
 
-            //
-            analyse( f_env, s.statements_ );
-            */
+                //
+                analyse( f_env, s.statements_ );
+                */
 
-//            std::cout << "Function env is" << f_env << std::endl;
-            // 
-            //f_env->pre_construct( kind::variable_k, 
+                //            std::cout << "Function env is" << f_env << std::endl;
+                // 
+                //f_env->pre_construct( kind::variable_k, 
             }
 
             //void operator()( native_function_definition_statement const& s, environment_ptr const& env ) const =0;
 
             void runner::operator()( ast::class_definition_statement const& s, environment_ptr const& env ) const
-            {}
+            {
+            }
 
 
             // expression
@@ -331,6 +357,17 @@ namespace rill
             }
 
 
+            auto runner::operator()( ast::type_identifier_expression_ptr const&, environment_ptr const& ) const-> ast::intrinsic::identifier_value_ptr
+            {
+                return nullptr;
+            }
+
+            auto runner::operator()( ast::compiletime_return_type_expression_ptr const&, environment_ptr const& ) const -> ast::intrinsic::identifier_value_ptr
+            {
+                return nullptr;
+            }
+
+
             //
             auto runner::operator()( ast::intrinsic_value const& v, environment_ptr const& env ) const -> environment_ptr
             {
@@ -356,7 +393,7 @@ namespace rill
                 context_->push_value( ref_val );
 
                 // return type environment
-                return std::dynamic_pointer_cast<variable_symbol_environment>( val_env )->get_weak_type_env().lock();
+                return std::dynamic_pointer_cast<variable_symbol_environment>( val_env );//->get_weak_type_env().lock();
             }
 
         } // namespace interpreter

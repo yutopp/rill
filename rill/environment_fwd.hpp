@@ -33,3 +33,13 @@ typedef std::vector<const_environment_ptr>  type_environment_ptr_list;
 class function_symbol_environment;
 typedef std::shared_ptr<function_symbol_environment>        function_symbol_environment_ptr;
 typedef std::shared_ptr<function_symbol_environment const>  const_function_symbol_environment_ptr;
+
+
+class variable_symbol_environment;
+typedef std::shared_ptr<variable_symbol_environment>        variable_symbol_environment_ptr;
+typedef std::shared_ptr<variable_symbol_environment const>  const_variable_symbol_environment_ptr;
+
+
+class class_symbol_environment;
+typedef std::shared_ptr<class_symbol_environment>           class_symbol_environment_ptr;
+typedef std::shared_ptr<class_symbol_environment const>     const_class_symbol_environment_ptr;

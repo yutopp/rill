@@ -49,6 +49,10 @@ namespace rill
         virtual auto operator()( ast::embedded_function_call_expression const& s, environment_ptr const& env ) const -> environment_ptr =0;
         virtual auto operator()( ast::term_expression const& s, environment_ptr const& env ) const -> environment_ptr =0;
 
+        // compiletime expression
+        virtual auto operator()( ast::type_identifier_expression_ptr const&, environment_ptr const& ) const-> ast::intrinsic::identifier_value_ptr =0;
+        virtual auto operator()( ast::compiletime_return_type_expression_ptr const&, environment_ptr const& ) const -> ast::intrinsic::identifier_value_ptr =0;
+
         // value
         virtual auto operator()( ast::intrinsic_value const& s, environment_ptr const& env ) const -> environment_ptr =0;
         virtual auto operator()( ast::variable_value const& s, environment_ptr const& env ) const -> environment_ptr =0;
