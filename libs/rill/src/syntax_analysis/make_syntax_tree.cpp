@@ -30,14 +30,12 @@ namespace rill
                 std::cout << "false" << std::endl;
             }
 
-            ast::root r = { std::move( stmts ) };
-            return std::make_shared<ast::root>( r );
+            return std::make_shared<ast::root>( std::move( stmts ) );
         }
         catch( qi::expectation_failure<input_iterator> const& /*e*/ )
         {
             ast::statement_list p;
-            ast::root r = { std::move( p ) /* TODO: insert error*/ };
-            return std::make_shared<ast::root>( r );
+            return std::make_shared<ast::root>( std::move( p ) /* TODO: insert error*/ );
         }
 
     } // namespace syntax_analysis

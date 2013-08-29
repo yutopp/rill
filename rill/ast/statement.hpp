@@ -16,6 +16,8 @@
 #include "../environment_fwd.hpp"
 #include "../tree_visitor_base.hpp"
 
+#include "detail/macros.hpp"
+
 #include "statement_fwd.hpp"
 
 #include "value.hpp"
@@ -37,20 +39,13 @@ namespace rill
         // 
         struct statement
         {
-            virtual ~statement()
-            {};
+        public:
+            RILL_AST_ADAPT_VISITOR( statement )
 
         public:
-            virtual void dispatch( tree_visitor_base const&, environment_ptr const& ) const =0;
+            virtual ~statement()
+            {};
         };
-
-        //
-#define ADAPT_STATEMENT_VISITOR( class_name ) \
-    public: \
-    virtual void dispatch( tree_visitor_base const& visitor, environment_ptr const& env ) const \
-        { \
-        visitor( *this, env ); \
-        }
 
 
 
@@ -127,7 +122,8 @@ namespace rill
         struct template_statement
             : statement
         {
-            ADAPT_STATEMENT_VISITOR( template_statement )
+        public:
+//            RILL_AST_ADAPT_VISITOR( template_statement )
         };
 
 
@@ -136,7 +132,8 @@ namespace rill
         struct expression_statement
             : public statement
         {
-            ADAPT_STATEMENT_VISITOR( expression_statement )
+        public:
+            RILL_AST_ADAPT_VISITOR( expression_statement )
 
         public:
             expression_statement( expression_ptr const& expr )
@@ -155,7 +152,7 @@ namespace rill
         struct function_definition_statement_base
             : public statement
         {
-            ADAPT_STATEMENT_VISITOR( function_definition_statement_base )
+//            ADAPT_STATEMENT_VISITOR( function_definition_statement_base )
 
         public:
             function_definition_statement_base(
@@ -195,7 +192,8 @@ namespace rill
         struct function_definition_statement
             : public function_definition_statement_base
         {
-            ADAPT_STATEMENT_VISITOR( function_definition_statement )
+        public:
+            RILL_AST_ADAPT_VISITOR( function_definition_statement )
 
         public:
             function_definition_statement(
@@ -218,7 +216,8 @@ namespace rill
         struct return_statement
             : public statement
         {
-            ADAPT_STATEMENT_VISITOR( return_statement )
+        public:
+            RILL_AST_ADAPT_VISITOR( return_statement )
 
         public:
             return_statement( expression_ptr const& expr )
@@ -261,7 +260,8 @@ namespace rill
         struct class_definition_statement
             : public statement
         {
-            ADAPT_STATEMENT_VISITOR( class_definition_statement )
+        public:
+            RILL_AST_ADAPT_VISITOR( class_definition_statement )
 
         public:
             class_definition_statement( intrinsic::identifier_value_ptr const& identifier )
@@ -302,7 +302,7 @@ namespace rill
         struct block_statement
             : public statement
         {
-            ADAPT_STATEMENT_VISITOR( block_statement )
+//            ADAPT_STATEMENT_VISITOR( block_statement )
 
         public:
             block_statement( statement_list const& statements )
@@ -312,19 +312,6 @@ namespace rill
         public:
             statement_list statements_;
         };
-
-
-#undef ADAPT_STATEMENT_VISITOR
-
-
-
-
-
-
-
-
-
-
 
     } // namespace ast
 } // namespace rill

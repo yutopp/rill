@@ -60,6 +60,9 @@
     <Filter Include="libs\rill\src\syntax_analysis">
       <UniqueIdentifier>{ca583ee3-5773-4dab-8def-a7f3bee7a5d5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="rill\ast\detail">
+      <UniqueIdentifier>{04ddfb69-2b06-4417-80a8-4925d78d8150}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\rill\environment.hpp">
@@ -145,6 +148,12 @@
     </ClInclude>
     <ClInclude Include="..\..\..\rill\semantic_analysis\type_identifier_visitor.hpp">
       <Filter>rill\semantic_analysis</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\ast\detail\macros.hpp">
+      <Filter>rill\ast\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\ast\detail\specifier.hpp">
+      <Filter>rill\ast\detail</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

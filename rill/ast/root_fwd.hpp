@@ -8,12 +8,14 @@
 
 #pragma once
 
+#include "detail/specifier.hpp"
+
 
 namespace rill
 {
     namespace ast
     {
-        struct root;
+        RILL_AST_FWD_DECL( root, root )
 
     } // namespace ast
 } // namespace rill

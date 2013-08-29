@@ -18,6 +18,7 @@ namespace rill
 {
     namespace interpreter
     {
+#if 0
         class runner RILL_CXX11_FINAL
             : public tree_visitor_base
         {
@@ -44,8 +45,8 @@ namespace rill
             auto operator()( ast::embedded_function_call_expression const& e, environment_ptr const& env ) const ->environment_ptr RILL_CXX11_OVERRIDE;
             auto operator()( ast::term_expression const& e, environment_ptr const& env ) const ->environment_ptr RILL_CXX11_OVERRIDE;
 
-            auto operator()( ast::type_identifier_expression_ptr const&, environment_ptr const& ) const-> ast::intrinsic::identifier_value_ptr RILL_CXX11_OVERRIDE;
-            auto operator()( ast::compiletime_return_type_expression_ptr const&, environment_ptr const& ) const -> ast::intrinsic::identifier_value_ptr RILL_CXX11_OVERRIDE;
+            auto operator()( ast::type_identifier_expression const&, environment_ptr const& ) const-> ast::intrinsic::identifier_value_ptr RILL_CXX11_OVERRIDE;
+            auto operator()( ast::compiletime_return_type_expression const&, environment_ptr const& ) const -> ast::intrinsic::identifier_value_ptr RILL_CXX11_OVERRIDE;
 
 
             //
@@ -56,6 +57,7 @@ namespace rill
             context_ptr context_;
             bool is_on_compile_time_;
         };
+#endif
     } // namespace interpreter
 } // namespace rill
 

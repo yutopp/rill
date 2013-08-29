@@ -64,6 +64,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\rill\ast\detail\macros.hpp" />
+    <ClInclude Include="..\..\..\rill\ast\detail\specifier.hpp" />
     <ClInclude Include="..\..\..\rill\ast\expression.hpp" />
     <ClInclude Include="..\..\..\rill\ast\expression_fwd.hpp" />
     <ClInclude Include="..\..\..\rill\ast\root.hpp" />

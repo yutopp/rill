@@ -300,7 +300,7 @@ public:
     virtual auto construct(
         kind::variable_tag,
         intrinsic::single_identifier_value_base_ptr const&,
-        class_symbol_environment_ptr const&
+        const_class_symbol_environment_ptr const&
         ) -> variable_symbol_environment_ptr { assert( false ); return nullptr; }
 
     // class
@@ -514,7 +514,7 @@ public:
     auto construct(
         kind::variable_tag,
         intrinsic::single_identifier_value_base_ptr const&,
-        class_symbol_environment_ptr const&
+        const_class_symbol_environment_ptr const&
         ) -> variable_symbol_environment_ptr RILL_CXX11_OVERRIDE;
 
     // class(type)
@@ -833,7 +833,7 @@ public:
     auto parameter_variable_construct(
         /* ,*/
         intrinsic::single_identifier_value_base_ptr const& name,
-        class_symbol_environment_ptr const& type_env
+        const_class_symbol_environment_ptr const& type_env
         )
         -> variable_symbol_environment_ptr;
 

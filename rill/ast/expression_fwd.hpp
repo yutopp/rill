@@ -10,6 +10,8 @@
 
 #include <memory>
 
+#include "detail/specifier.hpp"
+
 
 namespace rill
 {
@@ -22,30 +24,21 @@ namespace rill
         //
         // ----------------------------------------------------------------------
         // ----------------------------------------------------------------------
-        struct expression;
-        typedef std::shared_ptr<expression> expression_ptr;
+        RILL_AST_FWD_DECL( expression, expression )
 
-        struct binary_operator_expression;
-        typedef std::shared_ptr<binary_operator_expression> binary_operator_expression_ptr;
+        RILL_AST_FWD_DECL( binary_operator_expression, expression )
 
-        struct call_expression;
-        typedef std::shared_ptr<call_expression> call_expression_ptr;
+        RILL_AST_FWD_DECL( call_expression, expression )
+        RILL_AST_FWD_DECL( embedded_function_call_expression, expression )
 
-        struct embedded_function_call_expression;
-        typedef std::shared_ptr<embedded_function_call_expression> embedded_function_call_expression_ptr;
-
-        struct term_expression;
-        typedef std::shared_ptr<term_expression> term_expression_ptr;
+        RILL_AST_FWD_DECL( term_expression, expression )
 
 
-        struct type_expression;
-        typedef std::shared_ptr<type_expression> type_expression_ptr;
+        RILL_AST_FWD_DECL( type_expression, expression )
 
-        struct type_identifier_expression;
-        typedef std::shared_ptr<type_identifier_expression> type_identifier_expression_ptr;
+        RILL_AST_FWD_DECL( type_identifier_expression, expression )
 
-        struct compiletime_return_type_expression;
-        typedef std::shared_ptr<compiletime_return_type_expression> compiletime_return_type_expression_ptr;
+        RILL_AST_FWD_DECL( compiletime_return_type_expression, expression )
 
 
     } // namespace ast

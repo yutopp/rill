@@ -13,14 +13,14 @@
 // for helper
 #include <iostream>
 
+#include "detail/specifier.hpp"
+
 
 namespace rill
 {
     namespace ast
     {
-        struct value;
-        typedef std::shared_ptr<value>          value_ptr;
-        typedef std::shared_ptr<value const>    const_value_ptr;
+        RILL_AST_FWD_DECL( value, value )
 
         typedef std::vector<const_value_ptr>    argument_list;
         typedef std::shared_ptr<argument_list>  argument_list_ptr;
@@ -29,56 +29,35 @@ namespace rill
         typedef std::shared_ptr<template_argument_list>     template_argument_list_ptr;
 
 
-        namespace intrinsic
-        {
-            struct value_base;
-            typedef std::shared_ptr<value_base>         value_base_ptr;
-            typedef std::shared_ptr<value_base const>   const_value_base_ptr;
+        RILL_AST_FWD_DECL_IN_NAMESPACE( intrinsic, value_base, value )
 
-            //
-            struct single_identifier_value_base;
-            typedef std::shared_ptr<single_identifier_value_base>       single_identifier_value_base_ptr;
-            typedef std::shared_ptr<single_identifier_value_base const> const_single_identifier_value_base_ptr;
+        //
+        RILL_AST_FWD_DECL_IN_NAMESPACE( intrinsic, single_identifier_value_base, value )
 
-            //
-            struct identifier_value;
-            typedef std::shared_ptr<identifier_value>       identifier_value_ptr;
-            typedef std::shared_ptr<identifier_value const> const_identifier_value_ptr;
+        //
+        RILL_AST_FWD_DECL_IN_NAMESPACE( intrinsic, identifier_value, value )
 
-            // 
-            class single_identifier_value;
-            typedef std::shared_ptr<single_identifier_value>        single_identifier_value_ptr;
-            typedef std::shared_ptr<single_identifier_value const>  const_single_identifier_value_ptr;
+        // 
+        RILL_AST_FWD_DECL_IN_NAMESPACE( intrinsic, single_identifier_value, value )
 
-            /*
-            //
-            struct single_template_identifier_value;
-            typedef std::shared_ptr<single_template_identifier_value> single_template_identifier_value_ptr;
-            */
+        /*
+        //
+        struct single_template_identifier_value;
+        typedef std::shared_ptr<single_template_identifier_value> single_template_identifier_value_ptr;
+        */
 
-            struct symbol_value;
-            typedef std::shared_ptr<symbol_value>       symbol_value_ptr;
-            typedef std::shared_ptr<symbol_value const> const_symbol_value_ptr;
+        RILL_AST_FWD_DECL_IN_NAMESPACE( intrinsic, symbol_value, value )
 
-
-            struct int32_value;
-            typedef std::shared_ptr<int32_value>        int32_value_ptr;
-            typedef std::shared_ptr<int32_value const>  const_int32_value_ptr;
-        }
+        RILL_AST_FWD_DECL_IN_NAMESPACE( intrinsic, int32_value, value )
 
 
         //
         //
-        class intrinsic_value;
-        typedef std::shared_ptr<intrinsic_value>        intrinsic_value_ptr;
-        typedef std::shared_ptr<intrinsic_value const>  const_intrinsic_value_ptr;
-
+        RILL_AST_FWD_DECL( intrinsic_value, value )
 
         //
         //
-        struct variable_value;
-        typedef std::shared_ptr<variable_value>         variable_value_ptr;
-        typedef std::shared_ptr<variable_value const>   const_variable_value_ptr;
+        RILL_AST_FWD_DECL( variable_value, value )
 
 
         //

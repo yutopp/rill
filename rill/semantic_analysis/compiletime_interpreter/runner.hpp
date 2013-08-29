@@ -20,42 +20,47 @@ namespace rill
     {
         namespace interpreter
         {
-            class runner RILL_CXX11_FINAL
-                : public tree_visitor_base
+            class environment_constructor RILL_CXX11_FINAL
+                : public tree_visitor_base<environment_ptr>
             {
             public:
-                runner( context_ptr const& ctx );
+                environment_constructor( context_ptr const& ctx );
 
             public:
                 // statement_list
-                void operator()( ast::root const& ss, environment_ptr const& env ) const RILL_CXX11_OVERRIDE;
+                RILL_TV_OP_DECL( ast::root )
 
                 // statement
                 // virtual void operator()( template_statement const& s, environment_ptr const& env ) const =0;
 
-                void operator()( ast::expression_statement const& s, environment_ptr const& env ) const RILL_CXX11_OVERRIDE;
-                void operator()( ast::return_statement const& s, environment_ptr const& env ) const RILL_CXX11_OVERRIDE;
-                void operator()( ast::function_definition_statement const& s, environment_ptr const& env ) const RILL_CXX11_OVERRIDE;
+                RILL_TV_OP_DECL( ast::expression_statement )
+                RILL_TV_OP_DECL( ast::return_statement )
+                RILL_TV_OP_DECL( ast::function_definition_statement )
                 // virtual void operator()( native_function_definition_statement const& s, environment_ptr const& env ) const =0;
 
-                void operator()( ast::class_definition_statement const& s, environment_ptr const& env ) const RILL_CXX11_OVERRIDE;
+                RILL_TV_OP_DECL( ast::class_definition_statement )
 
                 // expression
-                auto operator()( ast::binary_operator_expression const& e, environment_ptr const& env ) const ->environment_ptr RILL_CXX11_OVERRIDE;
-                auto operator()( ast::call_expression const& e, environment_ptr const& env ) const ->environment_ptr RILL_CXX11_OVERRIDE;
-                auto operator()( ast::embedded_function_call_expression const& e, environment_ptr const& env ) const ->environment_ptr RILL_CXX11_OVERRIDE;
-                auto operator()( ast::term_expression const& e, environment_ptr const& env ) const ->environment_ptr RILL_CXX11_OVERRIDE;
-
-                auto operator()( ast::type_identifier_expression_ptr const&, environment_ptr const& ) const-> ast::intrinsic::identifier_value_ptr RILL_CXX11_OVERRIDE;
-                auto operator()( ast::compiletime_return_type_expression_ptr const&, environment_ptr const& ) const -> ast::intrinsic::identifier_value_ptr RILL_CXX11_OVERRIDE;
-
+                RILL_TV_OP_DECL( ast::binary_operator_expression )
+                RILL_TV_OP_DECL( ast::call_expression )
+                RILL_TV_OP_DECL( ast::embedded_function_call_expression )
+                RILL_TV_OP_DECL( ast::term_expression )
 
                 //
-                auto operator()( ast::intrinsic_value const& v, environment_ptr const& env ) const -> environment_ptr RILL_CXX11_OVERRIDE;
-                auto operator()( ast::variable_value const& v, environment_ptr const& env ) const -> environment_ptr RILL_CXX11_OVERRIDE;
+                RILL_TV_OP_DECL( ast::intrinsic_value )
+                RILL_TV_OP_DECL( ast::variable_value )
 
             private:
                 context_ptr context_;
+            };
+
+
+            class type_evaluator
+                : public tree_visitor_base<ast::intrinsic::identifier_value_ptr>
+            {
+            public:
+                RILL_TV_OP_DECL( ast::type_identifier_expression )
+                RILL_TV_OP_DECL( ast::compiletime_return_type_expression )
             };
         } // namespace interpreter
     } // namespace semantic_analysis

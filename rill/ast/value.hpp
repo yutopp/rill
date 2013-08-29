@@ -18,6 +18,8 @@
 #include "../environment_fwd.hpp"
 #include "../tree_visitor_base.hpp"
 
+#include "detail/macros.hpp"
+
 #include "value_fwd.hpp"
 
 
@@ -46,6 +48,9 @@ namespace rill
         struct value
         {
         public:
+            RILL_AST_ADAPT_VISITOR( value )
+
+        public:
             virtual ~value() {}
 
         public:
@@ -58,25 +63,7 @@ namespace rill
             {
                 return false;
             }
-
-            virtual auto dispatch( tree_visitor_base const& visitor, environment_ptr const& env ) const
-                -> environment_ptr
-            {
-                return visitor( *this, env );
-            }
-
-        public:
-
         };
-
-        //
-#define ADAPT_VALUE_VISITOR( class_name ) \
-    public: \
-    virtual auto dispatch( tree_visitor_base const& visitor, environment_ptr const& env ) const \
-    -> environment_ptr RILL_CXX11_OVERRIDE \
-    { \
-        return visitor( *this, env ); \
-    }
 
 
         namespace intrinsic
@@ -198,7 +185,7 @@ namespace rill
 
 
 
-            class single_identifier_value RILL_CXX11_FINAL
+            struct single_identifier_value RILL_CXX11_FINAL
                 : public single_identifier_value_base
             {
             public:
@@ -333,10 +320,11 @@ namespace rill
 
 
         //
-        class intrinsic_value
+        struct intrinsic_value
             : public value
         {
-            ADAPT_VALUE_VISITOR( intrinsic_value )
+        public:
+            RILL_AST_ADAPT_VISITOR( intrinsic_value )
 
         public:
             // specify value's type name
@@ -363,7 +351,8 @@ namespace rill
         struct variable_value
             : public value
         {
-            ADAPT_VALUE_VISITOR( variable_value )
+        public:
+            RILL_AST_ADAPT_VISITOR( variable_value )
 
         public:
             variable_value( intrinsic::identifier_value_ptr const& var )
@@ -373,9 +362,6 @@ namespace rill
         public:
             intrinsic::identifier_value_ptr variable_name_;
         };
-
-
-#undef ADAPT_VALUE_VISITOR
 
     } // namespace ast
 } // namespace rill

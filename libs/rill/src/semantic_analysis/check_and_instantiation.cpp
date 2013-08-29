@@ -32,7 +32,7 @@ namespace rill
         
         void check_and_instantiation_visitor::operator()( ast::expression_statement const& s, environment_ptr const& env ) const
         {
-            s.expression_->dispatch( *this, env );
+            s.expression_->dispatch_as_env( *this, env );
         }
 
 
@@ -142,7 +142,7 @@ namespace rill
 
             environment_id_list ids;
             for( auto const& arg : e.arguments_ ) {
-                auto const& val_env = arg->dispatch( *this, env );
+                auto const& val_env = arg->dispatch_as_env( *this, env );
                 assert( val_env != 0 );
 
                 ids.push_back( val_env->get_id() );
@@ -190,16 +190,6 @@ namespace rill
             return nullptr;
         }
 
-
-        auto check_and_instantiation_visitor::operator()( ast::type_identifier_expression_ptr const&, environment_ptr const& ) const-> ast::intrinsic::identifier_value_ptr
-        {
-            return nullptr;
-        }
-
-        auto check_and_instantiation_visitor::operator()( ast::compiletime_return_type_expression_ptr const&, environment_ptr const& ) const -> ast::intrinsic::identifier_value_ptr
-        {
-            return nullptr;
-        }
 
 
         //

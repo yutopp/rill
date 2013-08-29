@@ -28,6 +28,7 @@ namespace rill
 {
     namespace interpreter
     {
+#if 0
         //
         runner::runner( context_ptr const& ctx, bool is_on_compile_time )
             : context_( ctx )
@@ -272,12 +273,12 @@ namespace rill
         }
 
 
-        auto runner::operator()( ast::type_identifier_expression_ptr const&, environment_ptr const& ) const-> intrinsic::identifier_value_ptr
+        auto runner::operator()( ast::type_identifier_expression const&, environment_ptr const& ) const-> intrinsic::identifier_value_ptr
         {
             return nullptr;
         }
 
-        auto runner::operator()( ast::compiletime_return_type_expression_ptr const&, environment_ptr const& ) const -> intrinsic::identifier_value_ptr
+        auto runner::operator()( ast::compiletime_return_type_expression const&, environment_ptr const& ) const -> intrinsic::identifier_value_ptr
         {
             return nullptr;
         }
@@ -312,6 +313,6 @@ namespace rill
             // return type environment
             return std::dynamic_pointer_cast<variable_symbol_environment>( val_env );//->get_weak_type_env().lock();
         }
-
+#endif
     } // namespace interpreter
 } // namespace rill

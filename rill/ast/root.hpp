@@ -11,6 +11,8 @@
 #include "../environment_fwd.hpp"
 #include "../tree_visitor_base.hpp"
 
+#include "detail/macros.hpp"
+
 #include "root_fwd.hpp"
 
 #include "statement.hpp"
@@ -23,10 +25,12 @@ namespace rill
         struct root
         {
         public:
-            void dispatch( tree_visitor_base const& visitor, environment_ptr const& env ) const
-            {
-                visitor( *this, env );
-            }
+            RILL_AST_ADAPT_VISITOR( root )
+
+        public:
+            root( statement_list&& sl )
+                : statements_( std::move( sl ) )
+            {}
 
         public:
             statement_list statements_;

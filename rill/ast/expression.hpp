@@ -15,6 +15,8 @@
 #include "../environment_fwd.hpp"
 #include "../tree_visitor_base.hpp"
 
+#include "detail/macros.hpp"
+
 #include "expression_fwd.hpp"
 
 #include "value.hpp"
@@ -34,19 +36,12 @@ namespace rill
         struct expression
         {
         public:
-            virtual ~expression() {}
+            RILL_AST_ADAPT_VISITOR( expression )
 
         public:
-            virtual environment_ptr dispatch( tree_visitor_base const&, environment_ptr const& ) const =0;
+            virtual ~expression() {}
         };
 
-        //
-#define ADAPT_EXPRESSION_VISITOR( class_name ) \
-    public: \
-    virtual environment_ptr dispatch( tree_visitor_base const& visitor, environment_ptr const& env ) const /* RILL_OVERRIDE */ \
-    { \
-        return visitor( *this, env ); \
-    }
 
         typedef std::vector<expression_ptr>     expression_list;
 
@@ -55,7 +50,8 @@ namespace rill
         struct binary_operator_expression
             : public expression
         {
-            ADAPT_EXPRESSION_VISITOR( binary_operator_expression )
+        public:
+            RILL_AST_ADAPT_VISITOR( binary_operator_expression )
 
         public:
             binary_operator_expression( expression_ptr const& lhs, intrinsic::single_identifier_value_ptr const& op, expression_ptr const& rhs )
@@ -74,7 +70,8 @@ namespace rill
         struct call_expression
             : public expression
         {
-            ADAPT_EXPRESSION_VISITOR( call_expression )
+        public:
+            RILL_AST_ADAPT_VISITOR( call_expression )
 
         public:
             call_expression( intrinsic::identifier_value_ptr const& caller, expression_list const& arguments )
@@ -95,7 +92,8 @@ namespace rill
         struct embedded_function_call_expression
             : public expression
         {
-            ADAPT_EXPRESSION_VISITOR( embedded_function_call_expression )
+        public:
+            RILL_AST_ADAPT_VISITOR( embedded_function_call_expression )
 
         public:
             embedded_function_call_expression( embedded_callback_function_t const& reciever )
@@ -111,7 +109,8 @@ namespace rill
         struct term_expression
             : public expression
         {
-            ADAPT_EXPRESSION_VISITOR( term_expression )
+        public:
+            RILL_AST_ADAPT_VISITOR( term_expression )
 
         public:
             term_expression( value_ptr const& v )
@@ -127,7 +126,9 @@ namespace rill
         struct type_expression
             : public expression
         {
-            ADAPT_EXPRESSION_VISITOR( type_expression )
+            RILL_AST_ADAPT_VISITOR( type_expression );
+            //ast_base_type a;
+            //ADAPT_EXPRESSION_VISITOR( type_expression )
 
         public:
         };
@@ -136,7 +137,8 @@ namespace rill
         struct type_identifier_expression
             : public type_expression
         {
-            ADAPT_EXPRESSION_VISITOR( type_identifier_expression )
+        public:
+            RILL_AST_ADAPT_VISITOR( type_identifier_expression )
 
         public:
             type_identifier_expression( intrinsic::identifier_value_ptr const& v )
@@ -153,7 +155,8 @@ namespace rill
         struct compiletime_return_type_expression
             : public type_expression
         {
-            ADAPT_EXPRESSION_VISITOR( compiletime_return_type_expression )
+        public:
+            RILL_AST_ADAPT_VISITOR( compiletime_return_type_expression )
 
         public:
             compiletime_return_type_expression( expression_ptr const& e )
@@ -163,8 +166,6 @@ namespace rill
         public:
             expression_ptr expression_;
         };
-
-#undef ADAPT_EXPRESSION_VISITOR
 
     } // namespace ast
 } // namespace rill

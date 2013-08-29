@@ -11,6 +11,8 @@
 #include <memory>
 #include <vector>
 
+#include "detail/specifier.hpp"
+
 
 namespace rill
 {
@@ -23,8 +25,7 @@ namespace rill
         //
         // ----------------------------------------------------------------------
         // ----------------------------------------------------------------------
-        struct statement;
-        typedef std::shared_ptr<statement> statement_ptr;
+        RILL_AST_FWD_DECL( statement, statement )
 
 
 
@@ -37,25 +38,17 @@ namespace rill
 
 
 
-
-        struct expression_statement;
-        typedef std::shared_ptr<expression_statement> expression_statement_ptr;
+        RILL_AST_FWD_DECL( expression_statement, statement )
 
 
 
 
-
-        struct function_definition_statement_base;
-        typedef std::shared_ptr<function_definition_statement_base> function_definition_statement_base_ptr;
+        RILL_AST_FWD_DECL( function_definition_statement_base, statement )
 
 
+        RILL_AST_FWD_DECL( function_definition_statement, statement )
 
-        struct function_definition_statement;
-        typedef std::shared_ptr<function_definition_statement> function_definition_statement_ptr;
-
-
-        struct return_statement;
-        typedef std::shared_ptr<return_statement> return_statement_ptr;
+        RILL_AST_FWD_DECL( return_statement, statement )
 
         /*
         struct native_function_definition_statement;
@@ -65,8 +58,7 @@ namespace rill
 
 
         //////////
-        struct class_definition_statement;
-        typedef std::shared_ptr<class_definition_statement> class_definition_statement_ptr;
+        RILL_AST_FWD_DECL( class_definition_statement, statement )
 
 
         typedef std::vector<statement_ptr>  statement_list;

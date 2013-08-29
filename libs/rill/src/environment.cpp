@@ -179,10 +179,12 @@ auto single_identifier_environment_base::construct(
 auto single_identifier_environment_base::construct(
     kind::variable_tag,
     intrinsic::single_identifier_value_base_ptr const& variable_name,   // may be nullptr, if unnamed parameter variable...
-    class_symbol_environment_ptr const& type_env
+    const_class_symbol_environment_ptr const& type_env
     ) -> variable_symbol_environment_ptr
 {
     auto const& w_env = allocate_env<variable_symbol_environment>( shared_from_this() );
+
+    // TODO? : add variable type info
 
     native_string_t key
         = variable_name
@@ -265,7 +267,7 @@ auto single_identifier_environment_base::construct(
 auto function_symbol_environment::parameter_variable_construct(
     /* ,*/
     intrinsic::single_identifier_value_base_ptr const& variable_name,   // may be nullptr, if unnamed parameter variable
-    class_symbol_environment_ptr const& type_env
+    const_class_symbol_environment_ptr const& type_env
     )
     -> variable_symbol_environment_ptr
 {

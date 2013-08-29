@@ -34,7 +34,7 @@ namespace rill
             type_identifier_visitor visitor;
 
             for( auto const& node : nodes )
-                node->dispatch( visitor, env );
+                node->dispatch_as_env( visitor, env );
         }
 
 
@@ -47,7 +47,7 @@ namespace rill
         {
             type_identifier_visitor visitor;
 
-            return node->dispatch( visitor, env );
+            return node->dispatch_as_env( visitor, env );
         }
 
 
@@ -60,7 +60,7 @@ namespace rill
             list_identifier_visitor visitor;
 
             for( auto const& node : nodes )
-                node->dispatch( visitor, env );
+                node->dispatch_as_env( visitor, env );
         }
 
 
@@ -69,11 +69,11 @@ namespace rill
         //
         template<typename EnvironmentPtr, typename T>
         auto collect_identifier( EnvironmentPtr const& env, T const& node )
-            -> decltype( node->dispatch( list_identifier_visitor(), env ) )
+            -> decltype( node->dispatch_as_env( list_identifier_visitor(), env ) )
         {
             list_identifier_visitor visitor;
 
-            return node->dispatch( visitor, env );
+            return node->dispatch_as_env( visitor, env );
         }
 
 
@@ -82,11 +82,11 @@ namespace rill
         //
        template<typename EnvironmentPtr, typename T>
         auto check_and_instantiation( EnvironmentPtr const& env, T const& node )
-            -> decltype( node->dispatch( check_and_instantiation_visitor(), env ) )
+            -> decltype( node->dispatch_as_env( check_and_instantiation_visitor(), env ) )
         {
             check_and_instantiation_visitor visitor;
 
-            return node->dispatch( visitor, env );
+            return node->dispatch_as_env( visitor, env );
         }
 
 

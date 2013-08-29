@@ -18,11 +18,20 @@ namespace rill
         namespace interpreter
         {
             template<typename EnvironmentPtr, typename T>
+            auto evaluate_as_type( EnvironmentPtr const& env, T const& node )
+                -> decltype( node->dispatch_as_type( std::declval<type_evaluator>(), env ) )
+            {
+                type_evaluator r;//();
+
+                return node->dispatch_as_type( r, env );
+            }
+
+            template<typename EnvironmentPtr, typename T>
             void compiletime_run_on_context( context_ptr const& ctx, EnvironmentPtr const& env, T const& node )
             {
-                runner r( ctx );
+                environment_constructor r( ctx );
 
-                node->dispatch( r, env );
+                node->dispatch_as_env( r, env );
             }
 
             template<typename EnvironmentPtr, typename T>

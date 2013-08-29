@@ -15,6 +15,7 @@ namespace rill
 {
     namespace interpreter
     {
+#if 0
         template<typename NodePtr, typename EnvironmentPtr>
         auto run_statement( runner const& r, NodePtr const& node, EnvironmentPtr const& env )
             -> decltype( node->dispatch( r, env ) )
@@ -40,7 +41,7 @@ namespace rill
             run_on_context( rt->create_context(), env, statements, on_conpile_time );
             return rt;
         }
-
+#endif
     } // namespace interpreter
 } // namespace rill
 
