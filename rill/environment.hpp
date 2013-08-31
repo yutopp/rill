@@ -29,6 +29,8 @@
 #include "ast/expression.hpp"
 #include "ast/statement.hpp"
 
+namespace rill
+{
 using namespace rill::ast;  // TODO: fix
 
 
@@ -925,3 +927,5 @@ private:
 };
 //typedef std::shared_ptr<class_symbol_environment>        class_symbol_environment_ptr;
 //typedef std::shared_ptr<class_symbol_environment const>  const_class_symbol_environment_ptr;
+
+} // namespace rill

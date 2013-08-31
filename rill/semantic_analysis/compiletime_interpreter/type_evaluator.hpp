@@ -24,8 +24,8 @@ namespace rill
                 : public tree_visitor_base<ast::intrinsic::identifier_value_ptr>
             {
             public:
-                RILL_TV_OP_DECL( ast::type_identifier_expression )
-                RILL_TV_OP_DECL( ast::compiletime_return_type_expression )
+                RILL_TV_OP_DECL( ast::type_identifier_expression_ptr )
+                RILL_TV_OP_DECL( ast::compiletime_return_type_expression_ptr )
             };
         } // namespace interpreter
     } // namespace semantic_analysis

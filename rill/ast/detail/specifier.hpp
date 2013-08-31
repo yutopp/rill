@@ -10,8 +10,6 @@
 
 
 // Use these macros under "ast" NAMESPACE ONLY.
-
-
 #define RILL_AST_SPECIFY_BASETYPE( node_name, base_name ) \
     namespace detail \
     { \

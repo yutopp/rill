@@ -15,7 +15,7 @@
 #include "../environment_fwd.hpp"
 #include "../tree_visitor_base.hpp"
 
-#include "detail/macros.hpp"
+#include "detail/dispatch_assets.hpp"
 
 #include "expression_fwd.hpp"
 

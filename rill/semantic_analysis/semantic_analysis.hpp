@@ -33,7 +33,7 @@ namespace rill
             identifier_collector visitor;
 
             for( auto const& node : nodes )
-                node->dispatch_as_env( visitor, env );
+                dispatch_as_env( node, visitor, env );
         }
 
         template<typename EnvironmentPtr, typename T>
@@ -42,7 +42,7 @@ namespace rill
         {
             identifier_collector visitor;
 
-            return node->dispatch_as_env( visitor, env );
+            return dispatch_as_env( node, visitor, env );
         }
 
 
@@ -51,11 +51,11 @@ namespace rill
         //
        template<typename EnvironmentPtr, typename T>
         auto check_and_instantiation( EnvironmentPtr const& env, T const& node )
-            -> decltype( node->dispatch_as_env( check_and_instantiation_visitor(), env ) )
+            -> decltype( dispatch_as_env( node, check_and_instantiation_visitor(), env ) )
         {
             analyzer visitor;
 
-            return node->dispatch_as_env( visitor, env );
+            return dispatch_as_env( node, visitor, env );
         }
 
 
@@ -68,7 +68,7 @@ namespace rill
             analyzer visitor;
 
             for( auto const& node : nodes )
-                node->dispatch_as_env( visitor, env );
+                dispatch_as_env( node, visitor, env );
         }
 
         template<typename EnvironmentPtr, typename T>
@@ -76,7 +76,7 @@ namespace rill
         {
             analyzer visitor;
 
-            return node->dispatch_as_env( visitor, env );
+            return dispatch_as_env( node, visitor, env );
         }
 
     } // namespace semantic_analysis

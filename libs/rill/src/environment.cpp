@@ -11,6 +11,8 @@
 #include <rill/ast/expression.hpp>
 #include <rill/ast/statement.hpp>
 
+namespace rill
+{
 std::ostream& operator<<( std::ostream& os, environment_ptr const& env )
 {
     os << "DEBUG: environment" << std::endl;
@@ -278,3 +280,5 @@ auto function_symbol_environment::parameter_variable_construct(
 
     return var_env;
 }
+
+} // namespace rill

@@ -63,6 +63,9 @@
     <Filter Include="rill\ast\detail">
       <UniqueIdentifier>{04ddfb69-2b06-4417-80a8-4925d78d8150}</UniqueIdentifier>
     </Filter>
+    <Filter Include="rill\environment">
+      <UniqueIdentifier>{6b2a1023-29ec-488b-87f3-b36cf3a3aa28}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\rill\environment.hpp">
@@ -131,9 +134,6 @@
     <ClInclude Include="..\..\..\rill\syntax_analysis\parser.hpp">
       <Filter>rill\syntax_analysis</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\rill\ast\detail\macros.hpp">
-      <Filter>rill\ast\detail</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\rill\ast\detail\specifier.hpp">
       <Filter>rill\ast\detail</Filter>
     </ClInclude>
@@ -145,6 +145,12 @@
     </ClInclude>
     <ClInclude Include="..\..\..\rill\semantic_analysis\compiletime_interpreter\type_evaluator.hpp">
       <Filter>rill\semantic_analysis\compiletime_interpreter</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\environment\mapper.hpp">
+      <Filter>rill\environment</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\ast\detail\dispatch_assets.hpp">
+      <Filter>rill\ast\detail</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

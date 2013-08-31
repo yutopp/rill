@@ -22,17 +22,17 @@ namespace rill
     namespace semantic_analysis
     {
         // Root Scope
-        RILL_TV_OP( identifier_collector, ast::root, r, env )
+        RILL_TV_OP( identifier_collector, ast::root_ptr, r, env )
         {
             // build environment
-            for( auto const& node : r.statements_ )
-                node->dispatch_as_env( *this,  env );
+            for( auto const& node : r->statements_ )
+                dispatch_as_env( node, *this,  env );
         }
 
-        RILL_TV_OP( identifier_collector, ast::function_definition_statement, s, env )
+        RILL_TV_OP( identifier_collector, ast::function_definition_statement_ptr, s, env )
         {
             // add function symbol to current environment
-            env->pre_construct( kind::function_k, s.get_identifier()->get_last_identifier() );
+            env->pre_construct( kind::function_k, s->get_identifier()->get_last_identifier() );
         }
 
     } // namespace semantic_analysis

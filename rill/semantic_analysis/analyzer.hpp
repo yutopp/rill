@@ -22,27 +22,27 @@ namespace rill
         {
         public:
             // statement_list
-            RILL_TV_OP_DECL( ast::root )
+            RILL_TV_OP_DECL( ast::root_ptr )
 
             // statement
             // virtual void operator()( template_statement const& s, environment_ptr const& env ) const =0;
 
-            RILL_TV_OP_DECL( ast::expression_statement )
-            RILL_TV_OP_DECL( ast::return_statement )
-            RILL_TV_OP_DECL( ast::function_definition_statement )
+            RILL_TV_OP_DECL( ast::expression_statement_ptr )
+            RILL_TV_OP_DECL( ast::return_statement_ptr )
+            RILL_TV_OP_DECL( ast::function_definition_statement_ptr )
             // virtual void operator()( native_function_definition_statement const& s, environment_ptr const& env ) const =0;
 
-            RILL_TV_OP_DECL( ast::class_definition_statement )
+            RILL_TV_OP_DECL( ast::class_definition_statement_ptr )
 
             // expression
-            RILL_TV_OP_DECL( ast::binary_operator_expression )
-            RILL_TV_OP_DECL( ast::call_expression )
-            RILL_TV_OP_DECL( ast::embedded_function_call_expression )
-            RILL_TV_OP_DECL( ast::term_expression )
+            RILL_TV_OP_DECL( ast::binary_operator_expression_ptr )
+            RILL_TV_OP_DECL( ast::call_expression_ptr )
+            RILL_TV_OP_DECL( ast::embedded_function_call_expression_ptr )
+            RILL_TV_OP_DECL( ast::term_expression_ptr )
 
             //
-            RILL_TV_OP_DECL( ast::intrinsic_value )
-            RILL_TV_OP_DECL( ast::variable_value )
+            RILL_TV_OP_DECL( ast::intrinsic_value_ptr )
+            RILL_TV_OP_DECL( ast::variable_value_ptr )
         };
     } // namespace semantic_analysis
 } // namespace rill

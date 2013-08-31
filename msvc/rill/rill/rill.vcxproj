@@ -64,7 +64,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\rill\ast\detail\macros.hpp" />
+    <ClInclude Include="..\..\..\rill\ast\detail\dispatch_assets.hpp" />
     <ClInclude Include="..\..\..\rill\ast\detail\specifier.hpp" />
     <ClInclude Include="..\..\..\rill\ast\expression.hpp" />
     <ClInclude Include="..\..\..\rill\ast\expression_fwd.hpp" />
@@ -75,6 +75,7 @@
     <ClInclude Include="..\..\..\rill\ast\value.hpp" />
     <ClInclude Include="..\..\..\rill\ast\value_fwd.hpp" />
     <ClInclude Include="..\..\..\rill\config\macros.hpp" />
+    <ClInclude Include="..\..\..\rill\environment\mapper.hpp" />
     <ClInclude Include="..\..\..\rill\interpreter\invoke.hpp" />
     <ClInclude Include="..\..\..\rill\interpreter\interpreter.hpp" />
     <ClInclude Include="..\..\..\rill\interpreter\runner.hpp" />

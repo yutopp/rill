@@ -39,7 +39,7 @@ void sample()
         exit( -100 );
     }
     std::istreambuf_iterator<char> const begin = ifs, end;
-    native_string_t const input_source_code( begin, end );
+    rill::native_string_t const input_source_code( begin, end );
     std::cout
         << "inputs are:" << std::endl
         << input_source_code << std::endl;
@@ -57,18 +57,18 @@ void sample()
     // prepareation for semantic analysis
     // it makes core.lang
     //
-    auto const root_env = std::make_shared<root_environment>();
+    auto const root_env = std::make_shared<rill::root_environment>();
 
     // TODO: add core.lang namespace
 
     // operator +
     auto const operator_add
         = rill::ast::intrinsic::make_binary_operator_identifier( "+" );
-    root_env->pre_construct( kind::function_k, operator_add );
+    root_env->pre_construct( rill::kind::function_k, operator_add );
 
     auto const operator_multiply
         = rill::ast::intrinsic::make_binary_operator_identifier( "*" );
-    root_env->pre_construct( kind::function_k, operator_multiply );
+    root_env->pre_construct( rill::kind::function_k, operator_multiply );
 /*
     // operator *
     auto const operator_multiply
@@ -83,8 +83,8 @@ void sample()
         auto const int_type
             = rill::ast::intrinsic::make_single_identifier( "int" );
 
-        root_env->pre_construct( kind::class_k, int_type );
-        auto const int_class_env_pointer = root_env->construct( kind::class_k, int_type );
+        root_env->pre_construct( rill::kind::class_k, int_type );
+        auto const int_class_env_pointer = root_env->construct( rill::kind::class_k, int_type );
 
 
         /*
@@ -101,16 +101,16 @@ void sample()
             //
 
             // function body
-            statement_list sl;
+            rill::ast::statement_list sl;
             sl.push_back(
-                std::make_shared<return_statement>(
-                    std::make_shared<embedded_function_call_expression>(
-                        []( std::vector<const_value_ptr> const& args ) -> intrinsic::value_base_ptr {
+                std::make_shared<rill::ast::return_statement>(
+                    std::make_shared<rill::ast::embedded_function_call_expression>(
+                        []( std::vector<rill::ast::const_value_ptr> const& args ) -> rill::ast::intrinsic::value_base_ptr {
                             std::cout << args.size() << std::endl;
 
-                            return std::make_shared<intrinsic::int32_value>(
-                                    std::dynamic_pointer_cast<intrinsic::int32_value const>( args[0] )->get_value()
-                                    + std::dynamic_pointer_cast<intrinsic::int32_value const>( args[1] )->get_value()
+                            return std::make_shared<rill::ast::intrinsic::int32_value>(
+                                    std::dynamic_pointer_cast<rill::ast::intrinsic::int32_value const>( args[0] )->get_value()
+                                    + std::dynamic_pointer_cast<rill::ast::intrinsic::int32_value const>( args[1] )->get_value()
                                     );
                         }
                         )
@@ -118,7 +118,7 @@ void sample()
                 );
 
             // function definition
-            auto f = root_env->construct( kind::function_k, operator_add, [&]( function_symbol_environment_ptr const& fenv ) {
+            auto f = root_env->construct( rill::kind::function_k, operator_add, [&]( rill::function_symbol_environment_ptr const& fenv ) {
                 // ( :int, :int )
                 std::cout << "add operator +!!" << std::endl;
 
@@ -138,16 +138,16 @@ void sample()
             //
 
             // function body
-            statement_list sl;
+            rill::ast::statement_list sl;
             sl.push_back(
-                std::make_shared<return_statement>(
-                    std::make_shared<embedded_function_call_expression>(
-                        []( std::vector<const_value_ptr> const& args ) -> intrinsic::value_base_ptr {
+                std::make_shared<rill::ast::return_statement>(
+                    std::make_shared<rill::ast::embedded_function_call_expression>(
+                        []( std::vector<rill::ast::const_value_ptr> const& args ) -> rill::ast::intrinsic::value_base_ptr {
                             std::cout << args.size() << std::endl;
 
-                            return std::make_shared<intrinsic::int32_value>(
-                                    std::dynamic_pointer_cast<intrinsic::int32_value const>( args[0] )->get_value()
-                                    * std::dynamic_pointer_cast<intrinsic::int32_value const>( args[1] )->get_value()
+                            return std::make_shared<rill::ast::intrinsic::int32_value>(
+                                    std::dynamic_pointer_cast<rill::ast::intrinsic::int32_value const>( args[0] )->get_value()
+                                    * std::dynamic_pointer_cast<rill::ast::intrinsic::int32_value const>( args[1] )->get_value()
                                     );
                         }
                         )
@@ -155,7 +155,7 @@ void sample()
                 );
 
             // function definition
-            auto f = root_env->construct( kind::function_k, operator_multiply, [&]( function_symbol_environment_ptr const& fenv ) {
+            auto f = root_env->construct( rill::kind::function_k, operator_multiply, [&]( rill::function_symbol_environment_ptr const& fenv ) {
                 // ( :int, :int )
                 std::cout << "add operator *!!" << std::endl;
 
