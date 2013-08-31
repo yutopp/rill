@@ -111,6 +111,7 @@
     <None Include="..\..\..\Jamroot.jam" />
     <None Include="..\..\..\libs\rill\build\Jamfile.v2" />
     <None Include="..\..\..\tools\compiler\Jamfile.v2" />
+    <None Include="input.rill" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

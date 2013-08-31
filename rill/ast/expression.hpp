@@ -86,7 +86,6 @@ namespace rill
 
 
         //
-
         typedef std::function<intrinsic::value_base_ptr (std::vector<const_value_ptr> const&)> embedded_callback_function_t;
 
         struct embedded_function_call_expression

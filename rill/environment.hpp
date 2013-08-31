@@ -287,7 +287,7 @@ public:
         intrinsic::single_identifier_value_base_ptr const& name,
         function_env_generator_scope_type const& parameter_decl_initializer,
         statement_list const& statements
-        ) -> env_pointer { assert( false ); return nullptr; }
+        ) -> function_symbol_environment_ptr { assert( false ); return nullptr; }
     /*virtual auto construct(
         kind::function_tag,
         intrinsic::single_identifier_value_base_ptr const&,
@@ -371,8 +371,6 @@ public:
     {
         return shared_env_memory_->at( id );
     }
-
-
 
     auto get_id() const
         -> environment_id_t
@@ -508,7 +506,7 @@ public:
         intrinsic::single_identifier_value_base_ptr const& name,
         function_env_generator_scope_type const& parameter_decl_initializer,
         statement_list const& statements
-        ) -> env_pointer RILL_CXX11_OVERRIDE;
+        ) -> function_symbol_environment_ptr RILL_CXX11_OVERRIDE;
 
     // variable(decl)
     auto construct(
@@ -622,6 +620,13 @@ template<typename EnvIds>
 inline auto make_parameter_hash( EnvIds const& id_list )
     -> parameter_hash_t
 {
+    {
+        // debu:
+        for( auto const& i : id_list )
+            std::cout << ":" << i << " ";
+        std::cout << std::endl;
+    }
+
     return  std::to_string( id_list.size() )
             + "_"
             + boost::algorithm::join(
@@ -676,41 +681,14 @@ public:
         return allocate_env<InlineEnvironment>( get_parent_env(), std::forward<Args>( args )... ).pointer;
     }
 
-    auto add_overload( type_environment_list const& parameter, statement_list const& statements )
+
+    auto add_overload( std::shared_ptr<InlineEnvironment> const& inner_env )
         -> env_pointer
     {
-        /*auto const ns_range
-            = parameter
-            | boost::adaptors::transformed(
-                std::function<const_env_pointer (parameter_pair const&)>(
-                    [this]( parameter_pair const& pp ) {
-                        return this->nest_lookup( pp.type );
-                    } )
-                )
-            ;
-
-        for( auto const& ns : ns_range ) {
-            if ( ns == nullptr )
-                //
-                return nullptr;
-        }*/
-
-        auto const env_ids_range
-            = parameter
-            | boost::adaptors::transformed(
-                std::function<environment_id_t (const_env_pointer const&)>(
-                    []( const_env_pointer const& e ) {
-                        return e->get_id();
-                    } )
-                )
-            ;
-
-        auto const& f = allocate_env<InlineEnvironment>( get_parent_env(), statements ).pointer;
-
         // TODO: add duplicate check
-        overloads_[make_parameter_hash( env_ids_range )] = f;
+        overloads_[make_parameter_hash( inner_env->get_arg_load_env_ids() )] = inner_env;
 
-        return f;
+        return inner_env;
     }
 
     auto solve_overload( environment_id_list const& args_env_ids ) const
@@ -804,24 +782,25 @@ public:
         return statements_;
     }
 
-    auto push_arg_load_env_id( environment_id_t const& env_id )
-        -> void
-    {
-        //arg_load_env_ids_.push_back( env_id );
-    }
-
     auto get_arg_load_env_ids() const
         -> std::vector<environment_id_t> const&
     {
-        return parameter_decl_ids_;
+        return parameter_type_ids_;
     }
 
-    auto add_return_type_env_id( environment_id_t const& env_id )
+    auto complete( const_environment_ptr const& return_type_env )
         -> void
     {
-        return_type_env_ids_.push_back( env_id );
+        return_type_env_id_ = return_type_env->get_id();
     }
 
+    auto get_return_type_environment()
+        -> class_symbol_environment_ptr
+    {
+        auto const& p = get_env_at( return_type_env_id_ );
+
+        return std::dynamic_pointer_cast<class_symbol_environment>( p.lock() );
+    }
 
     auto dump( std::ostream& os, std::string const& indent ) const
         -> std::ostream& RILL_CXX11_OVERRIDE
@@ -838,10 +817,10 @@ public:
         -> variable_symbol_environment_ptr;
 
 private:
-    statement_list statements_;
-    std::vector<environment_id_t> parameter_decl_ids_;  // first parameter to last
+    std::vector<environment_id_t> parameter_decl_ids_, parameter_type_ids_;
+    environment_id_t return_type_env_id_;
 
-    std::vector<environment_id_t> return_type_env_ids_;
+    statement_list statements_;
 };
 //typedef std::shared_ptr<function_symbol_environment>        function_symbol_environment_ptr;
 //typedef std::shared_ptr<function_symbol_environment const>  const_function_symbol_environment_ptr;

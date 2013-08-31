@@ -66,6 +66,9 @@ void sample()
         = rill::ast::intrinsic::make_binary_operator_identifier( "+" );
     root_env->pre_construct( kind::function_k, operator_add );
 
+    auto const operator_multiply
+        = rill::ast::intrinsic::make_binary_operator_identifier( "*" );
+    root_env->pre_construct( kind::function_k, operator_multiply );
 /*
     // operator *
     auto const operator_multiply
@@ -115,17 +118,56 @@ void sample()
                 );
 
             // function definition
-            root_env->construct( kind::function_k, operator_add, [&]( function_symbol_environment_ptr const& fenv ) {
+            auto f = root_env->construct( kind::function_k, operator_add, [&]( function_symbol_environment_ptr const& fenv ) {
                 // ( :int, :int )
-                std::cout << "called!!" << std::endl;
+                std::cout << "add operator +!!" << std::endl;
 
                 fenv->parameter_variable_construct( /*TODO: add attributes, */ nullptr, int_class_env_pointer );    // :int
                 fenv->parameter_variable_construct( /*TODO: add attributes, */ nullptr, int_class_env_pointer );    // :int
 
                 return fenv;
             }, sl );
+
+            // return => :int
+            f->complete( int_class_env_pointer );
         }
 
+        {
+            //
+            // def *( :int, :int ): int => native
+            //
+
+            // function body
+            statement_list sl;
+            sl.push_back(
+                std::make_shared<return_statement>(
+                    std::make_shared<embedded_function_call_expression>(
+                        []( std::vector<const_value_ptr> const& args ) -> intrinsic::value_base_ptr {
+                            std::cout << args.size() << std::endl;
+
+                            return std::make_shared<intrinsic::int32_value>(
+                                    std::dynamic_pointer_cast<intrinsic::int32_value const>( args[0] )->get_value()
+                                    * std::dynamic_pointer_cast<intrinsic::int32_value const>( args[1] )->get_value()
+                                    );
+                        }
+                        )
+                    )
+                );
+
+            // function definition
+            auto f = root_env->construct( kind::function_k, operator_multiply, [&]( function_symbol_environment_ptr const& fenv ) {
+                // ( :int, :int )
+                std::cout << "add operator *!!" << std::endl;
+
+                fenv->parameter_variable_construct( /*TODO: add attributes, */ nullptr, int_class_env_pointer );    // :int
+                fenv->parameter_variable_construct( /*TODO: add attributes, */ nullptr, int_class_env_pointer );    // :int
+
+                return fenv;
+            }, sl );
+
+            // return => :int
+            f->complete( int_class_env_pointer );
+        }
 #if 0
         {
             // ( :int, :int )

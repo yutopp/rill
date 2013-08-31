@@ -10,7 +10,7 @@ def foo( hoge: int ): int
     return hoge*10;
 }
 
-def foo( fuga: int, hoge: int )
+def foo( fuga: int, hoge: int ): int
 {
 	return fuga * hoge;
 }

@@ -196,5 +196,8 @@
       <Filter>tools\compiler</Filter>
     </None>
     <None Include="..\..\..\Jamroot.jam" />
+    <None Include="input.rill">
+      <Filter>tools\compiler</Filter>
+    </None>
   </ItemGroup>
 </Project>

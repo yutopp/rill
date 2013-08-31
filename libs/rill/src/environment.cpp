@@ -125,7 +125,7 @@ auto single_identifier_environment_base::construct(
         function_env_generator_scope_type const& parameter_decl_initializer,
         statement_list const& statements
         )
-        -> env_pointer
+        -> function_symbol_environment_ptr
 {
     // TODO: add existance check
     auto const& env = instanced_env_[name->get_base_symbol()->get_native_string()];
@@ -135,15 +135,14 @@ auto single_identifier_environment_base::construct(
        || std::dynamic_pointer_cast<has_parameter_environment_base>( env )->get_inner_symbol_kind() != kind::type_value::function_e
        ) {
         //
-        exit( -900 );
+        assert( false );
     }
 
     auto const& parameter_env = std::dynamic_pointer_cast<has_parameter_environment<function_symbol_environment>>( env );
     auto const& function_env_gen_pointer = parameter_env->allocate_inner_env( statements );
 
     auto const& parameter_completed_function_env_pointer = parameter_decl_initializer( function_env_gen_pointer );
-    //auto const& function = f_env->add_overload( plist, statements );
-
+    assert( parameter_env->add_overload( parameter_completed_function_env_pointer ) );
 
     return parameter_completed_function_env_pointer;
 }
@@ -271,8 +270,11 @@ auto function_symbol_environment::parameter_variable_construct(
     )
     -> variable_symbol_environment_ptr
 {
+    // declare parameter variable
     auto const& var_env = construct( kind::variable_k, variable_name, type_env );
     parameter_decl_ids_.push_back( var_env->get_id() );
+    // memo parameter variable types
+    parameter_type_ids_.push_back( type_env->get_id() );
 
     return var_env;
 }
