@@ -6,7 +6,7 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#include <rill/semantic_analysis/list_identifier_visitor.hpp>
+#include <rill/semantic_analysis/identifier_collector.hpp>
 #include <rill/semantic_analysis/invoke.hpp>
 
 #include <rill/environment.hpp>
@@ -21,8 +21,15 @@ namespace rill
 {
     namespace semantic_analysis
     {
-        //
-        void list_identifier_visitor::operator()( ast::function_definition_statement const& s, environment_ptr const& env ) const
+        // Root Scope
+        RILL_TV_OP( identifier_collector, ast::root, r, env )
+        {
+            // build environment
+            for( auto const& node : r.statements_ )
+                node->dispatch_as_env( *this,  env );
+        }
+
+        RILL_TV_OP( identifier_collector, ast::function_definition_statement, s, env )
         {
             // add function symbol to current environment
             env->pre_construct( kind::function_k, s.get_identifier()->get_last_identifier() );

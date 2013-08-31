@@ -621,7 +621,7 @@ inline auto make_parameter_hash( EnvIds const& id_list )
     -> parameter_hash_t
 {
     {
-        // debu:
+        // debug:
         for( auto const& i : id_list )
             std::cout << ":" << i << " ";
         std::cout << std::endl;

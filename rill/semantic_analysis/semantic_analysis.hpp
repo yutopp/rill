@@ -9,9 +9,77 @@
 #ifndef RILL_SEMANTIC_ANALYSIS_HPP
 #define RILL_SEMANTIC_ANALYSIS_HPP
 
-#include "list_identifier_visitor.hpp"
-#include "check_and_instantiation_visitor.hpp"
-#include "invoke.hpp"
+#include "compiletime_interpreter/interpreter.hpp"
+
+#include "identifier_collector.hpp"
+#include "analyzer.hpp"
 #include "helper.hpp"
+
+
+namespace rill
+{
+    namespace semantic_analysis
+    {
+        // TODO: add import collector
+
+
+        //
+        //
+        //
+        template<typename EnvironmentPtr, typename T>
+        auto collect_identifier( EnvironmentPtr const& env, std::vector<T> const& nodes )
+            -> void
+        {
+            identifier_collector visitor;
+
+            for( auto const& node : nodes )
+                node->dispatch_as_env( visitor, env );
+        }
+
+        template<typename EnvironmentPtr, typename T>
+        auto collect_identifier( EnvironmentPtr const& env, T const& node )
+            -> void//decltype( node->dispatch_as_env( std::declval<identifier_collector>(), env ) )
+        {
+            identifier_collector visitor;
+
+            return node->dispatch_as_env( visitor, env );
+        }
+
+
+        //
+        //
+        //
+       template<typename EnvironmentPtr, typename T>
+        auto check_and_instantiation( EnvironmentPtr const& env, T const& node )
+            -> decltype( node->dispatch_as_env( check_and_instantiation_visitor(), env ) )
+        {
+            analyzer visitor;
+
+            return node->dispatch_as_env( visitor, env );
+        }
+
+
+        //
+        //
+        //
+        template<typename EnvironmentPtr, typename T>
+        void analyse( EnvironmentPtr const& env, std::vector<T> const& nodes )
+        {
+            analyzer visitor;
+
+            for( auto const& node : nodes )
+                node->dispatch_as_env( visitor, env );
+        }
+
+        template<typename EnvironmentPtr, typename T>
+        void analyse( EnvironmentPtr const& env, T const& node )
+        {
+            analyzer visitor;
+
+            return node->dispatch_as_env( visitor, env );
+        }
+
+    } // namespace semantic_analysis
+} // namespace rill
 
 #endif /*#include "list_identifier_visitor.hpp"*/

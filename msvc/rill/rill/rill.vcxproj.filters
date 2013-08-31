@@ -86,15 +86,6 @@
     <ClInclude Include="..\..\..\rill\interpreter\runtime.hpp">
       <Filter>rill\interpreter</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\rill\semantic_analysis\invoke.hpp">
-      <Filter>rill\semantic_analysis</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\rill\semantic_analysis\list_identifier_visitor.hpp">
-      <Filter>rill\semantic_analysis</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\rill\semantic_analysis\check_and_instantiation_visitor.hpp">
-      <Filter>rill\semantic_analysis</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\rill\semantic_analysis\semantic_analysis.hpp">
       <Filter>rill\semantic_analysis</Filter>
     </ClInclude>
@@ -105,12 +96,6 @@
       <Filter>rill\semantic_analysis</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\rill\semantic_analysis\compiletime_interpreter\interpreter.hpp">
-      <Filter>rill\semantic_analysis\compiletime_interpreter</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\rill\semantic_analysis\compiletime_interpreter\invoke.hpp">
-      <Filter>rill\semantic_analysis\compiletime_interpreter</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\rill\semantic_analysis\compiletime_interpreter\runner.hpp">
       <Filter>rill\semantic_analysis\compiletime_interpreter</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\rill\semantic_analysis\compiletime_interpreter\runtime.hpp">
@@ -146,14 +131,20 @@
     <ClInclude Include="..\..\..\rill\syntax_analysis\parser.hpp">
       <Filter>rill\syntax_analysis</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\rill\semantic_analysis\type_identifier_visitor.hpp">
-      <Filter>rill\semantic_analysis</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\rill\ast\detail\macros.hpp">
       <Filter>rill\ast\detail</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\rill\ast\detail\specifier.hpp">
       <Filter>rill\ast\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\semantic_analysis\identifier_collector.hpp">
+      <Filter>rill\semantic_analysis</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\semantic_analysis\analyzer.hpp">
+      <Filter>rill\semantic_analysis</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\semantic_analysis\compiletime_interpreter\type_evaluator.hpp">
+      <Filter>rill\semantic_analysis\compiletime_interpreter</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -166,12 +157,6 @@
     <ClCompile Include="..\..\..\libs\rill\src\interpreter\runner.cpp">
       <Filter>libs\rill\src\interpreter</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\list_identifier_visitor.cpp">
-      <Filter>libs\rill\src\semantic_analysis</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\check_and_instantiation.cpp">
-      <Filter>libs\rill\src\semantic_analysis</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\helper.cpp">
       <Filter>libs\rill\src\semantic_analysis</Filter>
     </ClCompile>
@@ -181,10 +166,13 @@
     <ClCompile Include="..\..\..\libs\rill\src\ast\value.cpp">
       <Filter>libs\rill\src\ast</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\type_identifier_visitor.cpp">
+    <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\identifier_collector.cpp">
       <Filter>libs\rill\src\semantic_analysis</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\compiletime_interpreter\compiletime_runner.cpp">
+    <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\analyzer.cpp">
+      <Filter>libs\rill\src\semantic_analysis</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\compiletime_interpreter\type_evaluator.cpp">
       <Filter>libs\rill\src\semantic_analysis\compiletime_interpreter</Filter>
     </ClCompile>
   </ItemGroup>

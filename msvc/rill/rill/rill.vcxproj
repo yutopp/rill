@@ -81,16 +81,13 @@
     <ClInclude Include="..\..\..\rill\interpreter\runtime.hpp" />
     <ClInclude Include="..\..\..\rill\environment.hpp" />
     <ClInclude Include="..\..\..\rill\environment_fwd.hpp" />
-    <ClInclude Include="..\..\..\rill\semantic_analysis\check_and_instantiation_visitor.hpp" />
+    <ClInclude Include="..\..\..\rill\semantic_analysis\analyzer.hpp" />
     <ClInclude Include="..\..\..\rill\semantic_analysis\compiletime_interpreter\interpreter.hpp" />
-    <ClInclude Include="..\..\..\rill\semantic_analysis\compiletime_interpreter\invoke.hpp" />
-    <ClInclude Include="..\..\..\rill\semantic_analysis\compiletime_interpreter\runner.hpp" />
+    <ClInclude Include="..\..\..\rill\semantic_analysis\compiletime_interpreter\type_evaluator.hpp" />
     <ClInclude Include="..\..\..\rill\semantic_analysis\compiletime_interpreter\runtime.hpp" />
     <ClInclude Include="..\..\..\rill\semantic_analysis\helper.hpp" />
-    <ClInclude Include="..\..\..\rill\semantic_analysis\invoke.hpp" />
-    <ClInclude Include="..\..\..\rill\semantic_analysis\list_identifier_visitor.hpp" />
+    <ClInclude Include="..\..\..\rill\semantic_analysis\identifier_collector.hpp" />
     <ClInclude Include="..\..\..\rill\semantic_analysis\semantic_analysis.hpp" />
-    <ClInclude Include="..\..\..\rill\semantic_analysis\type_identifier_visitor.hpp" />
     <ClInclude Include="..\..\..\rill\syntax_analysis\make_syntax_tree.hpp" />
     <ClInclude Include="..\..\..\rill\syntax_analysis\parser.hpp" />
     <ClInclude Include="..\..\..\rill\tree_visitor_base.hpp" />
@@ -99,11 +96,10 @@
     <ClCompile Include="..\..\..\libs\rill\src\ast\value.cpp" />
     <ClCompile Include="..\..\..\libs\rill\src\environment.cpp" />
     <ClCompile Include="..\..\..\libs\rill\src\interpreter\runner.cpp" />
-    <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\check_and_instantiation.cpp" />
-    <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\compiletime_interpreter\compiletime_runner.cpp" />
+    <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\analyzer.cpp" />
+    <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\compiletime_interpreter\type_evaluator.cpp" />
     <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\helper.cpp" />
-    <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\list_identifier_visitor.cpp" />
-    <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\type_identifier_visitor.cpp" />
+    <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\identifier_collector.cpp" />
     <ClCompile Include="..\..\..\libs\rill\src\syntax_analysis\make_syntax_tree.cpp" />
     <ClCompile Include="..\..\..\tools\compiler\src\main.cpp" />
   </ItemGroup>

@@ -17,7 +17,7 @@ namespace rill
 {
     namespace semantic_analysis
     {
-        class check_and_instantiation_visitor RILL_CXX11_FINAL
+        class analyzer RILL_CXX11_FINAL
             : public tree_visitor_base<environment_ptr>
         {
         public:
@@ -30,6 +30,8 @@ namespace rill
             RILL_TV_OP_DECL( ast::expression_statement )
             RILL_TV_OP_DECL( ast::return_statement )
             RILL_TV_OP_DECL( ast::function_definition_statement )
+            // virtual void operator()( native_function_definition_statement const& s, environment_ptr const& env ) const =0;
+
             RILL_TV_OP_DECL( ast::class_definition_statement )
 
             // expression
@@ -37,7 +39,6 @@ namespace rill
             RILL_TV_OP_DECL( ast::call_expression )
             RILL_TV_OP_DECL( ast::embedded_function_call_expression )
             RILL_TV_OP_DECL( ast::term_expression )
-
 
             //
             RILL_TV_OP_DECL( ast::intrinsic_value )

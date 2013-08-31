@@ -6,10 +6,8 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#ifndef RILL_SEMANTIC_ANALYSIS_LIST_IDENTIFIER_VISITOR_HPP
-#define RILL_SEMANTIC_ANALYSIS_LIST_IDENTIFIER_VISITOR_HPP
-
-#include <memory>
+#ifndef RILL_SEMANTIC_ANALYSIS_IDENTIFILER_COLLECTOR_HPP
+#define RILL_SEMANTIC_ANALYSIS_IDENTIFILER_COLLECTOR_HPP
 
 #include "../tree_visitor_base.hpp"
 
@@ -20,10 +18,12 @@ namespace rill
         //
         //
         //
-        class list_identifier_visitor RILL_CXX11_FINAL
+        class identifier_collector RILL_CXX11_FINAL
             : public tree_visitor_base<environment_ptr>
         {
         public:
+            RILL_TV_OP_DECL( ast::root )
+
             // statement
             RILL_TV_OP_DECL( ast::function_definition_statement )
         };
@@ -31,4 +31,4 @@ namespace rill
     } // namespace semantic_analysis
 } // namespace rill
 
-#endif /*RILL_SEMANTIC_ANALYSIS_LIST_IDENTIFIER_VISITOR_HPP*/
+#endif /*RILL_SEMANTIC_ANALYSIS_IDENTIFILER_COLLECTOR_HPP*/
