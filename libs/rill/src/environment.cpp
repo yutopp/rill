@@ -6,13 +6,53 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#include <rill/environment.hpp>
+#include <rill/environment/environment.hpp>
+
 #include <rill/ast/value.hpp>
 #include <rill/ast/expression.hpp>
 #include <rill/ast/statement.hpp>
 
+
 namespace rill
 {
+    // --
+    // single_identifier_environment_base
+    // --
+
+    // function constructor
+    auto single_identifier_environment_base::incomplete_construct(
+        kind::function_tag,
+        ast::intrinsic::single_identifier_value_base_ptr const& name
+        )
+        -> env_pointer
+    {
+        auto const& symbol_name = name->get_base_symbol()->get_native_string();
+
+        // need parameter wrapper environment because function has parameter information
+        auto const& parameter_env = [&]() {
+            if ( !is_instanced( symbol_name ) ) {
+                // make uncomplete env
+                auto const& w_env = allocate_env<has_parameter_environment<function_symbol_environment>>( shared_from_this() );
+                instanced_env_[symbol_name] = w_env.pointer;
+            }
+            auto const& env = instanced_env_[symbol_name];
+            assert( env != nullptr );
+            assert( env->get_symbol_kind() == kind::type_value::parameter_wrapper_e );
+            assert( std::dynamic_pointer_cast<has_parameter_environment_base>( env )->get_inner_symbol_kind() == kind::type_value::function_e );
+
+            return std::dynamic_pointer_cast<has_parameter_environment<function_symbol_environment>>( env );
+        }();
+
+        //
+        auto const& incomplete_function_env = parameter_env->allocate_inner_env();
+
+        return incomplete_function_env;
+    }
+    
+
+
+
+
 std::ostream& operator<<( std::ostream& os, environment_ptr const& env )
 {
     os << "DEBUG: environment" << std::endl;

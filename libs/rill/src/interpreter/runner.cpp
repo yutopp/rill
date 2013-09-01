@@ -12,7 +12,7 @@
 // runner
 //
 
-
+#if 0
 #include <rill/interpreter/runner.hpp>
 #include <rill/interpreter/invoke.hpp>
 
@@ -28,7 +28,7 @@ namespace rill
 {
     namespace interpreter
     {
-#if 0
+
         //
         runner::runner( context_ptr const& ctx, bool is_on_compile_time )
             : context_( ctx )
@@ -313,6 +313,8 @@ namespace rill
             // return type environment
             return std::dynamic_pointer_cast<variable_symbol_environment>( val_env );//->get_weak_type_env().lock();
         }
-#endif
+
     } // namespace interpreter
 } // namespace rill
+
+#endif

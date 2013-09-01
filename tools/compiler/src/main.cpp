@@ -8,23 +8,18 @@
 
 #include <iostream>
 
-#include <rill/syntax_analysis/make_syntax_tree.hpp>
+
 
 #include <fstream>
 #include <iterator>
 #include <memory>
 
 
-#include <rill/environment.hpp>
-
-
-
-
-
-
-
+#include <rill/environment/environment.hpp>
+#include <rill/syntax_analysis/make_syntax_tree.hpp>
 #include <rill/semantic_analysis/semantic_analysis.hpp>
-#include <rill/interpreter/interpreter.hpp>
+
+//#include <rill/interpreter/interpreter.hpp>
 
 void sample()
 {

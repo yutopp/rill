@@ -14,13 +14,12 @@
 
 
 #include <rill/semantic_analysis/compiletime_interpreter/interpreter.hpp>
+#include <rill/environment/environment.hpp>
 
 #include <rill/ast/root.hpp>
 #include <rill/ast/statement.hpp>
 #include <rill/ast/expression.hpp>
 #include <rill/ast/value.hpp>
-
-#include <rill/environment.hpp>
 
 
 namespace rill

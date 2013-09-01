@@ -9,16 +9,18 @@
 #ifndef RILL_INTERPRETER_RUNNER_HPP
 #define RILL_INTERPRETER_RUNNER_HPP
 
+#if 0
 #include <memory>
 
-#include "../tree_visitor_base.hpp"
+
+#include "../ast/tree_visitor_base.hpp"
 #include "runtime.hpp"
 
 namespace rill
 {
     namespace interpreter
     {
-#if 0
+
         class runner RILL_CXX11_FINAL
             : public tree_visitor_base
         {
@@ -57,8 +59,9 @@ namespace rill
             context_ptr context_;
             bool is_on_compile_time_;
         };
-#endif
+
     } // namespace interpreter
 } // namespace rill
+#endif
 
 #endif /*RILL_INTERPRETER_RUNNER_HPP*/

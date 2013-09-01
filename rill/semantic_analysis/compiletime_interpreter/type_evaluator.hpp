@@ -9,10 +9,9 @@
 #ifndef RILL_SEMANTIC_ANALYSIS_COMPILETIME_INTERPRETER_RUNNER_HPP
 #define RILL_SEMANTIC_ANALYSIS_COMPILETIME_INTERPRETER_RUNNER_HPP
 
-#include <memory>
-
-#include "../../tree_visitor_base.hpp"
+#include "../../ast/detail/tree_visitor_base.hpp"
 #include "runtime.hpp"
+
 
 namespace rill
 {
@@ -21,7 +20,7 @@ namespace rill
         namespace interpreter
         {
             class type_evaluator
-                : public tree_visitor_base<ast::intrinsic::identifier_value_ptr>
+                : public ast::detail::tree_visitor_base<ast::intrinsic::identifier_value_ptr>
             {
             public:
                 RILL_TV_OP_DECL( ast::type_identifier_expression_ptr )

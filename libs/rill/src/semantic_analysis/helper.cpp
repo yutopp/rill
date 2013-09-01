@@ -9,11 +9,10 @@
 #include <iostream> // test
 
 #include <rill/semantic_analysis/helper.hpp>
-#include <rill/semantic_analysis/invoke.hpp>
 
 #include <rill/ast/value.hpp>
 
-#include <rill/environment.hpp>
+#include <rill/environment/environment.hpp>
 
 
 namespace rill

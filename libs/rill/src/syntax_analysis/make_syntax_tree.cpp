@@ -14,7 +14,7 @@ namespace rill
 {
     namespace syntax_analysis
     {
-        auto make_syntax_tree( input_type const& source ) -> std::shared_ptr<ast::root>
+        auto make_syntax_tree( input_type const& source ) -> ast::root_ptr
             try
         {
             auto first      = source.cbegin();

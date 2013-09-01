@@ -9,16 +9,15 @@
 #ifndef RILL_SEMANTIC_ANALYSIS_CHECK_AND_INSTANTIATION_VISITOR_HPP
 #define RILL_SEMANTIC_ANALYSIS_CHECK_AND_INSTANTIATION_VISITOR_HPP
 
-#include <memory>
+#include "../ast/detail/tree_visitor_base.hpp"
 
-#include "../tree_visitor_base.hpp"
 
 namespace rill
 {
     namespace semantic_analysis
     {
         class analyzer RILL_CXX11_FINAL
-            : public tree_visitor_base<environment_ptr>
+            : public ast::detail::tree_visitor_base<environment_ptr>
         {
         public:
             // statement_list

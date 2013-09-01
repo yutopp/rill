@@ -6,7 +6,8 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#pragma once
+#ifndef RILL_AST_DETAIL_DISPATCH_ASSETS_HPP
+#define RILL_AST_DETAIL_DISPATCH_ASSETS_HPP
 
 #include <memory>
 
@@ -16,116 +17,37 @@
 #include <boost/mpl/map.hpp>
 
 #include "../../config/macros.hpp"
+#include "../../environment/environment_fwd.hpp"
 
-#include "../../environment_fwd.hpp"
-#include "../statement_fwd.hpp"
-#include "../expression_fwd.hpp"
-#include "../value_fwd.hpp"
-#include "../root_fwd.hpp"
-
+#include "tree_visitor_base.hpp"
+#include "dispatch_functions.hpp"
 #include "specifier.hpp"
 
 
-//
+#define RILL_AST_ADAPT_VISITOR_DISPATCHER( class_name, tag ) \
+    virtual auto dispatch( \
+        tag, \
+        std::shared_ptr<rill::ast::detail::base_type_specifier<class_name>::type> self_pointer, \
+        rill::ast::detail::tree_visitor_base<boost::mpl::at<rill::ast::detail::as_type, tag>::type> const& visitor, \
+        environment_ptr const& env \
+        ) const \
+        -> rill::ast::detail::tree_visitor_base< \
+            boost::mpl::at<rill::ast::detail::as_type, tag>::type \
+        >::template result<class_name>::type RILL_CXX11_OVERRIDE \
+    { \
+        return visitor( std::static_pointer_cast<class_name>( self_pointer ), env ); \
+    }
+
+
+// insert this macro into AST node class
 #define RILL_AST_ADAPT_VISITOR( class_name ) \
-    virtual auto dispatch( \
-        rill::ast::detail::dispatch_as_environment_tag, \
-        std::shared_ptr<rill::ast::detail::base_type_specifier<class_name>::type> self_pointer, \
-        tree_visitor_base<boost::mpl::at<rill::ast::detail::as_type, rill::ast::detail::dispatch_as_environment_tag>::type> const& visitor, \
-        environment_ptr const& env \
-        ) const \
-        -> tree_visitor_base< \
-            boost::mpl::at<rill::ast::detail::as_type, rill::ast::detail::dispatch_as_environment_tag>::type \
-        >::template result<class_name>::type RILL_CXX11_OVERRIDE \
-    { \
-        return visitor( std::dynamic_pointer_cast<class_name>( self_pointer ), env ); \
-    } \
-    \
-    virtual auto dispatch( \
-        rill::ast::detail::dispatch_as_value_tag, \
-        std::shared_ptr<rill::ast::detail::base_type_specifier<class_name>::type> self_pointer, \
-        tree_visitor_base<boost::mpl::at<rill::ast::detail::as_type, rill::ast::detail::dispatch_as_value_tag>::type> const& visitor, \
-        environment_ptr const& env \
-        ) const \
-        -> tree_visitor_base< \
-            boost::mpl::at<rill::ast::detail::as_type, rill::ast::detail::dispatch_as_value_tag>::type \
-        >::template result<class_name>::type RILL_CXX11_OVERRIDE \
-    { \
-        return visitor( std::dynamic_pointer_cast<class_name>( self_pointer ), env ); \
-    } \
-    \
-    virtual auto dispatch( \
-        rill::ast::detail::dispatch_as_type_tag, \
-        std::shared_ptr<rill::ast::detail::base_type_specifier<class_name>::type> self_pointer, \
-        tree_visitor_base<boost::mpl::at<rill::ast::detail::as_type, rill::ast::detail::dispatch_as_type_tag>::type> const& visitor, \
-        environment_ptr const& env \
-        ) const \
-        -> tree_visitor_base< \
-            boost::mpl::at<rill::ast::detail::as_type, rill::ast::detail::dispatch_as_type_tag>::type \
-        >::template result<class_name>::type RILL_CXX11_OVERRIDE \
-    { \
-        return visitor( std::dynamic_pointer_cast<class_name>( self_pointer ), env ); \
-    }
-
-
-namespace rill
-{
-    namespace ast
-    {
-        namespace detail
-        {
-            //
-            struct dispatch_as_environment_tag {};
-            struct dispatch_as_value_tag {};
-            struct dispatch_as_type_tag {};
-
-            typedef boost::mpl::map<
-                boost::mpl::pair<dispatch_as_environment_tag,   environment_ptr>,
-                boost::mpl::pair<dispatch_as_value_tag,         ast::value_ptr>,
-                boost::mpl::pair<dispatch_as_type_tag,          ast::intrinsic::identifier_value_ptr>
-            > as_type;
-        } // namespace detail
-
-    template<typename NodeT>
-    auto dispatch_as_env(
-        std::shared_ptr<NodeT> const& node,
-        tree_visitor_base<boost::mpl::at<detail::as_type, detail::dispatch_as_environment_tag>::type> const& visitor,
-        environment_ptr const& env
-        )
-        -> decltype( node->dispatch( detail::dispatch_as_environment_tag(), node, visitor, env ) )
-    {
-        return node->dispatch( detail::dispatch_as_environment_tag(), node, visitor, env );
-    }
-
-    template<typename NodeT>
-    auto dispatch_as_value(
-        std::shared_ptr<NodeT> const& node,
-        tree_visitor_base<boost::mpl::at<detail::as_type, detail::dispatch_as_value_tag>::type> const& visitor,
-        environment_ptr const& env
-        )
-        -> decltype( node->dispatch( detail::dispatch_as_value_tag(), node, visitor, env ) )
-    {
-        return node->dispatch( detail::dispatch_as_value_tag(), node, visitor, env );
-    }
-
-    template<typename NodeT>
-    auto dispatch_as_type(
-        std::shared_ptr<NodeT> const& node,
-        tree_visitor_base<boost::mpl::at<detail::as_type, detail::dispatch_as_type_tag>::type> const& visitor,
-        environment_ptr const& env
-        )
-        -> decltype( node->dispatch( detail::dispatch_as_type_tag(), node, visitor, env ) )
-    {
-        return node->dispatch( detail::dispatch_as_type_tag(), node, visitor, env );
-    }
-
-    } // namespace ast
-}
-
+    RILL_AST_ADAPT_VISITOR_DISPATCHER( class_name, rill::ast::detail::dispatch_as_environment_tag ) \
+    RILL_AST_ADAPT_VISITOR_DISPATCHER( class_name, rill::ast::detail::dispatch_as_value_tag ) \
+    RILL_AST_ADAPT_VISITOR_DISPATCHER( class_name, rill::ast::detail::dispatch_as_type_tag )
 
 
 //
-BOOST_TYPE_ERASURE_MEMBER( (rill)(ast)(detail)(has_dispatch),   dispatch,   4 )
+BOOST_TYPE_ERASURE_MEMBER( (rill)(ast)(detail)(has_dispatch), dispatch, 4 )
 namespace rill
 {
     namespace ast
@@ -135,7 +57,7 @@ namespace rill
             template<typename NodeT>
             struct dispatcher_concept
             {
-                typedef typename std::shared_ptr<typename rill::ast::detail::base_type_specifier<NodeT>::type>  self_pointer;
+                typedef typename std::shared_ptr<typename base_type_specifier<NodeT>::type>  self_pointer;
 
                 typedef boost::mpl::vector<
                     has_dispatch<
@@ -167,3 +89,5 @@ namespace rill
         } // namespace detail
     } // namespace ast
 } // namespace rill
+
+#endif /*RILL_AST_DETAIL_DISPATCH_ASSETS_HPP*/

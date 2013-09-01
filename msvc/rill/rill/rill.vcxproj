@@ -65,7 +65,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\rill\ast\detail\dispatch_assets.hpp" />
+    <ClInclude Include="..\..\..\rill\ast\detail\dispatch_functions.hpp" />
     <ClInclude Include="..\..\..\rill\ast\detail\specifier.hpp" />
+    <ClInclude Include="..\..\..\rill\ast\detail\tree_visitor_base.hpp" />
     <ClInclude Include="..\..\..\rill\ast\expression.hpp" />
     <ClInclude Include="..\..\..\rill\ast\expression_fwd.hpp" />
     <ClInclude Include="..\..\..\rill\ast\root.hpp" />
@@ -75,13 +77,13 @@
     <ClInclude Include="..\..\..\rill\ast\value.hpp" />
     <ClInclude Include="..\..\..\rill\ast\value_fwd.hpp" />
     <ClInclude Include="..\..\..\rill\config\macros.hpp" />
+    <ClInclude Include="..\..\..\rill\environment\environment.hpp" />
+    <ClInclude Include="..\..\..\rill\environment\environment_fwd.hpp" />
     <ClInclude Include="..\..\..\rill\environment\mapper.hpp" />
     <ClInclude Include="..\..\..\rill\interpreter\invoke.hpp" />
     <ClInclude Include="..\..\..\rill\interpreter\interpreter.hpp" />
     <ClInclude Include="..\..\..\rill\interpreter\runner.hpp" />
     <ClInclude Include="..\..\..\rill\interpreter\runtime.hpp" />
-    <ClInclude Include="..\..\..\rill\environment.hpp" />
-    <ClInclude Include="..\..\..\rill\environment_fwd.hpp" />
     <ClInclude Include="..\..\..\rill\semantic_analysis\analyzer.hpp" />
     <ClInclude Include="..\..\..\rill\semantic_analysis\compiletime_interpreter\interpreter.hpp" />
     <ClInclude Include="..\..\..\rill\semantic_analysis\compiletime_interpreter\type_evaluator.hpp" />
@@ -90,8 +92,8 @@
     <ClInclude Include="..\..\..\rill\semantic_analysis\identifier_collector.hpp" />
     <ClInclude Include="..\..\..\rill\semantic_analysis\semantic_analysis.hpp" />
     <ClInclude Include="..\..\..\rill\syntax_analysis\make_syntax_tree.hpp" />
+    <ClInclude Include="..\..\..\rill\syntax_analysis\make_syntax_tree_impl.hpp" />
     <ClInclude Include="..\..\..\rill\syntax_analysis\parser.hpp" />
-    <ClInclude Include="..\..\..\rill\tree_visitor_base.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\libs\rill\src\ast\value.cpp" />
@@ -102,6 +104,7 @@
     <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\helper.cpp" />
     <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\identifier_collector.cpp" />
     <ClCompile Include="..\..\..\libs\rill\src\syntax_analysis\make_syntax_tree.cpp" />
+    <ClCompile Include="..\..\..\rill\environment\container.hpp" />
     <ClCompile Include="..\..\..\tools\compiler\src\main.cpp" />
   </ItemGroup>
   <ItemGroup>

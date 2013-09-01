@@ -9,7 +9,8 @@
 #ifndef RILL_SEMANTIC_ANALYSIS_IDENTIFILER_COLLECTOR_HPP
 #define RILL_SEMANTIC_ANALYSIS_IDENTIFILER_COLLECTOR_HPP
 
-#include "../tree_visitor_base.hpp"
+#include "../ast/detail/tree_visitor_base.hpp"
+
 
 namespace rill
 {
@@ -19,13 +20,15 @@ namespace rill
         //
         //
         class identifier_collector RILL_CXX11_FINAL
-            : public tree_visitor_base<environment_ptr>
+            : public ast::detail::tree_visitor_base<environment_ptr>
         {
         public:
             RILL_TV_OP_DECL( ast::root_ptr )
 
-            // statement
+            // statements
+            RILL_TV_OP_DECL( ast::expression_statement_ptr )
             RILL_TV_OP_DECL( ast::function_definition_statement_ptr )
+            RILL_TV_OP_DECL( ast::class_definition_statement_ptr )
         };
 
     } // namespace semantic_analysis

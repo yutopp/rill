@@ -8,9 +8,9 @@
 
 #pragma once
 
-#include "../environment_fwd.hpp"
-#include "../tree_visitor_base.hpp"
+#include "../environment/environment_fwd.hpp"
 
+#include "detail/tree_visitor_base.hpp"
 #include "detail/dispatch_assets.hpp"
 
 #include "root_fwd.hpp"

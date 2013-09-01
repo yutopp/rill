@@ -6,8 +6,8 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#pragma once
-
+#ifndef RILL_AST_DETAIL_SPECIFIER
+#define RILL_AST_DETAIL_SPECIFIER
 
 // Use these macros under "ast" NAMESPACE ONLY.
 #define RILL_AST_SPECIFY_BASETYPE( node_name, base_name ) \
@@ -44,3 +44,5 @@ namespace rill
         } // namesapce detail
     } // namespace ast
 } // namespace rill
+
+#endif /*RILL_AST_DETAIL_SPECIFIER*/

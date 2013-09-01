@@ -8,21 +8,9 @@
 
 #pragma once
 
-#include <string>
-#include <memory>
+#include "make_syntax_tree_impl.hpp"
 
+#include "../ast/value.hpp"
+#include "../ast/expression.hpp"
+#include "../ast/statement.hpp"
 #include "../ast/root.hpp"
-
-
-namespace rill
-{
-    namespace syntax_analysis
-    {
-        typedef std::string                     input_type;
-        typedef input_type::const_iterator      input_iterator;
-
-
-        auto make_syntax_tree( input_type const& source ) -> std::shared_ptr<ast::root>;
-
-    } // namespace syntax_analysis
-} // namespace rill

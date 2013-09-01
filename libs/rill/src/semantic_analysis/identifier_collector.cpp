@@ -7,9 +7,7 @@
 //
 
 #include <rill/semantic_analysis/identifier_collector.hpp>
-#include <rill/semantic_analysis/invoke.hpp>
-
-#include <rill/environment.hpp>
+#include <rill/environment/environment.hpp>
 
 #include <rill/ast/root.hpp>
 #include <rill/ast/statement.hpp>
@@ -29,11 +27,21 @@ namespace rill
                 dispatch_as_env( node, *this,  env );
         }
 
+        //
+        RILL_TV_OP( identifier_collector, ast::expression_statement_ptr, s, env )
+        {
+            // DO NOT COLLECT IDENTIFIERS
+        }
+
         RILL_TV_OP( identifier_collector, ast::function_definition_statement_ptr, s, env )
         {
             // add function symbol to current environment
-            env->pre_construct( kind::function_k, s->get_identifier()->get_last_identifier() );
+            env->mark_as( kind::function_k, s->get_identifier()->get_last_identifier(), s );
         }
 
+        RILL_TV_OP( identifier_collector, ast::class_definition_statement_ptr, s, env )
+        {
+            // TODO: implement it
+        }
     } // namespace semantic_analysis
 } // namespace rill

@@ -11,13 +11,11 @@
 #include <vector>
 #include <string>
 
-#include <boost/fusion/include/adapt_struct.hpp>
+#include <boost/fusion/include/adapt_struct.hpp> /* for boost spirit perser */
 
-#include "../config/macros.hpp"
+#include "../environment/environment_fwd.hpp"
 
-#include "../environment_fwd.hpp"
-#include "../tree_visitor_base.hpp"
-
+#include "detail/tree_visitor_base.hpp"
 #include "detail/dispatch_assets.hpp"
 
 #include "value_fwd.hpp"

@@ -12,6 +12,7 @@
 #include <vector>
 #include <limits>
 
+
 namespace rill
 {
     typedef std::size_t    environment_id_t;
