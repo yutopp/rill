@@ -12,7 +12,7 @@
 #include <rill/ast/expression.hpp>
 #include <rill/ast/statement.hpp>
 
-#include <rill/environment/environment.hpp>
+#include <rill/environment.hpp>
 
 
 namespace rill

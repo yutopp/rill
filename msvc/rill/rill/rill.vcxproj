@@ -77,9 +77,19 @@
     <ClInclude Include="..\..\..\rill\ast\value.hpp" />
     <ClInclude Include="..\..\..\rill\ast\value_fwd.hpp" />
     <ClInclude Include="..\..\..\rill\config\macros.hpp" />
+    <ClInclude Include="..\..\..\rill\environment.hpp" />
+    <ClInclude Include="..\..\..\rill\environment\class_symbol_environment.hpp" />
+    <ClInclude Include="..\..\..\rill\environment\detail\container.hpp" />
+    <ClInclude Include="..\..\..\rill\environment\detail\mapper.hpp" />
     <ClInclude Include="..\..\..\rill\environment\environment.hpp" />
-    <ClInclude Include="..\..\..\rill\environment\environment_fwd.hpp" />
-    <ClInclude Include="..\..\..\rill\environment\mapper.hpp" />
+    <ClInclude Include="..\..\..\rill\environment\function_symbol_environment.hpp" />
+    <ClInclude Include="..\..\..\rill\environment\has_parameter_environment.hpp" />
+    <ClInclude Include="..\..\..\rill\environment\has_parameter_environment_base.hpp" />
+    <ClInclude Include="..\..\..\rill\environment\root_environment.hpp" />
+    <ClInclude Include="..\..\..\rill\environment\single_identifier_environment_base.hpp" />
+    <ClInclude Include="..\..\..\rill\environment\template_environment.hpp" />
+    <ClInclude Include="..\..\..\rill\environment\variable_symbol_environment.hpp" />
+    <ClInclude Include="..\..\..\rill\environment_fwd.hpp" />
     <ClInclude Include="..\..\..\rill\interpreter\invoke.hpp" />
     <ClInclude Include="..\..\..\rill\interpreter\interpreter.hpp" />
     <ClInclude Include="..\..\..\rill\interpreter\runner.hpp" />
@@ -104,7 +114,6 @@
     <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\helper.cpp" />
     <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\identifier_collector.cpp" />
     <ClCompile Include="..\..\..\libs\rill\src\syntax_analysis\make_syntax_tree.cpp" />
-    <ClCompile Include="..\..\..\rill\environment\container.hpp" />
     <ClCompile Include="..\..\..\tools\compiler\src\main.cpp" />
   </ItemGroup>
   <ItemGroup>

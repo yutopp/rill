@@ -12,7 +12,7 @@
 #include <vector>
 #include <memory>
 
-#include "../environment/environment_fwd.hpp"
+#include "../../environment_fwd.hpp"
 
 
 namespace rill
@@ -37,7 +37,7 @@ namespace rill
         {
             environment_id_t const next_id = nodes_.size();
             if ( next_id == environment_id_limit )
-                exit( -999 );
+                assert( false );
 
             auto const p = std::make_shared<Env>( next_id, std::forward<T>( ts )... );
             result<Env> r = { next_id, p };

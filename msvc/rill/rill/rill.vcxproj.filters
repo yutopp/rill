@@ -66,6 +66,9 @@
     <Filter Include="rill\environment">
       <UniqueIdentifier>{6b2a1023-29ec-488b-87f3-b36cf3a3aa28}</UniqueIdentifier>
     </Filter>
+    <Filter Include="rill\environment\detail">
+      <UniqueIdentifier>{8004cb92-5e84-478a-a45b-1b6207d0e4ea}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\rill\config\macros.hpp">
@@ -137,9 +140,6 @@
     <ClInclude Include="..\..\..\rill\semantic_analysis\compiletime_interpreter\type_evaluator.hpp">
       <Filter>rill\semantic_analysis\compiletime_interpreter</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\rill\environment\mapper.hpp">
-      <Filter>rill\environment</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\rill\ast\detail\dispatch_assets.hpp">
       <Filter>rill\ast\detail</Filter>
     </ClInclude>
@@ -155,8 +155,41 @@
     <ClInclude Include="..\..\..\rill\environment\environment.hpp">
       <Filter>rill\environment</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\rill\environment\environment_fwd.hpp">
+    <ClInclude Include="..\..\..\rill\environment\function_symbol_environment.hpp">
       <Filter>rill\environment</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\environment\template_environment.hpp">
+      <Filter>rill\environment</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\environment\single_identifier_environment_base.hpp">
+      <Filter>rill\environment</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\environment\root_environment.hpp">
+      <Filter>rill\environment</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\environment\has_parameter_environment_base.hpp">
+      <Filter>rill\environment</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\environment\has_parameter_environment.hpp">
+      <Filter>rill\environment</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\environment\variable_symbol_environment.hpp">
+      <Filter>rill\environment</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\environment\class_symbol_environment.hpp">
+      <Filter>rill\environment</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\environment\detail\container.hpp">
+      <Filter>rill\environment\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\environment\detail\mapper.hpp">
+      <Filter>rill\environment\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\environment.hpp">
+      <Filter>rill</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\environment_fwd.hpp">
+      <Filter>rill</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -186,9 +219,6 @@
     </ClCompile>
     <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\compiletime_interpreter\type_evaluator.cpp">
       <Filter>libs\rill\src\semantic_analysis\compiletime_interpreter</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\rill\environment\container.hpp">
-      <Filter>rill\environment</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

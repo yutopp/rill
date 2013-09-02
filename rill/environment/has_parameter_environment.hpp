@@ -1,0 +1,152 @@
+//
+// Copyright yutopp 2013 - .
+//
+// Distributed under the Boost Software License, Version 1.0.
+// (See accompanying file LICENSE_1_0.txt or copy at
+// http://www.boost.org/LICENSE_1_0.txt)
+//
+
+#pragma once
+
+#include <string>
+#include <functional>
+#include <vector>
+
+#include <boost/algorithm/string/join.hpp>
+#include <boost/range/adaptor/transformed.hpp>
+
+#include "has_parameter_environment_base.hpp"
+
+
+namespace rill
+{
+    //
+    // 
+    //
+    typedef std::string parameter_hash_t;
+
+    template<typename EnvIds>
+    inline auto make_parameter_hash( EnvIds const& id_list )
+        -> parameter_hash_t
+    {
+        {
+            // debug:
+            for( auto const& i : id_list )
+                std::cout << ":" << i << " ";
+            std::cout << std::endl;
+        }
+
+        return  std::to_string( id_list.size() )
+                + "_"
+                + boost::algorithm::join(
+                    id_list
+                    | boost::adaptors::transformed(
+                        std::function<std::string (environment_id_t const&)>( []( environment_id_t const& id ){ return std::to_string( id ); } )
+                        ),
+                    "%"
+                    );
+    }
+
+
+
+    // parameter_environment has list of class(type)_environments
+    // it makes be able to overload
+    // picked the type matched environments when look up
+
+    // TODO: change to -> typedef std::vector<const_class_symbol_environment_ptr> type_environment_list;
+    typedef std::vector<const_environment_ptr> type_environment_list;
+
+
+    template<typename InlineEnvironment>
+    class has_parameter_environment RILL_CXX11_FINAL
+        : public has_parameter_environment_base
+    {
+    public:
+        static kind::type_value const KindValue = InlineEnvironment::KindValue;
+
+    public:
+        has_parameter_environment( environment_id_t const id, weak_env_pointer const& parent )
+            : has_parameter_environment_base( id, parent )
+        {}
+
+    public:
+        auto get_symbol_kind() const
+            -> kind::type_value RILL_CXX11_OVERRIDE
+        {
+            return kind::type_value::parameter_wrapper_e;
+        }
+
+        auto get_inner_symbol_kind() const
+            -> kind::type_value  RILL_CXX11_OVERRIDE
+        {
+            return KindValue;
+        }
+
+        template<typename... Args>
+        auto allocate_inner_env( Args&&... args )
+            -> std::shared_ptr<InlineEnvironment>
+        {
+            // parant environment is not this env but one rank top env
+            return allocate_env<InlineEnvironment>( get_parent_env(), std::forward<Args>( args )... ).pointer;
+        }
+
+
+        auto add_overload( std::shared_ptr<InlineEnvironment> const& inner_env )
+            -> env_pointer
+        {
+            // TODO: add duplicate check
+            overloads_[make_parameter_hash( inner_env->get_arg_load_env_ids() )] = inner_env;
+
+            return inner_env;
+        }
+
+        auto solve_overload( environment_id_list const& args_env_ids ) const
+            -> std::shared_ptr<InlineEnvironment>
+        {
+    //        std::cout << "solve_overload? hash: " << make_parameter_hash( args_env_ids ) << std::endl;
+
+            auto const it = overloads_.find( make_parameter_hash( args_env_ids ) );
+
+            return it != overloads_.cend() ? it->second : nullptr;
+        }
+
+        // delegate lookup
+        auto lookup( intrinsic::const_single_identifier_value_base_ptr const& name )
+            -> env_pointer RILL_CXX11_OVERRIDE { return get_parent_env()->lookup( name ); }
+        auto lookup( intrinsic::const_single_identifier_value_base_ptr const& name ) const
+            -> const_env_pointer RILL_CXX11_OVERRIDE { return get_parent_env()->lookup( name ); }
+        auto find_on_env( intrinsic::const_single_identifier_value_base_ptr const& name )
+            -> env_pointer RILL_CXX11_OVERRIDE { return get_parent_env()->find_on_env( name ); }
+        auto find_on_env( intrinsic::const_single_identifier_value_base_ptr const& name ) const
+            -> const_env_pointer RILL_CXX11_OVERRIDE { return get_parent_env()->find_on_env( name ); }
+    /*
+        auto lookup( environment_ptr const& parent, parameter_list const& parameter ) const
+            -> const_environment_ptr
+        {
+            if ( parameter.size() == 2 ) {
+                return p_;
+                //if ( parameter[0].type->type()-> )
+            }
+
+            return nullptr;
+        }*/
+
+
+
+        auto dump( std::ostream& os, std::string const& indent ) const
+            -> std::ostream& RILL_CXX11_OVERRIDE
+        {
+            os  << indent << "has_parameter_environment" << std::endl;
+            for( auto const& p : overloads_ ) {
+                os << indent << p.first << std::endl
+                   << indent << (environment_ptr const&)p.second << std::endl
+                   << indent << "======" << std::endl;
+            }
+            return os;
+        }
+
+    private:
+        std::unordered_map<parameter_hash_t, std::shared_ptr<InlineEnvironment>> overloads_;
+    };
+
+} // namespace rill

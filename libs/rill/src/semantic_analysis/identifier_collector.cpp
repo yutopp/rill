@@ -7,7 +7,7 @@
 //
 
 #include <rill/semantic_analysis/identifier_collector.hpp>
-#include <rill/environment/environment.hpp>
+#include <rill/environment.hpp>
 
 #include <rill/ast/root.hpp>
 #include <rill/ast/statement.hpp>
@@ -24,7 +24,7 @@ namespace rill
         {
             // build environment
             for( auto const& node : r->statements_ )
-                dispatch_as_env( node, *this,  env );
+                dispatch_as_env( node, *this, env );
         }
 
         //
@@ -42,6 +42,7 @@ namespace rill
         RILL_TV_OP( identifier_collector, ast::class_definition_statement_ptr, s, env )
         {
             // TODO: implement it
+            assert( false );
         }
     } // namespace semantic_analysis
 } // namespace rill

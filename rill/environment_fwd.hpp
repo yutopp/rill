@@ -17,9 +17,10 @@ namespace rill
 {
     typedef std::size_t    environment_id_t;
     auto const environment_id_limit = std::numeric_limits<environment_id_t>::max();
-    auto const envitonment_id_undefined = environment_id_limit;
+    auto const environment_id_undefined = environment_id_limit;
 
     typedef std::vector<environment_id_t> environment_id_list;
+
 
     // forward decleration
     class environment;
@@ -32,16 +33,36 @@ namespace rill
     typedef std::vector<const_environment_ptr>  type_environment_ptr_list;
 
 
+    //
+    class template_environment;
+
+
+    //
+    class single_identifier_environment_base;
+
+
+    //
+    class root_environment;
+
+
+    //
+    template<typename InlineEnvironment>
+    class has_parameter_environment;
+
+
+    //
     class function_symbol_environment;
     typedef std::shared_ptr<function_symbol_environment>        function_symbol_environment_ptr;
     typedef std::shared_ptr<function_symbol_environment const>  const_function_symbol_environment_ptr;
 
 
+    //
     class variable_symbol_environment;
     typedef std::shared_ptr<variable_symbol_environment>        variable_symbol_environment_ptr;
     typedef std::shared_ptr<variable_symbol_environment const>  const_variable_symbol_environment_ptr;
 
 
+    //
     class class_symbol_environment;
     typedef std::shared_ptr<class_symbol_environment>           class_symbol_environment_ptr;
     typedef std::shared_ptr<class_symbol_environment const>     const_class_symbol_environment_ptr;

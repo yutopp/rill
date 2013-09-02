@@ -6,7 +6,7 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#include <rill/environment/environment.hpp>
+#include <rill/environment.hpp>
 
 #include <rill/ast/value.hpp>
 #include <rill/ast/expression.hpp>
@@ -24,7 +24,10 @@ namespace rill
         kind::function_tag,
         ast::intrinsic::single_identifier_value_base_ptr const& name
         )
-        -> env_pointer
+        -> std::pair<
+                std::shared_ptr<has_parameter_environment<function_symbol_environment>>,
+                function_symbol_environment_ptr
+           >
     {
         auto const& symbol_name = name->get_base_symbol()->get_native_string();
 
@@ -43,10 +46,10 @@ namespace rill
             return std::dynamic_pointer_cast<has_parameter_environment<function_symbol_environment>>( env );
         }();
 
-        //
+        // allocate incomplete funciton environment
         auto const& incomplete_function_env = parameter_env->allocate_inner_env();
 
-        return incomplete_function_env;
+        return std::make_pair( parameter_env, incomplete_function_env );
     }
     
 

@@ -17,7 +17,7 @@
 #include <boost/mpl/map.hpp>
 
 #include "../../config/macros.hpp"
-#include "../../environment/environment_fwd.hpp"
+#include "../../environment_fwd.hpp"
 
 #include "tree_visitor_base.hpp"
 #include "dispatch_functions.hpp"

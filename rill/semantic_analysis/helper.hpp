@@ -9,7 +9,7 @@
 #ifndef RILL_SEMANTIC_ANALYSIS_HELPER_HPP
 #define RILL_SEMANTIC_ANALYSIS_HELPER_HPP
 
-#include "../environment/environment_fwd.hpp"
+#include "../environment_fwd.hpp"
 #include "../ast/value_fwd.hpp"
 
 

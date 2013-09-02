@@ -14,7 +14,7 @@
 #include <boost/mpl/map.hpp>
 
 #include "../../config/macros.hpp"
-#include "../../environment/environment_fwd.hpp"
+#include "../../environment_fwd.hpp"
 
 #include "../statement_fwd.hpp"
 #include "../expression_fwd.hpp"

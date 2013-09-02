@@ -15,7 +15,7 @@
 #include <memory>
 
 
-#include <rill/environment/environment.hpp>
+#include <rill/environment.hpp>
 #include <rill/syntax_analysis/make_syntax_tree.hpp>
 #include <rill/semantic_analysis/semantic_analysis.hpp>
 

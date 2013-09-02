@@ -7,7 +7,7 @@
 //
 
 #include <rill/semantic_analysis/semantic_analysis.hpp>
-#include <rill/environment/environment.hpp>
+#include <rill/environment.hpp>
 
 #include <rill/ast/root.hpp>
 #include <rill/ast/statement.hpp>
@@ -28,7 +28,7 @@ namespace rill
             //collect_type_identifier( env, r.statements_ );
 
             // collect all identifiers(except types) under this scope
-            collect_identifier( env, r->statements_ );
+            collect_identifier( env, r );
 
             std::cout << "ababab" << std::endl;
 
@@ -42,7 +42,8 @@ namespace rill
 
         RILL_TV_OP( analyzer, ast::expression_statement_ptr, s, env )
         {
-            // DO NOT EVALUATE THIS PATH.
+            // // DO NOT EVALUATE THIS PATH.
+            dispatch_as_env( s->expression_, *this, env );
         }
 
         RILL_TV_OP( analyzer, ast::return_statement_ptr, s, env )
@@ -187,12 +188,14 @@ namespace rill
                 argument_type_env.push_back( dispatch_as_env( val, *this, env ) );
             assert( std::count( argument_type_env.cbegin(), argument_type_env.cend(), nullptr ) == 0 );
 
+
             // find a function environment that has same name.
             auto const& target_env = lookup_with_instanciation( env, e->reciever_ );
 
             // compilation errors
             if ( target_env == nullptr ) {
-                // symbol not found;
+                // symbol not found
+                // ?: look up 1 rank top environment or other namespace groups
                 assert( false );
             }
             if ( target_env->get_symbol_kind() != kind::type_value::parameter_wrapper_e ) {
@@ -220,6 +223,13 @@ namespace rill
             auto const& function_env = generic_function_env->solve_overload( arg_type_env_ids );
             if ( function_env == nullptr ) {
                 // overload failed
+
+                for( auto const& env_and_ast : generic_function_env->get_related_env_and_asts() ) {
+                    std::cout << "marked -> " << env_and_ast.first << std::endl;
+                }
+
+                ///solve_forward_reference( has_parameter_env, env, e );
+
                 assert( false );
             }
 

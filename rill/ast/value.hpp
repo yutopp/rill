@@ -13,7 +13,7 @@
 
 #include <boost/fusion/include/adapt_struct.hpp> /* for boost spirit perser */
 
-#include "../environment/environment_fwd.hpp"
+#include "../environment_fwd.hpp"
 
 #include "detail/tree_visitor_base.hpp"
 #include "detail/dispatch_assets.hpp"
