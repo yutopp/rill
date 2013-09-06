@@ -6,22 +6,13 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 //
 
-
-//
-// Compile time interpreter
-// runner
-//
-
-#if 0
-#include <rill/interpreter/runner.hpp>
-#include <rill/interpreter/invoke.hpp>
+#include <rill/interpreter/interpreter.hpp>
+#include <rill/environment.hpp>
 
 #include <rill/ast/root.hpp>
 #include <rill/ast/statement.hpp>
 #include <rill/ast/expression.hpp>
 #include <rill/ast/value.hpp>
-
-#include <rill/environment.hpp>
 
 
 namespace rill
@@ -30,19 +21,20 @@ namespace rill
     {
 
         //
-        runner::runner( context_ptr const& ctx, bool is_on_compile_time )
+        runner::runner( context_ptr const& ctx )
             : context_( ctx )
-            , is_on_compile_time_( is_on_compile_time )
-        {
-        }
+        {}
 
 
-        // statement_list
-        void runner::operator()( ast::root const& ss, environment_ptr const& env ) const
+        // 
+        RILL_TV_OP( runner, ast::root_ptr, r, env )
         {
-            //// TODO: add return step
-            //for( auto const& s : ss )
-            //    s->dispatch( *this, env );
+            // TODO: call function from main routine
+            dispatch_as_env( s, *this, env );
+            /*
+            for( auto const& s : r->statements_ )
+                dispatch_as_env( s, *this, env );
+            */
         }
 
 
@@ -51,19 +43,17 @@ namespace rill
 
 
         // 
-        void runner::operator()( ast::expression_statement const& s, environment_ptr const& env ) const
+        RILL_TV_OP( runner, ast::expression_statement_ptr, s, env )
         {
-            std::cout
-                << "in expression_statement dispach of runner" << std::endl
-                << s.expression_->dispatch( *this, env ) << std::endl;
+            dispatch_as_env( s->expression_, *this, env );
             std::cout << "Value(current stack top) => " << *context_->current_stack_value() << std::endl;
         }
 
 
         //
-        void runner::operator()( ast::return_statement const& s, environment_ptr const& env ) const
+        RILL_TV_OP( runner, ast::return_statement_ptr, s, env )
         {
-            s.expression_->dispatch( *this, env );
+            dispatch_as_env( s->expression_, *this, env );
 
             //std::cout << "!!!!!!!" << s.expression_->dispatch( *this, env ) << std::endl;
             //context_->current_scope()->set_return_value( s.expression_->dispatch( *this, env ) );
@@ -71,25 +61,25 @@ namespace rill
 
 
         //
-        void runner::operator()( ast::function_definition_statement const& s, environment_ptr const& env ) const
+        RILL_TV_OP( runner, ast::function_definition_statement_ptr, s, env )
         {
-
+            // 
         }
 
         //void operator()( native_function_definition_statement const& s, environment_ptr const& env ) const =0;
 
 
         //
-        void runner::operator()( ast::class_definition_statement const& s, environment_ptr const& env ) const
+        RILL_TV_OP( runner, ast::class_definition_statement_ptr, s, env )
         {}
 
 
         // expression
-        auto runner::operator()( ast::binary_operator_expression const& e, environment_ptr const& env ) const -> environment_ptr
+        RILL_TV_OP( runner, ast::binary_operator_expression_ptr, e, env )
         {
             // evaluate values(and push to stack) and returned value type
-            auto const& lhs_type_env = e.lhs_->dispatch( *this, env );
-            auto const& rhs_type_env = e.rhs_->dispatch( *this, env );
+            auto const& rhs_type_env = dispatch_as_env( e->rhs_, *this, env );
+            auto const& lhs_type_env = dispatch_as_env( e->lhs_, *this, env );
 
 //            std::cout
 //                << "in binary_operator_expression dispach of interpret_pass<runtime_interpret_tag>" << std::endl
@@ -101,20 +91,20 @@ namespace rill
 
 
             //
-            auto const& parameter_wrapper_env = env->lookup( e.op_ );
+            auto const& parameter_wrapper_env = env->lookup( e->op_ );
 //            std::cout
 //                << "search: " << e.op_->get_base_symbol()->get_native_string() << std::endl
 //                << parameter_wrapper_env->get_id() << std::endl
 //                << static_cast<int>( parameter_wrapper_env->get_symbol_kind() ) << std::endl
 //                ;
 
-            assert( parameter_wrapper_env != nullptr );
-            assert( parameter_wrapper_env->get_symbol_kind() == kind::type_value::parameter_wrapper_e );
-            assert( std::dynamic_pointer_cast<has_parameter_environment_base const>( parameter_wrapper_env )->get_inner_symbol_kind() == kind::type_value::function_e );
+            //assert( parameter_wrapper_env != nullptr );
+            //assert( parameter_wrapper_env->get_symbol_kind() == kind::type_value::parameter_wrapper_e );
+            //assert( std::dynamic_pointer_cast<has_parameter_environment_base const>( parameter_wrapper_env )->get_inner_symbol_kind() == kind::type_value::function_e );
 
             //
-            auto const& generic_function_env
-                = std::dynamic_pointer_cast<has_parameter_environment<function_symbol_environment> const>( parameter_wrapper_env );
+            auto const& has_parameter_function_env
+                = std::static_pointer_cast<has_parameter_environment<function_symbol_environment> const>( parameter_wrapper_env );
 //            std::cout << "function id: " << generif_function_env->get_id() << std::endl;
 
             // make argument types id list
@@ -122,17 +112,18 @@ namespace rill
             arg_type_env_ids.push_back( lhs_type_env->get_id() );
             arg_type_env_ids.push_back( rhs_type_env->get_id() );
 
-
             //
-            auto const& f = generic_function_env->solve_overload( arg_type_env_ids );
-            assert( f != nullptr );
+            auto const& f_env = has_parameter_function_env->solve_overload( arg_type_env_ids );
+            assert( f_env != nullptr );
 
             {
                 // make new scope
                 auto const& function_execution_scope = context_->push_new_scope();
 
+                
+
                 // load values to callee function parameter variable
-                for( auto const& env_id : f->get_arg_load_env_ids() /* todo add reverse*/ )
+                for( auto const& env_id : f_env->get_arg_load_env_ids() )
                     context_->construct_variable( env_id, context_->pop_value().value );
 
                 // execute!!
@@ -162,7 +153,7 @@ namespace rill
 
 
 
-        auto runner::operator()( ast::call_expression const& e, environment_ptr const& env ) const -> environment_ptr
+        RILL_TV_OP( runner, ast::call_expression_ptr, e, env )
         {
             // make function entry step
 
@@ -238,7 +229,7 @@ namespace rill
         //
         // embeded function must return values in intrinsic namespace.
         //
-        auto runner::operator()( ast::embedded_function_call_expression const& e, environment_ptr const& env ) const -> environment_ptr
+        RILL_TV_OP( runner, ast::embedded_function_call_expression_ptr, e, env )
         {
             std::vector<const_value_ptr> args;
             args.push_back( context_->pop_value().value );
@@ -267,40 +258,42 @@ namespace rill
 
 
         //
-        auto runner::operator()( ast::term_expression const& e, environment_ptr const& env ) const -> environment_ptr
+        RILL_TV_OP( runner, ast::term_expression_ptr, e, env )
         {
-            return e.value_->dispatch( *this, env );
+            dispatch( e->value_, *this, env );
         }
 
 
-        auto runner::operator()( ast::type_identifier_expression const&, environment_ptr const& ) const-> intrinsic::identifier_value_ptr
+        RILL_TV_OP( runner, ast::type_identifier_expression_ptr, e, env )
         {
+            assert( false );
             return nullptr;
         }
 
-        auto runner::operator()( ast::compiletime_return_type_expression const&, environment_ptr const& ) const -> intrinsic::identifier_value_ptr
+        RILL_TV_OP( runner, ast::compiletime_return_type_expression_ptr, e, env )
         {
+            assert( false );
             return nullptr;
         }
 
 
         //
-        auto runner::operator()( ast::intrinsic_value const& v, environment_ptr const& env ) const -> environment_ptr
+        RILL_TV_OP( runner, ast::intrinsic_value_ptr, v, env )
         {
-//            std::cout << "Value => " << v << std::endl;
-            context_->push_value( v.value_ );
+            std::cout << "Value => " << v << std::endl;
+            context_->push_value( v->value_ );
 
-            return env->lookup( v.literal_type_name_ );
+            return env->lookup( v->literal_type_name_ );
         }
 
 
         //
-        auto runner::operator()( ast::variable_value const& v, environment_ptr const& env ) const -> environment_ptr
+        RILL_TV_OP( runner, ast::variable_value_ptr, v, env )
         {
             // lookup variable name environment
-            auto const& val_env = env->nest_lookup( v.variable_name_ );
-            assert( val_env != nullptr );
-            assert( val_env->get_symbol_kind() == kind::type_value::variable_e );
+            auto const& val_env = env->nest_lookup( v->variable_name_ );
+            // assert( val_env != nullptr );
+            // assert( val_env->get_symbol_kind() == kind::type_value::variable_e );
 
 //            std::cout << "Variable ID => " << val_env->get_id() << std::endl;
 
@@ -311,10 +304,8 @@ namespace rill
             context_->push_value( ref_val );
 
             // return type environment
-            return std::dynamic_pointer_cast<variable_symbol_environment>( val_env );//->get_weak_type_env().lock();
+            return val_env;
         }
 
     } // namespace interpreter
 } // namespace rill
-
-#endif

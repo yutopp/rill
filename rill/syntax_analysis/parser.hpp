@@ -117,11 +117,11 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
 
                 //
                 variable_initializer_unit_
-                    = identifier_ > value_initializer_unit_
+                    = single_identifier_ > value_initializer_unit_
                     ;
 
                 variable_parameter_initializer_unit_
-                    = -identifier_ > value_initializer_unit_
+                    = -single_identifier_ > value_initializer_unit_
                     ;
 
 

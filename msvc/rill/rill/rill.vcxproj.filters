@@ -80,9 +80,6 @@
     <ClInclude Include="..\..\..\rill\interpreter\interpreter.hpp">
       <Filter>rill\interpreter</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\rill\interpreter\invoke.hpp">
-      <Filter>rill\interpreter</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\rill\interpreter\runtime.hpp">
       <Filter>rill\interpreter</Filter>
     </ClInclude>

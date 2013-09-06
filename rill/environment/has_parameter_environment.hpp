@@ -90,6 +90,21 @@ namespace rill
             return allocate_env<InlineEnvironment>( get_parent_env(), std::forward<Args>( args )... ).pointer;
         }
 
+        template<typename... Args>
+        auto allocate_inner_env_as_incomplete( Args&&... args )
+            -> std::shared_ptr<InlineEnvironment>
+        {
+            auto const inner_env = allocate_inner_env( std::forward<Args>( args )... );
+            incomplete_inners_.push_back( inner_env );
+
+            return inner_env;
+        }
+
+        auto get_incomplete_inners() const
+            -> std::vector<std::shared_ptr<InlineEnvironment>> const&
+        {
+            return incomplete_inners_;
+        }
 
         auto add_overload( std::shared_ptr<InlineEnvironment> const& inner_env )
             -> env_pointer
@@ -146,6 +161,7 @@ namespace rill
         }
 
     private:
+        std::vector<std::shared_ptr<InlineEnvironment>> incomplete_inners_;
         std::unordered_map<parameter_hash_t, std::shared_ptr<InlineEnvironment>> overloads_;
     };
 

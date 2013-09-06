@@ -58,7 +58,7 @@ namespace rill
                 , state( s )
             {}
 
-            ast::value_ptr value;
+            ast::value_ptr value; // TODO: change to another structure
             stack_state state;
         };
 
@@ -129,6 +129,12 @@ namespace rill
             }
 
             auto current_stack_value()
+                -> ast::value_ptr
+            {
+                return value_stack_.top().value;
+            }
+
+            auto current_stack_state()
                 -> ast::value_ptr
             {
                 return value_stack_.top().value;

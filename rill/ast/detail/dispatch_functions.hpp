@@ -40,6 +40,18 @@ namespace rill
             > as_type;
         } // namespace detail
 
+#if 0
+        template<typename NodeT, typename VisitorT>
+        auto dispatch(
+            std::shared_ptr<NodeT> const& node,
+            VisitorT const& visitor,
+            environment_ptr const& env
+            )
+            -> void
+        {
+            node->dispatch( detail::dispatch_as_environment_tag/*TODO: fixit*/(), node, visitor, env );
+        }
+#endif
 
         template<typename NodeT, typename VisitorT>
         auto dispatch_as_env(

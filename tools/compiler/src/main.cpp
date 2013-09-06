@@ -19,7 +19,8 @@
 #include <rill/syntax_analysis/make_syntax_tree.hpp>
 #include <rill/semantic_analysis/semantic_analysis.hpp>
 
-//#include <rill/interpreter/interpreter.hpp>
+#include <rill/interpreter/interpreter.hpp>
+
 
 void sample()
 {
@@ -257,7 +258,7 @@ void sample()
 
     // compile or interpret
     // last( debug )
-    //rill::interpreter::run( root_env, v.statements_ );
+    rill::interpreter::run( root_env, syntax_tree );
 
 
 

@@ -90,7 +90,6 @@
     <ClInclude Include="..\..\..\rill\environment\template_environment.hpp" />
     <ClInclude Include="..\..\..\rill\environment\variable_symbol_environment.hpp" />
     <ClInclude Include="..\..\..\rill\environment_fwd.hpp" />
-    <ClInclude Include="..\..\..\rill\interpreter\invoke.hpp" />
     <ClInclude Include="..\..\..\rill\interpreter\interpreter.hpp" />
     <ClInclude Include="..\..\..\rill\interpreter\runner.hpp" />
     <ClInclude Include="..\..\..\rill\interpreter\runtime.hpp" />

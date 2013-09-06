@@ -9,59 +9,55 @@
 #ifndef RILL_INTERPRETER_RUNNER_HPP
 #define RILL_INTERPRETER_RUNNER_HPP
 
-#if 0
-#include <memory>
+#include "../ast/detail/tree_visitor_base.hpp"
 
-
-#include "../ast/tree_visitor_base.hpp"
+#include "interpreter.hpp"
 #include "runtime.hpp"
+
 
 namespace rill
 {
     namespace interpreter
     {
-
         class runner RILL_CXX11_FINAL
-            : public tree_visitor_base
+            : public ast::detail::tree_visitor_base<environment_ptr>
         {
         public:
-            runner( context_ptr const&, bool );
+            runner( context_ptr const& );
 
         public:
             // statement_list
-            void operator()( ast::root const& ss, environment_ptr const& env ) const RILL_CXX11_OVERRIDE;
+            RILL_TV_OP_DECL( ast::root_ptr )
 
             // statement
             // virtual void operator()( template_statement const& s, environment_ptr const& env ) const =0;
 
-            void operator()( ast::expression_statement const& s, environment_ptr const& env ) const RILL_CXX11_OVERRIDE;
-            void operator()( ast::return_statement const& s, environment_ptr const& env ) const RILL_CXX11_OVERRIDE;
-            void operator()( ast::function_definition_statement const& s, environment_ptr const& env ) const RILL_CXX11_OVERRIDE;
+            RILL_TV_OP_DECL( ast::expression_statement_ptr )
+            RILL_TV_OP_DECL( ast::return_statement_ptr )
+            RILL_TV_OP_DECL( ast::function_definition_statement_ptr )
             // virtual void operator()( native_function_definition_statement const& s, environment_ptr const& env ) const =0;
 
-            void operator()( ast::class_definition_statement const& s, environment_ptr const& env ) const RILL_CXX11_OVERRIDE;
+            RILL_TV_OP_DECL( ast::class_definition_statement_ptr )
 
             // expression
-            auto operator()( ast::binary_operator_expression const& e, environment_ptr const& env ) const ->environment_ptr RILL_CXX11_OVERRIDE;
-            auto operator()( ast::call_expression const& e, environment_ptr const& env ) const ->environment_ptr RILL_CXX11_OVERRIDE;
-            auto operator()( ast::embedded_function_call_expression const& e, environment_ptr const& env ) const ->environment_ptr RILL_CXX11_OVERRIDE;
-            auto operator()( ast::term_expression const& e, environment_ptr const& env ) const ->environment_ptr RILL_CXX11_OVERRIDE;
+            RILL_TV_OP_DECL( ast::binary_operator_expression_ptr )
+            RILL_TV_OP_DECL( ast::call_expression_ptr )
+            RILL_TV_OP_DECL( ast::embedded_function_call_expression_ptr )
+            RILL_TV_OP_DECL( ast::term_expression_ptr )
 
-            auto operator()( ast::type_identifier_expression const&, environment_ptr const& ) const-> ast::intrinsic::identifier_value_ptr RILL_CXX11_OVERRIDE;
-            auto operator()( ast::compiletime_return_type_expression const&, environment_ptr const& ) const -> ast::intrinsic::identifier_value_ptr RILL_CXX11_OVERRIDE;
+            RILL_TV_OP_DECL( ast::type_identifier_expression_ptr )
+            RILL_TV_OP_DECL( ast::compiletime_return_type_expression_ptr )
 
 
             //
-            auto operator()( ast::intrinsic_value const& v, environment_ptr const& env ) const -> environment_ptr RILL_CXX11_OVERRIDE;
-            auto operator()( ast::variable_value const& v, environment_ptr const& env ) const -> environment_ptr RILL_CXX11_OVERRIDE;
+            RILL_TV_OP_DECL( ast::intrinsic_value_ptr )
+            RILL_TV_OP_DECL( ast::variable_value_ptr )
 
         private:
             context_ptr context_;
-            bool is_on_compile_time_;
         };
 
     } // namespace interpreter
 } // namespace rill
-#endif
 
 #endif /*RILL_INTERPRETER_RUNNER_HPP*/

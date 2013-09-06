@@ -47,7 +47,7 @@ namespace rill
         }();
 
         // allocate incomplete funciton environment
-        auto const& incomplete_function_env = parameter_env->allocate_inner_env();
+        auto const& incomplete_function_env = parameter_env->allocate_inner_env_as_incomplete();
 
         return std::make_pair( parameter_env, incomplete_function_env );
     }

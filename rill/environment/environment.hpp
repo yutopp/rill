@@ -125,12 +125,12 @@ namespace rill
     struct environment_shared_resource
     {
         typedef typename environment_container<BaseEnvT>    env_container_type;
-        typedef ast_to_environment_mapper                   ast_to_env_mapper_type;
-        typedef environment_to_asts_mapper                  env_to_asts_mapper_type;
+        typedef ast_to_environment_id_mapper                ast_to_env_id_mapper_type;
+        typedef environment_id_to_ast_mapper                env_id_to_ast_mapper_type;
 
         env_container_type container;
-        ast_to_env_mapper_type ast_to_env_map;
-        env_to_asts_mapper_type env_to_asts_map;
+        ast_to_env_id_mapper_type ast_to_env_id_map;
+        env_id_to_ast_mapper_type env_id_to_ast_map;
     };
 
 
@@ -174,12 +174,12 @@ namespace rill
             , parent_( parent )
             , root_shared_resource_( parent.lock()->root_shared_resource_ )
         {
-            std::cout << ">> environment allocated(inner)" << std::endl;
+            std::cout << ">> environment allocated(inner): " << id_ << std::endl;
         }
 
         virtual ~environment()
         {
-            std::cout << "<< environment DEallocated" << std::endl;
+            std::cout << "<< environment DEallocated: " << id_ << std::endl;
         }
 
     public:
@@ -376,22 +376,38 @@ namespace rill
         {
             // construct incomplete environment( parameter wrapper & function )
             auto const p = incomplete_construct( kind::function_tag(), name_identifier );
-            auto const& parameter_env = p.first;
+            auto const& has_parameter_env = p.first;
             auto const& created_function_env = p.second;
 
-            //
-            root_shared_resource_->env_to_asts_map.add( parameter_env->get_id(), created_function_env->get_id(), ast );
-            root_shared_resource_->env_to_asts_map.add( created_function_env->get_id(), get_id(), ast );
+            std::cout << "%&%& " << has_parameter_env->get_id() << " : " << created_function_env->get_id() << std::endl;
 
             //
-            root_shared_resource_->ast_to_env_map.add( ast, created_function_env->get_id() );
+            root_shared_resource_->env_id_to_ast_map.add( has_parameter_env->get_id(), ast );     // 
+            root_shared_resource_->env_id_to_ast_map.add( created_function_env->get_id(), ast );                    // related environment of created_function_env is parent envitroment of it
+
+            //
+            root_shared_resource_->ast_to_env_id_map.add( ast, created_function_env->get_id() );
         }
 
+#if 0
         auto get_related_env_and_asts() const
             -> boost::iterator_range<shared_resource_type::env_to_asts_mapper_type::const_iterator_type>
         {
             auto const& p = root_shared_resource_->env_to_asts_map.get( get_id() );
             return boost::make_iterator_range( p.first, p.second );
+        }
+#endif
+        auto get_related_ast() const
+            -> shared_resource_type::env_id_to_ast_mapper_type::value_type
+        {
+            return root_shared_resource_->env_id_to_ast_map.get( get_id() );
+        }
+
+        template<typename AstPtr>
+        auto get_related_env_by_ast_ptr( AstPtr const& ast_ptr )
+            -> env_pointer
+        {
+            return get_env_at( root_shared_resource_->ast_to_env_id_map.get( ast_ptr ) ).lock();
         }
 
         ///

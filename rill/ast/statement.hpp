@@ -58,7 +58,7 @@ namespace rill
 
         struct variable_declaration_unit
         {
-            intrinsic::identifier_value_ptr name;
+            intrinsic::single_identifier_value_base_ptr name;
             value_initializer_unit init_unit;
         };
 
@@ -325,7 +325,7 @@ BOOST_FUSION_ADAPT_STRUCT(
 
 BOOST_FUSION_ADAPT_STRUCT(
     rill::ast::variable_declaration_unit,
-    (rill::ast::intrinsic::identifier_value_ptr, name)
+    (rill::ast::intrinsic::single_identifier_value_base_ptr, name)
     (rill::ast::value_initializer_unit,          init_unit)
     )
 

@@ -21,7 +21,7 @@
 namespace rill
 {
     // table[ast_ptr -> env_id]
-    class ast_to_environment_mapper
+    class ast_to_environment_id_mapper
     {
     public:
         typedef std::shared_ptr<void>   key_type;
@@ -35,8 +35,14 @@ namespace rill
             map_.emplace( ast_ptr, env_id );
         }
 
+        template<typename Ptr>
+        auto get( Ptr const& ast_ptr )
+            -> value_type const&
+        {
+            return map_.at( ast_ptr );
+        }
     private:
-        std::unordered_map<key_type, environment_id_t> map_;
+        std::unordered_map<key_type, value_type> map_;
     };
 
 
@@ -51,8 +57,35 @@ typedef boost::mpl::vector<
     > requirements;
 
 
+    // table[env_id -> ast_ptr]
+    class environment_id_to_ast_mapper
+    {
+    public:
+        typedef environment_id_t        key_type;
+        typedef ast::statement_ptr      value_type;
 
+    public:
+        template<typename Id, typename AstPtr>
+        auto add( Id const& env_id, AstPtr const& ast_ptr )
+            -> void
+        {
+            // TODO: add dup check
 
+            map_.emplace( env_id, ast_ptr );
+        }
+
+        template<typename Id>
+        auto get( Id const& env_id ) const
+            -> value_type const&
+        {
+            return map_.at( env_id );
+        }
+
+    private:
+        std::unordered_map<key_type, value_type> map_;
+    };
+
+#if 0
     // table[env_id -> {env_id, ast_ptr}]
     class environment_to_asts_mapper
     {
@@ -60,8 +93,8 @@ typedef boost::mpl::vector<
         typedef environment_id_t        key_type;
         struct value_type
         {
-            environment_id_t env_id_on_time;
-            ast::statement_ptr statement_ast_;
+            environment_id_t related_env_id;
+            ast::statement_ptr statement_ast;
         };
         typedef std::unordered_multimap<key_type, value_type> container_type;
         typedef container_type::const_iterator const_iterator_type;
@@ -85,7 +118,7 @@ typedef boost::mpl::vector<
     private:
         container_type map_;
     };
-
+#endif
 } // namespace rill
 
 #endif /*RILL_ENVIRONMENT_MAPPER*/
