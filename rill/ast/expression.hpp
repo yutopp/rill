@@ -13,6 +13,7 @@
 #include <functional>
 
 #include "../environment_fwd.hpp"
+#include "../embedded_function_holder_fwd.hpp"
 
 #include "detail/tree_visitor_base.hpp"
 #include "detail/dispatch_assets.hpp"
@@ -86,8 +87,6 @@ namespace rill
 
 
         //
-        typedef std::function<intrinsic::value_base_ptr (std::vector<const_value_ptr> const&)> embedded_callback_function_t;
-
         struct embedded_function_call_expression
             : public expression
         {
@@ -95,12 +94,12 @@ namespace rill
             RILL_AST_ADAPT_VISITOR( embedded_function_call_expression )
 
         public:
-            embedded_function_call_expression( embedded_callback_function_t const& reciever )
-                : reciever_( reciever )
+            embedded_function_call_expression( embedded_function_action_id_t const& action_id )
+                : action_id_( action_id )
             {}
 
         public:
-            embedded_callback_function_t const reciever_;
+            embedded_function_action_id_t const action_id_;
         };
 
 

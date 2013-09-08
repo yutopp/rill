@@ -86,8 +86,8 @@ namespace rill
         auto allocate_inner_env( Args&&... args )
             -> std::shared_ptr<InlineEnvironment>
         {
-            // parant environment is not this env but one rank top env
-            return allocate_env<InlineEnvironment>( get_parent_env(), std::forward<Args>( args )... ).pointer;
+            // NOTE: parant environment is not this env but one rank top env
+            return allocate_env<InlineEnvironment>( get_parent_env(), get_id(), std::forward<Args>( args )... );
         }
 
         template<typename... Args>
@@ -110,7 +110,7 @@ namespace rill
             -> env_pointer
         {
             // TODO: add duplicate check
-            overloads_[make_parameter_hash( inner_env->get_arg_load_env_ids() )] = inner_env;
+            overloads_[make_parameter_hash( inner_env->get_parameter_type_ids() )] = inner_env;
 
             return inner_env;
         }

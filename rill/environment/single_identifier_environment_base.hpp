@@ -98,24 +98,12 @@ namespace rill
                     function_symbol_environment_ptr
                  > RILL_CXX11_OVERRIDE;
 
-        auto pre_construct(
-            kind::function_tag,
-            intrinsic::single_identifier_value_base_ptr const&
-            )  -> env_pointer RILL_CXX11_OVERRIDE;
-        /*
-        auto construct(
-            kind::function_tag,
-            intrinsic::single_identifier_value_base_ptr const&,
-            parameter_list const&,
-            intrinsic::identifier_value_ptr const&,
-            statement_list const&
-            ) -> env_pointer RILL_CXX11_OVERRIDE;
-            */
         auto construct(
             kind::function_tag,
             intrinsic::single_identifier_value_base_ptr const& name,
             function_env_generator_scope_type const& parameter_decl_initializer,
-            statement_list const& statements
+            class_symbol_environment_ptr const& return_type_env,
+            ast::statement_ptr const& ast
             ) -> function_symbol_environment_ptr RILL_CXX11_OVERRIDE;
 
         // variable(decl)

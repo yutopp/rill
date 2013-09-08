@@ -9,6 +9,7 @@
 #ifndef RILL_AST_DETAIL_TREE_VISITOR_BASE_HPP
 #define RILL_AST_DETAIL_TREE_VISITOR_BASE_HPP
 
+#include <memory>
 #include <iostream>
 #include <cassert>  // for assert
 
@@ -24,27 +25,27 @@
 #include "dispatch_functions.hpp"
 
 
-#define RILL_TV_OP_DECL( node_pointer_type ) \
-    auto operator()( node_pointer_type const&, environment_ptr const& ) const \
-        -> result<node_pointer_type::element_type>::type RILL_CXX11_OVERRIDE;
+#define RILL_TV_OP_DECL( node_type ) \
+    auto operator()( std::shared_ptr<node_type> const&, environment_ptr const& ) const \
+        -> result<node_type>::type RILL_CXX11_OVERRIDE;
 
-#define RILL_TV_OP( class_name, node_pointer_type, node_name, env_name ) \
-    auto class_name::operator()( node_pointer_type const& node_name, environment_ptr const& env_name ) const \
-        -> result<node_pointer_type::element_type>::type
+#define RILL_TV_OP( class_name, node_type, node_name, env_name ) \
+    auto class_name::operator()( std::shared_ptr<node_type> const& node_name, environment_ptr const& env_name ) const \
+        -> result<node_type>::type
 
 
 ///
-#define RILL_TV_BASE_VOID_OP( node_pointer_type ) \
-    virtual void operator()( node_pointer_type const& node, environment_ptr const& env ) const \
+#define RILL_TV_BASE_VOID_OP( node_type ) \
+    virtual void operator()( std::shared_ptr<node_type> const& node, environment_ptr const& env ) const \
     { \
-        this->unimplemented<node_pointer_type>(); \
+        this->unimplemented<node_type>(); \
     }
 
-#define RILL_TV_BASE_RETURN_OP( node_pointer_type ) \
-    virtual auto operator()( node_pointer_type const& node, environment_ptr const& env ) const \
-        -> typename result<node_pointer_type::element_type>::type \
+#define RILL_TV_BASE_RETURN_OP( node_type ) \
+    virtual auto operator()( std::shared_ptr<node_type> const& node, environment_ptr const& env ) const \
+        -> typename result<node_type>::type \
     { \
-        this->unimplemented<node_pointer_type::element_type>(); \
+        this->unimplemented<node_type>(); \
         return nullptr; \
     }
 
@@ -71,12 +72,12 @@ namespace rill
             struct tree_visitor_base
             {
             public:
-                template<typename NodePtrT>
+                template<typename NodeT>
                 struct result
                 {
                     typedef typename tree_visitor_result<
                         ReturnT,
-                        typename base_type_specifier<NodePtrT>::type
+                        typename base_type_specifier<NodeT>::type
                     >::type type;
                 };
 
@@ -85,26 +86,26 @@ namespace rill
 
             public:
                 //
-                RILL_TV_BASE_VOID_OP( ast::root_ptr )
+                RILL_TV_BASE_VOID_OP( ast::root )
 
                 // statement
                 // virtual void operator()( template_statement const& s, environment_ptr const& env ) const =0;
-                RILL_TV_BASE_VOID_OP( ast::expression_statement_ptr )
-                RILL_TV_BASE_VOID_OP( ast::return_statement_ptr )
-                RILL_TV_BASE_VOID_OP( ast::function_definition_statement_ptr )
-                RILL_TV_BASE_VOID_OP( ast::class_definition_statement_ptr )
+                RILL_TV_BASE_VOID_OP( ast::expression_statement )
+                RILL_TV_BASE_VOID_OP( ast::return_statement )
+                RILL_TV_BASE_VOID_OP( ast::function_definition_statement )
+                RILL_TV_BASE_VOID_OP( ast::class_definition_statement )
 
                 // expression
-                RILL_TV_BASE_RETURN_OP( ast::binary_operator_expression_ptr )
-                RILL_TV_BASE_RETURN_OP( ast::call_expression_ptr )
-                RILL_TV_BASE_RETURN_OP( ast::embedded_function_call_expression_ptr )
-                RILL_TV_BASE_RETURN_OP( ast::term_expression_ptr )
-                RILL_TV_BASE_RETURN_OP( ast::type_identifier_expression_ptr )
-                RILL_TV_BASE_RETURN_OP( ast::compiletime_return_type_expression_ptr )
+                RILL_TV_BASE_RETURN_OP( ast::binary_operator_expression )
+                RILL_TV_BASE_RETURN_OP( ast::call_expression )
+                RILL_TV_BASE_RETURN_OP( ast::embedded_function_call_expression )
+                RILL_TV_BASE_RETURN_OP( ast::term_expression )
+                RILL_TV_BASE_RETURN_OP( ast::type_identifier_expression )
+                RILL_TV_BASE_RETURN_OP( ast::compiletime_return_type_expression )
 
                 // value
-                RILL_TV_BASE_RETURN_OP( ast::intrinsic_value_ptr )
-                RILL_TV_BASE_RETURN_OP( ast::variable_value_ptr )
+                RILL_TV_BASE_RETURN_OP( ast::intrinsic_value )
+                RILL_TV_BASE_RETURN_OP( ast::variable_value )
 
             public:
                 // filter outbound object
@@ -133,5 +134,6 @@ namespace rill
 
 #undef RILL_TV_BASE_VOID_OP
 #undef RILL_TV_BASE_RETURN_OP
+
 
 #endif /*RILL_AST_DETAIL_TREE_VISITOR_BASE_HPP*/

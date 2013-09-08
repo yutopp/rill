@@ -30,12 +30,12 @@ namespace rill
         {
             //
             //
-            RILL_TV_OP( type_evaluator, ast::type_identifier_expression_ptr, e, env )
+            RILL_TV_OP( type_evaluator, ast::type_identifier_expression, e, env )
             {
                 return e->value_;
             }
 
-            RILL_TV_OP( type_evaluator, ast::compiletime_return_type_expression_ptr, e, env )
+            RILL_TV_OP( type_evaluator, ast::compiletime_return_type_expression, e, env )
             {
                 // !!! Unimplemented !!!
                 // TODO: evaluate by value as constant and cast to type identifiern

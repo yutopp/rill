@@ -15,23 +15,23 @@ namespace rill
 {
     namespace interpreter
     {
-        template<typename EnvironmentPtr, typename T>
-        void run_on_context( context_ptr const& ctx, EnvironmentPtr const& env, T const& node )
+        template<typename EnvironmentPtr, typename ActionHolderPtr, typename T>
+        void run_on_context( context_ptr const& ctx, EnvironmentPtr const& env, ActionHolderPtr const& holder, T const& node )
         {
-            runner r( ctx, on_conpile_time );
+            runner r( ctx, holder );
 
             dispatch_as_env( node, r, env );
         }
 
-        template<typename EnvironmentPtr, typename T>
-        auto run( EnvironmentPtr const& env, T const& node )
+        template<typename EnvironmentPtr, typename ActionHolderPtr, typename T>
+        auto run( EnvironmentPtr const& env, ActionHolderPtr const& holder, T const& node )
             -> std::shared_ptr<runtime>
         {
             // TODO: add global constant initalize phase
 
             auto const rt = std::make_shared<runtime>();
 
-            run_on_context( rt->create_context(), env, node );
+            run_on_context( rt->create_context(), env, holder, node );
             return rt;
         }
     } // namespace interpreter

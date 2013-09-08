@@ -25,6 +25,7 @@
 #include "../config/macros.hpp"
 
 #include "single_identifier_environment_base.hpp"
+#include "has_parameter_environment.hpp"
 
 
 namespace rill
@@ -40,15 +41,10 @@ namespace rill
 
     public:
         // pre construct
-        function_symbol_environment( environment_id_t const& id, weak_env_pointer const& parent )
+        function_symbol_environment( environment_id_t const& id, weak_env_pointer const& parent, environment_id_t const& parameter_wrapper_env_id )
             : single_identifier_environment_base( id, parent )
+            , parameter_wrapper_env_id_( parameter_wrapper_env_id )
             , return_type_env_id_( environment_id_undefined )
-        {}
-
-        // complete construct
-        function_symbol_environment( environment_id_t const& id, weak_env_pointer const& parent, statement_list const& statements )
-            : single_identifier_environment_base( id, parent )
-            , statements_( statements )
         {}
 
     public:
@@ -64,13 +60,19 @@ namespace rill
             return return_type_env_id_ == environment_id_undefined;
         }
 
-        auto get_statement_list() const
-            -> statement_list const&
+        auto get_parameter_wrapper_env()
+            -> std::shared_ptr<has_parameter_environment<function_symbol_environment>>
         {
-            return statements_;
+            return std::static_pointer_cast<has_parameter_environment<function_symbol_environment>>( get_env_at( parameter_wrapper_env_id_ ).lock() );
         }
 
-        auto get_arg_load_env_ids() const
+        auto get_parameter_decl_ids() const
+            -> std::vector<environment_id_t> const&
+        {
+            return parameter_decl_ids_;
+        }
+
+        auto get_parameter_type_ids() const
             -> std::vector<environment_id_t> const&
         {
             return parameter_type_ids_;
@@ -105,14 +107,14 @@ namespace rill
             -> variable_symbol_environment_ptr;
 
     private:
+        environment_id_t parameter_wrapper_env_id_;
+
         // parameter variable environments
         std::vector<environment_id_t> parameter_decl_ids_;
 
         // types
         std::vector<environment_id_t> parameter_type_ids_;
         environment_id_t return_type_env_id_;
-
-        statement_list statements_;
     };
 
 } // namespace rill

@@ -22,7 +22,7 @@ namespace rill
     namespace semantic_analysis
     {
         // Root Scope
-        RILL_TV_OP( analyzer, ast::root_ptr, r, env )
+        RILL_TV_OP( analyzer, ast::root, r, env )
         {
             // collect all type identifiers under this scope
             //collect_type_identifier( env, r.statements_ );
@@ -40,13 +40,13 @@ namespace rill
         // statement
         // virtual void operator()( template_statement const& s, environment_ptr const& env ) const =0;
 
-        RILL_TV_OP( analyzer, ast::expression_statement_ptr, s, env )
+        RILL_TV_OP( analyzer, ast::expression_statement, s, env )
         {
             // // DO NOT EVALUATE THIS PATH.
             dispatch_as_env( s->expression_, *this, env );
         }
 
-        RILL_TV_OP( analyzer, ast::return_statement_ptr, s, env )
+        RILL_TV_OP( analyzer, ast::return_statement, s, env )
         {
             auto const r = dispatch_as_env( s->expression_, *this, env );
 
@@ -56,9 +56,10 @@ namespace rill
         }
 
 
-        RILL_TV_OP( analyzer, ast::function_definition_statement_ptr, s, env )
+        RILL_TV_OP( analyzer, ast::function_definition_statement, s, env )
         {
             std::cout << "function_definition_statement: ast_ptr -> " << s << std::endl;
+
             auto const r_env = env->get_related_env_by_ast_ptr( s );
             assert( r_env != nullptr );
             assert( r_env->get_symbol_kind() == kind::type_value::function_e );
@@ -106,12 +107,15 @@ namespace rill
             // TEMP: currently :int
             f_env->complete( env->lookup( intrinsic::make_single_identifier( "int" ) ) );
 
+            //
+            f_env->get_parameter_wrapper_env()->add_overload( f_env );
+
             std::cout << (environment_ptr const)f_env << std::endl;
         }
 
         //void operator()( native_function_definition_statement const& s, environment_ptr const& env ) const =0;
 
-        RILL_TV_OP( analyzer, ast::class_definition_statement_ptr, s, env )
+        RILL_TV_OP( analyzer, ast::class_definition_statement, s, env )
         {
         }
 
@@ -123,7 +127,7 @@ namespace rill
 
 
         //
-        RILL_TV_OP( analyzer, ast::binary_operator_expression_ptr, e, env )
+        RILL_TV_OP( analyzer, ast::binary_operator_expression, e, env )
         {
             // check type environment
             auto const& lhs_type_env = dispatch_as_env( e->lhs_, *this, env );
@@ -172,7 +176,7 @@ namespace rill
         }
 
         // function call expression
-        RILL_TV_OP( analyzer, ast::call_expression_ptr, e, env )
+        RILL_TV_OP( analyzer, ast::call_expression, e, env )
         {
             // push values to context stack and evaluate type environment
             std::vector<environment_ptr> argument_type_env;
@@ -233,9 +237,6 @@ namespace rill
 
                     // to complate incomplete_funciton_env( after that, incomplete_function_env will be complete_function_env)
                     dispatch_as_env( statement_node, *this, incomplete_function_env->get_parent_env() );
-
-                    //
-                    has_parameter_function_env->add_overload( incomplete_function_env );
                 }
 
                 // retry
@@ -255,24 +256,15 @@ namespace rill
             //return function_env->get_return_type_environment();
         }
 
-        //
-        // embeded function must return values in intrinsic namespace.
-        //
-        RILL_TV_OP( analyzer, ast::embedded_function_call_expression_ptr, e, env )
-        {
-            // meybe unreachable
-            assert( false );
-            return nullptr;
-        }
 
-        RILL_TV_OP( analyzer, ast::term_expression_ptr, e, env )
+        RILL_TV_OP( analyzer, ast::term_expression, e, env )
         {
             return dispatch_as_env( e->value_, *this, env );
         }
 
 
         //
-        RILL_TV_OP( analyzer, ast::intrinsic_value_ptr, v, env )
+        RILL_TV_OP( analyzer, ast::intrinsic_value, v, env )
         {
             // look up literal type
             auto const type_env = env->lookup( v->literal_type_name_ );
@@ -281,7 +273,7 @@ namespace rill
             return type_env;
         }
 
-        RILL_TV_OP( analyzer, ast::variable_value_ptr, v, env )
+        RILL_TV_OP( analyzer, ast::variable_value, v, env )
         {
             // unimplemented
             assert( false );

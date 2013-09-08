@@ -30,6 +30,14 @@ namespace rill
             typedef std::map<environment_id_t, ast::const_value_ptr> value_table_t;
 
 
+            namespace variable_option
+            {
+                struct normal_tag {};
+                auto const normal_k = normal_tag();
+
+                struct parameter_tag {};
+                auto const parameter_k = parameter_tag();
+            };
 
             class scope
             {
@@ -98,10 +106,27 @@ namespace rill
                     return p;
                 }
 
-                auto construct_variable( environment_id_t const& env_id, ast::value_ptr const& val )
+                auto construct_variable( variable_option::normal_tag, environment_id_t const& env_id, ast::value_ptr const& val )
                     -> void
                 {
                     variable_map_[env_id] = val;
+                }
+
+                auto construct_variable( variable_option::parameter_tag, environment_id_t const& env_id, ast::value_ptr const& val )
+                    -> void
+                {
+                    construct_variable( variable_option::normal_k, env_id, val );
+                    parameter_variable_env_list_.push_back( env_id );
+                }
+
+                auto get_parameter_variable()
+                    -> std::vector<ast::value_ptr>
+                {
+                    std::vector<ast::value_ptr> r;
+                    for( auto const& id : parameter_variable_env_list_ )
+                        r.push_back( variable_map_[id] );
+
+                    return r;
                 }
 
                 auto get_variable_value_by_id( environment_id_t const& env_id )
@@ -142,6 +167,7 @@ namespace rill
 
                 std::stack<value_wrapper> value_stack_;
                 std::unordered_map<environment_id_t, ast::value_ptr> variable_map_;
+                std::vector<environment_id_t> parameter_variable_env_list_;
 
                 std::stack<scope_ptr> scope_stack_;
             };

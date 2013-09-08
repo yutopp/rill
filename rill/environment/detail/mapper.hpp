@@ -46,16 +46,6 @@ namespace rill
     };
 
 
-    struct _os : boost::type_erasure::placeholder {};
-template<class T, class U = boost::type_erasure::_self>
-struct base_and_derived
-{
-    static std::shared_ptr<T> apply(U const& arg) { return arg; }
-};
-typedef boost::mpl::vector<
-        base_and_derived<ast::statement, _os>
-    > requirements;
-
 
     // table[env_id -> ast_ptr]
     class environment_id_to_ast_mapper

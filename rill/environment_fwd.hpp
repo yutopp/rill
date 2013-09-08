@@ -16,8 +16,8 @@
 namespace rill
 {
     typedef std::size_t    environment_id_t;
-    auto const environment_id_limit = std::numeric_limits<environment_id_t>::max();
-    auto const environment_id_undefined = environment_id_limit;
+    std::size_t         const environment_id_limit = std::numeric_limits<environment_id_t>::max();
+    environment_id_t    const environment_id_undefined = environment_id_limit;
 
     typedef std::vector<environment_id_t> environment_id_list;
 

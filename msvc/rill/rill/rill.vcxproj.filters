@@ -188,6 +188,12 @@
     <ClInclude Include="..\..\..\rill\environment_fwd.hpp">
       <Filter>rill</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\rill\embedded_function_holder.hpp">
+      <Filter>rill</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\embedded_function_holder_fwd.hpp">
+      <Filter>rill</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\libs\rill\src\environment.cpp">

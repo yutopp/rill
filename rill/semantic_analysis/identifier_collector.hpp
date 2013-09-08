@@ -23,12 +23,12 @@ namespace rill
             : public ast::detail::tree_visitor_base<environment_ptr>
         {
         public:
-            RILL_TV_OP_DECL( ast::root_ptr )
+            RILL_TV_OP_DECL( ast::root )
 
             // statements
-            RILL_TV_OP_DECL( ast::expression_statement_ptr )
-            RILL_TV_OP_DECL( ast::function_definition_statement_ptr )
-            RILL_TV_OP_DECL( ast::class_definition_statement_ptr )
+            RILL_TV_OP_DECL( ast::expression_statement )
+            RILL_TV_OP_DECL( ast::function_definition_statement )
+            RILL_TV_OP_DECL( ast::class_definition_statement )
         };
 
     } // namespace semantic_analysis

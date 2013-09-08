@@ -26,25 +26,22 @@ namespace rill
         template<typename Env>
         struct result
         {
-            environment_id_t id;
-            std::shared_ptr<Env> pointer;
+            typedef std::shared_ptr<Env> type;
         };
 
         //
         template<typename Env, typename... T>
         auto allocate( T&&... ts )
-            -> result<Env>
+            -> typename result<Env>::type
         {
             environment_id_t const next_id = nodes_.size();
             if ( next_id == environment_id_limit )
                 assert( false );
 
             auto const p = std::make_shared<Env>( next_id, std::forward<T>( ts )... );
-            result<Env> r = { next_id, p };
-
             nodes_.push_back( p );
 
-            return r;
+            return p;
         }
 
         //

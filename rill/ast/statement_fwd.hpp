@@ -44,9 +44,8 @@ namespace rill
 
 
         RILL_AST_FWD_DECL( function_definition_statement_base, statement )
-
-
         RILL_AST_FWD_DECL( function_definition_statement, statement )
+        RILL_AST_FWD_DECL( embedded_function_definition_statement, statement )
 
         RILL_AST_FWD_DECL( return_statement, statement )
 

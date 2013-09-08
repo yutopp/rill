@@ -77,6 +77,8 @@
     <ClInclude Include="..\..\..\rill\ast\value.hpp" />
     <ClInclude Include="..\..\..\rill\ast\value_fwd.hpp" />
     <ClInclude Include="..\..\..\rill\config\macros.hpp" />
+    <ClInclude Include="..\..\..\rill\embedded_function_holder.hpp" />
+    <ClInclude Include="..\..\..\rill\embedded_function_holder_fwd.hpp" />
     <ClInclude Include="..\..\..\rill\environment.hpp" />
     <ClInclude Include="..\..\..\rill\environment\class_symbol_environment.hpp" />
     <ClInclude Include="..\..\..\rill\environment\detail\container.hpp" />

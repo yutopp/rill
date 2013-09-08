@@ -20,7 +20,7 @@ namespace rill
     namespace semantic_analysis
     {
         // Root Scope
-        RILL_TV_OP( identifier_collector, ast::root_ptr, r, env )
+        RILL_TV_OP( identifier_collector, ast::root, r, env )
         {
             // build environment
             for( auto const& node : r->statements_ )
@@ -28,12 +28,12 @@ namespace rill
         }
 
         //
-        RILL_TV_OP( identifier_collector, ast::expression_statement_ptr, s, env )
+        RILL_TV_OP( identifier_collector, ast::expression_statement, s, env )
         {
             // DO NOT COLLECT IDENTIFIERS
         }
 
-        RILL_TV_OP( identifier_collector, ast::function_definition_statement_ptr, s, env )
+        RILL_TV_OP( identifier_collector, ast::function_definition_statement, s, env )
         {
             // TODO: remove this case in syntax analysis phase
             if ( s->get_identifier()->nest_size() != 1 )
@@ -50,7 +50,7 @@ namespace rill
             env->mark_as( kind::function_k, s->get_identifier()->get_last_identifier(), s );
         }
 
-        RILL_TV_OP( identifier_collector, ast::class_definition_statement_ptr, s, env )
+        RILL_TV_OP( identifier_collector, ast::class_definition_statement, s, env )
         {
             // TODO: implement it
             assert( false );

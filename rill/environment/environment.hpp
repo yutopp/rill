@@ -47,7 +47,7 @@ namespace rill
 
 
 
-
+    /*
     enum struct symbol_kind
     {
         variable_k,
@@ -55,7 +55,7 @@ namespace rill
         type_k,
         namespace_k
     };
-
+    */
 
 
     struct common_spec
@@ -94,11 +94,7 @@ namespace rill
     struct kind_classifier;
 
 
-    template<>
-    struct kind_classifier<function_definition_statement_base_ptr>
-    {
-        static const symbol_kind value = symbol_kind::function_k;
-    };
+
 
 
     enum struct error_code
@@ -121,6 +117,13 @@ namespace rill
     };
 
 
+    struct debug_allocate_counter
+    {
+        debug_allocate_counter() : value( 0 ) {}
+
+        unsigned int value;
+    };
+
     template<typename BaseEnvT>
     struct environment_shared_resource
     {
@@ -131,6 +134,8 @@ namespace rill
         env_container_type container;
         ast_to_env_id_mapper_type ast_to_env_id_map;
         env_id_to_ast_mapper_type env_id_to_ast_map;
+
+        debug_allocate_counter debug_allocate_counter_;
     };
 
 
@@ -165,7 +170,9 @@ namespace rill
             : id_( environment_id_undefined )
             , root_shared_resource_( std::make_shared<environment_shared_resource<env_type>>() )
         {
-            std::cout << ">> environment allocated" << std::endl;
+            std::cout << ">> environment allocated" << " ( "  << root_shared_resource_->debug_allocate_counter_.value <<" )" << std::endl;
+
+            ++root_shared_resource_->debug_allocate_counter_.value;
         }
 
         // normal constructor
@@ -174,12 +181,16 @@ namespace rill
             , parent_( parent )
             , root_shared_resource_( parent.lock()->root_shared_resource_ )
         {
-            std::cout << ">> environment allocated(inner): " << id_ << std::endl;
+            std::cout << ">> environment allocated(inner): " << id_ << " ( "  << root_shared_resource_->debug_allocate_counter_.value <<" )"  << std::endl;
+
+            ++root_shared_resource_->debug_allocate_counter_.value;
         }
 
         virtual ~environment()
         {
-            std::cout << "<< environment DEallocated: " << id_ << std::endl;
+            --root_shared_resource_->debug_allocate_counter_.value;
+
+            std::cout << "<< environment DEallocated: " << id_ << " ( "  << root_shared_resource_->debug_allocate_counter_.value <<" )"  << std::endl;
         }
 
     public:
@@ -249,11 +260,6 @@ namespace rill
 
 
         // function
-        virtual auto pre_construct(
-            kind::function_tag,
-            intrinsic::single_identifier_value_base_ptr const&
-            ) -> env_pointer { assert( false ); return nullptr; }
-
         virtual auto incomplete_construct(
             kind::function_tag,
             intrinsic::single_identifier_value_base_ptr const& name
@@ -273,7 +279,8 @@ namespace rill
             kind::function_tag,
             intrinsic::single_identifier_value_base_ptr const& name,
             function_env_generator_scope_type const& parameter_decl_initializer,
-            statement_list const& statements
+            class_symbol_environment_ptr const& return_type_env,
+            ast::statement_ptr const& ast
             ) -> function_symbol_environment_ptr { assert( false ); return nullptr; }
         /*virtual auto construct(
             kind::function_tag,
@@ -341,7 +348,7 @@ namespace rill
 
         template<typename Env, typename... Args>
         auto allocate_env( Args&&... args )
-            -> typename environment_container<env_type>::result<Env>
+            -> typename environment_container<env_type>::template result<Env>::type
         {
             return root_shared_resource_->container.allocate<Env>( /*std::forward<Args>( args )...*/ args... );
         }
@@ -372,7 +379,7 @@ namespace rill
 
         template<typename AstPtr>
         auto mark_as( kind::function_tag, intrinsic::single_identifier_value_base_ptr const& name_identifier, AstPtr const& ast )
-            -> void
+            -> decltype( incomplete_construct( kind::function_tag(), name_identifier ) )
         {
             // construct incomplete environment( parameter wrapper & function )
             auto const p = incomplete_construct( kind::function_tag(), name_identifier );
@@ -387,6 +394,8 @@ namespace rill
 
             //
             root_shared_resource_->ast_to_env_id_map.add( ast, created_function_env->get_id() );
+
+            return p;
         }
 
 #if 0

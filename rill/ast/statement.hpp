@@ -155,17 +155,39 @@ namespace rill
 //            ADAPT_STATEMENT_VISITOR( function_definition_statement_base )
 
         public:
-            function_definition_statement_base(
-                intrinsic::identifier_value_ptr const& symbol_name,
-                parameter_list const& parameter_list,
-                boost::optional<intrinsic::identifier_value_ptr> const& return_type
-                )
-                : identifier_( symbol_name )
-                , parameter_list_( parameter_list )
-                , return_type_( return_type )
+            function_definition_statement_base( statement_list const& statements )
+                : statements_( statements )
             {}
 
             virtual ~function_definition_statement_base()
+            {}
+
+        public:
+
+
+        public:
+            statement_list const statements_;
+        };
+
+
+
+        struct function_definition_statement
+            : public function_definition_statement_base
+        {
+        public:
+            RILL_AST_ADAPT_VISITOR( function_definition_statement )
+
+        public:
+            function_definition_statement(
+                intrinsic::identifier_value_ptr const& symbol_name,
+                parameter_list const& parameter_list,
+                boost::optional<intrinsic::identifier_value_ptr> const& return_type,
+                statement_list const& statements
+                )
+                : function_definition_statement_base( statements )
+                , identifier_( symbol_name )
+                , parameter_list_( parameter_list )
+                , return_type_( return_type )
             {}
 
         public:
@@ -188,29 +210,18 @@ namespace rill
         };
 
 
-
-        struct function_definition_statement
+        struct embedded_function_definition_statement
             : public function_definition_statement_base
         {
         public:
-            RILL_AST_ADAPT_VISITOR( function_definition_statement )
+            RILL_AST_ADAPT_VISITOR( embedded_function_definition_statement )
 
         public:
-            function_definition_statement(
-                intrinsic::identifier_value_ptr const& symbol_name,
-                parameter_list const& parameter_list,
-                boost::optional<intrinsic::identifier_value_ptr> const& return_type,
-                statement_list const& statements
-                )
-                : function_definition_statement_base( symbol_name, parameter_list, return_type )
-                , statements_( statements )
+            embedded_function_definition_statement( statement_list const& statements )
+                : function_definition_statement_base( statements )
             {}
-
-        public:
-
-        public:
-            statement_list const statements_;
         };
+
 
 
         struct return_statement
