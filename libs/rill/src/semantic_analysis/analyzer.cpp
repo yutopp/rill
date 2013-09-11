@@ -58,7 +58,10 @@ namespace rill
 
         RILL_TV_OP( analyzer, ast::function_definition_statement, s, env )
         {
-            std::cout << "function_definition_statement: ast_ptr -> " << s << std::endl;
+            std::cout
+                << "function_definition_statement: ast_ptr -> "
+                << (environment_ptr const&)env << std::endl
+                << "Args num -- " << s->get_parameter_list().size() << std::endl;
 
             auto const r_env = env->get_related_env_by_ast_ptr( s );
             assert( r_env != nullptr );
@@ -66,6 +69,9 @@ namespace rill
 
             auto const& f_env = std::static_pointer_cast<function_symbol_environment>( r_env );
             assert( f_env != nullptr );
+
+            if ( !f_env->is_incomplete() )
+                return;
 
             // construct function environment in progress phase
             for( auto const& e : s->get_parameter_list() ) {

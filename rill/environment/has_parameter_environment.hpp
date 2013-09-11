@@ -118,7 +118,7 @@ namespace rill
         auto solve_overload( environment_id_list const& args_env_ids ) const
             -> std::shared_ptr<InlineEnvironment>
         {
-    //        std::cout << "solve_overload? hash: " << make_parameter_hash( args_env_ids ) << std::endl;
+            std::cout << "solve_overload? hash: " << make_parameter_hash( args_env_ids ) << std::endl;
 
             auto const it = overloads_.find( make_parameter_hash( args_env_ids ) );
 

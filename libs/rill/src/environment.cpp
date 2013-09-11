@@ -147,7 +147,7 @@ auto single_identifier_environment_base::lookup( intrinsic::const_single_identif
         return s
                 ? s
                 : is_root()
-                    ? nullptr
+                    ? nullptr   // Not found...
                     : get_parent_env()->lookup( name )
                     ;
     }
