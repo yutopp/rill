@@ -41,7 +41,7 @@ namespace rill
     public:
         variable_symbol_environment( environment_id_t const& id, weak_env_pointer const& parent )
             : single_identifier_environment_base( id, parent )
-    //        , value_type_env_id_( envitonment_id_undefined )
+            , value_type_env_id_( environment_id_undefined )
         {}
 
     public:
@@ -57,16 +57,17 @@ namespace rill
             return true;//value_type_env_id_ == envitonment_id_undefined;
         }
 
-    /*    auto get_weak_type_env()
-            -> weak_environment_ptr
+        auto get_type_env_id() const
+            -> environment_id_t
         {
-            return get_env_at( value_type_env_id_ );
+            return value_type_env_id_;
         }
-        auto get_weak_type_env() const
-            -> const_weak_environment_ptr
+
+        auto complete( const_environment_ptr const& type_env )
+            -> void
         {
-            return get_env_at( value_type_env_id_ );
-        }*/
+            value_type_env_id_ = type_env->get_id();
+        }
 
         auto dump( std::ostream& os, std::string const& indent ) const
             -> std::ostream& RILL_CXX11_OVERRIDE
@@ -77,7 +78,7 @@ namespace rill
         }
 
     private:
-    //    environment_id_t value_type_env_id_;
+        environment_id_t value_type_env_id_;
     };
 
 } // namespace rill

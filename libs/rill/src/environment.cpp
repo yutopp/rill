@@ -79,6 +79,34 @@ namespace rill
     }
 
 
+
+
+
+    // variable
+    auto single_identifier_environment_base::construct(
+        kind::variable_tag,
+        intrinsic::single_identifier_value_base_ptr const& variable_name,   // may be nullptr, if unnamed parameter variable...
+        const_class_symbol_environment_ptr const& type_env
+        ) -> variable_symbol_environment_ptr
+    {
+        auto const& w_env = allocate_env<variable_symbol_environment>( shared_from_this() );
+
+        // complete return type
+        w_env->complete( type_env );
+
+
+        native_string_t const& key
+            = variable_name
+            ? variable_name->get_base_symbol()->get_native_string()
+            : "__unnamed" + std::to_string( w_env->get_id() )
+            ;
+
+        instanced_env_[key] = w_env;
+        return w_env;
+    }
+
+
+
 std::ostream& operator<<( std::ostream& os, environment_ptr const& env )
 {
     os << "DEBUG: environment" << std::endl;
@@ -203,26 +231,8 @@ auto single_identifier_environment_base::construct(
 }*/
 
 
-    // variable
-    auto single_identifier_environment_base::construct(
-        kind::variable_tag,
-        intrinsic::single_identifier_value_base_ptr const& variable_name,   // may be nullptr, if unnamed parameter variable...
-        const_class_symbol_environment_ptr const& type_env
-        ) -> variable_symbol_environment_ptr
-    {
-        auto const& w_env = allocate_env<variable_symbol_environment>( shared_from_this() );
 
-        // TODO? : add variable type info
 
-        native_string_t key
-            = variable_name
-            ? variable_name->get_base_symbol()->get_native_string()
-            : "__unnamed" + std::to_string( w_env->get_id() )
-            ;
-
-        instanced_env_[key] = w_env;
-        return w_env;
-    }
 
 
 // class(type)

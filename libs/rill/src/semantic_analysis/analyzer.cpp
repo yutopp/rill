@@ -50,7 +50,6 @@ namespace rill
         {
             auto const r = dispatch_as_env( s->expression_, *this, env );
 
-     
             std::cout << "!!!!!!!" << r << std::endl;
             //context_->current_scope()->set_return_value( s.expression_->dispatch( *this, env ) );
         }

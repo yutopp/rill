@@ -53,7 +53,7 @@ namespace rill
             // erase stack
             context_->pop_value();
 
-            // std::cout << "value(current stack top) => " << *context_->current_stack_value() << std::endl;
+            std::cout << "<<=======" << std::endl;
         }
 
 
@@ -325,7 +325,7 @@ namespace rill
         RILL_TV_OP( runner, ast::variable_value, v, env )
         {
             // lookup variable name environment
-            auto const& val_env = env->nest_lookup( v->variable_name_ );
+            auto const& val_env = std::static_pointer_cast<variable_symbol_environment>( env->nest_lookup( v->variable_name_ ) );
             // assert( val_env != nullptr );
             // assert( val_env->get_symbol_kind() == kind::type_value::variable_e );
 
