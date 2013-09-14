@@ -78,7 +78,7 @@
     <ClInclude Include="..\..\..\rill\ast\value.hpp" />
     <ClInclude Include="..\..\..\rill\ast\value_fwd.hpp" />
     <ClInclude Include="..\..\..\rill\code_generator\code_generator.hpp" />
-    <ClInclude Include="..\..\..\rill\code_generator\llvm_ir_builder.hpp" />
+    <ClInclude Include="..\..\..\rill\code_generator\llvm_ir_generator.hpp" />
     <ClInclude Include="..\..\..\rill\config\macros.hpp" />
     <ClInclude Include="..\..\..\rill\embedded_function_holder.hpp" />
     <ClInclude Include="..\..\..\rill\embedded_function_holder_fwd.hpp" />
@@ -112,7 +112,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\libs\rill\src\ast\value.cpp" />
-    <ClCompile Include="..\..\..\libs\rill\src\code_generator\code_generator.cpp" />
+    <ClCompile Include="..\..\..\libs\rill\src\code_generator\llvm_ir_generator.cpp" />
     <ClCompile Include="..\..\..\libs\rill\src\environment.cpp" />
     <ClCompile Include="..\..\..\libs\rill\src\interpreter\runner.cpp" />
     <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\analyzer.cpp" />

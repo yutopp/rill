@@ -1,15 +1,15 @@
-ブン
-=
-
 **実験中**
-文鳥の文鳥による文鳥のための言語
+文鳥の文鳥による文鳥のためのプログラミング言語のLLVMフロントエンドです．
 
-ブン！ (◔⊖◔)つ < "ひとまず動くようになるまでゴリ押しで書いたのでコードは汚い"
+ブン！ (◔⊖◔)つ < "ひとまず動くようになるまでゴリ押しで書くのでコードは汚いゾ"
+
+C++11，Boost 1.54.0, LLVM3.3 を用いています．
 
 
 Using Library
 -
-Boost 1.53.0
+Boost 1.54.0
+LLVM 3.3
 
 
 How to build
@@ -38,9 +38,10 @@ Sample
     	* 8
 	
     	+ 6;
-
+	// comment
     foo( 20 );
 
+	/* comment */
     def foo( hoge: int ): int
     {
         return hoge*10;
@@ -54,4 +55,4 @@ Sample
 License
 -
 
-Boost License Version 1.0  
+Boost License Version 1.0

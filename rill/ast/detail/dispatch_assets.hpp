@@ -19,7 +19,7 @@
 #include "specifier.hpp"
 
 
-#define RILL_AST_ADAPT_VISITOR_DISPATCHER( class_name, tag ) \
+#define RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_(class_name, tag) \
     virtual auto dispatch( \
         tag, \
         std::shared_ptr<rill::ast::detail::base_type_specifier<class_name>::type> const& self_pointer, \
@@ -34,11 +34,21 @@
         return visitor( std::static_pointer_cast<class_name>( self_pointer ), env ); \
     }
 
+#define RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER(r, class_name, elem) \
+    RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_(class_name, BOOST_PP_CAT( rill::ast::detail::, BOOST_PP_TUPLE_ELEM(2, 0/*tag*/, elem)))
 
+
+// !!! --
+//
 // insert this macro into AST node class
-#define RILL_AST_ADAPT_VISITOR( class_name ) \
-    RILL_AST_ADAPT_VISITOR_DISPATCHER( class_name, rill::ast::detail::dispatch_as_environment_tag ) \
-    RILL_AST_ADAPT_VISITOR_DISPATCHER( class_name, rill::ast::detail::dispatch_as_value_tag ) \
-    RILL_AST_ADAPT_VISITOR_DISPATCHER( class_name, rill::ast::detail::dispatch_as_type_tag )
+//
+// -- !!!
+#define RILL_AST_ADAPT_VISITOR(class_name) \
+    /* RILL_DISPATCH_TYPES_SEQ is defined at "dispatch_functions.hpp" */ \
+    BOOST_PP_SEQ_FOR_EACH(RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER, class_name, RILL_DISPATCH_TYPES_SEQ)
+
+
+//#undef RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER
+//#undef RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_
 
 #endif /*RILL_AST_DETAIL_DISPATCH_ASSETS_HPP*/

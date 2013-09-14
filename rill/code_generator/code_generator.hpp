@@ -9,30 +9,20 @@
 #ifndef RILL_CODE_GENERATOR_HPP
 #define RILL_CODE_GENERATOR_HPP
 
-#include "llvm_ir_builder.hpp"
+#include "llvm_ir_generator.hpp"
+
 
 namespace rill
 {
     namespace code_generator
     {
         template<typename EnvironmentPtr, typename ActionHolderPtr, typename T>
-        void run_on_context( context_ptr const& ctx, EnvironmentPtr const& env, ActionHolderPtr const& holder, T const& node )
+        auto generate_llvm_ir( EnvironmentPtr const& env, ActionHolderPtr const& holder, T const& node )
+            -> void
         {
-            runner r( ctx, holder );
+            llvm_ir_generator visitor;
 
-            dispatch_as_env( node, r, env );
-        }
-
-        template<typename EnvironmentPtr, typename ActionHolderPtr, typename T>
-        auto run( EnvironmentPtr const& env, ActionHolderPtr const& holder, T const& node )
-            -> std::shared_ptr<runtime>
-        {
-            // TODO: add global constant initalize phase
-
-            auto const rt = std::make_shared<runtime>();
-
-            run_on_context( rt->create_context(), env, holder, node );
-            return rt;
+            visitor.dispatch( node, env );
         }
     } // namespace code_generator
 } // namespace rill

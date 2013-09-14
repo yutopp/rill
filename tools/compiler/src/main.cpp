@@ -8,8 +8,6 @@
 
 #include <iostream>
 
-
-
 #include <fstream>
 #include <iterator>
 #include <memory>
@@ -21,6 +19,8 @@
 
 #include <rill/interpreter/interpreter.hpp>
 #include <rill/interpreter/runtime.hpp>
+#include <rill/code_generator/code_generator.hpp>
+
 
 void sample()
 {
@@ -201,6 +201,10 @@ void sample()
 
     rill::interpreter::run( root_env, embedded_function_action, syntax_tree );
 
+
+    //
+    std::cout << " = LLVM =================== " << std::endl;
+    rill::code_generator::generate_llvm_ir( root_env, embedded_function_action, syntax_tree );
 
 
 

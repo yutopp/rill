@@ -46,7 +46,7 @@
         -> typename result<node_type>::type \
     { \
         this->unimplemented<node_type>(); \
-        return nullptr; \
+        return typename result<node_type>::type(); \
     }
 
 
@@ -83,6 +83,16 @@ namespace rill
 
             public:
                 virtual ~tree_visitor_base() {}
+
+            public:
+                //
+                template<typename NodePtr>
+                auto dispatch( NodePtr&& node, environment_ptr const& env ) const
+                    -> decltype(( dispatch_as<ReturnT>( std::forward<NodePtr>( node ), *reinterpret_cast<tree_visitor_base const*>( nullptr ), env ) ))
+                {
+                    return dispatch_as<ReturnT>( std::forward<NodePtr>( node ), *this, env );
+                }
+                
 
             public:
                 //

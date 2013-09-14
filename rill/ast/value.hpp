@@ -340,7 +340,7 @@ namespace rill
             }
 
         public:
-            intrinsic::value_base_ptr value_;
+            intrinsic::value_base_ptr value_;   // TODO: rename(holder)
             intrinsic::const_single_identifier_value_ptr literal_type_name_;
         };
 
