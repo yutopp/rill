@@ -69,6 +69,12 @@
     <Filter Include="rill\environment\detail">
       <UniqueIdentifier>{8004cb92-5e84-478a-a45b-1b6207d0e4ea}</UniqueIdentifier>
     </Filter>
+    <Filter Include="libs\rill\src\code_generator">
+      <UniqueIdentifier>{971b4c69-1345-45b5-aa27-bcd6ca502bec}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="rill\code_generator">
+      <UniqueIdentifier>{89f57eb3-598c-44e6-affb-7bb0a9279ef0}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\rill\config\macros.hpp">
@@ -194,6 +200,15 @@
     <ClInclude Include="..\..\..\rill\embedded_function_holder_fwd.hpp">
       <Filter>rill</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\rill\code_generator\code_generator.hpp">
+      <Filter>rill\code_generator</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\code_generator\llvm_ir_builder.hpp">
+      <Filter>rill\code_generator</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\rill\syntax_analysis\skip_parser.hpp">
+      <Filter>rill\syntax_analysis</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\libs\rill\src\environment.cpp">
@@ -222,6 +237,9 @@
     </ClCompile>
     <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\compiletime_interpreter\type_evaluator.cpp">
       <Filter>libs\rill\src\semantic_analysis\compiletime_interpreter</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\libs\rill\src\code_generator\code_generator.cpp">
+      <Filter>libs\rill\src\code_generator</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -20,10 +20,13 @@ namespace rill
             auto first      = source.cbegin();
             auto const last = source.cend();
 
-            code_grammer<input_type, input_iterator> grammer;
+            typedef code_grammer<input_type, input_iterator>    grammer_type;
+            grammer_type grammer;
+            grammer_type::skip_grammer_type skipper;
+
             ast::statement_list stmts;
 
-            bool const success = qi::phrase_parse( first, last, grammer, boost::spirit::ascii::space, stmts );
+            bool const success = qi::phrase_parse( first, last, grammer, skipper, stmts );
             if ( success ) {
                 std::cout << "true => " << ( first == last ) << " (1 is ok)" << std::endl;
             } else {

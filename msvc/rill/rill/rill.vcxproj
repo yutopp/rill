@@ -39,7 +39,8 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>D:\boost_1_54_0;D:\rill;$(IncludePath)</IncludePath>
+    <IncludePath>D:\boost_1_54_0;D:\llvm-3.3.src\include;D:\rill;$(IncludePath)</IncludePath>
+    <LibraryPath>D:\llvm-3.3.src\lib\Debug;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -76,6 +77,8 @@
     <ClInclude Include="..\..\..\rill\ast\statement_fwd.hpp" />
     <ClInclude Include="..\..\..\rill\ast\value.hpp" />
     <ClInclude Include="..\..\..\rill\ast\value_fwd.hpp" />
+    <ClInclude Include="..\..\..\rill\code_generator\code_generator.hpp" />
+    <ClInclude Include="..\..\..\rill\code_generator\llvm_ir_builder.hpp" />
     <ClInclude Include="..\..\..\rill\config\macros.hpp" />
     <ClInclude Include="..\..\..\rill\embedded_function_holder.hpp" />
     <ClInclude Include="..\..\..\rill\embedded_function_holder_fwd.hpp" />
@@ -102,12 +105,14 @@
     <ClInclude Include="..\..\..\rill\semantic_analysis\helper.hpp" />
     <ClInclude Include="..\..\..\rill\semantic_analysis\identifier_collector.hpp" />
     <ClInclude Include="..\..\..\rill\semantic_analysis\semantic_analysis.hpp" />
+    <ClInclude Include="..\..\..\rill\syntax_analysis\skip_parser.hpp" />
     <ClInclude Include="..\..\..\rill\syntax_analysis\make_syntax_tree.hpp" />
     <ClInclude Include="..\..\..\rill\syntax_analysis\make_syntax_tree_impl.hpp" />
     <ClInclude Include="..\..\..\rill\syntax_analysis\parser.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\libs\rill\src\ast\value.cpp" />
+    <ClCompile Include="..\..\..\libs\rill\src\code_generator\code_generator.cpp" />
     <ClCompile Include="..\..\..\libs\rill\src\environment.cpp" />
     <ClCompile Include="..\..\..\libs\rill\src\interpreter\runner.cpp" />
     <ClCompile Include="..\..\..\libs\rill\src\semantic_analysis\analyzer.cpp" />

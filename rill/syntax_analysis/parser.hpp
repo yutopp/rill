@@ -6,6 +6,9 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 //
 
+#ifndef RILL_SYNTAX_ANALYSIS_PARSER_HPP
+#define RILL_SYNTAX_ANALYSIS_PARSER_HPP
+
 #include <string>
 #include <vector>
 #include <memory>
@@ -27,7 +30,7 @@
 #include "../ast/root.hpp"
 
 //#include "environment.hpp"
-
+#include "skip_parser.hpp"
 
 
 namespace rill
@@ -54,8 +57,11 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
 
         template<typename StringT, typename Iterator>
         class code_grammer
-            : public qi::grammar<Iterator, ast::statement_list(), qi::locals<StringT>, ascii::space_type>
+            : public qi::grammar<Iterator, ast::statement_list(), qi::locals<StringT>, skip_grammer<StringT, Iterator>>
         {
+        public:
+            typedef skip_grammer<StringT, Iterator>     skip_grammer_type;
+
         public:
             code_grammer()
                 : code_grammer::base_type( program_, "rill" )
@@ -458,46 +464,46 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
             }
 
         private:
-            qi::rule<Iterator, ast::statement_list(), qi::locals<StringT>, ascii::space_type> program_;
+            qi::rule<Iterator, ast::statement_list(), qi::locals<StringT>, skip_grammer_type> program_;
 
-            qi::rule<Iterator, ast::statement_list(), ascii::space_type> top_level_statements_, function_body_statements_;
-            qi::rule<Iterator, ast::statement_list(), ascii::space_type> function_body_block_, function_body_expression_;
+            qi::rule<Iterator, ast::statement_list(), skip_grammer_type> top_level_statements_, function_body_statements_;
+            qi::rule<Iterator, ast::statement_list(), skip_grammer_type> function_body_block_, function_body_expression_;
 
-            qi::rule<Iterator, ast::return_statement_ptr(), ascii::space_type> return_statement_;
-            qi::rule<Iterator, ast::function_definition_statement_ptr(), ascii::space_type> function_definition_statement_;
-            qi::rule<Iterator, ast::expression_statement_ptr(), ascii::space_type> expression_statement_;
+            qi::rule<Iterator, ast::return_statement_ptr(), skip_grammer_type> return_statement_;
+            qi::rule<Iterator, ast::function_definition_statement_ptr(), skip_grammer_type> function_definition_statement_;
+            qi::rule<Iterator, ast::expression_statement_ptr(), skip_grammer_type> expression_statement_;
 
             
-            qi::rule<Iterator, ast::variable_declaration(), ascii::space_type> variable_declaration_;
-            qi::rule<Iterator, ast::variable_declaration(), ascii::space_type> parameter_variable_declaration_;
+            qi::rule<Iterator, ast::variable_declaration(), skip_grammer_type> variable_declaration_;
+            qi::rule<Iterator, ast::variable_declaration(), skip_grammer_type> parameter_variable_declaration_;
 
-            qi::rule<Iterator, ast::parameter_list(), ascii::space_type> parameter_variable_declaration_list_;
+            qi::rule<Iterator, ast::parameter_list(), skip_grammer_type> parameter_variable_declaration_list_;
 
-            qi::rule<Iterator, ast::variable_declaration_unit(), ascii::space_type> variable_initializer_unit_;
-            qi::rule<Iterator, ast::variable_declaration_unit(), ascii::space_type> variable_parameter_initializer_unit_;
+            qi::rule<Iterator, ast::variable_declaration_unit(), skip_grammer_type> variable_initializer_unit_;
+            qi::rule<Iterator, ast::variable_declaration_unit(), skip_grammer_type> variable_parameter_initializer_unit_;
 
-            qi::rule<Iterator, ast::value_initializer_unit(), ascii::space_type> value_initializer_unit_;
+            qi::rule<Iterator, ast::value_initializer_unit(), skip_grammer_type> value_initializer_unit_;
 
-            qi::rule<Iterator, ast::type_expression_ptr(), ascii::space_type> type_specifier_;
+            qi::rule<Iterator, ast::type_expression_ptr(), skip_grammer_type> type_specifier_;
 
             static std::size_t const ExpressionHierarchyNum = 4;
-            qi::rule<Iterator, ast::expression_ptr(), ascii::space_type> expression_, expression_priority_[ExpressionHierarchyNum];
-            qi::rule<Iterator, ast::expression_list(), ascii::space_type> argument_list_;
-            qi::rule<Iterator, ast::call_expression_ptr(), ascii::space_type> call_expression_;
-            qi::rule<Iterator, ast::term_expression_ptr(), ascii::space_type> term_expression_;
+            qi::rule<Iterator, ast::expression_ptr(), skip_grammer_type> expression_, expression_priority_[ExpressionHierarchyNum];
+            qi::rule<Iterator, ast::expression_list(), skip_grammer_type> argument_list_;
+            qi::rule<Iterator, ast::call_expression_ptr(), skip_grammer_type> call_expression_;
+            qi::rule<Iterator, ast::term_expression_ptr(), skip_grammer_type> term_expression_;
 
 
-            qi::rule<Iterator, ast::type_expression_ptr(), ascii::space_type> type_expression_;
-            qi::rule<Iterator, ast::type_identifier_expression_ptr(), ascii::space_type> type_identifier_expression_;
-            qi::rule<Iterator, ast::compiletime_return_type_expression_ptr(), ascii::space_type> compiletime_return_type_expression_;
+            qi::rule<Iterator, ast::type_expression_ptr(), skip_grammer_type> type_expression_;
+            qi::rule<Iterator, ast::type_identifier_expression_ptr(), skip_grammer_type> type_identifier_expression_;
+            qi::rule<Iterator, ast::compiletime_return_type_expression_ptr(), skip_grammer_type> compiletime_return_type_expression_;
 
 
-            qi::rule<Iterator, ast::variable_value_ptr(), ascii::space_type> variable_value_;
+            qi::rule<Iterator, ast::variable_value_ptr(), skip_grammer_type> variable_value_;
 
-            qi::rule<Iterator, ast::intrinsic_value_ptr(), ascii::space_type> integer_literal_;
+            qi::rule<Iterator, ast::intrinsic_value_ptr(), skip_grammer_type> integer_literal_;
 
-            qi::rule<Iterator, ast::intrinsic::identifier_value_ptr(), ascii::space_type> identifier_;
-            qi::rule<Iterator, ast::intrinsic::single_identifier_value_ptr(), ascii::space_type> single_identifier_;
+            qi::rule<Iterator, ast::intrinsic::identifier_value_ptr(), skip_grammer_type> identifier_;
+            qi::rule<Iterator, ast::intrinsic::single_identifier_value_ptr(), skip_grammer_type> single_identifier_;
 
             qi::rule<Iterator, ast::intrinsic::symbol_value_ptr()> native_symbol_;
             qi::rule<Iterator, ast::native_string_t()> native_symbol_string_;
@@ -517,3 +523,5 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
 
     } // namespace syntax_analysis
 } // namespace rill
+
+#endif /*RILL_SYNTAX_ANALYSIS_PARSER_HPP*/

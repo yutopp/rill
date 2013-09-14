@@ -1,8 +1,12 @@
-4 *		(3 + 1)
+/* This is comment(ascii code only...) */
+// line comment
+
+4 *		/*comment??*/ (3 + 1)
 	* 8
 	
 	+ 6;
 
+// forward reference
 foo( 20 );
 
 def foo( hoge: int ): int
