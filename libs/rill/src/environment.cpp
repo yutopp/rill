@@ -69,8 +69,8 @@ namespace rill
         // complete parameter decl
         auto const& parameter_completed_function_env_pointer = parameter_decl_initializer( incomplete_function_env );
         
-        // complete return type
-        parameter_completed_function_env_pointer->complete( return_type_env );
+        // complete return type, name
+        parameter_completed_function_env_pointer->complete( return_type_env, name->get_base_symbol()->get_native_string() );
 
         //
         parameter_env->add_overload( parameter_completed_function_env_pointer );
@@ -91,17 +91,19 @@ namespace rill
     {
         auto const& w_env = allocate_env<variable_symbol_environment>( shared_from_this() );
 
-        // complete return type
-        w_env->complete( type_env );
-
-
-        native_string_t const& key
+        native_string_t const& symbol_name
             = variable_name
             ? variable_name->get_base_symbol()->get_native_string()
             : "__unnamed" + std::to_string( w_env->get_id() )
             ;
 
-        instanced_env_[key] = w_env;
+        // complete return type, name
+        w_env->complete( type_env, symbol_name );
+
+
+
+
+        instanced_env_[symbol_name] = w_env;
         return w_env;
     }
 

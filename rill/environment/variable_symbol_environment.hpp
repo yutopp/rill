@@ -63,10 +63,11 @@ namespace rill
             return value_type_env_id_;
         }
 
-        auto complete( const_environment_ptr const& type_env )
+        auto complete( const_environment_ptr const& type_env, native_string_t const& name )
             -> void
         {
             value_type_env_id_ = type_env->get_id();
+            name_ = name;
         }
 
         auto dump( std::ostream& os, std::string const& indent ) const
@@ -77,8 +78,16 @@ namespace rill
             return dump_include_env( os, indent );
         }
 
+        auto mangled_name() const -> native_string_t
+        {
+            // TODO: call parent mangled_name()
+            return name_;
+        }
+
     private:
         environment_id_t value_type_env_id_;
+
+        native_string_t name_;
     };
 
 } // namespace rill

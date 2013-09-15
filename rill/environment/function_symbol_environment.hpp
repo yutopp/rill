@@ -78,10 +78,11 @@ namespace rill
             return parameter_type_ids_;
         }
 
-        auto complete( const_environment_ptr const& return_type_env )
+        auto complete( const_environment_ptr const& return_type_env, native_string_t const& name )
             -> void
         {
             return_type_env_id_ = return_type_env->get_id();
+            name_ = name;
         }
 
         auto get_return_type_environment()
@@ -106,6 +107,12 @@ namespace rill
             )
             -> variable_symbol_environment_ptr;
 
+        auto mangled_name() const -> native_string_t
+        {
+            // TODO: call parent mangled_name()
+            return name_ +  make_parameter_hash( parameter_type_ids_ );
+        }
+
     private:
         environment_id_t parameter_wrapper_env_id_;
 
@@ -115,6 +122,8 @@ namespace rill
         // types
         std::vector<environment_id_t> parameter_type_ids_;
         environment_id_t return_type_env_id_;
+
+        native_string_t name_;
     };
 
 } // namespace rill

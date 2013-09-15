@@ -25,7 +25,7 @@
 
 #include "../config/macros.hpp"
 
-#include "../environment_fwd.hpp" //FIXit
+#include "../environment_fwd.hpp" //FIXIT
 #include "detail/container.hpp"
 #include "detail/mapper.hpp"
 
@@ -389,13 +389,23 @@ namespace rill
             std::cout << "%&%& " << has_parameter_env->get_id() << " : " << created_function_env->get_id() << std::endl;
 
             //
-            root_shared_resource_->env_id_to_ast_map.add( has_parameter_env->get_id(), ast );     // 
-            root_shared_resource_->env_id_to_ast_map.add( created_function_env->get_id(), ast );                    // related environment of created_function_env is parent envitroment of it
+            root_shared_resource_->env_id_to_ast_map.add( has_parameter_env->get_id(), ast );           // 
+            root_shared_resource_->env_id_to_ast_map.add( created_function_env->get_id(), ast );        // related environment of created_function_env is parent envitroment of it
 
             //
             root_shared_resource_->ast_to_env_id_map.add( ast, created_function_env->get_id() );
 
             return p;
+        }
+
+
+        // 
+        template<typename AstPtr>
+        auto connect_from_ast( AstPtr const& ast )
+            -> void
+        {
+            //
+            root_shared_resource_->ast_to_env_id_map.add( ast, get_id() );
         }
 
 #if 0
@@ -418,6 +428,9 @@ namespace rill
         {
             return get_env_at( root_shared_resource_->ast_to_env_id_map.get( ast_ptr ) ).lock();
         }
+
+        ///
+        virtual auto mangled_name() const -> native_string_t { return ""; }
 
         ///
         ///

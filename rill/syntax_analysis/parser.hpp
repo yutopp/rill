@@ -118,7 +118,8 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
 
                 parameter_variable_declaration_list_.name( "parameter_variable_declaration__list" );
                 parameter_variable_declaration_list_
-                    = qi::lit( '(' ) >> ( parameter_variable_declaration_ % ',' ) >> qi::lit( ')' )
+                    = ( qi::lit( '(' ) >> qi::lit( ')' ) )
+                    | ( qi::lit( '(' ) >> ( parameter_variable_declaration_ % ',' ) >> qi::lit( ')' ) )
                     ;
 
                 //

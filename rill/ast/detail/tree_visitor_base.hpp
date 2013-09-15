@@ -104,6 +104,7 @@ namespace rill
                 RILL_TV_BASE_VOID_OP( ast::return_statement )
                 RILL_TV_BASE_VOID_OP( ast::function_definition_statement )
                 RILL_TV_BASE_VOID_OP( ast::class_definition_statement )
+                RILL_TV_BASE_VOID_OP( ast::embedded_function_definition_statement )
 
                 // expression
                 RILL_TV_BASE_RETURN_OP( ast::binary_operator_expression )

@@ -23,6 +23,7 @@ namespace rill
             llvm_ir_generator visitor;
 
             visitor.dispatch( node, env );
+            visitor.debug();
         }
     } // namespace code_generator
 } // namespace rill

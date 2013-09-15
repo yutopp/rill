@@ -110,7 +110,7 @@ namespace rill
 
             // TODO: implement return type inference
             // TEMP: currently :int
-            f_env->complete( env->lookup( intrinsic::make_single_identifier( "int" ) ) );
+            f_env->complete( env->lookup( intrinsic::make_single_identifier( "int" ) ), s->get_identifier()->get_last_identifier()->get_base_symbol()->get_native_string() );
 
             //
             f_env->get_parameter_wrapper_env()->add_overload( f_env );
@@ -175,6 +175,9 @@ namespace rill
                 // overload failed
                 assert( false );
             }
+
+            // memoize called function env
+            function_env->connect_from_ast( e );
 
             // return retult type env of function
             return function_env->get_return_type_environment();
