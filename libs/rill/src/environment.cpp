@@ -29,7 +29,7 @@ namespace rill
                 function_symbol_environment_ptr
            >
     {
-        auto const& symbol_name = name->get_base_symbol()->get_native_string();
+        auto const& symbol_name = name->get_inner_symbol()->to_native_string();
 
         // need parameter wrapper environment because function has parameter information
         auto const& parameter_env = [&]() {
@@ -70,7 +70,7 @@ namespace rill
         auto const& parameter_completed_function_env_pointer = parameter_decl_initializer( incomplete_function_env );
         
         // complete return type, name
-        parameter_completed_function_env_pointer->complete( return_type_env, name->get_base_symbol()->get_native_string() );
+        parameter_completed_function_env_pointer->complete( return_type_env, name->get_inner_symbol()->to_native_string() );
 
         //
         parameter_env->add_overload( parameter_completed_function_env_pointer );
@@ -93,7 +93,7 @@ namespace rill
 
         native_string_t const& symbol_name
             = variable_name
-            ? variable_name->get_base_symbol()->get_native_string()
+            ? variable_name->get_inner_symbol()->to_native_string()
             : "__unnamed" + std::to_string( w_env->get_id() )
             ;
 
@@ -150,7 +150,7 @@ std::ostream& operator<<( std::ostream& os, environment_ptr const& env )
 auto single_identifier_environment_base::find_on_env( intrinsic::const_single_identifier_value_base_ptr const& name )
     -> env_pointer
 {
-    auto const it = instanced_env_.find( name->get_base_symbol()->get_native_string() );
+    auto const it = instanced_env_.find( name->get_inner_symbol()->to_native_string() );
 
     return ( it != instanced_env_.end() ) ? it->second : nullptr;
 }
@@ -158,7 +158,7 @@ auto single_identifier_environment_base::find_on_env( intrinsic::const_single_id
 auto single_identifier_environment_base::find_on_env( intrinsic::const_single_identifier_value_base_ptr const& name ) const
     -> const_env_pointer
 {
-    auto const it = instanced_env_.find( name->get_base_symbol()->get_native_string() );
+    auto const it = instanced_env_.find( name->get_inner_symbol()->to_native_string() );
 
     return ( it != instanced_env_.end() ) ? it->second : nullptr;
 }
@@ -217,7 +217,7 @@ auto single_identifier_environment_base::construct(
 {
     // TODO: add existance check
 
-    auto const& env = instanced_env_[name->get_base_symbol()->get_native_string()];
+    auto const& env = instanced_env_[name->get_inner_symbol()->to_native_string()];
 
     if (  env->get_symbol_kind() != kind::type_value::parameter_wrapper_e
        || std::dynamic_pointer_cast<has_parameter_environment_base>( env )->get_inner_symbol_kind() != kind::type_value::function_e
@@ -247,7 +247,7 @@ auto single_identifier_environment_base::pre_construct(
     // make uncomplete env
     auto const& w_env = allocate_env<class_symbol_environment>( shared_from_this() );
 
-    instanced_env_[name->get_base_symbol()->get_native_string()] = w_env;
+    instanced_env_[name->get_inner_symbol()->to_native_string()] = w_env;
     return w_env;
 }
 
@@ -259,7 +259,7 @@ auto single_identifier_environment_base::construct(
 {
     // TODO: add existance check
 
-    auto const& env = instanced_env_[name->get_base_symbol()->get_native_string()];
+    auto const& env = instanced_env_[name->get_inner_symbol()->to_native_string()];
 
     if ( env->get_symbol_kind() != kind::type_value::class_e ) {
         exit( -900 );

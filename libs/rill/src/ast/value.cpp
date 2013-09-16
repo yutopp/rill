@@ -27,8 +27,8 @@ namespace rill
                     : dynamic_cast<intrinsic::value_base const&>( vp )
                     ;
 
-                os << "  type  is " << iv.get_native_type_name_string() << std::endl;
-                if ( iv.get_native_type_name_string() == "int" ) {
+                os << "  type  is " << iv.get_native_typename_string() << std::endl;
+                if ( iv.get_native_typename_string() == "int" ) {
                     os << "  value is " << dynamic_cast<intrinsic::int32_value const&>( iv ).value_ << std::endl;
                 } else {
                     os << "  value is unknown." << std::endl;

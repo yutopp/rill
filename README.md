@@ -1,21 +1,26 @@
+Rill
+--
+
 **実験中**
 文鳥の文鳥による文鳥のためのプログラミング言語のLLVMフロントエンドです．
 
 ブン！ (◔⊖◔)つ < "ひとまず動くようになるまでゴリ押しで書くのでコードは汚いゾ"
 
-C++11，Boost 1.54.0, LLVM3.3 を用いています．
+C++11の機能，Boost, LLVM を用いています．
 
 
 Using Library
 -
-Boost 1.54.0
-LLVM 3.3
+Boost-trunk rev.84700
+
+LLVM-trunk rev.190764
+
 
 
 How to build
 -
 
-### MSVC >= v120_CTP_Nov2012
+### MSVC >= v1800 [Visual Studio 2013 RC (v120)]
 Please use project file.
 And, please change library pathes of the project file.
 
@@ -29,6 +34,7 @@ Next,
 
     $BOOST_ROOT/b2 toolset=gcc
 Then, a executable file named **rillc** will be created in "bin" subdirectories.
+
 
 
 Sample
@@ -52,7 +58,9 @@ Sample
     foo( 5 + 5 * 2 + (20 + 30*2 + 5) ) + 2 * 5;
 
 
+
 License
 -
 
 Boost License Version 1.0
+

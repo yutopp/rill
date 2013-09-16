@@ -43,7 +43,7 @@ namespace rill
             //     : OR CHANGE THE PARSER
             assert( s->get_identifier()->nest_size() == 1 ); // can not use nested type here
 
-            std::cout << "collected : " << s->get_identifier()->get_last_identifier()->get_base_symbol()->get_native_string() << std::endl
+            std::cout << "collected : " << s->get_identifier()->get_last_identifier()->get_inner_symbol()->to_native_string() << std::endl
                       << "param_num : " << s->get_parameter_list().size() << std::endl;
 
             // add function symbol to current environment

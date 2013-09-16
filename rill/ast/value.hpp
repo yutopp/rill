@@ -78,7 +78,7 @@ namespace rill
                     return true;
                 }
 
-                virtual auto get_native_type_name_string() const -> native_string_t =0;
+                virtual auto get_native_typename_string() const -> native_string_t =0;
             };
 
             //
@@ -93,12 +93,12 @@ namespace rill
                 {}
 
             public:
-                auto get_native_type_name_string() const -> native_string_t RILL_CXX11_OVERRIDE
+                auto get_native_typename_string() const -> native_string_t RILL_CXX11_OVERRIDE
                 {
                     return "symbol";
                 }
 
-                auto get_native_string() const
+                auto to_native_string() const
                     -> native_string_t const&
                 {
                     return value_;
@@ -132,7 +132,7 @@ namespace rill
             public:
                 virtual bool is_template() const =0;
 
-                virtual auto get_base_symbol() const
+                virtual auto get_inner_symbol() const
                     -> symbol_value_ptr =0;
 
                 virtual auto template_argument() const
@@ -151,12 +151,25 @@ namespace rill
                 {}
 
             public:
-                auto get_native_type_name_string() const -> native_string_t RILL_CXX11_OVERRIDE
+                auto get_native_typename_string() const -> native_string_t RILL_CXX11_OVERRIDE
                 {
                     return "identifier";
                 }
 
+                // deprecated
                 auto get_last_identifier() const
+                    -> single_identifier_value_base_ptr
+                {
+                    return nest_.back();
+                }
+
+                auto at(std::size_t const& index) const
+                    -> single_identifier_value_base_ptr
+                {
+                    return nest_.at( index );
+                }
+
+                auto last() const
                     -> single_identifier_value_base_ptr
                 {
                     return nest_.back();
@@ -196,9 +209,9 @@ namespace rill
                 {}
 
             public:
-                auto get_native_type_name_string() const -> native_string_t RILL_CXX11_OVERRIDE
+                auto get_native_typename_string() const -> native_string_t RILL_CXX11_OVERRIDE
                 {
-                    return "single_id"; // TODO: change name
+                    return "single_identifier"; // TODO: change name
                 }
 
                 bool is_template() const RILL_CXX11_OVERRIDE
@@ -206,7 +219,7 @@ namespace rill
                     return false;
                 }
 
-                auto get_base_symbol() const
+                auto get_inner_symbol() const
                     -> symbol_value_ptr RILL_CXX11_OVERRIDE
                 {
                     return base_name_;
@@ -257,7 +270,7 @@ namespace rill
                 )
                 -> single_identifier_value_ptr
             {
-                return make_binary_operator_identifier( symbol_name->get_native_string() );
+                return make_binary_operator_identifier( symbol_name->to_native_string() );
             }
             // TODO: add overload function that implement template specified operator
 
@@ -266,7 +279,7 @@ namespace rill
                 )
                 -> symbol_value_ptr
             {
-                return make_symbol( "%binary%operator_" + symbol_name->get_native_string() );
+                return make_symbol( "%binary%operator_" + symbol_name->to_native_string() );
             }
 
 
@@ -298,7 +311,7 @@ namespace rill
                 {}
 
             public:
-                auto get_native_type_name_string() const -> native_string_t RILL_CXX11_OVERRIDE
+                auto get_native_typename_string() const -> native_string_t RILL_CXX11_OVERRIDE
                 {
                     return "int";
                 }
@@ -328,7 +341,7 @@ namespace rill
             // specify value's type name
             intrinsic_value( intrinsic::value_base_ptr const& iv )
                 : value_( iv )
-                , literal_type_name_( std::make_shared<intrinsic::single_identifier_value>( iv->get_native_type_name_string() ) )
+                , literal_type_name_( std::make_shared<intrinsic::single_identifier_value>( iv->get_native_typename_string() ) )
             {}
 
             virtual ~intrinsic_value() {};

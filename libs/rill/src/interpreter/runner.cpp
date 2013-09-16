@@ -92,7 +92,7 @@ namespace rill
 
 //            std::cout
 //                << "in binary_operator_expression dispach of interpret_pass<runtime_interpret_tag>" << std::endl
-//                << e.op_->get_base_symbol()->get_native_string() << std::endl
+//                << e.op_->get_inner_symbol()->to_native_string() << std::endl
 //                << "lhs" << lhs_type_env << std::endl
 //                << "rhs" << rhs_type_env << std::endl;
 //
@@ -102,7 +102,7 @@ namespace rill
             //
             auto const& parameter_wrapper_env = env->lookup( e->op_ );
 //            std::cout
-//                << "search: " << e.op_->get_base_symbol()->get_native_string() << std::endl
+//                << "search: " << e.op_->get_inner_symbol()->to_native_string() << std::endl
 //                << parameter_wrapper_env->get_id() << std::endl
 //                << static_cast<int>( parameter_wrapper_env->get_symbol_kind() ) << std::endl
 //                ;

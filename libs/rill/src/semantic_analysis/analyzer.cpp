@@ -22,62 +22,63 @@ namespace rill
     namespace semantic_analysis
     {
         // Root Scope
-        RILL_TV_OP( analyzer, ast::root, r, env )
+        RILL_TV_OP( analyzer, ast::root, r, parent_env )
         {
             // collect all type identifiers under this scope
             //collect_type_identifier( env, r.statements_ );
 
             // collect all identifiers(except types) under this scope
-            collect_identifier( env, r );
+            collect_identifier( parent_env, r );
 
-            std::cout << "ababab" << std::endl << env << std::endl;
+            std::cout << "ababab" << std::endl << parent_env << std::endl;
 
             // build environment
             for( auto const& node : r->statements_ )
-                dispatch( node, env );
+                dispatch( node, parent_env );
         }
 
         // statement
         // virtual void operator()( template_statement const& s, environment_ptr const& env ) const =0;
 
-        RILL_TV_OP( analyzer, ast::expression_statement, s, env )
+        RILL_TV_OP( analyzer, ast::expression_statement, s, parent_env )
         {
             // // DO NOT EVALUATE THIS PATH.
-            dispatch( s->expression_, env );
+            dispatch( s->expression_, parent_env );
         }
 
-        RILL_TV_OP( analyzer, ast::return_statement, s, env )
+        RILL_TV_OP( analyzer, ast::return_statement, s, parent_env )
         {
-            auto const r = dispatch( s->expression_, env );
+            auto const r = dispatch( s->expression_, parent_env );
 
             std::cout << "!!!!!!!" << r << std::endl;
             //context_->current_scope()->set_return_value( s.expression_->dispatch( *this, env ) );
         }
 
 
-        RILL_TV_OP( analyzer, ast::function_definition_statement, s, env )
+        RILL_TV_OP( analyzer, ast::function_definition_statement, s, parent_env )
         {
             std::cout
                 << "function_definition_statement: ast_ptr -> "
-                << (environment_ptr const&)env << std::endl
+                << (environment_ptr const&)parent_env << std::endl
                 << "Args num -- " << s->get_parameter_list().size() << std::endl;
 
-            auto const r_env = env->get_related_env_by_ast_ptr( s );
-            assert( r_env != nullptr );
-            assert( r_env->get_symbol_kind() == kind::type_value::function_e );
+            auto const related_env = parent_env->get_related_env_by_ast_ptr( s );
+            assert( related_env != nullptr );
+            assert( related_env->get_symbol_kind() == kind::type_value::function_e );
 
-            auto const& f_env = std::static_pointer_cast<function_symbol_environment>( r_env );
+            auto const& f_env = std::static_pointer_cast<function_symbol_environment>( related_env );
             assert( f_env != nullptr );
 
             if ( !f_env->is_incomplete() )
                 return;
 
             // construct function environment in progress phase
+
+            // make function parameter variable decl
             for( auto const& e : s->get_parameter_list() ) {
-                // 
                 assert( e.decl_unit.init_unit.type != nullptr || e.decl_unit.init_unit.initializer != nullptr );
 
-                if ( e.decl_unit.init_unit.type ) { // is type specified ?
+                if ( e.decl_unit.init_unit.type ) { // is parameter variavle type specified ?
                     // evaluate constant expresison as type
                     auto const& type_identifier_pointer = interpreter::evaluate_as_type( f_env, e.decl_unit.init_unit.type );
 
@@ -93,12 +94,12 @@ namespace rill
                             );
 
                     } else {
-                        // type was not found, compilation error
+                        // type was not found, !! compilation error !!
                         assert( false );
                     }
 
                 } else {
-                    // type inferenced by result of evaluated expression
+                    // type inferenced by result of evaluated [[default initializer expression]]
 
                     // TODO: implement type inference
                     assert( false );
@@ -106,11 +107,13 @@ namespace rill
             }
 
             // scan all statements in this function body
+            for( auto const& node : s->statements_ )
+                dispatch( node, f_env );
             // ?: TODO: use block expression
 
             // TODO: implement return type inference
             // TEMP: currently :int
-            f_env->complete( env->lookup( intrinsic::make_single_identifier( "int" ) ), s->get_identifier()->get_last_identifier()->get_base_symbol()->get_native_string() );
+            f_env->complete( f_env->lookup( intrinsic::make_single_identifier( "int" ) ), s->get_identifier()->last()->get_inner_symbol()->to_native_string() );
 
             //
             f_env->get_parameter_wrapper_env()->add_overload( f_env );

@@ -264,7 +264,7 @@ namespace rill
 #pragma comment( lib, "LLVMBitWriter.lib" )
 
 #pragma comment( lib, "LLVMAsmParser.lib" )
-#pragma comment( lib, "LLVMArchive.lib" )
+//#pragma comment( lib, "LLVMArchive.lib" )
 #pragma comment( lib, "LLVMBitReader.lib" )
 #pragma comment( lib, "LLVMSelectionDAG.lib" )
 #pragma comment( lib, "LLVMAsmPrinter.lib" )

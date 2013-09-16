@@ -24,10 +24,6 @@
 
 void sample()
 {
-
-
-
-
     //
     // prepareation for semantic analysis
     // it makes core.lang
