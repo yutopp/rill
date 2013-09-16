@@ -170,6 +170,17 @@ namespace rill
             assert( f_env != nullptr );
             auto const& parameter_env_ids = f_env->get_parameter_decl_ids();
 
+            //
+            auto const current_insert_point = builder_->saveIP();
+
+            //
+            // TODO: use current_insert_point.isSet(), if it is false, this function needs external linkage( currently, all functions are exported as external linkage )
+            auto const linkage = llvm::Function::ExternalLinkage;
+            if ( current_insert_point.isSet() ) {
+                //
+                std::cout << "not external." << std::endl;
+            }
+
             // !!! PRE IMPL !!!
 
             // Make the function type:  +(int, int): int etc.
@@ -191,6 +202,9 @@ namespace rill
 
             //
             llvm::verifyFunction( *F );
+
+            // restore insert point
+            builder_->restoreIP( current_insert_point );
         }
 
         RILL_TV_OP_CONST( llvm_ir_generator, ast::binary_operator_expression, e, _ )
