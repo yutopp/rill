@@ -93,6 +93,14 @@ namespace rill
             return std::dynamic_pointer_cast<class_symbol_environment>( p.lock() );
         }
 
+        auto get_return_type_environment() const
+            -> const_class_symbol_environment_ptr
+        {
+            auto const& p = get_env_at( return_type_env_id_ );
+
+            return std::dynamic_pointer_cast<class_symbol_environment const>( p.lock() );
+        }
+
         auto dump( std::ostream& os, std::string const& indent ) const
             -> std::ostream& RILL_CXX11_OVERRIDE
         {

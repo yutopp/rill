@@ -34,7 +34,7 @@ namespace rill
 
             // build environment
             for( auto const& node : r->statements_ )
-                dispatch_as_env( node, *this,  env );
+                dispatch( node, env );
         }
 
         // statement
@@ -43,12 +43,12 @@ namespace rill
         RILL_TV_OP( analyzer, ast::expression_statement, s, env )
         {
             // // DO NOT EVALUATE THIS PATH.
-            dispatch_as_env( s->expression_, *this, env );
+            dispatch( s->expression_, env );
         }
 
         RILL_TV_OP( analyzer, ast::return_statement, s, env )
         {
-            auto const r = dispatch_as_env( s->expression_, *this, env );
+            auto const r = dispatch( s->expression_, env );
 
             std::cout << "!!!!!!!" << r << std::endl;
             //context_->current_scope()->set_return_value( s.expression_->dispatch( *this, env ) );
@@ -135,8 +135,8 @@ namespace rill
         RILL_TV_OP( analyzer, ast::binary_operator_expression, e, env )
         {
             // check type environment
-            auto const& lhs_type_env = dispatch_as_env( e->lhs_, *this, env );
-            auto const& rhs_type_env = dispatch_as_env( e->rhs_, *this, env );
+            auto const& lhs_type_env = dispatch( e->lhs_, env );
+            auto const& rhs_type_env = dispatch( e->rhs_, env );
 
             assert( lhs_type_env != nullptr && rhs_type_env != nullptr );
 
@@ -189,7 +189,7 @@ namespace rill
             // push values to context stack and evaluate type environment
             std::vector<environment_ptr> argument_type_env;
             for( auto const& val : e->arguments_ )
-                argument_type_env.push_back( dispatch_as_env( val, *this, env ) );
+                argument_type_env.push_back( dispatch( val, env ) );
             assert( std::count( argument_type_env.cbegin(), argument_type_env.cend(), nullptr ) == 0 );
 
             // TODO: fix lookup phase
@@ -244,7 +244,7 @@ namespace rill
                     assert( statement_node != nullptr );
 
                     // to complate incomplete_funciton_env( after that, incomplete_function_env will be complete_function_env)
-                    dispatch_as_env( statement_node, *this, incomplete_function_env->get_parent_env() );
+                    dispatch( statement_node, incomplete_function_env->get_parent_env() );
                 }
 
                 // retry
@@ -267,7 +267,7 @@ namespace rill
 
         RILL_TV_OP( analyzer, ast::term_expression, e, env )
         {
-            return dispatch_as_env( e->value_, *this, env );
+            return dispatch( e->value_, env );
         }
 
 

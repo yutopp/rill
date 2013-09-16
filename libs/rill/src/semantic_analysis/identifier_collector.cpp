@@ -24,7 +24,7 @@ namespace rill
         {
             // build environment
             for( auto const& node : r->statements_ )
-                dispatch_as_env( node, *this, env );
+                dispatch( node, env );
         }
 
         //

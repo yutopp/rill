@@ -20,11 +20,11 @@ namespace rill
         {
             template<typename EnvironmentPtr, typename T>
             auto evaluate_as_type( EnvironmentPtr const& env, T const& node )
-                -> decltype( dispatch_as_type( node, std::declval<type_evaluator>(), env ) )
+                -> decltype( std::declval<type_evaluator>().dispatch( node, env ) )
             {
                 type_evaluator r;
 
-                return dispatch_as_type( node, r, env );
+                return r.dispatch( node, env );
             }
 
         } // namespace interpreter

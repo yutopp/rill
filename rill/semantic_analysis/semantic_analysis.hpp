@@ -42,7 +42,7 @@ namespace rill
         {
             identifier_collector visitor;
 
-            return dispatch_as_env( node, visitor, env );
+            return visitor.dispatch( node, env );
         }
 
 
@@ -55,7 +55,7 @@ namespace rill
         {
             analyzer visitor;
 
-            return dispatch_as_env( node, visitor, env );
+            return visitor.dispatch( node, env );
         }
 
 
@@ -65,18 +65,18 @@ namespace rill
         template<typename EnvironmentPtr, typename T>
         void analyse( EnvironmentPtr const& env, std::vector<T> const& nodes )
         {
-            analyzer visitor;
+            analyse_and_complement visitor;
 
             for( auto const& node : nodes )
-                dispatch_as_env( node, visitor, env );
+                visitor.dispatch( node, env );
         }
 
         template<typename EnvironmentPtr, typename T>
-        void analyse( EnvironmentPtr const& env, T const& node )
+        void analyse_and_complement( EnvironmentPtr const& env, T const& node )
         {
             analyzer visitor;
 
-            return dispatch_as_env( node, visitor, env );
+            return visitor.dispatch( node, env );
         }
 
     } // namespace semantic_analysis

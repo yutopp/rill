@@ -9,6 +9,8 @@
 #ifndef RILL_CODE_GENERATOR_HPP
 #define RILL_CODE_GENERATOR_HPP
 
+#include <memory>
+
 #include "llvm_ir_generator.hpp"
 
 
@@ -16,11 +18,11 @@ namespace rill
 {
     namespace code_generator
     {
-        template<typename EnvironmentPtr, typename ActionHolderPtr, typename T>
-        auto generate_llvm_ir( EnvironmentPtr const& env, ActionHolderPtr const& holder, T const& node )
+        template<typename EnvironmentPtr, typename ActionHolderPtr, typename Node>
+        auto generate_llvm_ir( EnvironmentPtr const& env, ActionHolderPtr const& holder, std::shared_ptr<Node> const& node )
             -> void
         {
-            llvm_ir_generator visitor;
+            llvm_ir_generator const visitor( env );
 
             visitor.dispatch( node, env );
             visitor.debug();

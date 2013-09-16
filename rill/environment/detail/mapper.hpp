@@ -24,23 +24,25 @@ namespace rill
     class ast_to_environment_id_mapper
     {
     public:
-        typedef std::shared_ptr<void>   key_type;
-        typedef environment_id_t        value_type;
+        typedef void const*                     key_type;
+        typedef environment_id_t                value_type;
 
     public:
         template<typename Ptr, typename Id>
         auto add( Ptr const& ast_ptr, Id const& env_id )
             -> void
         {
-            map_.emplace( ast_ptr, env_id );
+            map_.emplace( ast_ptr.get(), env_id );
         }
 
         template<typename Ptr>
-        auto get( Ptr const& ast_ptr )
-            -> value_type const&
+        auto get( Ptr const& ast_ptr ) const
+            -> value_type
         {
-            return map_.at( ast_ptr );
+            std::cout << "ptr-> " << ast_ptr.get() << std::endl;
+            return ( map_.find( ast_ptr.get() ) != map_.cend() ) ? map_.at( ast_ptr.get() ) : environment_id_undefined;
         }
+
     private:
         std::unordered_map<key_type, value_type> map_;
     };
@@ -51,8 +53,9 @@ namespace rill
     class environment_id_to_ast_mapper
     {
     public:
-        typedef environment_id_t        key_type;
-        typedef ast::statement_ptr      value_type;
+        typedef environment_id_t            key_type;
+        typedef ast::statement_ptr          value_type;
+        typedef ast::const_statement_ptr    const_value_type;
 
     public:
         template<typename Id, typename AstPtr>
@@ -66,9 +69,9 @@ namespace rill
 
         template<typename Id>
         auto get( Id const& env_id ) const
-            -> value_type const&
+            -> value_type
         {
-            return map_.at( env_id );
+            return ( map_.find( env_id ) != map_.cend() ) ? map_.at( env_id ) : nullptr;
         }
 
     private:

@@ -26,26 +26,43 @@
 
 
 #define RILL_TV_OP_DECL( node_type ) \
-    auto operator()( std::shared_ptr<node_type> const&, environment_ptr const& ) const \
+    auto operator()( std::shared_ptr<node_type> const&, environment_ptr const& ) \
+        -> result<node_type>::type RILL_CXX11_OVERRIDE;
+
+#define RILL_TV_OP_DECL_CONST( node_type ) \
+    auto operator()( std::shared_ptr<node_type const> const&, const_environment_ptr const& ) const \
         -> result<node_type>::type RILL_CXX11_OVERRIDE;
 
 #define RILL_TV_OP( class_name, node_type, node_name, env_name ) \
-    auto class_name::operator()( std::shared_ptr<node_type> const& node_name, environment_ptr const& env_name ) const \
+    auto class_name::operator()( std::shared_ptr<node_type> const& node_name, environment_ptr const& env_name ) \
         -> result<node_type>::type
 
+#define RILL_TV_OP_CONST( class_name, node_type, node_name, env_name ) \
+    auto class_name::operator()( std::shared_ptr<node_type const> const& node_name, const_environment_ptr const& env_name ) const \
+        -> result<node_type>::type
 
 ///
 #define RILL_TV_BASE_VOID_OP( node_type ) \
-    virtual void operator()( std::shared_ptr<node_type> const& node, environment_ptr const& env ) const \
+    virtual void operator()( std::shared_ptr<node_type> const& node, environment_ptr const& env ) \
     { \
         this->unimplemented<node_type>(); \
+    } \
+    virtual void operator()( std::shared_ptr<node_type const> const& node, const_environment_ptr const& env ) const \
+    { \
+        this->unimplemented<node_type const>(); \
     }
 
 #define RILL_TV_BASE_RETURN_OP( node_type ) \
-    virtual auto operator()( std::shared_ptr<node_type> const& node, environment_ptr const& env ) const \
+    virtual auto operator()( std::shared_ptr<node_type> const& node, environment_ptr const& env ) \
         -> typename result<node_type>::type \
     { \
         this->unimplemented<node_type>(); \
+        return typename result<node_type>::type(); \
+    } \
+    virtual auto operator()( std::shared_ptr<node_type const> const& node, const_environment_ptr const& env ) const \
+        -> typename result<node_type>::type \
+    { \
+        this->unimplemented<node_type const>(); \
         return typename result<node_type>::type(); \
     }
 
@@ -72,12 +89,15 @@ namespace rill
             struct tree_visitor_base
             {
             public:
+                typedef tree_visitor_base           self_type;
+                typedef tree_visitor_base const     const_self_type;
+
                 template<typename NodeT>
                 struct result
                 {
                     typedef typename tree_visitor_result<
                         ReturnT,
-                        typename base_type_specifier<NodeT>::type
+                        typename base_type_specifier<typename std::decay<NodeT>::type>::type
                     >::type type;
                 };
 
@@ -86,13 +106,39 @@ namespace rill
 
             public:
                 //
-                template<typename NodePtr>
-                auto dispatch( NodePtr&& node, environment_ptr const& env ) const
-                    -> decltype(( dispatch_as<ReturnT>( std::forward<NodePtr>( node ), *reinterpret_cast<tree_visitor_base const*>( nullptr ), env ) ))
+                template<typename Node, typename Enveronment>
+                auto dispatch( std::shared_ptr<Node> const& node, std::shared_ptr<Enveronment> const& env )
+                    -> decltype( dispatch_as<ReturnT>( node, *reinterpret_cast<self_type*>(0), env ) )
                 {
-                    return dispatch_as<ReturnT>( std::forward<NodePtr>( node ), *this, env );
+                    return dispatch_as<ReturnT>( node, *this, env );
                 }
-                
+
+                template<typename NodePtr>
+                auto dispatch( NodePtr&& node )
+                    -> decltype( dispatch( std::forward<NodePtr>( node ), environment_ptr() ) )
+                {
+                    return dispatch( std::forward<NodePtr>( node ), environment_ptr() );
+                }
+
+
+                //
+                template<typename Node, typename Enveronment>
+                auto dispatch( std::shared_ptr<Node> const& node, std::shared_ptr<Enveronment> const& env ) const
+                    -> decltype( dispatch_as<ReturnT>( std::const_pointer_cast<Node const>( node ), *reinterpret_cast<const_self_type*>(0), std::static_pointer_cast<environment const>( env ) ) )
+                {
+                    auto const& p = std::const_pointer_cast<Node const>( node );
+                    assert( p != nullptr );
+
+                    return dispatch_as<ReturnT>( std::const_pointer_cast<Node const>( node ), *this, std::static_pointer_cast<environment const>( env ) );
+                }
+
+                template<typename NodePtr>
+                auto dispatch( NodePtr&& node ) const
+                    -> decltype( dispatch( std::forward<NodePtr>( node ), const_environment_ptr() ) )
+                {
+                    return dispatch( std::forward<NodePtr>( node ), const_environment_ptr() );
+                }
+
 
             public:
                 //
@@ -120,8 +166,8 @@ namespace rill
 
             public:
                 // filter outbound object
-                template<typename NodeT>
-                auto operator()( std::shared_ptr<NodeT> const&, environment_ptr const& ) const
+                template<typename NodeT, typename EnveronmentPtr>
+                auto operator()( std::shared_ptr<NodeT> const&, EnveronmentPtr const& ) const
                     -> typename result<NodeT>::type
                 {
                     unimplemented<NodeT>();

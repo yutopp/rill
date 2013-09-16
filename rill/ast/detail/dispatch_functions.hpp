@@ -68,6 +68,7 @@ namespace rill
             typedef boost::mpl::map<
                 BOOST_PP_ENUM_PARAMS(BOOST_PP_SEQ_SIZE(RILL_DISPATCH_TYPES_SEQ), temporary_typedef::RILL_DETAIL_PP_MPL_PAIR_NAME_A_B)
             > as_type;
+
             // dispatch type -> tag mapping
             typedef boost::mpl::map<
                 BOOST_PP_ENUM_PARAMS(BOOST_PP_SEQ_SIZE(RILL_DISPATCH_TYPES_SEQ), temporary_typedef::RILL_DETAIL_PP_MPL_PAIR_NAME_B_A)
@@ -76,71 +77,30 @@ namespace rill
 
 
         //
-        template<typename ReturnT, typename NodePtr, typename VisitorT>
+        template<typename ReturnT, typename NodePtr, typename VisitorT, typename EnvironmentPtr>
         auto dispatch_as(
-            NodePtr&& node,
+            NodePtr const& node,
             VisitorT&& visitor,
-            environment_ptr const& env
+            EnvironmentPtr&& env
             )
-            -> decltype((
+            -> decltype(
                     node->dispatch(
                         typename boost::mpl::at<detail::as_reverse_type, ReturnT>::type(),
-                        std::forward<NodePtr>( node ),
+                        node,
                         std::forward<VisitorT>( visitor ),
-                        env
+                        std::forward<EnvironmentPtr>( env )
                         )
-               ))
+               )
         {
             return node->dispatch(
-                typename boost::mpl::at<detail::as_reverse_type, ReturnT>::type(),
-                std::forward<NodePtr>( node ),
-                std::forward<VisitorT>( visitor ),
-                env
-                );
-        }
-
-
-
-
-        template<typename NodeT, typename VisitorT>
-        auto dispatch_as_env(
-            std::shared_ptr<NodeT> const& node,
-            VisitorT const& visitor,
-            environment_ptr const& env
-            )
-            // -> std::shared_ptr<void>
-            -> decltype(( node->dispatch( detail::dispatch_as_environment_tag(), node, visitor, env ) ))
-        {
-            return node->dispatch( detail::dispatch_as_environment_tag(), node, visitor, env );
-        }
-
-        template<typename NodeT, typename VisitorT>
-        auto dispatch_as_value(
-            std::shared_ptr<NodeT> const& node,
-            VisitorT const& visitor,
-            environment_ptr const& env
-            )
-            -> decltype( node->dispatch( detail::dispatch_as_value_tag(), node, visitor, env ) )
-        {
-            return node->dispatch( detail::dispatch_as_value_tag(), node, visitor, env );
-        }
-
-        template<typename NodeT, typename VisitorT>
-        auto dispatch_as_type(
-            std::shared_ptr<NodeT> const& node,
-            VisitorT const& visitor,
-            environment_ptr const& env
-            )
-            -> decltype( node->dispatch( detail::dispatch_as_type_tag(), node, visitor, env ) )
-        {
-            return node->dispatch( detail::dispatch_as_type_tag(), node, visitor, env );
+                        typename boost::mpl::at<detail::as_reverse_type, ReturnT>::type(),
+                        node,
+                        std::forward<VisitorT>( visitor ),
+                        std::forward<EnvironmentPtr>( env )
+                        );
         }
 
     } // namespace ast
-
-    using ast::dispatch_as_env;
-    using ast::dispatch_as_value;
-    using ast::dispatch_as_type;
 } // namespace rill
 
 #undef RILL_DETAIL_PP_MPL_PAIR_NAME_A_B

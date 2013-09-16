@@ -24,28 +24,7 @@
 
 void sample()
 {
-    //
-    // syntax analysis
-    //
 
-    // first(lexical & syntax)
-    std::ifstream ifs( "input.rill" );
-    if ( !ifs ) {
-        std::cerr << "input.rill was not found..." << std::endl;
-        exit( -100 );
-    }
-    std::istreambuf_iterator<char> const begin = ifs, end;
-    rill::native_string_t const input_source_code( begin, end );
-    std::cout
-        << "inputs are:" << std::endl
-        << input_source_code << std::endl;
-
-    //
-    auto const syntax_tree = rill::syntax_analysis::make_syntax_tree( input_source_code );
-
-    // debug
-    std::cout
-        << "Top statements size: " << syntax_tree->statements_.size() << std::endl;
 
 
 
@@ -175,7 +154,28 @@ void sample()
     }
 
 
+    //
+    // syntax analysis
+    //
 
+    // first(lexical & syntax)
+    std::ifstream ifs( "input.rill" );
+    if ( !ifs ) {
+        std::cerr << "input.rill was not found..." << std::endl;
+        exit( -100 );
+    }
+    std::istreambuf_iterator<char> const begin = ifs, end;
+    rill::native_string_t const input_source_code( begin, end );
+    std::cout
+        << "inputs are:" << std::endl
+        << input_source_code << std::endl;
+
+    //
+    auto const parse_tree = rill::syntax_analysis::make_syntax_tree( input_source_code );
+
+    // debug
+    std::cout
+        << "Top statements size: " << parse_tree->statements_.size() << std::endl;
 
 
     //
@@ -190,7 +190,7 @@ void sample()
     //   check identifiers type and template instantiation
     std::cout << " = Semantic Analysis ====== " << std::endl;
 
-    rill::semantic_analysis::analyse( root_env, syntax_tree );
+    rill::semantic_analysis::analyse_and_complement( root_env, parse_tree );
 
     
 
@@ -199,12 +199,11 @@ void sample()
     // last( debug )
     std::cout << " ========================== " << std::endl;
 
-    rill::interpreter::run( root_env, embedded_function_action, syntax_tree );
-
+    rill::interpreter::run( root_env, embedded_function_action, parse_tree );
 
     //
     std::cout << " = LLVM =================== " << std::endl;
-    rill::code_generator::generate_llvm_ir( root_env, embedded_function_action, syntax_tree );
+    rill::code_generator::generate_llvm_ir( root_env, embedded_function_action, parse_tree );
 
 
 

@@ -23,15 +23,26 @@
     virtual auto dispatch( \
         tag, \
         std::shared_ptr<rill::ast::detail::base_type_specifier<class_name>::type> const& self_pointer, \
-        rill::ast::detail::tree_visitor_base<boost::mpl::at<rill::ast::detail::as_type, tag>::type> const& visitor, \
+        rill::ast::detail::tree_visitor_base<boost::mpl::at<rill::ast::detail::as_type, tag>::type>& visitor, \
         environment_ptr const& env \
-        ) const \
+        ) \
         -> rill::ast::detail::tree_visitor_base< \
-            boost::mpl::at<rill::ast::detail::as_type, tag>::type \
-        >::template result<class_name>::type /*/ \
-        -> decltype( visitor( std::shared_ptr<class_name>(), env ) )/**/ RILL_CXX11_OVERRIDE \
+                boost::mpl::at<rill::ast::detail::as_type, tag>::type \
+        >::template result<class_name>::type RILL_CXX11_OVERRIDE \
     { \
         return visitor( std::static_pointer_cast<class_name>( self_pointer ), env ); \
+    } \
+    virtual auto dispatch( \
+        tag, \
+        std::shared_ptr<rill::ast::detail::base_type_specifier<class_name>::type const> const& const_self_pointer, \
+        rill::ast::detail::tree_visitor_base<boost::mpl::at<rill::ast::detail::as_type, tag>::type> const& visitor, \
+        const_environment_ptr const& env \
+        ) const \
+        -> rill::ast::detail::tree_visitor_base< \
+                boost::mpl::at<rill::ast::detail::as_type, tag>::type \
+        >::template result<class_name>::type RILL_CXX11_OVERRIDE \
+    { \
+        return visitor( std::static_pointer_cast<class_name const>( const_self_pointer ), env ); \
     }
 
 #define RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER(r, class_name, elem) \

@@ -404,6 +404,7 @@ namespace rill
         auto connect_from_ast( AstPtr const& ast )
             -> void
         {
+            std::cout << "connect_from " << ast.get() << " -> : env " << get_id() << std::endl;
             //
             root_shared_resource_->ast_to_env_id_map.add( ast, get_id() );
         }
@@ -416,8 +417,14 @@ namespace rill
             return boost::make_iterator_range( p.first, p.second );
         }
 #endif
-        auto get_related_ast() const
+        auto get_related_ast()
             -> shared_resource_type::env_id_to_ast_mapper_type::value_type
+        {
+            return root_shared_resource_->env_id_to_ast_map.get( get_id() );
+        }
+
+        auto get_related_ast() const
+            -> shared_resource_type::env_id_to_ast_mapper_type::const_value_type
         {
             return root_shared_resource_->env_id_to_ast_map.get( get_id() );
         }
@@ -426,7 +433,18 @@ namespace rill
         auto get_related_env_by_ast_ptr( AstPtr const& ast_ptr )
             -> env_pointer
         {
-            return get_env_at( root_shared_resource_->ast_to_env_id_map.get( ast_ptr ) ).lock();
+            auto const id = root_shared_resource_->ast_to_env_id_map.get( ast_ptr );
+
+            return ( id != environment_id_undefined ) ? get_env_at( id ).lock() : env_pointer();
+        }
+
+        template<typename AstPtr>
+        auto get_related_env_by_ast_ptr( AstPtr const& ast_ptr ) const
+            -> const_env_pointer
+        {
+            auto const id = root_shared_resource_->ast_to_env_id_map.get( ast_ptr );
+            std::cout << "id: " << id << std::endl;
+            return ( id != environment_id_undefined ) ? get_env_at( id ).lock() : const_env_pointer();
         }
 
         ///

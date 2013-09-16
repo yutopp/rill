@@ -37,7 +37,7 @@ namespace rill
             // dispatch_as_env( r, *this, env );
             
             for( auto const& s : r->statements_ )
-                dispatch_as_env( s, *this, env );
+                dispatch( s, env );
         }
 
 
@@ -48,7 +48,7 @@ namespace rill
         // 
         RILL_TV_OP( runner, ast::expression_statement, s, env )
         {
-            dispatch_as_env( s->expression_, *this, env );
+            dispatch( s->expression_, env );
 
             // erase stack
             context_->pop_value();
@@ -60,7 +60,7 @@ namespace rill
         //
         RILL_TV_OP( runner, ast::return_statement, s, env )
         {
-            auto const& returned_env = dispatch_as_env( s->expression_, *this, env );
+            auto const& returned_env = dispatch( s->expression_, env );
             context_->current_scope()->set_return_state( returned_env->get_id(), context_->current_stack_value() );
 
             // std::cout << "return statement" << returned_env << std::endl;
@@ -87,8 +87,8 @@ namespace rill
         RILL_TV_OP( runner, ast::binary_operator_expression, e, env )
         {
             // evaluate values(and push to stack) and returned value type
-            auto const& rhs_type_env = dispatch_as_env( e->rhs_, *this, env );
-            auto const& lhs_type_env = dispatch_as_env( e->lhs_, *this, env );
+            auto const& rhs_type_env = dispatch( e->rhs_, env );
+            auto const& lhs_type_env = dispatch( e->lhs_, env );
 
 //            std::cout
 //                << "in binary_operator_expression dispach of interpret_pass<runtime_interpret_tag>" << std::endl
@@ -141,7 +141,7 @@ namespace rill
                 //std::cout << "f_env: " << (environment_ptr const&)f_env << std::endl;
 
                 for( auto const& node : f_ast->statements_ ) {
-                    dispatch_as_env( node, *this, f_env );
+                    dispatch( node, f_env );
                 }
 
                 auto const status = context_->current_scope()->get_return_status();
@@ -182,7 +182,7 @@ namespace rill
         {
             std::vector<environment_ptr> argument_type_env;
             for( auto const& val : e->arguments_ | boost::adaptors::reversed ) {
-                argument_type_env.insert( argument_type_env.begin(), dispatch_as_env( val, *this, env ) );
+                argument_type_env.insert( argument_type_env.begin(), dispatch( val, env ) );
             }
 
             
@@ -228,7 +228,7 @@ namespace rill
                 //std::cout << "f_env: " << (environment_ptr const&)f_env << std::endl;
 
                 for( auto const& node : f_ast->statements_ ) {
-                    dispatch_as_env( node, *this, f_env );
+                    dispatch( node, f_env );
                 }
 
                 auto const status = context_->current_scope()->get_return_status();
@@ -295,7 +295,7 @@ namespace rill
         //
         RILL_TV_OP( runner, ast::term_expression, e, env )
         {
-            return dispatch_as_env( e->value_, *this, env );
+            return dispatch( e->value_, env );
         }
 
 

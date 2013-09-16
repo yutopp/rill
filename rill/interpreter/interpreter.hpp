@@ -20,7 +20,7 @@ namespace rill
         {
             runner r( ctx, holder );
 
-            dispatch_as_env( node, r, env );
+            r.dispatch( node, env );
         }
 
         template<typename EnvironmentPtr, typename ActionHolderPtr, typename T>
