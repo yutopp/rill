@@ -2,15 +2,22 @@ Rill
 --
 
 **実験中**
-文鳥の文鳥による文鳥のためのプログラミング言語のLLVMフロントエンドです．
+
+文鳥の文鳥による文鳥のためのプログラミング言語Rillの処理系です．
 
 ブン！ (◔⊖◔)つ < "ひとまず動くようになるまでゴリ押しで書くのでコードは汚いゾ"
 
-C++11の機能，Boost, LLVM を用いています．
+構文解析その他諸々にBoost，コード生成にLLVMを用いています．
+また，コードはC++11で書かれています．
+
+特定の環境のVisual Studio 2013 RC (v120)でしかテストしていません．
+
+
+値やリソースの扱いを細かく指定できるようにし，文鳥が楽しくプログラミングを出来るような言語を目指します．
 
 
 Using Library
--
+--
 Boost-trunk rev.84700
 
 LLVM-trunk rev.190764
@@ -18,7 +25,7 @@ LLVM-trunk rev.190764
 
 
 How to build
--
+--
 
 ### MSVC >= v1800 [Visual Studio 2013 RC (v120)]
 Please use project file.
@@ -38,29 +45,41 @@ Then, a executable file named **rillc** will be created in "bin" subdirectories.
 
 
 Sample
--
+--
 
-    4 *    	(3 + 1)
-    	* 8
-	
-    	+ 6;
-	// comment
-    foo( 20 );
-
-	/* comment */
-    def foo( hoge: int ): int
+    def main(): int
     {
-        return hoge*10;
+        print( "hello, bunchou lang!!!" );
+        test();
+    
+        return 0;
+    }
+    
+    def test(): void
+    {
+        extern_print_string( foo( ( 10*2 )*(1+2*2   ), 10 ) + 2 * 5 );
+    }
+    
+    extern def extern_print_string( :int ): void "put_string2"; 
+    
+    
+    def foo( fuga: int, hoge: int ): int
+    {
+        return foo(fuga) * hoge;
     }
 
-    foo( 10 ) + 2 * 5;
+    def foo( a: int ): int
+    {
+    	return a;
+    }
 
-    foo( 5 + 5 * 2 + (20 + 30*2 + 5) ) + 2 * 5;
+    // comment
+    ;/*empty statment*/;;;
 
 
 
 License
--
+--
 
 Boost License Version 1.0
 
