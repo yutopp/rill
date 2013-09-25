@@ -209,6 +209,9 @@
     <ClInclude Include="..\..\..\rill\code_generator\llvm_ir_generator.hpp">
       <Filter>rill\code_generator</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\rill\code_generator\binary_generator_from_llvm_ir.hpp">
+      <Filter>rill\code_generator</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\libs\rill\src\environment.cpp">
@@ -239,6 +242,9 @@
       <Filter>libs\rill\src\semantic_analysis\compiletime_interpreter</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\libs\rill\src\code_generator\llvm_ir_generator.cpp">
+      <Filter>libs\rill\src\code_generator</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\libs\rill\src\code_generator\binary_generator_from_llvm_ir.cpp">
       <Filter>libs\rill\src\code_generator</Filter>
     </ClCompile>
   </ItemGroup>

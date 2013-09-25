@@ -145,6 +145,74 @@ namespace rill
         };
 
 
+        struct empty_statement
+            : public statement
+        {
+        public:
+            RILL_AST_ADAPT_VISITOR( empty_statement )
+
+        public:
+            empty_statement()
+            {}
+        };
+
+
+
+        struct extern_statement_base
+            : public statement
+        {
+        public:
+            virtual ~extern_statement_base()
+            {}
+        };
+
+        struct extern_function_declaration_statement
+            : public extern_statement_base
+        {
+        public:
+            RILL_AST_ADAPT_VISITOR( extern_function_declaration_statement )
+
+        public:
+            extern_function_declaration_statement(
+                intrinsic::identifier_value_ptr const& symbol_name,
+                parameter_list const& parameter_list,
+                boost::optional<intrinsic::identifier_value_ptr> const& return_type,
+                native_string_t const& extern_symbol_name
+                )
+                : identifier_( symbol_name )
+                , parameter_list_( parameter_list )
+                , return_type_( return_type )
+                , extern_symbol_name_( extern_symbol_name )
+            {}
+
+        public:
+            auto get_identifier() const
+                -> intrinsic::identifier_value_ptr
+            {
+                return identifier_;
+            }
+
+            auto get_parameter_list() const
+                -> parameter_list
+            {
+                return parameter_list_;
+            }
+
+            auto get_extern_symbol_name() const
+                -> native_string_t
+            {
+                return extern_symbol_name_;
+            }
+
+        public:
+            intrinsic::identifier_value_ptr identifier_;
+            parameter_list parameter_list_;
+            boost::optional<intrinsic::identifier_value_ptr> return_type_;
+
+            native_string_t extern_symbol_name_;
+        };
+
+
 
 
 
@@ -239,31 +307,7 @@ namespace rill
             expression_ptr const expression_;
         };
 
-        /*
 
-        #include <functional>
-        typedef std::function<value_ptr(std::vector<value_ptr> const&)> native_function_t;
-
-        struct native_function_definition_statement
-        : public function_definition_statement_base
-        {
-        ADAPT_STATEMENT_VISITOR( native_function_definition_statement )
-
-        public:
-        native_function_definition_statement(
-        intrinsic::identifier_value_ptr const& symbol_name,
-        parameter_list const& parameter_list,
-        intrinsic::identifier_value_ptr const& return_type,
-        native_function_t const& callee
-        )
-        : function_definition_statement_base( symbol_name, parameter_list, return_type )
-        , callee_( callee )
-        {}
-
-        public:
-        native_function_t const callee_;
-        };
-        */
 
 
 
@@ -336,8 +380,8 @@ BOOST_FUSION_ADAPT_STRUCT(
 
 BOOST_FUSION_ADAPT_STRUCT(
     rill::ast::variable_declaration_unit,
-    (rill::ast::intrinsic::single_identifier_value_base_ptr, name)
-    (rill::ast::value_initializer_unit,          init_unit)
+    (rill::ast::intrinsic::single_identifier_value_base_ptr,    name)
+    (rill::ast::value_initializer_unit,                         init_unit)
     )
 
 BOOST_FUSION_ADAPT_STRUCT(

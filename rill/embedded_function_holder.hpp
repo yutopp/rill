@@ -6,6 +6,7 @@
 
 #include "ast/value_fwd.hpp"
 #include "interpreter/runtime.hpp"
+#include "code_generator/llvm_ir_generator.hpp"
 
 
 namespace rill
@@ -21,7 +22,20 @@ namespace rill
         {
             return nullptr;
         }
+
+        virtual auto invoke(
+            processing_context::llvm_ir_generator_tag, // Tag for Rill's LLVM IR Generator
+            std::shared_ptr<llvm::Module> const& module,
+            std::shared_ptr<llvm::IRBuilder<>> const& builder,
+            std::shared_ptr<code_generator::llvm_ir_generator::env_id_llvm_table> const& llvm_table,
+            std::vector<environment_id_t> const& parameter_variable_decl_env_ids
+            ) const
+            -> llvm::Value*
+        {
+            return nullptr;
+        }
     };
+
 
     class embedded_function_holder
     {

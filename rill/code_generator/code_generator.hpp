@@ -12,6 +12,7 @@
 #include <memory>
 
 #include "llvm_ir_generator.hpp"
+#include "binary_generator_from_llvm_ir.hpp"
 
 
 namespace rill
@@ -22,10 +23,14 @@ namespace rill
         auto generate_llvm_ir( EnvironmentPtr const& env, ActionHolderPtr const& holder, std::shared_ptr<Node> const& node )
             -> void
         {
-            llvm_ir_generator const visitor( env );
+            llvm_ir_generator const visitor( env, holder );
 
             visitor.dispatch( node, env );
             visitor.debug();
+
+            // FIXME
+            binary_generator_from_llvm_ir const binary_gen;
+            binary_gen.test( *visitor.get_llvm_module() );
         }
     } // namespace code_generator
 } // namespace rill

@@ -9,6 +9,9 @@ namespace rill
     {
         class debug_interpreter_tag {};
         auto const debug_interpreter_k = debug_interpreter_tag();
+
+        class llvm_ir_generator_tag {};
+        auto const llvm_ir_generator_k = llvm_ir_generator_tag();
     };
 
     class embedded_function_action_base;

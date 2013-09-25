@@ -15,6 +15,10 @@
 #include <iostream>
 
 #include <boost/spirit/include/qi.hpp>
+#include <boost/spirit/include/qi_as.hpp>
+#include <boost/fusion/include/adapt_struct.hpp>
+#include <boost/fusion/adapted/std_tuple.hpp>
+
 #include <boost/spirit/include/phoenix_core.hpp>
 #include <boost/spirit/include/phoenix_operator.hpp>
 #include <boost/spirit/include/phoenix_object.hpp>
@@ -57,10 +61,10 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
 
         template<typename StringT, typename Iterator>
         class code_grammer
-            : public qi::grammar<Iterator, ast::statement_list(), qi::locals<StringT>, skip_grammer<StringT, Iterator>>
+            : public qi::grammar<Iterator, ast::statement_list(), skip_grammer<Iterator>>
         {
         public:
-            typedef skip_grammer<StringT, Iterator>     skip_grammer_type;
+            typedef skip_grammer<Iterator>     skip_grammer_type;
 
         public:
             code_grammer()
@@ -78,13 +82,16 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
                 top_level_statements_.name( "top_level_statements" );
                 top_level_statements_
                     %= *( function_definition_statement_
-                        | expression_statement_
+                        | extern_statement_
+                        | empty_statement_
+                        | expression_statement_     // NOTE: this statement must be set at last
                         )
                     ;
         
                 function_body_statements_
                     %= *( return_statement_
-                        | expression_statement_
+                        | empty_statement_
+                        | expression_statement_     // NOTE: this statement must be set at last
                         )
                     ;
                 //
@@ -146,10 +153,17 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
                     = ( qi::lit( ':' ) > type_expression_ )
                     ;
 
+                empty_statement_.name( "empty_statement" );
+                empty_statement_
+                    = statement_termination_[
+                        qi::_val
+                            = phx::construct<ast::empty_statement_ptr>(
+                                phx::new_<ast::empty_statement>()
+                                )
+                      ]
+                    ;
 
-
-
-
+                return_statement_.name( "return_statement" );
                 return_statement_
                     = qi::lit( "return" )
                     > ( expression_ > statement_termination_ )[
@@ -162,6 +176,37 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
                       ]
                     ;
 
+                //
+                extern_statement_.name( "extern_statement" );
+                extern_statement_
+                    = qi::lit( "extern" )
+                    > ( extern_function_declaration_statement_
+                      )
+                    > statement_termination_
+                    ;
+
+                //
+                extern_function_declaration_statement_.name( "extern_function_declaration_statement" );
+                extern_function_declaration_statement_
+                    = (
+                        ( qi::lit( "def" )
+                        > identifier_
+                        > parameter_variable_declaration_list_
+                        > -( qi::lit( ":" ) >> identifier_ )
+                        > string_literal_sequenece_
+                        )
+                      )[
+                        qi::_val
+                            = phx::construct<ast::extern_function_declaration_statement_ptr>(
+                                phx::new_<ast::extern_function_declaration_statement>(
+                                    qi::_1,
+                                    qi::_2,
+                                    qi::_3,
+                                    qi::_4
+                                    )
+                                )
+                      ]
+                    ;
 
                 //
                 function_body_block_
@@ -173,10 +218,10 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
                 function_definition_statement_.name( "function_definition_statement" );
                 function_definition_statement_
                     = ( qi::lit( "def" )
-                    > identifier_
-                    > parameter_variable_declaration_list_
-                    > -( qi::lit( ":" ) >> identifier_ )
-                    > ( function_body_block_ | function_body_block_ )
+                      > identifier_
+                      > parameter_variable_declaration_list_
+                      > -( qi::lit( ":" ) >> identifier_ )
+                      > ( function_body_block_/* | expression_*/ )
                       )[
                         qi::_val
                             = phx::construct<ast::function_definition_statement_ptr>(
@@ -299,6 +344,7 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
                 // termination
                 term_expression_
                     = ( integer_literal_[ qi::_val = phx::construct<ast::term_expression_ptr>( phx::new_<ast::term_expression>( qi::_1 ) ) ]
+                      | string_literal_[ qi::_val = phx::construct<ast::term_expression_ptr>( phx::new_<ast::term_expression>( qi::_1 ) ) ]
                       | variable_value_[ qi::_val = phx::construct<ast::term_expression_ptr>( phx::new_<ast::term_expression>( qi::_1 ) ) ]
                       )
                     ;
@@ -329,6 +375,26 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
                                     )
                                 )
                       ];
+
+                //
+                string_literal_
+                    = string_literal_sequenece_[
+                        qi::_val
+                            = phx::construct<ast::intrinsic_value_ptr>(
+                                phx::new_<ast::intrinsic_value>(
+                                    phx::construct<ast::intrinsic::string_value_ptr>(
+                                        phx::new_<ast::intrinsic::string_value>(
+                                            qi::_1
+                                            )
+                                        )
+                                    )
+                                )
+                      ]
+                    ;
+
+                // TODO: support escape sequence
+                string_literal_sequenece_
+                    = qi::as_string[qi::lexeme[ qi::lit('"') >> *( qi::char_ - '"') >> qi::lit('"') ]];
 
                 //auto p = ( -native_symbol_ )[ phx::if_else( qi::_0, phx::construct<intrinsic::symbol_value_ptr>(), phx::construct<intrinsic::symbol_value_ptr>() )]
 
@@ -363,7 +429,8 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
         /**/
                 argument_list_.name( "argument_list" );
                 argument_list_
-                    = qi::lit( '(' ) >> ( expression_ % ',' ) >> qi::lit( ')' )
+                    = ( qi::lit( '(' ) >> qi::lit( ')' ) )
+                    | ( qi::lit( '(' ) >> ( expression_ % ',' ) >> qi::lit( ')' ) )
                     ;
 
 
@@ -408,7 +475,7 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
 
                 native_symbol_string_.name( "native_symbol_string" );
                 native_symbol_string_
-                    = qi::lexeme[ ascii::char_( "a-zA-Z" ) >> *ascii::alnum ] // TODO: add '_' charactor
+                    = qi::lexeme[ ascii::char_( "a-zA-Z_" ) >> *(ascii::alnum | ascii::char_( "_" )) ] // TODO: add '_' charactor
                     ;
 
                 //
@@ -457,15 +524,15 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
                     std::cout
                         << phx::val( "Error! Expecting " )
                         << _4 << std::endl                          // what failed?
-                        << phx::val( "here: \"" )
+                        << phx::val( "here: '" )
                         << phx::construct<std::string>( _3, _2 )    // iterators to error-pos, end
-                        << phx::val( "\"" )
+                        << phx::val( "'" )
                         << std::endl
                 );
             }
 
         private:
-            qi::rule<Iterator, ast::statement_list(), qi::locals<StringT>, skip_grammer_type> program_;
+            qi::rule<Iterator, ast::statement_list(), skip_grammer_type> program_;
 
             qi::rule<Iterator, ast::statement_list(), skip_grammer_type> top_level_statements_, function_body_statements_;
             qi::rule<Iterator, ast::statement_list(), skip_grammer_type> function_body_block_, function_body_expression_;
@@ -473,8 +540,10 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
             qi::rule<Iterator, ast::return_statement_ptr(), skip_grammer_type> return_statement_;
             qi::rule<Iterator, ast::function_definition_statement_ptr(), skip_grammer_type> function_definition_statement_;
             qi::rule<Iterator, ast::expression_statement_ptr(), skip_grammer_type> expression_statement_;
+            qi::rule<Iterator, ast::extern_statement_base_ptr(), skip_grammer_type> extern_statement_;
+            qi::rule<Iterator, ast::extern_function_declaration_statement_ptr(), skip_grammer_type> extern_function_declaration_statement_;
+            qi::rule<Iterator, ast::empty_statement_ptr(), skip_grammer_type> empty_statement_;
 
-            
             qi::rule<Iterator, ast::variable_declaration(), skip_grammer_type> variable_declaration_;
             qi::rule<Iterator, ast::variable_declaration(), skip_grammer_type> parameter_variable_declaration_;
 
@@ -502,6 +571,7 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
             qi::rule<Iterator, ast::variable_value_ptr(), skip_grammer_type> variable_value_;
 
             qi::rule<Iterator, ast::intrinsic_value_ptr(), skip_grammer_type> integer_literal_;
+            qi::rule<Iterator, ast::intrinsic_value_ptr(), skip_grammer_type> string_literal_;
 
             qi::rule<Iterator, ast::intrinsic::identifier_value_ptr(), skip_grammer_type> identifier_;
             qi::rule<Iterator, ast::intrinsic::single_identifier_value_ptr(), skip_grammer_type> single_identifier_;
@@ -509,8 +579,13 @@ auto make_binary_operator_tree( ast::expression_ptr const& lhs, ast::native_stri
             qi::rule<Iterator, ast::intrinsic::symbol_value_ptr()> native_symbol_;
             qi::rule<Iterator, ast::native_string_t()> native_symbol_string_;
 
-            qi::rule<Iterator, void()> statement_termination_;
+            qi::rule<Iterator, ast::native_string_t()> string_literal_sequenece_;
 
+            qi::rule<Iterator> statement_termination_;
+
+
+
+    
         /*
             qi::rule<input_iterator, statement(), ascii::space_type> top_level_statement_, statement_;
             qi::rule<input_iterator, assignment_statement(), ascii::space_type> assignment_statement_;

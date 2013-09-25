@@ -19,9 +19,9 @@ namespace rill
         namespace qi = boost::spirit::qi;
         namespace ascii = boost::spirit::ascii;
 
-        template<typename StringT, typename Iterator>
+        template<typename Iterator>
         class skip_grammer
-            : public qi::grammar<Iterator, qi::locals<StringT>>
+            : public qi::grammar<Iterator>
         {
         public:
             skip_grammer()
@@ -29,12 +29,12 @@ namespace rill
             {
                 comment_
                     = ascii::space
-                    | ( "//" >> *( ascii::char_ - '\n' ) >> '\n' )
+                    | ( "//" >> *( ascii::char_ - '\n' ) >> ( '\n' | qi::eoi ) )
                     | ( "/*" >> *( ascii::char_ - "*/" ) >> "*/" );
             }
 
         private:
-            qi::rule<Iterator, qi::locals<StringT>> comment_;
+            qi::rule<Iterator> comment_;
         };
 
     } // namespace syntax_analysis

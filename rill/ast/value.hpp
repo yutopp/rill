@@ -325,6 +325,27 @@ namespace rill
                 int const value_;
             };
 
+
+            struct string_value RILL_CXX11_FINAL
+                : public value_base
+            {
+            public:
+                string_value( std::string const& v )
+                    : value_( v )
+                {}
+
+            public:
+                auto get_native_typename_string() const -> native_string_t RILL_CXX11_OVERRIDE
+                {
+                    return "string";
+                }
+
+
+            public:
+                std::string value_;
+            };
+            
+
         }
 
 

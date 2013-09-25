@@ -52,6 +52,13 @@
         this->unimplemented<node_type const>(); \
     }
 
+///
+#define RILL_TV_BASE_VOID_OP_NOTHING( node_type ) \
+    virtual void operator()( std::shared_ptr<node_type> const& node, environment_ptr const& env ) \
+    {} \
+    virtual void operator()( std::shared_ptr<node_type const> const& node, const_environment_ptr const& env ) const \
+    {}
+
 #define RILL_TV_BASE_RETURN_OP( node_type ) \
     virtual auto operator()( std::shared_ptr<node_type> const& node, environment_ptr const& env ) \
         -> typename result<node_type>::type \
@@ -151,6 +158,8 @@ namespace rill
                 RILL_TV_BASE_VOID_OP( ast::function_definition_statement )
                 RILL_TV_BASE_VOID_OP( ast::class_definition_statement )
                 RILL_TV_BASE_VOID_OP( ast::embedded_function_definition_statement )
+                RILL_TV_BASE_VOID_OP( ast::extern_function_declaration_statement )
+                RILL_TV_BASE_VOID_OP_NOTHING( ast::empty_statement ) // DEFAULT: skipped
 
                 // expression
                 RILL_TV_BASE_RETURN_OP( ast::binary_operator_expression )
@@ -181,8 +190,8 @@ namespace rill
                 {
                     std::cerr
                         << "!!! DEBUG: message. please implement it!" << std::endl
-                        << "in " << typeid( *this ).name() << std::endl
-                        << " -> " << typeid( NodeT ).name() << std::endl;
+                        << " in " << typeid( *this ).name() << std::endl
+                        << "  -> " << typeid( NodeT ).name() << std::endl;
                 }
             };
         } // namespace detail

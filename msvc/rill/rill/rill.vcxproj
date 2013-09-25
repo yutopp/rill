@@ -41,6 +41,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <IncludePath>D:\boost-trunk;D:\llvm-trunk\include;D:\rill;$(IncludePath)</IncludePath>
     <LibraryPath>D:\llvm-trunk\lib\Debug;$(LibraryPath)</LibraryPath>
+    <EnableManagedIncrementalBuild>true</EnableManagedIncrementalBuild>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -78,6 +79,7 @@
     <ClInclude Include="..\..\..\rill\ast\statement_fwd.hpp" />
     <ClInclude Include="..\..\..\rill\ast\value.hpp" />
     <ClInclude Include="..\..\..\rill\ast\value_fwd.hpp" />
+    <ClInclude Include="..\..\..\rill\code_generator\binary_generator_from_llvm_ir.hpp" />
     <ClInclude Include="..\..\..\rill\code_generator\code_generator.hpp" />
     <ClInclude Include="..\..\..\rill\code_generator\llvm_ir_generator.hpp" />
     <ClInclude Include="..\..\..\rill\config\macros.hpp" />
@@ -113,6 +115,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\libs\rill\src\ast\value.cpp" />
+    <ClCompile Include="..\..\..\libs\rill\src\code_generator\binary_generator_from_llvm_ir.cpp" />
     <ClCompile Include="..\..\..\libs\rill\src\code_generator\llvm_ir_generator.cpp" />
     <ClCompile Include="..\..\..\libs\rill\src\environment.cpp" />
     <ClCompile Include="..\..\..\libs\rill\src\interpreter\runner.cpp" />
@@ -128,6 +131,16 @@
     <None Include="..\..\..\libs\rill\build\Jamfile.v2" />
     <None Include="..\..\..\tools\compiler\Jamfile.v2" />
     <None Include="input.rill" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\rillrt\rillrt.vcxproj">
+      <Project>{c9441067-e2f5-4c68-ab62-2716451d951c}</Project>
+      <Private>false</Private>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+      <CopyLocalSatelliteAssemblies>false</CopyLocalSatelliteAssemblies>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+      <UseLibraryDependencyInputs>false</UseLibraryDependencyInputs>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

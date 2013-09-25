@@ -215,14 +215,15 @@ namespace rill
             env_pointer env = shared_from_this();
 
             for( auto const& id : ids->nest_ ) {
-                auto const& temp_env = env;
-                if ( env == shared_from_this() ) {
+                auto const temp_env = env;
+                if ( env.get() == this ) {
                     env = env->lookup( id );
                 } else {
                     env = env->find_on_env( id );
                 }
-
+                
                 if ( env == nullptr ) {
+                    // if failed to lookup, call recovery function
                     env = failed_callback( temp_env, id );
                     if ( env == nullptr )
                         break;

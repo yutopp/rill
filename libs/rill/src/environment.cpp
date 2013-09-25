@@ -100,7 +100,7 @@ namespace rill
         // complete return type, name
         w_env->complete( type_env, symbol_name );
 
-
+        std::cout << "instanced!: " << symbol_name << std::endl;
 
 
         instanced_env_[symbol_name] = w_env;
@@ -169,6 +169,7 @@ auto single_identifier_environment_base::lookup( intrinsic::const_single_identif
 {
     if ( name->is_template() ) {
         // TODO: add template support
+        assert( false );
         return nullptr;
 
     } else {

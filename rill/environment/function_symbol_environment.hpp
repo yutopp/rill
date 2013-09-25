@@ -39,12 +39,27 @@ namespace rill
     public:
         static kind::type_value const KindValue = kind::type_value::function_e;
 
+        enum attr : int {
+            e_normal = 0,
+            e_extern = 1 << 0
+        };
+        typedef int attributes_t;
+
+        enum progress : int {
+            constructed,
+            checked,
+            completed
+        };
+        typedef int progress_t;
+
     public:
         // pre construct
         function_symbol_environment( environment_id_t const& id, weak_env_pointer const& parent, environment_id_t const& parameter_wrapper_env_id )
             : single_identifier_environment_base( id, parent )
             , parameter_wrapper_env_id_( parameter_wrapper_env_id )
             , return_type_env_id_( environment_id_undefined )
+            , attributes_( e_normal )
+            , progress_( constructed )
         {}
 
     public:
@@ -57,7 +72,19 @@ namespace rill
         auto is_incomplete() const
             -> bool RILL_CXX11_OVERRIDE
         {
-            return return_type_env_id_ == environment_id_undefined;
+            return progress_ == constructed;
+        }
+
+        auto is_checked() const
+            -> bool RILL_CXX11_OVERRIDE
+        {
+            return progress_ >= progress::checked;
+        }
+
+        auto is_complete() const
+            -> bool RILL_CXX11_OVERRIDE
+        {
+            return progress_ >= progress::completed;
         }
 
         auto get_parameter_wrapper_env()
@@ -78,11 +105,19 @@ namespace rill
             return parameter_type_ids_;
         }
 
-        auto complete( const_environment_ptr const& return_type_env, native_string_t const& name )
+        auto check()
+            -> void
+        {
+            progress_ = progress::checked;
+        }
+
+        auto complete( const_environment_ptr const& return_type_env, native_string_t const& name, attributes_t const& attrbute = attr::e_normal )
             -> void
         {
             return_type_env_id_ = return_type_env->get_id();
             name_ = name;
+            attributes_ = attrbute;
+            progress_ = progress::completed;
         }
 
         auto get_return_type_environment()
@@ -121,6 +156,18 @@ namespace rill
             return name_ +  make_parameter_hash( parameter_type_ids_ );
         }
 
+        bool is_return_type_completed() const
+        {
+            return return_type_env_id_ != environment_id_undefined;
+        }
+
+        bool has_attribute( attr const& attribute ) const
+        {
+            return ( attributes_ & attribute  ) != 0;
+        }
+
+
+
     private:
         environment_id_t parameter_wrapper_env_id_;
 
@@ -132,6 +179,8 @@ namespace rill
         environment_id_t return_type_env_id_;
 
         native_string_t name_;
+        attributes_t attributes_;
+        progress_t progress_;
     };
 
 } // namespace rill

@@ -29,6 +29,7 @@ namespace rill
                     []( environment_ptr const& current_env, ast::intrinsic::const_single_identifier_value_base_ptr const& id ) {
                         if ( id->is_template() ) {
                             // TODO: add instatntiation
+                            assert( false );
                             return nullptr;
                         } else {
                             std::cout << "[[lookup_with_instanciation]]noname ERROR!!!" << std::endl;

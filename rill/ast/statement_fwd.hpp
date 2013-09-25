@@ -37,7 +37,7 @@ namespace rill
         struct template_statement;
 
 
-
+        RILL_AST_FWD_DECL( empty_statement, statement )
         RILL_AST_FWD_DECL( expression_statement, statement )
 
 
@@ -54,6 +54,9 @@ namespace rill
         typedef std::shared_ptr<native_function_definition_statement> native_function_definition_statement_ptr;
         */
 
+
+        RILL_AST_FWD_DECL( extern_statement_base, statement )
+        RILL_AST_FWD_DECL( extern_function_declaration_statement, statement )
 
 
         //////////

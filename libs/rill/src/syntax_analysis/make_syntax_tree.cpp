@@ -29,6 +29,11 @@ namespace rill
             bool const success = qi::phrase_parse( first, last, grammer, skipper, stmts );
             if ( success ) {
                 std::cout << "true => " << ( first == last ) << " (1 is ok)" << std::endl;
+                if ( first != last ) {
+                    // Test
+                    { char c; std::cin >> c; }
+                    std::exit( -1 );
+                }
             } else {
                 std::cout << "false" << std::endl;
             }
