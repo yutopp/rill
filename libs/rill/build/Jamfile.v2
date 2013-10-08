@@ -14,16 +14,18 @@ project rill/lib
     ;
 
 SOURCES =
-    value
     environment
-    make_syntax_tree
+    ast/value
+    code_generator/binary_generator_from_llvm_ir
+    code_generator/llvm_ir_generator
     interpreter/runner
-    semantic_analysis/list_identifier_visitor
-    semantic_analysis/check_and_instantiation
+    semantic_analysis/analyzer
     semantic_analysis/helper
+    semantic_analysis/identifier_collector
+    semantic_analysis/compiletime_interpreter/type_evaluator
+    syntax_analysis/make_syntax_tree
     ;
 
- 
 lib librill
     : $(SOURCES).cpp
     :

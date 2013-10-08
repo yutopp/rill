@@ -15,19 +15,19 @@ path-constant rill-root : . ;
 
 ####################
 # Boost path
-
 path-constant boost-root : [ os.environ BOOST_ROOT ] ;
 use-project /boost : $(boost-root) ;
 
+####################
+# LLVM path
+path-constant llvm-root : [ os.environ RILL_LLVM_ROOT ] ;
 
 ####################
 # YTL lib
-
 path-constant ytl-dists-root : ./ ;
 
-
 ####################
-# libary path solver
+# YTL libary path solver
 
 # add path to $(dependency-path)
 rule solve_library_path ( ytl-libname : path_env_name ) {
@@ -82,17 +82,23 @@ project rill
     : requirements
         <define>BOOST_ALL_NO_LIB
         <include>$(boost-root)
+        <include>$(llvm-root)/include
         <include>$(ytl-dists-root)
         <include>$(dependency-path)
         <link>static
         <warnings>all
         <toolset>gcc:<cxxflags>-Wextra
-        <toolset>gcc:<cxxflags>-pedantic
-        <toolset>gcc:<cxxflags>-std=c++11
         <toolset>gcc:<cxxflags>-Wno-unused-local-typedefs
         <toolset>gcc:<cxxflags>-Wno-unused-parameter
+        <toolset>gcc:<cxxflags>-pedantic
+        <toolset>gcc:<cxxflags>-std=c++11
+        <toolset>gcc:<define>__STDC_CONSTANT_MACROS
+        <toolset>gcc:<define>__STDC_LIMIT_MACROS
         <toolset>clang:<cxxflags>-Wextra
+        <toolset>clang:<cxxflags>-Wno-unused-parameter
         <toolset>clang:<cxxflags>-pedantic
         <toolset>clang:<cxxflags>-std=c++11
+        <toolset>clang:<define>__STDC_CONSTANT_MACROS
+        <toolset>clang:<define>__STDC_LIMIT_MACROS
 # todo : add options for clang
     ;

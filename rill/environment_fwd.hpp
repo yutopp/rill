@@ -45,8 +45,9 @@ namespace rill
     class root_environment;
 
 
+    class has_parameter_environment_base;
     //
-    template<typename InlineEnvironment>
+    template<typename>
     class has_parameter_environment;
 
 

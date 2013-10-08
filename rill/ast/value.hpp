@@ -73,7 +73,7 @@ namespace rill
                 virtual ~value_base() {}
 
             public:
-                bool is_system() const RILL_CXX11_OVERRIDE RILL_CXX11_FINAL
+                bool is_system() const  RILL_CXX11_FINAL
                 {
                     return true;
                 }
@@ -93,7 +93,7 @@ namespace rill
                 {}
 
             public:
-                auto get_native_typename_string() const -> native_string_t RILL_CXX11_OVERRIDE
+                virtual auto get_native_typename_string() const -> native_string_t 
                 {
                     return "symbol";
                 }
@@ -124,7 +124,7 @@ namespace rill
 
 
             struct single_identifier_value_base
-                : value_base
+                : public value_base
             {
             public:
                 virtual ~single_identifier_value_base() {}
@@ -137,6 +137,8 @@ namespace rill
 
                 virtual auto template_argument() const
                     -> template_argument_list_ptr =0;
+
+                virtual auto get_native_typename_string() const -> native_string_t =0;
             };
 
 
@@ -151,7 +153,7 @@ namespace rill
                 {}
 
             public:
-                auto get_native_typename_string() const -> native_string_t RILL_CXX11_OVERRIDE
+                virtual auto get_native_typename_string() const -> native_string_t 
                 {
                     return "identifier";
                 }
@@ -209,24 +211,24 @@ namespace rill
                 {}
 
             public:
-                auto get_native_typename_string() const -> native_string_t RILL_CXX11_OVERRIDE
+                virtual auto get_native_typename_string() const -> native_string_t 
                 {
                     return "single_identifier"; // TODO: change name
                 }
 
-                bool is_template() const RILL_CXX11_OVERRIDE
+                virtual bool is_template() const 
                 {
                     return false;
                 }
 
-                auto get_inner_symbol() const
-                    -> symbol_value_ptr RILL_CXX11_OVERRIDE
+                virtual auto get_inner_symbol() const
+                    -> symbol_value_ptr 
                 {
                     return base_name_;
                 }
 
-                auto template_argument() const
-                    -> template_argument_list_ptr RILL_CXX11_OVERRIDE
+                virtual auto template_argument() const
+                    -> template_argument_list_ptr 
                 {
                     return nullptr;
                 }
@@ -311,7 +313,7 @@ namespace rill
                 {}
 
             public:
-                auto get_native_typename_string() const -> native_string_t RILL_CXX11_OVERRIDE
+                virtual auto get_native_typename_string() const -> native_string_t 
                 {
                     return "int";
                 }
@@ -335,7 +337,7 @@ namespace rill
                 {}
 
             public:
-                auto get_native_typename_string() const -> native_string_t RILL_CXX11_OVERRIDE
+                virtual auto get_native_typename_string() const -> native_string_t 
                 {
                     return "string";
                 }
@@ -368,7 +370,7 @@ namespace rill
             virtual ~intrinsic_value() {};
 
         public:
-            bool is_intrinsic() const RILL_CXX11_OVERRIDE RILL_CXX11_FINAL
+            virtual bool is_intrinsic() const RILL_CXX11_FINAL
             {
                 return true;
             }

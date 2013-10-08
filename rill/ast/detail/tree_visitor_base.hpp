@@ -43,24 +43,24 @@
 
 ///
 #define RILL_TV_BASE_VOID_OP( node_type ) \
-    virtual void operator()( std::shared_ptr<node_type> const& node, environment_ptr const& env ) \
+    virtual void operator()( std::shared_ptr<node_type> const&, environment_ptr const& ) \
     { \
         this->unimplemented<node_type>(); \
     } \
-    virtual void operator()( std::shared_ptr<node_type const> const& node, const_environment_ptr const& env ) const \
+    virtual void operator()( std::shared_ptr<node_type const> const&, const_environment_ptr const& ) const \
     { \
         this->unimplemented<node_type const>(); \
     }
 
 ///
 #define RILL_TV_BASE_VOID_OP_NOTHING( node_type ) \
-    virtual void operator()( std::shared_ptr<node_type> const& node, environment_ptr const& env ) \
+    virtual void operator()( std::shared_ptr<node_type> const&, environment_ptr const& ) \
     {} \
-    virtual void operator()( std::shared_ptr<node_type const> const& node, const_environment_ptr const& env ) const \
+    virtual void operator()( std::shared_ptr<node_type const> const&, const_environment_ptr const& ) const \
     {}
 
 #define RILL_TV_BASE_RETURN_OP( node_type ) \
-    virtual auto operator()( std::shared_ptr<node_type> const& node, environment_ptr const& env ) \
+    virtual auto operator()( std::shared_ptr<node_type> const&, environment_ptr const& ) \
         -> typename result<node_type>::type \
     { \
         this->unimplemented<node_type>(); \

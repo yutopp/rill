@@ -31,14 +31,22 @@ How to build
 Please use project file.
 And, please change library pathes of the project file.
 
-### gcc >= 4.7.2
+### GCC >= 4.8.1
+### Clang >= 3.3
 
+This program requires any environment variables. see below.
+(on Linux)
+    export BOOST_ROOT=(YOUR BOOST INSTALLED PATH)
+    export RILL_LLVM_ROOT=(YOUR_LLVM_INSTALLED PATH)
+
+(on Windows)
+    TODO: write
+
+Change **(YOUR BOOST INSTALLED PATH)** and **(YOUR_LLVM_INSTALLED PATH)** to your path that Boost and LLVM were installed.
+If you have not used to Boost Libraries, please execute **bootstrap.(sh|bat)** on your Boost installed path. Then, an executable file named **b2** will be created on there. It is a build tool and required to build Rill.
+
+Next, 
     cd tools/compile
-    export BOOST_ROOT=(YOUR BOOST PATH)
-Please change **(YOUR BOOST PATH)** to your Boost downloaded path.
-If you have not used to Boost Libraries, please execute **bootstrap.sh** in your Boost path. Then, a executable file named **b2** will be created on there. It is required.
-Next,
-
     $BOOST_ROOT/b2 toolset=gcc
 Then, a executable file named **rillc** will be created in "bin" subdirectories.
 

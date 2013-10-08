@@ -24,7 +24,7 @@
 
 #include "../config/macros.hpp"
 
-#include "environment_fwd.hpp"
+#include "environment.hpp"
 
 
 namespace rill
@@ -32,6 +32,7 @@ namespace rill
     //
     // 
     //
+#if 0
     class template_environment RILL_CXX11_FINAL
         : public environment
     {
@@ -53,5 +54,6 @@ namespace rill
     private:
         std::unordered_map<native_string_type, environment_ptr> simple_env_;
     };
+#endif
 
 } // namespace rill

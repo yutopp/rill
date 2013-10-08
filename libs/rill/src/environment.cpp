@@ -25,7 +25,7 @@ namespace rill
         ast::intrinsic::single_identifier_value_base_ptr const& name
         )
         -> std::pair<
-                std::shared_ptr<has_parameter_environment<function_symbol_environment>>,
+                std::shared_ptr<has_parameter_environment_base>,
                 function_symbol_environment_ptr
            >
     {

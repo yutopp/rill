@@ -51,15 +51,15 @@ namespace rill
         virtual ~single_identifier_environment_base() {};
 
     public:
-        auto lookup( intrinsic::const_single_identifier_value_base_ptr const& )
+        virtual auto lookup( intrinsic::const_single_identifier_value_base_ptr const& )
             -> env_pointer RILL_CXX11_OVERRIDE;
-        auto lookup( intrinsic::const_single_identifier_value_base_ptr const& ) const
+        virtual auto lookup( intrinsic::const_single_identifier_value_base_ptr const& ) const
             -> const_env_pointer RILL_CXX11_OVERRIDE;
 
         //
-        auto find_on_env( intrinsic::const_single_identifier_value_base_ptr const& )
+        virtual auto find_on_env( intrinsic::const_single_identifier_value_base_ptr const& )
             -> env_pointer RILL_CXX11_OVERRIDE;
-        auto find_on_env( intrinsic::const_single_identifier_value_base_ptr const& ) const
+        virtual auto find_on_env( intrinsic::const_single_identifier_value_base_ptr const& ) const
             -> const_env_pointer RILL_CXX11_OVERRIDE;
 
 
@@ -94,7 +94,7 @@ namespace rill
             kind::function_tag,
             intrinsic::single_identifier_value_base_ptr const& name
             ) -> std::pair<
-                    std::shared_ptr<has_parameter_environment<function_symbol_environment>>,
+                    std::shared_ptr<has_parameter_environment_base>,
                     function_symbol_environment_ptr
                  > RILL_CXX11_OVERRIDE;
 

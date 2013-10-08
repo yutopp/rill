@@ -28,15 +28,22 @@ namespace rill
         typedef environment_id_t                value_type;
 
     public:
-        template<typename Ptr, typename Id>
-        auto add( Ptr const& ast_ptr, Id const& env_id )
+        template<typename SmartPtr, typename Id>
+        auto add( SmartPtr const& ast_ptr, Id const& env_id )
             -> void
         {
             map_.emplace( ast_ptr.get(), env_id );
         }
 
-        template<typename Ptr>
-        auto get( Ptr const& ast_ptr ) const
+        template<typename Id>
+        auto add( key_type const& address, Id const& env_id )
+            -> void
+        {
+            map_.emplace( address, env_id );
+        }
+
+        template<typename SmartPtr>
+        auto get( SmartPtr const& ast_ptr ) const
             -> value_type
         {
             std::cout << "ptr-> " << ast_ptr.get() << std::endl;

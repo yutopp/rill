@@ -12,7 +12,7 @@ namespace rill
 
         class llvm_ir_generator_tag {};
         auto const llvm_ir_generator_k = llvm_ir_generator_tag();
-    };
+    } // namespace processing_context
 
     class embedded_function_action_base;
     typedef std::shared_ptr<embedded_function_action_base>   embedded_function_action_base_ptr;
@@ -22,4 +22,4 @@ namespace rill
 
     class embedded_function_holder;
     typedef std::shared_ptr<embedded_function_holder>   embedded_function_holder_ptr;
-};
+} // namespace rill

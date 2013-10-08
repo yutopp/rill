@@ -63,26 +63,26 @@ namespace rill
         {}
 
     public:
-        auto get_symbol_kind() const
+        virtual auto get_symbol_kind() const
             -> kind::type_value RILL_CXX11_OVERRIDE
         {
             return KindValue;
         }
 
         auto is_incomplete() const
-            -> bool RILL_CXX11_OVERRIDE
+            -> bool
         {
             return progress_ == constructed;
         }
 
         auto is_checked() const
-            -> bool RILL_CXX11_OVERRIDE
+            -> bool
         {
             return progress_ >= progress::checked;
         }
 
         auto is_complete() const
-            -> bool RILL_CXX11_OVERRIDE
+            -> bool
         {
             return progress_ >= progress::completed;
         }
