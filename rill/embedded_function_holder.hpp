@@ -1,3 +1,11 @@
+//
+// Copyright yutopp 2013 - .
+//
+// Distributed under the Boost Software License, Version 1.0.
+// (See accompanying file LICENSE_1_0.txt or copy at
+// http://www.boost.org/LICENSE_1_0.txt)
+//
+
 #pragma once
 
 #include <vector>
@@ -65,4 +73,4 @@ namespace rill
     private:
         std::vector<embedded_function_action_base_ptr> actions_;
     };
-};
+} // namespace rill

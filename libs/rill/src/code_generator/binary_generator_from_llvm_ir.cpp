@@ -86,7 +86,7 @@ namespace rill
             }
 
             //
-            std::string cpu_name = "i386";
+            std::string cpu_name = "";
 
             //
             std::string features = "";
@@ -175,6 +175,19 @@ namespace rill
                 std::system( command.c_str() );
             }
 
+            {
+                std::string const command = "ld " \
+                    "-e rill_main "\
+                    /*"/NOLOGO /MACHINE:X86 /SUBSYSTEM:CONSOLE "*/      \
+                    /*"-nodefaultlibs"*/" -dynamic-linker /lib64/ld-linux-x86-64.so.2 -lc -o a.out out.obj /home/yutopp/rill/runtime/libs/rill-rt/build/bin/gcc-4.8/debug/link-static/librill-rt.a";
+                std::system( command.c_str() );
+                std::string const command2 = "a.out";
+                std::system( command2.c_str() );
+            }
+
+
+
+
             // !!! DEBUG !!!
             {
                 std::string const command = "a.exe";
@@ -190,6 +203,7 @@ namespace rill
 // for MSVC
 //
 //
+#if 0
 #pragma comment( lib, "LLVMAArch64AsmParser.lib" )
 #pragma comment( lib, "LLVMAArch64Disassembler.lib" )
 #pragma comment( lib, "LLVMARMCodeGen.lib" )
@@ -271,3 +285,5 @@ namespace rill
 #pragma comment( lib, "LLVMMC.lib" )
 #pragma comment( lib, "LLVMObject.lib" )
 #pragma comment( lib, "LLVMSupport.lib" )
+
+#endif

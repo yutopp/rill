@@ -97,7 +97,7 @@ namespace rill
             {
             public:
                 typedef tree_visitor_base           self_type;
-                typedef tree_visitor_base const     const_self_type;
+                typedef self_type const             const_self_type;
 
                 template<typename NodeT>
                 struct result
@@ -120,11 +120,11 @@ namespace rill
                     return dispatch_as<ReturnT>( node, *this, env );
                 }
 
-                template<typename NodePtr>
-                auto dispatch( NodePtr&& node )
-                    -> decltype( dispatch( std::forward<NodePtr>( node ), environment_ptr() ) )
+                template<typename Node>
+                auto dispatch( std::shared_ptr<Node> const& node )
+                    -> decltype( std::declval<self_type>().dispatch( node, environment_ptr() ) )
                 {
-                    return dispatch( std::forward<NodePtr>( node ), environment_ptr() );
+                    return dispatch( node, environment_ptr() );
                 }
 
 
@@ -139,13 +139,12 @@ namespace rill
                     return dispatch_as<ReturnT>( std::const_pointer_cast<Node const>( node ), *this, std::static_pointer_cast<environment const>( env ) );
                 }
 
-                template<typename NodePtr>
-                auto dispatch( NodePtr&& node ) const
-                    -> decltype( dispatch( std::forward<NodePtr>( node ), const_environment_ptr() ) )
+                template<typename Node>
+                auto dispatch( std::shared_ptr<Node> const& node ) const
+                    -> decltype( std::declval<const_self_type>().dispatch( node, const_environment_ptr() ) )
                 {
-                    return dispatch( std::forward<NodePtr>( node ), const_environment_ptr() );
+                    return dispatch( node, const_environment_ptr() );
                 }
-
 
             public:
                 //

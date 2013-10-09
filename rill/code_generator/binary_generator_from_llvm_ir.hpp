@@ -19,7 +19,7 @@ namespace rill
         class binary_generator_from_llvm_ir
         {
         public:
-            void binary_generator_from_llvm_ir::test( llvm::Module& module ) const;
+            void test( llvm::Module& module ) const;
         };
     } // namespace code_generator
 } // namespace rill

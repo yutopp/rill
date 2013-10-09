@@ -19,8 +19,21 @@ path-constant boost-root : [ os.environ BOOST_ROOT ] ;
 use-project /boost : $(boost-root) ;
 
 ####################
-# LLVM path
-path-constant llvm-root : [ os.environ RILL_LLVM_ROOT ] ;
+# LLVM path(include|lib)
+if [ os.environ RILL_LLVM_INCLUDE ] {
+   path-constant llvm-include : [ os.environ RILL_LLVM_INCLUDE ] ;
+}
+if [ os.environ RILL_LLVM_LIB ] {
+   path-constant llvm-lib : [ os.environ RILL_LLVM_LIB ] ;
+   # 
+   path-constant llvm-shared-lib : [ glob $(llvm-lib)/*.so ] ;
+}
+
+
+
+
+    
+
 
 ####################
 # YTL lib
@@ -82,11 +95,12 @@ project rill
     : requirements
         <define>BOOST_ALL_NO_LIB
         <include>$(boost-root)
-        <include>$(llvm-root)/include
+        <include>$(llvm-include)
         <include>$(ytl-dists-root)
         <include>$(dependency-path)
         <link>static
         <warnings>all
+        
         <toolset>gcc:<cxxflags>-Wextra
         <toolset>gcc:<cxxflags>-Wno-unused-local-typedefs
         <toolset>gcc:<cxxflags>-Wno-unused-parameter

@@ -1,22 +1,28 @@
-4 *		(3 + 1)
-	* 8
-	
-	+ 6;
-
-foo( 20 );
-
-def foo( hoge: int ): int
+def main(): int
 {
-    return hoge * 10;
+    print( "hello, bunchou lang on Linux!!!" );
+    test();
+
+    return 0;
 }
 
-def foo( aaa: double )
+def test(): void
 {
-	return aaa * 2;
+    extern_print_string( foo( ( 10*2 )*(1+2*2   ), 10 ) + 2 * 5 );
 }
 
-foo( 10 ) + 2 * 5;
+extern def extern_print_string( :int ): void "put_string2"; 
 
 
+def foo( fuga: int, hoge: int ): int
+{
+    return foo(fuga) * hoge;
+}
 
-foo( 5 + 5 * 2 + (20 + 30*2 + 5) ) + 2 * 5;
+def foo( a: int ): int
+{
+    return a;
+}
+
+// comment
+;/*empty statment*/;;;

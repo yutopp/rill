@@ -265,7 +265,7 @@ namespace rill
             kind::function_tag,
             intrinsic::single_identifier_value_base_ptr const& name
             ) -> std::pair<
-                    std::shared_ptr<has_parameter_environment_base>,
+                    std::shared_ptr<has_parameter_environment<function_symbol_environment>>,
                     function_symbol_environment_ptr
                >
         {
@@ -378,30 +378,13 @@ namespace rill
         auto get_parent_env() -> env_pointer { return is_root() ? nullptr : parent_.lock(); }
         auto get_parent_env() const -> const_env_pointer { return is_root() ? nullptr : parent_.lock(); }
 
-        template<typename Ast>
-        auto mark_as( kind::function_tag, intrinsic::single_identifier_value_base_ptr const& name_identifier, std::shared_ptr<Ast const> const& ast )
-            -> decltype( incomplete_construct( kind::function_tag(), name_identifier ) )
-        {
-            auto const address = ast.get();
+        auto mark_as( kind::function_tag, intrinsic::single_identifier_value_base_ptr const& name_identifier, ast::statement_ptr const& ast )
+            ->std::pair<
+                    std::shared_ptr<has_parameter_environment<function_symbol_environment>>,
+                    function_symbol_environment_ptr
+                > ;
 
-            return mark_as_impl( kind::function_tag(), name_identifier, address );
-
-            // construct incomplete environment( parameter wrapper & function )
-            auto const p = incomplete_construct( kind::function_tag(), name_identifier );
-            auto const& has_param_env = p.first;
-            auto const& created_function_env = p.second;
-
-            std::cout << "%&%& " << has_param_env->get_id() << " : " << created_function_env->get_id() << std::endl;
-
-            //
-            root_shared_resource_->env_id_to_ast_map.add( has_param_env->get_id(), ast );           // 
-            root_shared_resource_->env_id_to_ast_map.add( created_function_env->get_id(), ast );        // related environment of created_function_env is parent envitroment of it
-
-            //
-            root_shared_resource_->ast_to_env_id_map.add( ast, created_function_env->get_id() );
-
-            return p;
-        }
+ 
 
 
         // 

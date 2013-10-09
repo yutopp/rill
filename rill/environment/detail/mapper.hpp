@@ -35,13 +35,6 @@ namespace rill
             map_.emplace( ast_ptr.get(), env_id );
         }
 
-        template<typename Id>
-        auto add( key_type const& address, Id const& env_id )
-            -> void
-        {
-            map_.emplace( address, env_id );
-        }
-
         template<typename SmartPtr>
         auto get( SmartPtr const& ast_ptr ) const
             -> value_type

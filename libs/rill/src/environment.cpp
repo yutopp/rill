@@ -6,6 +6,8 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 //
 
+#include <iostream> // debug
+
 #include <rill/environment.hpp>
 
 #include <rill/ast/value.hpp>
@@ -19,13 +21,37 @@ namespace rill
     // single_identifier_environment_base
     // --
 
+    auto environment::mark_as(
+        kind::function_tag,
+        intrinsic::single_identifier_value_base_ptr const& name_identifier,
+        ast::statement_ptr const& ast
+        )
+        -> decltype( static_cast<environment *>( nullptr )->incomplete_construct( kind::function_tag(), name_identifier ) )
+    {
+        // construct incomplete environment( parameter wrapper & function )
+        auto const p = incomplete_construct( kind::function_tag(), name_identifier );
+        auto const& has_param_env = p.first;
+        auto const& created_function_env = p.second;
+
+        std::cout << "Marked, %&%& " << has_param_env->get_id() << " : " << created_function_env->get_id() << std::endl;
+
+        //
+        root_shared_resource_->env_id_to_ast_map.add( has_param_env->get_id(), ast );           // 
+        root_shared_resource_->env_id_to_ast_map.add( created_function_env->get_id(), ast );    // related environment of created_function_env is parent envitroment of it
+
+        //
+        root_shared_resource_->ast_to_env_id_map.add( ast, created_function_env->get_id() );
+
+        return p;
+    }
+
     // function constructor
     auto single_identifier_environment_base::incomplete_construct(
         kind::function_tag,
         ast::intrinsic::single_identifier_value_base_ptr const& name
         )
         -> std::pair<
-                std::shared_ptr<has_parameter_environment_base>,
+                std::shared_ptr<has_parameter_environment<function_symbol_environment>>,
                 function_symbol_environment_ptr
            >
     {

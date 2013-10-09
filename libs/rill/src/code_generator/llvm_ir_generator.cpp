@@ -381,7 +381,7 @@ namespace rill
 } // namespace rill
 
 
-
+#if 0
 // for MSVC
 //
 //
@@ -459,3 +459,4 @@ namespace rill
 #pragma comment( lib, "LLVMMC.lib" )
 #pragma comment( lib, "LLVMObject.lib" )
 #pragma comment( lib, "LLVMSupport.lib" )
+#endif

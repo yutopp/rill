@@ -25,7 +25,7 @@
 template<typename Action, typename ActionHolder, typename RootEnv, typename Identifier, typename ParameterConstructor, typename Env>
 void construct_predefined_function( ActionHolder& action_holder, RootEnv& root_env, Identifier const& function_name, ParameterConstructor const& tpc_func, Env const& return_type_env )
 {
-    auto const action_id = action_holder->append<Action>();
+    auto const action_id = action_holder->template append<Action>();
 
     // function body
     auto const& embedded_call_expr = std::make_shared<rill::ast::embedded_function_call_expression>( action_id );
@@ -43,7 +43,7 @@ void construct_predefined_function( ActionHolder& action_holder, RootEnv& root_e
 template<typename Action, typename ActionHolder, typename RootEnv, typename Identifier, typename ParameterConstructor, typename Env>
 void construct_predefined_function2( ActionHolder& action_holder, RootEnv& root_env, Identifier const& function_name, ParameterConstructor const& tpc_func, Env const& return_type_env )
 {
-    auto const action_id = action_holder->append<Action>();
+    auto const action_id = action_holder->template append<Action>();
 
     // function body
     auto const& embedded_call_expr = std::make_shared<rill::ast::embedded_function_call_expression>( action_id );

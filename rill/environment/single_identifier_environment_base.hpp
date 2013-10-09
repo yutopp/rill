@@ -94,7 +94,7 @@ namespace rill
             kind::function_tag,
             intrinsic::single_identifier_value_base_ptr const& name
             ) -> std::pair<
-                    std::shared_ptr<has_parameter_environment_base>,
+                    std::shared_ptr<has_parameter_environment<function_symbol_environment>>,
                     function_symbol_environment_ptr
                  > RILL_CXX11_OVERRIDE;
 

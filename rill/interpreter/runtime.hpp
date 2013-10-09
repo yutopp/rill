@@ -38,7 +38,7 @@ namespace rill
 
             struct parameter_tag {};
             auto const parameter_k = parameter_tag();
-        };
+        }
 
 
         class variable_storage

@@ -33,7 +33,7 @@ namespace rill
             identifier_collector visitor;
 
             for( auto const& node : nodes )
-                dispatch_as_env( node, visitor, env );
+                visitor.dispatch( node, env );
         }
 
         template<typename EnvironmentPtr, typename T>
@@ -51,7 +51,7 @@ namespace rill
         //
        template<typename EnvironmentPtr, typename T>
         auto check_and_instantiation( EnvironmentPtr const& env, T const& node )
-            -> decltype( dispatch_as_env( node, check_and_instantiation_visitor(), env ) )
+           -> void
         {
             analyzer visitor;
 
@@ -62,15 +62,6 @@ namespace rill
         //
         //
         //
-        template<typename EnvironmentPtr, typename T>
-        void analyse( EnvironmentPtr const& env, std::vector<T> const& nodes )
-        {
-            analyse_and_complement visitor;
-
-            for( auto const& node : nodes )
-                visitor.dispatch( node, env );
-        }
-
         template<typename EnvironmentPtr, typename T>
         void analyse_and_complement( EnvironmentPtr const& env, T const& node )
         {
