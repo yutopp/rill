@@ -24,7 +24,8 @@
 
 #include "../config/macros.hpp"
 
-#include "../environment_fwd.hpp"
+#include "../environment_
+fwd.hpp"
 
 
 namespace rill

@@ -1,0 +1,36 @@
+#
+# Copyright yutopp 2013 - .
+#
+# Distributed under the Boost Software License, Version 1.0.
+# (See accompanying file LICENSE_1_0.txt or copy at
+# http://www.boost.org/LICENSE_1_0.txt)
+#
+
+import path ;
+import os ;
+import feature ;
+
+project rill/runtime
+    : source-location ../src
+    : requirements
+        <c++-template-depth>1024
+    : usage-requirements
+    ;
+
+SOURCES = 
+    runtime
+    ;
+
+####################
+#
+lib librill-rt
+    :
+        $(SOURCES).cpp
+    :
+        <toolset>gcc:<cxxflags>-nodefaultlibs
+        <toolset>gcc:<cxxflags>-fno-exceptions
+        <toolset>gcc:<cxxflags>-fno-stack-protector
+        <target-os>windows:<define>RILL_RT_WINDOWS
+        <target-os>linux:<define>RILL_RT_LINUX
+    ;
+
