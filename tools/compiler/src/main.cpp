@@ -80,6 +80,15 @@ void sample()
         = rill::ast::intrinsic::make_binary_operator_identifier( "*" );
 
 
+    auto const operator_sub
+        = rill::ast::intrinsic::make_binary_operator_identifier( "-" );
+    auto const operator_divide
+        = rill::ast::intrinsic::make_binary_operator_identifier( "/" );
+
+
+
+
+
     auto const print
         = rill::ast::intrinsic::make_single_identifier( "print" );
 // /   root_env->pre_construct( rill::kind::function_k, operator_multiply );
@@ -203,6 +212,112 @@ void sample()
                 return fenv;
             }, int_class_env_pointer );
         }
+
+
+        {
+            //
+            // def -( :int, :int ): int => native
+            //
+
+            struct operator_sub_action
+                : rill::embedded_function_action_base
+            {
+                // for debug interpreter
+                auto invoke( rill::processing_context::debug_interpreter_tag, rill::interpreter::context_ptr const& context ) const
+                    -> rill::ast::intrinsic::value_base_ptr
+                {
+                    auto const& args = context->current_scope()->get_parameter_variable();
+                    std::cout << "operator + ! :: args_num -> " << args.size() << std::endl;
+
+                    std::cout << *args[0] << "-" << *args[1] << std::endl;
+
+                    return std::make_shared<rill::ast::intrinsic::int32_value>(
+                            std::dynamic_pointer_cast<rill::ast::intrinsic::int32_value const>( args[0] )->get_value()
+                            - std::dynamic_pointer_cast<rill::ast::intrinsic::int32_value const>( args[1] )->get_value()
+                            );
+                }
+
+                auto invoke(
+                    rill::processing_context::llvm_ir_generator_tag, // Tag for Rill's LLVM IR Generator
+                    std::shared_ptr<llvm::Module> const& module,
+                    std::shared_ptr<llvm::IRBuilder<>> const& builder,
+                    std::shared_ptr<rill::code_generator::llvm_ir_generator::env_id_llvm_table> const& llvm_table,
+                    std::vector<rill::environment_id_t> const& parameter_variable_decl_env_ids
+                    ) const
+                    -> llvm::Value*
+                {
+                    return builder->CreateSub( llvm_table->ref_value( parameter_variable_decl_env_ids[0] ), llvm_table->ref_value( parameter_variable_decl_env_ids[1] ) );
+                }
+            };
+
+            construct_predefined_function<operator_sub_action>( embedded_function_action, root_env, operator_sub, [&]( rill::function_symbol_environment_ptr const& fenv ) {
+                // ( :int, :int )
+                std::cout << "add operator -!!" << std::endl;
+
+                fenv->parameter_variable_construct( /*TODO: add attributes, */ nullptr, int_class_env_pointer );    // :int
+                fenv->parameter_variable_construct( /*TODO: add attributes, */ nullptr, int_class_env_pointer );    // :int
+
+                return fenv;
+            }, int_class_env_pointer );
+        }
+
+
+
+        {
+            //
+            // def /( :int, :int ): int => native
+            //
+
+            struct operator_divide_action
+                : rill::embedded_function_action_base
+            {
+                // for debug interpreter
+                auto invoke( rill::processing_context::debug_interpreter_tag, rill::interpreter::context_ptr const& context ) const
+                    -> rill::ast::intrinsic::value_base_ptr
+                {
+                    auto const& args = context->current_scope()->get_parameter_variable();
+                    std::cout << "operator + ! :: args_num -> " << args.size() << std::endl;
+
+                    std::cout << *args[0] << "-" << *args[1] << std::endl;
+
+                    return std::make_shared<rill::ast::intrinsic::int32_value>(
+                            std::dynamic_pointer_cast<rill::ast::intrinsic::int32_value const>( args[0] )->get_value()
+                            / std::dynamic_pointer_cast<rill::ast::intrinsic::int32_value const>( args[1] )->get_value()
+                            );
+                }
+
+                auto invoke(
+                    rill::processing_context::llvm_ir_generator_tag, // Tag for Rill's LLVM IR Generator
+                    std::shared_ptr<llvm::Module> const& module,
+                    std::shared_ptr<llvm::IRBuilder<>> const& builder,
+                    std::shared_ptr<rill::code_generator::llvm_ir_generator::env_id_llvm_table> const& llvm_table,
+                    std::vector<rill::environment_id_t> const& parameter_variable_decl_env_ids
+                    ) const
+                    -> llvm::Value*
+                {
+                    return builder->CreateDiv( llvm_table->ref_value( parameter_variable_decl_env_ids[0] ), llvm_table->ref_value( parameter_variable_decl_env_ids[1] ) );
+                }
+            };
+
+            construct_predefined_function<operator_divide_action>( embedded_function_action, root_env, operator_divide, [&]( rill::function_symbol_environment_ptr const& fenv ) {
+                // ( :int, :int )
+                std::cout << "add operator /!!" << std::endl;
+
+                fenv->parameter_variable_construct( /*TODO: add attributes, */ nullptr, int_class_env_pointer );    // :int
+                fenv->parameter_variable_construct( /*TODO: add attributes, */ nullptr, int_class_env_pointer );    // :int
+
+                return fenv;
+            }, int_class_env_pointer );
+        }
+
+
+
+
+
+
+
+
+
 
 
         {
