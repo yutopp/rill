@@ -60,7 +60,7 @@ void construct_predefined_function2( ActionHolder& action_holder, RootEnv& root_
 
 
 
-void sample()
+void sample( int argc, char* argv[] )
 {
     //
     // prepareation for semantic analysis
@@ -295,7 +295,8 @@ void sample()
                     ) const
                     -> llvm::Value*
                 {
-                    return builder->CreateDiv( llvm_table->ref_value( parameter_variable_decl_env_ids[0] ), llvm_table->ref_value( parameter_variable_decl_env_ids[1] ) );
+                    // signed div
+                    return builder->CreateSDiv( llvm_table->ref_value( parameter_variable_decl_env_ids[0] ), llvm_table->ref_value( parameter_variable_decl_env_ids[1] ) );
                 }
             };
 
@@ -456,7 +457,7 @@ public:
     }
 } aa;
 
-int main()
+int main( int argc, char* argv[] )
 {
-    sample();
+    sample( argc, argv );
 }
