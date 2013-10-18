@@ -381,7 +381,7 @@ void sample( int argc, char* argv[] )
     // syntax analysis
     //
 
-    std::string const f = ( argc > 1 ) ? argc[1] : "input.rill";
+    std::string const f = ( argc > 1 ) ? argv[1] : "input.rill";
 
     // first(lexical & syntax)
     std::ifstream ifs( f );
