@@ -265,10 +265,12 @@ void sample()
     // syntax analysis
     //
 
+    std::string const f = ( argc > 1 ) ? argc[1] : "input.rill";
+
     // first(lexical & syntax)
-    std::ifstream ifs( "input.rill" );
+    std::ifstream ifs( f );
     if ( !ifs ) {
-        std::cerr << "input.rill was not found..." << std::endl;
+        std::cerr << f << " was not found..." << std::endl;
         exit( -100 );
     }
     std::istreambuf_iterator<char> const begin = ifs, end;
