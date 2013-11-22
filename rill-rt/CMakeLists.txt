@@ -1,1 +1,1 @@
-add_subdirectory( ${CMAKE_CURRENT_SOURCE_DIR}/libs/rill-rt )
+add_subdirectory( ${CMAKE_CURRENT_SOURCE_DIR}/lib/rill-rt )

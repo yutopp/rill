@@ -48,13 +48,13 @@ namespace rill
         };
 
 
-        enum class variable_kind : int
+        enum class variable_kind
         {
             k_val = 10,
             k_ref = 20
         };
 
-        enum class modifiability_attribute_kind : int 
+        enum class modifiability_attribute_kind
         {
             k_mutable,
             k_const,
@@ -86,12 +86,14 @@ namespace rill
 
         typedef std::vector<variable_declaration_unit> variable_declaration_unit_list;
 
+
         struct variable_declaration
         {
             // TODO: add declaration type information(Ex. val OR ref... and so on
             variable_kind kind;
             variable_declaration_unit decl_unit;
         };
+
 
         // TODO: change to declaration statement
         typedef std::vector<variable_declaration> parameter_list;

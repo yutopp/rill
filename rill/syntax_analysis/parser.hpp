@@ -167,14 +167,14 @@ namespace rill
                       ]
                     ;
 
-#if 0
                 //
                 variable_declaration_statement_
-                    = ( variable_declaration_ > statement_termination_ )[
-                          qi::_val = helper::make_node_ptr<ast::variable_declaration_statement>( qi::_1 )
+                    = qi::as<ast::variable_declaration>()[
+                        variable_declaration_ > statement_termination_
+                      ][
+                        qi::_val = helper::make_node_ptr<ast::variable_declaration_statement>( qi::_1 )
                       ]
                     ;
-#endif
 
                 //
                 expression_statement_
@@ -200,7 +200,7 @@ namespace rill
                     | qi::lit( "unmanaged" )[qi::_val = phx::val( ast::variable_kind::ref )]
                     ;
 */
-
+/*
                 type_attributes_
                     = modifiability_specifier_ ^ qi::eps
                     ;
@@ -210,13 +210,13 @@ namespace rill
                     | qi::lit( "const" )[qi::_val = phx::val( ast::modifiability_attribute_kind::k_const )]
                     | qi::lit( "immutable" )[qi::_val = phx::val( ast::modifiability_attribute_kind::k_immutable )]
                     ;
-
+*/
 
                 // ====
                 //
                 // ====
                 variable_declaration_
-                    %= variable_kind_specifier_ > variable_initializer_unit_ //list_
+                    = ( variable_kind_specifier_ > variable_initializer_unit_ )//list_
                     ;
 
 /*                variable_initializer_unit_list_
@@ -225,7 +225,7 @@ namespace rill
 */
 
                 variable_initializer_unit_
-                    %= single_identifier_ > value_initializer_unit_
+                    = ( single_identifier_ > value_initializer_unit_ )
                     ;
 
                 // ====
@@ -291,7 +291,7 @@ namespace rill
 
 
                 expression_
-                    %= expression_priority_[ExpressionHierarchyNum-1]
+                    = expression_priority_[ExpressionHierarchyNum-1]
                     ;
 
                 {
@@ -317,7 +317,7 @@ namespace rill
                 {
                     auto const priority = 1u;
                     expression_priority_[priority]
-                       %= call_expression_
+                       = call_expression_
                         | expression_priority_[priority-1]
         //                | 
                         ;
