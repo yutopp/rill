@@ -12,6 +12,8 @@
 #include <iterator>
 #include <memory>
 
+#include <boost/program_options.hpp>
+
 #include <rill/environment.hpp>
 #include <rill/syntax_analysis/make_syntax_tree.hpp>
 #include <rill/semantic_analysis/semantic_analysis.hpp>
@@ -23,8 +25,15 @@
 
 // TODO: remove these functions
 template<typename Action, typename ActionHolder, typename RootEnv, typename Identifier, typename ParameterConstructor, typename Env>
-void construct_predefined_function( ActionHolder& action_holder, RootEnv& root_env, Identifier const& function_name, ParameterConstructor const& tpc_func, Env const& return_type_env )
+void construct_predefined_function(
+    ActionHolder& action_holder,
+    RootEnv& root_env,
+    Identifier const& function_name,
+    ParameterConstructor const& tpc_func,
+    Env const& return_type_env
+    )
 {
+    // allocate the new action holder
     auto const action_id = action_holder->template append<Action>();
 
     // function body
@@ -32,7 +41,6 @@ void construct_predefined_function( ActionHolder& action_holder, RootEnv& root_e
     rill::ast::statement_list const sl = { std::make_shared<rill::ast::return_statement>( embedded_call_expr ) };
     auto ast = std::make_shared<rill::embedded_function_definition_statement>( sl );
 
-
     // function definition
     auto f = root_env->construct( rill::kind::function_k, function_name, tpc_func, return_type_env, ast );
 
@@ -40,23 +48,10 @@ void construct_predefined_function( ActionHolder& action_holder, RootEnv& root_e
     f->connect_from_ast( embedded_call_expr );
 }
 
-template<typename Action, typename ActionHolder, typename RootEnv, typename Identifier, typename ParameterConstructor, typename Env>
-void construct_predefined_function2( ActionHolder& action_holder, RootEnv& root_env, Identifier const& function_name, ParameterConstructor const& tpc_func, Env const& return_type_env )
-{
-    auto const action_id = action_holder->template append<Action>();
+// It defined a function that contains native machine code.
+// machine code of function entry(brigde of parameters...) and function exit(cleanup) will be generated normally, but
+// function body will be replaced this machine code.
 
-    // function body
-    auto const& embedded_call_expr = std::make_shared<rill::ast::embedded_function_call_expression>( action_id );
-    rill::ast::statement_list const sl = { std::make_shared<rill::ast::expression_statement>( embedded_call_expr ) };
-    auto ast = std::make_shared<rill::embedded_function_definition_statement>( sl );
-
-
-    // function definition
-    auto f = root_env->construct( rill::kind::function_k, function_name, tpc_func, return_type_env, ast );
-
-    // memoize called function env
-    f->connect_from_ast( embedded_call_expr );
-}
 
 
 
@@ -132,7 +127,10 @@ void sample( int argc, char* argv[] )
                 : rill::embedded_function_action_base
             {
                 // for debug interpreter
-                auto invoke( rill::processing_context::debug_interpreter_tag, rill::interpreter::context_ptr const& context ) const
+                auto invoke(
+                    rill::processing_context::debug_interpreter_tag,
+                    rill::interpreter::context_ptr const& context
+                    ) const
                     -> rill::ast::intrinsic::value_base_ptr
                 {
                     auto const& args = context->current_scope()->get_parameter_variable();
@@ -146,6 +144,7 @@ void sample( int argc, char* argv[] )
                             );
                 }
 
+                //
                 auto invoke(
                     rill::processing_context::llvm_ir_generator_tag, // Tag for Rill's LLVM IR Generator
                     std::shared_ptr<llvm::Module> const& module,
@@ -365,7 +364,7 @@ void sample( int argc, char* argv[] )
                     return builder->CreateCall( puts_func, llvm_table->ref_value( parameter_variable_decl_env_ids[0] ) );
                 }
             };
-            construct_predefined_function2<print_action>( embedded_function_action, root_env, print, [&]( rill::function_symbol_environment_ptr const& fenv ) {
+            construct_predefined_function<print_action>( embedded_function_action, root_env, print, [&]( rill::function_symbol_environment_ptr const& fenv ) {
                 // ( :string )
                 std::cout << "add print" << std::endl;
 
@@ -451,6 +450,11 @@ void sample( int argc, char* argv[] )
 static const class A
 {
 public:
+    A()
+    {
+        std::cout << "begin" << std::endl;
+    }
+    
     ~A()
     {
         std::cout << "end" << std::endl;

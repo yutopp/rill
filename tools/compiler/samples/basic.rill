@@ -1,0 +1,37 @@
+def main(): int
+{
+    print( "hello, bunchou lang on Linux!!!bunbun!" );
+    test();
+
+    loop_test();
+
+    return 0;
+}
+
+def test(): void
+{
+    extern_print_string( foo( ( 10*2 )*(1+2*2   ), 10 ) + 2 * 5 );
+}
+
+extern def extern_print_string( val :int ): void "put_string2"; 
+
+
+def foo( val fuga: int, val hoge: int ): int
+{
+    return foo(fuga) * hoge;
+}
+
+def foo( val a: int ): int
+{
+    return a;
+}
+
+// comment
+;/*empty statment*/;;;
+
+def loop_test(): void
+{
+    print(" Entered loop_test.");
+
+    val i = 0;
+}

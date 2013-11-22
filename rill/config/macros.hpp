@@ -10,8 +10,8 @@
 #define RILL_CONFIG_MACROS_HPP
 
 // if only using GCC(>= 4.8.1) or clang(>=3.1), use specifier.
-#ifndef _MSC_VER
-# define RILL_MACRO_USE_FINAL_AND_OVERRIDE
+#ifdef _MSC_VER
+// pass
 #elif __GNUC__ >= 4 && __GNUC_MINOR__ >= 8 && __GNUC_PATCHLEVEL__ >= 1
 # define RILL_MACRO_USE_FINAL_AND_OVERRIDE
 #elif __clang_major__ >= 3 && __clang_minor__ >= 1

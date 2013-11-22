@@ -48,13 +48,34 @@ namespace rill
         };
 
 
+        enum class variable_kind : int
+        {
+            k_val = 10,
+            k_ref = 20
+        };
+
+        enum class modifiability_attribute_kind : int 
+        {
+            k_mutable,
+            k_const,
+            k_immutable,
+        };
+
+
+        struct type_attributes
+        {
+            boost::optional<modifiability_attribute_kind> modifiability;
+        };
+
 
         //
         struct value_initializer_unit
         {
             expression_ptr initializer;
             type_expression_ptr type;
+            
         };
+
 
         struct variable_declaration_unit
         {
@@ -62,10 +83,13 @@ namespace rill
             value_initializer_unit init_unit;
         };
 
+
+        typedef std::vector<variable_declaration_unit> variable_declaration_unit_list;
+
         struct variable_declaration
         {
             // TODO: add declaration type information(Ex. val OR ref... and so on
-            
+            variable_kind kind;
             variable_declaration_unit decl_unit;
         };
 
@@ -165,6 +189,7 @@ namespace rill
             virtual ~extern_statement_base()
             {}
         };
+
 
         struct extern_function_declaration_statement
             : public extern_statement_base
@@ -292,6 +317,22 @@ namespace rill
 
 
 
+        struct variable_declaration_statement
+            : public statement
+        {
+        public:
+            RILL_AST_ADAPT_VISITOR( variable_declaration_statement )
+
+        public:
+            variable_declaration_statement( variable_declaration const& decl )
+                : declaration_( decl )
+            {}
+
+        public:
+            variable_declaration const declaration_;
+        };
+
+
         struct return_statement
             : public statement
         {
@@ -373,6 +414,12 @@ namespace rill
 
 
 BOOST_FUSION_ADAPT_STRUCT(
+    rill::ast::type_attributes,
+    (boost::optional<rill::ast::modifiability_attribute_kind>,  modifiability)
+    )
+
+
+BOOST_FUSION_ADAPT_STRUCT(
     rill::ast::value_initializer_unit,
     (rill::ast::expression_ptr,      initializer)
     (rill::ast::type_expression_ptr, type)
@@ -386,5 +433,7 @@ BOOST_FUSION_ADAPT_STRUCT(
 
 BOOST_FUSION_ADAPT_STRUCT(
     rill::ast::variable_declaration,
+    (rill::ast::variable_kind,              kind)
     (rill::ast::variable_declaration_unit,  decl_unit)
     )
+

@@ -29,7 +29,7 @@ namespace rill
             visitor.debug();
 
             // FIXME
-            binary_generator_from_llvm_ir const binary_gen;
+            auto const binary_gen = binary_generator_from_llvm_ir();
             binary_gen.test( *visitor.get_llvm_module() );
         }
     } // namespace code_generator

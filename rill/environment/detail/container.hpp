@@ -48,7 +48,7 @@ namespace rill
         auto at( environment_id_t const& id )
             -> std::weak_ptr<BaseEnvT>
         {
-            assert( id >= 0 && id < nodes_.size() );
+            assert( id < nodes_.size() );
             return nodes_.at( id );
         }
 

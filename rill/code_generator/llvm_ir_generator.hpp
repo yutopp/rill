@@ -17,7 +17,7 @@
 #include <llvm/IR/IRBuilder.h>
 
 #include "../ast/detail/tree_visitor_base.hpp"
-#include "../embedded_function_holder_fwd.hpp"
+#include "../utility/embedded_function_holder_fwd.hpp"
 
 
 namespace rill
@@ -28,6 +28,8 @@ namespace rill
             : public ast::detail::tree_visitor_base<llvm::Value*>
         {
         public:
+
+            // consists env_id and llvm_object.
             class env_id_llvm_table
             {
             public:

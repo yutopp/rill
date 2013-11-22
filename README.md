@@ -48,6 +48,8 @@ If you have not used to Boost Libraries, please execute **bootstrap.(sh|bat)** o
 
 Next, 
 
+-DLLVM_ROOT
+
 (using MSVC)
 
     $BOOST_ROOT/b2 toolset=msvc tools/compiler
@@ -63,7 +65,9 @@ Next,
 (using Clang)
 
     $BOOST_ROOT/b2 toolset=clang tools/compiler
-    
+    -DCMAKE_CXX_COMPILER=clang++
+    -DCMAKE_C_COMPILER=clang
+
 Then, a executable file named **rillc** will be created in "bin" subdirectories.
 
 
