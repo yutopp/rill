@@ -7,8 +7,8 @@
 //
 
 #include <rill/code_generator/llvm_ir_generator.hpp>
+#include <rill/utility/embedded_function_holder.hpp>
 #include <rill/environment.hpp>
-#include <rill/embedded_function_holder.hpp>
 
 #include <boost/scope_exit.hpp>
 #include <boost/range/adaptor/reversed.hpp>
@@ -195,7 +195,7 @@ namespace rill
             llvm::BasicBlock* const function_entry_block = llvm::BasicBlock::Create( llvm::getGlobalContext(), "entry", func );
             builder_->SetInsertPoint( function_entry_block );
 
-            // build inner statements
+            // build inner statements(that contain embedded_function_call)
             for( auto const& node : s->statements_ )
                 dispatch( node, root_env_->get_related_env_by_ast_ptr( node ) );
 
@@ -332,15 +332,18 @@ namespace rill
         }
 
 
-
+        // TODO: change name to native code injection expression
         RILL_TV_OP_CONST( llvm_ir_generator, ast::embedded_function_call_expression, e, _ )
         {
-            // Look up Function
+            // look up the function
             auto const f_env = std::static_pointer_cast<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( e ) );
             assert( f_env != nullptr );
 
+            // look up the action
             auto const& action = action_holder_->at( e->action_id_ );
+            assert( action != nullptr );
 
+            // generate codes into this context
             auto const& value = action->invoke( processing_context::llvm_ir_generator_k, module_, builder_, llvm_table_, f_env->get_parameter_decl_ids() );
             assert( value != nullptr );
 
@@ -379,84 +382,3 @@ namespace rill
         }
     } // namespace code_generator
 } // namespace rill
-
-
-#if 0
-// for MSVC
-//
-//
-#pragma comment( lib, "LLVMXCoreCodeGen.lib" )
-#pragma comment( lib, "LLVMXCoreDisassembler.lib" )
-
-#pragma comment( lib, "LLVMIRReader.lib" )
-
-#pragma comment( lib, "LLVMAArch64CodeGen.lib" )
-#pragma comment( lib, "LLVMARMDesc.lib" )
-#pragma comment( lib, "LLVMCppBackendInfo.lib" )
-#pragma comment( lib, "LLVMHexagonAsmPrinter.lib" )
-#pragma comment( lib, "LLVMMipsDesc.lib" )
-#pragma comment( lib, "LLVMMSP430Desc.lib" )
-#pragma comment( lib, "LLVMNVPTXDesc.lib" )
-#pragma comment( lib, "LLVMPowerPCDesc.lib" )
-#pragma comment( lib, "LLVMR600Desc.lib" )
-#pragma comment( lib, "LLVMSparcDesc.lib" )
-
-#pragma comment( lib, "LLVMSystemZDesc.lib" )
-
-#pragma comment( lib, "LLVMX86Desc.lib" )
-#pragma comment( lib, "LLVMXCoreDesc.lib" )
-
-#pragma comment( lib, "LLVMAsmParser.lib" )
-#pragma comment( lib, "LLVMBitReader.lib" )
-
-#pragma comment( lib, "LLVMAArch64Desc.lib" )
-#pragma comment( lib, "LLVMAsmPrinter.lib" )
-
-#pragma comment( lib, "LLVMSelectionDAG.lib" )
-
-
-#pragma comment( lib, "LLVMARMAsmPrinter.lib" )
-#pragma comment( lib, "LLVMARMInfo.lib" )
-#pragma comment( lib, "LLVMHexagonDesc.lib" )
-#pragma comment( lib, "LLVMMipsAsmPrinter.lib" )
-#pragma comment( lib, "LLVMMipsInfo.lib" )
-#pragma comment( lib, "LLVMMSP430AsmPrinter.lib" )
-#pragma comment( lib, "LLVMMSP430Info.lib" )
-#pragma comment( lib, "LLVMNVPTXAsmPrinter.lib" )
-#pragma comment( lib, "LLVMNVPTXInfo.lib" )
-#pragma comment( lib, "LLVMPowerPCAsmPrinter.lib" )
-#pragma comment( lib, "LLVMPowerPCInfo.lib" )
-#pragma comment( lib, "LLVMR600AsmPrinter.lib" )
-#pragma comment( lib, "LLVMR600Info.lib" )
-#pragma comment( lib, "LLVMSparcInfo.lib" )
-#pragma comment( lib, "LLVMSystemZAsmPrinter.lib" )
-#pragma comment( lib, "LLVMSystemZInfo.lib" )
-#pragma comment( lib, "LLVMX86AsmPrinter.lib" )
-#pragma comment( lib, "LLVMX86Info.lib" )
-#pragma comment( lib, "LLVMXCoreAsmPrinter.lib" )
-#pragma comment( lib, "LLVMXCoreInfo.lib" )
-
-
-#pragma comment( lib, "LLVMAArch64AsmPrinter.lib" )
-#pragma comment( lib, "LLVMAArch64Info.lib" )
-
-
-#pragma comment( lib, "LLVMMCParser.lib" )
-#pragma comment( lib, "LLVMCodeGen.lib" )
-
-
-#pragma comment( lib, "LLVMHexagonInfo.lib" )
-#pragma comment( lib, "LLVMX86Utils.lib" )
-#pragma comment( lib, "LLVMAArch64Utils.lib" )
-#pragma comment( lib, "LLVMObjCARCOpts.lib" )
-#pragma comment( lib, "LLVMScalarOpts.lib" )
-#pragma comment( lib, "LLVMInstCombine.lib" )
-#pragma comment( lib, "LLVMTransformUtils.lib" )
-#pragma comment( lib, "LLVMipa.lib" )
-#pragma comment( lib, "LLVMAnalysis.lib" )
-#pragma comment( lib, "LLVMTarget.lib" )
-#pragma comment( lib, "LLVMCore.lib" )
-#pragma comment( lib, "LLVMMC.lib" )
-#pragma comment( lib, "LLVMObject.lib" )
-#pragma comment( lib, "LLVMSupport.lib" )
-#endif

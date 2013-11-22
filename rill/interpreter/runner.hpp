@@ -10,7 +10,7 @@
 #define RILL_INTERPRETER_RUNNER_HPP
 
 #include "../ast/detail/tree_visitor_base.hpp"
-#include "../embedded_function_holder.hpp"
+#include "../utility/embedded_function_holder.hpp"
 
 #include "runtime.hpp"
 

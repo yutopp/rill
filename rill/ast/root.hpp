@@ -22,7 +22,7 @@ namespace rill
 {
     namespace ast
     {
-        struct root
+        struct root RILL_CXX11_FINAL
         {
         public:
             RILL_AST_ADAPT_VISITOR( root )

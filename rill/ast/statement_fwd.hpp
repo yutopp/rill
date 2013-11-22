@@ -58,6 +58,8 @@ namespace rill
         RILL_AST_FWD_DECL( extern_statement_base, statement )
         RILL_AST_FWD_DECL( extern_function_declaration_statement, statement )
 
+        RILL_AST_FWD_DECL( variable_declaration_statement, statement )
+
 
         //////////
         RILL_AST_FWD_DECL( class_definition_statement, statement )

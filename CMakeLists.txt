@@ -89,10 +89,12 @@ add_definitions(
 
 
 # librill
-add_subdirectory( ${PROJECT_SOURCE_DIR}/libs/rill )
+add_subdirectory( ${PROJECT_SOURCE_DIR}/lib/rill )
 
+# tools(compiler)
 add_subdirectory( ${PROJECT_SOURCE_DIR}/tools )
 
-add_subdirectory( ${PROJECT_SOURCE_DIR}/runtime )
+# librill-rt
+add_subdirectory( ${PROJECT_SOURCE_DIR}/rill-rt )
 
 

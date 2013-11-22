@@ -20,23 +20,16 @@
 #include <boost/preprocessor/tuple/elem.hpp>
 #include <boost/preprocessor/repetition/enum_params.hpp>
 
-#include <llvm/IR/Value.h>
-
 #include "../../config/macros.hpp"
 #include "../../environment_fwd.hpp"
 
-#include "../statement_fwd.hpp"
-#include "../expression_fwd.hpp"
-#include "../value_fwd.hpp"
-#include "../root_fwd.hpp"
+// load RILL_DISPATCH_TYPES_SEQ macro
+#include "../../config/tags_for_ast_dispatching.hpp"
 
-
-// important
-#define RILL_DISPATCH_TYPES_SEQ \
-    (( dispatch_as_environment_tag,     environment_ptr )) \
-    (( dispatch_as_value_tag,           ast::value_ptr )) \
-    (( dispatch_as_type_tag,            ast::intrinsic::identifier_value_ptr )) \
-    (( dispatch_as_llvm_ir_value_tag,   llvm::Value* ))
+//#include "../statement_fwd.hpp"
+//#include "../expression_fwd.hpp"
+//#include "../value_fwd.hpp"
+//#include "../root_fwd.hpp"
 
 
 #define RILL_DETAIL_PP_MAKE_TAG_STRUCTURE(r, unused, elem) \

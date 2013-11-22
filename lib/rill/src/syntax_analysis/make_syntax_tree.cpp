@@ -26,6 +26,10 @@ namespace rill
 
             ast::statement_list stmts;
 
+            std::cout << "!!! === !!!" << std::endl
+                      << "Start to parse" << std::endl
+                      << "===========" << std::endl;
+
             bool const success = qi::phrase_parse( first, last, grammer, skipper, stmts );
             if ( success ) {
                 std::cout << "true => " << ( first == last ) << " (1 is ok)" << std::endl;

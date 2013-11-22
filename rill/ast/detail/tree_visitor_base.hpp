@@ -190,7 +190,8 @@ namespace rill
                     std::cerr
                         << "!!! DEBUG: message. please implement it!" << std::endl
                         << " in " << typeid( *this ).name() << std::endl
-                        << "  -> " << typeid( NodeT ).name() << std::endl;
+//                        << "  -> " << typeid( NodeT& ).name() << std::endl;
+                        ;
                 }
             };
         } // namespace detail

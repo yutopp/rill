@@ -29,13 +29,14 @@
 #include <llvm/Pass.h>
 #include <llvm/PassManager.h>
 
-#include <llvm/Support/Debug.h>
+//#include <llvm/Support/Debug.h>
+#include <llvm/Support/FileSystem.h>
 #include <llvm/Support/FormattedStream.h>
 #include <llvm/Support/Host.h>
-#include <llvm/Support/ManagedStatic.h>
-#include <llvm/Support/PluginLoader.h>
-#include <llvm/Support/PrettyStackTrace.h>
-#include <llvm/Support/Signals.h>
+//#include <llvm/Support/ManagedStatic.h>
+//#include <llvm/Support/PluginLoader.h>
+//#include <llvm/Support/PrettyStackTrace.h>
+//#include <llvm/Support/Signals.h>
 #include <llvm/Support/SourceMgr.h>
 #include <llvm/Support/TargetRegistry.h>
 #include <llvm/Support/TargetSelect.h>
@@ -53,10 +54,23 @@ namespace rill
         {
             llvm_initializer()
             {
-                llvm::InitializeAllTargets();
-                llvm::InitializeAllTargetMCs();
-                llvm::InitializeAllAsmPrinters();
-                //llvm::InitializeAllAsmParsers();
+//                llvm::InitializeAllTargets();
+                {
+                    LLVMInitializeX86TargetInfo();
+                    LLVMInitializeX86Target();
+                }
+//                llvm::InitializeAllTargetMCs();
+                {
+                    LLVMInitializeX86TargetMC();
+                }
+//                llvm::InitializeAllAsmPrinters();
+                {
+                    LLVMInitializeX86AsmPrinter();
+                }
+//                llvm::InitializeAllAsmParsers();
+                {
+                    LLVMInitializeX86AsmParser();
+                }
 
                 llvm::PassRegistry& registry = *llvm::PassRegistry::getPassRegistry();
                 llvm::initializeCore( registry );
@@ -133,7 +147,7 @@ namespace rill
 
             // Add intenal analysis passes from the target machine.
             target_machine->addAnalysisPasses(PM);
-            
+
             // Add the target data from the target machine, if it exists, or the module.
             if ( const llvm::DataLayout *TD = target_machine->getDataLayout() ) {
                 PM.add( new llvm::DataLayout( *TD ) );
@@ -146,7 +160,7 @@ namespace rill
             {
                 // Open the file.
                 std::string error;
-                llvm::sys::fs::OpenFlags OpenFlags = llvm::sys::fs::F_None | llvm::sys::fs::F_Binary;
+                llvm::sys::fs::OpenFlags const OpenFlags = llvm::sys::fs::F_None | llvm::sys::fs::F_Binary;
                 llvm::tool_output_file FDOut( "out.obj", error, OpenFlags );
 
                 llvm::TargetMachine::CodeGenFileType FileType = llvm::TargetMachine::CGFT_ObjectFile;
