@@ -18,41 +18,61 @@ Rill
 
 Using Library
 --
-Boost-trunk rev.84700
+Boost 1.53.0 (On windows, Boost-trunk rev.84700)
 
-LLVM-trunk rev.190764
-
+LLVM 3.3
 
 
 How to build
 --
 
 ### MSVC >= v1800 [Visual Studio 2013 RC (v120)]
-Please use project file.
-And, please change library pathes of the project file.
+Currently, please use the project file, and fix library pathes of this.
 
-### GCC >= 4.8.1
-### Clang >= 3.3
+### GCC >= 4.7.3
+### Clang >= 3.2
 
 This program requires any environment variables. see below.
+
 (on Linux)
+
     export BOOST_ROOT=(YOUR BOOST INSTALLED PATH)
     export RILL_LLVM_ROOT=(YOUR_LLVM_INSTALLED PATH)
 
 (on Windows)
+
     TODO: write
 
-Change **(YOUR BOOST INSTALLED PATH)** and **(YOUR_LLVM_INSTALLED PATH)** to your path that Boost and LLVM were installed.
+Change **(YOUR BOOST INSTALLED PATH)** and **(YOUR_LLVM_INSTALLED PATH)** to your pathes that Boost and LLVM were installed.
 If you have not used to Boost Libraries, please execute **bootstrap.(sh|bat)** on your Boost installed path. Then, an executable file named **b2** will be created on there. It is a build tool and required to build Rill.
 
 Next, 
-    cd tools/compile
-    $BOOST_ROOT/b2 toolset=gcc
+
+(using MSVC)
+
+    $BOOST_ROOT/b2 toolset=msvc tools/compiler
+
+(using GCC)
+
+    $BOOST_ROOT/b2 toolset=gcc tools/compiler
+    mkdir build
+    cd build
+    cmake ../.
+    make
+    
+(using Clang)
+
+    $BOOST_ROOT/b2 toolset=clang tools/compiler
+    
 Then, a executable file named **rillc** will be created in "bin" subdirectories.
 
 
+Reference
+--
+under construction
 
-Sample
+
+Sample Code of Rill
 --
 
     def main(): int
@@ -78,7 +98,7 @@ Sample
 
     def foo( a: int ): int
     {
-    	return a;
+        return a;
     }
 
     // comment
