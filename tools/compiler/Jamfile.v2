@@ -6,7 +6,11 @@
 # http://www.boost.org/LICENSE_1_0.txt)
 #
 
-use-project /rill/lib : $(rill-root)/libs/rill/build ;
+# tools/compiler
+
+use-project /rill/lib
+    : $(rill-root)/libs/rill/build
+    ;
 
 project rill/compiler
     : source-location src
@@ -19,11 +23,15 @@ SOURCES =
     main
 	;
 
- 
 exe rillc
-    : $(SOURCES).cpp
     :
-        <link>shared:<define>BOOST_ALL_DYN_LINK=1
-        <link>static:<define>BOOST_All_STATIC_LINK=1
+        $(SOURCES).cpp
+    :
+        <use>/rill//llvm
+        <include>$(llvm-include)
+        <target-os>linux:<linkflags>-lpthread
+        <target-os>linux:<linkflags>-ldl
+#        <toolset>gcc:<cxxflags>$(llvm-cxxflags)    
+#        <toolset>clang:<cxxflags>$(llvm-cxxflags)
     ;
 

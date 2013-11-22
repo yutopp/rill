@@ -6,6 +6,9 @@
 # http://www.boost.org/LICENSE_1_0.txt)
 #
 
+# libs/rill
+
+import os ; 
 import path ;
 
 project rill/lib
@@ -33,9 +36,12 @@ SOURCES =
 lib librill
     :
         $(SOURCES).cpp
-        $(llvm-shared-lib)
     :
-        <link>shared:<define>BOOST_ALL_DYN_LINK=1
-        <link>static:<define>BOOST_All_STATIC_LINK=1
+        <use>/rill//llvm
+        <include>$(llvm-include)
+        <target-os>linux:<linkflags>-lpthread
+        <target-os>linux:<linkflags>-ldl
+#        <toolset>gcc:<cxxflags>$(llvm-cxxflags)    
+#        <toolset>clang:<cxxflags>$(llvm-cxxflags)
     ;
 
