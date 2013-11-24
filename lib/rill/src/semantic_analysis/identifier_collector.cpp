@@ -67,6 +67,11 @@ namespace rill
             env->mark_as( kind::function_k, s->get_identifier()->get_last_identifier(), s );
         }
 
+        //
+        RILL_TV_OP( identifier_collector, ast::variable_declaration_statement, s, env )
+        {
+            // NOTHING TO DO
+        }
 
 
 

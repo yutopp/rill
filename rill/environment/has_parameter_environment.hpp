@@ -126,14 +126,14 @@ namespace rill
         }
 
         // delegate lookup
-        auto lookup( intrinsic::const_single_identifier_value_base_ptr const& name )
+        auto lookup( ast::intrinsic::const_single_identifier_value_base_ptr const& name )
             -> env_pointer RILL_CXX11_OVERRIDE { return get_parent_env()->lookup( name ); }
-        auto lookup( intrinsic::const_single_identifier_value_base_ptr const& name ) const
+        auto lookup( ast::intrinsic::const_single_identifier_value_base_ptr const& name ) const
             -> const_env_pointer RILL_CXX11_OVERRIDE { return get_parent_env()->lookup( name ); }
 
-        auto find_on_env( intrinsic::const_single_identifier_value_base_ptr const& name )
+        auto find_on_env( ast::intrinsic::const_single_identifier_value_base_ptr const& name )
             -> env_pointer RILL_CXX11_OVERRIDE { return get_parent_env()->find_on_env( name ); }
-        auto find_on_env( intrinsic::const_single_identifier_value_base_ptr const& name ) const
+        auto find_on_env( ast::intrinsic::const_single_identifier_value_base_ptr const& name ) const
             -> const_env_pointer RILL_CXX11_OVERRIDE { return get_parent_env()->find_on_env( name ); }
     /*
         auto lookup( environment_ptr const& parent, parameter_list const& parameter ) const

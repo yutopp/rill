@@ -51,15 +51,15 @@ namespace rill
         virtual ~single_identifier_environment_base() {};
 
     public:
-        virtual auto lookup( intrinsic::const_single_identifier_value_base_ptr const& )
+        virtual auto lookup( ast::intrinsic::const_single_identifier_value_base_ptr const& )
             -> env_pointer RILL_CXX11_OVERRIDE;
-        virtual auto lookup( intrinsic::const_single_identifier_value_base_ptr const& ) const
+        virtual auto lookup( ast::intrinsic::const_single_identifier_value_base_ptr const& ) const
             -> const_env_pointer RILL_CXX11_OVERRIDE;
 
         //
-        virtual auto find_on_env( intrinsic::const_single_identifier_value_base_ptr const& )
+        virtual auto find_on_env( ast::intrinsic::const_single_identifier_value_base_ptr const& )
             -> env_pointer RILL_CXX11_OVERRIDE;
-        virtual auto find_on_env( intrinsic::const_single_identifier_value_base_ptr const& ) const
+        virtual auto find_on_env( ast::intrinsic::const_single_identifier_value_base_ptr const& ) const
             -> const_env_pointer RILL_CXX11_OVERRIDE;
 
 
@@ -92,7 +92,7 @@ namespace rill
         // function
         auto incomplete_construct(
             kind::function_tag,
-            intrinsic::single_identifier_value_base_ptr const& name
+            ast::intrinsic::single_identifier_value_base_ptr const& name
             ) -> std::pair<
                     std::shared_ptr<has_parameter_environment<function_symbol_environment>>,
                     function_symbol_environment_ptr
@@ -100,7 +100,7 @@ namespace rill
 
         auto construct(
             kind::function_tag,
-            intrinsic::single_identifier_value_base_ptr const& name,
+            ast::intrinsic::single_identifier_value_base_ptr const& name,
             function_env_generator_scope_type const& parameter_decl_initializer,
             class_symbol_environment_ptr const& return_type_env,
             ast::statement_ptr const& ast
@@ -109,19 +109,19 @@ namespace rill
         // variable(decl)
         auto construct(
             kind::variable_tag,
-            intrinsic::single_identifier_value_base_ptr const&,
+            ast::intrinsic::single_identifier_value_base_ptr const&,
             const_class_symbol_environment_ptr const&
             ) -> variable_symbol_environment_ptr RILL_CXX11_OVERRIDE;
 
         // class(type)
         auto pre_construct(
             kind::class_tag,
-            intrinsic::single_identifier_value_ptr const& name
+            ast::intrinsic::single_identifier_value_ptr const& name
             ) -> env_pointer RILL_CXX11_OVERRIDE;
 
         auto construct(
             kind::class_tag,
-            intrinsic::single_identifier_value_base_ptr const& name
+            ast::intrinsic::single_identifier_value_base_ptr const& name
             ) -> class_symbol_environment_ptr RILL_CXX11_OVERRIDE;
         /*
         auto pre_construct( kind::class_tag, intrinsic::identifier_value_ptr const& name ) RILL_CXX11_OVERRIDE

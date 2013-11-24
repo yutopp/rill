@@ -17,13 +17,34 @@
 
 namespace rill
 {
+
+    // There are some phases...
+
+    // "environment" has some state...
+    //   incomplete...(checked...)...complete
+
+    // "mark_as" returns "incomplete" environment.
+    //   this environment will be "marked"
+    //   it will used to solve "forward reference".
+
+    // "incomplete_construct" returns "incomplete" environment.
+    //   this environment must be "complete" status by calling "complete" method finally.
+
+    // "construct" returns "complete" environment.
+    //   this method creates complete environment directly.
+
+
     // --
     // single_identifier_environment_base
     // --
 
+    // ====
+    // Function environment construction
+    // ====
+
     auto environment::mark_as(
         kind::function_tag,
-        intrinsic::single_identifier_value_base_ptr const& name_identifier,
+        ast::intrinsic::single_identifier_value_base_ptr const& name_identifier,
         ast::statement_ptr const& ast
         )
         -> decltype( static_cast<environment *>( nullptr )->incomplete_construct( kind::function_tag(), name_identifier ) )
@@ -45,7 +66,7 @@ namespace rill
         return p;
     }
 
-    // function constructor
+
     auto single_identifier_environment_base::incomplete_construct(
         kind::function_tag,
         ast::intrinsic::single_identifier_value_base_ptr const& name
@@ -81,7 +102,7 @@ namespace rill
 
     auto single_identifier_environment_base::construct(
             kind::function_tag,
-            intrinsic::single_identifier_value_base_ptr const& name,
+            ast::intrinsic::single_identifier_value_base_ptr const& name,
             function_env_generator_scope_type const& parameter_decl_initializer,
             class_symbol_environment_ptr const& return_type_env,
             ast::statement_ptr const& ast
@@ -108,16 +129,20 @@ namespace rill
 
 
 
+    //
+    //
+    //
+
     // variable
     auto single_identifier_environment_base::construct(
         kind::variable_tag,
-        intrinsic::single_identifier_value_base_ptr const& variable_name,   // may be nullptr, if unnamed parameter variable...
+        ast::intrinsic::single_identifier_value_base_ptr const& variable_name,   // may be nullptr, if unnamed parameter variable...
         const_class_symbol_environment_ptr const& type_env
         ) -> variable_symbol_environment_ptr
     {
         auto const& w_env = allocate_env<variable_symbol_environment>( shared_from_this() );
 
-        native_string_t const& symbol_name
+        native_string_type const& symbol_name
             = variable_name
             ? variable_name->get_inner_symbol()->to_native_string()
             : "__unnamed" + std::to_string( w_env->get_id() )
@@ -127,7 +152,6 @@ namespace rill
         w_env->complete( type_env, symbol_name );
 
         std::cout << "instanced!: " << symbol_name << std::endl;
-
 
         instanced_env_[symbol_name] = w_env;
         return w_env;
@@ -173,7 +197,7 @@ std::ostream& operator<<( std::ostream& os, environment_ptr const& env )
 
 
 //
-auto single_identifier_environment_base::find_on_env( intrinsic::const_single_identifier_value_base_ptr const& name )
+auto single_identifier_environment_base::find_on_env( ast::intrinsic::const_single_identifier_value_base_ptr const& name )
     -> env_pointer
 {
     auto const it = instanced_env_.find( name->get_inner_symbol()->to_native_string() );
@@ -181,7 +205,7 @@ auto single_identifier_environment_base::find_on_env( intrinsic::const_single_id
     return ( it != instanced_env_.end() ) ? it->second : nullptr;
 }
 
-auto single_identifier_environment_base::find_on_env( intrinsic::const_single_identifier_value_base_ptr const& name ) const
+auto single_identifier_environment_base::find_on_env( ast::intrinsic::const_single_identifier_value_base_ptr const& name ) const
     -> const_env_pointer
 {
     auto const it = instanced_env_.find( name->get_inner_symbol()->to_native_string() );
@@ -190,7 +214,7 @@ auto single_identifier_environment_base::find_on_env( intrinsic::const_single_id
 }
 
 
-auto single_identifier_environment_base::lookup( intrinsic::const_single_identifier_value_base_ptr const& name )
+auto single_identifier_environment_base::lookup( ast::intrinsic::const_single_identifier_value_base_ptr const& name )
     -> env_pointer
 {
     if ( name->is_template() ) {
@@ -210,7 +234,7 @@ auto single_identifier_environment_base::lookup( intrinsic::const_single_identif
     }
 }
 
-auto single_identifier_environment_base::lookup( intrinsic::const_single_identifier_value_base_ptr const& name ) const
+auto single_identifier_environment_base::lookup( ast::intrinsic::const_single_identifier_value_base_ptr const& name ) const
     -> const_env_pointer
 {
     if ( name->is_template() ) {
@@ -267,7 +291,7 @@ auto single_identifier_environment_base::construct(
 // class(type)
 auto single_identifier_environment_base::pre_construct(
     kind::class_tag,
-    intrinsic::single_identifier_value_ptr const& name
+    ast::intrinsic::single_identifier_value_ptr const& name
     )
     -> env_pointer
 {
@@ -280,7 +304,7 @@ auto single_identifier_environment_base::pre_construct(
 
 auto single_identifier_environment_base::construct(
     kind::class_tag,
-    intrinsic::single_identifier_value_base_ptr const& name
+    ast::intrinsic::single_identifier_value_base_ptr const& name
     )
     -> class_symbol_environment_ptr
 {
@@ -333,7 +357,7 @@ auto single_identifier_environment_base::construct(
 
     auto function_symbol_environment::parameter_variable_construct(
         /* ,*/
-        intrinsic::single_identifier_value_base_ptr const& variable_name,   // may be nullptr, if unnamed parameter variable
+        ast::intrinsic::single_identifier_value_base_ptr const& variable_name,   // may be nullptr, if unnamed parameter variable
         const_class_symbol_environment_ptr const& type_env
         )
         -> variable_symbol_environment_ptr

@@ -63,12 +63,31 @@ namespace rill
             return value_type_env_id_;
         }
 
-        auto complete( const_environment_ptr const& type_env, native_string_t const& name )
+        auto complete( const_environment_ptr const& type_env, native_string_type const& name )
             -> void
         {
             value_type_env_id_ = type_env->get_id();
             name_ = name;
         }
+
+
+        auto get_type_environment()
+            -> class_symbol_environment_ptr
+        {
+            auto const& p = get_env_at( value_type_env_id_ );
+
+            return std::dynamic_pointer_cast<class_symbol_environment>( p.lock() );
+        }
+
+        auto get_type_environment() const
+            -> const_class_symbol_environment_ptr
+        {
+            auto const& p = get_env_at( value_type_env_id_ );
+
+            return std::dynamic_pointer_cast<class_symbol_environment const>( p.lock() );
+        }
+
+
 
         auto dump( std::ostream& os, std::string const& indent ) const
             -> std::ostream& RILL_CXX11_OVERRIDE
@@ -78,7 +97,7 @@ namespace rill
             return dump_include_env( os, indent );
         }
 
-        auto mangled_name() const -> native_string_t
+        auto mangled_name() const -> native_string_type
         {
             // TODO: call parent mangled_name()
             return name_;
@@ -87,7 +106,7 @@ namespace rill
     private:
         environment_id_t value_type_env_id_;
 
-        native_string_t name_;
+        native_string_type name_;
     };
 
 } // namespace rill

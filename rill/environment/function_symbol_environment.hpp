@@ -111,7 +111,7 @@ namespace rill
             progress_ = progress::checked;
         }
 
-        auto complete( const_environment_ptr const& return_type_env, native_string_t const& name, attributes_t const& attrbute = attr::e_normal )
+        auto complete( const_environment_ptr const& return_type_env, native_string_type const& name, attributes_t const& attrbute = attr::e_normal )
             -> void
         {
             return_type_env_id_ = return_type_env->get_id();
@@ -145,12 +145,12 @@ namespace rill
 
         auto parameter_variable_construct(
             /* ,*/
-            intrinsic::single_identifier_value_base_ptr const& name,
+            ast::intrinsic::single_identifier_value_base_ptr const& name,
             const_class_symbol_environment_ptr const& type_env
             )
             -> variable_symbol_environment_ptr;
 
-        auto mangled_name() const -> native_string_t
+        auto mangled_name() const -> native_string_type
         {
             // TODO: call parent mangled_name()
             return name_ +  make_parameter_hash( parameter_type_ids_ );
@@ -178,7 +178,7 @@ namespace rill
         std::vector<environment_id_t> parameter_type_ids_;
         environment_id_t return_type_env_id_;
 
-        native_string_t name_;
+        native_string_type name_;
         attributes_t attributes_;
         progress_t progress_;
     };

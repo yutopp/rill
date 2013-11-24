@@ -33,19 +33,41 @@ namespace rill
             class env_id_llvm_table
             {
             public:
-                auto bind_value( environment_id_t const& env_id, llvm::Value* const value )
+                //
+                // Values
+                //
+                auto bind_value( environment_id_t const& env_id, llvm::Value* const value, bool const is_alloca_inst = false )
                     -> void
                 {
                     // TODO: dup check
                     value_table_.emplace( env_id, value );
+                    require_load_inst_[env_id] = is_alloca_inst;
                 }
 
-                auto ref_value( environment_id_t const& env_id )
+                //
+                auto bind_value( environment_id_t const& env_id, llvm::AllocaInst* const alloca_inst )
+                    -> void
+                {
+                    bind_value( env_id, static_cast<llvm::Value*>( alloca_inst ), true );
+//                    require_load_inst_[env_id] = true;
+                }
+
+
+                auto ref_value( environment_id_t const& env_id ) const
                     -> llvm::Value*
                 {
                     return value_table_.at( env_id );
                 }
 
+                auto is_alloca_inst( environment_id_t const& env_id ) const
+                    -> bool
+                {
+                    return require_load_inst_.at( env_id );
+                }
+
+                //
+                // Types
+                //
                 auto bind_type( environment_id_t const& env_id, llvm::Type* const type )
                     -> void
                 {
@@ -53,12 +75,16 @@ namespace rill
                     type_table_.emplace( env_id, type );
                 }
 
-                auto ref_type( environment_id_t const& env_id )
+                auto ref_type( environment_id_t const& env_id ) const
                     -> llvm::Type*
                 {
                     return type_table_.at( env_id );
                 }
 
+
+                //
+                // Functions
+                //
                 auto bind_function_type( environment_id_t const& env_id, llvm::FunctionType* const f_type )
                     -> void
                 {
@@ -66,12 +92,16 @@ namespace rill
                     function_type_table_.emplace( env_id, f_type );
                 }
 
-                auto ref_function_type( environment_id_t const& env_id )
+                auto ref_function_type( environment_id_t const& env_id ) const
                     -> llvm::FunctionType*
                 {
                     return function_type_table_.at( env_id );
                 }
 
+
+                //
+                //
+                //
                 auto is_defined( environment_id_t const& env_id ) const
                     -> bool
                 {
@@ -85,6 +115,8 @@ namespace rill
                 std::unordered_map<environment_id_t, llvm::Value*> value_table_;
                 std::unordered_map<environment_id_t, llvm::Type*> type_table_;
                 std::unordered_map<environment_id_t, llvm::FunctionType*> function_type_table_;
+
+                std::unordered_map<environment_id_t, bool> require_load_inst_;
             };
 
         public:
@@ -100,6 +132,7 @@ namespace rill
             RILL_TV_OP_DECL_CONST( ast::expression_statement )
             RILL_TV_OP_DECL_CONST( ast::return_statement )
             RILL_TV_OP_DECL_CONST( ast::function_definition_statement )
+            RILL_TV_OP_DECL_CONST( ast::variable_declaration_statement )
             RILL_TV_OP_DECL_CONST( ast::embedded_function_definition_statement )
             RILL_TV_OP_DECL_CONST( ast::extern_function_declaration_statement )
 

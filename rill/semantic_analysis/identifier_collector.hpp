@@ -27,6 +27,7 @@ namespace rill
 
             // statements
             RILL_TV_OP_DECL( ast::expression_statement )
+            RILL_TV_OP_DECL( ast::variable_declaration_statement )
             RILL_TV_OP_DECL( ast::function_definition_statement )
             RILL_TV_OP_DECL( ast::extern_function_declaration_statement )
             RILL_TV_OP_DECL( ast::class_definition_statement )

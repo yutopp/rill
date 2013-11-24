@@ -33,5 +33,7 @@ def loop_test(): void
 {
     print(" Entered loop_test.");
 
-    val i = 0;
+    val i = 42: int;
+
+    extern_print_string( i );
 }

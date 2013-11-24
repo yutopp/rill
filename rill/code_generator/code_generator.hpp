@@ -23,14 +23,14 @@ namespace rill
         auto generate_llvm_ir( EnvironmentPtr const& env, ActionHolderPtr const& holder, std::shared_ptr<Node> const& node )
             -> void
         {
-            llvm_ir_generator const visitor( env, holder );
+            llvm_ir_generator const ir_generator( env, holder );
 
-            visitor.dispatch( node, env );
-            visitor.debug();
+            ir_generator.dispatch( node, env );
+            ir_generator.debug();
 
             // FIXME
             auto const binary_gen = binary_generator_from_llvm_ir();
-            binary_gen.test( *visitor.get_llvm_module() );
+            binary_gen.test( *ir_generator.get_llvm_module() );
         }
     } // namespace code_generator
 } // namespace rill

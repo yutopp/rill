@@ -216,7 +216,7 @@ namespace rill
                 //
                 // ====
                 variable_declaration_
-                    = ( variable_kind_specifier_ > variable_initializer_unit_ )//list_
+                    %= variable_kind_specifier_ > variable_initializer_unit_//list_
                     ;
 
 /*                variable_initializer_unit_list_
@@ -225,7 +225,7 @@ namespace rill
 */
 
                 variable_initializer_unit_
-                    = ( single_identifier_ > value_initializer_unit_ )
+                    %= single_identifier_ > value_initializer_unit_
                     ;
 
                 // ====
@@ -291,7 +291,7 @@ namespace rill
 
 
                 expression_
-                    = expression_priority_[ExpressionHierarchyNum-1]
+                    %= expression_priority_[ExpressionHierarchyNum-1]
                     ;
 
                 {
@@ -317,9 +317,8 @@ namespace rill
                 {
                     auto const priority = 1u;
                     expression_priority_[priority]
-                       = call_expression_
-                        | expression_priority_[priority-1]
-        //                | 
+                        = call_expression_[qi::_val = qi::_1]
+                        | expression_priority_[priority-1][qi::_val = qi::_1]
                         ;
                 }
 
@@ -327,7 +326,7 @@ namespace rill
                 {
                     auto const priority = 0u;
                     expression_priority_[priority]
-                        %= term_expression_[qi::_val = qi::_1]
+                        = term_expression_[qi::_val = qi::_1]
                         | ( ( qi::lit( '(' ) >> expression_ >> qi::lit( ')' ) ) )[qi::_val = qi::_1]
                         ;
                 }

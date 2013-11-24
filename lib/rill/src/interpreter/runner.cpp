@@ -278,7 +278,7 @@ namespace rill
             auto const& val = action->invoke( processing_context::debug_interpreter_k, context_ );
             assert( val != nullptr );
 
-            auto const& typed_val = std::make_shared<intrinsic_value>( val );
+            auto const& typed_val = std::make_shared<ast::intrinsic_value>( val );
 
             context_->push_value( val );
 

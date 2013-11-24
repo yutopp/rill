@@ -54,6 +54,90 @@ namespace rill
             //context_->current_scope()->set_return_value( s.expression_->dispatch( *this, env ) );
         }
 
+        RILL_TV_OP( analyzer, ast::variable_declaration_statement, s, parent_env )
+        {
+            //
+            bool const is_backward_reference
+                = parent_env->get_symbol_kind() == kind::type_value::function_e;
+
+            auto const related_env = parent_env->get_related_env_by_ast_ptr( s );
+            if ( is_backward_reference ) {
+                //
+                if ( related_env == nullptr ) {
+//                    assert( false );
+
+                    auto const& val_decl = s->declaration_;
+                    // TODO: decl_unit will be unit_list
+                    // for( auto const& unit : val_decl.decl_unit_list ) {
+                    auto const& unit = val_decl.decl_unit;
+
+                    // TODO: make method to determine "type"
+
+                    // unit.kind -> val or ref
+                    // TODO: use unit.kind( default val )
+                    
+                    // TODO: evaluate type || type inference || type check
+                    //       default( int )
+
+                    if ( unit.init_unit.type ) { // is parameter variavle type specified ?
+                        // evaluate constant expresison as type
+                        auto const& type_identifier_pointer = interpreter::evaluate_as_type( parent_env, unit.init_unit.type );
+
+                        if ( auto const type_env = lookup_with_instanciation( parent_env, type_identifier_pointer ) ) {
+                            assert( type_env != nullptr );
+                            assert( type_env->get_symbol_kind() == kind::type_value::class_e );
+
+                            // declare
+                            auto variable_env
+                                = parent_env->construct(
+                                    kind::variable_k,
+                                    /*TODO: add attributes, */
+                                    unit.name,
+                                    std::dynamic_pointer_cast<class_symbol_environment const>( type_env )
+                                    );
+
+                            //
+                            variable_env->connect_from_ast( s );
+
+                        } else {
+                            // type was not found, !! compilation error !!
+                            assert( false );
+                        }
+
+                    } else {
+                        // type inferenced by result of evaluated [[default initializer expression]]
+
+                        // TODO: implement type inference
+                        assert( false );
+                    }
+
+                    
+
+                } else {
+                    // Already declared...(Duplicate)
+                    assert( false );
+                }
+
+
+            } else {
+                // TODO: implement
+                assert( false );
+            }
+            
+
+//            assert( related_env != nullptr );
+//            assert( related_env->get_symbol_kind() == kind::type_value::function_e );
+
+
+/*
+            std::cout
+                << "variable_declaration_statement: ast_ptr -> "
+                << (environment_ptr const&)parent_env << std::endl
+                << "name -- " << s->declaration_->get_identifier()->last()->get_inner_symbol()->to_native_string() << std::endl
+                << "Args num -- " << s->get_parameter_list().size() << std::endl;
+*/
+        }
+
 
         RILL_TV_OP( analyzer, ast::function_definition_statement, s, parent_env )
         {
@@ -139,6 +223,7 @@ namespace rill
                 << (environment_ptr const&)parent_env << std::endl
                 << "Args num -- " << s->get_parameter_list().size() << std::endl;
 
+            // enverinment is already pre constructed by identifier_collector
             auto const related_env = parent_env->get_related_env_by_ast_ptr( s );
             assert( related_env != nullptr );
             assert( related_env->get_symbol_kind() == kind::type_value::function_e );
