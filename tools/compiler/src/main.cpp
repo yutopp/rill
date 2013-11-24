@@ -39,10 +39,10 @@ void construct_predefined_function(
     // function body
     auto const& embedded_call_expr = std::make_shared<rill::ast::embedded_function_call_expression>( action_id );
     rill::ast::statement_list const sl = { std::make_shared<rill::ast::return_statement>( embedded_call_expr ) };
-    auto ast = std::make_shared<rill::embedded_function_definition_statement>( sl );
+    auto f_ast = std::make_shared<rill::ast::embedded_function_definition_statement>( sl );
 
     // function definition
-    auto f = root_env->construct( rill::kind::function_k, function_name, tpc_func, return_type_env, ast );
+    auto f = root_env->construct( rill::kind::function_k, function_name, tpc_func, return_type_env, f_ast );
 
     // memoize called function env
     f->connect_from_ast( embedded_call_expr );
@@ -53,9 +53,27 @@ void construct_predefined_function(
 // function body will be replaced this machine code.
 
 
+namespace rill
+{
+
+namespace detail
+{
+    class env_default_generator
+    {
+    public:
+        void operator()(
+            std::shared_ptr<root_environment> const& root_env,
+            std::shared_ptr<embedded_function_holder> const& embedded_function_action
+            ) const
+        {
+        }
+    };
+}
 
 
-void sample( int argc, char* argv[] )
+template<typename EnvGenarator = detail::env_default_generator>
+auto create_world()
+    -> std::tuple<std::shared_ptr<root_environment>, std::shared_ptr<embedded_function_holder>>
 {
     //
     // prepareation for semantic analysis
@@ -63,6 +81,23 @@ void sample( int argc, char* argv[] )
     //
     auto const root_env = std::make_shared<rill::root_environment>();
     auto const embedded_function_action = std::make_shared<rill::embedded_function_holder>();
+
+    EnvGenarator()( root_env, embedded_function_action );
+
+    return std::make_tuple( root_env, embedded_function_action );
+}
+}
+
+
+
+void sample( boost::program_options::variables_map const& vm )
+{
+
+    auto const& t = rill::create_world<>();
+    auto const root_env = std::get<0>( t );
+    auto const embedded_function_action = std::get<1>( t );
+
+
 
     // TODO: add core.lang namespace
 
@@ -380,7 +415,7 @@ void sample( int argc, char* argv[] )
     // syntax analysis
     //
 
-    std::string const f = ( argc > 1 ) ? argv[1] : "input.rill";
+    std::string const f = vm["input-files"].as<std::vector<std::string>>()[0];
 
     // first(lexical & syntax)
     std::ifstream ifs( f );
@@ -389,7 +424,7 @@ void sample( int argc, char* argv[] )
         exit( -100 );
     }
     std::istreambuf_iterator<char> const begin = ifs, end;
-    rill::native_string_t const input_source_code( begin, end );
+    rill::ast::native_string_t const input_source_code( begin, end );
     std::cout
         << "inputs are:" << std::endl
         << input_source_code << std::endl;
@@ -416,7 +451,7 @@ void sample( int argc, char* argv[] )
 
     rill::semantic_analysis::analyse_and_complement( root_env, parse_tree );
 
-    
+
 
 
     // compile or interpret
@@ -454,14 +489,91 @@ public:
     {
         std::cout << "begin" << std::endl;
     }
-    
+
     ~A()
     {
         std::cout << "end" << std::endl;
     }
 } aa;
 
+
 int main( int argc, char* argv[] )
 {
-    sample( argc, argv );
+    namespace po = boost::program_options;
+
+
+    // Generic options
+    po::options_description generic("Generic options");
+    generic.add_options()
+        ( "version,v", "print version string" )
+        ( "help", "produce help message" )
+        ;
+
+    //
+    po::options_description config("Configuration");
+    config.add_options()
+        ( "linker",
+          po::value<std::string>()->default_value( "ld" ),
+          "linker type(ld, link)")
+        ;
+
+
+    po::options_description hidden("Hidden options");
+    hidden.add_options()
+        ( "input-files", po::value<std::vector<std::string>>(), "input file" )
+        ;
+
+
+    po::options_description cmdline_options;
+    cmdline_options
+        .add( generic )
+        .add( config )
+        .add( hidden );
+
+    po::options_description config_file_options;
+    config_file_options
+        .add( config )
+        .add( hidden );
+
+    po::options_description visible("Allowed options");
+    visible
+        .add( generic )
+        .add( config );
+
+
+    po::positional_options_description p;
+    p.add("input-files", -1);
+
+    po::variables_map vm;
+
+    try {
+        po::store( po::command_line_parser( argc, argv ).options( cmdline_options ).positional( p ).run(), vm );
+        po::notify( vm );
+
+        // if "help" option was passed, show options and exit
+        if ( vm.count( "help" ) ) {
+            std::cout << visible << std::endl;
+            return 1;
+        }
+
+        //
+        if ( vm.count( "input-files" ) ) {
+            for( auto const& input_file : vm["input-files"].as<std::vector<std::string>>() ) {
+                std::cout << "Input files are: "
+                          << input_file << std::endl;
+            }
+        } else {
+            std::cerr << "Please specify source code" << std::endl;
+            return -1;
+        }
+
+    } catch( std::exception const& e ) {
+        // 実際には引数に指定されなかった値を operator[] でアクセスしようとすると
+        // 例外が帰ってきたりする
+        std::cerr << e.what() << std::endl;
+        return -1;
+    }
+
+
+    sample( vm );
 }
