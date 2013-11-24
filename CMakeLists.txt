@@ -88,8 +88,9 @@ add_definitions(
 
 
 
-# librill
+# librill(lib)
 add_subdirectory( ${PROJECT_SOURCE_DIR}/lib/rill )
+install( DIRECTORY ${PROJECT_SOURCE_DIR}/rill DESTINATION include )
 
 # tools(compiler)
 add_subdirectory( ${PROJECT_SOURCE_DIR}/tools )

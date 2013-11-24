@@ -40,3 +40,4 @@ add_definitions(
 
 #
 set_target_properties( rill-rt PROPERTIES LINKER_LANGUAGE CXX )
+install( TARGETS rill-rt DESTINATION lib )
