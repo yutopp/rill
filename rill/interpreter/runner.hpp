@@ -20,7 +20,7 @@ namespace rill
     namespace interpreter
     {
         class runner RILL_CXX11_FINAL
-            : public ast::detail::tree_visitor_base<environment_ptr>
+            : public ast::detail::tree_visitor_base<environment_base_ptr>
         {
         public:
             runner( context_ptr const&, embedded_function_holder_ptr const& );
@@ -30,12 +30,12 @@ namespace rill
             RILL_TV_OP_DECL( ast::root )
 
             // statement
-            // virtual void operator()( template_statement const& s, environment_ptr const& env ) const =0;
+            // virtual void operator()( template_statement const& s, environment_base_ptr const& env ) const =0;
 
             RILL_TV_OP_DECL( ast::expression_statement )
             RILL_TV_OP_DECL( ast::return_statement )
             RILL_TV_OP_DECL( ast::function_definition_statement )
-            // virtual void operator()( native_function_definition_statement const& s, environment_ptr const& env ) const =0;
+            // virtual void operator()( native_function_definition_statement const& s, environment_base_ptr const& env ) const =0;
 
             RILL_TV_OP_DECL( ast::class_definition_statement )
 

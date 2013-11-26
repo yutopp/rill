@@ -18,7 +18,7 @@
 #include <boost/optional.hpp>
 
 #include "../ast/value_fwd.hpp"
-#include "../environment_fwd.hpp"
+#include "../environment/environment_fwd.hpp"
 
 
 namespace rill

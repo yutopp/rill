@@ -9,7 +9,7 @@
 #include <boost/range/adaptor/reversed.hpp>
 
 #include <rill/interpreter/interpreter.hpp>
-#include <rill/environment.hpp>
+#include <rill/environment/environment.hpp>
 
 #include <rill/ast/root.hpp>
 #include <rill/ast/statement.hpp>
@@ -42,7 +42,7 @@ namespace rill
 
 
         // statement
-        // virtual void operator()( template_statement const& s, environment_ptr const& env ) const =0;
+        // virtual void operator()( template_statement const& s, environment_base_ptr const& env ) const =0;
 
 
         // 
@@ -73,7 +73,7 @@ namespace rill
             // NOTHING TO DO
         }
 
-        //void operator()( native_function_definition_statement const& s, environment_ptr const& env ) const =0;
+        //void operator()( native_function_definition_statement const& s, environment_base_ptr const& env ) const =0;
 
 
         //
@@ -138,7 +138,7 @@ namespace rill
                 for( auto const& var_env_id : f_env->get_parameter_decl_ids() )
                     context_->construct_variable( variable_option::parameter_k, var_env_id, prev_scope->pop_value() );
 
-                //std::cout << "f_env: " << (environment_ptr const&)f_env << std::endl;
+                //std::cout << "f_env: " << (environment_base_ptr const&)f_env << std::endl;
 
                 for( auto const& node : f_ast->statements_ ) {
                     dispatch( node, f_env );
@@ -180,7 +180,7 @@ namespace rill
 
         RILL_TV_OP( runner, ast::call_expression, e, env )
         {
-            std::vector<environment_ptr> argument_type_env;
+            std::vector<environment_base_ptr> argument_type_env;
             for( auto const& val : e->arguments_ | boost::adaptors::reversed ) {
                 argument_type_env.insert( argument_type_env.begin(), dispatch( val, env ) );
             }
@@ -219,13 +219,13 @@ namespace rill
                 // make new scope
                 auto const& function_execution_scope = context_->push_new_scope();
 
-                std::cout << "bunbun: " << (environment_ptr const&)f_env << std::endl << f_env->get_parameter_decl_ids().size() << std::endl;
+                std::cout << "bunbun: " << (environment_base_ptr const&)f_env << std::endl << f_env->get_parameter_decl_ids().size() << std::endl;
 
                 // load values to callee function parameter variable
                 for( auto const& var_env_id : f_env->get_parameter_decl_ids() )
                     context_->construct_variable( variable_option::parameter_k, var_env_id, prev_scope->pop_value() );
 
-                //std::cout << "f_env: " << (environment_ptr const&)f_env << std::endl;
+                //std::cout << "f_env: " << (environment_base_ptr const&)f_env << std::endl;
 
                 for( auto const& node : f_ast->statements_ ) {
                     dispatch( node, f_env );
