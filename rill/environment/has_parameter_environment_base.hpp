@@ -24,7 +24,7 @@
 
 #include "../config/macros.hpp"
 
-#include "environment.hpp"
+#include "environment_base.hpp"
 
 
 namespace rill
@@ -33,11 +33,11 @@ namespace rill
     // 
     //
     class has_parameter_environment_base
-        : public environment
+        : public environment_base
     {
     public:
-        has_parameter_environment_base( environment_id_t const id, weak_env_pointer const& parent )
-            : environment( id, parent )
+        has_parameter_environment_base( environment_id_t const id, weak_env_base_pointer const& parent )
+            : environment_base( id, parent )
         {}
 
         virtual ~has_parameter_environment_base() {}
@@ -47,10 +47,10 @@ namespace rill
             -> kind::type_value =0;
      /*
         virtual auto add_overload( parameter_list const& parameter, function_definition_statement_base_ptr const& sp* )
-            -> env_pointer =0;
+            -> env_base_pointer =0;
    
-        virtual auto lookup( environment_ptr const& parent, parameter_list const& parameter ) const
-            -> const_environment_ptr =0;*/
+        virtual auto lookup( environment_base_ptr const& parent, parameter_list const& parameter ) const
+            -> const_environment_base_ptr =0;*/
     };
 
 } // namespace rill

@@ -9,7 +9,7 @@
 #ifndef RILL_CODE_GENERATOR_BINARY_GENERATOR_FROM_LLVM_IR_HPP
 #define RILL_CODE_GENERATOR_BINARY_GENERATOR_FROM_LLVM_IR_HPP
 
-#include <llvm/IR/Module.h>
+#include "llvm_ir_generator.hpp"
 
 
 namespace rill
@@ -19,7 +19,15 @@ namespace rill
         class binary_generator_from_llvm_ir
         {
         public:
-            void test( llvm::Module& module ) const;
+            binary_generator_from_llvm_ir( llvm_ir_generator_context_ptr const& context )
+                : context_( context )
+            {}
+
+        public:
+            void test() const;
+
+        private:
+            llvm_ir_generator_context_ptr const& context_;
         };
     } // namespace code_generator
 } // namespace rill

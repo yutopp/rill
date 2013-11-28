@@ -20,7 +20,7 @@ namespace rill
         //
         //
         class identifier_collector RILL_CXX11_FINAL
-            : public ast::detail::tree_visitor_base<environment_ptr>
+            : public ast::detail::tree_visitor_base<environment_base_ptr>
         {
         public:
             RILL_TV_OP_DECL( ast::root )

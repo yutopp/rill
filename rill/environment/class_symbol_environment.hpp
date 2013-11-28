@@ -24,13 +24,13 @@
 
 #include "../config/macros.hpp"
 
-#include "../environment_fwd.hpp"
+#include "environment_fwd.hpp"
 
 
 namespace rill
 {
     //
-    // class(type)
+    // class
     //
     class class_symbol_environment RILL_CXX11_FINAL
         : public single_identifier_environment_base
@@ -39,7 +39,7 @@ namespace rill
         static kind::type_value const KindValue = kind::type_value::class_e;
 
     public:
-        class_symbol_environment( environment_id_t const& id, weak_env_pointer const& parent )
+        class_symbol_environment( environment_id_t const& id, weak_env_base_pointer const& parent )
             : single_identifier_environment_base( id, parent )
             //, kind_( kind )
         {}
@@ -57,6 +57,14 @@ namespace rill
             return true;
         }
 
+        auto complete(
+            native_string_type const& name
+            )
+            -> void
+        {
+            name_ = name;
+        }
+
         auto dump( std::ostream& os, std::string const& indent ) const
             -> std::ostream& RILL_CXX11_OVERRIDE
         {
@@ -66,8 +74,7 @@ namespace rill
 
     private:
 
-        //statement_list sp_;
-        //symbol_kind kind_;
+        native_string_type name_;
     };
 
 } // namespace rill

@@ -32,6 +32,8 @@
 #include "../ast/statement.hpp"
 #include "../ast/root.hpp"
 
+#include "../attribute/attribute.hpp"
+
 //#include "environment.hpp"
 #include "skip_parser.hpp"
 
@@ -128,7 +130,7 @@ namespace rill
                         ( qi::lit( "def" )
                         > identifier_
                         > parameter_variable_declaration_list_
-                        > -( qi::lit( ":" ) >> identifier_ )
+                        > type_specifier_
                         > string_literal_sequenece_
                         )
                       )[
@@ -154,7 +156,7 @@ namespace rill
                     = ( qi::lit( "def" )
                       > identifier_
                       > parameter_variable_declaration_list_
-                      > -( qi::lit( ":" ) >> identifier_ )
+                      > -type_specifier_
                       > ( function_body_block_/* | expression_*/ )
                       )[
                         qi::_val
@@ -184,12 +186,16 @@ namespace rill
                     ;
 
 
+                type_attributes_
+                    = quality_specifier_ ^ modifiability_specifier_ ^ qi::eps
+                    ;
+
                 //
                 //
                 //
-                variable_kind_specifier_
-                    = qi::lit( "val" )[qi::_val = phx::val( ast::variable_kind::k_val )]
-                    | qi::lit( "ref" )[qi::_val = phx::val( ast::variable_kind::k_ref )]
+                quality_specifier_
+                    = qi::lit( "val" )[qi::_val = phx::val( attribute::quality_kind::k_val )]
+                    | qi::lit( "ref" )[qi::_val = phx::val( attribute::quality_kind::k_ref )]
                     ;
 
 /*
@@ -200,23 +206,19 @@ namespace rill
                     | qi::lit( "unmanaged" )[qi::_val = phx::val( ast::variable_kind::ref )]
                     ;
 */
-/*
-                type_attributes_
-                    = modifiability_specifier_ ^ qi::eps
-                    ;
+
 
                 modifiability_specifier_
-                    = qi::lit( "mutable" )[qi::_val = phx::val( ast::modifiability_attribute_kind::k_mutable )]
-                    | qi::lit( "const" )[qi::_val = phx::val( ast::modifiability_attribute_kind::k_const )]
-                    | qi::lit( "immutable" )[qi::_val = phx::val( ast::modifiability_attribute_kind::k_immutable )]
+                    = qi::lit( "mutable" )[qi::_val = phx::val( attribute::modifiability_kind::k_mutable )]
+                    | qi::lit( "const" )[qi::_val = phx::val( attribute::modifiability_kind::k_const )]
+                    | qi::lit( "immutable" )[qi::_val = phx::val( attribute::modifiability_kind::k_immutable )]
                     ;
-*/
 
                 // ====
                 //
                 // ====
                 variable_declaration_
-                    %= variable_kind_specifier_ > variable_initializer_unit_//list_
+                    %= quality_specifier_ > variable_initializer_unit_//list_
                     ;
 
 /*                variable_initializer_unit_list_
@@ -232,8 +234,7 @@ namespace rill
                 //
                 // ====
                 parameter_variable_declaration_
-                    = variable_kind_specifier_ > parameter_variable_initializer_unit_
-                    // TODO: specifier should be OPTIONAL(default =ref)
+                    = quality_specifier_ > parameter_variable_initializer_unit_
                     ;
 
                 parameter_variable_initializer_unit_
@@ -271,13 +272,17 @@ namespace rill
                 //
                 type_expression_.name( "type_expression" );
                 type_expression_
-                    = type_identifier_expression_ | compiletime_return_type_expression_
+                    = type_identifier_expression_
+                    | compiletime_return_type_expression_
                     ;
 
                 //
                 type_identifier_expression_
-                    = identifier_[
-                        qi::_val = helper::make_node_ptr<ast::type_identifier_expression>( qi::_1 )
+                    = ( identifier_ >> type_attributes_ )[
+                        qi::_val = helper::make_node_ptr<ast::type_identifier_expression>(
+                            qi::_1,
+                            qi::_2
+                            )
                       ]
                     ;
 
@@ -293,6 +298,24 @@ namespace rill
                 expression_
                     %= expression_priority_[ExpressionHierarchyNum-1]
                     ;
+
+                {
+                    auto const priority = 5u;
+                    expression_priority_[priority]
+                        = expression_priority_[priority-1][qi::_val = qi::_1]
+                        >> *( ( qi::lit( "=" ) >> expression_priority_[priority-1] )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, "=", qi::_1 )]
+                            )
+                        ;
+                }
+
+                {
+                    auto const priority = 4u;
+                    expression_priority_[priority]
+                        = expression_priority_[priority-1][qi::_val = qi::_1]
+                        >> *( ( qi::lit( "<" ) >> expression_priority_[priority-1] )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, "<", qi::_1 )]
+                            )
+                        ;
+                }
 
                 {
                     auto const priority = 3u;
@@ -317,8 +340,8 @@ namespace rill
                 {
                     auto const priority = 1u;
                     expression_priority_[priority]
-                        = call_expression_[qi::_val = qi::_1]
-                        | expression_priority_[priority-1][qi::_val = qi::_1]
+                        = /*call_expression_[qi::_val = qi::_1]
+                            | */expression_priority_[priority-1][qi::_val = qi::_1]
                         ;
                 }
 
@@ -326,7 +349,8 @@ namespace rill
                 {
                     auto const priority = 0u;
                     expression_priority_[priority]
-                        = term_expression_[qi::_val = qi::_1]
+                        = call_expression_[qi::_val = qi::_1]
+                        | term_expression_[qi::_val = qi::_1]
                         | ( ( qi::lit( '(' ) >> expression_ >> qi::lit( ')' ) ) )[qi::_val = qi::_1]
                         ;
                 }
@@ -343,10 +367,12 @@ namespace rill
 
                 // termination
                 term_expression_
-                    = ( integer_literal_[ qi::_val = helper::make_node_ptr<ast::term_expression>( qi::_1 ) ]
-                      | string_literal_[ qi::_val = helper::make_node_ptr<ast::term_expression>( qi::_1 ) ]
-                      | variable_value_[ qi::_val = helper::make_node_ptr<ast::term_expression>( qi::_1 ) ]
-                      )
+                    = qi::as<ast::value_ptr>()
+                      [ integer_literal_
+                      | boolean_literal_
+                      | string_literal_
+                      | variable_value_
+                      ][ qi::_val = helper::make_node_ptr<ast::term_expression>( qi::_1 ) ]
                     ;
 
                 //
@@ -362,6 +388,11 @@ namespace rill
                         qi::_val = helper::make_intrinsic_value_ptr<ast::intrinsic::int32_value>( qi::_1 )
                       ];
 
+                boolean_literal_
+                    = qi::lit("true")[qi::_val = helper::make_intrinsic_value_ptr<ast::intrinsic::boolean_value>( phx::val( true ) )]
+                    | qi::lit("false")[qi::_val = helper::make_intrinsic_value_ptr<ast::intrinsic::boolean_value>( phx::val( false ) )];
+                    ;
+
                 //
                 string_literal_
                     = string_literal_sequenece_[
@@ -371,8 +402,12 @@ namespace rill
 
                 // TODO: support escape sequence
                 string_literal_sequenece_
-                    = qi::as_string[qi::lexeme[ qi::lit('"') >> *( qi::char_ - '"') >> qi::lit('"') ]];
+                    = qi::as_string[qi::lexeme[ qi::lit('"') >> *( ( escape_sequence_ | qi::char_ )- '"') >> qi::lit('"') ]];
 
+
+                escape_sequence_
+                    = qi::lit( "\\n" )[qi::_val = phx::val( '\n' )]
+                    ;
                 //auto p = ( -native_symbol_ )[ phx::if_else( qi::_0, phx::construct<intrinsic::symbol_value_ptr>(), phx::construct<intrinsic::symbol_value_ptr>() )]
 
                 /*
@@ -498,10 +533,11 @@ namespace rill
             rule<ast::empty_statement_ptr()> empty_statement_;
 
 
-            rule<ast::variable_kind()> variable_kind_specifier_;
+            rule<attribute::type_attributes_optional()> type_attributes_;
 
-            rule<ast::type_attributes()> type_attributes_;
-            rule<ast::modifiability_attribute_kind()> modifiability_specifier_;
+            rule<attribute::quality_kind()> quality_specifier_;
+            rule<attribute::modifiability_kind()> modifiability_specifier_;
+
 
             rule<ast::variable_declaration()> variable_declaration_;
             rule<ast::variable_declaration_unit()> variable_initializer_unit_;
@@ -515,7 +551,7 @@ namespace rill
             rule<ast::value_initializer_unit()> value_initializer_unit_;
             rule<ast::type_expression_ptr()> type_specifier_;
 
-            static std::size_t const ExpressionHierarchyNum = 4;
+            static std::size_t const ExpressionHierarchyNum = 6;
             rule<ast::expression_ptr()> expression_, expression_priority_[ExpressionHierarchyNum];
             rule<ast::expression_list()> argument_list_;
             rule<ast::call_expression_ptr()> call_expression_;
@@ -530,6 +566,7 @@ namespace rill
             rule<ast::variable_value_ptr()> variable_value_;
 
             rule<ast::intrinsic_value_ptr()> integer_literal_;
+            rule<ast::intrinsic_value_ptr()> boolean_literal_;
             rule<ast::intrinsic_value_ptr()> string_literal_;
 
             rule<ast::intrinsic::identifier_value_ptr()> identifier_;
@@ -539,6 +576,9 @@ namespace rill
             rule_no_skip<ast::native_string_t()> native_symbol_string_;
 
             rule_no_skip<ast::native_string_t()> string_literal_sequenece_;
+
+
+            rule_no_skip<char()> escape_sequence_;
 
             rule_no_skip_no_type statement_termination_;
         };

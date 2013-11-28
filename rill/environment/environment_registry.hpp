@@ -6,13 +6,13 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#ifndef RILL_ENVIRONMENT_CONTAINER
-#define RILL_ENVIRONMENT_CONTAINER
+#ifndef RILL_ENVIRONMENT_REGISTRY_HPP
+#define RILL_ENVIRONMENT_REGISTRY_HPP
 
 #include <vector>
 #include <memory>
 
-#include "../../environment_fwd.hpp"
+#include "environment_fwd.hpp"
 
 
 namespace rill
@@ -20,7 +20,7 @@ namespace rill
     // environment is managed by global id.
     // allocalor & table[env_id -> env_ptr]
     template<typename BaseEnvT>
-    class environment_container
+    class environment_registry
     {
     public:
         template<typename Env>
@@ -34,7 +34,7 @@ namespace rill
         auto allocate( T&&... ts )
             -> typename result<Env>::type
         {
-            environment_id_t const next_id = nodes_.size();
+            environment_id_t const next_id = environment_id_t( nodes_.size() );
             if ( next_id == environment_id_limit )
                 assert( false );
 
@@ -56,7 +56,7 @@ namespace rill
         auto at( environment_id_t const& id ) const
             -> std::weak_ptr<BaseEnvT const>
         {
-            assert( id >= 0 && id < nodes_.size() );
+            assert( id >= environment_id_t( 0 ) && id < environment_id_limit );
             return nodes_.at( id );
         }
 
@@ -66,4 +66,4 @@ namespace rill
 
 } // namespace rill
 
-#endif /*RILL_ENVIRONMENT_CONTAINER*/
+#endif /*RILL_ENVIRONMENT_REGISTRY_HPP*/

@@ -7,7 +7,7 @@
 //
 
 #include <rill/semantic_analysis/semantic_analysis.hpp>
-#include <rill/environment.hpp>
+#include <rill/environment/environment.hpp>
 
 #include <rill/ast/root.hpp>
 #include <rill/ast/statement.hpp>
@@ -15,12 +15,266 @@
 #include <rill/ast/value.hpp>
 
 
-
-
 namespace rill
 {
     namespace semantic_analysis
     {
+
+        static inline auto determine_type_attributes(
+            attribute::type_attributes_optional const& attr = attribute::type_attributes_optional()
+            )
+            -> attribute::type_attributes
+        {
+            return attribute::make_type_attributes(
+                attr.quality
+                ? *attr.quality
+                : attribute::quality_kind::k_val,                   // default value
+                attr.modifiability
+                ? *attr.modifiability
+                : attribute::modifiability_kind::k_immutable        // defaut value
+                );
+        }
+
+
+        template<typename IdetifierPtr, typename EnvPtr, typename ResultCallbackT>
+        static auto overload_solver(
+            type_id_list_t const& arg_type_ids,
+            std::shared_ptr<has_parameter_environment<function_symbol_environment>> const& generic_function_env,
+            IdetifierPtr const& identifier,
+            EnvPtr const& env,
+            ResultCallbackT const& f
+            )
+            -> function_symbol_environment_ptr
+        {
+            //
+            //
+            type_id_list_t holder( arg_type_ids.size() );
+            std::vector<function_symbol_environment_ptr> f_candidate_envs;
+
+
+            // DEBUG
+            std::cout << "...resolving function : " << identifier->get_inner_symbol()->to_native_string() << std::endl;
+
+
+            // TODO: fix over load solver
+            // TODO: check variadic parameter...
+            // TODO: count conversion times
+            for( auto const& f_env : generic_function_env->get_overloads() ) {
+                // DEBUG
+                std::cout << "..." << f_env << std::endl;
+
+
+                auto const& f_env_parameter_type_ids = f_env->get_parameter_type_ids();
+
+                // argument size is different
+                if ( f_env_parameter_type_ids.size() != arg_type_ids.size() )
+                    continue;
+
+                // has no argument
+                if ( f_env_parameter_type_ids.size() == 0 ) {
+                    // TODO: check context...(Ex. pure)
+                    std::cout << "~~~0~~~~" << std::endl;
+                    f_candidate_envs.push_back( f_env );
+                    continue;
+                }
+
+                //
+                bool succeed = true;
+                for( int i=0; i<arg_type_ids.size(); ++i ) {
+                    if ( f_env_parameter_type_ids[i] == arg_type_ids[i] ) {
+                        // has same type!
+                        holder[i] = arg_type_ids[i];
+
+                    } else {
+                        // try to type conversion
+                        auto const& f_env_arg_type = f_env->get_type_at( f_env_parameter_type_ids[i] );
+                        auto self_arg_type = env->get_type_at( arg_type_ids[i] );
+
+
+                        // 1. try to attribute check and conversion
+
+                        // 1.1 check quarity comversion
+                        if ( f_env_arg_type.attributes.quality != self_arg_type.attributes.quality ) {
+                            switch( f_env_arg_type.attributes.quality )
+                            {
+                            case attribute::quality_kind::k_ref:
+
+                                switch( self_arg_type.attributes.quality )
+                                {
+                                case attribute::quality_kind::k_val:
+                                    // val -> ref conversion
+
+                                    if ( f_env_arg_type.attributes.modifiability != self_arg_type.attributes.modifiability ) {
+
+                                        // check modifiability
+                                        switch( f_env_arg_type.attributes.modifiability )
+                                        {
+                                        case attribute::modifiability_kind::k_mutable:
+
+                                            switch( self_arg_type.attributes.modifiability )
+                                            {
+                                            case attribute::modifiability_kind::k_mutable:
+                                                // mutable -> mutable : valid
+                                                break;
+
+                                            case attribute::modifiability_kind::k_const:
+                                                // mutable -> const : valid
+                                                break;
+
+                                            case attribute::modifiability_kind::k_immutable:
+                                                // mutable -> immutable : INVARID
+                                                // TODO: check flag
+                                                assert( false );
+                                                break;
+
+                                            default:
+                                                assert( false && "[ice]" );
+                                                break;
+                                            }
+
+
+                                            break;
+
+                                        case attribute::modifiability_kind::k_const:
+                                            // TODO: implement
+                                            assert( false );
+                                            break;
+
+                                        case attribute::modifiability_kind::k_immutable:
+                                            // TODO: implement
+                                            assert( false );
+                                            break;
+
+                                        default:
+                                            assert( false && "[ice]" );
+                                            break;
+                                        }
+
+
+                                        // copy modifiablity
+                                        self_arg_type.attributes <<= f_env_arg_type.attributes.modifiability;
+                                    }
+
+                                    break;
+
+                                default:
+                                    // TODO: implement
+                                    assert( false && "[ice]" );
+                                    break;
+                                }
+
+
+
+
+
+                                break;
+
+                            case attribute::quality_kind::k_val:
+                                // All type -> val is convertible at the moment
+                                self_arg_type = f_env_arg_type; //attribute::quality_kind:k_val;
+
+                                break;
+
+                            default:
+                                // TODO: implement
+                                assert( false && "[ice]" );
+                                break;
+                            }
+                        }
+                        if ( !succeed )
+                            break;   // change overload resolution target
+
+
+
+                        // TODO: remove this
+                        self_arg_type.attributes <<= f_env_arg_type.attributes.modifiability;
+
+
+
+
+                        // 2. class type conversion
+                        if ( f_env_arg_type.class_env_id != self_arg_type.class_env_id ) {
+                            // TODO: implement
+                            assert( false && "[ice]" );
+                        }
+                        if ( !succeed )
+                            break;   // change overload resolution target
+
+                        // rewrite
+                        holder[i] = env->make_type_id( f_env_arg_type.class_env_id, f_env_arg_type.attributes );
+                    }
+                } // for
+                if ( succeed ) {
+                    f_candidate_envs.push_back( f_env );
+                }
+            }
+
+
+            return f( f_candidate_envs );
+        }
+
+
+        template<typename IdetifierPtr, typename EnvPtr>
+        static inline auto overload_solver(
+            type_id_list_t const& arg_type_ids ,
+            std::shared_ptr<has_parameter_environment<function_symbol_environment>> const& generic_function_env,
+            IdetifierPtr const& identifier,
+            EnvPtr const& env
+            )
+            -> function_symbol_environment_ptr
+        {
+            return overload_solver(
+                arg_type_ids,
+                generic_function_env,
+                identifier,
+                env,
+                []( std::vector<function_symbol_environment_ptr> const& f_candidate_envs ) {
+
+                    size_t selected = 0;
+                    if ( f_candidate_envs.size() == 0 ) {
+                        // TODO: to search other namespaces...
+                        assert( false && "Overload failed... [not implemented]");
+                    } else if ( f_candidate_envs.size() > 1 ) {
+                        // TODO: check comversion times...
+                        assert( false && "duplecate?... [not implemented]");
+                    }
+
+                    return f_candidate_envs[selected];
+                }
+                );
+        }
+
+        template<typename IdetifierPtr, typename EnvPtr>
+        static inline auto overload_solver_allow_no_entry(
+            type_id_list_t const& arg_type_ids ,
+            std::shared_ptr<has_parameter_environment<function_symbol_environment>> const& generic_function_env,
+            IdetifierPtr const& identifier,
+            EnvPtr const& env
+            )
+            -> function_symbol_environment_ptr
+        {
+            return overload_solver(
+                arg_type_ids,
+                generic_function_env,
+                identifier,
+                env,
+                []( std::vector<function_symbol_environment_ptr> const& f_candidate_envs )-> function_symbol_environment_ptr{
+
+                    size_t selected = 0;
+                    if ( f_candidate_envs.size() == 0 ) {
+                        return nullptr;
+                    } else if ( f_candidate_envs.size() > 1 ) {
+                        // TODO: check comversion times...
+                        assert( false && "duplecate?... [not implemented]");
+                    }
+
+                    return f_candidate_envs[selected];
+                }
+                );
+        }
+
+
+
         // Root Scope
         RILL_TV_OP( analyzer, ast::root, r, parent_env )
         {
@@ -30,21 +284,21 @@ namespace rill
             // collect all identifiers(except types) under this scope
             collect_identifier( parent_env, r );
 
-            std::cout << "ababab" << std::endl << parent_env << std::endl;
-
             // build environment
             for( auto const& node : r->statements_ )
                 dispatch( node, parent_env );
         }
 
         // statement
-        // virtual void operator()( template_statement const& s, environment_ptr const& env ) const =0;
+        // virtual void operator()( template_statement const& s, environment_base_ptr const& env ) const =0;
 
         RILL_TV_OP( analyzer, ast::expression_statement, s, parent_env )
         {
             // // DO NOT EVALUATE THIS PATH.
             dispatch( s->expression_, parent_env );
         }
+
+
 
         RILL_TV_OP( analyzer, ast::return_statement, s, parent_env )
         {
@@ -54,6 +308,11 @@ namespace rill
             //context_->current_scope()->set_return_value( s.expression_->dispatch( *this, env ) );
         }
 
+
+
+        //
+        //
+        //
         RILL_TV_OP( analyzer, ast::variable_declaration_statement, s, parent_env )
         {
             //
@@ -71,29 +330,30 @@ namespace rill
                     // for( auto const& unit : val_decl.decl_unit_list ) {
                     auto const& unit = val_decl.decl_unit;
 
+
                     // TODO: make method to determine "type"
 
                     // unit.kind -> val or ref
                     // TODO: use unit.kind( default val )
-                    
+
                     // TODO: evaluate type || type inference || type check
                     //       default( int )
 
-                    if ( unit.init_unit.type ) { // is parameter variavle type specified ?
+                    if ( unit.init_unit.type ) { // is parameter variable type specified ?
                         // evaluate constant expresison as type
-                        auto const& type_identifier_pointer = interpreter::evaluate_as_type( parent_env, unit.init_unit.type );
+                        auto const& type_value = interpreter::evaluate_as_type( parent_env, unit.init_unit.type );
 
-                        if ( auto const type_env = lookup_with_instanciation( parent_env, type_identifier_pointer ) ) {
-                            assert( type_env != nullptr );
-                            assert( type_env->get_symbol_kind() == kind::type_value::class_e );
+                        if ( auto const class_env = lookup_with_instanciation( parent_env, type_value.identifier ) ) {
+                            assert( class_env != nullptr );
+                            assert( class_env->get_symbol_kind() == kind::type_value::class_e );
 
                             // declare
                             auto variable_env
                                 = parent_env->construct(
                                     kind::variable_k,
-                                    /*TODO: add attributes, */
                                     unit.name,
-                                    std::dynamic_pointer_cast<class_symbol_environment const>( type_env )
+                                    std::dynamic_pointer_cast<class_symbol_environment const>( class_env ),
+                                    determine_type_attributes( type_value.attributes )
                                     );
 
                             //
@@ -111,7 +371,7 @@ namespace rill
                         assert( false );
                     }
 
-                    
+
 
                 } else {
                     // Already declared...(Duplicate)
@@ -123,7 +383,7 @@ namespace rill
                 // TODO: implement
                 assert( false );
             }
-            
+
 
 //            assert( related_env != nullptr );
 //            assert( related_env->get_symbol_kind() == kind::type_value::function_e );
@@ -132,18 +392,22 @@ namespace rill
 /*
             std::cout
                 << "variable_declaration_statement: ast_ptr -> "
-                << (environment_ptr const&)parent_env << std::endl
+                << (environment_base_ptr const&)parent_env << std::endl
                 << "name -- " << s->declaration_->get_identifier()->last()->get_inner_symbol()->to_native_string() << std::endl
                 << "Args num -- " << s->get_parameter_list().size() << std::endl;
 */
         }
 
 
+
+        //
+        //
+        //
         RILL_TV_OP( analyzer, ast::function_definition_statement, s, parent_env )
         {
             std::cout
                 << "function_definition_statement: ast_ptr -> "
-                << (environment_ptr const&)parent_env << std::endl
+                << (environment_base_ptr const&)parent_env << std::endl
                 << "name -- " << s->get_identifier()->last()->get_inner_symbol()->to_native_string() << std::endl
                 << "Args num -- " << s->get_parameter_list().size() << std::endl;
 
@@ -167,17 +431,17 @@ namespace rill
 
                 if ( e.decl_unit.init_unit.type ) { // is parameter variavle type specified ?
                     // evaluate constant expresison as type
-                    auto const& type_identifier_pointer = interpreter::evaluate_as_type( f_env, e.decl_unit.init_unit.type );
+                    auto const& type_value = interpreter::evaluate_as_type( f_env, e.decl_unit.init_unit.type );
 
-                    if ( auto const type_env = lookup_with_instanciation( f_env, type_identifier_pointer ) ) {
-                        assert( type_env != nullptr );
-                        assert( type_env->get_symbol_kind() == kind::type_value::class_e );
+                    if ( auto const class_env = lookup_with_instanciation( f_env, type_value.identifier ) ) {
+                        assert( class_env != nullptr );
+                        assert( class_env->get_symbol_kind() == kind::type_value::class_e );
 
                         // declare
                         f_env->parameter_variable_construct(
-                            /*TODO: add attributes, */
                             e.decl_unit.name,
-                            std::dynamic_pointer_cast<class_symbol_environment const>( type_env )
+                            std::dynamic_pointer_cast<class_symbol_environment const>( class_env ),
+                            determine_type_attributes( type_value.attributes )
                             );
 
                     } else {
@@ -199,28 +463,48 @@ namespace rill
             // ?: TODO: use block expression
 
 
-            auto const& return_type_env
-                = s->return_type_
-                ? lookup_with_instanciation( f_env, *s->return_type_ )
-                : []() {
-                    // TODO: implement return type inference
-                    assert( false );
-                    return nullptr;
-                }();
+            // Return type
+            if ( s->return_type_ ) {
+                // evaluate constant expresison as type
+                auto const& type_value = interpreter::evaluate_as_type( f_env, *s->return_type_ );
 
-            f_env->complete( return_type_env, s->get_identifier()->last()->get_inner_symbol()->to_native_string() );
+                if ( auto const return_class_env = lookup_with_instanciation( f_env, type_value.identifier ) ) {
+                    assert( return_class_env != nullptr );
+                    assert( return_class_env->get_symbol_kind() == kind::type_value::class_e );
+
+                    //
+                    auto const& return_type_id = f_env->make_type_id(
+                        return_class_env,
+                        determine_type_attributes( type_value.attributes )
+                        );
+                    f_env->complete( return_type_id, s->get_identifier()->last()->get_inner_symbol()->to_native_string() );
+
+                } else {
+                    // type was not found, !! compilation error !!
+                    assert( false );
+                }
+
+            } else {
+                // TODO: implement return type inference
+                assert( false );
+            }
 
             //
             f_env->get_parameter_wrapper_env()->add_overload( f_env );
 
-            std::cout << (environment_ptr const)f_env << std::endl;
+            std::cout << (environment_base_ptr const)f_env << std::endl;
         }
 
+
+
+        //
+        //
+        //
         RILL_TV_OP( analyzer, ast::extern_function_declaration_statement, s, parent_env )
         {
             std::cout
                 << "function_definition_statement: ast_ptr -> "
-                << (environment_ptr const&)parent_env << std::endl
+                << (environment_base_ptr const&)parent_env << std::endl
                 << "Args num -- " << s->get_parameter_list().size() << std::endl;
 
             // enverinment is already pre constructed by identifier_collector
@@ -244,9 +528,9 @@ namespace rill
 
                 if ( e.decl_unit.init_unit.type ) { // is parameter variavle type specified ?
                     // evaluate constant expresison as type
-                    auto const& type_identifier_pointer = interpreter::evaluate_as_type( f_env, e.decl_unit.init_unit.type );
+                    auto const& type = interpreter::evaluate_as_type( f_env, e.decl_unit.init_unit.type );
 
-                    if ( auto const type_env = lookup_with_instanciation( f_env, type_identifier_pointer ) ) {
+                    if ( auto const type_env = lookup_with_instanciation( f_env, type.identifier ) ) {
                         assert( type_env != nullptr );
                         assert( type_env->get_symbol_kind() == kind::type_value::class_e );
 
@@ -270,22 +554,38 @@ namespace rill
                 }
             }
 
-            // TODO: implement return type inference
-            auto const& return_type_env
-                = s->return_type_
-                ? lookup_with_instanciation( f_env, *s->return_type_ )
-                : []() {
-                    // NOTE: it should be compilation error on extern_function_declaration_statement
-                    assert( false );
-                    return nullptr;
-                }();
-
-            f_env->complete( return_type_env, s->get_identifier()->last()->get_inner_symbol()->to_native_string(), function_symbol_environment::attr::e_extern );
 
             //
+            // Return type
+            if ( s->return_type_ ) {
+                // evaluate constant expresison as type
+                auto const& type_value = interpreter::evaluate_as_type( f_env, s->return_type_ );
+
+                if ( auto const return_class_env = lookup_with_instanciation( f_env, type_value.identifier ) ) {
+                    assert( return_class_env != nullptr );
+                    assert( return_class_env->get_symbol_kind() == kind::type_value::class_e );
+
+                    //
+                    auto const& return_type_id = f_env->make_type_id(
+                        return_class_env,
+                        determine_type_attributes( type_value.attributes )
+                        );
+                    f_env->complete( return_type_id, s->get_identifier()->last()->get_inner_symbol()->to_native_string(), function_symbol_environment::attr::e_extern );
+
+                } else {
+                    // type was not found, !! compilation error !!
+                    assert( false );
+                }
+
+            } else {
+                // extern function MUST specifies RETURN TYPE. [[compilation error]]
+                assert( false && "" );
+            }
+
+            // TODO: add duplicate check
             f_env->get_parameter_wrapper_env()->add_overload( f_env );
 
-            std::cout << (environment_ptr const)f_env << std::endl;
+            std::cout << (environment_base_ptr const)f_env << std::endl;
         }
 
 
@@ -305,110 +605,126 @@ namespace rill
         RILL_TV_OP( analyzer, ast::binary_operator_expression, e, env )
         {
             // check type environment
-            auto const& lhs_type_env = dispatch( e->lhs_, env );
-            auto const& rhs_type_env = dispatch( e->rhs_, env );
+            auto const& lhs_type_id = dispatch( e->lhs_, env );
+            auto const& rhs_type_id = dispatch( e->rhs_, env );
 
-            assert( lhs_type_env != nullptr && rhs_type_env != nullptr );
-
-            // find a function environment that has same name.
-            auto const& target_env = env->lookup( e->op_ );
-
-            // compilation errors
-            if ( target_env == nullptr ) {
-                // symbol not found;
-                assert( false );
-            }
-            if ( target_env->get_symbol_kind() != kind::type_value::parameter_wrapper_e ) {
-                // symbol type was not matched
-                assert( false );
-            }
-
-            auto const has_parameter_env = std::dynamic_pointer_cast<has_parameter_environment_base const>( target_env );
-            if ( has_parameter_env->get_inner_symbol_kind() != kind::type_value::function_e ) {
-                // symbol type was not matched
-                assert( false );
-            }
-
-            //
-            auto const& generic_function_env
-                = std::dynamic_pointer_cast<has_parameter_environment<function_symbol_environment> const>( has_parameter_env );
+            assert( lhs_type_id != type_id_undefined && rhs_type_id != type_id_undefined && "[ice]" );
 
             // make argument types id list
-            environment_id_list arg_type_env_ids;
-            arg_type_env_ids.push_back( lhs_type_env->get_id() );
-            arg_type_env_ids.push_back( rhs_type_env->get_id() );
+            type_id_list_t const argument_type_ids = { lhs_type_id, rhs_type_id };
 
-            // TODO: fix over load solver
-            //
-            auto const& function_env = generic_function_env->solve_overload( arg_type_env_ids );
+
+            // DEBUG
+            std::cout << "...resolving function : " << e->op_->get_inner_symbol()->to_native_string() << std::endl;
+
+            // TODO: make this section to loop
+            //       generic_function_env has only one scope. should check parent environment.
+            auto const& function_env = [&](){
+                std::cout << (const_environment_base_ptr)env << std::endl;
+
+                // find a function environment that has same name
+                auto const& target_env = env->lookup( e->op_ );
+
+                // compilation errors
+                if ( target_env == nullptr ) {
+                    // symbol not found;
+                    assert( false && "symbol not found" );
+                }
+                if ( target_env->get_symbol_kind() != kind::type_value::parameter_wrapper_e ) {
+                    // symbol type was not matched
+                    assert( false && "[ice]");
+                }
+
+                auto has_parameter_env = std::dynamic_pointer_cast<has_parameter_environment_base>( target_env );
+                if ( has_parameter_env->get_inner_symbol_kind() != kind::type_value::function_e ) {
+                    // symbol type was not matched
+                    assert( false && "[ice]" );
+                }
+
+                // this environment has all functions that have same identifier
+                auto generic_function_env
+                    = std::static_pointer_cast<has_parameter_environment<function_symbol_environment>>( has_parameter_env );
+
+                /// *************
+                auto const& f = overload_solver( argument_type_ids, generic_function_env, e->op_, env );
+                // TODO: null check and do loop
+
+                return f;
+            }();
+/*
+            std::cout << "...call expression : " << e->op_->get_inner_symbol()->to_native_string() << std::endl;
+            assert( false && "Overload failed..." );
+
+
+            auto const& function_env = generic_function_env->solve_overload( arg_type_ids );
             if ( function_env == nullptr ) {
                 // overload failed
-                assert( false );
+                std::cout << "...call expression : " << e->op_->get_inner_symbol()->to_native_string() << std::endl;
+                assert( false && "Overload failed..." );
             }
+*/
 
             // memoize called function env
             function_env->connect_from_ast( e );
 
             // return retult type env of function
-            return function_env->get_return_type_environment();
+            return function_env->get_return_type_id();
         }
+
+
+
 
         // function call expression
         RILL_TV_OP( analyzer, ast::call_expression, e, env )
         {
             // push values to context stack and evaluate type environment
-            std::vector<environment_ptr> argument_type_env;
+            type_id_list_t argument_type_ids;
             for( auto const& val : e->arguments_ )
-                argument_type_env.push_back( dispatch( val, env ) );
-            assert( std::count( argument_type_env.cbegin(), argument_type_env.cend(), nullptr ) == 0 );
-
-            // TODO: fix lookup phase
-            // find a function environment that has same name.
-            auto const& target_env = lookup_with_instanciation( env, e->reciever_ );
-
-            // compilation errors
-            if ( target_env == nullptr ) {
-                // symbol not found
-                // ?: look up 1 rank top environment or other namespace groups
-                assert( false );
-            }
-            if ( target_env->get_symbol_kind() != kind::type_value::parameter_wrapper_e ) {
-                // symbol type was not matched
-                assert( false );
-            }
-
-            auto const has_parameter_env = std::static_pointer_cast<has_parameter_environment_base>( target_env );
-            if ( has_parameter_env->get_inner_symbol_kind() != kind::type_value::function_e ) {
-                // symbol type was not matched
-                assert( false );
-            }
-
-            //
-            auto const& has_parameter_function_env
-                = std::static_pointer_cast<has_parameter_environment<function_symbol_environment>>( has_parameter_env );
-
-            // make argument types id list
-            environment_id_list arg_type_env_ids;
-            for( auto const& v : argument_type_env )
-                arg_type_env_ids.push_back( v->get_id() );
+                argument_type_ids.push_back( dispatch( val, env ) );
+            assert( std::count( argument_type_ids.cbegin(), argument_type_ids.cend(), type_id_undefined ) == 0 );
 
 
-            // TODO: fix over load solver
-            //
-            auto const& function_env = has_parameter_function_env->solve_overload( arg_type_env_ids );
-            if ( function_env ) {
-                function_env->connect_from_ast( e );
+            //       generic_function_env has only one scope. should check parent environment.
+            auto const& function_env = [&](){
+                std::cout << (const_environment_base_ptr)env << std::endl;
 
-                // returns return value type envitonment
-                return function_env->get_return_type_environment();
+                // TODO: fix lookup phase
+                // find a function environment that has same name.
+                auto const& target_env = lookup_with_instanciation( env, e->reciever_ );
 
-            } else {
-                // 
-                //if ( has_parameter_function_env->get_parent_env()->is_root() )
-                //    assert( false );
+                // compilation errors
+                if ( target_env == nullptr ) {
+                    // symbol not found
+                    // ?: look up 1 rank top environment or other namespace groups
+                    assert( false );
+                }
+                if ( target_env->get_symbol_kind() != kind::type_value::parameter_wrapper_e ) {
+                    // symbol type was not matched
+                    assert( false );
+                }
 
-                /// solve_forward_reference( has_parameter_env, env, e );
-                for( auto const& incomplete_function_env : has_parameter_function_env->get_incomplete_inners() ) {
+                auto const has_parameter_env = std::static_pointer_cast<has_parameter_environment_base>( target_env );
+                if ( has_parameter_env->get_inner_symbol_kind() != kind::type_value::function_e ) {
+                    // symbol type was not matched
+                    assert( false );
+                }
+
+                // this environment has all functions that have same identifier
+                auto generic_function_env
+                    = std::static_pointer_cast<has_parameter_environment<function_symbol_environment>>( has_parameter_env );
+
+                /// *************
+                auto const& f = overload_solver_allow_no_entry( argument_type_ids, generic_function_env, e->reciever_->last(), env );
+
+                // function is found!
+                if ( f )
+                    return f;
+
+                // rescue phase...
+                //
+
+                // solve_forward_reference
+                for( auto const& incomplete_function_env : generic_function_env->get_incomplete_inners() ) {
                     assert( incomplete_function_env != nullptr );
                     std::cout << "found marked(ast AND related env) -> " << incomplete_function_env->get_id() << std::endl;
 
@@ -419,44 +735,58 @@ namespace rill
                     dispatch( statement_node, incomplete_function_env->get_parent_env() );
                 }
 
+
                 // retry
-                auto const& function_env = has_parameter_function_env->solve_overload( arg_type_env_ids );
-                if ( function_env ) {
-                    function_env->connect_from_ast( e );
+                auto const& re_f = overload_solver( argument_type_ids, generic_function_env, e->reciever_->last(), env );
+                if ( re_f )
+                    return re_f;
 
-                    // returns return value type envitonment
-                    return function_env->get_return_type_environment();
 
-                } else {
-                    // overload failed
-                    assert( false );
-                }
-            }
+                // may be overload failed
+                // TODO: dig environment once...
+
+                return re_f/*nullptr*/;
+            }();
 
             // memoize called function env
             std::cout << "memoed" << std::endl;
             function_env->connect_from_ast( e );
-            
+
+            return function_env->get_return_type_id();
             // return retult type env of function
             //return function_env->get_return_type_environment();
         }
 
+
+
+        //
+        //
+        //
         RILL_TV_OP( analyzer, ast::term_expression, e, env )
         {
             return dispatch( e->value_, env );
         }
 
 
+
+        //
+        //
         //
         RILL_TV_OP( analyzer, ast::intrinsic_value, v, env )
         {
             // look up literal type
-            auto const type_env = env->lookup( v->literal_type_name_ );
-            assert( type_env != nullptr );  // literal type must exist
+            auto const class_env = env->lookup( v->literal_type_name_ );
+            assert( class_env != nullptr );  // literal type must exist
 
-            return type_env;
+            //
+            return class_env->make_type_id( class_env, determine_type_attributes() );
         }
 
+
+
+        //
+        //
+        //
         RILL_TV_OP( analyzer, ast::variable_value, v, parent_env )
         {
             auto const& target_env = lookup_with_instanciation( parent_env, v->variable_name_ );
@@ -476,10 +806,13 @@ namespace rill
             std::cout << "memoed" << std::endl;
             variable_env->connect_from_ast( v );
 
+            return variable_env->get_type_id();
+/*
             auto const& type_env = parent_env->get_env_at( variable_env->get_type_env_id() ).lock();
             assert( type_env != nullptr );
             std::cout << type_env->mangled_name() << std::endl;
             return type_env;
+*/
         }
 
     } // namespace semantic_analysis

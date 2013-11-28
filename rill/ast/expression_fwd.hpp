@@ -27,7 +27,7 @@ namespace rill
         RILL_AST_FWD_DECL( binary_operator_expression, expression )
 
         RILL_AST_FWD_DECL( call_expression, expression )
-        RILL_AST_FWD_DECL( embedded_function_call_expression, expression )
+        RILL_AST_FWD_DECL( intrinsic_function_call_expression, expression )
 
         RILL_AST_FWD_DECL( term_expression, expression )
 
@@ -37,7 +37,6 @@ namespace rill
         RILL_AST_FWD_DECL( type_identifier_expression, expression )
 
         RILL_AST_FWD_DECL( compiletime_return_type_expression, expression )
-
 
     } // namespace ast
 } // namespace rill

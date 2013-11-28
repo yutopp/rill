@@ -14,7 +14,7 @@
 
 
 #include <rill/semantic_analysis/compiletime_interpreter/interpreter.hpp>
-#include <rill/environment.hpp>
+#include <rill/environment/environment.hpp>
 
 #include <rill/ast/root.hpp>
 #include <rill/ast/statement.hpp>
@@ -32,16 +32,20 @@ namespace rill
             //
             RILL_TV_OP( type_evaluator, ast::type_identifier_expression, e, env )
             {
-                return e->value_;
+                return { e->value_, e->attributes_ };
             }
 
+
+            //
+            //
             RILL_TV_OP( type_evaluator, ast::compiletime_return_type_expression, e, env )
             {
                 // !!! Unimplemented !!!
                 // TODO: evaluate by value as constant and cast to type identifiern
                 throw -1;
-                return nullptr;
+                return { nullptr, {} };
             }
+
         } // namespace interpreter
     } // namespace semantic_analysis
 } // namespace rill

@@ -20,17 +20,23 @@ namespace rill
     namespace code_generator
     {
         template<typename EnvironmentPtr, typename ActionHolderPtr, typename Node>
-        auto generate_llvm_ir( EnvironmentPtr const& env, ActionHolderPtr const& holder, std::shared_ptr<Node> const& node )
+        auto generate_llvm_ir(
+            EnvironmentPtr const& env,
+            ActionHolderPtr const& action_holder,
+            std::shared_ptr<Node> const& node
+            )
             -> void
         {
-            llvm_ir_generator const ir_generator( env, holder );
+            auto const& context = std::make_shared<llvm_ir_generator_context>();
+
+            llvm_ir_generator const ir_generator( env, action_holder, context );
 
             ir_generator.dispatch( node, env );
             ir_generator.debug();
 
             // FIXME
-            auto const binary_gen = binary_generator_from_llvm_ir();
-            binary_gen.test( *ir_generator.get_llvm_module() );
+            auto const binary_gen = binary_generator_from_llvm_ir( context );
+            binary_gen.test();
         }
     } // namespace code_generator
 } // namespace rill

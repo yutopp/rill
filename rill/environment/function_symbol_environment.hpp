@@ -54,10 +54,10 @@ namespace rill
 
     public:
         // pre construct
-        function_symbol_environment( environment_id_t const& id, weak_env_pointer const& parent, environment_id_t const& parameter_wrapper_env_id )
+        function_symbol_environment( environment_id_t const& id, weak_env_base_pointer const& parent, environment_id_t const& parameter_wrapper_env_id )
             : single_identifier_environment_base( id, parent )
             , parameter_wrapper_env_id_( parameter_wrapper_env_id )
-            , return_type_env_id_( environment_id_undefined )
+            , return_type_id_( type_id_undefined )
             , attributes_( e_normal )
             , progress_( constructed )
         {}
@@ -94,13 +94,13 @@ namespace rill
         }
 
         auto get_parameter_decl_ids() const
-            -> std::vector<environment_id_t> const&
+            -> environment_id_list_t const&
         {
             return parameter_decl_ids_;
         }
 
         auto get_parameter_type_ids() const
-            -> std::vector<environment_id_t> const&
+            -> type_id_list_t const&
         {
             return parameter_type_ids_;
         }
@@ -111,15 +111,20 @@ namespace rill
             progress_ = progress::checked;
         }
 
-        auto complete( const_environment_ptr const& return_type_env, native_string_type const& name, attributes_t const& attrbute = attr::e_normal )
+        auto complete(
+            type_id_t const& return_type_id,
+            native_string_type const& name,
+            attributes_t const& attrbute = attr::e_normal
+            )
             -> void
         {
-            return_type_env_id_ = return_type_env->get_id();
+            return_type_id_ = return_type_id;
             name_ = name;
             attributes_ = attrbute;
             progress_ = progress::completed;
         }
 
+/*
         auto get_return_type_environment()
             -> class_symbol_environment_ptr
         {
@@ -135,6 +140,13 @@ namespace rill
 
             return std::dynamic_pointer_cast<class_symbol_environment const>( p.lock() );
         }
+*/
+
+        auto get_return_type_id() const
+            -> type_id_t
+        {
+            return return_type_id_;
+        }
 
         auto dump( std::ostream& os, std::string const& indent ) const
             -> std::ostream& RILL_CXX11_OVERRIDE
@@ -144,21 +156,17 @@ namespace rill
         }
 
         auto parameter_variable_construct(
-            /* ,*/
             ast::intrinsic::single_identifier_value_base_ptr const& name,
-            const_class_symbol_environment_ptr const& type_env
+            const_class_symbol_environment_ptr const& type_env,
+            attribute::type_attributes const& type_attr = attribute::make_default_type_attributes()
             )
             -> variable_symbol_environment_ptr;
 
-        auto mangled_name() const -> native_string_type
-        {
-            // TODO: call parent mangled_name()
-            return name_ +  make_parameter_hash( parameter_type_ids_ );
-        }
+        auto mangled_name() const -> native_string_type;
 
         bool is_return_type_completed() const
         {
-            return return_type_env_id_ != environment_id_undefined;
+            return return_type_id_ != type_id_undefined;
         }
 
         bool has_attribute( attr const& attribute ) const
@@ -172,11 +180,11 @@ namespace rill
         environment_id_t parameter_wrapper_env_id_;
 
         // parameter variable environments
-        std::vector<environment_id_t> parameter_decl_ids_;
+        environment_id_list_t parameter_decl_ids_;
 
         // types
-        std::vector<environment_id_t> parameter_type_ids_;
-        environment_id_t return_type_env_id_;
+        type_id_list_t parameter_type_ids_;
+        type_id_t return_type_id_;
 
         native_string_type name_;
         attributes_t attributes_;

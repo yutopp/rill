@@ -12,7 +12,7 @@
 
 #include <rill/ast/value.hpp>
 
-#include <rill/environment.hpp>
+#include <rill/environment/environment.hpp>
 
 
 namespace rill
@@ -21,12 +21,12 @@ namespace rill
     {
 
         // TODO: change name to lookup_with_template_instanciation
-        auto lookup_with_instanciation( environment_ptr const& env, ast::intrinsic::const_identifier_value_ptr const& ids )
-            -> environment_ptr
+        auto lookup_with_instanciation( environment_base_ptr const& env, ast::intrinsic::const_identifier_value_ptr const& ids )
+            -> environment_base_ptr
         {
             return env->nest_lookup(
                     ids,
-                    []( environment_ptr const& current_env, ast::intrinsic::const_single_identifier_value_base_ptr const& id ) {
+                    []( environment_base_ptr const& current_env, ast::intrinsic::const_single_identifier_value_base_ptr const& id ) {
                         if ( id->is_template() ) {
                             // TODO: add instatntiation
                             assert( false );

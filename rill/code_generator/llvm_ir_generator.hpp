@@ -17,18 +17,13 @@
 #include <llvm/IR/IRBuilder.h>
 
 #include "../ast/detail/tree_visitor_base.hpp"
-#include "../utility/embedded_function_holder_fwd.hpp"
+#include "../behavior/intrinsic_function_holder_fwd.hpp"
 
 
 namespace rill
 {
     namespace code_generator
     {
-        class llvm_ir_generator RILL_CXX11_FINAL
-            : public ast::detail::tree_visitor_base<llvm::Value*>
-        {
-        public:
-
             // consists env_id and llvm_object.
             class env_id_llvm_table
             {
@@ -119,8 +114,47 @@ namespace rill
                 std::unordered_map<environment_id_t, bool> require_load_inst_;
             };
 
+
+
+
+
+        class llvm_ir_generator_context
+        {
         public:
-            llvm_ir_generator( const_environment_ptr const&, embedded_function_holder_ptr const& );
+            llvm_ir_generator_context( std::string const& module_name = "rill" )
+                : llvm_context( llvm::getGlobalContext() )
+                , llvm_module( module_name, llvm_context )
+                , ir_builder( llvm_context )
+                {}
+            
+        public:
+            llvm::LLVMContext& llvm_context;
+            llvm::Module llvm_module;
+            llvm::IRBuilder<> ir_builder;
+
+            env_id_llvm_table env_conversion_table;
+        };
+        typedef std::shared_ptr<llvm_ir_generator_context> llvm_ir_generator_context_ptr;
+
+
+
+
+
+
+
+        class llvm_ir_generator RILL_CXX11_FINAL
+            : public ast::detail::tree_visitor_base<llvm::Value*>
+        {
+        public:
+
+
+
+        public:
+            llvm_ir_generator(
+                const_environment_base_ptr const&,
+                intrinsic_function_action_holder_ptr const&,
+                llvm_ir_generator_context_ptr const&
+                );
 
         public:
             // statement_list
@@ -133,7 +167,7 @@ namespace rill
             RILL_TV_OP_DECL_CONST( ast::return_statement )
             RILL_TV_OP_DECL_CONST( ast::function_definition_statement )
             RILL_TV_OP_DECL_CONST( ast::variable_declaration_statement )
-            RILL_TV_OP_DECL_CONST( ast::embedded_function_definition_statement )
+            RILL_TV_OP_DECL_CONST( ast::intrinsic_function_definition_statement )
             RILL_TV_OP_DECL_CONST( ast::extern_function_declaration_statement )
 
             //RILL_TV_OP_DECL( ast::class_definition_statement )
@@ -141,7 +175,7 @@ namespace rill
             // expression
             RILL_TV_OP_DECL_CONST( ast::binary_operator_expression )
             RILL_TV_OP_DECL_CONST( ast::call_expression )
-            RILL_TV_OP_DECL_CONST( ast::embedded_function_call_expression )
+            RILL_TV_OP_DECL_CONST( ast::intrinsic_function_call_expression )
             RILL_TV_OP_DECL_CONST( ast::term_expression )
 
             //
@@ -151,26 +185,27 @@ namespace rill
             // TEST
             void debug() const
             {
-                module_->dump();
-            }
-
-
-            // const???
-            auto get_llvm_module() const
-                -> std::shared_ptr<llvm::Module>
-            {
-                return module_;
+                context_->llvm_module.dump();
             }
 
         private:
-            llvm::LLVMContext& context_;
-            std::shared_ptr<llvm::Module> module_;
-            std::shared_ptr<llvm::IRBuilder<>> builder_;
-            std::shared_ptr<env_id_llvm_table> llvm_table_;
+            const_environment_base_ptr root_env_;
+            intrinsic_function_action_holder_ptr action_holder_;
 
-            const_environment_ptr root_env_;
-            embedded_function_holder_ptr action_holder_;
+            llvm_ir_generator_context_ptr context_;
         };
+
+
+        template<typename EnvIdT, typename IdTablePtr, typename IRBuilderPtr>
+        auto inline ref_value_with( EnvIdT const& env_id, IdTablePtr const& table, IRBuilderPtr builder )
+            -> llvm::Value*
+        {
+            auto const ref_value = table.ref_value( env_id );
+            if ( table.is_alloca_inst( env_id ) ) {
+                return builder.CreateLoad( ref_value );
+            }
+            return ref_value;
+        }
     } // namespace code_generator
 } // namespace rill
 

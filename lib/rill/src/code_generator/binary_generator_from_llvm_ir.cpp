@@ -82,7 +82,7 @@ namespace rill
         };
 
 
-        void binary_generator_from_llvm_ir::test( llvm::Module& module ) const
+        void binary_generator_from_llvm_ir::test() const
         {
             static llvm_initializer const li;   // initialize LLVM at once
 
@@ -153,7 +153,7 @@ namespace rill
                 PM.add( new llvm::DataLayout( *TD ) );
                 std::cout << "const llvm::DataLayout *TD = target_machine->getDataLayout()" << std::endl;
             } else {
-                PM.add( new llvm::DataLayout( &module ) );
+                PM.add( new llvm::DataLayout( &context_->llvm_module ) );
             }
 
 
@@ -172,7 +172,7 @@ namespace rill
                     std::cout << "failed" << std::endl;
                     //return;
                 }
-                PM.run( module );
+                PM.run( context_->llvm_module );
 
                 // Declare success.
                 FDOut.keep();

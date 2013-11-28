@@ -12,7 +12,7 @@
 #include <memory>
 
 #include "../../config/macros.hpp"
-#include "../../environment_fwd.hpp"
+#include "../../environment/environment_fwd.hpp"
 
 #include "tree_visitor_base.hpp"
 #include "dispatch_functions.hpp"
@@ -24,7 +24,7 @@
         tag, \
         std::shared_ptr<rill::ast::detail::base_type_specifier<class_name>::type> const& self_pointer, \
         rill::ast::detail::tree_visitor_base<boost::mpl::at<rill::ast::detail::as_type, tag>::type>& visitor, \
-        environment_ptr const& env \
+        environment_base_ptr const& env \
         ) \
         -> rill::ast::detail::tree_visitor_base< \
                 boost::mpl::at<rill::ast::detail::as_type, tag>::type \
@@ -36,7 +36,7 @@
         tag, \
         std::shared_ptr<rill::ast::detail::base_type_specifier<class_name>::type const> const& const_self_pointer, \
         rill::ast::detail::tree_visitor_base<boost::mpl::at<rill::ast::detail::as_type, tag>::type> const& visitor, \
-        const_environment_ptr const& env \
+        const_environment_base_ptr const& env \
         ) const \
         -> rill::ast::detail::tree_visitor_base< \
                 boost::mpl::at<rill::ast::detail::as_type, tag>::type \

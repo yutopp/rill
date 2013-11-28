@@ -13,7 +13,7 @@
 
 #include <boost/fusion/include/adapt_struct.hpp> /* for boost spirit perser */
 
-#include "../environment_fwd.hpp"
+#include "../environment/environment_fwd.hpp"
 
 #include "detail/tree_visitor_base.hpp"
 #include "detail/dispatch_assets.hpp"
@@ -325,6 +325,30 @@ namespace rill
 
             public:
                 int const value_;
+            };
+
+
+            struct boolean_value RILL_CXX11_FINAL
+                : public value_base
+            {
+            public:
+                boolean_value( bool const v )
+                    : value_( v )
+                {}
+
+            public:
+                virtual auto get_native_typename_string() const -> native_string_t 
+                {
+                    return "bool";
+                }
+
+                bool get_value() const
+                {
+                    return value_;
+                }
+
+            public:
+                bool const value_;
             };
 
 

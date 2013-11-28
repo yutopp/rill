@@ -11,20 +11,20 @@
 
 #include <cassert>
 #include <memory>
-#include <unordered_map>
-#include <bitset>
-#include <vector>
-#include <utility>
-#include <boost/range/adaptor/transformed.hpp>
+//#include <unordered_map>
+//#include <bitset>
+//#include <vector>
+//#include <utility>
+//#include <boost/range/adaptor/transformed.hpp>
 
-#include <boost/algorithm/string/join.hpp>
+//#include <boost/algorithm/string/join.hpp>
 
 //#include <boost/detail/bitmask.hpp>
 //#include <boost/optional.hpp>
 
 #include "../config/macros.hpp"
 
-#include "../environment_fwd.hpp"
+#include "environment_fwd.hpp"
 
 
 namespace rill
@@ -39,9 +39,9 @@ namespace rill
         static kind::type_value const KindValue = kind::type_value::variable_e;
 
     public:
-        variable_symbol_environment( environment_id_t const& id, weak_env_pointer const& parent )
+        variable_symbol_environment( environment_id_t const& id, weak_env_base_pointer const& parent )
             : single_identifier_environment_base( id, parent )
-            , value_type_env_id_( environment_id_undefined )
+            , value_type_id_( type_id_undefined )
         {}
 
     public:
@@ -57,24 +57,34 @@ namespace rill
             return true;//value_type_env_id_ == envitonment_id_undefined;
         }
 
+        auto complete(
+            type_id_t const& type_id,
+            native_string_type const& name
+            )
+            -> void
+        {
+            value_type_id_ = type_id;
+            name_ = name;
+        }
+
+/*
+        // ?!?!!????
         auto get_type_env_id() const
             -> environment_id_t
         {
             return value_type_env_id_;
         }
 
-        auto complete( const_environment_ptr const& type_env, native_string_type const& name )
-            -> void
+        auto get_type_environment_id() const
+            -> environment_id_t
         {
-            value_type_env_id_ = type_env->get_id();
-            name_ = name;
+            return value_type_env_id_;
         }
-
 
         auto get_type_environment()
             -> class_symbol_environment_ptr
         {
-            auto const& p = get_env_at( value_type_env_id_ );
+            auto const& p = get_env_at( get_type_environment_id() );
 
             return std::dynamic_pointer_cast<class_symbol_environment>( p.lock() );
         }
@@ -87,7 +97,17 @@ namespace rill
             return std::dynamic_pointer_cast<class_symbol_environment const>( p.lock() );
         }
 
-
+        auto get_type_attributes() const
+            -> attribute::type_attributes const&
+        {
+            return value_type_attributes_;
+        }
+*/
+        auto get_type_id() const
+            -> type_id_t
+        {
+            return value_type_id_;
+        }
 
         auto dump( std::ostream& os, std::string const& indent ) const
             -> std::ostream& RILL_CXX11_OVERRIDE
@@ -104,7 +124,7 @@ namespace rill
         }
 
     private:
-        environment_id_t value_type_env_id_;
+        type_id_t value_type_id_;
 
         native_string_type name_;
     };

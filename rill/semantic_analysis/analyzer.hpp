@@ -17,27 +17,27 @@ namespace rill
     namespace semantic_analysis
     {
         class analyzer RILL_CXX11_FINAL
-            : public ast::detail::tree_visitor_base<environment_ptr>
+            : public ast::detail::tree_visitor_base<type_id_t>
         {
         public:
             // statement_list
             RILL_TV_OP_DECL( ast::root )
 
             // statement
-            // virtual void operator()( template_statement const& s, environment_ptr const& env ) const =0;
+            // virtual void operator()( template_statement const& s, environment_base_ptr const& env ) const =0;
             RILL_TV_OP_DECL( ast::variable_declaration_statement )
             RILL_TV_OP_DECL( ast::expression_statement )
             RILL_TV_OP_DECL( ast::return_statement )
             RILL_TV_OP_DECL( ast::function_definition_statement )
             RILL_TV_OP_DECL( ast::extern_function_declaration_statement )
-            //RILL_TV_OP_DECL( ast::embedded_function_definition_statement )
+            //RILL_TV_OP_DECL( ast::intrinsic_function_definition_statement )
 
             RILL_TV_OP_DECL( ast::class_definition_statement )
 
             // expression
             RILL_TV_OP_DECL( ast::binary_operator_expression )
             RILL_TV_OP_DECL( ast::call_expression )
-            //RILL_TV_OP_DECL( ast::embedded_function_call_expression )
+            //RILL_TV_OP_DECL( ast::intrinsic_function_call_expression )
             RILL_TV_OP_DECL( ast::term_expression )
 
             //

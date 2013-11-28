@@ -24,7 +24,7 @@
 
 #include "../config/macros.hpp"
 
-#include "environment.hpp"
+#include "environment_base.hpp"
 
 
 namespace rill
@@ -40,7 +40,7 @@ namespace rill
         friend class environment_allocator;
 
     public:
-        template_environment( environment_id_t const& id, weak_env_pointer const& parent, void* )
+        template_environment( environment_id_t const& id, weak_env_base_pointer const& parent, void* )
             : environment( id, parent )
         {}
 
@@ -52,7 +52,7 @@ namespace rill
         }
 
     private:
-        std::unordered_map<native_string_type, environment_ptr> simple_env_;
+        std::unordered_map<native_string_type, environment_base_ptr> simple_env_;
     };
 #endif
 

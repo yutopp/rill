@@ -12,8 +12,8 @@
 #include <string>
 #include <functional>
 
-#include "../environment_fwd.hpp"
-#include "../utility/embedded_function_holder_fwd.hpp"
+#include "../environment/environment_fwd.hpp"
+#include "../behavior/intrinsic_function_holder_fwd.hpp"
 
 #include "detail/tree_visitor_base.hpp"
 #include "detail/dispatch_assets.hpp"
@@ -87,19 +87,19 @@ namespace rill
 
 
         //
-        struct embedded_function_call_expression
+        struct intrinsic_function_call_expression
             : public expression
         {
         public:
-            RILL_AST_ADAPT_VISITOR( embedded_function_call_expression )
+            RILL_AST_ADAPT_VISITOR( intrinsic_function_call_expression )
 
         public:
-            embedded_function_call_expression( embedded_function_action_id_t const& action_id )
+            intrinsic_function_call_expression( intrinsic_function_action_id_t const& action_id )
                 : action_id_( action_id )
             {}
 
         public:
-            embedded_function_action_id_t const action_id_;
+            intrinsic_function_action_id_t const action_id_;
         };
 
 
@@ -131,6 +131,7 @@ namespace rill
         public:
         };
 
+
         //
         struct type_identifier_expression
             : public type_expression
@@ -139,12 +140,17 @@ namespace rill
             RILL_AST_ADAPT_VISITOR( type_identifier_expression )
 
         public:
-            type_identifier_expression( intrinsic::identifier_value_ptr const& v )
+            type_identifier_expression(
+                intrinsic::identifier_value_ptr const& v,
+                attribute::type_attributes_optional const& attributes
+                )
                 : value_( v )
+                , attributes_( attributes )
             {}
 
         public:
             intrinsic::identifier_value_ptr const value_;
+            attribute::type_attributes_optional const attributes_;
         };
 
 

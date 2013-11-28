@@ -1,6 +1,7 @@
 def main(): int
 {
-    print( "hello, bunchou lang on Linux!!!bunbun!" );
+    print( "\n\n\n\n\n\n\n" );
+    print( "hello, bunchou lang on Linux!!!bunbun!\n" );
     test();
 
     loop_test();
@@ -11,6 +12,7 @@ def main(): int
 def test(): void
 {
     extern_print_string( foo( ( 10*2 )*(1+2*2   ), 10 ) + 2 * 5 );
+    print( "\n" );
 }
 
 extern def extern_print_string( val :int ): void "put_string2"; 
@@ -29,11 +31,23 @@ def foo( val a: int ): int
 // comment
 ;/*empty statment*/;;;
 
+
+
 def loop_test(): void
 {
-    print(" Entered loop_test.");
+    print( "Entered loop_test.\n" );
 
-    val i = 42: int;
+    val i = 42: int mutable;
 
+    // if_legacy( i > 5 ) {
+    // 
+    // }
+
+
+
+    i = 53;
+//    i < 504;
+    
     extern_print_string( i );
+//    print( "\n" );
 }

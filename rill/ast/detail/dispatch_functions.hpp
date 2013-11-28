@@ -21,7 +21,7 @@
 #include <boost/preprocessor/repetition/enum_params.hpp>
 
 #include "../../config/macros.hpp"
-#include "../../environment_fwd.hpp"
+#include "../../environment/environment_fwd.hpp"
 
 // load RILL_DISPATCH_TYPES_SEQ macro
 #include "../../config/tags_for_ast_dispatching.hpp"

@@ -12,7 +12,7 @@
 #include <unordered_map>
 #include <memory>
 
-#include "../../environment_fwd.hpp"
+#include "../environment_fwd.hpp"
 
 #include "../../ast/statement.hpp"
 #include "../../ast/detail/dispatch_assets.hpp"

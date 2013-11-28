@@ -13,10 +13,12 @@
 
 #include <boost/optional.hpp>
 
-#include "../environment_fwd.hpp"
+#include "../environment/environment_fwd.hpp"
 
 #include "detail/tree_visitor_base.hpp"
 #include "detail/dispatch_assets.hpp"
+
+#include "../attribute/attribute.hpp"
 
 #include "statement_fwd.hpp"
 
@@ -48,32 +50,12 @@ namespace rill
         };
 
 
-        enum class variable_kind
-        {
-            k_val = 10,
-            k_ref = 20
-        };
-
-        enum class modifiability_attribute_kind
-        {
-            k_mutable,
-            k_const,
-            k_immutable,
-        };
-
-
-        struct type_attributes
-        {
-            boost::optional<modifiability_attribute_kind> modifiability;
-        };
-
 
         //
         struct value_initializer_unit
         {
             expression_ptr initializer;
             type_expression_ptr type;
-            
         };
 
 
@@ -89,58 +71,12 @@ namespace rill
 
         struct variable_declaration
         {
-            // TODO: add declaration type information(Ex. val OR ref... and so on
-            variable_kind kind;
+            attribute::quality_kind quality;        // Ex. val | ref | ...
             variable_declaration_unit decl_unit;
         };
 
 
-        // TODO: change to declaration statement
         typedef std::vector<variable_declaration> parameter_list;
-
-        /*
-        // TODO: change to declaration statement
-        inline auto make_variable_declaration(
-            intrinsic::identifier_value_ptr const& name = nullptr,
-            expression_ptr const& initializer = nullptr,
-            type_expression_ptr const& type = nullptr
-            )
-            -> variable_declaration_unit
-        {
-            value_initializer_unit vi = { initializer, type };
-            variable_declaration_unit du = { name, vi };
-
-            return du;
-        }
-
-
-        // TODO: change to declaration statement
-        inline auto make_variable_declaration(
-            intrinsic::identifier_value_ptr const& name = nullptr,
-            expression_ptr const& initializer = nullptr,
-            type_expression_ptr const& type = nullptr
-            )
-            -> variable_declaration_unit
-        {
-            value_initializer_unit vi = { initializer, type };
-            variable_declaration_unit du = { name, vi };
-
-            return du;
-        }
-        */
-/*
-        // test imprementation
-        inline auto make_parameter_list(
-            parameter_pair const& pp
-            )
-            -> parameter_list
-        {
-            parameter_list pl;
-            pl.push_back( pp ); // test code
-
-            return pl;
-        }
-        */
 
 
         //
@@ -203,7 +139,7 @@ namespace rill
             extern_function_declaration_statement(
                 intrinsic::identifier_value_ptr const& symbol_name,
                 parameter_list const& parameter_list,
-                boost::optional<intrinsic::identifier_value_ptr> const& return_type,
+                type_expression_ptr const& return_type,
                 native_string_t const& extern_symbol_name
                 )
                 : identifier_( symbol_name )
@@ -234,7 +170,7 @@ namespace rill
         public:
             intrinsic::identifier_value_ptr identifier_;
             parameter_list parameter_list_;
-            boost::optional<intrinsic::identifier_value_ptr> return_type_;
+            type_expression_ptr return_type_;
 
             native_string_t extern_symbol_name_;
         };
@@ -276,7 +212,7 @@ namespace rill
             function_definition_statement(
                 intrinsic::identifier_value_ptr const& symbol_name,
                 parameter_list const& parameter_list,
-                boost::optional<intrinsic::identifier_value_ptr> const& return_type,
+                boost::optional<type_expression_ptr> const& return_type,
                 statement_list const& statements
                 )
                 : function_definition_statement_base( statements )
@@ -301,18 +237,18 @@ namespace rill
         public:
             intrinsic::identifier_value_ptr identifier_;
             parameter_list parameter_list_;
-            boost::optional<intrinsic::identifier_value_ptr> return_type_;
+            boost::optional<type_expression_ptr> return_type_;
         };
 
 
-        struct embedded_function_definition_statement
+        struct intrinsic_function_definition_statement
             : public function_definition_statement_base
         {
         public:
-            RILL_AST_ADAPT_VISITOR( embedded_function_definition_statement )
+            RILL_AST_ADAPT_VISITOR( intrinsic_function_definition_statement )
 
         public:
-            embedded_function_definition_statement( statement_list const& statements )
+            intrinsic_function_definition_statement( statement_list const& statements )
                 : function_definition_statement_base( statements )
             {}
         };
@@ -416,12 +352,6 @@ namespace rill
 
 
 BOOST_FUSION_ADAPT_STRUCT(
-    rill::ast::type_attributes,
-    (boost::optional<rill::ast::modifiability_attribute_kind>,  modifiability)
-    )
-
-
-BOOST_FUSION_ADAPT_STRUCT(
     rill::ast::value_initializer_unit,
     (rill::ast::expression_ptr,      initializer)
     (rill::ast::type_expression_ptr, type)
@@ -435,7 +365,7 @@ BOOST_FUSION_ADAPT_STRUCT(
 
 BOOST_FUSION_ADAPT_STRUCT(
     rill::ast::variable_declaration,
-    (rill::ast::variable_kind,              kind)
+    (rill::attribute::quality_kind,         quality)
     (rill::ast::variable_declaration_unit,  decl_unit)
     )
 

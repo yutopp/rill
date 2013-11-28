@@ -24,7 +24,7 @@
 
 #include "../config/macros.hpp"
 
-#include "environment.hpp"
+#include "environment_base.hpp"
 
 
 namespace rill
@@ -33,7 +33,7 @@ namespace rill
     // 
     //
     class single_identifier_environment_base
-        : public environment
+        : public environment_base
     {
         typedef single_identifier_environment_base      self_type;
         typedef std::shared_ptr<self_type>              self_pointer;
@@ -41,26 +41,26 @@ namespace rill
 
     public:
         single_identifier_environment_base( root_initialize_tag )
-            : environment( root_initialize_tag() )
+            : environment_base( root_initialize_tag() )
         {}
     
-        single_identifier_environment_base( environment_id_t const& id, weak_env_pointer const& parent )
-            : environment( id, parent )
+        single_identifier_environment_base( environment_id_t const& id, weak_env_base_pointer const& parent )
+            : environment_base( id, parent )
         {}
 
         virtual ~single_identifier_environment_base() {};
 
     public:
         virtual auto lookup( ast::intrinsic::const_single_identifier_value_base_ptr const& )
-            -> env_pointer RILL_CXX11_OVERRIDE;
+            -> env_base_pointer RILL_CXX11_OVERRIDE;
         virtual auto lookup( ast::intrinsic::const_single_identifier_value_base_ptr const& ) const
-            -> const_env_pointer RILL_CXX11_OVERRIDE;
+            -> const_env_base_pointer RILL_CXX11_OVERRIDE;
 
         //
         virtual auto find_on_env( ast::intrinsic::const_single_identifier_value_base_ptr const& )
-            -> env_pointer RILL_CXX11_OVERRIDE;
+            -> env_base_pointer RILL_CXX11_OVERRIDE;
         virtual auto find_on_env( ast::intrinsic::const_single_identifier_value_base_ptr const& ) const
-            -> const_env_pointer RILL_CXX11_OVERRIDE;
+            -> const_env_base_pointer RILL_CXX11_OVERRIDE;
 
 
 
@@ -73,7 +73,7 @@ namespace rill
 
     /*
         auto is_exist_in_instanced( native_string_type const& name ) const
-            -> boost::optional<env_pointer>
+            -> boost::optional<env_base_pointer>
         {
             auto const& it = instanced_env_.find( name );
             if ( it != instanced_env_.cend() )
@@ -100,24 +100,29 @@ namespace rill
 
         auto construct(
             kind::function_tag,
-            ast::intrinsic::single_identifier_value_base_ptr const& name,
+            ast::intrinsic::single_identifier_value_base_ptr const& function_name,
+            ast::statement_ptr const& ast,
             function_env_generator_scope_type const& parameter_decl_initializer,
-            class_symbol_environment_ptr const& return_type_env,
-            ast::statement_ptr const& ast
+            class_symbol_environment_ptr const& return_class_env,
+            attribute::type_attributes const& return_type_attr = attribute::make_default_type_attributes()
             ) -> function_symbol_environment_ptr RILL_CXX11_OVERRIDE;
 
+
         // variable(decl)
+        // default( auto suggest, immutable )
         auto construct(
             kind::variable_tag,
             ast::intrinsic::single_identifier_value_base_ptr const&,
-            const_class_symbol_environment_ptr const&
+            const_class_symbol_environment_ptr const&,
+            attribute::type_attributes const& = attribute::make_default_type_attributes()
             ) -> variable_symbol_environment_ptr RILL_CXX11_OVERRIDE;
+
 
         // class(type)
         auto pre_construct(
             kind::class_tag,
             ast::intrinsic::single_identifier_value_ptr const& name
-            ) -> env_pointer RILL_CXX11_OVERRIDE;
+            ) -> env_base_pointer RILL_CXX11_OVERRIDE;
 
         auto construct(
             kind::class_tag,
@@ -125,7 +130,7 @@ namespace rill
             ) -> class_symbol_environment_ptr RILL_CXX11_OVERRIDE;
         /*
         auto pre_construct( kind::class_tag, intrinsic::identifier_value_ptr const& name ) RILL_CXX11_OVERRIDE
-            -> env_pointer;
+            -> env_base_pointer;
         {
         }*/
 
@@ -156,7 +161,7 @@ namespace rill
         }
 
     private:
-        std::unordered_map<native_string_type, env_pointer> instanced_env_;
+        std::unordered_map<native_string_type, env_base_pointer> instanced_env_;
         std::unordered_map<native_string_type, std::shared_ptr<template_environment>> template_env_;
     };
 

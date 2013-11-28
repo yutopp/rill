@@ -11,6 +11,7 @@
 #include <string>
 #include <functional>
 #include <vector>
+#include <list>
 
 #include <boost/algorithm/string/join.hpp>
 #include <boost/range/adaptor/transformed.hpp>
@@ -25,23 +26,34 @@ namespace rill
     //
     typedef std::string parameter_hash_t;
 
-    template<typename EnvIds>
-    inline auto make_parameter_hash( EnvIds const& id_list )
+    template<typename EnvRawPtr, typename TypeIds>
+    inline auto make_parameter_hash( EnvRawPtr const& env, TypeIds const& type_ids_list )
         -> parameter_hash_t
     {
         {
             // debug:
-            for( auto const& i : id_list )
+            for( auto const& i : type_ids_list )
                 std::cout << ":" << i << " ";
             std::cout << std::endl;
         }
+/*
+        auto const& aaa = 
+        variable_env_id_list
+            | boost::adaptors::transformed(
+                std::function<const_variable_symbol_environment_ptr (environment_id_t const&)>( [&]( environment_id_t const& id )
+                                                           {
+                                                               return std::static_pointer_cast<variable_symbol_environment const>( env->get_env_strong_at( id ) );
+                                                           } )
+                )
+            ;
+*/
 
-        return  std::to_string( id_list.size() )
+        return std::to_string( type_ids_list.size() )
                 + "_"
                 + boost::algorithm::join(
-                    id_list
+                    type_ids_list
                     | boost::adaptors::transformed(
-                        std::function<std::string (environment_id_t const&)>( []( environment_id_t const& id ){ return std::to_string( id ); } )
+                        std::function<std::string (type_id_t const&)>( []( type_id_t const& id ){ return std::to_string( id ); } )
                         ),
                     "%"
                     );
@@ -54,7 +66,7 @@ namespace rill
     // picked the type matched environments when look up
 
     // TODO: change to -> typedef std::vector<const_class_symbol_environment_ptr> type_environment_list;
-    typedef std::vector<const_environment_ptr> type_environment_list;
+    typedef std::vector<const_environment_base_ptr> type_environment_list;
 
 
     template<typename InlineEnvironment>
@@ -65,7 +77,7 @@ namespace rill
         static kind::type_value const KindValue = InlineEnvironment::KindValue;
 
     public:
-        has_parameter_environment( environment_id_t const id, weak_env_pointer const& parent )
+        has_parameter_environment( environment_id_t const id, weak_env_base_pointer const& parent )
             : has_parameter_environment_base( id, parent )
         {}
 
@@ -107,34 +119,36 @@ namespace rill
         }
 
         auto add_overload( std::shared_ptr<InlineEnvironment> const& inner_env )
-            -> env_pointer
+            -> env_base_pointer
         {
             // TODO: add duplicate check
-            overloads_[make_parameter_hash( inner_env->get_parameter_type_ids() )] = inner_env;
+            overloads_[make_parameter_hash( this, inner_env->get_parameter_type_ids() )] = inner_env;
+
+            overloads_2_.push_back( inner_env );
 
             return inner_env;
         }
 
-        auto solve_overload( environment_id_list const& args_env_ids ) const
+        auto solve_overload( type_id_list_t const& arg_type_ids ) const
             -> std::shared_ptr<InlineEnvironment>
         {
-            std::cout << "solve_overload? hash: " << make_parameter_hash( args_env_ids ) << std::endl;
+            std::cout << "solve_overload? hash: " << make_parameter_hash( this, arg_type_ids ) << std::endl;
 
-            auto const it = overloads_.find( make_parameter_hash( args_env_ids ) );
+            auto const it = overloads_.find( make_parameter_hash( this, arg_type_ids ) );
 
             return it != overloads_.cend() ? it->second : nullptr;
         }
 
         // delegate lookup
         auto lookup( ast::intrinsic::const_single_identifier_value_base_ptr const& name )
-            -> env_pointer RILL_CXX11_OVERRIDE { return get_parent_env()->lookup( name ); }
+            -> env_base_pointer RILL_CXX11_OVERRIDE { return get_parent_env()->lookup( name ); }
         auto lookup( ast::intrinsic::const_single_identifier_value_base_ptr const& name ) const
-            -> const_env_pointer RILL_CXX11_OVERRIDE { return get_parent_env()->lookup( name ); }
+            -> const_env_base_pointer RILL_CXX11_OVERRIDE { return get_parent_env()->lookup( name ); }
 
         auto find_on_env( ast::intrinsic::const_single_identifier_value_base_ptr const& name )
-            -> env_pointer RILL_CXX11_OVERRIDE { return get_parent_env()->find_on_env( name ); }
+            -> env_base_pointer RILL_CXX11_OVERRIDE { return get_parent_env()->find_on_env( name ); }
         auto find_on_env( ast::intrinsic::const_single_identifier_value_base_ptr const& name ) const
-            -> const_env_pointer RILL_CXX11_OVERRIDE { return get_parent_env()->find_on_env( name ); }
+            -> const_env_base_pointer RILL_CXX11_OVERRIDE { return get_parent_env()->find_on_env( name ); }
     /*
         auto lookup( environment_ptr const& parent, parameter_list const& parameter ) const
             -> const_environment_ptr
@@ -155,15 +169,24 @@ namespace rill
             os  << indent << "has_parameter_environment" << std::endl;
             for( auto const& p : overloads_ ) {
                 os << indent << p.first << std::endl
-                   << indent << (environment_ptr const&)p.second << std::endl
+                   << indent << (environment_base_ptr const&)p.second << std::endl
                    << indent << "======" << std::endl;
             }
             return os;
         }
 
+        auto get_overloads()
+            -> std::list<std::shared_ptr<InlineEnvironment>>&
+        {
+            return overloads_2_;
+        }
+
     private:
         std::vector<std::shared_ptr<InlineEnvironment>> incomplete_inners_;
         std::unordered_map<parameter_hash_t, std::shared_ptr<InlineEnvironment>> overloads_;
+
+
+        std::list<std::shared_ptr<InlineEnvironment>> overloads_2_;
     };
 
 } // namespace rill

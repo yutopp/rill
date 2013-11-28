@@ -7,7 +7,7 @@
 //
 
 #include <rill/semantic_analysis/identifier_collector.hpp>
-#include <rill/environment.hpp>
+#include <rill/environment/environment.hpp>
 
 #include <rill/ast/root.hpp>
 #include <rill/ast/statement.hpp>

@@ -15,6 +15,8 @@
 #include "analyzer.hpp"
 #include "helper.hpp"
 
+#include "../behavior/intrinsic_function_holder.hpp"
+
 
 namespace rill
 {

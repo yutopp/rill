@@ -12,10 +12,11 @@
 #include <memory>
 #include <iostream>
 #include <cassert>  // for assert
+#include <typeinfo>
 
 #include "../../config/macros.hpp"
 
-#include "../../environment_fwd.hpp"
+#include "../../environment/environment_fwd.hpp"
 
 #include "../value_fwd.hpp"
 #include "../expression_fwd.hpp"
@@ -26,47 +27,47 @@
 
 
 #define RILL_TV_OP_DECL( node_type ) \
-    auto operator()( std::shared_ptr<node_type> const&, environment_ptr const& ) \
+    auto operator()( std::shared_ptr<node_type> const&, environment_base_ptr const& ) \
         -> result<node_type>::type RILL_CXX11_OVERRIDE;
 
 #define RILL_TV_OP_DECL_CONST( node_type ) \
-    auto operator()( std::shared_ptr<node_type const> const&, const_environment_ptr const& ) const \
+    auto operator()( std::shared_ptr<node_type const> const&, const_environment_base_ptr const& ) const \
         -> result<node_type>::type RILL_CXX11_OVERRIDE;
 
 #define RILL_TV_OP( class_name, node_type, node_name, env_name ) \
-    auto class_name::operator()( std::shared_ptr<node_type> const& node_name, environment_ptr const& env_name ) \
+    auto class_name::operator()( std::shared_ptr<node_type> const& node_name, environment_base_ptr const& env_name ) \
         -> result<node_type>::type
 
 #define RILL_TV_OP_CONST( class_name, node_type, node_name, env_name ) \
-    auto class_name::operator()( std::shared_ptr<node_type const> const& node_name, const_environment_ptr const& env_name ) const \
+    auto class_name::operator()( std::shared_ptr<node_type const> const& node_name, const_environment_base_ptr const& env_name ) const \
         -> result<node_type>::type
 
 ///
 #define RILL_TV_BASE_VOID_OP( node_type ) \
-    virtual void operator()( std::shared_ptr<node_type> const&, environment_ptr const& ) \
+    virtual void operator()( std::shared_ptr<node_type> const&, environment_base_ptr const& ) \
     { \
         this->unimplemented<node_type>(); \
     } \
-    virtual void operator()( std::shared_ptr<node_type const> const&, const_environment_ptr const& ) const \
+    virtual void operator()( std::shared_ptr<node_type const> const&, const_environment_base_ptr const& ) const \
     { \
         this->unimplemented<node_type const>(); \
     }
 
 ///
 #define RILL_TV_BASE_VOID_OP_NOTHING( node_type ) \
-    virtual void operator()( std::shared_ptr<node_type> const&, environment_ptr const& ) \
+    virtual void operator()( std::shared_ptr<node_type> const&, environment_base_ptr const& ) \
     {} \
-    virtual void operator()( std::shared_ptr<node_type const> const&, const_environment_ptr const& ) const \
+    virtual void operator()( std::shared_ptr<node_type const> const&, const_environment_base_ptr const& ) const \
     {}
 
 #define RILL_TV_BASE_RETURN_OP( node_type ) \
-    virtual auto operator()( std::shared_ptr<node_type> const&, environment_ptr const& ) \
+    virtual auto operator()( std::shared_ptr<node_type> const&, environment_base_ptr const& ) \
         -> typename result<node_type>::type \
     { \
         this->unimplemented<node_type>(); \
         return typename result<node_type>::type(); \
     } \
-    virtual auto operator()( std::shared_ptr<node_type const> const& node, const_environment_ptr const& env ) const \
+    virtual auto operator()( std::shared_ptr<node_type const> const& node, const_environment_base_ptr const& env ) const \
         -> typename result<node_type>::type \
     { \
         this->unimplemented<node_type const>(); \
@@ -122,28 +123,28 @@ namespace rill
 
                 template<typename Node>
                 auto dispatch( std::shared_ptr<Node> const& node )
-                    -> decltype( std::declval<self_type>().dispatch( node, environment_ptr() ) )
+                    -> decltype( std::declval<self_type>().dispatch( node, environment_base_ptr() ) )
                 {
-                    return dispatch( node, environment_ptr() );
+                    return dispatch( node, environment_base_ptr() );
                 }
 
 
                 //
                 template<typename Node, typename Enveronment>
                 auto dispatch( std::shared_ptr<Node> const& node, std::shared_ptr<Enveronment> const& env ) const
-                    -> decltype( dispatch_as<ReturnT>( std::const_pointer_cast<Node const>( node ), *reinterpret_cast<const_self_type*>(0), std::static_pointer_cast<environment const>( env ) ) )
+                    -> decltype( dispatch_as<ReturnT>( std::const_pointer_cast<Node const>( node ), *reinterpret_cast<const_self_type*>(0), std::static_pointer_cast<environment_base const>( env ) ) )
                 {
                     auto const& p = std::const_pointer_cast<Node const>( node );
                     assert( p != nullptr );
 
-                    return dispatch_as<ReturnT>( std::const_pointer_cast<Node const>( node ), *this, std::static_pointer_cast<environment const>( env ) );
+                    return dispatch_as<ReturnT>( std::const_pointer_cast<Node const>( node ), *this, std::static_pointer_cast<environment_base const>( env ) );
                 }
 
                 template<typename Node>
                 auto dispatch( std::shared_ptr<Node> const& node ) const
-                    -> decltype( std::declval<const_self_type>().dispatch( node, const_environment_ptr() ) )
+                    -> decltype( std::declval<const_self_type>().dispatch( node, const_environment_base_ptr() ) )
                 {
-                    return dispatch( node, const_environment_ptr() );
+                    return dispatch( node, const_environment_base_ptr() );
                 }
 
             public:
@@ -151,12 +152,12 @@ namespace rill
                 RILL_TV_BASE_VOID_OP( ast::root )
 
                 // statement
-                // virtual void operator()( template_statement const& s, environment_ptr const& env ) const =0;
+                // virtual void operator()( template_statement const& s, environment_base_ptr const& env ) const =0;
                 RILL_TV_BASE_VOID_OP( ast::expression_statement )
                 RILL_TV_BASE_VOID_OP( ast::return_statement )
                 RILL_TV_BASE_VOID_OP( ast::function_definition_statement )
                 RILL_TV_BASE_VOID_OP( ast::class_definition_statement )
-                RILL_TV_BASE_VOID_OP( ast::embedded_function_definition_statement )
+                RILL_TV_BASE_VOID_OP( ast::intrinsic_function_definition_statement )
                 RILL_TV_BASE_VOID_OP( ast::extern_function_declaration_statement )
                 RILL_TV_BASE_VOID_OP( ast::variable_declaration_statement )
                 RILL_TV_BASE_VOID_OP_NOTHING( ast::empty_statement ) // DEFAULT: skipped
@@ -164,7 +165,7 @@ namespace rill
                 // expression
                 RILL_TV_BASE_RETURN_OP( ast::binary_operator_expression )
                 RILL_TV_BASE_RETURN_OP( ast::call_expression )
-                RILL_TV_BASE_RETURN_OP( ast::embedded_function_call_expression )
+                RILL_TV_BASE_RETURN_OP( ast::intrinsic_function_call_expression )
                 RILL_TV_BASE_RETURN_OP( ast::term_expression )
                 RILL_TV_BASE_RETURN_OP( ast::type_identifier_expression )
                 RILL_TV_BASE_RETURN_OP( ast::compiletime_return_type_expression )
@@ -191,7 +192,7 @@ namespace rill
                     std::cerr
                         << "!!! DEBUG: message. please implement it!" << std::endl
                         << " in " << typeid( *this ).name() << std::endl
-//                        << "  -> " << typeid( NodeT& ).name() << std::endl;
+                        << "  -> " << typeid( NodeT ).name() << std::endl;
                         ;
                 }
             };
