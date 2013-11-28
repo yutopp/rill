@@ -204,7 +204,27 @@ namespace rill
             std::vector<llvm::Type*> parmeter_types;
             for( auto const& type_env_id : parameter_variable_type_env_ids ) {
                 auto const& v = f_env->get_type_at( type_env_id );
-                parmeter_types.push_back( context_->env_conversion_table.ref_type( v.class_env_id ) );
+
+                auto const& llvm_type = [&]() -> llvm::Type* {
+                    //
+                    switch( v.attributes.quality )
+                    {
+                    case attribute::quality_kind::k_val:
+                        // TODO: implement
+                        return context_->env_conversion_table.ref_type( v.class_env_id );
+
+                    case attribute::quality_kind::k_ref:
+                        // TODO: implement
+                        return context_->env_conversion_table.ref_type( v.class_env_id )->getPointerTo();
+
+                    default:
+                        assert( false && "[ice]" );
+                        break;
+                    }
+                }();
+
+
+                parmeter_types.push_back( llvm_type );
             }
             auto const& v = f_env->get_type_at( f_env->get_return_type_id() );
             auto const& return_type = context_->env_conversion_table.ref_type( v.class_env_id );
@@ -379,10 +399,11 @@ namespace rill
 
 
             // evaluate values(and push to stack) and returned value type
+            // evalute rhs -> lhs
             auto const& rhs_value = dispatch( e->rhs_, _ );
             auto const& lhs_value = dispatch( e->lhs_, _ );
             assert( rhs_value != nullptr && lhs_value != nullptr );
-            std::vector<llvm::Value*> const args = { rhs_value, lhs_value };
+            std::vector<llvm::Value*> const args = { lhs_value, rhs_value };
 
 
             std::cout << "CALL!!!!!" << std::endl;
@@ -432,10 +453,45 @@ namespace rill
 
             // call function that defined in rill modules
             // evaluate argument from last to front(but ordering of vector is from front to last)
-            std::vector<llvm::Value*> args;
-            for( auto const& val : e->arguments_ | boost::adaptors::reversed ) {
-                args.insert( args.begin(), dispatch( val, _ ) );
-                assert( args.back() != nullptr );
+            auto const& parameter_type_ids = f_env->get_parameter_type_ids();
+            std::vector<llvm::Value*> args( e->arguments_.size() );
+            for( std::size_t i=0; i<e->arguments_.size(); ++i ) {
+                auto const& type = f_env->get_type_at( parameter_type_ids[e->arguments_.size()-i-1] );
+                auto const value = dispatch( e->arguments_[e->arguments_.size()-i-1], _ );
+                assert( value != nullptr );
+
+                // TODO: check more strict
+                auto const& result_value = [&]() -> llvm::Value* {
+                    switch( type.attributes.quality )
+                    {
+                    case attribute::quality_kind::k_val:
+                    {
+                        // TODO: implement
+                        if ( value->getType()->isPointerTy() ) {
+                            return context_->ir_builder.CreateLoad( value );
+                        } else {
+                            return value;
+                        }
+                    }
+
+                    case attribute::quality_kind::k_ref:
+                        // TODO: implement
+                        if ( value->getType()->isPointerTy() ) {
+                            return value;
+                        } else {
+                            assert( false && "[ice]" );
+                            return value;
+                        }
+                        return value;
+
+                    default:
+                        assert( false && "[ice]" );
+                        break;                  
+                    }
+                }();
+
+                // TODO: value conversion...(ref, val, etc...)
+                args[e->arguments_.size()-i-1] = result_value;
             }
 
             // invocation
@@ -497,7 +553,7 @@ namespace rill
             auto const v_env = std::static_pointer_cast<variable_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( v ) );
             assert( v_env != nullptr );
 
-            return ref_value_with( v_env->get_id(), context_->env_conversion_table, context_->ir_builder );
+            return context_->env_conversion_table.ref_value( v_env->get_id() );
         }
     } // namespace code_generator
 } // namespace rill

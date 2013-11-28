@@ -81,11 +81,18 @@ namespace rill
             return attr;
         }
 
+        auto inline make_default_type_attributes()
+            -> type_attributes
+        {
+            // FIXME
+            return { quality_kind::k_val, modifiability_kind::k_immutable };
+        }
+
         template<typename... Args>
         auto inline make_type_attributes( Args const&... args )
             -> type_attributes
         {
-            type_attributes attr;
+            type_attributes attr = make_default_type_attributes();
             detail::set( attr, args... );
             return attr;
         }
@@ -107,14 +114,6 @@ namespace rill
                 return bits;
             }
         } // namespace detail
-
-
-        auto inline make_default_type_attributes()
-            -> type_attributes
-        {
-            // FIXME
-            return { quality_kind::k_val, modifiability_kind::k_immutable };
-        }
 
     } // namespace attributes
 } // namespace rill

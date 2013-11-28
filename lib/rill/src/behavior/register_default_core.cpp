@@ -40,7 +40,7 @@ namespace rill
             auto f_ast = std::make_shared<rill::ast::intrinsic_function_definition_statement>( sl );
 
             // function definition
-            auto f = root_env->construct( rill::kind::function_k, function_name, f_ast, tpc_func, return_class_env );
+            auto f = root_env->construct( rill::kind::function_k, function_name, f_ast, tpc_func, return_class_env, return_type_attr );
 
             // memoize called function env
             f->connect_from_ast( intrinsic_call_expr );
@@ -430,20 +430,37 @@ namespace rill
                         -> llvm::Value*
                         {
                             // Signed less than
-                            return context->ir_builder.CreateICmpSLT(
-                                context->env_conversion_table.ref_value( argument_var_env_ids[1/***/] ),
-                                context->env_conversion_table.ref_value( argument_var_env_ids[1] )
+                            context->ir_builder.CreateStore(
+                                context->env_conversion_table.ref_value( argument_var_env_ids[1] ),
+                                context->env_conversion_table.ref_value( argument_var_env_ids[0] )
+                                );
+
+                            return context->ir_builder.CreateRet(
+                                context->env_conversion_table.ref_value( argument_var_env_ids[0] )
                                 );
                         }
                 };
 
                 construct_predefined_function<action>( intrinsic_function_action, root_env, operator_assign, [&]( rill::function_symbol_environment_ptr const& fenv ) {
                         // ( :int, :int )
-                        fenv->parameter_variable_construct( nullptr, int_class_env_pointer );    // :int
+                        fenv->parameter_variable_construct(
+                            nullptr,
+                            int_class_env_pointer,
+                            attribute::make_type_attributes(
+                                attribute::quality_kind::k_ref,
+                                attribute::modifiability_kind::k_mutable
+                                )
+                            );    // :int
                         fenv->parameter_variable_construct( nullptr, int_class_env_pointer );    // :int
 
                         return fenv;
-                    }, int_class_env_pointer );
+                    },
+                    int_class_env_pointer,
+                    attribute::make_type_attributes(
+                        attribute::quality_kind::k_ref,
+                        attribute::modifiability_kind::k_mutable
+                        )
+                    );
             }
 
 
@@ -463,7 +480,7 @@ namespace rill
             // ============================================================
             {
                 //
-                // def print( :string ): void => native
+                // def print( ref :string ): void => native
                 //
 
                 struct action
@@ -499,8 +516,9 @@ namespace rill
                 };
 
                 construct_predefined_function<action>( intrinsic_function_action, root_env, print, [&]( rill::function_symbol_environment_ptr const& fenv ) {
-                        // ( :string )
-                        fenv->parameter_variable_construct( nullptr, string_class_env_pointer );    // :string
+                        // ( ref :string )
+                        fenv->parameter_variable_construct( nullptr, string_class_env_pointer,attribute::make_type_attributes(
+                                                                attribute::quality_kind::k_ref) );    // :string
 
                         return fenv;
                     }, void_class_env_pointer );

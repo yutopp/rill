@@ -11,12 +11,17 @@ def main(): int
 
 def test(): void
 {
-    extern_print_string( foo( ( 10*2 )*(1+2*2   ), 10 ) + 2 * 5 );
+    print_int( foo( ( 10*2 )*(1+2*2   ), 10 ) + 2 * 5 );
     print( "\n" );
 }
 
-extern def extern_print_string( val :int ): void "put_string2"; 
+extern def extern_print_int( val :int ): void "put_string2"; 
 
+def print_int( val i: int ): int
+{
+   extern_print_int( i );
+   print( "\n" );
+}
 
 def foo( val fuga: int, val hoge: int ): int
 {
@@ -27,6 +32,18 @@ def foo( val a: int ): int
 {
     return a;
 }
+
+
+
+def foo( ref fuga: string, val hoge: int, val piyo: int ): int
+{
+    print( fuga );
+    return hoge * piyo;
+}
+
+
+
+
 
 // comment
 ;/*empty statment*/;;;
@@ -44,10 +61,14 @@ def loop_test(): void
     // }
 
 
-
+    print_int( foo( "test", 1, 2 ) );
     i = 53;
 //    i < 504;
     
-    extern_print_string( i );
+    print_int( i );
+
+
+
+    
 //    print( "\n" );
 }

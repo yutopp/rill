@@ -343,9 +343,15 @@ namespace rill
                         // evaluate constant expresison as type
                         auto const& type_value = interpreter::evaluate_as_type( parent_env, unit.init_unit.type );
 
+                        // in declaration unit, can not specify "quality" by type_expression
+                        assert( type_value.attributes.quality == boost::none );
+
                         if ( auto const class_env = lookup_with_instanciation( parent_env, type_value.identifier ) ) {
                             assert( class_env != nullptr );
                             assert( class_env->get_symbol_kind() == kind::type_value::class_e );
+
+                            auto attr = determine_type_attributes( type_value.attributes );
+                            attr <<= val_decl.quality;
 
                             // declare
                             auto variable_env
@@ -353,7 +359,7 @@ namespace rill
                                     kind::variable_k,
                                     unit.name,
                                     std::dynamic_pointer_cast<class_symbol_environment const>( class_env ),
-                                    determine_type_attributes( type_value.attributes )
+                                    attr
                                     );
 
                             //
@@ -361,7 +367,7 @@ namespace rill
 
                         } else {
                             // type was not found, !! compilation error !!
-                            assert( false );
+                            assert( false && "type was not found" );
                         }
 
                     } else {
@@ -433,15 +439,22 @@ namespace rill
                     // evaluate constant expresison as type
                     auto const& type_value = interpreter::evaluate_as_type( f_env, e.decl_unit.init_unit.type );
 
+                    // in declaration unit, can not specify "quality" by type_expression
+                    assert( type_value.attributes.quality == boost::none );
+
+
                     if ( auto const class_env = lookup_with_instanciation( f_env, type_value.identifier ) ) {
                         assert( class_env != nullptr );
                         assert( class_env->get_symbol_kind() == kind::type_value::class_e );
+
+                        auto attr = determine_type_attributes( type_value.attributes );
+                        attr <<= e.quality;
 
                         // declare
                         f_env->parameter_variable_construct(
                             e.decl_unit.name,
                             std::dynamic_pointer_cast<class_symbol_environment const>( class_env ),
-                            determine_type_attributes( type_value.attributes )
+                            attr
                             );
 
                     } else {
