@@ -255,6 +255,32 @@ namespace rill
 
 
 
+        struct test_while_statement
+            : public statement
+        {
+        public:
+            RILL_AST_ADAPT_VISITOR( test_while_statement )
+
+        public:
+            test_while_statement(
+                expression_ptr const& cond,
+                statement_list const& statements
+                )
+                : conditional_( cond )
+                , statements_( statements )
+            {}
+
+        public:
+            expression_ptr const conditional_;
+            statement_list const statements_;
+        };
+
+ 
+
+
+
+
+
         struct variable_declaration_statement
             : public statement
         {

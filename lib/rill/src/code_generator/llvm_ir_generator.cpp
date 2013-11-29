@@ -164,8 +164,10 @@ namespace rill
                 dispatch( node, root_env_->get_related_env_by_ast_ptr( node ) );
 
             // FIXME: all functons don't needed to insert RETURN VOID
-            std::cout << "AAA: " << s->statements_.size() << std::endl;
-            context_->ir_builder.CreateRetVoid();
+            if ( basic_brock->getTerminator() == nullptr ) {
+                std::cout << "AAA: " << s->statements_.size() << std::endl;
+                context_->ir_builder.CreateRetVoid();
+            }
 
             //
             llvm::verifyFunction( *func, llvm::PrintMessageAction );
@@ -374,6 +376,33 @@ namespace rill
 
 
 
+        RILL_TV_OP_CONST( llvm_ir_generator, ast::test_while_statement, s, _ )
+        {                  
+            // create a new basic block to start insertion into.
+            llvm::BasicBlock* const while_begin_block = llvm::BasicBlock::Create( context_->llvm_context, "", context_->ir_builder.GetInsertBlock()->getParent() );
+            context_->ir_builder.CreateBr( while_begin_block );
+
+            // create a new basic block to start insertion into.
+            llvm::BasicBlock* const true_block = llvm::BasicBlock::Create( context_->llvm_context, "", context_->ir_builder.GetInsertBlock()->getParent() );
+            // create a new basic block to start insertion into.
+            llvm::BasicBlock* const false_block = llvm::BasicBlock::Create( context_->llvm_context, "", context_->ir_builder.GetInsertBlock()->getParent() );
+
+            //
+            context_->ir_builder.SetInsertPoint( while_begin_block );
+            auto const& cond_llvm_value = dispatch( s->conditional_, _ );
+            context_->ir_builder.CreateCondBr( cond_llvm_value, true_block, false_block );
+
+            context_->ir_builder.SetInsertPoint( true_block );
+            // build inner statements(that contain intrinsic_function_call)
+            for( auto const& node : s->statements_ )
+                dispatch( node, _ );
+
+            context_->ir_builder.CreateBr( while_begin_block );
+
+            context_->ir_builder.SetInsertPoint( false_block );
+        }
+
+
 
         RILL_TV_OP_CONST( llvm_ir_generator, ast::binary_operator_expression, e, _ )
         {
@@ -397,13 +426,62 @@ namespace rill
                 assert( false );
             }
 
-
+/*
             // evaluate values(and push to stack) and returned value type
             // evalute rhs -> lhs
             auto const& rhs_value = dispatch( e->rhs_, _ );
             auto const& lhs_value = dispatch( e->lhs_, _ );
             assert( rhs_value != nullptr && lhs_value != nullptr );
+
+
+
             std::vector<llvm::Value*> const args = { lhs_value, rhs_value };
+*/           
+            // call function that defined in rill modules
+            // evaluate argument from last to front(but ordering of vector is from front to last)
+            ast::expression_list const& e_arguments = { e->lhs_, e->rhs_ };
+            auto const& parameter_type_ids = f_env->get_parameter_type_ids();
+            std::vector<llvm::Value*> args( e_arguments.size() );
+
+            for( std::size_t i=0; i<e_arguments.size(); ++i ) {
+                auto const& type = f_env->get_type_at( parameter_type_ids[e_arguments.size()-i-1] );
+                auto const value = dispatch( e_arguments[e_arguments.size()-i-1], _ );
+                assert( value != nullptr );
+
+                // TODO: check more strict
+                auto const& result_value = [&]() -> llvm::Value* {
+                    switch( type.attributes.quality )
+                    {
+                    case attribute::quality_kind::k_val:
+                    {
+                        // TODO: implement
+                        if ( value->getType()->isPointerTy() ) {
+                            return context_->ir_builder.CreateLoad( value );
+                        } else {
+                            return value;
+                        }
+                    }
+
+                    case attribute::quality_kind::k_ref:
+                        // TODO: implement
+                        if ( value->getType()->isPointerTy() ) {
+                            return value;
+                        } else {
+                            assert( false && "[ice]" );
+                            return value;
+                        }
+                        return value;
+
+                    default:
+                        assert( false && "[ice]" );
+                        break;                  
+                    }
+                }();
+
+                // TODO: value conversion...(ref, val, etc...)
+                args[e_arguments.size()-i-1] = result_value;
+            }
+
 
 
             std::cout << "CALL!!!!!" << std::endl;

@@ -87,6 +87,7 @@ namespace rill
         
                 function_body_statements_
                     %= *( variable_declaration_statement_
+                        | while_statement_
                         | return_statement_
                         | empty_statement_
                         | expression_statement_     // NOTE: this statement must be set at last
@@ -168,6 +169,20 @@ namespace rill
                                 )
                       ]
                     ;
+
+                while_statement_
+                    = ( qi::lit( "while" )
+                      > ( qi::lit( "(" ) > expression_ > qi::lit( ")" ) )
+                      > function_body_block_
+                      )[
+                          qi::_val
+                            = helper::make_node_ptr<ast::test_while_statement>(
+                                qi::_1,
+                                qi::_2
+                                )
+                      ]
+                    ;
+
 
                 //
                 variable_declaration_statement_
@@ -532,6 +547,8 @@ namespace rill
             rule<ast::expression_statement_ptr()> expression_statement_;
             rule<ast::empty_statement_ptr()> empty_statement_;
 
+            // test
+            rule<ast::test_while_statement_ptr()> while_statement_;
 
             rule<attribute::type_attributes_optional()> type_attributes_;
 

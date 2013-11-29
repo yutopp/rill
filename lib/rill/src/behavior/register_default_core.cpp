@@ -393,7 +393,7 @@ namespace rill
                         fenv->parameter_variable_construct( nullptr, int_class_env_pointer );    // :int
 
                         return fenv;
-                    }, int_class_env_pointer );
+                    }, bool_class_env_pointer );
             }
 
 

@@ -1,0 +1,16 @@
+def main(): int
+{
+    print( "hello, bunchou lang on Linux!!!\n" );
+
+    val i = 0: int mutable;
+    while( i < 10 ) {
+        extern_print_int( i );
+        print( "\n" );
+        i = i + 1;
+    }
+
+    return 0;
+}
+
+extern def extern_print_int( val :int ): void
+       "put_string2"; 

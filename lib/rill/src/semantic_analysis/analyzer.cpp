@@ -510,6 +510,18 @@ namespace rill
 
 
 
+        RILL_TV_OP( analyzer, ast::test_while_statement, s, parent_env )
+        {
+            // TODO: type check
+            dispatch( s->conditional_, parent_env );
+
+            for( auto const& node : s->statements_ )
+                dispatch( node, parent_env );
+        }
+
+
+
+
         //
         //
         //

@@ -64,6 +64,10 @@ namespace rill
         //////////
         RILL_AST_FWD_DECL( class_definition_statement, statement )
 
+        //// TEST
+        RILL_AST_FWD_DECL( test_while_statement, statement )
+
+
 
         typedef std::vector<statement_ptr>  statement_list;
 

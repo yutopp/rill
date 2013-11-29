@@ -170,6 +170,8 @@ namespace rill
             RILL_TV_OP_DECL_CONST( ast::intrinsic_function_definition_statement )
             RILL_TV_OP_DECL_CONST( ast::extern_function_declaration_statement )
 
+            RILL_TV_OP_DECL_CONST( ast::test_while_statement )
+
             //RILL_TV_OP_DECL( ast::class_definition_statement )
 
             // expression

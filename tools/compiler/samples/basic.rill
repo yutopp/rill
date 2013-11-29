@@ -35,7 +35,11 @@ def foo( val a: int ): int
 
 
 
-def foo( ref fuga: string, val hoge: int, val piyo: int ): int
+def foo(
+    ref fuga: string,
+    val hoge: int,
+    val piyo: int
+    ): int
 {
     print( fuga );
     return hoge * piyo;
@@ -50,9 +54,11 @@ def foo( ref fuga: string, val hoge: int, val piyo: int ): int
 
 
 
-def loop_test(): void
+def loop_test(): int
 {
     print( "Entered loop_test.\n" );
+
+//    print_int( i );
 
     val i = 42: int mutable;
 
@@ -63,12 +69,19 @@ def loop_test(): void
 
     print_int( foo( "test", 1, 2 ) );
     i = 53;
-//    i < 504;
+    i < 504;
     
     print_int( i );
 
-
-
+    val j = 0: int mutable;
+    while( j < 10 ) {
+        val k = 7: int mutable;
+        k = 5;
+        print_int( k );
+        k = k + 1;
+        j = j + 1;
+    }   
     
+    return 10;
 //    print( "\n" );
 }

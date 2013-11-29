@@ -34,6 +34,8 @@ namespace rill
 
             RILL_TV_OP_DECL( ast::class_definition_statement )
 
+            RILL_TV_OP_DECL( ast::test_while_statement )
+
             // expression
             RILL_TV_OP_DECL( ast::binary_operator_expression )
             RILL_TV_OP_DECL( ast::call_expression )
