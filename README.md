@@ -10,65 +10,36 @@ Rill
 構文解析その他諸々にBoost，コード生成にLLVMを用いています．
 また，コードはC++11で書かれています．
 
-特定の環境のVisual Studio 2013 RC (v120)でしかテストしていません．
-
-
 値やリソースの扱いを細かく指定できるようにし，文鳥が楽しくプログラミングを出来るような言語を目指します．
 
 
-Using Library
---
-Boost 1.53.0 (On windows, Boost-trunk rev.84700)
+# Using Library
 
-LLVM 3.3
+## Boost 1.55.0
+## LLVM 3.3
 
 
-How to build
---
-
-### MSVC >= v1800 [Visual Studio 2013 RC (v120)]
-Currently, please use the project file, and fix library pathes of this.
+# How to build
 
 ### GCC >= 4.7.3
-### Clang >= 3.2
+### Clang >= 3.3
 
-This program requires any environment variables. see below.
-
-(on Linux)
-
-    export BOOST_ROOT=(YOUR BOOST INSTALLED PATH)
-    export RILL_LLVM_ROOT=(YOUR_LLVM_INSTALLED PATH)
-
-(on Windows)
-
-    TODO: write
-
-Change **(YOUR BOOST INSTALLED PATH)** and **(YOUR_LLVM_INSTALLED PATH)** to your pathes that Boost and LLVM were installed.
-If you have not used to Boost Libraries, please execute **bootstrap.(sh|bat)** on your Boost installed path. Then, an executable file named **b2** will be created on there. It is a build tool and required to build Rill.
-
-Next, 
-
--DLLVM_ROOT
 
 (using MSVC)
 
-    $BOOST_ROOT/b2 toolset=msvc tools/compiler
+
 
 (using GCC)
 
-    $BOOST_ROOT/b2 toolset=gcc tools/compiler
-    mkdir build
-    cd build
-    cmake ../.
-    make
+
     
 (using Clang)
 
-    $BOOST_ROOT/b2 toolset=clang tools/compiler
-    -DCMAKE_CXX_COMPILER=clang++
-    -DCMAKE_C_COMPILER=clang
-
-Then, a executable file named **rillc** will be created in "bin" subdirectories.
+    mkdir build
+    cd build
+    cmake ../. -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -DLLVM_ROOT=/usr/local
+    make
+    sudo make install
 
 
 Reference

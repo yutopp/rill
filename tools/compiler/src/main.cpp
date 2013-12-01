@@ -19,16 +19,7 @@
 #include <rill/syntax_analysis/make_syntax_tree.hpp>
 #include <rill/semantic_analysis/semantic_analysis.hpp>
 
-//#include <rill/interpreter/interpreter.hpp>
-//#include <rill/interpreter/runtime.hpp>
 #include <rill/code_generator/code_generator.hpp>
-
-
-// TODO: remove these functions
-
-
-
-
 
 
 void sample( boost::program_options::variables_map const& vm )
@@ -143,6 +134,12 @@ int main( int argc, char* argv[] )
         ( "linker",
           po::value<std::string>()->default_value( "ld" ),
           "linker type(ld, link)")
+        ( "rill-rt",
+          po::value<std::string>()->default_value( "/usr/local/lib/librill-rt.a" ),
+          "rill runtime library path")
+        ( "output,o",
+          po::value<std::string>()->default_value( "a.out" ),
+          "gahaha!w")
         ;
 
 
