@@ -47,7 +47,7 @@ namespace rill
                       << "param_num : " << s->get_parameter_list().size() << std::endl;
 
             // add function symbol to current environment
-            env->mark_as( kind::function_k, s->get_identifier()->get_last_identifier(), s );
+            env->mark_as( kind::k_function, s->get_identifier()->get_last_identifier(), s );
         }
 
         RILL_TV_OP( identifier_collector, ast::extern_function_declaration_statement, s, env )
@@ -64,8 +64,9 @@ namespace rill
                       << "param_num : " << s->get_parameter_list().size() << std::endl;
 
             // add function symbol to current environment
-            env->mark_as( kind::function_k, s->get_identifier()->get_last_identifier(), s );
+            env->mark_as( kind::k_function, s->get_identifier()->get_last_identifier(), s );
         }
+
 
         //
         RILL_TV_OP( identifier_collector, ast::variable_declaration_statement, s, env )
@@ -77,8 +78,9 @@ namespace rill
 
         RILL_TV_OP( identifier_collector, ast::class_definition_statement, s, env )
         {
-            // TODO: implement it
-            assert( false );
+            // add function symbol to current environment
+            env->mark_as( kind::k_class, s->get_identifier(), s );
         }
+
     } // namespace semantic_analysis
 } // namespace rill

@@ -20,6 +20,8 @@
 
 #include "value_fwd.hpp"
 
+#include "ast_base.hpp"
+
 
 namespace rill
 {
@@ -44,6 +46,7 @@ namespace rill
 
 
         struct value
+            : public ast_base
         {
         public:
             RILL_AST_ADAPT_VISITOR( value )

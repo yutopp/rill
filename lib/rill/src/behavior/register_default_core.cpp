@@ -40,7 +40,7 @@ namespace rill
             auto f_ast = std::make_shared<rill::ast::intrinsic_function_definition_statement>( sl );
 
             // function definition
-            auto f = root_env->construct( rill::kind::function_k, function_name, f_ast, tpc_func, return_class_env, return_type_attr );
+            auto f = root_env->construct( rill::kind::k_function, function_name, f_ast, tpc_func, return_class_env, return_type_attr );
 
             // memoize called function env
             f->connect_from_ast( intrinsic_call_expr );

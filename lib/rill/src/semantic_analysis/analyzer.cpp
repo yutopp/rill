@@ -356,7 +356,7 @@ namespace rill
                             // declare
                             auto variable_env
                                 = parent_env->construct(
-                                    kind::variable_k,
+                                    kind::k_variable,
                                     unit.name,
                                     std::dynamic_pointer_cast<class_symbol_environment const>( class_env ),
                                     attr

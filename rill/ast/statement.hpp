@@ -22,6 +22,7 @@
 
 #include "statement_fwd.hpp"
 
+#include "ast_base.hpp"
 #include "value.hpp"
 #include "expression.hpp"
 
@@ -40,6 +41,7 @@ namespace rill
 
         // 
         struct statement
+            : public ast_base
         {
         public:
             RILL_AST_ADAPT_VISITOR( statement )
@@ -255,6 +257,52 @@ namespace rill
 
 
 
+
+        struct class_definition_statement
+            : public statement
+        {
+        public:
+            RILL_AST_ADAPT_VISITOR( class_definition_statement )
+
+        public:
+            class_definition_statement(
+                intrinsic::single_identifier_value_ptr const& identifier
+                )
+                : identifier_( identifier )
+            {}
+
+            class_definition_statement(
+                intrinsic::single_identifier_value_ptr const& identifier,
+                boost::optional<parameter_list> const& constructor_parameter_list,
+                statement_list const& statements
+                )
+                : identifier_( identifier )
+                , constructor_parameter_list_( constructor_parameter_list ? std::move( *constructor_parameter_list ) : parameter_list() )
+                , statements_( statements )
+            {}
+
+        public:
+            auto get_identifier() const
+                -> intrinsic::single_identifier_value_ptr
+            {
+                return identifier_;
+            }
+
+            auto get_constructor_parameter_list() const
+                -> parameter_list
+            {
+                return constructor_parameter_list_;
+            }
+
+        public:
+            intrinsic::single_identifier_value_ptr const identifier_;
+            parameter_list const constructor_parameter_list_;
+            statement_list const statements_;
+        };
+
+
+
+
         struct test_while_statement
             : public statement
         {
@@ -317,41 +365,12 @@ namespace rill
 
 
 
-        struct class_definition_statement
-            : public statement
-        {
-        public:
-            RILL_AST_ADAPT_VISITOR( class_definition_statement )
-
-        public:
-            class_definition_statement( intrinsic::identifier_value_ptr const& identifier )
-                : identifier_( identifier )
-            {}
-
-            //virtual ~class_definition_statement {}
-
-        public:
-            //void setup_environment( environment_ptr const& ) const {}
-
-            auto get_identifier() const
-                -> intrinsic::identifier_value_ptr
-            {
-                return identifier_;
-            }
-
-        private:
-            intrinsic::identifier_value_ptr identifier_;
-        };
-
-
 
         // make native
-        inline auto make_native_class( intrinsic::identifier_value_ptr const& class_name )
+        inline auto make_native_class( intrinsic::single_identifier_value_ptr const& class_identifier )
             -> class_definition_statement_ptr
         {
-            // TODO: insert assert that checks class_name depth.
-
-            return std::make_shared<class_definition_statement>( class_name );
+            return std::make_shared<class_definition_statement>( class_identifier );
         }
 
 

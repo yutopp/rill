@@ -54,22 +54,21 @@ namespace rill
     namespace kind
     {
         struct function_tag {};
-        auto const function_k = function_tag();
+        auto const k_function = function_tag();
 
         struct class_tag {};
-        auto const class_k = class_tag();
         auto const k_class = class_tag();
 
         struct variable_tag {};
-        auto const variable_k = variable_tag();
+        auto const k_variable = variable_tag();
 
         enum struct type_value
         {
-            none_e,
-            function_e,
-            parameter_wrapper_e,
-            variable_e,
-            class_e
+            e_none,
+            e_function,
+            e_parameter_wrapper,
+            e_variable,
+            e_class
         };
     }
 

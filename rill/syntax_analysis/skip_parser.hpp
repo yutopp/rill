@@ -9,7 +9,9 @@
 #ifndef RILL_SYNTAX_ANALYSIS_SKIP_PARSER_HPP
 #define RILL_SYNTAX_ANALYSIS_SKIP_PARSER_HPP
 
-#define BOOST_SPIRIT_USE_PHOENIX_V3 1
+#ifndef BOOST_SPIRIT_USE_PHOENIX_V3
+# define BOOST_SPIRIT_USE_PHOENIX_V3
+#endif
 #include <boost/spirit/include/qi.hpp>
 
 

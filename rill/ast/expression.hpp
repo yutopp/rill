@@ -20,6 +20,7 @@
 
 #include "expression_fwd.hpp"
 
+#include "ast_base.hpp"
 #include "value.hpp"
 
 
@@ -35,6 +36,7 @@ namespace rill
         // ----------------------------------------------------------------------
         // ----------------------------------------------------------------------
         struct expression
+            : public ast_base
         {
         public:
             RILL_AST_ADAPT_VISITOR( expression )

@@ -109,7 +109,7 @@ namespace rill
             attribute::type_attributes const& return_type_attr
             ) -> function_symbol_environment_ptr
     {
-        auto const& p_i_pair = mark_as( kind::function_k, function_name, ast );
+        auto const& p_i_pair = mark_as( kind::k_function, function_name, ast );
         auto const& parameter_env = p_i_pair.first;
 
         auto const& incomplete_function_env = p_i_pair.second;

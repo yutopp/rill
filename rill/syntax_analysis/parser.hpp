@@ -14,18 +14,20 @@
 #include <memory>
 #include <iostream>
 
-#define BOOST_SPIRIT_USE_PHOENIX_V3 1
+#ifndef BOOST_SPIRIT_USE_PHOENIX_V3
+# define BOOST_SPIRIT_USE_PHOENIX_V3
+#endif
 #include <boost/spirit/include/qi.hpp>
 #include <boost/spirit/include/qi_as.hpp>
-#include <boost/fusion/include/adapt_struct.hpp>
-#include <boost/fusion/adapted/std_tuple.hpp>
-
 #include <boost/spirit/include/phoenix_core.hpp>
 #include <boost/spirit/include/phoenix_operator.hpp>
 #include <boost/spirit/include/phoenix_object.hpp>
 #include <boost/spirit/include/phoenix_fusion.hpp>
 #include <boost/spirit/include/phoenix_stl.hpp>
 #include <boost/spirit/include/phoenix_bind.hpp>
+
+#include <boost/fusion/include/adapt_struct.hpp>
+#include <boost/fusion/adapted/std_tuple.hpp>
 
 #include "../ast/value.hpp"
 #include "../ast/expression.hpp"
@@ -38,6 +40,7 @@
 #include "skip_parser.hpp"
 
 #include "parser_helper.hpp"
+#include "error.hpp"
 
 
 namespace rill
@@ -52,7 +55,7 @@ namespace rill
         //
         // grammer definition of Rill
         //
-        template<typename StringT, typename Iterator>
+        template<typename Iterator>
         class code_grammer
             : public qi::grammar<Iterator, ast::statement_list(), skip_grammer<Iterator>>
         {
@@ -63,28 +66,34 @@ namespace rill
             template<typename T> using rule = qi::rule<Iterator, T, skip_grammer_type>;
 
         public:
-            code_grammer()
+            code_grammer( Iterator const& head )
                 : code_grammer::base_type( program_, "rill" )
+                , position_annotator_( head )
             {
                 using ascii::char_;
                 using ascii::string;
                 using namespace qi::labels;
 
+                auto const err_handler   = error_handler_( _1, _2, _3, _4 );
+                auto const pos_annotator = position_annotator_( qi::_val, qi::_1, qi::_3 );
+
                 //
-                //program_.name( "program" );
-//                program_ %= top_level_statements_ > ( qi::eol | qi::eoi );// 
-                program_ = ( top_level_statements_ > ( qi::eol | qi::eoi ) );//[qi::_val = qi::_1];// 
+                program_.name( "program" );
+                program_ = ( top_level_statements_ > ( qi::eol | qi::eoi ) );//[qi::_val = qi::_
+                
+                qi::on_error<qi::accept>( program_, err_handler );
 
                 //
                 top_level_statements_.name( "top_level_statements" );
                 top_level_statements_
                     %= *( function_definition_statement_
+                        | class_definition_statement_
                         | extern_statement_
                         | empty_statement_
-                        | expression_statement_     // NOTE: this statement must be set at last
                         )
                     ;
-        
+
+
                 function_body_statements_
                     %= *( variable_declaration_statement_
                         | while_statement_
@@ -95,6 +104,12 @@ namespace rill
                     ;
 
 
+                class_body_statements_
+                    %= *( function_definition_statement_
+                        | variable_declaration_statement_
+                        | empty_statement_
+                        )
+                    ;
 
 
 
@@ -106,6 +121,7 @@ namespace rill
                 empty_statement_
                     = statement_termination_[qi::_val = helper::make_node_ptr<ast::empty_statement>()]
                     ;
+                qi::on_success( empty_statement_, pos_annotator );
 
                 return_statement_.name( "return_statement" );
                 return_statement_
@@ -115,6 +131,7 @@ namespace rill
                       ]
                     ;
 
+
                 //
                 extern_statement_.name( "extern_statement" );
                 extern_statement_
@@ -123,6 +140,7 @@ namespace rill
                       )
                     > statement_termination_
                     ;
+
 
                 //
                 extern_function_declaration_statement_.name( "extern_function_declaration_statement" );
@@ -149,7 +167,7 @@ namespace rill
                 function_body_block_
                     %= qi::lit( "{" ) >> function_body_statements_ >> qi::lit( "}" )
                     ;
-
+                
                 //function_body_expression_
                 //
                 function_definition_statement_.name( "function_definition_statement" );
@@ -160,13 +178,33 @@ namespace rill
                       > -type_specifier_
                       > ( function_body_block_/* | expression_*/ )
                       )[
-                        qi::_val
+                          qi::_val
                             = helper::make_node_ptr<ast::function_definition_statement>(
                                 qi::_1,
                                 qi::_2,
                                 qi::_3,
                                 qi::_4
                                 )
+                      ]
+                    ;
+
+                class_body_block_
+                    %= qi::lit( "{" ) >> class_body_statements_ >> qi::lit( "}" )
+                    ;
+
+                class_definition_statement_.name( "class_definition_statement" );
+                class_definition_statement_
+                    = ( qi::lit( "class" )
+                        >> single_identifier_
+                        >> ( parameter_variable_declaration_list_ | qi::eps )    // constructor
+                        >> class_body_block_
+                      )[
+                          qi::_val
+                              = helper::make_node_ptr<ast::class_definition_statement>(
+                                  qi::_1,
+                                  qi::_2,
+                                  qi::_3
+                              )
                       ]
                     ;
 
@@ -516,30 +554,22 @@ namespace rill
                 upper_symbol_ %= qi::lexeme[ ascii::char_("A-Z") >> *ascii::alnum ];*/
 
 
-                // error handring...
-                // if failed, show error messages and force accept this grammer step.
-                qi::on_error<qi::accept>
-                (
-                    program_,
-                    std::cout
-                        << phx::val( "Error! Expecting " )
-                        << _4
-                        << phx::val( "\n" )                          // what failed?
-                        << phx::val( "here: \'" )
-                        << phx::construct<std::string>( _3, _2 )    // iterators to error-pos, end
-                        << phx::val( "\'" )
-                        << std::endl
-                );
+
             }
+
+        private:
+            phx::function<helper::make_position_annotator_lazy<Iterator>> position_annotator_;
+            phx::function<error_handler_lazy<Iterator>> error_handler_;
 
         private:
             rule<ast::statement_list()> program_;
 
-            rule<ast::statement_list()> top_level_statements_, function_body_statements_;
+            rule<ast::statement_list()> top_level_statements_, function_body_statements_, class_body_statements_;
             rule<ast::statement_list()> function_body_block_, function_body_expression_;
-
+            rule<ast::statement_list()> class_body_block_;
 
             rule<ast::function_definition_statement_ptr()> function_definition_statement_;
+            rule<ast::class_definition_statement_ptr()> class_definition_statement_;
             rule<ast::variable_declaration_statement_ptr()> variable_declaration_statement_;
             rule<ast::extern_statement_base_ptr()> extern_statement_;
             rule<ast::extern_function_declaration_statement_ptr()> extern_function_declaration_statement_;

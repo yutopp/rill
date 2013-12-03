@@ -10,17 +10,14 @@
 #define RILL_SYNTAX_ANALYSIS_PARSER_HELPER_HPP
 
 #include <string>
-#include <vector>
 #include <memory>
-#include <iostream>
 
-#define BOOST_SPIRIT_USE_PHOENIX_V3 1
+#ifndef BOOST_SPIRIT_USE_PHOENIX_V3
+# define BOOST_SPIRIT_USE_PHOENIX_V3
+#endif
+
+#include <boost/spirit/include/support_line_pos_iterator.hpp>
 #include <boost/spirit/include/phoenix_core.hpp>
-#include <boost/spirit/include/phoenix_operator.hpp>
-#include <boost/spirit/include/phoenix_object.hpp>
-#include <boost/spirit/include/phoenix_fusion.hpp>
-#include <boost/spirit/include/phoenix_stl.hpp>
-#include <boost/spirit/include/phoenix_bind.hpp>
 
 #include "../ast/value.hpp"
 #include "../ast/expression.hpp"
@@ -35,8 +32,9 @@ namespace rill
         namespace helper
         {
             template<typename T>
-            struct add_ {
-                typedef std::shared_ptr<T> result_type;
+            struct make_node_pointer_lazy
+            {
+                typedef std::shared_ptr<T>      result_type;
 
                 template<class>
                 struct result {
@@ -54,9 +52,9 @@ namespace rill
 
             template<typename T, typename... Args>
             auto make_node_ptr( Args&&... args )
-                -> decltype( boost::phoenix::function<add_<T>>()( std::forward<Args>( args )... ) )
+                -> decltype( boost::phoenix::function<make_node_pointer_lazy<T>>()( std::forward<Args>( args )... ) )
             {
-                return boost::phoenix::function<add_<T>>()( std::forward<Args>( args )... );
+                return boost::phoenix::function<make_node_pointer_lazy<T>>()( std::forward<Args>( args )... );
             }
 
 
@@ -84,6 +82,50 @@ namespace rill
             {
                 return make_node_ptr<ast::intrinsic_value>( make_node_ptr<T>( xs... ) );
             }
+
+
+
+
+            template<typename It>
+            class make_position_annotator_lazy
+            {
+            public:
+                typedef void result_type;
+
+            public:
+                make_position_annotator_lazy(It first)
+                    : head_(first)
+                {}
+
+            public:
+                template<typename Val, typename First, typename Last>
+                void operator()(Val& v, First f, Last l) const {
+                    do_annotate(v, f, l);
+                }
+
+            private:
+                template<typename AstNode>
+                void do_annotate(
+                    std::shared_ptr<AstNode> const& li,
+                    It f,
+                    It l
+                    ) const
+                {
+                    using boost::spirit::get_line;
+                    using boost::spirit::get_column;
+                    using std::distance;
+
+                    li->line   = get_line( f );
+                    li->column = get_column( head_, f );
+                    li->length = distance( f, l );
+                }
+
+                void do_annotate(...) const
+                {}
+
+            private:
+                It const head_;
+            };
 
         } // namespace helper
     } // namespace sytax_analysis

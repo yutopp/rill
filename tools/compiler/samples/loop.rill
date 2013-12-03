@@ -13,4 +13,20 @@ def main(): int
 }
 
 extern def extern_print_int( val :int ): void
-       "put_string2"; 
+       "put_string2";
+
+class Test
+{
+    val a: int;
+}
+
+class Test2
+{}
+
+def aaa()
+{
+}
+
+def a()
+{
+}
