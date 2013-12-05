@@ -130,6 +130,7 @@ namespace rill
         virtual auto construct(
             kind::variable_tag,
             ast::intrinsic::single_identifier_value_base_ptr const&,
+            ast::statement_ptr const&,
             const_class_symbol_environment_ptr const&,
             attribute::type_attributes const& = attribute::make_default_type_attributes()
             ) -> variable_symbol_environment_ptr;

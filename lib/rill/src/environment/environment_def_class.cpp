@@ -69,7 +69,7 @@ namespace rill
 
     auto single_identifier_environment_base::construct(
         kind::class_tag,
-        ast::intrinsic::single_identifier_value_base_ptr const& class_name,   // may be nullptr, if unnamed class...
+        ast::intrinsic::single_identifier_value_base_ptr const& class_name,
         ast::statement_ptr const& ast
 /*        const_class_symbol_environment_ptr const& class_env,
           attribute::type_attributes const& type_attr*/

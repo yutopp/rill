@@ -28,23 +28,68 @@ namespace rill
         )
         -> decltype( static_cast<environment_base *>( nullptr )->incomplete_construct( kind::k_variable, variable_name ) )
     {
-        return nullptr;
+        auto const& variable_env = incomplete_construct( kind::k_variable, variable_name );
+
+        std::cout << "%% Marked(class) " << variable_env->get_id() << std::endl;
+
+        if ( ast != nullptr ) {
+            root_shared_resource_->env_id_to_ast_map.add( variable_env->get_id(), ast );
+            root_shared_resource_->ast_to_env_id_map.add( ast, variable_env->get_id() );
+        }
+
+        //
+        return variable_env;
     }
 
 
     auto single_identifier_environment_base::incomplete_construct(
         kind::variable_tag,
-        ast::intrinsic::single_identifier_value_base_ptr const& name
+        ast::intrinsic::single_identifier_value_base_ptr const& variable_name
         )
         -> variable_symbol_environment_ptr
     {
-        return nullptr;
+        auto const& v_env = [&]() {
+            if ( variable_name != nullptr ) {
+                auto const& symbol_name = variable_name->get_inner_symbol()->to_native_string();
+
+                if ( !is_instanced( symbol_name ) ) {
+                    // make new incomplete env
+                    auto const& i_env = allocate_env<variable_symbol_environment>( shared_from_this() );
+                    instanced_env_[symbol_name] = i_env;
+                }
+
+                auto const& env = instanced_env_.at( symbol_name );
+                assert( env != nullptr );
+                assert( env->get_symbol_kind() == kind::type_value::e_variable );
+
+                return std::static_pointer_cast<variable_symbol_environment>( env );
+
+            } else {
+                auto const& i_env = allocate_env<variable_symbol_environment>( shared_from_this() );
+                native_string_type const& symbol_name
+                    = variable_name
+                    ? variable_name->get_inner_symbol()->to_native_string()
+                    : "__unnamed" + std::to_string( i_env->get_id() )
+                    ;
+
+                if ( is_instanced( symbol_name ) ) {
+                    // Meybe ICE...
+                    assert( false );
+                }
+
+                instanced_env_[symbol_name] = i_env;
+                return i_env;
+            }
+        }();
+
+        return v_env;
     }
 
 
     auto single_identifier_environment_base::construct(
         kind::variable_tag,
         ast::intrinsic::single_identifier_value_base_ptr const& variable_name,   // may be nullptr, if unnamed parameter variable...
+        ast::statement_ptr const& ast,
         const_class_symbol_environment_ptr const& class_env,
         attribute::type_attributes const& type_attr
         )
@@ -52,7 +97,7 @@ namespace rill
     {
         // FIXME:
         // create new environment
-        auto const& v_env = allocate_env<variable_symbol_environment>( shared_from_this() );
+        auto const& v_env = mark_as( kind::k_variable, variable_name, ast );
 
         native_string_type const& symbol_name
             = variable_name

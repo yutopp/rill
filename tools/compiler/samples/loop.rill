@@ -17,7 +17,7 @@ def main(): int
 extern def extern_print_int( val :int ): void
        "put_string2";
 
-/*
+
 class Test
 {
     val a322: int;
@@ -40,4 +40,4 @@ def aaa(): int
 
 def a(): int
 {
-}*/
+}

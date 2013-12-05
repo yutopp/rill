@@ -317,73 +317,93 @@ namespace rill
         RILL_TV_OP( analyzer, ast::variable_declaration_statement, s, parent_env )
         {
             //
-//            bool const is_backward_reference
-//                = parent_env->get_symbol_kind() == kind::type_value::e_function;
+            bool const is_backward_reference
+                = parent_env->get_symbol_kind() == kind::type_value::e_function;
 
             auto const related_env = parent_env->get_related_env_by_ast_ptr( s );
-//            if ( is_backward_reference ) {
-                //
-                if ( related_env == nullptr ) {
-//                    assert( false );
 
-                    auto const& val_decl = s->declaration_;
-                    // TODO: decl_unit will be unit_list
-                    // for( auto const& unit : val_decl.decl_unit_list ) {
-                    auto const& unit = val_decl.decl_unit;
+            if ( is_backward_reference ) {
+                if ( related_env != nullptr ) {
+                    assert( false && "[ice] duplicate..." );
+                }
+
+                auto const& val_decl = s->declaration_;
+                // TODO: decl_unit will be unit_list
+                // for( auto const& unit : val_decl.decl_unit_list ) {
+                auto const& unit = val_decl.decl_unit;
 
 
-                    // TODO: make method to determine "type"
+                // TODO: make method to determine "type"
 
-                    // unit.kind -> val or ref
-                    // TODO: use unit.kind( default val )
+                // unit.kind -> val or ref
+                // TODO: use unit.kind( default val )
 
-                    // TODO: evaluate type || type inference || type check
-                    //       default( int )
+                // TODO: evaluate type || type inference || type check
+                //       default( int )
 
-                    if ( unit.init_unit.type ) { // is parameter variable type specified ?
-                        // evaluate constant expresison as type
-                        auto const& type_value = interpreter::evaluate_as_type( parent_env, unit.init_unit.type );
+                if ( unit.init_unit.type ) { // is parameter variable type specified ?
+                    // evaluate constant expresison as type
+                    auto const& type_value = interpreter::evaluate_as_type( parent_env, unit.init_unit.type );
 
-                        // in declaration unit, can not specify "quality" by type_expression
-                        assert( type_value.attributes.quality == boost::none );
+                    // in declaration unit, can not specify "quality" by type_expression
+                    assert( type_value.attributes.quality == boost::none );
 
-                        if ( auto const class_env = lookup_with_instanciation( parent_env, type_value.identifier ) ) {
-                            assert( class_env != nullptr );
-                            assert( class_env->get_symbol_kind() == kind::type_value::e_class );
+                    if ( auto const class_env = lookup_with_instanciation( parent_env, type_value.identifier ) ) {
+                        assert( class_env != nullptr );
+                        assert( class_env->get_symbol_kind() == kind::type_value::e_class );
 
-                            auto attr = determine_type_attributes( type_value.attributes );
-                            attr <<= val_decl.quality;
+                        auto attr = determine_type_attributes( type_value.attributes );
+                        attr <<= val_decl.quality;
 
-                            // declare
-                            auto variable_env
-                                = parent_env->construct(
-                                    kind::k_variable,
-                                    unit.name,
-                                    std::dynamic_pointer_cast<class_symbol_environment const>( class_env ),
-                                    attr
-                                    );
+                        // declare
+                        auto variable_env
+                            = parent_env->construct(
+                                kind::k_variable,
+                                unit.name,
+                                nullptr,
+                                std::dynamic_pointer_cast<class_symbol_environment const>( class_env ),
+                                attr
+                                );
 
-                            //
-                            variable_env->connect_from_ast( s );
-
-                        } else {
-                            // type was not found, !! compilation error !!
-                            assert( false && "type was not found" );
-                        }
+                        //
+                        variable_env->connect_from_ast( s );
 
                     } else {
-                        // type inferenced by result of evaluated [[default initializer expression]]
-
-                        // TODO: implement type inference
-                        assert( false );
+                        // type was not found, !! compilation error !!
+                        assert( false && "type was not found" );
                     }
 
-
-
                 } else {
-                    // Already declared...(Duplicate)
+                    // type inferenced by result of evaluated [[default initializer expression]]
+
+                    // TODO: implement type inference
                     assert( false );
                 }
+
+
+
+            } else {
+                // Forward referencable
+                assert( related_env != nullptr );
+                assert( related_env->get_symbol_kind() == kind::type_value::e_variable );
+
+                auto const& v_env = std::static_pointer_cast<variable_symbol_environment>( related_env );
+                assert( v_env != nullptr );
+
+                if ( parent_env->get_symbol_kind() == kind::type_value::e_class ) {
+                    // this is method function!!
+                    v_env->set_parent_class_env_id( parent_env->get_id() );
+                }
+/*
+                // guard double check
+                if ( f_env->is_checked() )
+                    return;
+                f_env->check();
+*/
+                // Already declared...(Duplicate)
+                assert( false );
+            }
+
 
 /*
             } else {
@@ -526,10 +546,23 @@ namespace rill
         RILL_TV_OP( analyzer, ast::class_definition_statement, s, parent_env )
         {
             // TODO: dup check...
+            // enverinment is already pre constructed by identifier_collector
+            auto const related_env = parent_env->get_related_env_by_ast_ptr( s );
+            assert( related_env != nullptr );
+            assert( related_env->get_symbol_kind() == kind::type_value::e_class );
 
+            auto const& c_env = std::static_pointer_cast<class_symbol_environment>( related_env );
+            assert( c_env != nullptr );
+
+/*
+            // guard double check
+            if ( c_env->is_checked() )
+                return;
+            c_env->check();
+*/
 
             for( auto const& node : s->statements_ )
-                dispatch( node, parent_env );      
+                dispatch( node, c_env );
         }
 
 

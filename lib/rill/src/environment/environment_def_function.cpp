@@ -46,6 +46,11 @@ namespace rill
     }
 
 
+
+
+    //
+    //
+    //
     auto single_identifier_environment_base::incomplete_construct(
         kind::function_tag,
         ast::intrinsic::single_identifier_value_base_ptr const& name
@@ -79,6 +84,10 @@ namespace rill
     }
 
 
+
+    //
+    //
+    //
     auto single_identifier_environment_base::construct(
             kind::function_tag,
             ast::intrinsic::single_identifier_value_base_ptr const& function_name,

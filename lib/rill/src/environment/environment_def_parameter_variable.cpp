@@ -25,7 +25,7 @@ namespace rill
         -> variable_symbol_environment_ptr
     {
         // declare parameter variable
-        auto const& var_env = construct( kind::k_variable, variable_name, class_env, type_attr );
+        auto const& var_env = construct( kind::k_variable, variable_name, nullptr, class_env, type_attr );
         parameter_decl_ids_.push_back( var_env->get_id() );
         parameter_type_ids_.push_back( var_env->get_type_id() );    // memo parameter variable types
 
