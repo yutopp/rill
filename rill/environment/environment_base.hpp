@@ -243,50 +243,40 @@ namespace rill
         }
 
 
-
         //
-        // function
-        virtual auto incomplete_construct(
-            kind::function_tag,
-            ast::intrinsic::single_identifier_value_base_ptr const& name
-            ) -> std::pair<
-                    std::shared_ptr<has_parameter_environment<function_symbol_environment>>,
-                    function_symbol_environment_ptr
-               >
-        { assert( false ); return std::make_pair( nullptr, nullptr ); }
+        auto lookup_layer( kind::type_value const& layer_type )
+            -> env_base_pointer
+        {
+            auto p = shared_from_this();
+            for(;;) {
+                if ( p->get_symbol_kind() == layer_type )
+                    return p;
 
-        typedef std::function<function_symbol_environment_ptr (function_symbol_environment_ptr const&)> function_env_generator_scope_type;
+                if ( p->has_parent() )
+                    p = p->get_parent_env();
+                else
+                    break;
+            }
 
-        virtual auto construct(
-            kind::function_tag,
-            ast::intrinsic::single_identifier_value_base_ptr const& function_name,
-            ast::statement_ptr const& ast,
-            function_env_generator_scope_type const& parameter_decl_initializer,
-            class_symbol_environment_ptr const& return_class_env,
-            attribute::type_attributes const& return_type_attr = attribute::make_default_type_attributes()
-            ) -> function_symbol_environment_ptr { assert( false ); return nullptr; }
+            return nullptr;
+        }
 
+        auto lookup_layer( kind::type_value const& layer_type ) const
+            -> const_env_base_pointer
+        {
+            auto p = shared_from_this();
+            for(;;) {
+                if ( p->get_symbol_kind() == layer_type )
+                    return p;
 
-        //
-        // variable
-        virtual auto construct(
-            kind::variable_tag,
-            ast::intrinsic::single_identifier_value_base_ptr const&,
-            const_class_symbol_environment_ptr const&,
-            attribute::type_attributes const& = attribute::make_default_type_attributes()
-            ) -> variable_symbol_environment_ptr { assert( false ); return nullptr; }
+                if ( p->has_parent() )
+                    p = p->get_parent_env();
+                else
+                    break;
+            }
 
-
-        // class
-        virtual auto pre_construct(
-            kind::class_tag,
-            ast::intrinsic::single_identifier_value_ptr const&
-            )  -> env_base_pointer { assert( false ); return nullptr; }
-
-        virtual auto construct(
-            kind::class_tag,
-            ast::intrinsic::single_identifier_value_base_ptr const&
-            ) -> class_symbol_environment_ptr { assert( false ); return nullptr; }
+            return nullptr;
+        }
 
         //
         virtual auto get_symbol_kind() const
@@ -368,18 +358,97 @@ namespace rill
 
 
         virtual auto is_root() const -> bool { return false; }
+
+        auto has_parent() const -> bool {
+            return !is_root(); // if not a root, it has a parent environment
+        }
+
         auto get_parent_env() -> env_base_pointer { return is_root() ? nullptr : parent_.lock(); }
         auto get_parent_env() const -> const_env_base_pointer { return is_root() ? nullptr : parent_.lock(); }
 
-        auto mark_as( kind::function_tag, ast::intrinsic::single_identifier_value_base_ptr const& name_identifier, ast::statement_ptr const& ast )
-            ->std::pair<
-                    std::shared_ptr<has_parameter_environment<function_symbol_environment>>,
-                    function_symbol_environment_ptr
-                > ;
+
+
+        //
+        //
+        //
+        auto mark_as(
+            kind::function_tag,
+            ast::intrinsic::single_identifier_value_base_ptr const&,
+            ast::statement_ptr const&
+            ) -> std::pair<
+                     std::shared_ptr<has_parameter_environment<function_symbol_environment>>,
+                     function_symbol_environment_ptr
+                 >;
+
+        auto mark_as(
+            kind::variable_tag,
+            ast::intrinsic::single_identifier_value_base_ptr const&,
+            ast::statement_ptr const&
+            ) -> variable_symbol_environment_ptr;
+
+        auto mark_as(
+            kind::class_tag,
+            ast::intrinsic::single_identifier_value_base_ptr const&,
+            ast::statement_ptr const&
+            ) -> class_symbol_environment_ptr;
+
+
+        //
+        // incomplete_construct
+        //
+        virtual auto incomplete_construct(
+            kind::function_tag,
+            ast::intrinsic::single_identifier_value_base_ptr const&
+            ) -> std::pair<
+                     std::shared_ptr<has_parameter_environment<function_symbol_environment>>,
+                     function_symbol_environment_ptr
+                 >
+        { assert( false ); return std::make_pair( nullptr, nullptr ); }
+
+        virtual auto incomplete_construct(
+            kind::variable_tag,
+            ast::intrinsic::single_identifier_value_base_ptr const&
+            ) -> variable_symbol_environment_ptr
+        { assert( false ); return nullptr; }
+
+        virtual auto incomplete_construct(
+            kind::class_tag,
+            ast::intrinsic::single_identifier_value_base_ptr const&
+            ) -> class_symbol_environment_ptr
+        { assert( false ); return nullptr; }
+
+
+        //
+        // incomplete_construct
+        //
+        typedef std::function<function_symbol_environment_ptr (function_symbol_environment_ptr const&)> function_env_generator_scope_type;
+        virtual auto construct(
+            kind::function_tag,
+            ast::intrinsic::single_identifier_value_base_ptr const&,
+            ast::statement_ptr const&,
+            function_env_generator_scope_type const&,
+            class_symbol_environment_ptr const&,
+            attribute::type_attributes const& = attribute::make_default_type_attributes()
+            ) -> function_symbol_environment_ptr { assert( false ); return nullptr; }
+
+        virtual auto construct(
+            kind::variable_tag,
+            ast::intrinsic::single_identifier_value_base_ptr const&,
+            const_class_symbol_environment_ptr const&,
+            attribute::type_attributes const& = attribute::make_default_type_attributes()
+            ) -> variable_symbol_environment_ptr { assert( false ); return nullptr; }
+
+        virtual auto construct(
+            kind::class_tag,
+            ast::intrinsic::single_identifier_value_base_ptr const&,
+            ast::statement_ptr const&
+            ) -> class_symbol_environment_ptr { assert( false ); return nullptr; }
 
 
 
 
+        //
+        //
         //
         template<typename AstPtr>
         auto connect_from_ast( AstPtr const& ast )
@@ -390,14 +459,6 @@ namespace rill
             root_shared_resource_->ast_to_env_id_map.add( ast, get_id() );
         }
 
-#if 0
-        auto get_related_env_and_asts() const
-            -> boost::iterator_range<shared_resource_type::env_to_asts_mapper_type::const_iterator_type>
-        {
-            auto const& p = root_shared_resource_->env_to_asts_map.get( get_id() );
-            return boost::make_iterator_range( p.first, p.second );
-        }
-#endif
         auto get_related_ast()
             -> shared_resource_type::env_id_to_ast_mapper_type::value_type
         {
@@ -428,6 +489,8 @@ namespace rill
             return ( id != environment_id_undefined ) ? get_env_at( id ).lock() : const_env_base_pointer();
         }
 
+
+
         ///
         virtual auto mangled_name() const -> ast::native_string_t { return ""; }
 
@@ -441,32 +504,18 @@ namespace rill
 
         //
         //
-        template<typename ClassEnvPtr>
+        //
+        template<typename Env>
         auto make_type_id(
-            ClassEnvPtr const& class_env,
+            Env const& e,
             attribute::type_attributes const& type_attr
             )
             -> shared_resource_type::type_registry_type::type_id_type
         {
             // TODO: DUPLICATE CHECK!!!
-            return root_shared_resource_->types_container.add( class_env, type_attr );
+            return root_shared_resource_->types_container.add( e, type_attr );
         }
 
-
-        //
-        //
-        auto make_type_id(
-            environment_id_t const& class_env_id,
-            attribute::type_attributes const& type_attr
-            )
-            -> shared_resource_type::type_registry_type::type_id_type
-        {
-            // TODO: DUPLICATE CHECK!!!
-            return root_shared_resource_->types_container.add( class_env_id, type_attr );
-        }
-
-        //
-        //
         auto get_type_at(
             shared_resource_type::type_registry_type::type_id_type const& type_id
             ) const

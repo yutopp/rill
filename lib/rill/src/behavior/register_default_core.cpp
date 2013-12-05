@@ -62,24 +62,24 @@ namespace rill
         {
             auto const int_type
                 = rill::ast::intrinsic::make_single_identifier( "int" );
-            root_env->pre_construct( rill::kind::class_k, int_type );
-            auto const int_class_env_pointer = root_env->construct( rill::kind::class_k, int_type );
+            auto const int_class = std::make_shared<rill::ast::class_definition_statement>( int_type );
+            auto const int_class_env_pointer = root_env->construct( rill::kind::k_class, int_type, int_class );
 
             auto const string_type
                 = rill::ast::intrinsic::make_single_identifier( "string" );
-            root_env->pre_construct( rill::kind::class_k, string_type );
-            auto const string_class_env_pointer = root_env->construct( rill::kind::class_k, string_type );
+            auto const string_class = std::make_shared<rill::ast::class_definition_statement>( string_type );
+            auto const string_class_env_pointer = root_env->construct( rill::kind::k_class, string_type, string_class );
 
 
             auto const void_type
                 = rill::ast::intrinsic::make_single_identifier( "void" );
-            root_env->pre_construct( rill::kind::class_k, void_type );
-            auto const void_class_env_pointer = root_env->construct( rill::kind::class_k, void_type );
+            auto const void_class = std::make_shared<rill::ast::class_definition_statement>( void_type );
+            auto const void_class_env_pointer = root_env->construct( rill::kind::k_class, void_type, void_class );
 
             auto const bool_type
                 = rill::ast::intrinsic::make_single_identifier( "bool" );
-            root_env->pre_construct( rill::kind::class_k, bool_type );
-            auto const bool_class_env_pointer = root_env->construct( rill::kind::class_k, bool_type );
+            auto const bool_class = std::make_shared<rill::ast::class_definition_statement>( bool_type );
+            auto const bool_class_env_pointer = root_env->construct( rill::kind::k_class, bool_type, bool_class );
 
 
             {
@@ -435,9 +435,7 @@ namespace rill
                                 context->env_conversion_table.ref_value( argument_var_env_ids[0] )
                                 );
 
-                            return context->ir_builder.CreateRet(
-                                context->env_conversion_table.ref_value( argument_var_env_ids[0] )
-                                );
+                            return context->env_conversion_table.ref_value( argument_var_env_ids[0] );
                         }
                 };
 
@@ -508,10 +506,10 @@ namespace rill
                             //
                             llvm::Constant* const puts_func
                                 = context->llvm_module.getOrInsertFunction( "put_string", func_type );
-                            context->ir_builder.CreateCall( puts_func, context->env_conversion_table.ref_value( argument_var_env_ids[0] ) );
-                            return context->ir_builder.CreateRetVoid();
 
-                            // return builder->CreateCall( puts_func, llvm_table->ref_value( parameter_variable_decl_env_ids[0] ) );
+                            context->ir_builder.CreateCall( puts_func, context->env_conversion_table.ref_value( argument_var_env_ids[0] ) );
+
+                            return 0;  // IRBuilder will recoginize 0 as Void...
                         }
                 };
 

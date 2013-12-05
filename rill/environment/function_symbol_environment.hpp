@@ -37,7 +37,7 @@ namespace rill
         : public single_identifier_environment_base
     {
     public:
-        static kind::type_value const KindValue = kind::type_value::function_e;
+        static kind::type_value const KindValue = kind::type_value::e_function;
 
         enum attr : int {
             e_normal = 0,
@@ -57,6 +57,7 @@ namespace rill
         function_symbol_environment( environment_id_t const& id, weak_env_base_pointer const& parent, environment_id_t const& parameter_wrapper_env_id )
             : single_identifier_environment_base( id, parent )
             , parameter_wrapper_env_id_( parameter_wrapper_env_id )
+            , parent_class_env_id_( environment_id_undefined )
             , return_type_id_( type_id_undefined )
             , attributes_( e_normal )
             , progress_( constructed )
@@ -124,28 +125,22 @@ namespace rill
             progress_ = progress::completed;
         }
 
-/*
-        auto get_return_type_environment()
-            -> class_symbol_environment_ptr
+        auto add_return_type_candidate( type_id_t const& type_id )
+            -> void
         {
-            auto const& p = get_env_at( return_type_env_id_ );
-
-            return std::dynamic_pointer_cast<class_symbol_environment>( p.lock() );
+            return_type_candidates_.push_back( type_id );
         }
-
-        auto get_return_type_environment() const
-            -> const_class_symbol_environment_ptr
-        {
-            auto const& p = get_env_at( return_type_env_id_ );
-
-            return std::dynamic_pointer_cast<class_symbol_environment const>( p.lock() );
-        }
-*/
 
         auto get_return_type_id() const
             -> type_id_t
         {
             return return_type_id_;
+        }
+
+        auto get_return_type_candidates() const
+            -> type_id_list_t const&
+        {
+            return return_type_candidates_;
         }
 
         auto dump( std::ostream& os, std::string const& indent ) const
@@ -174,10 +169,19 @@ namespace rill
             return ( attributes_ & attribute  ) != 0;
         }
 
+        void set_parent_class_env_id( environment_id_t const& parent_class_env_id )
+        {
+            parent_class_env_id_ = parent_class_env_id;
+        }
 
+        bool is_in_class() const
+        {
+            return parent_class_env_id_ == environment_id_undefined;
+        }
 
     private:
         environment_id_t parameter_wrapper_env_id_;
+        environment_id_t parent_class_env_id_;
 
         // parameter variable environments
         environment_id_list_t parameter_decl_ids_;
@@ -185,6 +189,8 @@ namespace rill
         // types
         type_id_list_t parameter_type_ids_;
         type_id_t return_type_id_;
+
+        type_id_list_t return_type_candidates_;
 
         native_string_type name_;
         attributes_t attributes_;

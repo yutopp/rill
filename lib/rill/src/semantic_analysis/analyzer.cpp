@@ -19,7 +19,6 @@ namespace rill
 {
     namespace semantic_analysis
     {
-
         static inline auto determine_type_attributes(
             attribute::type_attributes_optional const& attr = attribute::type_attributes_optional()
             )
@@ -294,18 +293,20 @@ namespace rill
 
         RILL_TV_OP( analyzer, ast::expression_statement, s, parent_env )
         {
-            // // DO NOT EVALUATE THIS PATH.
             dispatch( s->expression_, parent_env );
         }
 
-
-
+        //
         RILL_TV_OP( analyzer, ast::return_statement, s, parent_env )
         {
-            auto const r = dispatch( s->expression_, parent_env );
+            // Return Statement is valid only in Function Envirionment...
+            auto const& a_env = parent_env->lookup_layer( kind::type_value::e_function );
+            assert( a_env != nullptr ); // TODO: change to error_handler
 
-            std::cout << "!!!!!!!" << r << std::endl;
-            //context_->current_scope()->set_return_value( s.expression_->dispatch( *this, env ) );
+            auto const type_id = dispatch( s->expression_, parent_env );
+
+            auto const& f_env = std::static_pointer_cast<function_symbol_environment>( a_env );
+            f_env->add_return_type_candidate( type_id );
         }
 
 
@@ -316,11 +317,11 @@ namespace rill
         RILL_TV_OP( analyzer, ast::variable_declaration_statement, s, parent_env )
         {
             //
-            bool const is_backward_reference
-                = parent_env->get_symbol_kind() == kind::type_value::function_e;
+//            bool const is_backward_reference
+//                = parent_env->get_symbol_kind() == kind::type_value::e_function;
 
             auto const related_env = parent_env->get_related_env_by_ast_ptr( s );
-            if ( is_backward_reference ) {
+//            if ( is_backward_reference ) {
                 //
                 if ( related_env == nullptr ) {
 //                    assert( false );
@@ -348,7 +349,7 @@ namespace rill
 
                         if ( auto const class_env = lookup_with_instanciation( parent_env, type_value.identifier ) ) {
                             assert( class_env != nullptr );
-                            assert( class_env->get_symbol_kind() == kind::type_value::class_e );
+                            assert( class_env->get_symbol_kind() == kind::type_value::e_class );
 
                             auto attr = determine_type_attributes( type_value.attributes );
                             attr <<= val_decl.quality;
@@ -384,15 +385,15 @@ namespace rill
                     assert( false );
                 }
 
-
+/*
             } else {
                 // TODO: implement
                 assert( false );
             }
-
+*/
 
 //            assert( related_env != nullptr );
-//            assert( related_env->get_symbol_kind() == kind::type_value::function_e );
+//            assert( related_env->get_symbol_kind() == kind::type_value::e_function );
 
 
 /*
@@ -419,7 +420,7 @@ namespace rill
 
             auto const related_env = parent_env->get_related_env_by_ast_ptr( s );
             assert( related_env != nullptr );
-            assert( related_env->get_symbol_kind() == kind::type_value::function_e );
+            assert( related_env->get_symbol_kind() == kind::type_value::e_function );
 
             auto const& f_env = std::static_pointer_cast<function_symbol_environment>( related_env );
             assert( f_env != nullptr );
@@ -430,6 +431,14 @@ namespace rill
             f_env->check();
 
             // construct function environment in progress phase
+
+
+            if ( parent_env->get_symbol_kind() == kind::type_value::e_class ) {
+                // this is method function!!
+                f_env->set_parent_class_env_id( parent_env->get_id() );
+            }
+
+
 
             // make function parameter variable decl
             for( auto const& e : s->get_parameter_list() ) {
@@ -445,7 +454,7 @@ namespace rill
 
                     if ( auto const class_env = lookup_with_instanciation( f_env, type_value.identifier ) ) {
                         assert( class_env != nullptr );
-                        assert( class_env->get_symbol_kind() == kind::type_value::class_e );
+                        assert( class_env->get_symbol_kind() == kind::type_value::e_class );
 
                         auto attr = determine_type_attributes( type_value.attributes );
                         attr <<= e.quality;
@@ -483,7 +492,10 @@ namespace rill
 
                 if ( auto const return_class_env = lookup_with_instanciation( f_env, type_value.identifier ) ) {
                     assert( return_class_env != nullptr );
-                    assert( return_class_env->get_symbol_kind() == kind::type_value::class_e );
+                    assert( return_class_env->get_symbol_kind() == kind::type_value::e_class );
+
+                    // TODO: check return statement types...
+                    // f_env->get_return_type_candidates()
 
                     //
                     auto const& return_type_id = f_env->make_type_id(
@@ -499,13 +511,25 @@ namespace rill
 
             } else {
                 // TODO: implement return type inference
-                assert( false );
+                assert( false && "function return type inference was not supported yet" );
             }
 
             //
             f_env->get_parameter_wrapper_env()->add_overload( f_env );
 
             std::cout << (environment_base_ptr const)f_env << std::endl;
+        }
+
+
+
+
+        RILL_TV_OP( analyzer, ast::class_definition_statement, s, parent_env )
+        {
+            // TODO: dup check...
+
+
+            for( auto const& node : s->statements_ )
+                dispatch( node, parent_env );      
         }
 
 
@@ -535,7 +559,7 @@ namespace rill
             // enverinment is already pre constructed by identifier_collector
             auto const related_env = parent_env->get_related_env_by_ast_ptr( s );
             assert( related_env != nullptr );
-            assert( related_env->get_symbol_kind() == kind::type_value::function_e );
+            assert( related_env->get_symbol_kind() == kind::type_value::e_function );
 
             auto const& f_env = std::static_pointer_cast<function_symbol_environment>( related_env );
             assert( f_env != nullptr );
@@ -557,7 +581,7 @@ namespace rill
 
                     if ( auto const type_env = lookup_with_instanciation( f_env, type.identifier ) ) {
                         assert( type_env != nullptr );
-                        assert( type_env->get_symbol_kind() == kind::type_value::class_e );
+                        assert( type_env->get_symbol_kind() == kind::type_value::e_class );
 
                         // declare
                         f_env->parameter_variable_construct(
@@ -588,7 +612,7 @@ namespace rill
 
                 if ( auto const return_class_env = lookup_with_instanciation( f_env, type_value.identifier ) ) {
                     assert( return_class_env != nullptr );
-                    assert( return_class_env->get_symbol_kind() == kind::type_value::class_e );
+                    assert( return_class_env->get_symbol_kind() == kind::type_value::e_class );
 
                     //
                     auto const& return_type_id = f_env->make_type_id(
@@ -613,11 +637,6 @@ namespace rill
             std::cout << (environment_base_ptr const)f_env << std::endl;
         }
 
-
-
-        RILL_TV_OP( analyzer, ast::class_definition_statement, s, env )
-        {
-        }
 
 
 
@@ -655,13 +674,13 @@ namespace rill
                     // symbol not found;
                     assert( false && "symbol not found" );
                 }
-                if ( target_env->get_symbol_kind() != kind::type_value::parameter_wrapper_e ) {
+                if ( target_env->get_symbol_kind() != kind::type_value::e_parameter_wrapper ) {
                     // symbol type was not matched
                     assert( false && "[ice]");
                 }
 
                 auto has_parameter_env = std::dynamic_pointer_cast<has_parameter_environment_base>( target_env );
-                if ( has_parameter_env->get_inner_symbol_kind() != kind::type_value::function_e ) {
+                if ( has_parameter_env->get_inner_symbol_kind() != kind::type_value::e_function ) {
                     // symbol type was not matched
                     assert( false && "[ice]" );
                 }
@@ -723,13 +742,13 @@ namespace rill
                     // ?: look up 1 rank top environment or other namespace groups
                     assert( false );
                 }
-                if ( target_env->get_symbol_kind() != kind::type_value::parameter_wrapper_e ) {
+                if ( target_env->get_symbol_kind() != kind::type_value::e_parameter_wrapper ) {
                     // symbol type was not matched
                     assert( false );
                 }
 
                 auto const has_parameter_env = std::static_pointer_cast<has_parameter_environment_base>( target_env );
-                if ( has_parameter_env->get_inner_symbol_kind() != kind::type_value::function_e ) {
+                if ( has_parameter_env->get_inner_symbol_kind() != kind::type_value::e_function ) {
                     // symbol type was not matched
                     assert( false );
                 }
@@ -820,7 +839,7 @@ namespace rill
                 assert( false );
             }
 
-            if ( target_env->get_symbol_kind() != kind::type_value::variable_e ) {
+            if ( target_env->get_symbol_kind() != kind::type_value::e_variable ) {
                 // symbol type was not matched
                 assert( false );
             }

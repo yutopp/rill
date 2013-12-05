@@ -61,14 +61,6 @@ namespace rill
 
 
 
-    // parameter_environment has list of class(type)_environments
-    // it makes be able to overload
-    // picked the type matched environments when look up
-
-    // TODO: change to -> typedef std::vector<const_class_symbol_environment_ptr> type_environment_list;
-    typedef std::vector<const_environment_base_ptr> type_environment_list;
-
-
     template<typename InlineEnvironment>
     class has_parameter_environment RILL_CXX11_FINAL
         : public has_parameter_environment_base
@@ -85,7 +77,7 @@ namespace rill
         auto get_symbol_kind() const
             -> kind::type_value RILL_CXX11_OVERRIDE
         {
-            return kind::type_value::parameter_wrapper_e;
+            return kind::type_value::e_parameter_wrapper;
         }
 
         auto get_inner_symbol_kind() const

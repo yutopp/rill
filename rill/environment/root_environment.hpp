@@ -28,7 +28,7 @@ namespace rill
         auto get_symbol_kind() const
             -> kind::type_value RILL_CXX11_OVERRIDE
         {
-            return kind::type_value::none_e;
+            return kind::type_value::e_none;
         }
 
         bool is_root() const RILL_CXX11_OVERRIDE

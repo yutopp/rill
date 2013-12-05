@@ -118,34 +118,6 @@ namespace rill
             }
 
 
-
-
-
-
-
-
-
-
-            struct single_identifier_value_base
-                : public value_base
-            {
-            public:
-                virtual ~single_identifier_value_base() {}
-
-            public:
-                virtual bool is_template() const =0;
-
-                virtual auto get_inner_symbol() const
-                    -> symbol_value_ptr =0;
-
-                virtual auto template_argument() const
-                    -> template_argument_list_ptr =0;
-
-                virtual auto get_native_typename_string() const -> native_string_t =0;
-            };
-
-
-
             // 
             struct identifier_value RILL_CXX11_FINAL
                 : public value_base
@@ -198,6 +170,26 @@ namespace rill
                 std::vector<single_identifier_value_base_ptr> const l( 1, p );
                 return std::make_shared<identifier_value>( l );
             }
+
+
+
+            struct single_identifier_value_base
+                : public value_base
+            {
+            public:
+                virtual ~single_identifier_value_base() {}
+
+            public:
+                virtual bool is_template() const =0;
+
+                virtual auto get_inner_symbol() const
+                    -> symbol_value_ptr =0;
+
+                virtual auto template_argument() const
+                    -> template_argument_list_ptr =0;
+
+                virtual auto get_native_typename_string() const -> native_string_t =0;
+            };
 
 
 

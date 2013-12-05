@@ -152,6 +152,8 @@ namespace rill
                 context_->env_conversion_table.bind_value( var->get_id(), ait );
             }
 
+//            func->setGC( "shadow-stack" );
+
             //
             context_->env_conversion_table.bind_function_type( f_env->get_id(), func_type );
 
@@ -163,15 +165,38 @@ namespace rill
             for( auto const& node : s->statements_ )
                 dispatch( node, root_env_->get_related_env_by_ast_ptr( node ) );
 
-            // FIXME: all functons don't needed to insert RETURN VOID
-            if ( basic_brock->getTerminator() == nullptr ) {
-                std::cout << "AAA: " << s->statements_.size() << std::endl;
+            // Only the function that returns void is allowed to has no return statement
+            if ( f_env->get_return_type_candidates().size() == 0 )
                 context_->ir_builder.CreateRetVoid();
-            }
 
             //
             llvm::verifyFunction( *func, llvm::PrintMessageAction );
         }
+
+
+
+
+        RILL_TV_OP_CONST( llvm_ir_generator, ast::class_definition_statement, s, self_env )
+        {
+            //
+            auto const& c_env = std::static_pointer_cast<class_symbol_environment const>( ( self_env != nullptr ) ? self_env : root_env_->get_related_env_by_ast_ptr( s ) );
+
+            //llvm::StructType::create (ArrayRef< Type * > Elements, StringRef Name, bool isPacked=false)
+            // generate statements
+            for( auto const& node : s->statements_ )
+                dispatch( node, root_env_->get_related_env_by_ast_ptr( node ) );
+        }
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -229,7 +254,24 @@ namespace rill
                 parmeter_types.push_back( llvm_type );
             }
             auto const& v = f_env->get_type_at( f_env->get_return_type_id() );
-            auto const& return_type = context_->env_conversion_table.ref_type( v.class_env_id );
+            auto const& return_type = [&]() -> llvm::Type* {
+                //
+                switch( v.attributes.quality )
+                {
+                case attribute::quality_kind::k_val:
+                    // TODO: implement
+                    return context_->env_conversion_table.ref_type( v.class_env_id );
+
+                    case attribute::quality_kind::k_ref:
+                        // TODO: implement
+                        return context_->env_conversion_table.ref_type( v.class_env_id )->getPointerTo();
+
+                    default:
+                        assert( false && "[ice]" );
+                        break;
+                    }
+                }();
+            //context_->env_conversion_table.ref_type( v.class_env_id );
 
             // get function type
             llvm::FunctionType* const func_type = llvm::FunctionType::get( return_type, parmeter_types, false/*is not variadic*/ );
@@ -245,6 +287,7 @@ namespace rill
 
                 context_->env_conversion_table.bind_value( var->get_id(), ait );
             }
+            func->addFnAttr( llvm::Attribute::AlwaysInline );
 
             // set initial insert point to entry
             llvm::BasicBlock* const function_entry_block = llvm::BasicBlock::Create( llvm::getGlobalContext(), "entry", func );
@@ -253,9 +296,6 @@ namespace rill
             // build inner statements(that contain intrinsic_function_call)
             for( auto const& node : s->statements_ )
                 dispatch( node, root_env_->get_related_env_by_ast_ptr( node ) );
-
-            // TODO: fix
-            context_->ir_builder.CreateRetVoid();
 
             //
             llvm::verifyFunction( *func, llvm::PrintMessageAction );
@@ -598,7 +638,7 @@ namespace rill
                 f_env,
                 f_env->get_parameter_decl_ids()
                 );
-            assert( value != nullptr );
+            //assert( value != nullptr );
 
             return value;
         }
@@ -633,5 +673,6 @@ namespace rill
 
             return context_->env_conversion_table.ref_value( v_env->get_id() );
         }
+
     } // namespace code_generator
 } // namespace rill

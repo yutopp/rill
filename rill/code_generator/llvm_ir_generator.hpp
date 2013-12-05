@@ -146,10 +146,6 @@ namespace rill
             : public ast::detail::tree_visitor_base<llvm::Value*>
         {
         public:
-
-
-
-        public:
             llvm_ir_generator(
                 const_environment_base_ptr const&,
                 intrinsic_function_action_holder_ptr const&,
@@ -166,13 +162,14 @@ namespace rill
             RILL_TV_OP_DECL_CONST( ast::expression_statement )
             RILL_TV_OP_DECL_CONST( ast::return_statement )
             RILL_TV_OP_DECL_CONST( ast::function_definition_statement )
+            RILL_TV_OP_DECL_CONST( ast::class_definition_statement )
             RILL_TV_OP_DECL_CONST( ast::variable_declaration_statement )
             RILL_TV_OP_DECL_CONST( ast::intrinsic_function_definition_statement )
             RILL_TV_OP_DECL_CONST( ast::extern_function_declaration_statement )
 
             RILL_TV_OP_DECL_CONST( ast::test_while_statement )
 
-            //RILL_TV_OP_DECL( ast::class_definition_statement )
+           
 
             // expression
             RILL_TV_OP_DECL_CONST( ast::binary_operator_expression )

@@ -341,6 +341,13 @@ namespace rill
             {}
 
         public:
+            auto get_identifier() const
+                -> intrinsic::single_identifier_value_base_ptr
+            {
+                return declaration_.decl_unit.name;
+            }
+
+        public:
             variable_declaration const declaration_;
         };
 

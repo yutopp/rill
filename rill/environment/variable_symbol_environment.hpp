@@ -36,11 +36,12 @@ namespace rill
         : public single_identifier_environment_base
     {
     public:
-        static kind::type_value const KindValue = kind::type_value::variable_e;
+        static kind::type_value const KindValue = kind::type_value::e_variable;
 
     public:
         variable_symbol_environment( environment_id_t const& id, weak_env_base_pointer const& parent )
-            : single_identifier_environment_base( id, parent )
+            : parent_class_env_id_( environment_id_undefined )
+            , single_identifier_environment_base( id, parent )
             , value_type_id_( type_id_undefined )
         {}
 
@@ -123,7 +124,19 @@ namespace rill
             return name_;
         }
 
+        void set_parent_class_env_id( environment_id_t const& parent_class_env_id )
+        {
+            parent_class_env_id_ = parent_class_env_id;
+        }
+
+        bool is_in_class() const
+        {
+            return parent_class_env_id_ == environment_id_undefined;
+        }
+
     private:
+        environment_id_t parent_class_env_id_;
+
         type_id_t value_type_id_;
 
         native_string_type name_;

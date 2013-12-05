@@ -192,6 +192,9 @@ namespace rill
                     %= qi::lit( "{" ) >> class_body_statements_ >> qi::lit( "}" )
                     ;
 
+
+
+
                 class_definition_statement_.name( "class_definition_statement" );
                 class_definition_statement_
                     = ( qi::lit( "class" )
@@ -393,8 +396,9 @@ namespace rill
                 {
                     auto const priority = 1u;
                     expression_priority_[priority]
-                        = /*call_expression_[qi::_val = qi::_1]
-                            | */expression_priority_[priority-1][qi::_val = qi::_1]
+                        = expression_priority_[priority-1][qi::_val = qi::_1]
+                        >> *( ( qi::lit( "*" ) >> expression_priority_[priority-1] )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, "*", qi::_1 )]
+                            )
                         ;
                 }
 
@@ -403,6 +407,7 @@ namespace rill
                     auto const priority = 0u;
                     expression_priority_[priority]
                         = call_expression_[qi::_val = qi::_1]
+//                        | element_selector_[qi::_val = qi::_1]
                         | term_expression_[qi::_val = qi::_1]
                         | ( ( qi::lit( '(' ) >> expression_ >> qi::lit( ')' ) ) )[qi::_val = qi::_1]
                         ;
@@ -417,6 +422,13 @@ namespace rill
                           qi::_val = helper::make_node_ptr<ast::call_expression>( qi::_1, qi::_2 )
                       ]
                     ;
+/*
+                //
+                element_selector_
+                    = ( expression_
+                        >> ( qi::lit( "." )
+                        )
+*/
 
                 // termination
                 term_expression_
@@ -425,6 +437,7 @@ namespace rill
                       | boolean_literal_
                       | string_literal_
                       | variable_value_
+                        
                       ][ qi::_val = helper::make_node_ptr<ast::term_expression>( qi::_1 ) ]
                     ;
 

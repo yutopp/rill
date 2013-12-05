@@ -45,6 +45,7 @@
     typedef boost::mpl::pair<BOOST_PP_TUPLE_ELEM(2, 0, elem), BOOST_PP_TUPLE_ELEM(2, 1, elem)> BOOST_PP_CAT( RILL_DETAIL_PP_MPL_PAIR_NAME_A_B, i ); \
     typedef boost::mpl::pair<BOOST_PP_TUPLE_ELEM(2, 1, elem), BOOST_PP_TUPLE_ELEM(2, 0, elem)> BOOST_PP_CAT( RILL_DETAIL_PP_MPL_PAIR_NAME_B_A, i );
 
+
 namespace rill
 {
     namespace ast

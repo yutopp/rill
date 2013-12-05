@@ -36,7 +36,7 @@ namespace rill
         : public single_identifier_environment_base
     {
     public:
-        static kind::type_value const KindValue = kind::type_value::class_e;
+        static kind::type_value const KindValue = kind::type_value::e_class;
 
     public:
         class_symbol_environment( environment_id_t const& id, weak_env_base_pointer const& parent )

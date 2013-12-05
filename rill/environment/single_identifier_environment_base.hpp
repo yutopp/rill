@@ -89,50 +89,60 @@ namespace rill
 
         }*/
 
-        // function
-        auto incomplete_construct(
+        //
+        // incomplete_construct
+        //
+        virtual auto incomplete_construct(
             kind::function_tag,
-            ast::intrinsic::single_identifier_value_base_ptr const& name
+            ast::intrinsic::single_identifier_value_base_ptr const&
             ) -> std::pair<
-                    std::shared_ptr<has_parameter_environment<function_symbol_environment>>,
-                    function_symbol_environment_ptr
-                 > RILL_CXX11_OVERRIDE;
+                     std::shared_ptr<has_parameter_environment<function_symbol_environment>>,
+                     function_symbol_environment_ptr
+                 >;
 
-        auto construct(
+        virtual auto incomplete_construct(
+            kind::variable_tag,
+            ast::intrinsic::single_identifier_value_base_ptr const&
+            ) -> variable_symbol_environment_ptr;
+
+
+        virtual auto incomplete_construct(
+            kind::class_tag,
+            ast::intrinsic::single_identifier_value_base_ptr const&
+            ) -> class_symbol_environment_ptr;
+
+
+
+        //
+        // construct
+        //
+        typedef std::function<function_symbol_environment_ptr (function_symbol_environment_ptr const&)> function_env_generator_scope_type;
+        virtual auto construct(
             kind::function_tag,
-            ast::intrinsic::single_identifier_value_base_ptr const& function_name,
-            ast::statement_ptr const& ast,
-            function_env_generator_scope_type const& parameter_decl_initializer,
-            class_symbol_environment_ptr const& return_class_env,
-            attribute::type_attributes const& return_type_attr = attribute::make_default_type_attributes()
-            ) -> function_symbol_environment_ptr RILL_CXX11_OVERRIDE;
+            ast::intrinsic::single_identifier_value_base_ptr const&,
+            ast::statement_ptr const&,
+            function_env_generator_scope_type const&,
+            class_symbol_environment_ptr const&,
+            attribute::type_attributes const& = attribute::make_default_type_attributes()
+            ) -> function_symbol_environment_ptr;
 
 
-        // variable(decl)
-        // default( auto suggest, immutable )
-        auto construct(
+        virtual auto construct(
             kind::variable_tag,
             ast::intrinsic::single_identifier_value_base_ptr const&,
             const_class_symbol_environment_ptr const&,
             attribute::type_attributes const& = attribute::make_default_type_attributes()
-            ) -> variable_symbol_environment_ptr RILL_CXX11_OVERRIDE;
+            ) -> variable_symbol_environment_ptr;
 
 
-        // class(type)
-        auto pre_construct(
+        virtual auto construct(
             kind::class_tag,
-            ast::intrinsic::single_identifier_value_ptr const& name
-            ) -> env_base_pointer RILL_CXX11_OVERRIDE;
+            ast::intrinsic::single_identifier_value_base_ptr const&,
+            ast::statement_ptr const&
+            ) -> class_symbol_environment_ptr;
 
-        auto construct(
-            kind::class_tag,
-            ast::intrinsic::single_identifier_value_base_ptr const& name
-            ) -> class_symbol_environment_ptr RILL_CXX11_OVERRIDE;
-        /*
-        auto pre_construct( kind::class_tag, intrinsic::identifier_value_ptr const& name ) RILL_CXX11_OVERRIDE
-            -> env_base_pointer;
-        {
-        }*/
+
+
 
         auto dump( std::ostream& os, std::string const& indent ) const
             -> std::ostream& RILL_CXX11_OVERRIDE

@@ -114,41 +114,6 @@ namespace rill
 
             public:
                 //
-                template<typename Node, typename Enveronment>
-                auto dispatch( std::shared_ptr<Node> const& node, std::shared_ptr<Enveronment> const& env )
-                    -> decltype( dispatch_as<ReturnT>( node, *reinterpret_cast<self_type*>(0), env ) )
-                {
-                    return dispatch_as<ReturnT>( node, *this, env );
-                }
-
-                template<typename Node>
-                auto dispatch( std::shared_ptr<Node> const& node )
-                    -> decltype( std::declval<self_type>().dispatch( node, environment_base_ptr() ) )
-                {
-                    return dispatch( node, environment_base_ptr() );
-                }
-
-
-                //
-                template<typename Node, typename Enveronment>
-                auto dispatch( std::shared_ptr<Node> const& node, std::shared_ptr<Enveronment> const& env ) const
-                    -> decltype( dispatch_as<ReturnT>( std::const_pointer_cast<Node const>( node ), *reinterpret_cast<const_self_type*>(0), std::static_pointer_cast<environment_base const>( env ) ) )
-                {
-                    auto const& p = std::const_pointer_cast<Node const>( node );
-                    assert( p != nullptr );
-
-                    return dispatch_as<ReturnT>( std::const_pointer_cast<Node const>( node ), *this, std::static_pointer_cast<environment_base const>( env ) );
-                }
-
-                template<typename Node>
-                auto dispatch( std::shared_ptr<Node> const& node ) const
-                    -> decltype( std::declval<const_self_type>().dispatch( node, const_environment_base_ptr() ) )
-                {
-                    return dispatch( node, const_environment_base_ptr() );
-                }
-
-            public:
-                //
                 RILL_TV_BASE_VOID_OP( ast::root )
 
                 // statement
@@ -175,6 +140,51 @@ namespace rill
                 // value
                 RILL_TV_BASE_RETURN_OP( ast::intrinsic_value )
                 RILL_TV_BASE_RETURN_OP( ast::variable_value )
+
+            public:
+                //
+                template<typename Node, typename Enveronment = environment_base>
+                auto dispatch( std::shared_ptr<Node> const& node, std::shared_ptr<Enveronment> const& env = nullptr )
+                    -> decltype( dispatch_as<ReturnT>( node, *reinterpret_cast<self_type*>(0), env ) )
+                {
+                    return dispatch_as<ReturnT>( node, *this, env );
+                }
+
+                //
+                template<typename Node, typename Enveronment = environment_base>
+                auto dispatch( std::shared_ptr<Node> const& node, std::shared_ptr<Enveronment> const& env = nullptr ) const
+                    -> decltype( dispatch_as<ReturnT>( std::const_pointer_cast<Node const>( node ), *reinterpret_cast<const_self_type*>(0), std::static_pointer_cast<environment_base const>( env ) ) )
+                {
+                    auto const& p = std::const_pointer_cast<Node const>( node );
+                    assert( p != nullptr );
+
+                    return dispatch_as<ReturnT>( std::const_pointer_cast<Node const>( node ), *this, std::static_pointer_cast<environment_base const>( env ) );
+                }
+
+            public:
+                //
+                template<typename Node, typename Enveronment = environment_base>
+                auto dispatch_as_terminal( std::shared_ptr<Node> const& node, std::shared_ptr<Enveronment> const& env = nullptr )
+                    -> bool
+                try {
+                    dispatch( node, env );
+                    return true;
+                }
+                catch(...) {
+                    return false;
+                }
+
+                //
+                template<typename Node, typename Enveronment = environment_base>
+                auto dispatch_as_terminal( std::shared_ptr<Node> const& node, std::shared_ptr<Enveronment> const& env = nullptr ) const
+                    -> bool
+                try {
+                    dispatch( node, env );
+                    return true;
+                }
+                catch(...) {
+                    return false;
+                }
 
             public:
                 // filter outbound object
