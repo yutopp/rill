@@ -25,22 +25,28 @@ namespace rill
     {
     public:
         typedef void const*                     key_type;
-        typedef environment_id_t                value_type;
+        //typedef environment_id_t                value_type;
+        typedef const_environment_base_ptr     value_type;
 
     public:
-        template<typename SmartPtr, typename Id>
-        auto add( SmartPtr const& ast_ptr, Id const& env_id )
+        template<typename SmartPtr>
+        auto add( SmartPtr const& ast_ptr, value_type const& env_ptr )
             -> void
         {
-            map_.emplace( ast_ptr.get(), env_id );
+            assert( ast_ptr != nullptr );
+            map_.emplace( ast_ptr.get(), env_ptr );
         }
 
         template<typename SmartPtr>
         auto get( SmartPtr const& ast_ptr ) const
-            -> value_type
+            -> environment_id_t
         {
-            std::cout << "ptr-> " << ast_ptr.get() << std::endl;
-            return ( map_.find( ast_ptr.get() ) != map_.cend() ) ? map_.at( ast_ptr.get() ) : environment_id_undefined;
+            assert( ast_ptr != nullptr );
+
+            std::cout << "ptr-> " << ast_ptr << std::endl;
+            return ( map_.find( ast_ptr.get() ) != map_.cend() )
+                ? ( map_.at( ast_ptr.get() )->get_id() )
+                : environment_id_undefined;
         }
 
     private:
@@ -63,6 +69,7 @@ namespace rill
             -> void
         {
             // TODO: add dup check
+            assert( ast_ptr != nullptr );
 
             map_.emplace( env_id, ast_ptr );
         }

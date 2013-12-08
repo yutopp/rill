@@ -25,6 +25,8 @@ namespace rill
         public:
             RILL_TV_OP_DECL( ast::root )
 
+            RILL_TV_OP_DECL( ast::block_statement )
+
             // statements
             RILL_TV_OP_DECL( ast::expression_statement )
             RILL_TV_OP_DECL( ast::function_definition_statement )

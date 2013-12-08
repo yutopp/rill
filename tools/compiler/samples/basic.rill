@@ -9,6 +9,8 @@ def main(): int
     return 0;
 }
 
+
+
 def test(): void
 {
     print_int( foo( ( 10*2 )*(1+2*2   ), 10 ) + 2 * 5 );
@@ -73,6 +75,8 @@ def loop_test(): int
     
     print_int( i );
 
+    val k = 42: int;
+
     val j = 0: int mutable;
     while( j < 10 ) {
         val k = 7: int mutable;
@@ -80,8 +84,10 @@ def loop_test(): int
         print_int( j );
         k = k + 1;
         j = j + 1;
-    }   
+    }
     
+    print_int( j );
+
     print_int( k );
 
     return 10;

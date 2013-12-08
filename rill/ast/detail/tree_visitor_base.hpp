@@ -118,6 +118,9 @@ namespace rill
 
                 // statement
                 // virtual void operator()( template_statement const& s, environment_base_ptr const& env ) const =0;
+
+                RILL_TV_BASE_VOID_OP( ast::block_statement )
+
                 RILL_TV_BASE_VOID_OP( ast::expression_statement )
                 RILL_TV_BASE_VOID_OP( ast::return_statement )
                 RILL_TV_BASE_VOID_OP( ast::function_definition_statement )

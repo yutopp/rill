@@ -70,7 +70,7 @@ namespace rill
         class error_handler_lazy
         {
         public:
-            typedef qi::error_handler_result    result_type;
+            typedef void    result_type;
 
         public:
             template<typename T>
@@ -80,7 +80,7 @@ namespace rill
                 It const& where,
                 T const& what
                 ) const
-                -> qi::error_handler_result
+                -> result_type
             {
                 std::cerr
                     << "Error: expecting "
@@ -96,8 +96,6 @@ namespace rill
                     << "^ here"
                     << std::endl
                     ;
-
-                return qi::accept;
             }
         };
 

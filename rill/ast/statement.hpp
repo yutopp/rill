@@ -62,17 +62,17 @@ namespace rill
             RILL_AST_ADAPT_VISITOR( block_statement )
             
         public:
-/*            
+/*            */
             block_statement( std::vector<statement_ptr> const& s )
+                : statements_( s )
+            {}
+/*/
+            block_statement( statement_list&& s )
                 : s_( s )
             {}
-*/
-            block_statement( std::vector<statement_ptr>&& s )
-                : s_( s )
-            {}
-
+/**/
         public:
-            std::vector<statement_ptr> s;
+            statement_list const statements_;
         };
 
 

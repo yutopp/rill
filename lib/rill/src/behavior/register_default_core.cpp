@@ -37,7 +37,9 @@ namespace rill
             // function body
             auto const& intrinsic_call_expr = std::make_shared<rill::ast::intrinsic_function_call_expression>( action_id );
             rill::ast::statement_list const sl = { std::make_shared<rill::ast::return_statement>( intrinsic_call_expr ) };
-            auto f_ast = std::make_shared<rill::ast::intrinsic_function_definition_statement>( sl );
+            auto f_ast = std::make_shared<rill::ast::intrinsic_function_definition_statement>(
+                std::make_shared<ast::block_statement>( sl )
+                );
 
             // function definition
             auto f = root_env->construct( rill::kind::k_function, function_name, f_ast, tpc_func, return_class_env, return_type_attr );

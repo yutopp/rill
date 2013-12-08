@@ -28,6 +28,14 @@ namespace rill
         }
 
 
+        RILL_TV_OP( identifier_collector, ast::block_statement, s, env )
+        {
+            // TODO: make environment...
+
+            for( auto const& node : s->statements_ )
+                dispatch( node, env );           
+        }
+
 
         //
         RILL_TV_OP( identifier_collector, ast::expression_statement, s, env )
@@ -123,8 +131,7 @@ namespace rill
             auto c_env = env->mark_as( kind::k_class, s->get_identifier(), s );
 
             // build environment
-            for( auto const& node : s->statements_ )
-                dispatch( node, c_env );
+            dispatch( s->block_, c_env );
         }
 
     } // namespace semantic_analysis

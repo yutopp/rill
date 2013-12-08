@@ -175,7 +175,7 @@ namespace rill
         {
             --root_shared_resource_->debug_allocate_counter_.value;
 
-            std::cout << "<< environment DEallocated: " << id_ << " ( "  << root_shared_resource_->debug_allocate_counter_.value <<" )"  << std::endl;
+            std::cout << "<< environment DEallocated: " << id_ << " ( "  << root_shared_resource_->debug_allocate_counter_.value <<" ) " << typeid( *this).name() << std::endl;
         }
 
     public:
@@ -457,7 +457,24 @@ namespace rill
         {
             std::cout << "connect_from " << ast.get() << " -> : env " << get_id() << std::endl;
             //
-            root_shared_resource_->ast_to_env_id_map.add( ast, get_id() );
+            root_shared_resource_->ast_to_env_id_map.add( ast, shared_from_this() );
+        }
+
+        template<typename AstPtr>
+        auto connect_to_ast( AstPtr const& ast )
+            -> void
+        {
+            std::cout << "connect_to " << ast.get() << " -> : env " << get_id() << std::endl;
+            //
+            root_shared_resource_->env_id_to_ast_map.add( get_id(), ast );
+        }
+
+        template<typename AstPtr>
+        auto link_with_ast( AstPtr const& ast )
+            -> void
+        {
+            connect_from_ast( ast );
+            connect_to_ast( ast );
         }
 
         auto get_related_ast()
@@ -485,6 +502,7 @@ namespace rill
         auto get_related_env_by_ast_ptr( AstPtr const& ast_ptr ) const
             -> const_env_base_pointer
         {
+            
             auto const id = root_shared_resource_->ast_to_env_id_map.get( ast_ptr );
             std::cout << "id: " << id << std::endl;
             return ( id != environment_id_undefined ) ? get_env_at( id ).lock() : const_env_base_pointer();

@@ -65,23 +65,52 @@ namespace rill
             template<typename T> using rule_no_skip = qi::rule<Iterator, T>;
             template<typename T> using rule = qi::rule<Iterator, T, skip_grammer_type>;
 
+            struct t
+            {
+                t( Iterator const& head )
+                    : position_annotator_( head )
+                {}
+
+            public:
+                template<qi::error_handler_result E, typename Rule, typename T>
+                auto operator()( Rule& rule, T const& n ) const
+                    -> void
+                {
+                    rule.name( n );
+                 
+                    auto const err_handler   = error_handler_( qi::_1, qi::_2, qi::_3, qi::_4 );
+                    auto const pos_annotator = position_annotator_( qi::_val, qi::_1, qi::_3 );       
+                    qi::on_error<E>( rule, err_handler );
+                    qi::on_success( rule, pos_annotator );
+                }
+
+                template<typename Rule, typename T>
+                auto operator()( Rule& rule, T const& name ) const
+                    -> void
+                {
+                    this->operator()<qi::accept>( rule, name );
+                }
+
+            private:
+                phx::function<helper::make_position_annotator_lazy<Iterator>> position_annotator_;
+                phx::function<error_handler_lazy<Iterator>> error_handler_;
+            };
+
+            t attr;
+
         public:
             code_grammer( Iterator const& head )
                 : code_grammer::base_type( program_, "rill" )
-                , position_annotator_( head )
+                , attr( head )
             {
                 using ascii::char_;
                 using ascii::string;
                 using namespace qi::labels;
 
-                auto const err_handler   = error_handler_( _1, _2, _3, _4 );
-                auto const pos_annotator = position_annotator_( qi::_val, qi::_1, qi::_3 );
 
                 //
-                program_.name( "program" );
-                program_ = ( top_level_statements_ > ( qi::eol | qi::eoi ) );//[qi::_val = qi::_
-                
-                qi::on_error<qi::accept>( program_, err_handler );
+                program_ = ( top_level_statements_ > ( qi::eol | qi::eoi ) );
+                attr( program_, "program" );
 
                 //
                 top_level_statements_.name( "top_level_statements" );
@@ -121,7 +150,7 @@ namespace rill
                 empty_statement_
                     = statement_termination_[qi::_val = helper::make_node_ptr<ast::empty_statement>()]
                     ;
-                qi::on_success( empty_statement_, pos_annotator );
+                
 
                 return_statement_.name( "return_statement" );
                 return_statement_
@@ -165,9 +194,10 @@ namespace rill
 
                 //
                 function_body_block_
-                    %= qi::lit( "{" ) >> function_body_statements_ >> qi::lit( "}" )[
+                    = qi::as<ast::statement_list>()[ qi::lit( "{" ) >> function_body_statements_ >> qi::lit( "}" ) ][
                         qi::_val = helper::make_node_ptr<ast::block_statement>(
-                            phx::move( qi::_1 )
+                            //helper::move( qi::_1 )
+                            qi::_1
                             )
                        ]
                     ;
@@ -217,7 +247,12 @@ namespace rill
 
 
                 class_body_block_
-                    %= qi::lit( "{" ) >> class_body_statements_ >> qi::lit( "}" )
+                    = qi::as<ast::statement_list>()[qi::lit( "{" ) >> class_body_statements_ >> qi::lit( "}" )][
+                        qi::_val = helper::make_node_ptr<ast::block_statement>(
+                            //helper::move( qi::_1 )
+                            qi::_1
+                            )
+                       ]
                     ;
 
 
@@ -609,14 +644,10 @@ namespace rill
             }
 
         private:
-            phx::function<helper::make_position_annotator_lazy<Iterator>> position_annotator_;
-            phx::function<error_handler_lazy<Iterator>> error_handler_;
-
-        private:
             rule<ast::statement_list()> program_;
 
             rule<ast::statement_list()> top_level_statements_, function_body_statements_, class_body_statements_;
-            rule<ast::block_statment_ptr()> function_body_block_, /*function_body_expression_, */class_body_block_;
+            rule<ast::block_statement_ptr()> function_body_block_, /*function_body_expression_, */class_body_block_;
 
             rule<ast::function_definition_statement_ptr()> function_definition_statement_;
             rule<ast::class_function_definition_statement_ptr()> class_function_definition_statement_;

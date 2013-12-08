@@ -33,8 +33,7 @@ namespace rill
         std::cout << "%% Marked(class) " << class_env->get_id() << std::endl;
 
         //
-        root_shared_resource_->env_id_to_ast_map.add( class_env->get_id(), ast );
-        root_shared_resource_->ast_to_env_id_map.add( ast, class_env->get_id() );
+        class_env->link_with_ast( ast );
 
         //
         return class_env;

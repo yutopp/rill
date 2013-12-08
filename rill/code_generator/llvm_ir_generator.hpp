@@ -40,6 +40,8 @@ namespace rill
             // statement_list
             RILL_TV_OP_DECL_CONST( ast::root )
 
+            RILL_TV_OP_DECL_CONST( ast::block_statement )
+
             // statement
             // virtual void operator()( template_statement const& s, environment_ptr const& env ) const =0;
 

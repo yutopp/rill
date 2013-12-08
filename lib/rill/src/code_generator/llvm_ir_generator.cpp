@@ -54,6 +54,13 @@ namespace rill
                 dispatch( node );
         }
 
+
+        RILL_TV_OP_CONST( llvm_ir_generator, ast::block_statement, s, parent_env )
+        {
+            // dispatch( node, root_env_->get_related_env_by_ast_ptr( node ) );
+            for( auto const& node : s->statements_ )
+                dispatch( node, parent_env ? parent_env->get_related_env_by_ast_ptr( node ) : nullptr );
+        }
       
   
         //
@@ -158,8 +165,8 @@ namespace rill
             context_->ir_builder.SetInsertPoint( basic_brock );
 
             // generate statements
-            for( auto const& node : s->statements_ )
-                dispatch( node, root_env_->get_related_env_by_ast_ptr( node ) );
+            dispatch( s->block_, root_env_ );
+                
 
             // Only the function that returns void is allowed to has no return statement
             if ( f_env->get_return_type_candidates().size() == 0 )
@@ -189,8 +196,7 @@ namespace rill
             context_->env_conversion_table.bind_type( c_env->get_id(), llvm_struct_type );
 
             // generate statements
-            for( auto const& node : s->statements_ )
-                dispatch( node, c_env );
+            dispatch( s->block_, c_env );
 
             std::cout << "------> " << c_env->get_id() << std::endl;
             llvm_struct_type->setBody( context_->env_conversion_table.ref_class_variable_type_list( c_env->get_id() ) );
@@ -307,8 +313,7 @@ namespace rill
             context_->ir_builder.SetInsertPoint( function_entry_block );
 
             // build inner statements(that contain intrinsic_function_call)
-            for( auto const& node : s->statements_ )
-                dispatch( node, root_env_->get_related_env_by_ast_ptr( node ) );
+            dispatch( s->block_, root_env_ );
 
             //
             llvm::verifyFunction( *func, llvm::PrintMessageAction );
@@ -514,15 +519,24 @@ namespace rill
             // create a new basic block to start insertion into.
             llvm::BasicBlock* const false_block = llvm::BasicBlock::Create( context_->llvm_context, "", context_->ir_builder.GetInsertBlock()->getParent() );
 
+            std::cout << "PPPPPP" << std::endl;
+            assert( s != nullptr );
+            assert( s->block_ != nullptr );
+            auto const& scope_env = root_env_->get_related_env_by_ast_ptr( s->block_ );
+            assert( scope_env != nullptr );
+
             //
             context_->ir_builder.SetInsertPoint( while_begin_block );
-            auto const& cond_llvm_value = dispatch( s->conditional_, _ );
+            auto const& cond_llvm_value = dispatch( s->conditional_, scope_env );
+
             context_->ir_builder.CreateCondBr( cond_llvm_value, true_block, false_block );
 
+            //
             context_->ir_builder.SetInsertPoint( true_block );
             // build inner statements(that contain intrinsic_function_call)
-            for( auto const& node : s->statements_ )
-                dispatch( node, _ );
+
+
+            dispatch( s->block_, scope_env );
 
             context_->ir_builder.CreateBr( while_begin_block );
 

@@ -33,8 +33,7 @@ namespace rill
         std::cout << "%% Marked(class) " << variable_env->get_id() << std::endl;
 
         if ( ast != nullptr ) {
-            root_shared_resource_->env_id_to_ast_map.add( variable_env->get_id(), ast );
-            root_shared_resource_->ast_to_env_id_map.add( ast, variable_env->get_id() );
+            variable_env->link_with_ast( ast );
         }
 
         //
@@ -48,7 +47,7 @@ namespace rill
         )
         -> variable_symbol_environment_ptr
     {
-        auto const& v_env = [&]() {
+        auto const& v_env = [&]() -> variable_symbol_environment_ptr {
             if ( variable_name != nullptr ) {
                 auto const& symbol_name = variable_name->get_inner_symbol()->to_native_string();
 

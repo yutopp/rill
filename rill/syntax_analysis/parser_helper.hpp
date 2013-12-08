@@ -100,7 +100,7 @@ namespace rill
             public:
                 template<typename Val, typename First, typename Last>
                 void operator()(Val& v, First f, Last l) const {
-                    do_annotate(v, f, l);
+                    do_annotate( v, f, l );
                 }
 
             private:
@@ -120,7 +120,8 @@ namespace rill
                     li->length = distance( f, l );
                 }
 
-                void do_annotate(...) const
+                template<typename... Args>
+                void do_annotate( Args&&... ) const
                 {}
 
             private:

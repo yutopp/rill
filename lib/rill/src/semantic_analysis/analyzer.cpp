@@ -288,6 +288,15 @@ namespace rill
                 dispatch( node, parent_env );
         }
 
+
+        // Root Scope
+        RILL_TV_OP( analyzer, ast::block_statement, s, parent_env )
+        {
+            for( auto const& node : s->statements_ )
+                dispatch( node, parent_env );
+        }
+
+
         // statement
         // virtual void operator()( template_statement const& s, environment_base_ptr const& env ) const =0;
 
@@ -528,8 +537,9 @@ f_env->check();
             }
 
             // scan all statements in this function body
-            for( auto const& node : s->statements_ )
-                dispatch( node, f_env );
+            dispatch( s->block_, f_env );
+
+
             // ?: TODO: use block expression
 
 
@@ -638,8 +648,8 @@ f_env->check();
             }
 
             // scan all statements in this function body
-            for( auto const& node : s->statements_ )
-                dispatch( node, f_env );
+            dispatch( s->block_, f_env );
+
             // ?: TODO: use block expression
 
 
@@ -700,8 +710,7 @@ f_env->check();
             c_env->check();
 */
 
-            for( auto const& node : s->statements_ )
-                dispatch( node, c_env );
+            dispatch( s->block_, c_env );
         }
 
 
@@ -709,17 +718,12 @@ f_env->check();
         RILL_TV_OP( analyzer, ast::test_while_statement, s, parent_env )
         {
             auto const& scope_env = parent_env->allocate_env<scope_environment>( parent_env );
-
-            //
-//            root_shared_resource_->env_id_to_ast_map.add( has_param_env->get_id(), s );
-//            root_shared_resource_->ast_to_env_id_map.add( s, created_function_env->get_id() );
-
+            scope_env->link_with_ast( s->block_ );
 
             // TODO: type check
-            dispatch( s->conditional_, parent_env );
+            dispatch( s->conditional_, scope_env );
 
-            for( auto const& node : s->statements_ )
-                dispatch( node, parent_env );
+            dispatch( s->block_, scope_env );
         }
 
 
@@ -1012,10 +1016,11 @@ f_env->check();
         //
         RILL_TV_OP( analyzer, ast::variable_value, v, parent_env )
         {
+            std::cout << "Find Var: " << v->variable_name_->last()->get_inner_symbol()->to_native_string() << std::endl;
             auto const& target_env = lookup_with_instanciation( parent_env, v->variable_name_ );
             if ( target_env == nullptr ) {
                 // compilation error
-                assert( false );
+                assert( false && "" );
             }
 
             if ( target_env->get_symbol_kind() != kind::type_value::e_variable ) {

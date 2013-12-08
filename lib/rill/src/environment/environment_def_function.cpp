@@ -36,11 +36,11 @@ namespace rill
         std::cout << "Marked, %&%& " << has_param_env->get_id() << " : " << created_function_env->get_id() << std::endl;
 
         //
-        root_shared_resource_->env_id_to_ast_map.add( has_param_env->get_id(), ast );           // 
-        root_shared_resource_->env_id_to_ast_map.add( created_function_env->get_id(), ast );    // related environment of created_function_env is parent envitroment of it
+        has_param_env->connect_to_ast( ast );
+        created_function_env->connect_to_ast( ast );
 
         //
-        root_shared_resource_->ast_to_env_id_map.add( ast, created_function_env->get_id() );
+        created_function_env->connect_from_ast( ast );
 
         return p;
     }

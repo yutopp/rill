@@ -55,6 +55,8 @@ namespace rill
             }
             catch( qi::expectation_failure<pos_iterator_type> const& e )
             {
+                std::cout << "Exception handled. " << e.what() << std::endl;
+                std::exit( -1 );
                 ast::statement_list p;
                 return std::make_shared<ast::root>( std::move( p ) /* TODO: insert error*/ );
             }
