@@ -39,6 +39,7 @@ namespace rill
             //RILL_TV_OP_DECL( ast::intrinsic_function_definition_statement )
 
             RILL_TV_OP_DECL( ast::test_while_statement )
+            RILL_TV_OP_DECL( ast::test_if_statement )
 
             // expression
             RILL_TV_OP_DECL( ast::binary_operator_expression )

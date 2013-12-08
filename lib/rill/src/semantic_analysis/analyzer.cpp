@@ -728,6 +728,27 @@ f_env->check();
 
 
 
+        RILL_TV_OP( analyzer, ast::test_if_statement, s, parent_env )
+        {
+            // if 
+            auto const& if_scope_env = parent_env->allocate_env<scope_environment>( parent_env );
+            if_scope_env->link_with_ast( s );
+            dispatch( s->conditional_, if_scope_env );  // TODO: type check
+
+            // then
+            auto const& then_scope_env = parent_env->allocate_env<scope_environment>( if_scope_env );
+            then_scope_env->link_with_ast( s->then_statement_ );            
+            dispatch( s->then_statement_, then_scope_env );
+
+            // else( optional )
+            if ( s->else_statement_ ) {
+                auto const& else_scope_env = parent_env->allocate_env<scope_environment>( if_scope_env );
+                else_scope_env->link_with_ast( *s->else_statement_ );            
+                dispatch( *s->else_statement_, else_scope_env );
+            }
+        }
+
+
 
         //
         //

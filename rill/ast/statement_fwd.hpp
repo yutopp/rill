@@ -66,6 +66,7 @@ namespace rill
 
         //// TEST
         RILL_AST_FWD_DECL( test_while_statement, statement )
+        RILL_AST_FWD_DECL( test_if_statement, statement )
 
 
 

@@ -123,16 +123,6 @@ namespace rill
                     ;
 
 
-                function_body_statements_
-                    %= *( variable_declaration_statement_
-                        | while_statement_
-                        | return_statement_
-                        | empty_statement_
-                        | expression_statement_     // NOTE: this statement must be set at last
-                        )
-                    ;
-
-
                 class_body_statements_
                     %= *( class_function_definition_statement_
                         | class_variable_declaration_statement_
@@ -191,6 +181,55 @@ namespace rill
                                 )
                       ]
                     ;
+
+
+
+                flow_statement_
+                    = ( variable_declaration_statement_
+                      | while_statement_
+                      | if_statement_
+                      | return_statement_
+                      | flow_block_statement_
+                      | empty_statement_
+                      | expression_statement_     // NOTE: this statement must be set at last
+                      );
+
+                flow_statements_
+                    = *flow_statement_
+                    ;
+
+                //
+                flow_block_statement_
+                    = qi::as<ast::statement_list>()[
+                        qi::lit( "{" )
+                     >> function_body_statements_
+                     >> qi::lit( "}" )
+                        ][
+                        qi::_val = helper::make_node_ptr<ast::block_statement>(
+                            //helper::move( qi::_1 )
+                            qi::_1
+                            )
+                       ]
+                    ;
+
+                wrapped_flow_statement_
+                    = flow_statement_[
+                        qi::_val = helper::make_node_ptr<ast::block_statement>(
+                            qi::_1
+                            )
+                       ]
+                    ;
+
+
+                function_body_statements_
+                    = *( variable_declaration_statement_
+                       | while_statement_
+                       | if_statement_
+                       | return_statement_
+                       | flow_block_statement_
+                       | empty_statement_
+                       | expression_statement_     // NOTE: this statement must be set at last
+                       );
 
                 //
                 function_body_block_
@@ -274,6 +313,14 @@ namespace rill
                       ]
                     ;
 
+
+
+
+
+
+
+
+
                 while_statement_
                     = ( qi::lit( "while" )
                       > ( qi::lit( "(" ) > expression_ > qi::lit( ")" ) )
@@ -283,6 +330,25 @@ namespace rill
                             = helper::make_node_ptr<ast::test_while_statement>(
                                 qi::_1,
                                 qi::_2
+                                )
+                      ]
+                    ;
+
+
+
+                if_statement_
+                    = ( qi::lit( "if" )
+                      > ( qi::lit( "(" ) > expression_ > qi::lit( ")" ) )
+                      > wrapped_flow_statement_
+                        > -(
+                            qi::lit( "else" ) > wrapped_flow_statement_
+                        )
+                      )[
+                          qi::_val
+                            = helper::make_node_ptr<ast::test_if_statement>(
+                                qi::_1,
+                                qi::_2,
+                                qi::_3
                                 )
                       ]
                     ;
@@ -662,6 +728,7 @@ namespace rill
 
             // test
             rule<ast::test_while_statement_ptr()> while_statement_;
+            
 
             rule<attribute::type_attributes_optional()> type_attributes_;
 
@@ -706,6 +773,14 @@ namespace rill
             rule_no_skip<ast::native_string_t()> native_symbol_string_;
 
             rule_no_skip<ast::native_string_t()> string_literal_sequenece_;
+
+
+            rule<ast::statement_ptr()> flow_statement_;
+            rule<ast::statement_list()> flow_statements_;
+            rule<ast::statement_ptr()> flow_block_statement_;
+            rule<ast::statement_ptr()> wrapped_flow_statement_;
+
+            rule<ast::test_if_statement_ptr()> if_statement_;
 
 
             rule_no_skip<char()> escape_sequence_;

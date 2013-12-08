@@ -66,6 +66,10 @@ namespace rill
             block_statement( std::vector<statement_ptr> const& s )
                 : statements_( s )
             {}
+
+            block_statement( statement_ptr const& s )
+                : statements_( 1, s ) // initialize with one element
+            {}
 /*/
             block_statement( statement_list&& s )
                 : s_( s )
@@ -387,6 +391,31 @@ namespace rill
         public:
             expression_ptr const conditional_;
             block_statement_ptr const block_;
+        };
+
+
+
+        struct test_if_statement
+            : public statement
+        {
+        public:
+            RILL_AST_ADAPT_VISITOR( test_if_statement )
+
+        public:
+            test_if_statement(
+                expression_ptr const& cond,
+                statement_ptr const& then_statement,
+                boost::optional<statement_ptr> const& else_statement
+                )
+                : conditional_( cond )
+                , then_statement_( then_statement )
+                , else_statement_( else_statement )
+            {}
+
+        public:
+            expression_ptr const conditional_;
+            statement_ptr const then_statement_;
+            boost::optional<statement_ptr> else_statement_;
         };
 
  

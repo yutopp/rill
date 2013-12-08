@@ -510,6 +510,12 @@ namespace rill
 
         RILL_TV_OP_CONST( llvm_ir_generator, ast::test_while_statement, s, _ )
         {                  
+            assert( s != nullptr );
+            assert( s->block_ != nullptr );
+            auto const& scope_env = root_env_->get_related_env_by_ast_ptr( s->block_ );
+            assert( scope_env != nullptr );
+
+
             // create a new basic block to start insertion into.
             llvm::BasicBlock* const while_begin_block = llvm::BasicBlock::Create( context_->llvm_context, "", context_->ir_builder.GetInsertBlock()->getParent() );
             context_->ir_builder.CreateBr( while_begin_block );
@@ -519,11 +525,6 @@ namespace rill
             // create a new basic block to start insertion into.
             llvm::BasicBlock* const false_block = llvm::BasicBlock::Create( context_->llvm_context, "", context_->ir_builder.GetInsertBlock()->getParent() );
 
-            std::cout << "PPPPPP" << std::endl;
-            assert( s != nullptr );
-            assert( s->block_ != nullptr );
-            auto const& scope_env = root_env_->get_related_env_by_ast_ptr( s->block_ );
-            assert( scope_env != nullptr );
 
             //
             context_->ir_builder.SetInsertPoint( while_begin_block );
@@ -542,6 +543,86 @@ namespace rill
 
             context_->ir_builder.SetInsertPoint( false_block );
         }
+
+
+
+
+
+
+        RILL_TV_OP_CONST( llvm_ir_generator, ast::test_if_statement, s, _ )
+        {
+            auto const& scope_env = root_env_->get_related_env_by_ast_ptr( s );
+            assert( scope_env != nullptr );
+
+
+
+            // create a new basic block to start insertion into.
+            llvm::BasicBlock* const if_begin_block
+                = llvm::BasicBlock::Create( context_->llvm_context, "", context_->ir_builder.GetInsertBlock()->getParent() );
+            
+            // create a new basic block to start insertion into.
+            llvm::BasicBlock* const then_block
+                = llvm::BasicBlock::Create( context_->llvm_context, "", context_->ir_builder.GetInsertBlock()->getParent() );
+
+            // create a new basic block to start insertion into.
+            // else( optional )
+            llvm::BasicBlock* else_block;
+            if ( s->else_statement_ ) {
+            
+                 else_block = llvm::BasicBlock::Create( context_->llvm_context, "", context_->ir_builder.GetInsertBlock()->getParent() );
+            }
+
+            // create a new basic block to start insertion into.
+            llvm::BasicBlock* const final_block = llvm::BasicBlock::Create( context_->llvm_context, "", context_->ir_builder.GetInsertBlock()->getParent() );
+
+
+            // 
+            context_->ir_builder.CreateBr( if_begin_block );
+
+
+
+            //
+            context_->ir_builder.SetInsertPoint( if_begin_block );
+            auto const& cond_llvm_value = dispatch( s->conditional_, scope_env );
+
+            // else( optional )
+            if ( s->else_statement_ ) {
+                context_->ir_builder.CreateCondBr( cond_llvm_value, then_block, else_block );
+            } else {
+                context_->ir_builder.CreateCondBr( cond_llvm_value, then_block, final_block );                
+            }
+
+
+
+
+            //
+            auto const& then_scope_env = root_env_->get_related_env_by_ast_ptr( s->then_statement_ );
+            assert( then_scope_env != nullptr );
+
+            context_->ir_builder.SetInsertPoint( then_block );
+            dispatch( s->then_statement_, then_scope_env );
+            context_->ir_builder.CreateBr( final_block );
+
+
+
+            //
+            if ( s->else_statement_ ) {
+                auto const& else_scope_env = root_env_->get_related_env_by_ast_ptr( *s->else_statement_ );
+                assert( else_scope_env != nullptr );
+
+                context_->ir_builder.SetInsertPoint( else_block );
+                dispatch( *s->else_statement_, else_scope_env );
+                context_->ir_builder.CreateBr( final_block );
+            }
+
+
+
+            context_->ir_builder.SetInsertPoint( final_block );
+
+        }
+
+
+
 
 
 

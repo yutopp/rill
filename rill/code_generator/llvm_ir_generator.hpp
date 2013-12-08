@@ -55,7 +55,7 @@ namespace rill
             RILL_TV_OP_DECL_CONST( ast::extern_function_declaration_statement )
 
             RILL_TV_OP_DECL_CONST( ast::test_while_statement )
-
+            RILL_TV_OP_DECL_CONST( ast::test_if_statement )
            
 
             // expression

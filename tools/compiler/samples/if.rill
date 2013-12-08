@@ -1,0 +1,35 @@
+def main(): int
+{
+    print( "\n\n\n\n\n\n\n" );
+    print( "hello, bunchou lang on Linux!!!bunbun!\n" );
+
+    loop_test();
+
+    return 0;
+}
+
+
+
+
+extern def extern_print_int( val :int ): void "put_string2"; 
+
+
+def loop_test(): int
+{
+    val j = 0: int mutable;
+
+    print("hey hey hey!!!\n");
+    j = 0;
+    while( j < 10 ) {
+        if ( j < 5 ) {
+            print( "aaa" );
+        } else
+            print_int( j );
+
+        j = j + 1;
+    }
+
+
+
+    return 10;
+}

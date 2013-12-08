@@ -90,6 +90,19 @@ def loop_test(): int
 
     print_int( k );
 
+
+    print("hey hey hey!!!\n");
+    j = 0;
+    while( j < 10 ) {
+        if ( j < 5 ) {
+        } else
+            print_int( j );
+
+        j = j + 1;
+    }
+
+
+
     return 10;
 //    print( "\n" );
 }
