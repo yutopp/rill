@@ -18,14 +18,15 @@ def loop_test(): int
 {
     val j = 0: int mutable;
 
-    print("hey hey hey!!!\n");
+    print("y!!!\n");
     j = 0;
     while( j < 10 ) {
         if ( j < 5 ) {
             print( "aaa" );
         } else
-            print_int( j );
+            extern_print_int( j );
 
+        print( "\n" );
         j = j + 1;
     }
 

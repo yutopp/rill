@@ -133,6 +133,7 @@ namespace rill
                 RILL_TV_BASE_VOID_OP_NOTHING( ast::empty_statement ) // DEFAULT: skipped
 
                 RILL_TV_BASE_VOID_OP( ast::test_while_statement )
+                RILL_TV_BASE_VOID_OP( ast::test_if_statement )
 
                 // expression
                 RILL_TV_BASE_RETURN_OP( ast::binary_operator_expression )
