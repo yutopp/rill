@@ -105,8 +105,8 @@ namespace rill
 
 
                 class_body_statements_
-                    %= *( function_definition_statement_
-                        | variable_declaration_statement_
+                    %= *( class_function_definition_statement_
+                        | class_variable_declaration_statement_
                         | empty_statement_
                         )
                     ;
@@ -165,7 +165,11 @@ namespace rill
 
                 //
                 function_body_block_
-                    %= qi::lit( "{" ) >> function_body_statements_ >> qi::lit( "}" )
+                    %= qi::lit( "{" ) >> function_body_statements_ >> qi::lit( "}" )[
+                        qi::_val = helper::make_node_ptr<ast::block_statement>(
+                            phx::move( qi::_1 )
+                            )
+                       ]
                     ;
                 
                 //function_body_expression_
@@ -187,6 +191,30 @@ namespace rill
                                 )
                       ]
                     ;
+
+
+
+                class_function_definition_statement_.name( "class_function_definition_statement" );
+                class_function_definition_statement_
+                    = ( qi::lit( "def" )
+                      > single_identifier_
+                      > parameter_variable_declaration_list_
+                      > -type_specifier_
+                      > ( function_body_block_/* | expression_*/ )
+                      )[
+                          qi::_val
+                            = helper::make_node_ptr<ast::class_function_definition_statement>(
+                                qi::_1,
+                                qi::_2,
+                                qi::_3,
+                                qi::_4
+                                )
+                      ]
+                    ;
+
+
+
+
 
                 class_body_block_
                     %= qi::lit( "{" ) >> class_body_statements_ >> qi::lit( "}" )
@@ -233,6 +261,16 @@ namespace rill
                         qi::_val = helper::make_node_ptr<ast::variable_declaration_statement>( qi::_1 )
                       ]
                     ;
+
+                class_variable_declaration_statement_
+                    = qi::as<ast::variable_declaration>()[
+                        variable_declaration_ > statement_termination_
+                      ][
+                        qi::_val = helper::make_node_ptr<ast::class_variable_declaration_statement>( qi::_1 )
+                      ]
+                    ;
+
+
 
                 //
                 expression_statement_
@@ -578,12 +616,13 @@ namespace rill
             rule<ast::statement_list()> program_;
 
             rule<ast::statement_list()> top_level_statements_, function_body_statements_, class_body_statements_;
-            rule<ast::statement_list()> function_body_block_, function_body_expression_;
-            rule<ast::statement_list()> class_body_block_;
+            rule<ast::block_statment_ptr()> function_body_block_, /*function_body_expression_, */class_body_block_;
 
             rule<ast::function_definition_statement_ptr()> function_definition_statement_;
+            rule<ast::class_function_definition_statement_ptr()> class_function_definition_statement_;
             rule<ast::class_definition_statement_ptr()> class_definition_statement_;
             rule<ast::variable_declaration_statement_ptr()> variable_declaration_statement_;
+            rule<ast::class_variable_declaration_statement_ptr()> class_variable_declaration_statement_;
             rule<ast::extern_statement_base_ptr()> extern_statement_;
             rule<ast::extern_function_declaration_statement_ptr()> extern_function_declaration_statement_;
             rule<ast::return_statement_ptr()> return_statement_;

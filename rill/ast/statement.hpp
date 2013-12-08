@@ -53,6 +53,30 @@ namespace rill
 
 
 
+
+
+        struct block_statement RILL_CXX11_FINAL
+            : public statement
+        {
+        public:
+            RILL_AST_ADAPT_VISITOR( block_statement )
+            
+        public:
+/*            
+            block_statement( std::vector<statement_ptr> const& s )
+                : s_( s )
+            {}
+*/
+            block_statement( std::vector<statement_ptr>&& s )
+                : s_( s )
+            {}
+
+        public:
+            std::vector<statement_ptr> s;
+        };
+
+
+
         //
         struct value_initializer_unit
         {
@@ -188,8 +212,8 @@ namespace rill
 //            ADAPT_STATEMENT_VISITOR( function_definition_statement_base )
 
         public:
-            function_definition_statement_base( statement_list const& statements )
-                : statements_( statements )
+            function_definition_statement_base( block_statement_ptr const& block )
+                : block_( block )
             {}
 
             virtual ~function_definition_statement_base()
@@ -199,7 +223,7 @@ namespace rill
 
 
         public:
-            statement_list const statements_;
+            block_statement_ptr const block_;
         };
 
 
@@ -215,9 +239,9 @@ namespace rill
                 intrinsic::identifier_value_ptr const& symbol_name,
                 parameter_list const& parameter_list,
                 boost::optional<type_expression_ptr> const& return_type,
-                statement_list const& statements
+                block_statement_ptr const& block
                 )
-                : function_definition_statement_base( statements )
+                : function_definition_statement_base( block )
                 , identifier_( symbol_name )
                 , parameter_list_( parameter_list )
                 , return_type_( return_type )
@@ -250,10 +274,52 @@ namespace rill
             RILL_AST_ADAPT_VISITOR( intrinsic_function_definition_statement )
 
         public:
-            intrinsic_function_definition_statement( statement_list const& statements )
-                : function_definition_statement_base( statements )
+            intrinsic_function_definition_statement( block_statement_ptr const& block )
+                : function_definition_statement_base( block )
             {}
         };
+
+
+
+
+        struct class_function_definition_statement
+            : public function_definition_statement_base
+        {
+        public:
+            RILL_AST_ADAPT_VISITOR( class_function_definition_statement )
+
+        public:
+            class_function_definition_statement(
+                intrinsic::single_identifier_value_base_ptr const& class_name,
+                parameter_list const& parameter_list,
+                boost::optional<type_expression_ptr> const& return_type,
+                block_statement_ptr const& block
+                )
+                : function_definition_statement_base( block )
+                , identifier_( class_name )
+                , parameter_list_( parameter_list )
+                , return_type_( return_type )
+            {}
+
+        public:
+            auto get_identifier() const
+                -> intrinsic::single_identifier_value_base_ptr
+            {
+                return identifier_;
+            }
+
+            auto get_parameter_list() const
+                -> parameter_list
+            {
+                return parameter_list_;
+            }
+
+        public:
+            intrinsic::single_identifier_value_base_ptr identifier_;
+            parameter_list parameter_list_;
+            boost::optional<type_expression_ptr> return_type_;
+        };
+
 
 
 
@@ -274,11 +340,11 @@ namespace rill
             class_definition_statement(
                 intrinsic::single_identifier_value_ptr const& identifier,
                 boost::optional<parameter_list> const& constructor_parameter_list,
-                statement_list const& statements
+                block_statement_ptr const& block
                 )
                 : identifier_( identifier )
                 , constructor_parameter_list_( constructor_parameter_list ? std::move( *constructor_parameter_list ) : parameter_list() )
-                , statements_( statements )
+                , block_( block )
             {}
 
         public:
@@ -297,7 +363,7 @@ namespace rill
         public:
             intrinsic::single_identifier_value_ptr const identifier_;
             parameter_list const constructor_parameter_list_;
-            statement_list const statements_;
+            block_statement_ptr const block_;
         };
 
 
@@ -312,15 +378,15 @@ namespace rill
         public:
             test_while_statement(
                 expression_ptr const& cond,
-                statement_list const& statements
+                block_statement_ptr const& block
                 )
                 : conditional_( cond )
-                , statements_( statements )
+                , block_( block )
             {}
 
         public:
             expression_ptr const conditional_;
-            statement_list const statements_;
+            block_statement_ptr const block_;
         };
 
  
@@ -350,6 +416,33 @@ namespace rill
         public:
             variable_declaration const declaration_;
         };
+
+
+
+        struct class_variable_declaration_statement
+            : public statement
+        {
+        public:
+            RILL_AST_ADAPT_VISITOR( class_variable_declaration_statement )
+
+        public:
+            class_variable_declaration_statement( variable_declaration const& decl )
+                : declaration_( decl )
+            {}
+
+        public:
+            auto get_identifier() const
+                -> intrinsic::single_identifier_value_base_ptr
+            {
+                return declaration_.decl_unit.name;
+            }
+
+        public:
+            variable_declaration const declaration_;
+        };
+
+
+
 
 
         struct return_statement
@@ -385,19 +478,6 @@ namespace rill
 
 
 
-        struct block_statement
-            : public statement
-        {
-//            ADAPT_STATEMENT_VISITOR( block_statement )
-
-        public:
-            block_statement( statement_list const& statements )
-                : statements_( statements )
-            {}
-
-        public:
-            statement_list statements_;
-        };
 
     } // namespace ast
 } // namespace rill

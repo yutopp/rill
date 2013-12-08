@@ -124,7 +124,9 @@ namespace rill
                 RILL_TV_BASE_VOID_OP( ast::class_definition_statement )
                 RILL_TV_BASE_VOID_OP( ast::intrinsic_function_definition_statement )
                 RILL_TV_BASE_VOID_OP( ast::extern_function_declaration_statement )
+                RILL_TV_BASE_VOID_OP( ast::class_function_definition_statement )
                 RILL_TV_BASE_VOID_OP( ast::variable_declaration_statement )
+                RILL_TV_BASE_VOID_OP( ast::class_variable_declaration_statement )
                 RILL_TV_BASE_VOID_OP_NOTHING( ast::empty_statement ) // DEFAULT: skipped
 
                 RILL_TV_BASE_VOID_OP( ast::test_while_statement )

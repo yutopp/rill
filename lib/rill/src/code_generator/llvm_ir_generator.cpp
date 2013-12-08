@@ -13,11 +13,11 @@
 #include <boost/scope_exit.hpp>
 #include <boost/range/adaptor/reversed.hpp>
 
-#include <llvm/Analysis/Verifier.h>
-#include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
+#include <llvm/IR/DerivedTypes.h>
+#include <llvm/Analysis/Verifier.h>
 
 #include <rill/ast/root.hpp>
 #include <rill/ast/statement.hpp>
@@ -49,15 +49,6 @@ namespace rill
         //
         RILL_TV_OP_CONST( llvm_ir_generator, ast::root, r, root_env )
         {
-            // maybe rooted once
-
-            // call intrinsic action initializer
-            action_holder_->invoke_initialize_action(
-                processing_context::k_llvm_ir_generator,
-                context_,
-                root_env
-                );
-
             //
             for( auto const& node : r->statements_ )
                 dispatch( node );
@@ -131,6 +122,11 @@ namespace rill
                 auto const& type_attr = pv_decl_env->get_type_attributes();
 */
                 auto const& v = f_env->get_type_at( decl_type_id );
+                if ( !context_->env_conversion_table.is_defined( v.class_env_id ) ) {
+                    auto const& c_env = root_env_->get_env_strong_at( v.class_env_id );
+                    dispatch( c_env->get_related_ast(), c_env );
+                }
+
                 auto const& class_env_id = v.class_env_id;
                 auto const& type_attr = v.attributes;
 
@@ -178,13 +174,26 @@ namespace rill
 
         RILL_TV_OP_CONST( llvm_ir_generator, ast::class_definition_statement, s, self_env )
         {
+            // TODO: support structures contain self type. Ex, class T { ref T; val T; }
+
             //
             auto const& c_env = std::static_pointer_cast<class_symbol_environment const>( ( self_env != nullptr ) ? self_env : root_env_->get_related_env_by_ast_ptr( s ) );
 
-            //llvm::StructType::create (ArrayRef< Type * > Elements, StringRef Name, bool isPacked=false)
+            //
+            context_->env_conversion_table.create_class_variable_type_holder(
+                c_env->get_id()
+                );
+
+            // construct incomplete Struct Type...
+            llvm::StructType* const llvm_struct_type = llvm::StructType::create( context_->llvm_context /* TODO: add "name", add is_packed*/ );
+            context_->env_conversion_table.bind_type( c_env->get_id(), llvm_struct_type );
+
             // generate statements
             for( auto const& node : s->statements_ )
-                dispatch( node, root_env_->get_related_env_by_ast_ptr( node ) );
+                dispatch( node, c_env );
+
+            std::cout << "------> " << c_env->get_id() << std::endl;
+            llvm_struct_type->setBody( context_->env_conversion_table.ref_class_variable_type_list( c_env->get_id() ) );
         }
 
 
@@ -219,6 +228,7 @@ namespace rill
                 context_->ir_builder.restoreIP( current_insert_point );
             } BOOST_SCOPE_EXIT_END
 
+
             //
             // TODO: use current_insert_point.isSet(), if it is false, this function needs external linkage( currently, all functions are exported as external linkage )
             auto const linkage = llvm::Function::ExternalLinkage;
@@ -231,6 +241,10 @@ namespace rill
             std::vector<llvm::Type*> parmeter_types;
             for( auto const& type_env_id : parameter_variable_type_env_ids ) {
                 auto const& v = f_env->get_type_at( type_env_id );
+                if ( !context_->env_conversion_table.is_defined( v.class_env_id ) ) {
+                    auto const& c_env = root_env_->get_env_strong_at( v.class_env_id );
+                    dispatch( c_env->get_related_ast(), c_env );
+                }
 
                 auto const& llvm_type = [&]() -> llvm::Type* {
                     //
@@ -249,7 +263,6 @@ namespace rill
                         break;
                     }
                 }();
-
 
                 parmeter_types.push_back( llvm_type );
             }
@@ -319,15 +332,20 @@ namespace rill
 
             // ???:
             auto const& variable_type = v_env->get_type_at( v_env->get_type_id() );
+            if ( !context_->env_conversion_table.is_defined( variable_type.class_env_id ) ) {
+                auto const& c_env = root_env_->get_env_strong_at( variable_type.class_env_id );
+                dispatch( c_env->get_related_ast(), c_env );
+            }
 
             auto const& variable_llvm_type = context_->env_conversion_table.ref_type( variable_type.class_env_id );
             auto const& variable_attr =  variable_type.attributes;
 
             // initial value
+            // TODO: call constructor if there are no initial value
             auto const& initial_llvm_value
                 = s->declaration_.decl_unit.init_unit.initializer
                 ? dispatch( s->declaration_.decl_unit.init_unit.initializer )
-                : nullptr;
+                : (llvm::Value*)llvm::ConstantStruct::get( (llvm::StructType*)variable_llvm_type, llvm::ConstantInt::get( context_->llvm_context, llvm::APInt( 32, 42 ) ), nullptr );//nullptr;
 
             //
             switch( variable_attr.quality )
@@ -339,7 +357,7 @@ namespace rill
                 case attribute::modifiability_kind::k_immutable:
                 {
                     if ( !initial_llvm_value ) {
-                        assert( false && "[ice]" );
+                        assert( false && "[ice" );
                     }
 
                     context_->env_conversion_table.bind_value( v_env->get_id(), initial_llvm_value );      
@@ -358,6 +376,71 @@ namespace rill
                     }
 
                     context_->env_conversion_table.bind_value( v_env->get_id(), allca_inst );
+                }
+                    break;
+                }
+
+                break;
+
+            case attribute::quality_kind::k_ref:
+                assert( false && "not implemented..." );
+                break;
+
+            default:
+                assert( false && "[ice]" );
+                break;
+            }
+        }
+
+
+
+
+        //
+        //
+        //
+        RILL_TV_OP_CONST( llvm_ir_generator, ast::class_variable_declaration_statement, s, parent_env )
+        {
+            assert( parent_env != nullptr );
+            assert( parent_env->get_symbol_kind() == kind::type_value::e_class );
+
+            // cast to variable symbol env
+            auto const& v_env
+                = std::static_pointer_cast<variable_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( s ) );
+            assert( v_env != nullptr );
+
+            
+
+            // ???:
+            auto const& variable_type = v_env->get_type_at( v_env->get_type_id() );
+            if ( !context_->env_conversion_table.is_defined( variable_type.class_env_id ) ) {
+                auto const& c_env = root_env_->get_env_strong_at( variable_type.class_env_id );
+                dispatch( c_env->get_related_ast(), c_env );
+            }
+
+            auto const& variable_llvm_type = context_->env_conversion_table.ref_type( variable_type.class_env_id );
+            auto const& variable_attr =  variable_type.attributes;
+
+            //
+            switch( variable_attr.quality )
+            {
+            case attribute::quality_kind::k_val:
+
+                switch( variable_attr.modifiability )
+                {
+                case attribute::modifiability_kind::k_immutable:
+                {
+                    std::cout << "ABABABAB: " << parent_env->get_id() << std::endl;
+                    context_->env_conversion_table.bind_class_variable_type( parent_env->get_id(), v_env->get_id(), variable_llvm_type );      
+                }
+                    break;
+
+                case attribute::modifiability_kind::k_const:
+                    assert( false && "[ice]" );
+                    break;
+
+                case attribute::modifiability_kind::k_mutable:
+                {
+                    context_->env_conversion_table.bind_class_variable_type( parent_env->get_id(), v_env->get_id(), variable_llvm_type->getPointerTo() );      
                 }
                     break;
                 }
@@ -405,6 +488,10 @@ namespace rill
                 parmeter_types.push_back( context_->env_conversion_table.ref_type( v.class_env_id ) );
             }
             auto const& v = f_env->get_type_at( f_env->get_return_type_id() );
+            if ( !context_->env_conversion_table.is_defined( v.class_env_id ) ) {
+                auto const& c_env = root_env_->get_env_strong_at( v.class_env_id );
+                dispatch( c_env->get_related_ast(), c_env );
+            }
             auto const& return_type = context_->env_conversion_table.ref_type( v.class_env_id );
 
             // get function type
@@ -485,6 +572,11 @@ namespace rill
 
             for( std::size_t i=0; i<e_arguments.size(); ++i ) {
                 auto const& type = f_env->get_type_at( parameter_type_ids[e_arguments.size()-i-1] );
+                if ( !context_->env_conversion_table.is_defined( type.class_env_id ) ) {
+                    auto const& c_env = root_env_->get_env_strong_at( type.class_env_id );
+                    dispatch( c_env->get_related_ast(), c_env );
+                }
+
                 auto const value = dispatch( e_arguments[e_arguments.size()-i-1], _ );
                 assert( value != nullptr );
 
@@ -538,12 +630,13 @@ namespace rill
             auto const f_env = std::static_pointer_cast<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( e ) );
             assert( f_env != nullptr );
 
-
+            //
             if ( !context_->env_conversion_table.is_defined( f_env->get_id() ) ) {
                 // 
                 std::cout << "!context_->env_conversion_table.is_defined( f_env->get_id() ): " << f_env->mangled_name() << std::endl;
                 dispatch( f_env->get_related_ast(), f_env );
             }
+
 
             std::cout << "current : " << f_env->mangled_name() << std::endl;
             auto const& callee_function
@@ -574,7 +667,11 @@ namespace rill
             auto const& parameter_type_ids = f_env->get_parameter_type_ids();
             std::vector<llvm::Value*> args( e->arguments_.size() );
             for( std::size_t i=0; i<e->arguments_.size(); ++i ) {
-                auto const& type = f_env->get_type_at( parameter_type_ids[e->arguments_.size()-i-1] );
+                auto const& type = f_env->get_type_at( parameter_type_ids[e->arguments_.size()-i-1] );                
+                if ( !context_->env_conversion_table.is_defined( type.class_env_id ) ) {
+                    auto const& c_env = root_env_->get_env_strong_at( type.class_env_id );
+                    dispatch( c_env->get_related_ast(), c_env );
+                }
                 auto const value = dispatch( e->arguments_[e->arguments_.size()-i-1], _ );
                 assert( value != nullptr );
 
@@ -631,6 +728,10 @@ namespace rill
             // generate codes into this context
 
             auto const& v = f_env->get_type_at( f_env->get_return_type_id() );
+            if ( !context_->env_conversion_table.is_defined( v.class_env_id ) ) {
+                auto const& c_env = root_env_->get_env_strong_at( v.class_env_id );
+                dispatch( c_env->get_related_ast(), c_env );
+            }
 
             auto const value = action->invoke(
                 processing_context::k_llvm_ir_generator,
@@ -654,7 +755,7 @@ namespace rill
             // TODO: check primitive type
             if ( v->literal_type_name_->get_inner_symbol()->to_native_string() == "int" ) {
                 // Currently, return int type( 32bit, integer )
-                return llvm::ConstantInt::get( llvm::getGlobalContext(), llvm::APInt( 32, std::static_pointer_cast<ast::intrinsic::int32_value const>( v->value_ )->get_value() ) );
+                return llvm::ConstantInt::get( context_->llvm_context, llvm::APInt( 32, std::static_pointer_cast<ast::intrinsic::int32_value const>( v->value_ )->get_value() ) );
 
             } else if ( v->literal_type_name_->get_inner_symbol()->to_native_string() == "string" ) {
                 // char pointer...(string?)

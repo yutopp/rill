@@ -15,3 +15,4 @@
 #include "function_symbol_environment.hpp"
 #include "variable_symbol_environment.hpp"
 #include "class_symbol_environment.hpp"
+#include "scope_environment.hpp"

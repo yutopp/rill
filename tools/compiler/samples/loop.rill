@@ -9,35 +9,8 @@ def main(): int
         i = i + 1;
     }
 
-    //val a: Test;
-
     return 0;
 }
 
 extern def extern_print_int( val :int ): void
        "put_string2";
-
-
-class Test
-{
-    val a322: int;
-
-    def aaa(): void
-    {
-        print("yonda?");
-    }
-}
-
-
-class Test2
-{}
-
-
-def aaa(): int
-{
-}
-
-
-def a(): int
-{
-}

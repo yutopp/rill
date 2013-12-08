@@ -6,8 +6,8 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#ifndef RILL_CODE_GENERATOR_LLVM_IR_GENERATOR_HPP
-#define RILL_CODE_GENERATOR_LLVM_IR_GENERATOR_HPP
+#ifndef RILL_CODE_GENERATOR_LLVM_IR_GENERATOR_FORWARD_REFERENCE_RESOLVER_HPP
+#define RILL_CODE_GENERATOR_LLVM_IR_GENERATOR_FORWARD_REFERENCE_RESOLVER_HPP
 
 #include <memory>
 #include <unordered_map>
@@ -26,11 +26,11 @@ namespace rill
 {
     namespace code_generator
     {
-        class llvm_ir_generator RILL_CXX11_FINAL
+        class llvm_ir_generator_forward_reference_resolver RILL_CXX11_FINAL
             : public ast::detail::tree_visitor_base<llvm::Value*>
         {
         public:
-            llvm_ir_generator(
+            llvm_ir_generator_forward_reference_resolver(
                 const_environment_base_ptr const&,
                 intrinsic_function_action_holder_ptr const&,
                 llvm_ir_generator_context_ptr const&
@@ -79,18 +79,7 @@ namespace rill
             llvm_ir_generator_context_ptr context_;
         };
 
-
-        template<typename EnvIdT, typename IdTablePtr, typename IRBuilderPtr>
-        auto inline ref_value_with( EnvIdT const& env_id, IdTablePtr const& table, IRBuilderPtr builder )
-            -> llvm::Value*
-        {
-            auto const ref_value = table.ref_value( env_id );
-            if ( table.is_alloca_inst( env_id ) ) {
-                return builder.CreateLoad( ref_value );
-            }
-            return ref_value;
-        }
     } // namespace code_generator
 } // namespace rill
 
-#endif /*RILL_CODE_GENERATOR_LLVM_IR_GENERATOR_HPP*/
+#endif /*RILL_CODE_GENERATOR_LLVM_IR_GENERATOR_FORWARD_REFERENCE_RESOLVER_HPP*/

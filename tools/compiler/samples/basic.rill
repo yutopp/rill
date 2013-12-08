@@ -77,11 +77,13 @@ def loop_test(): int
     while( j < 10 ) {
         val k = 7: int mutable;
         k = 5;
-        print_int( k );
+        print_int( j );
         k = k + 1;
         j = j + 1;
     }   
     
+    print_int( k );
+
     return 10;
 //    print( "\n" );
 }

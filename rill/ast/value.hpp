@@ -118,7 +118,7 @@ namespace rill
             }
 
 
-            // 
+            // TODO: rename -> nested_identifier_value
             struct identifier_value RILL_CXX11_FINAL
                 : public value_base
             {

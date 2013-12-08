@@ -29,9 +29,18 @@ namespace rill
         {
             auto const& context = std::make_shared<llvm_ir_generator_context>();
 
-            llvm_ir_generator const ir_generator( env, action_holder, context );
+            // call intrinsic action initializer
+            action_holder->invoke_initialize_action(
+                processing_context::k_llvm_ir_generator,
+                context,
+                env
+                );
 
+            //
+            llvm_ir_generator const ir_generator( env, action_holder, context );
             ir_generator.dispatch( node, env );
+
+            //
             ir_generator.debug();
 
             // FIXME
