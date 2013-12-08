@@ -718,12 +718,14 @@ f_env->check();
         RILL_TV_OP( analyzer, ast::test_while_statement, s, parent_env )
         {
             auto const& scope_env = parent_env->allocate_env<scope_environment>( parent_env );
-            scope_env->link_with_ast( s->block_ );
+            scope_env->link_with_ast( s );
 
             // TODO: type check
             dispatch( s->conditional_, scope_env );
 
-            dispatch( s->block_, scope_env );
+            auto const& body_scope_env = parent_env->allocate_env<scope_environment>( scope_env );
+            body_scope_env->link_with_ast( s->body_statement_ ); 
+            dispatch( s->body_statement_, scope_env );
         }
 
 

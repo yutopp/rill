@@ -382,15 +382,15 @@ namespace rill
         public:
             test_while_statement(
                 expression_ptr const& cond,
-                block_statement_ptr const& block
+                statement_ptr const& body_statement
                 )
                 : conditional_( cond )
-                , block_( block )
+                , body_statement_( body_statement )
             {}
 
         public:
             expression_ptr const conditional_;
-            block_statement_ptr const block_;
+            statement_ptr const body_statement_;
         };
 
 

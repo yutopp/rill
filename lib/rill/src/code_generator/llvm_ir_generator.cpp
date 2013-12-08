@@ -61,8 +61,8 @@ namespace rill
             for( auto const& node : s->statements_ )
                 dispatch( node, parent_env ? parent_env->get_related_env_by_ast_ptr( node ) : nullptr );
         }
-      
-  
+
+
         //
         // Expression Statement
         //
@@ -143,7 +143,7 @@ namespace rill
             auto const& v = f_env->get_type_at( f_env->get_return_type_id() );
             llvm::Type* const return_type = context_->env_conversion_table.ref_type( v.class_env_id );
             llvm::FunctionType* const func_type = llvm::FunctionType::get( return_type, parameter_types, false/*not variable*/ );
-            
+
 
             // function body
             llvm::Function* const func = llvm::Function::Create( func_type, linkage, f_env->mangled_name(), &context_->llvm_module );
@@ -166,7 +166,7 @@ namespace rill
 
             // generate statements
             dispatch( s->block_, root_env_ );
-                
+
 
             // Only the function that returns void is allowed to has no return statement
             if ( f_env->get_return_type_candidates().size() == 0 )
@@ -333,7 +333,7 @@ namespace rill
                 = std::static_pointer_cast<variable_symbol_environment const>( ( env != nullptr ) ? env : root_env_->get_related_env_by_ast_ptr( s ) );
             assert( v_env != nullptr );
 
-            
+
 
             // ???:
             auto const& variable_type = v_env->get_type_at( v_env->get_type_id() );
@@ -365,7 +365,7 @@ namespace rill
                         assert( false && "[ice" );
                     }
 
-                    context_->env_conversion_table.bind_value( v_env->get_id(), initial_llvm_value );      
+                    context_->env_conversion_table.bind_value( v_env->get_id(), initial_llvm_value );
                 }
                     break;
 
@@ -413,7 +413,7 @@ namespace rill
                 = std::static_pointer_cast<variable_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( s ) );
             assert( v_env != nullptr );
 
-            
+
 
             // ???:
             auto const& variable_type = v_env->get_type_at( v_env->get_type_id() );
@@ -435,7 +435,7 @@ namespace rill
                 case attribute::modifiability_kind::k_immutable:
                 {
                     std::cout << "ABABABAB: " << parent_env->get_id() << std::endl;
-                    context_->env_conversion_table.bind_class_variable_type( parent_env->get_id(), v_env->get_id(), variable_llvm_type );      
+                    context_->env_conversion_table.bind_class_variable_type( parent_env->get_id(), v_env->get_id(), variable_llvm_type );
                 }
                     break;
 
@@ -445,7 +445,7 @@ namespace rill
 
                 case attribute::modifiability_kind::k_mutable:
                 {
-                    context_->env_conversion_table.bind_class_variable_type( parent_env->get_id(), v_env->get_id(), variable_llvm_type->getPointerTo() );      
+                    context_->env_conversion_table.bind_class_variable_type( parent_env->get_id(), v_env->get_id(), variable_llvm_type->getPointerTo() );
                 }
                     break;
                 }
@@ -509,39 +509,29 @@ namespace rill
 
 
         RILL_TV_OP_CONST( llvm_ir_generator, ast::test_while_statement, s, _ )
-        {                  
-            assert( s != nullptr );
-            assert( s->block_ != nullptr );
-            auto const& scope_env = root_env_->get_related_env_by_ast_ptr( s->block_ );
-            assert( scope_env != nullptr );
-
-
-            // create a new basic block to start insertion into.
-            llvm::BasicBlock* const while_begin_block = llvm::BasicBlock::Create( context_->llvm_context, "", context_->ir_builder.GetInsertBlock()->getParent() );
-            context_->ir_builder.CreateBr( while_begin_block );
-
-            // create a new basic block to start insertion into.
-            llvm::BasicBlock* const true_block = llvm::BasicBlock::Create( context_->llvm_context, "", context_->ir_builder.GetInsertBlock()->getParent() );
-            // create a new basic block to start insertion into.
-            llvm::BasicBlock* const false_block = llvm::BasicBlock::Create( context_->llvm_context, "", context_->ir_builder.GetInsertBlock()->getParent() );
-
+        {
+            llvm::BasicBlock* const while_begin_block
+                = llvm::BasicBlock::Create( context_->llvm_context, "", context_->ir_builder.GetInsertBlock()->getParent() );
+            llvm::BasicBlock* const body_block
+                = llvm::BasicBlock::Create( context_->llvm_context, "", context_->ir_builder.GetInsertBlock()->getParent() );
+            llvm::BasicBlock* const final_block
+                = llvm::BasicBlock::Create( context_->llvm_context, "", context_->ir_builder.GetInsertBlock()->getParent() );
 
             //
+            context_->ir_builder.CreateBr( while_begin_block );
             context_->ir_builder.SetInsertPoint( while_begin_block );
+            auto const& scope_env = root_env_->get_related_env_by_ast_ptr( s ); assert( scope_env != nullptr );
             auto const& cond_llvm_value = dispatch( s->conditional_, scope_env );
-
-            context_->ir_builder.CreateCondBr( cond_llvm_value, true_block, false_block );
+            context_->ir_builder.CreateCondBr( cond_llvm_value, body_block, final_block );
 
             //
-            context_->ir_builder.SetInsertPoint( true_block );
-            // build inner statements(that contain intrinsic_function_call)
-
-
-            dispatch( s->block_, scope_env );
-
+            context_->ir_builder.SetInsertPoint( body_block );
+            auto const& body_scope_env = root_env_->get_related_env_by_ast_ptr( s->body_statement_ ); assert( scope_env != nullptr );
+            dispatch( s->body_statement_, body_scope_env );
             context_->ir_builder.CreateBr( while_begin_block );
 
-            context_->ir_builder.SetInsertPoint( false_block );
+            //
+            context_->ir_builder.SetInsertPoint( final_block );
         }
 
 
@@ -551,74 +541,47 @@ namespace rill
 
         RILL_TV_OP_CONST( llvm_ir_generator, ast::test_if_statement, s, _ )
         {
-            auto const& scope_env = root_env_->get_related_env_by_ast_ptr( s );
-            assert( scope_env != nullptr );
-
-
-
-            // create a new basic block to start insertion into.
             llvm::BasicBlock* const if_begin_block
                 = llvm::BasicBlock::Create( context_->llvm_context, "", context_->ir_builder.GetInsertBlock()->getParent() );
-            
-            // create a new basic block to start insertion into.
             llvm::BasicBlock* const then_block
                 = llvm::BasicBlock::Create( context_->llvm_context, "", context_->ir_builder.GetInsertBlock()->getParent() );
-
-            // create a new basic block to start insertion into.
-            // else( optional )
-            llvm::BasicBlock* else_block;
-            if ( s->else_statement_ ) {
-            
-                 else_block = llvm::BasicBlock::Create( context_->llvm_context, "", context_->ir_builder.GetInsertBlock()->getParent() );
-            }
-
-            // create a new basic block to start insertion into.
-            llvm::BasicBlock* const final_block = llvm::BasicBlock::Create( context_->llvm_context, "", context_->ir_builder.GetInsertBlock()->getParent() );
-
-
-            // 
-            context_->ir_builder.CreateBr( if_begin_block );
-
+            llvm::BasicBlock* const else_block
+                = s->else_statement_
+                ? llvm::BasicBlock::Create( context_->llvm_context, "", context_->ir_builder.GetInsertBlock()->getParent() )
+                : nullptr
+                ;
+            llvm::BasicBlock* const final_block
+                = llvm::BasicBlock::Create( context_->llvm_context, "", context_->ir_builder.GetInsertBlock()->getParent() );
 
 
             //
+            context_->ir_builder.CreateBr( if_begin_block );
             context_->ir_builder.SetInsertPoint( if_begin_block );
+            auto const& scope_env = root_env_->get_related_env_by_ast_ptr( s ); assert( scope_env != nullptr );
             auto const& cond_llvm_value = dispatch( s->conditional_, scope_env );
-
             // else( optional )
             if ( s->else_statement_ ) {
                 context_->ir_builder.CreateCondBr( cond_llvm_value, then_block, else_block );
             } else {
-                context_->ir_builder.CreateCondBr( cond_llvm_value, then_block, final_block );                
+                context_->ir_builder.CreateCondBr( cond_llvm_value, then_block, final_block );
             }
 
-
-
-
             //
-            auto const& then_scope_env = root_env_->get_related_env_by_ast_ptr( s->then_statement_ );
-            assert( then_scope_env != nullptr );
-
             context_->ir_builder.SetInsertPoint( then_block );
+            auto const& then_scope_env = root_env_->get_related_env_by_ast_ptr( s->then_statement_ ); assert( then_scope_env != nullptr );
             dispatch( s->then_statement_, then_scope_env );
             context_->ir_builder.CreateBr( final_block );
 
-
-
             //
             if ( s->else_statement_ ) {
-                auto const& else_scope_env = root_env_->get_related_env_by_ast_ptr( *s->else_statement_ );
-                assert( else_scope_env != nullptr );
-
                 context_->ir_builder.SetInsertPoint( else_block );
+                auto const& else_scope_env = root_env_->get_related_env_by_ast_ptr( *s->else_statement_ ); assert( else_scope_env != nullptr );
                 dispatch( *s->else_statement_, else_scope_env );
                 context_->ir_builder.CreateBr( final_block );
             }
 
-
-
+            //
             context_->ir_builder.SetInsertPoint( final_block );
-
         }
 
 
@@ -658,7 +621,7 @@ namespace rill
 
 
             std::vector<llvm::Value*> const args = { lhs_value, rhs_value };
-*/           
+*/
             // call function that defined in rill modules
             // evaluate argument from last to front(but ordering of vector is from front to last)
             ast::expression_list const& e_arguments = { e->lhs_, e->rhs_ };
@@ -701,7 +664,7 @@ namespace rill
 
                     default:
                         assert( false && "[ice]" );
-                        break;                  
+                        break;
                     }
                 }();
 
@@ -727,7 +690,7 @@ namespace rill
 
             //
             if ( !context_->env_conversion_table.is_defined( f_env->get_id() ) ) {
-                // 
+                //
                 std::cout << "!context_->env_conversion_table.is_defined( f_env->get_id() ): " << f_env->mangled_name() << std::endl;
                 dispatch( f_env->get_related_ast(), f_env );
             }
@@ -762,7 +725,7 @@ namespace rill
             auto const& parameter_type_ids = f_env->get_parameter_type_ids();
             std::vector<llvm::Value*> args( e->arguments_.size() );
             for( std::size_t i=0; i<e->arguments_.size(); ++i ) {
-                auto const& type = f_env->get_type_at( parameter_type_ids[e->arguments_.size()-i-1] );                
+                auto const& type = f_env->get_type_at( parameter_type_ids[e->arguments_.size()-i-1] );
                 if ( !context_->env_conversion_table.is_defined( type.class_env_id ) ) {
                     auto const& c_env = root_env_->get_env_strong_at( type.class_env_id );
                     dispatch( c_env->get_related_ast(), c_env );
@@ -796,7 +759,7 @@ namespace rill
 
                     default:
                         assert( false && "[ice]" );
-                        break;                  
+                        break;
                     }
                 }();
 

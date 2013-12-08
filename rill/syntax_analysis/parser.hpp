@@ -324,7 +324,7 @@ namespace rill
                 while_statement_
                     = ( qi::lit( "while" )
                       > ( qi::lit( "(" ) > expression_ > qi::lit( ")" ) )
-                      > function_body_block_
+                      > wrapped_flow_statement_
                       )[
                           qi::_val
                             = helper::make_node_ptr<ast::test_while_statement>(
