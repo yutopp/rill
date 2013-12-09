@@ -118,48 +118,52 @@ namespace rill
             }
 
 
-            // TODO: rename -> nested_identifier_value
-            struct identifier_value RILL_CXX11_FINAL
+            struct nested_identifier_value RILL_CXX11_FINAL
                 : public value_base
             {
             public:
-                explicit identifier_value( std::vector<single_identifier_value_base_ptr> const& nests )
-                    : nest_( nests )
+                explicit nested_identifier_value(
+                    std::vector<single_identifier_value_base_ptr> const& ids,
+                    bool const started_from_root = false
+                    )
+                    : ids_( ids )
+                    , started_from_root_( started_from_root )
                 {}
 
             public:
-                virtual auto get_native_typename_string() const -> native_string_t 
+                virtual auto get_native_typename_string() const
+                    -> native_string_t const&
                 {
                     return "identifier";
-                }
-
-                // deprecated
-                auto get_last_identifier() const
-                    -> single_identifier_value_base_ptr
-                {
-                    return nest_.back();
                 }
 
                 auto at(std::size_t const& index) const
                     -> single_identifier_value_base_ptr
                 {
-                    return nest_.at( index );
+                    return ids_.at( index );
                 }
 
                 auto last() const
                     -> single_identifier_value_base_ptr
                 {
-                    return nest_.back();
+                    return ids_.back();
                 }
 
                 auto nest_size() const
                     -> std::size_t
                 {
-                    return nest_.size();
+                    return ids_.size();
+                }
+
+                auto is_started_from_root() const
+                    -> bool
+                {
+                    return started_from_root_;
                 }
 
             public:
-                std::vector<single_identifier_value_base_ptr> const nest_;
+                std::vector<single_identifier_value_base_ptr> const ids_;
+                bool started_from_root_;
             };
 
 
@@ -173,7 +177,7 @@ namespace rill
 
 
 
-            struct single_identifier_value_base
+            struct identifier_value_base
                 : public value_base
             {
             public:
@@ -193,15 +197,15 @@ namespace rill
 
 
 
-            struct single_identifier_value RILL_CXX11_FINAL
+            struct identifier_value RILL_CXX11_FINAL
                 : public single_identifier_value_base
             {
             public:
-                single_identifier_value( native_string_t const& single_identifier_string )
+                identifier_value( native_string_t const& single_identifier_string )
                     : base_name_( make_symbol( single_identifier_string ) )
                 {}
 
-                single_identifier_value( symbol_value_ptr const& single_identifier_symbol )
+                identifier_value( symbol_value_ptr const& single_identifier_symbol )
                     : base_name_( single_identifier_symbol )
                 {}
 
@@ -282,20 +286,19 @@ namespace rill
 
 
 
-            /*
-
-            //
-            class template_identifier_value
-            : public identifier_value
+            class template_instance_value RILL_CXX11_FINAL
+                : public single_identifier_value_base
             {
             public:
-            template_identifier_value( symbol_value::native_string_type const& simple_typename );
+                // TODO: implement
+                template_instance_value()
+                {}
 
             public:
 
 
             private:
-            };*/
+            };
 
 
 

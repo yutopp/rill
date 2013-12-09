@@ -536,8 +536,7 @@ namespace rill
                     auto const priority = 1u;
                     expression_priority_[priority]
                         = expression_priority_[priority-1][qi::_val = qi::_1]
-                        >> *( ( qi::lit( "*" ) >> expression_priority_[priority-1] )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, "*", qi::_1 )]
-                            )
+                        )
                         ;
                 }
 
@@ -546,7 +545,7 @@ namespace rill
                     auto const priority = 0u;
                     expression_priority_[priority]
                         = call_expression_[qi::_val = qi::_1]
-//                        | element_selector_[qi::_val = qi::_1]
+                        | element_selector_[qi::_val = qi::_1]
                         | term_expression_[qi::_val = qi::_1]
                         | ( ( qi::lit( '(' ) >> expression_ >> qi::lit( ')' ) ) )[qi::_val = qi::_1]
                         ;
@@ -570,13 +569,16 @@ namespace rill
 */
 
                 // termination
-                term_expression_
+                primary_expression_
                     = qi::as<ast::value_ptr>()
-                      [ integer_literal_
+                      [ identifier_
+                      | identifier_with_root_
+                      | template_instance_
+                      | template_instance_with_root_
+                      | numeric_literal_
                       | boolean_literal_
                       | string_literal_
-                      | variable_value_
-                        
+                      | identifier_value_                      
                       ][ qi::_val = helper::make_node_ptr<ast::term_expression>( qi::_1 ) ]
                     ;
 
@@ -587,6 +589,14 @@ namespace rill
                       ]
                     ;
 
+                identifier_list_
+                    = qi::as<>()[ identifier_ | template_instance_ ] >> ( qi::lit( '.' ) >> identifier_list_ );
+
+
+                numeric_literal_
+                    = integer_literal_
+                    ;
+
                 //
                 integer_literal_
                     = ( qi::int_ )[
@@ -594,9 +604,12 @@ namespace rill
                       ];
 
                 boolean_literal_
-                    = qi::lit("true")[qi::_val = helper::make_intrinsic_value_ptr<ast::intrinsic::boolean_value>( phx::val( true ) )]
-                    | qi::lit("false")[qi::_val = helper::make_intrinsic_value_ptr<ast::intrinsic::boolean_value>( phx::val( false ) )];
+                    = qi::lit( "true" )[qi::_val = helper::make_intrinsic_value_ptr<ast::intrinsic::boolean_value>( phx::val( true ) )]
+                    | qi::lit( "false" )[qi::_val = helper::make_intrinsic_value_ptr<ast::intrinsic::boolean_value>( phx::val( false ) )];
                     ;
+
+                type_
+                    = 
 
                 //
                 string_literal_
@@ -613,34 +626,7 @@ namespace rill
                 escape_sequence_
                     = qi::lit( "\\n" )[qi::_val = phx::val( '\n' )]
                     ;
-                //auto p = ( -native_symbol_ )[ phx::if_else( qi::_0, phx::construct<intrinsic::symbol_value_ptr>(), phx::construct<intrinsic::symbol_value_ptr>() )]
 
-                /*
-                auto
-                value_constructor_
-                    = ( qi::string( "local" ) | qi::string( "heap" ) | qi::string( "gc" ) | qi::eps[phx::val( "local" )] )
-                    > identifier_
-                    > -argument_list_
-                    ;
-
-                auto
-                variable_definition_
-                    = ( qi::string( "let" ) | qi::string( "const" ) | qi::string( "mutable" ) )
-                    > -qi::lit( "ref" )
-                    > single_identifier_
-                    > -( ( qi::lit( '=' ) >> expression_ )
-                       | ( qi::lit( ':' ) >> value_constructor_ )
-                       )
-                    ;
-
-                auto
-                parameter_variable_definition_
-                    = ( qi::string( "const" ) | qi::string( "mutable" ) | qi::eps[phx::val( "let" )] )
-                    > -qi::lit( "ref" )
-                    > single_identifier_
-                    > ( qi::lit( ':' ) >> value_constructor_ )
-                    ;
-*/
 
 
         /**/
@@ -657,19 +643,25 @@ namespace rill
                 //
                 identifier_.name( "identifier" );
                 identifier_
-                    = single_identifier_[qi::_val = phx::bind( &ast::intrinsic::make_identifier, qi::_1)]
+                    = native_symbol_string_/*TODO: fix...*/[qi::_val = helper::make_node_ptr<ast::intrinsic::single_identifier_value>( qi::_1 )]
                     ;
                     // TODO: should +( single_identifier_ | single_template_identifier_ )
+
+
+                template_identifier_
+                    = identifier_
+                    ;
+
+                template_instance_
+                    = template_identifier_ // TODO: add instance pareters
+                    ;
+
 
                 // instanced_identifier
 
                 // static_identifier_
 
-                single_identifier_
-                    = native_symbol_string_[
-                        qi::_val = helper::make_node_ptr<ast::intrinsic::single_identifier_value>( qi::_1 )
-                      ]
-                    ;
+
 
                 // template_identifier_
                 native_symbol_.name( "native_symbol" );
