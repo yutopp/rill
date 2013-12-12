@@ -292,8 +292,11 @@ namespace rill
         // Root Scope
         RILL_TV_OP( analyzer, ast::block_statement, s, parent_env )
         {
+            auto const& scope_env = parent_env->allocate_env<scope_environment>( parent_env );
+            scope_env->link_with_ast( s );
+
             for( auto const& node : s->statements_ )
-                dispatch( node, parent_env );
+                dispatch( node, scope_env );
         }
 
 
@@ -336,6 +339,12 @@ namespace rill
             // for( auto const& unit : val_decl.decl_unit_list ) {
             auto const& unit = val_decl.decl_unit;
 
+            auto const& initialize_expr_type
+                = unit.init_unit.initializer
+                ? dispatch( unit.init_unit.initializer, parent_env )
+                : []() -> rill::type_id_t {
+                    assert( false && "[[]] Currently, uninitialized value was not supported..." );
+                }();
 
             // TODO: make method to determine "type"
 
@@ -352,7 +361,7 @@ namespace rill
                 // in declaration unit, can not specify "quality" by type_expression
                 assert( type_value.attributes.quality == boost::none );
 
-                if ( auto const class_env = lookup_with_instanciation( parent_env, type_value.identifier ) ) {
+                if ( auto const class_env = lookup_with_instanciation( parent_env, type_value.identifiers ) ) {
                     assert( class_env != nullptr );
                     assert( class_env->get_symbol_kind() == kind::type_value::e_class );
 
@@ -432,7 +441,7 @@ f_env->check();
                 // in declaration unit, can not specify "quality" by type_expression
                 assert( type_value.attributes.quality == boost::none );
 
-                if ( auto const class_env = lookup_with_instanciation( parent_env, type_value.identifier ) ) {
+                if ( auto const class_env = lookup_with_instanciation( parent_env, type_value.identifiers ) ) {
                     assert( class_env != nullptr );
                     assert( class_env->get_symbol_kind() == kind::type_value::e_class );
 
@@ -480,7 +489,7 @@ f_env->check();
             std::cout
                 << "function_definition_statement: ast_ptr -> "
                 << (environment_base_ptr const&)parent_env << std::endl
-                << "name -- " << s->get_identifier()->last()->get_inner_symbol()->to_native_string() << std::endl
+                << "name -- " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
                 << "Args num -- " << s->get_parameter_list().size() << std::endl;
 
             auto const related_env = parent_env->get_related_env_by_ast_ptr( s );
@@ -509,7 +518,7 @@ f_env->check();
                     assert( type_value.attributes.quality == boost::none );
 
 
-                    if ( auto const class_env = lookup_with_instanciation( f_env, type_value.identifier ) ) {
+                    if ( auto const class_env = lookup_with_instanciation( f_env, type_value.identifiers ) ) {
                         assert( class_env != nullptr );
                         assert( class_env->get_symbol_kind() == kind::type_value::e_class );
 
@@ -548,7 +557,7 @@ f_env->check();
                 // evaluate constant expresison as type
                 auto const& type_value = interpreter::evaluate_as_type( f_env, *s->return_type_ );
 
-                if ( auto const return_class_env = lookup_with_instanciation( f_env, type_value.identifier ) ) {
+                if ( auto const return_class_env = lookup_with_instanciation( f_env, type_value.identifiers ) ) {
                     assert( return_class_env != nullptr );
                     assert( return_class_env->get_symbol_kind() == kind::type_value::e_class );
 
@@ -560,7 +569,7 @@ f_env->check();
                         return_class_env,
                         determine_type_attributes( type_value.attributes )
                         );
-                    f_env->complete( return_type_id, s->get_identifier()->last()->get_inner_symbol()->to_native_string() );
+                    f_env->complete( return_type_id, s->get_identifier()->get_inner_symbol()->to_native_string() );
 
                 } else {
                     // type was not found, !! compilation error !!
@@ -620,7 +629,7 @@ f_env->check();
                     assert( type_value.attributes.quality == boost::none );
 
 
-                    if ( auto const class_env = lookup_with_instanciation( f_env, type_value.identifier ) ) {
+                    if ( auto const class_env = lookup_with_instanciation( f_env, type_value.identifiers ) ) {
                         assert( class_env != nullptr );
                         assert( class_env->get_symbol_kind() == kind::type_value::e_class );
 
@@ -658,7 +667,7 @@ f_env->check();
                 // evaluate constant expresison as type
                 auto const& type_value = interpreter::evaluate_as_type( f_env, *s->return_type_ );
 
-                if ( auto const return_class_env = lookup_with_instanciation( f_env, type_value.identifier ) ) {
+                if ( auto const return_class_env = lookup_with_instanciation( f_env, type_value.identifiers ) ) {
                     assert( return_class_env != nullptr );
                     assert( return_class_env->get_symbol_kind() == kind::type_value::e_class );
 
@@ -723,8 +732,10 @@ f_env->check();
             // TODO: type check
             dispatch( s->conditional_, scope_env );
 
+/*
             auto const& body_scope_env = parent_env->allocate_env<scope_environment>( scope_env );
-            body_scope_env->link_with_ast( s->body_statement_ ); 
+            body_scope_env->link_with_ast( s->body_statement_ );
+*/
             dispatch( s->body_statement_, scope_env );
         }
 
@@ -738,15 +749,19 @@ f_env->check();
             dispatch( s->conditional_, if_scope_env );  // TODO: type check
 
             // then
+/*
             auto const& then_scope_env = parent_env->allocate_env<scope_environment>( if_scope_env );
             then_scope_env->link_with_ast( s->then_statement_ );            
-            dispatch( s->then_statement_, then_scope_env );
+*/
+            dispatch( s->then_statement_, if_scope_env/*then_scope_env*/ );
 
             // else( optional )
             if ( s->else_statement_ ) {
+/*
                 auto const& else_scope_env = parent_env->allocate_env<scope_environment>( if_scope_env );
                 else_scope_env->link_with_ast( *s->else_statement_ );            
-                dispatch( *s->else_statement_, else_scope_env );
+*/
+                dispatch( *s->else_statement_, if_scope_env/*then_scope_env*/ );
             }
         }
 
@@ -785,7 +800,7 @@ f_env->check();
                     // evaluate constant expresison as type
                     auto const& type = interpreter::evaluate_as_type( f_env, e.decl_unit.init_unit.type );
 
-                    if ( auto const type_env = lookup_with_instanciation( f_env, type.identifier ) ) {
+                    if ( auto const type_env = lookup_with_instanciation( f_env, type.identifiers ) ) {
                         assert( type_env != nullptr );
                         assert( type_env->get_symbol_kind() == kind::type_value::e_class );
 
@@ -816,7 +831,7 @@ f_env->check();
                 // evaluate constant expresison as type
                 auto const& type_value = interpreter::evaluate_as_type( f_env, s->return_type_ );
 
-                if ( auto const return_class_env = lookup_with_instanciation( f_env, type_value.identifier ) ) {
+                if ( auto const return_class_env = lookup_with_instanciation( f_env, type_value.identifiers ) ) {
                     assert( return_class_env != nullptr );
                     assert( return_class_env->get_symbol_kind() == kind::type_value::e_class );
 
@@ -825,7 +840,7 @@ f_env->check();
                         return_class_env,
                         determine_type_attributes( type_value.attributes )
                         );
-                    f_env->complete( return_type_id, s->get_identifier()->last()->get_inner_symbol()->to_native_string(), function_symbol_environment::attr::e_extern );
+                    f_env->complete( return_type_id, s->get_identifier()->get_inner_symbol()->to_native_string(), function_symbol_environment::attr::e_extern );
 
                 } else {
                     // type was not found, !! compilation error !!
@@ -964,7 +979,17 @@ f_env->check();
                     = std::static_pointer_cast<has_parameter_environment<function_symbol_environment>>( has_parameter_env );
 
                 /// *************
-                auto const& f = overload_solver_allow_no_entry( argument_type_ids, generic_function_env, e->reciever_->last(), env );
+                // Now, e->reciever_ is expression...
+                // if reciever is Identifier
+                //   if Identifier is Function
+                //     normal function call
+                //   else
+                //     call operator() of this object
+                // else
+                //  call operator() of this object
+                //
+                
+                auto const& f = overload_solver_allow_no_entry( argument_type_ids, generic_function_env, e->reciever_, env );
 
                 // function is found!
                 if ( f )
@@ -987,7 +1012,7 @@ f_env->check();
 
 
                 // retry
-                auto const& re_f = overload_solver( argument_type_ids, generic_function_env, e->reciever_->last(), env );
+                auto const& re_f = overload_solver( argument_type_ids, generic_function_env, e->reciever_, env );
                 if ( re_f )
                     return re_f;
 
@@ -1039,7 +1064,7 @@ f_env->check();
         //
         RILL_TV_OP( analyzer, ast::variable_value, v, parent_env )
         {
-            std::cout << "Find Var: " << v->variable_name_->last()->get_inner_symbol()->to_native_string() << std::endl;
+            std::cout << "Find Var: " << v->variable_name_->get_inner_symbol()->to_native_string() << std::endl;
             auto const& target_env = lookup_with_instanciation( parent_env, v->variable_name_ );
             if ( target_env == nullptr ) {
                 // compilation error

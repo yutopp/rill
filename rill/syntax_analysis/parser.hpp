@@ -266,7 +266,7 @@ namespace rill
                 class_function_definition_statement_.name( "class_function_definition_statement" );
                 class_function_definition_statement_
                     = ( qi::lit( "def" )
-                      > single_identifier_
+                      > identifier_
                       > parameter_variable_declaration_list_
                       > -type_specifier_
                       > ( function_body_block_/* | expression_*/ )
@@ -300,7 +300,7 @@ namespace rill
                 class_definition_statement_.name( "class_definition_statement" );
                 class_definition_statement_
                     = ( qi::lit( "class" )
-                        >> single_identifier_
+                        >> identifier_
                         >> ( parameter_variable_declaration_list_ | qi::eps )    // constructor
                         >> class_body_block_
                       )[
@@ -422,7 +422,7 @@ namespace rill
 */
 
                 variable_initializer_unit_
-                    %= single_identifier_ > value_initializer_unit_
+                    %= identifier_ > value_initializer_unit_
                     ;
 
                 // ====
@@ -433,7 +433,7 @@ namespace rill
                     ;
 
                 parameter_variable_initializer_unit_
-                    = -single_identifier_ > value_initializer_unit_
+                    = -identifier_ > value_initializer_unit_
                     ;
 
                 parameter_variable_declaration_list_.name( "parameter_variable_declaration_list" );
@@ -473,7 +473,7 @@ namespace rill
 
                 //
                 type_identifier_expression_
-                    = ( identifier_ >> type_attributes_ )[
+                    = ( nested_identifier_ >> type_attributes_ )[
                         qi::_val = helper::make_node_ptr<ast::type_identifier_expression>(
                             qi::_1,
                             qi::_2
@@ -495,10 +495,19 @@ namespace rill
                     ;
 
                 {
-                    auto const priority = 5u;
+                    auto const priority = 6u;
                     expression_priority_[priority]
                         = expression_priority_[priority-1][qi::_val = qi::_1]
                         >> *( ( qi::lit( "=" ) >> expression_priority_[priority-1] )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, "=", qi::_1 )]
+                            )
+                        ;
+                }
+
+                {
+                    auto const priority = 5u;
+                    expression_priority_[priority]
+                        = expression_priority_[priority-1][qi::_val = qi::_1]
+                        >> *( ( qi::lit( "==" ) >> expression_priority_[priority-1] )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, "==", qi::_1 )]
                             )
                         ;
                 }
@@ -528,6 +537,7 @@ namespace rill
                         = expression_priority_[priority-1][qi::_val = qi::_1]
                         >> *( ( qi::lit( "*" ) >> expression_priority_[priority-1] )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, "*", qi::_1 )]
                             | ( qi::lit( "/" ) >> expression_priority_[priority-1] )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, "/", qi::_1 )]
+                            | ( qi::lit( "%" ) >> expression_priority_[priority-1] )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, "%", qi::_1 )]
                             )
                         ;
                 }
@@ -536,7 +546,6 @@ namespace rill
                     auto const priority = 1u;
                     expression_priority_[priority]
                         = expression_priority_[priority-1][qi::_val = qi::_1]
-                        )
                         ;
                 }
 
@@ -545,8 +554,8 @@ namespace rill
                     auto const priority = 0u;
                     expression_priority_[priority]
                         = call_expression_[qi::_val = qi::_1]
-                        | element_selector_[qi::_val = qi::_1]
-                        | term_expression_[qi::_val = qi::_1]
+//                        | element_selector_[qi::_val = qi::_1]
+                        | primary_expression_[qi::_val = qi::_1]
                         | ( ( qi::lit( '(' ) >> expression_ >> qi::lit( ')' ) ) )[qi::_val = qi::_1]
                         ;
                 }
@@ -571,14 +580,14 @@ namespace rill
                 // termination
                 primary_expression_
                     = qi::as<ast::value_ptr>()
-                      [ identifier_
+                      [/* identifier_
                       | identifier_with_root_
                       | template_instance_
                       | template_instance_with_root_
-                      | numeric_literal_
+                      | */numeric_literal_
                       | boolean_literal_
-                      | string_literal_
-                      | identifier_value_                      
+                      | string_literal_                    
+                      | variable_value_
                       ][ qi::_val = helper::make_node_ptr<ast::term_expression>( qi::_1 ) ]
                     ;
 
@@ -589,13 +598,14 @@ namespace rill
                       ]
                     ;
 
-                identifier_list_
-                    = qi::as<>()[ identifier_ | template_instance_ ] >> ( qi::lit( '.' ) >> identifier_list_ );
-
-
-                numeric_literal_
-                    = integer_literal_
-                    ;
+                nested_identifier_
+                    = qi::as<std::vector<ast::intrinsic::identifier_value_base_ptr>>()[
+                        qi::as<ast::intrinsic::identifier_value_base_ptr>()[
+                        identifier_ | template_instance_
+                        ] % qi::lit( '.' )
+][
+    qi::_val = helper::make_node_ptr<ast::intrinsic::nested_identifier_value>( qi::_1 )
+];
 
                 //
                 integer_literal_
@@ -603,13 +613,18 @@ namespace rill
                         qi::_val = helper::make_intrinsic_value_ptr<ast::intrinsic::int32_value>( qi::_1 )
                       ];
 
+                numeric_literal_
+                    = integer_literal_
+                    ;
+
                 boolean_literal_
                     = qi::lit( "true" )[qi::_val = helper::make_intrinsic_value_ptr<ast::intrinsic::boolean_value>( phx::val( true ) )]
                     | qi::lit( "false" )[qi::_val = helper::make_intrinsic_value_ptr<ast::intrinsic::boolean_value>( phx::val( false ) )];
                     ;
-
+/*
                 type_
-                    = 
+                  = 
+*/
 
                 //
                 string_literal_
@@ -643,19 +658,29 @@ namespace rill
                 //
                 identifier_.name( "identifier" );
                 identifier_
-                    = native_symbol_string_/*TODO: fix...*/[qi::_val = helper::make_node_ptr<ast::intrinsic::single_identifier_value>( qi::_1 )]
+                    = native_symbol_string_/*TODO: fix...*/[
+                        qi::_val = helper::make_node_ptr<ast::intrinsic::identifier_value>( qi::_1 )
+                      ]
                     ;
-                    // TODO: should +( single_identifier_ | single_template_identifier_ )
-
-
-                template_identifier_
-                    = identifier_
+                identifier_with_root_
+                    = qi::lit( '.' )
+                   >> native_symbol_string_/*TODO: fix...*/[
+                        qi::_val = helper::make_node_ptr<ast::intrinsic::identifier_value>( qi::_1, phx::val( true ) )
+                      ]
                     ;
+
 
                 template_instance_
-                    = template_identifier_ // TODO: add instance pareters
+                    = native_symbol_string_/*TODO: fix...*/[
+                        qi::_val = helper::make_node_ptr<ast::intrinsic::template_instance_value>( qi::_1 )
+                      ]
                     ;
-
+                template_instance_with_root_
+                    = qi::lit( '.' )
+                   >> native_symbol_string_/*TODO: fix...*/[
+                        qi::_val = helper::make_node_ptr<ast::intrinsic::template_instance_value>( qi::_1, phx::val( true ) )
+                      ]
+                    ;
 
                 // instanced_identifier
 
@@ -679,25 +704,6 @@ namespace rill
                 //
                 statement_termination_.name( "semicolon" );
                 statement_termination_ = qi::lit( ';' );
-
-
-        /*      
-                // identifiers
-                holder_.name( "holder" );
-                holder_ %= qi::lexeme[ qi::lit('!') >> ( lower_symbol_ | upper_symbol_ ) ];
-
-                pointer_.name( "pointer" );
-                pointer_ %= qi::lexeme[ qi::lit('!') >> qi::lit('*') >> ( lower_symbol_ | upper_symbol_ ) ];
-
-
-                // symbols
-                lower_symbol_.name( "lower_symbol" );
-                lower_symbol_ %= qi::lexeme[ ascii::char_("a-z") >> *ascii::alnum ];
-
-                upper_symbol_.name( "upper_symbol" );
-                upper_symbol_ %= qi::lexeme[ ascii::char_("A-Z") >> *ascii::alnum ];*/
-
-
 
             }
 
@@ -740,11 +746,11 @@ namespace rill
             rule<ast::value_initializer_unit()> value_initializer_unit_;
             rule<ast::type_expression_ptr()> type_specifier_;
 
-            static std::size_t const ExpressionHierarchyNum = 6;
+            static std::size_t const ExpressionHierarchyNum = 7;
             rule<ast::expression_ptr()> expression_, expression_priority_[ExpressionHierarchyNum];
             rule<ast::expression_list()> argument_list_;
             rule<ast::call_expression_ptr()> call_expression_;
-            rule<ast::term_expression_ptr()> term_expression_;
+            rule<ast::term_expression_ptr()> primary_expression_;
 
 
             rule<ast::type_expression_ptr()> type_expression_;
@@ -754,12 +760,14 @@ namespace rill
 
             rule<ast::variable_value_ptr()> variable_value_;
 
+            rule<ast::intrinsic_value_ptr()> numeric_literal_;
             rule<ast::intrinsic_value_ptr()> integer_literal_;
             rule<ast::intrinsic_value_ptr()> boolean_literal_;
             rule<ast::intrinsic_value_ptr()> string_literal_;
 
-            rule<ast::intrinsic::identifier_value_ptr()> identifier_;
-            rule<ast::intrinsic::single_identifier_value_ptr()> single_identifier_;
+            rule<ast::intrinsic::nested_identifier_value_ptr()> nested_identifier_;
+            rule<ast::intrinsic::identifier_value_ptr()> identifier_, identifier_with_root_;
+            rule<ast::intrinsic::template_instance_value_ptr()> template_instance_, template_instance_with_root_;
 
             rule_no_skip<ast::intrinsic::symbol_value_ptr()> native_symbol_;
             rule_no_skip<ast::native_string_t()> native_symbol_string_;

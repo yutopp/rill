@@ -96,7 +96,7 @@ namespace rill
                 {}
 
             public:
-                virtual auto get_native_typename_string() const -> native_string_t 
+                virtual auto get_native_typename_string() const -> native_string_t
                 {
                     return "symbol";
                 }
@@ -123,7 +123,7 @@ namespace rill
             {
             public:
                 explicit nested_identifier_value(
-                    std::vector<single_identifier_value_base_ptr> const& ids,
+                    std::vector<identifier_value_base_ptr> const& ids,
                     bool const started_from_root = false
                     )
                     : ids_( ids )
@@ -132,19 +132,19 @@ namespace rill
 
             public:
                 virtual auto get_native_typename_string() const
-                    -> native_string_t const&
+                    -> native_string_t
                 {
                     return "identifier";
                 }
 
                 auto at(std::size_t const& index) const
-                    -> single_identifier_value_base_ptr
+                    -> identifier_value_base_ptr
                 {
                     return ids_.at( index );
                 }
 
                 auto last() const
-                    -> single_identifier_value_base_ptr
+                    -> identifier_value_base_ptr
                 {
                     return ids_.back();
                 }
@@ -155,121 +155,137 @@ namespace rill
                     return ids_.size();
                 }
 
+                auto get_nest_ids() const
+                    -> std::vector<identifier_value_base_ptr> const&
+                {
+                    return ids_;
+                }
+
                 auto is_started_from_root() const
                     -> bool
                 {
                     return started_from_root_;
                 }
 
-            public:
-                std::vector<single_identifier_value_base_ptr> const ids_;
+            private:
+                std::vector<identifier_value_base_ptr> const ids_;
                 bool started_from_root_;
             };
 
 
             // TODO: add support for namespaces
-            inline auto make_identifier( single_identifier_value_base_ptr const& p )
-                -> identifier_value_ptr
+            inline auto make_nested_identifier( identifier_value_base_ptr const& p )
+                -> nested_identifier_value_ptr
             {
-                std::vector<single_identifier_value_base_ptr> const l( 1, p );
-                return std::make_shared<identifier_value>( l );
+                std::vector<identifier_value_base_ptr> const l( 1, p );
+                return std::make_shared<nested_identifier_value>( l );
             }
 
 
 
+            //
+            //
+            //
             struct identifier_value_base
                 : public value_base
             {
             public:
-                virtual ~single_identifier_value_base() {}
+                identifier_value_base(
+                    symbol_value_ptr const& name,
+                    bool const started_from_root = false
+                    )
+                    : name_symbol_( name )
+                    , started_from_root_( started_from_root )
+                {}
+
+                virtual ~identifier_value_base() {}
 
             public:
-                virtual bool is_template() const =0;
+                virtual auto get_native_typename_string() const
+                    -> native_string_t =0;
 
-                virtual auto get_inner_symbol() const
-                    -> symbol_value_ptr =0;
-
+                virtual auto is_template() const
+                    -> bool =0;
                 virtual auto template_argument() const
                     -> template_argument_list_ptr =0;
 
-                virtual auto get_native_typename_string() const -> native_string_t =0;
+                auto get_inner_symbol() const
+                    -> symbol_value_ptr
+                {
+                    return name_symbol_;
+                }
+
+                auto is_started_from_root() const
+                    -> bool
+                {
+                    return started_from_root_;
+                }
+
+            private:
+                symbol_value_ptr const name_symbol_;
+                bool const started_from_root_;
             };
 
 
 
             struct identifier_value RILL_CXX11_FINAL
-                : public single_identifier_value_base
+                : public identifier_value_base
             {
             public:
-                identifier_value( native_string_t const& single_identifier_string )
-                    : base_name_( make_symbol( single_identifier_string ) )
+                identifier_value(
+                    native_string_t const& name,
+                    bool const started_from_root = false
+                    )
+                    : identifier_value( make_symbol( name ), started_from_root )
                 {}
 
-                identifier_value( symbol_value_ptr const& single_identifier_symbol )
-                    : base_name_( single_identifier_symbol )
+                identifier_value(
+                    symbol_value_ptr const& name,
+                    bool const started_from_root = false
+                    )
+                    : identifier_value_base( name, started_from_root )
                 {}
 
             public:
-                virtual auto get_native_typename_string() const -> native_string_t 
+                virtual auto get_native_typename_string() const
+                    -> native_string_t
                 {
-                    return "single_identifier"; // TODO: change name
+                    return "identifier"; // TODO: change name
                 }
 
-                virtual bool is_template() const 
+                virtual auto is_template() const
+                    -> bool
                 {
                     return false;
                 }
 
-                virtual auto get_inner_symbol() const
-                    -> symbol_value_ptr 
-                {
-                    return base_name_;
-                }
-
                 virtual auto template_argument() const
-                    -> template_argument_list_ptr 
+                    -> template_argument_list_ptr
                 {
                     return nullptr;
                 }
-
-            private:
-                symbol_value_ptr base_name_;
             };
 
-            /*
-            //
-            struct simple_identifier_value
-            : public identifier_value
-            {
-            public:
-            // TODO: support namespace and so on
-            simple_identifier_value( native_string_t const& simple_typename );
-            public:
 
-
-            private:
-            };
-            typedef std::shared_ptr<simple_identifier_value> simple_identifier_value_ptr;
-            */
 
             inline auto make_single_identifier( native_string_t const& simple_typename )
-                -> single_identifier_value_ptr
+                -> identifier_value_ptr
             {
-                return std::make_shared<single_identifier_value>( simple_typename );
+                return std::make_shared<identifier_value>( simple_typename );
             }
 
 
             inline auto make_binary_operator_identifier(
                 native_string_t const& symbol_name
                 )
-                -> single_identifier_value_ptr
+                -> identifier_value_ptr
             {
                 return make_single_identifier( "%binary%operator_" + symbol_name );
             }
             inline auto make_binary_operator_identifier(
                 symbol_value_ptr const& symbol_name
                 )
-                -> single_identifier_value_ptr
+                -> identifier_value_ptr
             {
                 return make_binary_operator_identifier( symbol_name->to_native_string() );
             }
@@ -287,15 +303,42 @@ namespace rill
 
 
             class template_instance_value RILL_CXX11_FINAL
-                : public single_identifier_value_base
+                : public identifier_value_base
             {
             public:
+                template_instance_value(
+                    native_string_t const& name,
+                    bool const started_from_root = false
+                    )
+                    : template_instance_value( make_symbol( name ), started_from_root )
+                {}
+
                 // TODO: implement
-                template_instance_value()
+                template_instance_value(
+                    symbol_value_ptr const& name,
+                    bool const started_from_root = false
+                    )
+                    : identifier_value_base( name, started_from_root )
                 {}
 
             public:
+                virtual auto get_native_typename_string() const
+                    -> native_string_t
+                {
+                    return "template_identifier"; // TODO: change name
+                }
 
+                virtual auto is_template() const
+                    -> bool
+                {
+                    return true;
+                }
+
+                virtual auto template_argument() const
+                    -> template_argument_list_ptr
+                {
+                    return nullptr; // TODO: implement
+                }
 
             private:
             };
@@ -311,7 +354,7 @@ namespace rill
                 {}
 
             public:
-                virtual auto get_native_typename_string() const -> native_string_t 
+                virtual auto get_native_typename_string() const -> native_string_t
                 {
                     return "int";
                 }
@@ -335,7 +378,7 @@ namespace rill
                 {}
 
             public:
-                virtual auto get_native_typename_string() const -> native_string_t 
+                virtual auto get_native_typename_string() const -> native_string_t
                 {
                     return "bool";
                 }
@@ -359,7 +402,7 @@ namespace rill
                 {}
 
             public:
-                virtual auto get_native_typename_string() const -> native_string_t 
+                virtual auto get_native_typename_string() const -> native_string_t
                 {
                     return "string";
                 }
@@ -368,7 +411,7 @@ namespace rill
             public:
                 std::string value_;
             };
-            
+
 
         }
 
@@ -386,7 +429,7 @@ namespace rill
             // specify value's type name
             intrinsic_value( intrinsic::value_base_ptr const& iv )
                 : value_( iv )
-                , literal_type_name_( std::make_shared<intrinsic::single_identifier_value>( iv->get_native_typename_string() ) )
+                , literal_type_name_( std::make_shared<intrinsic::identifier_value>( iv->get_native_typename_string() ) )
             {}
 
             virtual ~intrinsic_value() {};
@@ -399,7 +442,7 @@ namespace rill
 
         public:
             intrinsic::value_base_ptr value_;   // TODO: rename(holder)
-            intrinsic::const_single_identifier_value_ptr literal_type_name_;
+            intrinsic::const_identifier_value_ptr literal_type_name_;
         };
 
 

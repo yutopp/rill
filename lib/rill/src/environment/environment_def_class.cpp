@@ -23,7 +23,7 @@ namespace rill
 
     auto environment_base::mark_as(
         kind::class_tag,
-        ast::intrinsic::single_identifier_value_base_ptr const& class_name,
+        ast::intrinsic::identifier_value_base_ptr const& class_name,
         ast::statement_ptr const& ast
         )
         -> decltype( static_cast<environment_base *>( nullptr )->incomplete_construct( kind::k_class, class_name ) )
@@ -42,7 +42,7 @@ namespace rill
 
     auto single_identifier_environment_base::incomplete_construct(
         kind::class_tag,
-        ast::intrinsic::single_identifier_value_base_ptr const& name
+        ast::intrinsic::identifier_value_base_ptr const& name
         )
         -> class_symbol_environment_ptr
     {
@@ -68,7 +68,7 @@ namespace rill
 
     auto single_identifier_environment_base::construct(
         kind::class_tag,
-        ast::intrinsic::single_identifier_value_base_ptr const& class_name,
+        ast::intrinsic::identifier_value_base_ptr const& class_name,
         ast::statement_ptr const& ast
 /*        const_class_symbol_environment_ptr const& class_env,
           attribute::type_attributes const& type_attr*/

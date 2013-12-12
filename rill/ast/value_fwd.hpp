@@ -32,19 +32,14 @@ namespace rill
         RILL_AST_FWD_DECL_IN_NAMESPACE( intrinsic, value_base, value )
 
         //
-        RILL_AST_FWD_DECL_IN_NAMESPACE( intrinsic, single_identifier_value_base, value )
+        RILL_AST_FWD_DECL_IN_NAMESPACE( intrinsic, identifier_value_base, value )
 
         //
-        RILL_AST_FWD_DECL_IN_NAMESPACE( intrinsic, identifier_value, value )
+        RILL_AST_FWD_DECL_IN_NAMESPACE( intrinsic, nested_identifier_value, value )
 
         // 
-        RILL_AST_FWD_DECL_IN_NAMESPACE( intrinsic, single_identifier_value, value )
-
-        /*
-        //
-        struct single_template_identifier_value;
-        typedef std::shared_ptr<single_template_identifier_value> single_template_identifier_value_ptr;
-        */
+        RILL_AST_FWD_DECL_IN_NAMESPACE( intrinsic, identifier_value, value )
+        RILL_AST_FWD_DECL_IN_NAMESPACE( intrinsic, template_instance_value, value )
 
         RILL_AST_FWD_DECL_IN_NAMESPACE( intrinsic, symbol_value, value )
 

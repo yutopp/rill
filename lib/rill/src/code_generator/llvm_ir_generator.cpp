@@ -51,24 +51,27 @@ namespace rill
         {
             //
             for( auto const& node : r->statements_ )
-                dispatch( node );
+                dispatch( node, root_env_ );
         }
 
 
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::block_statement, s, parent_env )
+        RILL_TV_OP_CONST( llvm_ir_generator, ast::block_statement, s, _ )
         {
-            // dispatch( node, root_env_->get_related_env_by_ast_ptr( node ) );
+            //auto const& scope_env = root_env_->get_related_env_by_ast_ptr( s );
+            //std::cout << (const_environment_base_ptr)_ << std::endl;
+            //assert( scope_env != nullptr );
+
             for( auto const& node : s->statements_ )
-                dispatch( node, parent_env ? parent_env->get_related_env_by_ast_ptr( node ) : nullptr );
+                dispatch( node );
         }
 
 
         //
         // Expression Statement
         //
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::expression_statement, s, env )
+        RILL_TV_OP_CONST( llvm_ir_generator, ast::expression_statement, s, parent_env )
         {
-            dispatch( s->expression_, root_env_->get_related_env_by_ast_ptr( s->expression_ ) );
+            dispatch( s->expression_, parent_env );
         }
 
 
@@ -76,9 +79,9 @@ namespace rill
         //
         //
         //
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::return_statement, s, env )
+        RILL_TV_OP_CONST( llvm_ir_generator, ast::return_statement, s, parent_env )
         {
-            context_->ir_builder.CreateRet( dispatch( s->expression_, env ) );
+            context_->ir_builder.CreateRet( dispatch( s->expression_, parent_env ) );
         }
 
 
@@ -86,13 +89,13 @@ namespace rill
         //
         //
         //
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::function_definition_statement, s, self_env )
+        RILL_TV_OP_CONST( llvm_ir_generator, ast::function_definition_statement, s, parent_env )
         {
             //
-            std::cout << "!!!!!!ast::function_definition_statement" << self_env << " / " << root_env_->get_id() << std::endl;
+            //std::cout << "!!!!!!ast::function_definition_statem" << self_env << " / " << root_env_->get_id() << std::endl;
 
             //
-            auto const& f_env = std::static_pointer_cast<function_symbol_environment const>( ( self_env != nullptr ) ? self_env : root_env_->get_related_env_by_ast_ptr( s ) );
+            auto const& f_env = std::static_pointer_cast<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( s ) );
             assert( f_env != nullptr );
             if ( context_->env_conversion_table.is_defined( f_env->get_id() ) )
                 return;
@@ -165,7 +168,7 @@ namespace rill
             context_->ir_builder.SetInsertPoint( basic_brock );
 
             // generate statements
-            dispatch( s->block_, root_env_ );
+            dispatch( s->block_, f_env );
 
 
             // Only the function that returns void is allowed to has no return statement
@@ -179,12 +182,12 @@ namespace rill
 
 
 
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::class_definition_statement, s, self_env )
+        RILL_TV_OP_CONST( llvm_ir_generator, ast::class_definition_statement, s, parent_env )
         {
             // TODO: support structures contain self type. Ex, class T { ref T; val T; }
 
             //
-            auto const& c_env = std::static_pointer_cast<class_symbol_environment const>( ( self_env != nullptr ) ? self_env : root_env_->get_related_env_by_ast_ptr( s ) );
+            auto const& c_env = std::static_pointer_cast<class_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( s ) );
 
             //
             context_->env_conversion_table.create_class_variable_type_holder(
@@ -215,10 +218,10 @@ namespace rill
 
 
 
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::intrinsic_function_definition_statement, s, env )
+        RILL_TV_OP_CONST( llvm_ir_generator, ast::intrinsic_function_definition_statement, s, parent_env )
         {
             // cast to function symbol env
-            auto const& f_env = std::static_pointer_cast<function_symbol_environment const>( ( env != nullptr ) ? env : root_env_->get_related_env_by_ast_ptr( s ) );
+            auto const& f_env = std::static_pointer_cast<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( s ) );
             assert( f_env != nullptr );
             if ( context_->env_conversion_table.is_defined( f_env->get_id() ) )
                 return;
@@ -313,7 +316,7 @@ namespace rill
             context_->ir_builder.SetInsertPoint( function_entry_block );
 
             // build inner statements(that contain intrinsic_function_call)
-            dispatch( s->block_, root_env_ );
+            dispatch( s->block_, f_env );
 
             //
             llvm::verifyFunction( *func, llvm::PrintMessageAction );
@@ -323,14 +326,14 @@ namespace rill
         //
         //
         //
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::variable_declaration_statement, s, env )
+        RILL_TV_OP_CONST( llvm_ir_generator, ast::variable_declaration_statement, s, parent_env )
         {
             // TODO: all of variablea(mutable) should be allocated at head of function...
             // TODO: check kind...
 
             // cast to variable symbol env
             auto const& v_env
-                = std::static_pointer_cast<variable_symbol_environment const>( ( env != nullptr ) ? env : root_env_->get_related_env_by_ast_ptr( s ) );
+                = std::static_pointer_cast<variable_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( s ) );
             assert( v_env != nullptr );
 
 
@@ -349,7 +352,7 @@ namespace rill
             // TODO: call constructor if there are no initial value
             auto const& initial_llvm_value
                 = s->declaration_.decl_unit.init_unit.initializer
-                ? dispatch( s->declaration_.decl_unit.init_unit.initializer )
+                ? dispatch( s->declaration_.decl_unit.init_unit.initializer, v_env )
                 : (llvm::Value*)llvm::ConstantStruct::get( (llvm::StructType*)variable_llvm_type, llvm::ConstantInt::get( context_->llvm_context, llvm::APInt( 32, 42 ) ), nullptr );//nullptr;
 
             //
@@ -465,10 +468,10 @@ namespace rill
 
 
 
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::extern_function_declaration_statement, s, env )
+        RILL_TV_OP_CONST( llvm_ir_generator, ast::extern_function_declaration_statement, s, parent_env )
         {
             // cast to function symbol env
-            auto const& f_env = std::static_pointer_cast<function_symbol_environment const>( ( env != nullptr ) ? env : root_env_->get_related_env_by_ast_ptr( s ) );
+            auto const& f_env = std::static_pointer_cast<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( s ) );
             assert( f_env != nullptr );
             if ( context_->env_conversion_table.is_defined( f_env->get_id() ) )
                 return;
@@ -508,7 +511,7 @@ namespace rill
 
 
 
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::test_while_statement, s, _ )
+        RILL_TV_OP_CONST( llvm_ir_generator, ast::test_while_statement, s, parent_env )
         {
             llvm::BasicBlock* const while_begin_block
                 = llvm::BasicBlock::Create( context_->llvm_context, "", context_->ir_builder.GetInsertBlock()->getParent() );
@@ -526,8 +529,8 @@ namespace rill
 
             //
             context_->ir_builder.SetInsertPoint( body_block );
-            auto const& body_scope_env = root_env_->get_related_env_by_ast_ptr( s->body_statement_ ); assert( scope_env != nullptr );
-            dispatch( s->body_statement_, body_scope_env );
+//            auto const& body_scope_env = root_env_->get_related_env_by_ast_ptr( s->body_statement_ ); assert( scope_env != nullptr );
+            dispatch( s->body_statement_, scope_env/*body_scope_env*/ );
             context_->ir_builder.CreateBr( while_begin_block );
 
             //
@@ -539,7 +542,7 @@ namespace rill
 
 
 
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::test_if_statement, s, _ )
+        RILL_TV_OP_CONST( llvm_ir_generator, ast::test_if_statement, s, parent_env )
         {
             llvm::BasicBlock* const if_begin_block
                 = llvm::BasicBlock::Create( context_->llvm_context, "", context_->ir_builder.GetInsertBlock()->getParent() );
@@ -568,15 +571,15 @@ namespace rill
 
             //
             context_->ir_builder.SetInsertPoint( then_block );
-            auto const& then_scope_env = root_env_->get_related_env_by_ast_ptr( s->then_statement_ ); assert( then_scope_env != nullptr );
-            dispatch( s->then_statement_, then_scope_env );
+            //auto const& then_scope_env = root_env_->get_related_env_by_ast_ptr( s->then_statement_ ); assert( then_scope_env != nullptr );
+            dispatch( s->then_statement_, scope_env/*then_scope_env*/ );
             context_->ir_builder.CreateBr( final_block );
 
             //
             if ( s->else_statement_ ) {
                 context_->ir_builder.SetInsertPoint( else_block );
-                auto const& else_scope_env = root_env_->get_related_env_by_ast_ptr( *s->else_statement_ ); assert( else_scope_env != nullptr );
-                dispatch( *s->else_statement_, else_scope_env );
+                //auto const& else_scope_env = root_env_->get_related_env_by_ast_ptr( *s->else_statement_ ); assert( else_scope_env != nullptr );
+                dispatch( *s->else_statement_, scope_env/*else_scope_env*/ );
                 context_->ir_builder.CreateBr( final_block );
             }
 
@@ -589,7 +592,7 @@ namespace rill
 
 
 
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::binary_operator_expression, e, _ )
+        RILL_TV_OP_CONST( llvm_ir_generator, ast::binary_operator_expression, e, parent_env )
         {
             // Look up Function
             auto const f_env = std::static_pointer_cast<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( e ) );
@@ -635,7 +638,7 @@ namespace rill
                     dispatch( c_env->get_related_ast(), c_env );
                 }
 
-                auto const value = dispatch( e_arguments[e_arguments.size()-i-1], _ );
+                auto const value = dispatch( e_arguments[e_arguments.size()-i-1], parent_env );
                 assert( value != nullptr );
 
                 // TODO: check more strict
@@ -682,7 +685,7 @@ namespace rill
 
 
 
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::call_expression, e, _ )
+        RILL_TV_OP_CONST( llvm_ir_generator, ast::call_expression, e, parent_env )
         {
             // Look up Function
             auto const f_env = std::static_pointer_cast<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( e ) );
@@ -730,7 +733,7 @@ namespace rill
                     auto const& c_env = root_env_->get_env_strong_at( type.class_env_id );
                     dispatch( c_env->get_related_ast(), c_env );
                 }
-                auto const value = dispatch( e->arguments_[e->arguments_.size()-i-1], _ );
+                auto const value = dispatch( e->arguments_[e->arguments_.size()-i-1], parent_env );
                 assert( value != nullptr );
 
                 // TODO: check more strict
@@ -773,7 +776,7 @@ namespace rill
 
 
         // TODO: change name to native code injection expression
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::intrinsic_function_call_expression, e, _ )
+        RILL_TV_OP_CONST( llvm_ir_generator, ast::intrinsic_function_call_expression, e, parent_env )
         {
             // look up the function
             auto const f_env = std::static_pointer_cast<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( e ) );
@@ -803,12 +806,12 @@ namespace rill
         }
 
 
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::term_expression, e, _ )
+        RILL_TV_OP_CONST( llvm_ir_generator, ast::term_expression, e, parent_env )
         {
-            return dispatch( e->value_, _ );
+            return dispatch( e->value_, parent_env );
         }
 
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::intrinsic_value, v, _ )
+        RILL_TV_OP_CONST( llvm_ir_generator, ast::intrinsic_value, v, parent_env )
         {
             // TODO: check primitive type
             if ( v->literal_type_name_->get_inner_symbol()->to_native_string() == "int" ) {
@@ -820,12 +823,12 @@ namespace rill
                 return context_->ir_builder.CreateGlobalStringPtr( std::static_pointer_cast<ast::intrinsic::string_value const>( v->value_ )->value_.c_str() );
 
             } else {
-                assert( false );
+                assert( false && "[ice] this primitive type is not supported" );
                 return nullptr;
             }
         }
 
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::variable_value, v, _ )
+        RILL_TV_OP_CONST( llvm_ir_generator, ast::variable_value, v, parent_env )
         {
             auto const v_env = std::static_pointer_cast<variable_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( v ) );
             assert( v_env != nullptr );

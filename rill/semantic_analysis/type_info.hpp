@@ -22,7 +22,7 @@ namespace rill
     {
         struct type_info
         {
-            ast::intrinsic::identifier_value_ptr identifier;
+            ast::intrinsic::nested_identifier_value_ptr identifiers;
             attribute::type_attributes_optional attributes;
         };
 

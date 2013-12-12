@@ -91,7 +91,7 @@ namespace rill
 
         struct variable_declaration_unit
         {
-            intrinsic::single_identifier_value_base_ptr name;
+            intrinsic::identifier_value_base_ptr name;
             value_initializer_unit init_unit;
         };
 
@@ -294,20 +294,20 @@ namespace rill
 
         public:
             class_function_definition_statement(
-                intrinsic::single_identifier_value_base_ptr const& class_name,
+                intrinsic::identifier_value_base_ptr const& function_name,
                 parameter_list const& parameter_list,
                 boost::optional<type_expression_ptr> const& return_type,
                 block_statement_ptr const& block
                 )
                 : function_definition_statement_base( block )
-                , identifier_( class_name )
+                , identifier_( function_name )
                 , parameter_list_( parameter_list )
                 , return_type_( return_type )
             {}
 
         public:
             auto get_identifier() const
-                -> intrinsic::single_identifier_value_base_ptr
+                -> intrinsic::identifier_value_base_ptr
             {
                 return identifier_;
             }
@@ -319,7 +319,7 @@ namespace rill
             }
 
         public:
-            intrinsic::single_identifier_value_base_ptr identifier_;
+            intrinsic::identifier_value_base_ptr identifier_;
             parameter_list parameter_list_;
             boost::optional<type_expression_ptr> return_type_;
         };
@@ -336,13 +336,13 @@ namespace rill
 
         public:
             class_definition_statement(
-                intrinsic::single_identifier_value_ptr const& identifier
+                intrinsic::identifier_value_ptr const& identifier
                 )
                 : identifier_( identifier )
             {}
 
             class_definition_statement(
-                intrinsic::single_identifier_value_ptr const& identifier,
+                intrinsic::identifier_value_ptr const& identifier,
                 boost::optional<parameter_list> const& constructor_parameter_list,
                 block_statement_ptr const& block
                 )
@@ -353,7 +353,7 @@ namespace rill
 
         public:
             auto get_identifier() const
-                -> intrinsic::single_identifier_value_ptr
+                -> intrinsic::identifier_value_ptr
             {
                 return identifier_;
             }
@@ -365,7 +365,7 @@ namespace rill
             }
 
         public:
-            intrinsic::single_identifier_value_ptr const identifier_;
+            intrinsic::identifier_value_ptr const identifier_;
             parameter_list const constructor_parameter_list_;
             block_statement_ptr const block_;
         };
@@ -437,7 +437,7 @@ namespace rill
 
         public:
             auto get_identifier() const
-                -> intrinsic::single_identifier_value_base_ptr
+                -> intrinsic::identifier_value_base_ptr
             {
                 return declaration_.decl_unit.name;
             }
@@ -461,7 +461,7 @@ namespace rill
 
         public:
             auto get_identifier() const
-                -> intrinsic::single_identifier_value_base_ptr
+                -> intrinsic::identifier_value_base_ptr
             {
                 return declaration_.decl_unit.name;
             }
@@ -496,7 +496,7 @@ namespace rill
 
 
         // make native
-        inline auto make_native_class( intrinsic::single_identifier_value_ptr const& class_identifier )
+        inline auto make_native_class( intrinsic::identifier_value_ptr const& class_identifier )
             -> class_definition_statement_ptr
         {
             return std::make_shared<class_definition_statement>( class_identifier );
@@ -520,7 +520,7 @@ BOOST_FUSION_ADAPT_STRUCT(
 
 BOOST_FUSION_ADAPT_STRUCT(
     rill::ast::variable_declaration_unit,
-    (rill::ast::intrinsic::single_identifier_value_base_ptr,    name)
+    (rill::ast::intrinsic::identifier_value_base_ptr,           name)
     (rill::ast::value_initializer_unit,                         init_unit)
     )
 

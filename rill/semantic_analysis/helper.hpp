@@ -17,7 +17,16 @@ namespace rill
 {
     namespace semantic_analysis
     {
-        auto lookup_with_instanciation( environment_base_ptr const&, ast::intrinsic::const_identifier_value_ptr const& )
+        auto lookup_with_instanciation(
+            environment_base_ptr const&,
+            ast::intrinsic::const_nested_identifier_value_ptr const&
+            )
+            -> environment_base_ptr;
+
+        auto lookup_with_instanciation(
+            environment_base_ptr const& env,
+            ast::intrinsic::const_identifier_value_base_ptr const& id
+            )
             -> environment_base_ptr;
 
     } // namespace semantic_analysis

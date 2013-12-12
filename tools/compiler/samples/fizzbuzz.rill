@@ -1,0 +1,52 @@
+def main(): int
+{
+    print( "hello, bunchou lang on Linux!!!bunbun!\n" );
+
+    val i = 1: int mutable;
+    while( i < 100 ) {
+        if ( i % 15 == 0 ) {
+            print( "Fizzbuzz " );
+        } else if ( i % 5 == 0 ) {
+            print( "Buzz " );
+        } else if ( i % 3 == 0 ) {
+            print( "Fizz " );
+        } else {
+            extern_print_int( i ); print( " " );
+        }
+
+        i = i + 1;
+    }
+    print( "\n" );
+    // Test
+    overload( 2, 5 );
+    overload( "bun!" );
+
+    return 0;
+}
+
+def overload( val a: int, val b: int ): void
+{
+    print( "====================\n" );
+    print( "test_scope\n" );
+    print( "====================\n" );
+
+    val i = 42: int mutable;
+    {
+        val a = a*b: int;
+        print( "inner: " ); print_int( a );
+    }
+    print( "outer: " ); print_int( i );
+}
+
+
+def overload( ref s: string ): void
+{
+    print( "====================\n" );
+    print( s );
+    print( "\n" );
+}
+
+//
+extern def extern_print_int( val :int ): void "put_string2"; 
+
+def print_int( val i: int ): int { extern_print_int( i ); print( "\n" ); }

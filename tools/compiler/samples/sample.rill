@@ -1,0 +1,104 @@
+def main(): int
+{
+    print( "hello, bunchou lang on Linux!!!bunbun!\n" );
+    test1();
+    test_while();
+    test_while_if();
+    test_scope();
+
+    return 0;
+}
+
+def test_while(): void
+{
+    print( "====================\n" );
+    print( "test_while\n" );
+    print( "====================\n" );
+
+    val i = 0: int mutable;
+    while( i < 10 ) {
+        print_int( i );
+        i = i + 1;
+    }
+}
+
+def test_while_if(): void
+{
+    print( "====================\n" );
+    print( "test_while_if\n" );
+    print( "====================\n" );
+
+    val i = 0: int mutable;
+    while( i < 10 ) {
+        if ( 5 < i ) {
+            print( "i > 5" );
+        } else
+            if ( i < 1 )
+               print( "i < 1" );
+            else {
+               if ( i < 2 ) {
+                   print( "i < 2" );
+               } else
+               if ( i < 3 )
+                   print( "i < 3" );
+               else extern_print_int( i );
+            }
+
+        print( "\n" );
+        i = i + 1;
+    }
+}
+
+def test_scope(): void
+{
+    print( "====================\n" );
+    print( "test_scope\n" );
+    print( "====================\n" );
+
+    val i = 42: int mutable;
+    {
+        val i = 72: int;
+        print( "inner: " ); extern_print_int( i ); print( "\n" );
+    }
+
+    print( "outer: " ); extern_print_int( i ); print( "\n" );
+}
+
+
+
+
+def test1(): void
+{
+    extern_print_int( foo( ( 10*2 )*(1+2*2   ), 10 ) + 2 * 5 );
+    print( "\n" );
+}
+
+extern def extern_print_int( val :int ): void "put_string2"; 
+
+def print_int( val i: int ): int
+{
+   extern_print_int( i ); print( "\n" );
+}
+
+def foo( val fuga: int, val hoge: int ): int
+{
+    return foo(fuga) * hoge;
+}
+
+def foo( val a: int ): int
+{
+    return a;
+}
+
+def foo(
+    ref fuga: string,
+    val hoge: int,
+    val piyo: int
+    ): int
+{
+    print( fuga );
+    return hoge * piyo;
+}
+
+// comment
+;/*empty statment*/;;;

@@ -57,7 +57,11 @@ namespace rill
             RILL_AST_ADAPT_VISITOR( binary_operator_expression )
 
         public:
-            binary_operator_expression( expression_ptr const& lhs, intrinsic::single_identifier_value_ptr const& op, expression_ptr const& rhs )
+            binary_operator_expression(
+                expression_ptr const& lhs,
+                intrinsic::identifier_value_ptr const& op,
+                expression_ptr const& rhs
+                )
                 : lhs_( lhs )
                 , op_( op )
                 , rhs_( rhs )
@@ -65,7 +69,7 @@ namespace rill
 
         public:
             expression_ptr const lhs_;
-            intrinsic::single_identifier_value_ptr const op_;
+            intrinsic::identifier_value_ptr const op_;
             expression_ptr const rhs_;
         };
 
@@ -77,13 +81,16 @@ namespace rill
             RILL_AST_ADAPT_VISITOR( call_expression )
 
         public:
-            call_expression( intrinsic::identifier_value_ptr const& caller, expression_list const& arguments )
-                : reciever_( caller )
+            call_expression(
+                intrinsic::identifier_value_base_ptr/*expression_ptr*/ const& reciever,
+                expression_list const& arguments
+                )
+                : reciever_( reciever )
                 , arguments_( arguments )
             {}
 
         public:
-            intrinsic::identifier_value_ptr const reciever_;
+            intrinsic::identifier_value_base_ptr/*expression_ptr*/ const reciever_;
             expression_list const arguments_;
         };
 
@@ -143,7 +150,7 @@ namespace rill
 
         public:
             type_identifier_expression(
-                intrinsic::identifier_value_ptr const& v,
+                intrinsic::nested_identifier_value_ptr const& v,
                 attribute::type_attributes_optional const& attributes
                 )
                 : value_( v )
@@ -151,7 +158,7 @@ namespace rill
             {}
 
         public:
-            intrinsic::identifier_value_ptr const value_;
+            intrinsic::nested_identifier_value_ptr const value_;
             attribute::type_attributes_optional const attributes_;
         };
 

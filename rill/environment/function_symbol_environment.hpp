@@ -151,7 +151,7 @@ namespace rill
         }
 
         auto parameter_variable_construct(
-            ast::intrinsic::single_identifier_value_base_ptr const& name,
+            ast::intrinsic::identifier_value_base_ptr const& name,
             const_class_symbol_environment_ptr const& type_env,
             attribute::type_attributes const& type_attr = attribute::make_default_type_attributes()
             )
