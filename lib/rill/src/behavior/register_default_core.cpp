@@ -150,7 +150,8 @@ namespace rill
                 = rill::ast::intrinsic::make_binary_operator_identifier( "-" );
             auto const operator_div
                 = rill::ast::intrinsic::make_binary_operator_identifier( "/" );
-
+            auto const operator_modulo
+                = rill::ast::intrinsic::make_binary_operator_identifier( "%" );
 
 
             //
@@ -158,6 +159,8 @@ namespace rill
                 = rill::ast::intrinsic::make_binary_operator_identifier( "<" );
             auto const operator_assign
                 = rill::ast::intrinsic::make_binary_operator_identifier( "=" );
+            auto const operator_equal
+                = rill::ast::intrinsic::make_binary_operator_identifier( "==" );
 
 
             auto const print
@@ -357,6 +360,50 @@ namespace rill
 
 
 
+            // ============================================================
+            // ============================================================
+            //
+            //
+            // ============================================================
+            {
+                //
+                // def %( :int, :int ): int => native
+                //
+
+                struct action
+                    : rill::intrinsic_function_action_base
+                {
+                    //
+                    auto invoke(
+                        rill::processing_context::llvm_ir_generator_tag, // Tag for Rill's LLVM IR Generator
+                        code_generator::llvm_ir_generator_context_ptr const& context,
+                        const_environment_base_ptr const& root_env,
+                        environment_id_list_t const& argument_var_env_ids
+                        ) const
+                        -> llvm::Value*
+                        {
+                            // Signed remider
+                            return context->ir_builder.CreateSRem(
+                                context->env_conversion_table.ref_value( argument_var_env_ids[0] ),
+                                context->env_conversion_table.ref_value( argument_var_env_ids[1] )
+                                );
+                        }
+                };
+
+                construct_predefined_function<action>( intrinsic_function_action, root_env, operator_modulo, [&]( rill::function_symbol_environment_ptr const& fenv ) {
+                        // ( :int, :int )
+                        fenv->parameter_variable_construct( nullptr, int_class_env_pointer );    // :int
+                        fenv->parameter_variable_construct( nullptr, int_class_env_pointer );    // :int
+
+                        return fenv;
+                    }, int_class_env_pointer );
+            }
+
+
+
+
+
+
 
 
             // ============================================================
@@ -464,6 +511,52 @@ namespace rill
             }
 
 
+
+
+
+
+
+
+
+
+            // ============================================================
+            // ============================================================
+            //
+            //
+            // ============================================================
+            {
+                //
+                // def ==( :int, :int ): bool => native
+                //
+
+                struct action
+                    : rill::intrinsic_function_action_base
+                {
+                    //
+                    auto invoke(
+                        rill::processing_context::llvm_ir_generator_tag, // Tag for Rill's LLVM IR Generator
+                        code_generator::llvm_ir_generator_context_ptr const& context,
+                        const_environment_base_ptr const& root_env,
+                        environment_id_list_t const& argument_var_env_ids
+                        ) const
+                        -> llvm::Value*
+                        {
+                            // 
+                            return context->ir_builder.CreateICmpEQ(
+                                context->env_conversion_table.ref_value( argument_var_env_ids[0] ),
+                                context->env_conversion_table.ref_value( argument_var_env_ids[1] )
+                                );
+                        }
+                };
+
+                construct_predefined_function<action>( intrinsic_function_action, root_env, operator_equal, [&]( rill::function_symbol_environment_ptr const& fenv ) {
+                        // ( :int, :int )
+                        fenv->parameter_variable_construct( nullptr, int_class_env_pointer );    // :int
+                        fenv->parameter_variable_construct( nullptr, int_class_env_pointer );    // :int
+
+                        return fenv;
+                    }, bool_class_env_pointer );
+            }
 
 
 
