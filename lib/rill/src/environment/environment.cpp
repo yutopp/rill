@@ -40,7 +40,7 @@ namespace rill
 
 
 //
-    auto single_identifier_environment_base::find_on_env( ast::intrinsic::const_identifier_value_base_ptr const& name )
+    auto single_identifier_environment_base::find_on_env( ast::const_identifier_value_base_ptr const& name )
         -> env_base_pointer
     {
         auto const it = instanced_env_.find( name->get_inner_symbol()->to_native_string() );
@@ -48,7 +48,7 @@ namespace rill
         return ( it != instanced_env_.end() ) ? it->second : nullptr;
     }
 
-    auto single_identifier_environment_base::find_on_env( ast::intrinsic::const_identifier_value_base_ptr const& name ) const
+    auto single_identifier_environment_base::find_on_env( ast::const_identifier_value_base_ptr const& name ) const
         -> const_env_base_pointer
     {
         auto const it = instanced_env_.find( name->get_inner_symbol()->to_native_string() );
@@ -57,7 +57,7 @@ namespace rill
     }
 
 
-    auto single_identifier_environment_base::lookup( ast::intrinsic::const_identifier_value_base_ptr const& name )
+    auto single_identifier_environment_base::lookup( ast::const_identifier_value_base_ptr const& name )
         -> env_base_pointer
     {
         if ( name->is_template() ) {
@@ -71,13 +71,13 @@ namespace rill
             return s
                 ? s
                 : is_root()
-                ? nullptr   // Not found...
-                : get_parent_env()->lookup( name )
+                    ? nullptr   // Not found...
+                    : get_parent_env()->lookup( name )
                 ;
         }
     }
 
-    auto single_identifier_environment_base::lookup( ast::intrinsic::const_identifier_value_base_ptr const& name ) const
+    auto single_identifier_environment_base::lookup( ast::const_identifier_value_base_ptr const& name ) const
         -> const_env_base_pointer
     {
         if ( name->is_template() ) {

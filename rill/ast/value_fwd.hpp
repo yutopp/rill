@@ -31,16 +31,6 @@ namespace rill
 
         RILL_AST_FWD_DECL_IN_NAMESPACE( intrinsic, value_base, value )
 
-        //
-        RILL_AST_FWD_DECL_IN_NAMESPACE( intrinsic, identifier_value_base, value )
-
-        //
-        RILL_AST_FWD_DECL_IN_NAMESPACE( intrinsic, nested_identifier_value, value )
-
-        // 
-        RILL_AST_FWD_DECL_IN_NAMESPACE( intrinsic, identifier_value, value )
-        RILL_AST_FWD_DECL_IN_NAMESPACE( intrinsic, template_instance_value, value )
-
         RILL_AST_FWD_DECL_IN_NAMESPACE( intrinsic, symbol_value, value )
 
         RILL_AST_FWD_DECL_IN_NAMESPACE( intrinsic, int32_value, value )
@@ -48,13 +38,13 @@ namespace rill
         RILL_AST_FWD_DECL_IN_NAMESPACE( intrinsic, string_value, value )
 
         //
-        //
-        RILL_AST_FWD_DECL( intrinsic_value, value )
+        RILL_AST_FWD_DECL( identifier_value_base, value )
+        RILL_AST_FWD_DECL( identifier_value, value )
+        RILL_AST_FWD_DECL( template_instance_value, value )
+        RILL_AST_FWD_DECL( nested_identifier_value, value )
 
         //
-        //
-        RILL_AST_FWD_DECL( variable_value, value )
-
+        RILL_AST_FWD_DECL( literal_value, value )
 
         //
         std::ostream& operator<<( std::ostream& os, value const& vp );

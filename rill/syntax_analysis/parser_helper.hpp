@@ -63,24 +63,24 @@ namespace rill
                 -> decltype(
                     make_node_ptr<ast::binary_operator_expression>(
                         lhs,
-                        ast::intrinsic::make_binary_operator_identifier( op ),
+                        ast::make_binary_operator_identifier( op ),
                         rhs
                         )
                     )
             {
                 return make_node_ptr<ast::binary_operator_expression>(
                         lhs,
-                        ast::intrinsic::make_binary_operator_identifier( op ),
+                        ast::make_binary_operator_identifier( op ),
                         rhs
                         );
             }
 
 
             template<typename T, typename... Args>
-            auto make_intrinsic_value_ptr( Args const&... xs )
-                -> decltype( make_node_ptr<ast::intrinsic_value>( make_node_ptr<T>( xs... ) ) )
+            auto make_literal_value_ptr( Args const&... xs )
+                -> decltype( make_node_ptr<ast::literal_value>( make_node_ptr<T>( xs... ) ) )
             {
-                return make_node_ptr<ast::intrinsic_value>( make_node_ptr<T>( xs... ) );
+                return make_node_ptr<ast::literal_value>( make_node_ptr<T>( xs... ) );
             }
 
 

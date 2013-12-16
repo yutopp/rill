@@ -7,30 +7,10 @@ def main(): int
     return 0;
 }
 
-extern def extern_print_int( val :int ): void
-       "put_string2";
-
-
 class Test
 {
-    val a: int;
-
     def aaa(): void
     {
         print("yonda?");
     }
-}
-
-
-class Test2
-{}
-
-
-def aaa(): int
-{
-}
-
-
-def a(): int
-{
 }

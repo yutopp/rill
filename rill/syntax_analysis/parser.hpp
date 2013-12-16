@@ -77,9 +77,9 @@ namespace rill
                     -> void
                 {
                     rule.name( n );
-                 
+
                     auto const err_handler   = error_handler_( qi::_1, qi::_2, qi::_3, qi::_4 );
-                    auto const pos_annotator = position_annotator_( qi::_val, qi::_1, qi::_3 );       
+                    auto const pos_annotator = position_annotator_( qi::_val, qi::_1, qi::_3 );
                     qi::on_error<E>( rule, err_handler );
                     qi::on_success( rule, pos_annotator );
                 }
@@ -140,7 +140,7 @@ namespace rill
                 empty_statement_
                     = statement_termination_[qi::_val = helper::make_node_ptr<ast::empty_statement>()]
                     ;
-                
+
 
                 return_statement_.name( "return_statement" );
                 return_statement_
@@ -240,7 +240,7 @@ namespace rill
                             )
                        ]
                     ;
-                
+
                 //function_body_expression_
                 //
                 function_definition_statement_.name( "function_definition_statement" );
@@ -493,6 +493,7 @@ namespace rill
                 expression_
                     %= expression_priority_[ExpressionHierarchyNum-1]
                     ;
+                qi::debug( expression_ );
 
                 {
                     auto const priority = 6u;
@@ -501,6 +502,7 @@ namespace rill
                         >> *( ( qi::lit( "=" ) >> expression_priority_[priority-1] )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, "=", qi::_1 )]
                             )
                         ;
+                    qi::debug( expression_priority_[priority] );
                 }
 
                 {
@@ -510,6 +512,8 @@ namespace rill
                         >> *( ( qi::lit( "==" ) >> expression_priority_[priority-1] )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, "==", qi::_1 )]
                             )
                         ;
+
+                    qi::debug( expression_priority_[priority] );
                 }
 
                 {
@@ -519,6 +523,8 @@ namespace rill
                         >> *( ( qi::lit( "<" ) >> expression_priority_[priority-1] )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, "<", qi::_1 )]
                             )
                         ;
+
+                    qi::debug( expression_priority_[priority] );
                 }
 
                 {
@@ -529,6 +535,8 @@ namespace rill
                             | ( qi::lit( "-" ) >> expression_priority_[priority-1] )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, "-", qi::_1 )]
                             )
                         ;
+
+                    qi::debug( expression_priority_[priority] );
                 }
 
                 {
@@ -540,6 +548,8 @@ namespace rill
                             | ( qi::lit( "%" ) >> expression_priority_[priority-1] )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, "%", qi::_1 )]
                             )
                         ;
+
+                    qi::debug( expression_priority_[priority] );
                 }
 
                 {
@@ -547,70 +557,72 @@ namespace rill
                     expression_priority_[priority]
                         = expression_priority_[priority-1][qi::_val = qi::_1]
                         ;
+
+                    qi::debug( expression_priority_[priority] );
                 }
 
 
                 {
                     auto const priority = 0u;
                     expression_priority_[priority]
-                        = call_expression_[qi::_val = qi::_1]
-//                        | element_selector_[qi::_val = qi::_1]
-                        | primary_expression_[qi::_val = qi::_1]
-                        | ( ( qi::lit( '(' ) >> expression_ >> qi::lit( ')' ) ) )[qi::_val = qi::_1]
+                        = primary_expression_[qi::_val = qi::_1]
+                        >> *( ( qi::lit( "." ) >> qi::as<ast::identifier_value_base_ptr>()
+                                  [ identifier_
+                                    | identifier_with_root_
+                                    | template_instance_
+                                    | template_instance_with_root_
+                                      ] )[qi::_val = helper::make_node_ptr<ast::element_selector_expression>(
+                                      qi::_val,
+                                      qi::_1
+                                      )]
+                            | ( argument_list_ )[qi::_val
+                                                 = helper::make_node_ptr<ast::call_expression>(
+                                                     qi::_val,
+                                                     qi::_1
+                                                     )]
+                            )
                         ;
+                    qi::debug( expression_priority_[priority] );
                 }
 
 
-                // call expression
-                call_expression_
-                    = ( identifier_
-                      >> argument_list_
-                      )[
-                          qi::_val = helper::make_node_ptr<ast::call_expression>( qi::_1, qi::_2 )
-                      ]
-                    ;
-/*
-                //
-                element_selector_
-                    = ( expression_
-                        >> ( qi::lit( "." )
-                        )
-*/
+
+
 
                 // termination
                 primary_expression_
                     = qi::as<ast::value_ptr>()
-                      [/* identifier_
+                      [ identifier_
                       | identifier_with_root_
                       | template_instance_
                       | template_instance_with_root_
-                      | */numeric_literal_
+                      | numeric_literal_
                       | boolean_literal_
-                      | string_literal_                    
-                      | variable_value_
-                      ][ qi::_val = helper::make_node_ptr<ast::term_expression>( qi::_1 ) ]
+                      | string_literal_
+                    ][ qi::_val = helper::make_node_ptr<ast::term_expression>( qi::_1 ) ]
+                    | ( qi::lit( '(' ) >> expression_ >> qi::lit( ')' ) )[qi::_val = qi::_1]
                     ;
-
+                qi::debug( primary_expression_ );
+/*
                 //
                 variable_value_
                     = identifier_[
                         qi::_val = helper::make_node_ptr<ast::variable_value>( qi::_1 )
                       ]
                     ;
-
+*/
                 nested_identifier_
-                    = qi::as<std::vector<ast::intrinsic::identifier_value_base_ptr>>()[
-                        qi::as<ast::intrinsic::identifier_value_base_ptr>()[
-                        identifier_ | template_instance_
-                        ] % qi::lit( '.' )
-][
-    qi::_val = helper::make_node_ptr<ast::intrinsic::nested_identifier_value>( qi::_1 )
-];
+                    = qi::as<std::vector<ast::identifier_value_base_ptr>>()[
+                          ( identifier_ | template_instance_ ) % qi::lit( '.' )
+                      ][
+                          qi::_val = helper::make_node_ptr<ast::nested_identifier_value>( qi::_1 )
+                      ]
+                    ;
 
                 //
                 integer_literal_
                     = ( qi::int_ )[
-                        qi::_val = helper::make_intrinsic_value_ptr<ast::intrinsic::int32_value>( qi::_1 )
+                        qi::_val = helper::make_literal_value_ptr<ast::intrinsic::int32_value>( qi::_1 )
                       ];
 
                 numeric_literal_
@@ -618,26 +630,27 @@ namespace rill
                     ;
 
                 boolean_literal_
-                    = qi::lit( "true" )[qi::_val = helper::make_intrinsic_value_ptr<ast::intrinsic::boolean_value>( phx::val( true ) )]
-                    | qi::lit( "false" )[qi::_val = helper::make_intrinsic_value_ptr<ast::intrinsic::boolean_value>( phx::val( false ) )];
+                    = qi::lit( "true" )[qi::_val = helper::make_literal_value_ptr<ast::intrinsic::boolean_value>( phx::val( true ) )]
+                    | qi::lit( "false" )[qi::_val = helper::make_literal_value_ptr<ast::intrinsic::boolean_value>( phx::val( false ) )];
                     ;
 /*
                 type_
-                  = 
+                  =
 */
 
                 //
                 string_literal_
                     = string_literal_sequenece_[
-                        qi::_val = helper::make_intrinsic_value_ptr<ast::intrinsic::string_value>( qi::_1 )
+                        qi::_val = helper::make_literal_value_ptr<ast::intrinsic::string_value>( qi::_1 )
                       ]
                     ;
 
-                // TODO: support escape sequence
+
                 string_literal_sequenece_
                     = qi::as_string[qi::lexeme[ qi::lit('"') >> *( ( escape_sequence_ | qi::char_ )- '"') >> qi::lit('"') ]];
 
 
+                // TODO: support escape sequence
                 escape_sequence_
                     = qi::lit( "\\n" )[qi::_val = phx::val( '\n' )]
                     ;
@@ -659,26 +672,26 @@ namespace rill
                 identifier_.name( "identifier" );
                 identifier_
                     = native_symbol_string_/*TODO: fix...*/[
-                        qi::_val = helper::make_node_ptr<ast::intrinsic::identifier_value>( qi::_1 )
+                        qi::_val = helper::make_node_ptr<ast::identifier_value>( qi::_1 )
                       ]
                     ;
                 identifier_with_root_
                     = qi::lit( '.' )
                    >> native_symbol_string_/*TODO: fix...*/[
-                        qi::_val = helper::make_node_ptr<ast::intrinsic::identifier_value>( qi::_1, phx::val( true ) )
+                        qi::_val = helper::make_node_ptr<ast::identifier_value>( qi::_1, phx::val( true ) )
                       ]
                     ;
 
 
                 template_instance_
                     = native_symbol_string_/*TODO: fix...*/[
-                        qi::_val = helper::make_node_ptr<ast::intrinsic::template_instance_value>( qi::_1 )
+                        qi::_val = helper::make_node_ptr<ast::template_instance_value>( qi::_1 )
                       ]
                     ;
                 template_instance_with_root_
                     = qi::lit( '.' )
                    >> native_symbol_string_/*TODO: fix...*/[
-                        qi::_val = helper::make_node_ptr<ast::intrinsic::template_instance_value>( qi::_1, phx::val( true ) )
+                        qi::_val = helper::make_node_ptr<ast::template_instance_value>( qi::_1, phx::val( true ) )
                       ]
                     ;
 
@@ -698,7 +711,7 @@ namespace rill
 
                 native_symbol_string_.name( "native_symbol_string" );
                 native_symbol_string_
-                    = qi::lexeme[ ascii::char_( "a-zA-Z_" ) >> *(ascii::alnum | ascii::char_( "_" )) ] // TODO: add '_' charactor
+                    = qi::lexeme[ ascii::char_( "a-zA-Z_" ) >> *ascii::char_( "a-zA-Z0-9_" ) ]
                     ;
 
                 //
@@ -726,7 +739,8 @@ namespace rill
 
             // test
             rule<ast::test_while_statement_ptr()> while_statement_;
-            
+            rule<ast::test_if_statement_ptr()> if_statement_;
+
 
             rule<attribute::type_attributes_optional()> type_attributes_;
 
@@ -749,8 +763,7 @@ namespace rill
             static std::size_t const ExpressionHierarchyNum = 7;
             rule<ast::expression_ptr()> expression_, expression_priority_[ExpressionHierarchyNum];
             rule<ast::expression_list()> argument_list_;
-            rule<ast::call_expression_ptr()> call_expression_;
-            rule<ast::term_expression_ptr()> primary_expression_;
+            rule<ast::expression_ptr()> primary_expression_;
 
 
             rule<ast::type_expression_ptr()> type_expression_;
@@ -758,16 +771,16 @@ namespace rill
             rule<ast::compiletime_return_type_expression_ptr()> compiletime_return_type_expression_;
 
 
-            rule<ast::variable_value_ptr()> variable_value_;
+            // rule<ast::variable_value_ptr()> variable_value_;
 
-            rule<ast::intrinsic_value_ptr()> numeric_literal_;
-            rule<ast::intrinsic_value_ptr()> integer_literal_;
-            rule<ast::intrinsic_value_ptr()> boolean_literal_;
-            rule<ast::intrinsic_value_ptr()> string_literal_;
+            rule<ast::literal_value_ptr()> numeric_literal_;
+            rule<ast::literal_value_ptr()> integer_literal_;
+            rule<ast::literal_value_ptr()> boolean_literal_;
+            rule<ast::literal_value_ptr()> string_literal_;
 
-            rule<ast::intrinsic::nested_identifier_value_ptr()> nested_identifier_;
-            rule<ast::intrinsic::identifier_value_ptr()> identifier_, identifier_with_root_;
-            rule<ast::intrinsic::template_instance_value_ptr()> template_instance_, template_instance_with_root_;
+            rule<ast::nested_identifier_value_ptr()> nested_identifier_;
+            rule<ast::identifier_value_ptr()> identifier_, identifier_with_root_;
+            rule<ast::template_instance_value_ptr()> template_instance_, template_instance_with_root_;
 
             rule_no_skip<ast::intrinsic::symbol_value_ptr()> native_symbol_;
             rule_no_skip<ast::native_string_t()> native_symbol_string_;
@@ -780,7 +793,7 @@ namespace rill
             rule<ast::statement_ptr()> flow_block_statement_;
             rule<ast::statement_ptr()> wrapped_flow_statement_;
 
-            rule<ast::test_if_statement_ptr()> if_statement_;
+
 
 
             rule_no_skip<char()> escape_sequence_;

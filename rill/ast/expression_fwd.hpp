@@ -26,6 +26,7 @@ namespace rill
 
         RILL_AST_FWD_DECL( binary_operator_expression, expression )
 
+        RILL_AST_FWD_DECL( element_selector_expression, expression )
         RILL_AST_FWD_DECL( call_expression, expression )
         RILL_AST_FWD_DECL( intrinsic_function_call_expression, expression )
 

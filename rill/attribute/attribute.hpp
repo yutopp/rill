@@ -16,6 +16,7 @@ namespace rill
 {
     namespace attribute
     {
+        // TODO: rename -> holder_kind
         enum class quality_kind
         {
             k_suggest = 0,

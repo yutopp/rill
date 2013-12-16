@@ -51,15 +51,15 @@ namespace rill
         virtual ~single_identifier_environment_base() {};
 
     public:
-        virtual auto lookup( ast::intrinsic::const_identifier_value_base_ptr const& )
+        virtual auto lookup( ast::const_identifier_value_base_ptr const& )
             -> env_base_pointer RILL_CXX11_OVERRIDE;
-        virtual auto lookup( ast::intrinsic::const_identifier_value_base_ptr const& ) const
+        virtual auto lookup( ast::const_identifier_value_base_ptr const& ) const
             -> const_env_base_pointer RILL_CXX11_OVERRIDE;
 
         //
-        virtual auto find_on_env( ast::intrinsic::const_identifier_value_base_ptr const& )
+        virtual auto find_on_env( ast::const_identifier_value_base_ptr const& )
             -> env_base_pointer RILL_CXX11_OVERRIDE;
-        virtual auto find_on_env( ast::intrinsic::const_identifier_value_base_ptr const& ) const
+        virtual auto find_on_env( ast::const_identifier_value_base_ptr const& ) const
             -> const_env_base_pointer RILL_CXX11_OVERRIDE;
 
 
@@ -83,7 +83,7 @@ namespace rill
         }*/
 
         /*
-        auto is_same_pre_declared_type( intrinsic::identifier_value_ptr const& name, symbol_kind const& kind ) const
+        auto is_same_pre_declared_type( identifier_value_ptr const& name, symbol_kind const& kind ) const
             -> bool
         {
 
@@ -94,7 +94,7 @@ namespace rill
         //
         virtual auto incomplete_construct(
             kind::function_tag,
-            ast::intrinsic::identifier_value_base_ptr const&
+            ast::identifier_value_base_ptr const&
             ) -> std::pair<
                      std::shared_ptr<has_parameter_environment<function_symbol_environment>>,
                      function_symbol_environment_ptr
@@ -102,13 +102,13 @@ namespace rill
 
         virtual auto incomplete_construct(
             kind::variable_tag,
-            ast::intrinsic::identifier_value_base_ptr const&
+            ast::identifier_value_base_ptr const&
             ) -> variable_symbol_environment_ptr;
 
 
         virtual auto incomplete_construct(
             kind::class_tag,
-            ast::intrinsic::identifier_value_base_ptr const&
+            ast::identifier_value_base_ptr const&
             ) -> class_symbol_environment_ptr;
 
 
@@ -119,7 +119,7 @@ namespace rill
         typedef std::function<function_symbol_environment_ptr (function_symbol_environment_ptr const&)> function_env_generator_scope_type;
         virtual auto construct(
             kind::function_tag,
-            ast::intrinsic::identifier_value_base_ptr const&,
+            ast::identifier_value_base_ptr const&,
             ast::statement_ptr const&,
             function_env_generator_scope_type const&,
             class_symbol_environment_ptr const&,
@@ -129,7 +129,7 @@ namespace rill
 
         virtual auto construct(
             kind::variable_tag,
-            ast::intrinsic::identifier_value_base_ptr const&,
+            ast::identifier_value_base_ptr const&,
             ast::statement_ptr const&,
             const_class_symbol_environment_ptr const&,
             attribute::type_attributes const& = attribute::make_default_type_attributes()
@@ -138,7 +138,7 @@ namespace rill
 
         virtual auto construct(
             kind::class_tag,
-            ast::intrinsic::identifier_value_base_ptr const&,
+            ast::identifier_value_base_ptr const&,
             ast::statement_ptr const&
             ) -> class_symbol_environment_ptr;
 

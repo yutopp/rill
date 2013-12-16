@@ -151,7 +151,7 @@ namespace rill
         }
 
         auto parameter_variable_construct(
-            ast::intrinsic::identifier_value_base_ptr const& name,
+            ast::identifier_value_base_ptr const& name,
             const_class_symbol_environment_ptr const& type_env,
             attribute::type_attributes const& type_attr = attribute::make_default_type_attributes()
             )
@@ -172,6 +172,12 @@ namespace rill
         void set_parent_class_env_id( environment_id_t const& parent_class_env_id )
         {
             parent_class_env_id_ = parent_class_env_id;
+        }
+
+        auto get_parent_class_env_id() const
+            -> environment_id_t
+        {
+            return parent_class_env_id_;
         }
 
         bool is_in_class() const

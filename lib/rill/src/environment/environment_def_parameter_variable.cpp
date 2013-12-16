@@ -18,7 +18,7 @@
 namespace rill
 {
     auto function_symbol_environment::parameter_variable_construct(
-        ast::intrinsic::identifier_value_base_ptr const& variable_name,   // may be nullptr, if unnamed parameter variable
+        ast::identifier_value_base_ptr const& variable_name,   // may be nullptr, if unnamed parameter variable
         const_class_symbol_environment_ptr const& class_env,
         attribute::type_attributes const& type_attr
         )

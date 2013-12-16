@@ -180,20 +180,20 @@ namespace rill
 
     public:
         //
-        virtual auto lookup( ast::intrinsic::const_identifier_value_base_ptr const& name )
+        virtual auto lookup( ast::const_identifier_value_base_ptr const& name )
             -> env_base_pointer =0;
-        virtual auto lookup( ast::intrinsic::const_identifier_value_base_ptr const& name ) const
+        virtual auto lookup( ast::const_identifier_value_base_ptr const& name ) const
             -> const_env_base_pointer =0;
 
         //
-        virtual auto find_on_env( ast::intrinsic::const_identifier_value_base_ptr const& name )
+        virtual auto find_on_env( ast::const_identifier_value_base_ptr const& name )
             -> env_base_pointer =0;
-        virtual auto find_on_env( ast::intrinsic::const_identifier_value_base_ptr const& name ) const
+        virtual auto find_on_env( ast::const_identifier_value_base_ptr const& name ) const
             -> const_env_base_pointer =0;
 
         //
         template<typename F>
-        auto nest_lookup( ast::intrinsic::const_nested_identifier_value_ptr const& ids, F const& failed_callback )
+        auto nest_lookup( ast::const_nested_identifier_value_ptr const& ids, F const& failed_callback )
             -> env_base_pointer
         {
             // current environment
@@ -217,14 +217,14 @@ namespace rill
             return env;
         }
 
-        auto nest_lookup( ast::intrinsic::const_nested_identifier_value_ptr const& ids )
+        auto nest_lookup( ast::const_nested_identifier_value_ptr const& ids )
             -> env_base_pointer
         {
-            return nest_lookup( ids, []( env_base_pointer const&, ast::intrinsic::const_identifier_value_base_ptr const& ){ return nullptr; } );
+            return nest_lookup( ids, []( env_base_pointer const&, ast::const_identifier_value_base_ptr const& ){ return nullptr; } );
         }
 
         template<typename F>
-        auto nest_lookup( ast::intrinsic::const_nested_identifier_value_ptr const& ids ) const
+        auto nest_lookup( ast::const_nested_identifier_value_ptr const& ids ) const
             -> const_env_base_pointer
         {
             const_env_base_pointer env = shared_from_this();
@@ -302,12 +302,12 @@ namespace rill
             return p;
         }
 
-        auto lookup_on_root( ast::intrinsic::const_identifier_value_ptr const& type_name )
+        auto lookup_on_root( ast::const_identifier_value_ptr const& type_name )
             -> env_base_pointer
         {
             return root_env()->lookup( type_name );
         }
-        auto lookup_on_root( ast::intrinsic::const_identifier_value_ptr const& type_name ) const
+        auto lookup_on_root( ast::const_identifier_value_ptr const& type_name ) const
             -> const_env_base_pointer
         {
             return root_env()->lookup( type_name );
@@ -373,7 +373,7 @@ namespace rill
         //
         auto mark_as(
             kind::function_tag,
-            ast::intrinsic::identifier_value_base_ptr const&,
+            ast::identifier_value_base_ptr const&,
             ast::statement_ptr const&
             ) -> std::pair<
                      std::shared_ptr<has_parameter_environment<function_symbol_environment>>,
@@ -382,13 +382,13 @@ namespace rill
 
         auto mark_as(
             kind::variable_tag,
-            ast::intrinsic::identifier_value_base_ptr const&,
+            ast::identifier_value_base_ptr const&,
             ast::statement_ptr const&
             ) -> variable_symbol_environment_ptr;
 
         auto mark_as(
             kind::class_tag,
-            ast::intrinsic::identifier_value_base_ptr const&,
+            ast::identifier_value_base_ptr const&,
             ast::statement_ptr const&
             ) -> class_symbol_environment_ptr;
 
@@ -398,7 +398,7 @@ namespace rill
         //
         virtual auto incomplete_construct(
             kind::function_tag,
-            ast::intrinsic::identifier_value_base_ptr const&
+            ast::identifier_value_base_ptr const&
             ) -> std::pair<
                      std::shared_ptr<has_parameter_environment<function_symbol_environment>>,
                      function_symbol_environment_ptr
@@ -407,13 +407,13 @@ namespace rill
 
         virtual auto incomplete_construct(
             kind::variable_tag,
-            ast::intrinsic::identifier_value_base_ptr const&
+            ast::identifier_value_base_ptr const&
             ) -> variable_symbol_environment_ptr
         { assert( false ); return nullptr; }
 
         virtual auto incomplete_construct(
             kind::class_tag,
-            ast::intrinsic::identifier_value_base_ptr const&
+            ast::identifier_value_base_ptr const&
             ) -> class_symbol_environment_ptr
         { assert( false ); return nullptr; }
 
@@ -424,7 +424,7 @@ namespace rill
         typedef std::function<function_symbol_environment_ptr (function_symbol_environment_ptr const&)> function_env_generator_scope_type;
         virtual auto construct(
             kind::function_tag,
-            ast::intrinsic::identifier_value_base_ptr const&,
+            ast::identifier_value_base_ptr const&,
             ast::statement_ptr const&,
             function_env_generator_scope_type const&,
             class_symbol_environment_ptr const&,
@@ -433,7 +433,7 @@ namespace rill
 
         virtual auto construct(
             kind::variable_tag,
-            ast::intrinsic::identifier_value_base_ptr const&,
+            ast::identifier_value_base_ptr const&,
             ast::statement_ptr const&,
             const_class_symbol_environment_ptr const&,
             attribute::type_attributes const& = attribute::make_default_type_attributes()
@@ -441,7 +441,7 @@ namespace rill
 
         virtual auto construct(
             kind::class_tag,
-            ast::intrinsic::identifier_value_base_ptr const&,
+            ast::identifier_value_base_ptr const&,
             ast::statement_ptr const&
             ) -> class_symbol_environment_ptr { assert( false ); return nullptr; }
 
@@ -524,9 +524,9 @@ namespace rill
         //
         //
         //
-        template<typename Env>
+        template<typename EnvPtrOrId>
         auto make_type_id(
-            Env const& e,
+            EnvPtrOrId const& e,
             attribute::type_attributes const& type_attr
             )
             -> shared_resource_type::type_registry_type::type_id_type

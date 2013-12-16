@@ -63,23 +63,23 @@ namespace rill
             )
         {
             auto const int_type
-                = rill::ast::intrinsic::make_single_identifier( "int" );
+                = rill::ast::make_single_identifier( "int" );
             auto const int_class = std::make_shared<rill::ast::class_definition_statement>( int_type );
             auto const int_class_env_pointer = root_env->construct( rill::kind::k_class, int_type, int_class );
 
             auto const string_type
-                = rill::ast::intrinsic::make_single_identifier( "string" );
+                = rill::ast::make_single_identifier( "string" );
             auto const string_class = std::make_shared<rill::ast::class_definition_statement>( string_type );
             auto const string_class_env_pointer = root_env->construct( rill::kind::k_class, string_type, string_class );
 
 
             auto const void_type
-                = rill::ast::intrinsic::make_single_identifier( "void" );
+                = rill::ast::make_single_identifier( "void" );
             auto const void_class = std::make_shared<rill::ast::class_definition_statement>( void_type );
             auto const void_class_env_pointer = root_env->construct( rill::kind::k_class, void_type, void_class );
 
             auto const bool_type
-                = rill::ast::intrinsic::make_single_identifier( "bool" );
+                = rill::ast::make_single_identifier( "bool" );
             auto const bool_class = std::make_shared<rill::ast::class_definition_statement>( bool_type );
             auto const bool_class_env_pointer = root_env->construct( rill::kind::k_class, bool_type, bool_class );
 
@@ -98,25 +98,25 @@ namespace rill
                         {
                             // bind [ int -> i32 ]
                             context->env_conversion_table.bind_type(
-                                root_env->lookup( ast::intrinsic::make_single_identifier( "int" ) )->get_id(),
+                                root_env->lookup( ast::make_single_identifier( "int" ) )->get_id(),
                                 llvm::Type::getInt32Ty( context->llvm_context )
                                 );
 
                             // bind [ string -> i8* ]
                             context->env_conversion_table.bind_type(
-                                root_env->lookup( ast::intrinsic::make_single_identifier( "string" ) )->get_id(),
+                                root_env->lookup( ast::make_single_identifier( "string" ) )->get_id(),
                                 llvm::Type::getInt8Ty( context->llvm_context )->getPointerTo()
                                 );
 
                             // bind [ void -> void ]
                             context->env_conversion_table.bind_type(
-                                root_env->lookup( ast::intrinsic::make_single_identifier( "void" ) )->get_id(),
+                                root_env->lookup( ast::make_single_identifier( "void" ) )->get_id(),
                                 llvm::Type::getVoidTy( context->llvm_context )
                                 );
 
                             // bind [ bool -> bool ]
                             context->env_conversion_table.bind_type(
-                                root_env->lookup( ast::intrinsic::make_single_identifier( "bool" ) )->get_id(),
+                                root_env->lookup( ast::make_single_identifier( "bool" ) )->get_id(),
                                 llvm::Type::getInt1Ty( context->llvm_context )
                                 );
 
@@ -143,28 +143,28 @@ namespace rill
 
 
             auto const operator_add
-                = rill::ast::intrinsic::make_binary_operator_identifier( "+" );
+                = rill::ast::make_binary_operator_identifier( "+" );
             auto const operator_multiply
-                = rill::ast::intrinsic::make_binary_operator_identifier( "*" );
+                = rill::ast::make_binary_operator_identifier( "*" );
             auto const operator_sub
-                = rill::ast::intrinsic::make_binary_operator_identifier( "-" );
+                = rill::ast::make_binary_operator_identifier( "-" );
             auto const operator_div
-                = rill::ast::intrinsic::make_binary_operator_identifier( "/" );
+                = rill::ast::make_binary_operator_identifier( "/" );
             auto const operator_modulo
-                = rill::ast::intrinsic::make_binary_operator_identifier( "%" );
+                = rill::ast::make_binary_operator_identifier( "%" );
 
 
             //
             auto const operator_less_than
-                = rill::ast::intrinsic::make_binary_operator_identifier( "<" );
+                = rill::ast::make_binary_operator_identifier( "<" );
             auto const operator_assign
-                = rill::ast::intrinsic::make_binary_operator_identifier( "=" );
+                = rill::ast::make_binary_operator_identifier( "=" );
             auto const operator_equal
-                = rill::ast::intrinsic::make_binary_operator_identifier( "==" );
+                = rill::ast::make_binary_operator_identifier( "==" );
 
 
             auto const print
-                = rill::ast::intrinsic::make_single_identifier( "print" );
+                = rill::ast::make_single_identifier( "print" );
 
 
 

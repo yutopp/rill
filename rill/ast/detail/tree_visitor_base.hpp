@@ -137,6 +137,7 @@ namespace rill
 
                 // expression
                 RILL_TV_BASE_RETURN_OP( ast::binary_operator_expression )
+                RILL_TV_BASE_RETURN_OP( ast::element_selector_expression )
                 RILL_TV_BASE_RETURN_OP( ast::call_expression )
                 RILL_TV_BASE_RETURN_OP( ast::intrinsic_function_call_expression )
                 RILL_TV_BASE_RETURN_OP( ast::term_expression )
@@ -144,8 +145,10 @@ namespace rill
                 RILL_TV_BASE_RETURN_OP( ast::compiletime_return_type_expression )
 
                 // value
-                RILL_TV_BASE_RETURN_OP( ast::intrinsic_value )
-                RILL_TV_BASE_RETURN_OP( ast::variable_value )
+                RILL_TV_BASE_RETURN_OP( ast::nested_identifier_value )
+                RILL_TV_BASE_RETURN_OP( ast::identifier_value )
+                //RILL_TV_BASE_RETURN_OP( ast::template_instance_value )
+                RILL_TV_BASE_RETURN_OP( ast::literal_value )
 
             public:
                 //

@@ -47,7 +47,7 @@ namespace rill
             return visitor.dispatch( node, env );
         }
 
-
+/*
         //
         //
         //
@@ -55,10 +55,11 @@ namespace rill
         auto check_and_instantiation( EnvironmentPtr const& env, T const& node )
            -> void
         {
-            analyzer visitor;
+            analyzer visitor( node ); // ?
 
             return visitor.dispatch( node, env );
         }
+*/
 
 
         //
@@ -67,7 +68,7 @@ namespace rill
         template<typename EnvironmentPtr, typename T>
         void analyse_and_complement( EnvironmentPtr const& env, T const& node )
         {
-            analyzer visitor;
+            analyzer visitor( env );
 
             return visitor.dispatch( node, env );
         }

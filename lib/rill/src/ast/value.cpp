@@ -23,7 +23,7 @@ namespace rill
         {
             if ( vp.is_intrinsic() || vp.is_system() ) {
                 auto const& iv = vp.is_intrinsic()
-                    ? *dynamic_cast<intrinsic_value const&>( vp ).value_
+                    ? *dynamic_cast<literal_value const&>( vp ).holder_
                     : dynamic_cast<intrinsic::value_base const&>( vp )
                     ;
 

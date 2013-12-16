@@ -6,8 +6,8 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#ifndef RILL_SEMANTIC_ANALYSIS_CHECK_AND_INSTANTIATION_VISITOR_HPP
-#define RILL_SEMANTIC_ANALYSIS_CHECK_AND_INSTANTIATION_VISITOR_HPP
+#ifndef RILL_SEMANTIC_ANALYSIS_ANALYZER_HPP
+#define RILL_SEMANTIC_ANALYSIS_ANALYZER_HPP
 
 #include "../ast/detail/tree_visitor_base.hpp"
 
@@ -17,8 +17,13 @@ namespace rill
     namespace semantic_analysis
     {
         class analyzer RILL_CXX11_FINAL
-            : public ast::detail::tree_visitor_base<type_id_t>
+            : public ast::detail::tree_visitor_base<type_id_with_env>
         {
+        public:
+            analyzer(
+                environment_base_ptr const&
+                );
+
         public:
             // statement_list
             RILL_TV_OP_DECL( ast::root )
@@ -43,15 +48,21 @@ namespace rill
 
             // expression
             RILL_TV_OP_DECL( ast::binary_operator_expression )
+            RILL_TV_OP_DECL( ast::element_selector_expression )
             RILL_TV_OP_DECL( ast::call_expression )
             //RILL_TV_OP_DECL( ast::intrinsic_function_call_expression )
             RILL_TV_OP_DECL( ast::term_expression )
 
-            //
-            RILL_TV_OP_DECL( ast::intrinsic_value )
-            RILL_TV_OP_DECL( ast::variable_value )
+            // value
+            RILL_TV_OP_DECL( ast::nested_identifier_value )
+            RILL_TV_OP_DECL( ast::identifier_value )
+            //RILL_TV_OP_DECL( ast::template_instance_value )
+            RILL_TV_OP_DECL( ast::literal_value )
+
+        private:
+            environment_base_ptr root_env_;
         };
     } // namespace semantic_analysis
 } // namespace rill
 
-#endif /*RILL_SEMANTIC_ANALYSIS_CHECK_AND_INSTANTIATION_VISITOR_HPP*/
+#endif /*RILL_SEMANTIC_ANALYSIS_ANALYZER_HPP*/

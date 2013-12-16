@@ -26,6 +26,10 @@ namespace rill
 {
     namespace code_generator
     {
+        // ========================================
+        class type_id_to_llvm_type_ptr;
+
+        // ========================================
         class llvm_ir_generator RILL_CXX11_FINAL
             : public ast::detail::tree_visitor_base<llvm::Value*>
         {
@@ -36,6 +40,9 @@ namespace rill
                 llvm_ir_generator_context_ptr const&
                 );
 
+        public:
+            friend class type_id_to_llvm_type_ptr;
+            
         public:
             // statement_list
             RILL_TV_OP_DECL_CONST( ast::root )
@@ -48,6 +55,7 @@ namespace rill
             RILL_TV_OP_DECL_CONST( ast::expression_statement )
             RILL_TV_OP_DECL_CONST( ast::return_statement )
             RILL_TV_OP_DECL_CONST( ast::function_definition_statement )
+            RILL_TV_OP_DECL_CONST( ast::class_function_definition_statement )
             RILL_TV_OP_DECL_CONST( ast::class_definition_statement )
             RILL_TV_OP_DECL_CONST( ast::variable_declaration_statement )
             RILL_TV_OP_DECL_CONST( ast::class_variable_declaration_statement )
@@ -56,17 +64,22 @@ namespace rill
 
             RILL_TV_OP_DECL_CONST( ast::test_while_statement )
             RILL_TV_OP_DECL_CONST( ast::test_if_statement )
-           
+
 
             // expression
             RILL_TV_OP_DECL_CONST( ast::binary_operator_expression )
+            RILL_TV_OP_DECL_CONST( ast::element_selector_expression )
             RILL_TV_OP_DECL_CONST( ast::call_expression )
             RILL_TV_OP_DECL_CONST( ast::intrinsic_function_call_expression )
             RILL_TV_OP_DECL_CONST( ast::term_expression )
 
-            //
-            RILL_TV_OP_DECL_CONST( ast::intrinsic_value )
-            RILL_TV_OP_DECL_CONST( ast::variable_value )
+
+            // value
+            //RILL_TV_OP_DECL_CONST( ast::nested_identifier_value )
+            RILL_TV_OP_DECL_CONST( ast::identifier_value )
+            //RILL_TV_OP_DECL_CONST( ast::template_instance_value )
+            RILL_TV_OP_DECL_CONST( ast::literal_value )
+
 
             // TEST
             void debug() const

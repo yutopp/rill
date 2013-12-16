@@ -23,7 +23,7 @@ namespace rill
 
     auto environment_base::mark_as(
         kind::function_tag,
-        ast::intrinsic::identifier_value_base_ptr const& name_identifier,
+        ast::identifier_value_base_ptr const& name_identifier,
         ast::statement_ptr const& ast
         )
         -> decltype( static_cast<environment_base *>( nullptr )->incomplete_construct( kind::function_tag(), name_identifier ) )
@@ -53,7 +53,7 @@ namespace rill
     //
     auto single_identifier_environment_base::incomplete_construct(
         kind::function_tag,
-        ast::intrinsic::identifier_value_base_ptr const& name
+        ast::identifier_value_base_ptr const& name
         )
         -> std::pair<
                 std::shared_ptr<has_parameter_environment<function_symbol_environment>>,
@@ -90,7 +90,7 @@ namespace rill
     //
     auto single_identifier_environment_base::construct(
             kind::function_tag,
-            ast::intrinsic::identifier_value_base_ptr const& function_name,
+            ast::identifier_value_base_ptr const& function_name,
             ast::statement_ptr const& ast,
             function_env_generator_scope_type const& parameter_decl_initializer,
             class_symbol_environment_ptr const& return_class_env,

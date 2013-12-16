@@ -67,8 +67,13 @@ namespace rill
         };
 
 
+
+        //
         namespace intrinsic
         {
+            //
+            // Intrinsic Value Base
+            //
             struct value_base
                 : public value
             {
@@ -81,11 +86,14 @@ namespace rill
                     return true;
                 }
 
-                virtual auto get_native_typename_string() const -> native_string_t =0;
+                virtual auto get_native_typename_string() const
+                    -> native_string_t =0;
             };
 
+
+
             //
-            // may be used for symbol literal
+            // Symbol Literal
             //
             struct symbol_value
                 : public value_base
@@ -118,233 +126,10 @@ namespace rill
             }
 
 
-            struct nested_identifier_value RILL_CXX11_FINAL
-                : public value_base
-            {
-            public:
-                explicit nested_identifier_value(
-                    std::vector<identifier_value_base_ptr> const& ids,
-                    bool const started_from_root = false
-                    )
-                    : ids_( ids )
-                    , started_from_root_( started_from_root )
-                {}
-
-            public:
-                virtual auto get_native_typename_string() const
-                    -> native_string_t
-                {
-                    return "identifier";
-                }
-
-                auto at(std::size_t const& index) const
-                    -> identifier_value_base_ptr
-                {
-                    return ids_.at( index );
-                }
-
-                auto last() const
-                    -> identifier_value_base_ptr
-                {
-                    return ids_.back();
-                }
-
-                auto nest_size() const
-                    -> std::size_t
-                {
-                    return ids_.size();
-                }
-
-                auto get_nest_ids() const
-                    -> std::vector<identifier_value_base_ptr> const&
-                {
-                    return ids_;
-                }
-
-                auto is_started_from_root() const
-                    -> bool
-                {
-                    return started_from_root_;
-                }
-
-            private:
-                std::vector<identifier_value_base_ptr> const ids_;
-                bool started_from_root_;
-            };
-
-
-            // TODO: add support for namespaces
-            inline auto make_nested_identifier( identifier_value_base_ptr const& p )
-                -> nested_identifier_value_ptr
-            {
-                std::vector<identifier_value_base_ptr> const l( 1, p );
-                return std::make_shared<nested_identifier_value>( l );
-            }
-
-
 
             //
+            // Int32
             //
-            //
-            struct identifier_value_base
-                : public value_base
-            {
-            public:
-                identifier_value_base(
-                    symbol_value_ptr const& name,
-                    bool const started_from_root = false
-                    )
-                    : name_symbol_( name )
-                    , started_from_root_( started_from_root )
-                {}
-
-                virtual ~identifier_value_base() {}
-
-            public:
-                virtual auto get_native_typename_string() const
-                    -> native_string_t =0;
-
-                virtual auto is_template() const
-                    -> bool =0;
-                virtual auto template_argument() const
-                    -> template_argument_list_ptr =0;
-
-                auto get_inner_symbol() const
-                    -> symbol_value_ptr
-                {
-                    return name_symbol_;
-                }
-
-                auto is_started_from_root() const
-                    -> bool
-                {
-                    return started_from_root_;
-                }
-
-            private:
-                symbol_value_ptr const name_symbol_;
-                bool const started_from_root_;
-            };
-
-
-
-            struct identifier_value RILL_CXX11_FINAL
-                : public identifier_value_base
-            {
-            public:
-                identifier_value(
-                    native_string_t const& name,
-                    bool const started_from_root = false
-                    )
-                    : identifier_value( make_symbol( name ), started_from_root )
-                {}
-
-                identifier_value(
-                    symbol_value_ptr const& name,
-                    bool const started_from_root = false
-                    )
-                    : identifier_value_base( name, started_from_root )
-                {}
-
-            public:
-                virtual auto get_native_typename_string() const
-                    -> native_string_t
-                {
-                    return "identifier"; // TODO: change name
-                }
-
-                virtual auto is_template() const
-                    -> bool
-                {
-                    return false;
-                }
-
-                virtual auto template_argument() const
-                    -> template_argument_list_ptr
-                {
-                    return nullptr;
-                }
-            };
-
-
-
-            inline auto make_single_identifier( native_string_t const& simple_typename )
-                -> identifier_value_ptr
-            {
-                return std::make_shared<identifier_value>( simple_typename );
-            }
-
-
-            inline auto make_binary_operator_identifier(
-                native_string_t const& symbol_name
-                )
-                -> identifier_value_ptr
-            {
-                return make_single_identifier( "%binary%operator_" + symbol_name );
-            }
-            inline auto make_binary_operator_identifier(
-                symbol_value_ptr const& symbol_name
-                )
-                -> identifier_value_ptr
-            {
-                return make_binary_operator_identifier( symbol_name->to_native_string() );
-            }
-            // TODO: add overload function that implement template specified operator
-
-            inline auto make_binary_operator_symbol(
-                symbol_value_ptr const& symbol_name
-                )
-                -> symbol_value_ptr
-            {
-                return make_symbol( "%binary%operator_" + symbol_name->to_native_string() );
-            }
-
-
-
-
-            class template_instance_value RILL_CXX11_FINAL
-                : public identifier_value_base
-            {
-            public:
-                template_instance_value(
-                    native_string_t const& name,
-                    bool const started_from_root = false
-                    )
-                    : template_instance_value( make_symbol( name ), started_from_root )
-                {}
-
-                // TODO: implement
-                template_instance_value(
-                    symbol_value_ptr const& name,
-                    bool const started_from_root = false
-                    )
-                    : identifier_value_base( name, started_from_root )
-                {}
-
-            public:
-                virtual auto get_native_typename_string() const
-                    -> native_string_t
-                {
-                    return "template_identifier"; // TODO: change name
-                }
-
-                virtual auto is_template() const
-                    -> bool
-                {
-                    return true;
-                }
-
-                virtual auto template_argument() const
-                    -> template_argument_list_ptr
-                {
-                    return nullptr; // TODO: implement
-                }
-
-            private:
-            };
-
-
-
             struct int32_value RILL_CXX11_FINAL
                 : public value_base
             {
@@ -393,6 +178,10 @@ namespace rill
             };
 
 
+
+            //
+            // String Value
+            //
             struct string_value RILL_CXX11_FINAL
                 : public value_base
             {
@@ -411,28 +200,279 @@ namespace rill
             public:
                 std::string value_;
             };
+        } // namespace intrinsic
 
-
-        }
 
 
 
 
         //
-        struct intrinsic_value
+        //
+        //
+        struct nested_identifier_value RILL_CXX11_FINAL
             : public value
         {
         public:
-            RILL_AST_ADAPT_VISITOR( intrinsic_value )
+            //RILL_AST_ADAPT_VISITOR( nested_identifier_value )
+
+        public:
+            explicit nested_identifier_value(
+                std::vector<identifier_value_base_ptr> const& ids,
+                bool const started_from_root = false
+                )
+                : ids_( ids )
+                , started_from_root_( started_from_root )
+            {}
+
+        public:
+            virtual auto get_native_typename_string() const
+                -> native_string_t
+            {
+                return "identifier";
+            }
+
+            auto at(std::size_t const& index) const
+                -> identifier_value_base_ptr
+            {
+                return ids_.at( index );
+            }
+
+            auto last() const
+                -> identifier_value_base_ptr
+            {
+                return ids_.back();
+            }
+
+            auto nest_size() const
+                -> std::size_t
+            {
+                return ids_.size();
+            }
+
+            auto get_nest_ids() const
+                -> std::vector<identifier_value_base_ptr> const&
+            {
+                return ids_;
+            }
+
+            auto is_started_from_root() const
+                -> bool
+            {
+                return started_from_root_;
+            }
+
+        private:
+            std::vector<identifier_value_base_ptr> const ids_;
+            bool started_from_root_;
+        };
+
+
+        // TODO: add support for namespaces
+        inline auto make_nested_identifier( identifier_value_base_ptr const& p )
+            -> nested_identifier_value_ptr
+        {
+            std::vector<identifier_value_base_ptr> const l( 1, p );
+            return std::make_shared<nested_identifier_value>( l );
+        }
+
+
+
+        //
+        //
+        //
+        struct identifier_value_base
+            : public value
+        {
+        public:
+            identifier_value_base(
+                intrinsic::symbol_value_ptr const& name,
+                bool const started_from_root = false
+                )
+                : name_symbol_( name )
+                , started_from_root_( started_from_root )
+                {}
+
+            virtual ~identifier_value_base() {}
+
+        public:
+            virtual auto get_native_typename_string() const
+                -> native_string_t =0;
+
+            virtual auto is_template() const
+                -> bool =0;
+            virtual auto template_argument() const
+                -> template_argument_list_ptr =0;
+
+            auto get_inner_symbol() const
+                -> intrinsic::symbol_value_ptr
+                {
+                    return name_symbol_;
+                }
+
+            auto is_started_from_root() const
+                -> bool
+                {
+                    return started_from_root_;
+                }
+
+        private:
+            intrinsic::symbol_value_ptr const name_symbol_;
+            bool const started_from_root_;
+        };
+
+
+
+        //
+        //
+        //
+        struct identifier_value RILL_CXX11_FINAL
+            : public identifier_value_base
+        {
+        public:
+            RILL_AST_ADAPT_VISITOR( identifier_value )
+
+        public:
+            identifier_value(
+                native_string_t const& name,
+                bool const started_from_root = false
+                )
+                : identifier_value( intrinsic::make_symbol( name ), started_from_root )
+            {}
+
+            identifier_value(
+                intrinsic::symbol_value_ptr const& name,
+                bool const started_from_root = false
+                )
+                : identifier_value_base( name, started_from_root )
+            {}
+
+        public:
+            virtual auto get_native_typename_string() const
+                -> native_string_t
+            {
+                return "identifier"; // TODO: change name
+            }
+
+            virtual auto is_template() const
+                -> bool
+            {
+                return false;
+            }
+
+            virtual auto template_argument() const
+                -> template_argument_list_ptr
+            {
+                return nullptr;
+            }
+        };
+
+
+
+        inline auto make_identifier( native_string_t const& simple_typename )
+            -> identifier_value_ptr
+        {
+            return std::make_shared<identifier_value>( simple_typename );
+        }
+
+        // deprcated
+        inline auto make_single_identifier( native_string_t const& simple_typename )
+            -> identifier_value_ptr
+        {
+            return std::make_shared<identifier_value>( simple_typename );
+        }
+
+
+        inline auto make_binary_operator_identifier(
+            native_string_t const& symbol_name
+            )
+            -> identifier_value_ptr
+        {
+            return make_single_identifier( "%binary%operator_" + symbol_name );
+        }
+        inline auto make_binary_operator_identifier(
+            intrinsic::symbol_value_ptr const& symbol_name
+            )
+            -> identifier_value_ptr
+        {
+            return make_binary_operator_identifier( symbol_name->to_native_string() );
+        }
+        // TODO: add overload function that implement template specified operator
+
+        inline auto make_binary_operator_symbol(
+            intrinsic::symbol_value_ptr const& symbol_name
+            )
+            -> intrinsic::symbol_value_ptr
+        {
+            return intrinsic::make_symbol(
+                "%binary%operator_" + symbol_name->to_native_string()
+                );
+        }
+
+
+
+
+        class template_instance_value RILL_CXX11_FINAL
+            : public identifier_value_base
+        {
+        public:
+            RILL_AST_ADAPT_VISITOR( template_instance_value )
+
+        public:
+            template_instance_value(
+                native_string_t const& name,
+                bool const started_from_root = false
+                )
+                : template_instance_value( intrinsic::make_symbol( name ), started_from_root )
+            {}
+
+            // TODO: implement
+            template_instance_value(
+                intrinsic::symbol_value_ptr const& name,
+                bool const started_from_root = false
+                )
+                : identifier_value_base( name, started_from_root )
+            {}
+
+        public:
+            virtual auto get_native_typename_string() const
+                -> native_string_t
+            {
+                return "template_identifier"; // TODO: change name
+            }
+
+            virtual auto is_template() const
+                -> bool
+            {
+                return true;
+            }
+
+            virtual auto template_argument() const
+                -> template_argument_list_ptr
+            {
+                return nullptr; // TODO: implement
+            }
+
+        private:
+        };
+
+
+        //
+        //
+        //
+        struct literal_value RILL_CXX11_FINAL
+            : public value
+        {
+        public:
+            RILL_AST_ADAPT_VISITOR( literal_value )
 
         public:
             // specify value's type name
-            intrinsic_value( intrinsic::value_base_ptr const& iv )
-                : value_( iv )
-                , literal_type_name_( std::make_shared<intrinsic::identifier_value>( iv->get_native_typename_string() ) )
+            literal_value( intrinsic::value_base_ptr const& bv )
+                : holder_( bv )
+                , literal_type_name_(
+                    std::make_shared<identifier_value>( bv->get_native_typename_string() )
+                    )
             {}
-
-            virtual ~intrinsic_value() {};
 
         public:
             virtual bool is_intrinsic() const RILL_CXX11_FINAL
@@ -441,25 +481,8 @@ namespace rill
             }
 
         public:
-            intrinsic::value_base_ptr value_;   // TODO: rename(holder)
-            intrinsic::const_identifier_value_ptr literal_type_name_;
-        };
-
-
-
-        struct variable_value
-            : public value
-        {
-        public:
-            RILL_AST_ADAPT_VISITOR( variable_value )
-
-        public:
-            variable_value( intrinsic::identifier_value_ptr const& var )
-                : variable_name_( var )
-            {}
-
-        public:
-            intrinsic::identifier_value_ptr variable_name_;
+            intrinsic::value_base_ptr holder_;
+            const_identifier_value_ptr literal_type_name_;
         };
 
     } // namespace ast

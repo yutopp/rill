@@ -18,7 +18,8 @@
 namespace rill
 {
     BOOST_STRONG_TYPEDEF( std::size_t, type_id_t );
-    type_id_t const type_id_limit = type_id_t( std::numeric_limits<std::size_t>::max() - 1 );
+    type_id_t const type_id_limit = type_id_t( std::numeric_limits<std::size_t>::max() - 2 );
+    type_id_t const type_id_special = type_id_t( std::numeric_limits<std::size_t>::max() - 1 );
     type_id_t const type_id_undefined = type_id_t( std::numeric_limits<std::size_t>::max() );
 
     namespace detail

@@ -59,7 +59,7 @@ namespace rill
         public:
             binary_operator_expression(
                 expression_ptr const& lhs,
-                intrinsic::identifier_value_ptr const& op,
+                identifier_value_ptr const& op,
                 expression_ptr const& rhs
                 )
                 : lhs_( lhs )
@@ -69,9 +69,34 @@ namespace rill
 
         public:
             expression_ptr const lhs_;
-            intrinsic::identifier_value_ptr const op_;
+            identifier_value_ptr const op_;
             expression_ptr const rhs_;
         };
+
+
+
+        //
+        struct element_selector_expression
+            : public expression
+        {
+        public:
+            RILL_AST_ADAPT_VISITOR( element_selector_expression )
+
+        public:
+            element_selector_expression(
+                expression_ptr const& reciever,
+                identifier_value_base_ptr const& selector_id
+                )
+                : reciever_( reciever )
+                , selector_id_( selector_id )
+            {}
+
+        public:
+            expression_ptr const reciever_;
+            identifier_value_base_ptr const selector_id_;
+        };
+
+
 
 
         struct call_expression
@@ -82,7 +107,7 @@ namespace rill
 
         public:
             call_expression(
-                intrinsic::identifier_value_base_ptr/*expression_ptr*/ const& reciever,
+                expression_ptr const& reciever,
                 expression_list const& arguments
                 )
                 : reciever_( reciever )
@@ -90,9 +115,14 @@ namespace rill
             {}
 
         public:
-            intrinsic::identifier_value_base_ptr/*expression_ptr*/ const reciever_;
+            expression_ptr const reciever_;
             expression_list const arguments_;
         };
+
+
+
+
+
 
 
         //
@@ -150,7 +180,7 @@ namespace rill
 
         public:
             type_identifier_expression(
-                intrinsic::nested_identifier_value_ptr const& v,
+                nested_identifier_value_ptr const& v,
                 attribute::type_attributes_optional const& attributes
                 )
                 : value_( v )
@@ -158,7 +188,7 @@ namespace rill
             {}
 
         public:
-            intrinsic::nested_identifier_value_ptr const value_;
+            nested_identifier_value_ptr const value_;
             attribute::type_attributes_optional const attributes_;
         };
 

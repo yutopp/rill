@@ -62,7 +62,6 @@ namespace rill
             RILL_AST_ADAPT_VISITOR( block_statement )
             
         public:
-/*            */
             block_statement( std::vector<statement_ptr> const& s )
                 : statements_( s )
             {}
@@ -70,11 +69,11 @@ namespace rill
             block_statement( statement_ptr const& s )
                 : statements_( 1, s ) // initialize with one element
             {}
-/*/
+/*
             block_statement( statement_list&& s )
                 : s_( s )
             {}
-/**/
+*/
         public:
             statement_list const statements_;
         };
@@ -91,7 +90,7 @@ namespace rill
 
         struct variable_declaration_unit
         {
-            intrinsic::identifier_value_base_ptr name;
+            identifier_value_base_ptr name;
             value_initializer_unit init_unit;
         };
 
@@ -167,7 +166,7 @@ namespace rill
 
         public:
             extern_function_declaration_statement(
-                intrinsic::identifier_value_ptr const& symbol_name,
+                identifier_value_ptr const& symbol_name,
                 parameter_list const& parameter_list,
                 type_expression_ptr const& return_type,
                 native_string_t const& extern_symbol_name
@@ -180,7 +179,7 @@ namespace rill
 
         public:
             auto get_identifier() const
-                -> intrinsic::identifier_value_ptr
+                -> identifier_value_ptr
             {
                 return identifier_;
             }
@@ -198,7 +197,7 @@ namespace rill
             }
 
         public:
-            intrinsic::identifier_value_ptr identifier_;
+            identifier_value_ptr identifier_;
             parameter_list parameter_list_;
             type_expression_ptr return_type_;
 
@@ -240,7 +239,7 @@ namespace rill
 
         public:
             function_definition_statement(
-                intrinsic::identifier_value_ptr const& symbol_name,
+                identifier_value_ptr const& symbol_name,
                 parameter_list const& parameter_list,
                 boost::optional<type_expression_ptr> const& return_type,
                 block_statement_ptr const& block
@@ -253,7 +252,7 @@ namespace rill
 
         public:
             auto get_identifier() const
-                -> intrinsic::identifier_value_ptr
+                -> identifier_value_ptr
             {
                 return identifier_;
             }
@@ -265,7 +264,7 @@ namespace rill
             }
 
         public:
-            intrinsic::identifier_value_ptr identifier_;
+            identifier_value_ptr identifier_;
             parameter_list parameter_list_;
             boost::optional<type_expression_ptr> return_type_;
         };
@@ -294,7 +293,7 @@ namespace rill
 
         public:
             class_function_definition_statement(
-                intrinsic::identifier_value_base_ptr const& function_name,
+                identifier_value_base_ptr const& function_name,
                 parameter_list const& parameter_list,
                 boost::optional<type_expression_ptr> const& return_type,
                 block_statement_ptr const& block
@@ -307,7 +306,7 @@ namespace rill
 
         public:
             auto get_identifier() const
-                -> intrinsic::identifier_value_base_ptr
+                -> identifier_value_base_ptr
             {
                 return identifier_;
             }
@@ -319,7 +318,7 @@ namespace rill
             }
 
         public:
-            intrinsic::identifier_value_base_ptr identifier_;
+            identifier_value_base_ptr identifier_;
             parameter_list parameter_list_;
             boost::optional<type_expression_ptr> return_type_;
         };
@@ -336,13 +335,13 @@ namespace rill
 
         public:
             class_definition_statement(
-                intrinsic::identifier_value_ptr const& identifier
+                identifier_value_ptr const& identifier
                 )
                 : identifier_( identifier )
             {}
 
             class_definition_statement(
-                intrinsic::identifier_value_ptr const& identifier,
+                identifier_value_ptr const& identifier,
                 boost::optional<parameter_list> const& constructor_parameter_list,
                 block_statement_ptr const& block
                 )
@@ -353,7 +352,7 @@ namespace rill
 
         public:
             auto get_identifier() const
-                -> intrinsic::identifier_value_ptr
+                -> identifier_value_ptr
             {
                 return identifier_;
             }
@@ -365,7 +364,7 @@ namespace rill
             }
 
         public:
-            intrinsic::identifier_value_ptr const identifier_;
+            identifier_value_ptr const identifier_;
             parameter_list const constructor_parameter_list_;
             block_statement_ptr const block_;
         };
@@ -437,7 +436,7 @@ namespace rill
 
         public:
             auto get_identifier() const
-                -> intrinsic::identifier_value_base_ptr
+                -> identifier_value_base_ptr
             {
                 return declaration_.decl_unit.name;
             }
@@ -461,7 +460,7 @@ namespace rill
 
         public:
             auto get_identifier() const
-                -> intrinsic::identifier_value_base_ptr
+                -> identifier_value_base_ptr
             {
                 return declaration_.decl_unit.name;
             }
@@ -496,7 +495,7 @@ namespace rill
 
 
         // make native
-        inline auto make_native_class( intrinsic::identifier_value_ptr const& class_identifier )
+        inline auto make_native_class( identifier_value_ptr const& class_identifier )
             -> class_definition_statement_ptr
         {
             return std::make_shared<class_definition_statement>( class_identifier );
@@ -514,14 +513,14 @@ namespace rill
 
 BOOST_FUSION_ADAPT_STRUCT(
     rill::ast::value_initializer_unit,
-    (rill::ast::expression_ptr,      initializer)
-    (rill::ast::type_expression_ptr, type)
+    (rill::ast::expression_ptr,             initializer)
+    (rill::ast::type_expression_ptr,        type)
     )
 
 BOOST_FUSION_ADAPT_STRUCT(
     rill::ast::variable_declaration_unit,
-    (rill::ast::intrinsic::identifier_value_base_ptr,           name)
-    (rill::ast::value_initializer_unit,                         init_unit)
+    (rill::ast::identifier_value_base_ptr,  name)
+    (rill::ast::value_initializer_unit,     init_unit)
     )
 
 BOOST_FUSION_ADAPT_STRUCT(
