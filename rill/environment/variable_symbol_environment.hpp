@@ -52,12 +52,6 @@ namespace rill
             return KindValue;
         }
 
-        auto is_incomplete() const
-            -> bool RILL_CXX11_OVERRIDE
-        {
-            return true;//value_type_env_id_ == envitonment_id_undefined;
-        }
-
         auto complete(
             type_id_t const& type_id,
             native_string_type const& name
@@ -66,44 +60,11 @@ namespace rill
         {
             value_type_id_ = type_id;
             name_ = name;
+
+            change_progress_to_completed();
         }
 
-/*
-        // ?!?!!????
-        auto get_type_env_id() const
-            -> environment_id_t
-        {
-            return value_type_env_id_;
-        }
 
-        auto get_type_environment_id() const
-            -> environment_id_t
-        {
-            return value_type_env_id_;
-        }
-
-        auto get_type_environment()
-            -> class_symbol_environment_ptr
-        {
-            auto const& p = get_env_at( get_type_environment_id() );
-
-            return std::dynamic_pointer_cast<class_symbol_environment>( p.lock() );
-        }
-
-        auto get_type_environment() const
-            -> const_class_symbol_environment_ptr
-        {
-            auto const& p = get_env_at( value_type_env_id_ );
-
-            return std::dynamic_pointer_cast<class_symbol_environment const>( p.lock() );
-        }
-
-        auto get_type_attributes() const
-            -> attribute::type_attributes const&
-        {
-            return value_type_attributes_;
-        }
-*/
         auto get_type_id() const
             -> type_id_t
         {
@@ -129,9 +90,15 @@ namespace rill
             parent_class_env_id_ = parent_class_env_id;
         }
 
+        auto get_parent_class_env_id() const
+            -> environment_id_t const&
+        {
+            return parent_class_env_id_;
+        }
+
         bool is_in_class() const
         {
-            return parent_class_env_id_ == environment_id_undefined;
+            return parent_class_env_id_ != environment_id_undefined;
         }
 
     private:

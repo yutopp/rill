@@ -100,7 +100,8 @@ namespace rill
             // variable declared in class scope should be forward referencable
 
             // add variable symbol to current environment
-            auto const& v_env = parent_env->mark_as( kind::k_variable, s->get_identifier(), s );
+            auto const& v_env
+                = parent_env->mark_as( kind::k_variable, s->get_identifier(), s );
             v_env->set_parent_class_env_id( parent_env->get_id() );
         }
 

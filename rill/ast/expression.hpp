@@ -39,7 +39,7 @@ namespace rill
             : public ast_base
         {
         public:
-            RILL_AST_ADAPT_VISITOR( expression )
+            RILL_AST_ADAPT_VISITOR_VIRTUAL( expression )
 
         public:
             virtual ~expression() {}

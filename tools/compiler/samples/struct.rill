@@ -1,16 +1,25 @@
 def main(): int
 {
-    val a: Test;
+    val b: Test;
 
-    a.aaa();
+    b.aaa();
 
     return 0;
 }
 
 class Test
 {
+    val a: int;
+    val b: int;
+
     def aaa(): void
     {
-        print("yonda?");
+        // Cause Error... : // a;
+        //this.a;
+        extern_print_int( this.b );
+
+        print( "yonda?\n" );
     }
 }
+
+extern def extern_print_int( val :int ): void "put_string2"; 

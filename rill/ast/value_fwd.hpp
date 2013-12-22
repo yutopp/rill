@@ -32,7 +32,6 @@ namespace rill
         RILL_AST_FWD_DECL_IN_NAMESPACE( intrinsic, value_base, value )
 
         RILL_AST_FWD_DECL_IN_NAMESPACE( intrinsic, symbol_value, value )
-
         RILL_AST_FWD_DECL_IN_NAMESPACE( intrinsic, int32_value, value )
         RILL_AST_FWD_DECL_IN_NAMESPACE( intrinsic, boolean_value, value )
         RILL_AST_FWD_DECL_IN_NAMESPACE( intrinsic, string_value, value )

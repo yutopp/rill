@@ -112,4 +112,11 @@ namespace rill
     }
 
 
+    auto class_symbol_environment::mangled_name() const
+        -> native_string_type
+    {
+        return name_;
+    }
+
+
 } // namespace rill

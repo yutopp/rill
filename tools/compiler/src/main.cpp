@@ -18,8 +18,9 @@
 #include <rill/environment/environment.hpp>
 #include <rill/syntax_analysis/make_syntax_tree.hpp>
 #include <rill/semantic_analysis/semantic_analysis.hpp>
-
 #include <rill/code_generator/code_generator.hpp>
+
+#include <rill/debug/debug.hpp>
 
 
 void sample( boost::program_options::variables_map const& vm )
@@ -54,6 +55,11 @@ void sample( boost::program_options::variables_map const& vm )
     // debug
     std::cout
         << "Top statements size: " << parse_tree->statements_.size() << std::endl;
+
+
+    rill::debug::print_ast( parse_tree );
+
+
 
 
     //

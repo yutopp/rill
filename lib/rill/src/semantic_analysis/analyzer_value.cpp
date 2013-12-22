@@ -48,8 +48,11 @@ namespace rill
                     = std::static_pointer_cast<variable_symbol_environment>( target_env );
 
                 // memoize
-                std::cout << "memoed" << std::endl;
+                std::cout << "()memoed.variable" << std::endl;
                 variable_env->connect_from_ast( v );
+
+                // class
+                // variable_env->get_type_id();
 
                 return {
                     variable_env->get_type_id(),
@@ -58,7 +61,11 @@ namespace rill
             }
                 
             case kind::type_value::e_parameter_wrapper:
-                switch( std::static_pointer_cast<has_parameter_environment_base>( target_env )->get_inner_symbol_kind() ) {
+            {
+                auto const& has_parameter_env
+                    = std::static_pointer_cast<has_parameter_environment_base>( target_env );
+
+                switch( has_parameter_env->get_inner_symbol_kind() ) {
                 case kind::type_value::e_function:
                 {
                     return {
@@ -72,6 +79,7 @@ namespace rill
                     break;
                 }
                 break;
+            }
 
             default:
                 assert( false && "[[CE]] invalid..." );

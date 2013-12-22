@@ -30,6 +30,15 @@
 namespace rill
 {
     //
+    //
+    enum class environment_process_progress_t
+    {
+        constructed,
+        checked,
+        completed
+    };
+
+
     // 
     //
     class single_identifier_environment_base
@@ -42,10 +51,12 @@ namespace rill
     public:
         single_identifier_environment_base( root_initialize_tag )
             : environment_base( root_initialize_tag() )
+            , progress_( environment_process_progress_t::constructed )
         {}
     
         single_identifier_environment_base( environment_id_t const& id, weak_env_base_pointer const& parent )
             : environment_base( id, parent )
+            , progress_( environment_process_progress_t::constructed )
         {}
 
         virtual ~single_identifier_environment_base() {};
@@ -63,14 +74,43 @@ namespace rill
             -> const_env_base_pointer RILL_CXX11_OVERRIDE;
 
 
+        //
+        //
+        //
+        auto is_incomplete() const
+            -> bool
+        {
+            return progress_ == environment_process_progress_t::constructed;
+        }
+
+        auto is_checked() const
+            -> bool
+        {
+            return progress_ >= environment_process_progress_t::checked;
+        }
+
+        auto is_complete() const
+            -> bool
+        {
+            return progress_ >= environment_process_progress_t::completed;
+        }
 
 
 
         //
-        virtual auto is_incomplete() const
-            -> bool { return false; }
+        auto change_progress_to_checked()
+            -> void
+        {
+            progress_ = environment_process_progress_t::checked;
+        }
 
+        auto change_progress_to_completed()
+            -> void
+        {
+            progress_ = environment_process_progress_t::completed;
+        }
 
+        
     /*
         auto is_exist_in_instanced( native_string_type const& name ) const
             -> boost::optional<env_base_pointer>
@@ -174,6 +214,8 @@ namespace rill
     private:
         std::unordered_map<native_string_type, env_base_pointer> instanced_env_;
         std::unordered_map<native_string_type, std::shared_ptr<template_environment>> template_env_;
+
+        environment_process_progress_t progress_;
     };
 
 } // namespace rill

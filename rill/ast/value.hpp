@@ -49,7 +49,7 @@ namespace rill
             : public ast_base
         {
         public:
-            RILL_AST_ADAPT_VISITOR( value )
+            RILL_AST_ADAPT_VISITOR_VIRTUAL( value )
 
         public:
             virtual ~value() {}
@@ -95,9 +95,12 @@ namespace rill
             //
             // Symbol Literal
             //
-            struct symbol_value
+            struct symbol_value RILL_CXX11_FINAL
                 : public value_base
             {
+            public:
+                RILL_AST_ADAPT_VISITOR( symbol_value )
+
             public:
                 explicit symbol_value( native_string_t const& name )
                     : value_( name )
@@ -134,6 +137,9 @@ namespace rill
                 : public value_base
             {
             public:
+                RILL_AST_ADAPT_VISITOR( int32_value )
+
+            public:
                 int32_value( int const v )
                     : value_( v )
                 {}
@@ -157,6 +163,9 @@ namespace rill
             struct boolean_value RILL_CXX11_FINAL
                 : public value_base
             {
+            public:
+                RILL_AST_ADAPT_VISITOR( boolean_value )
+
             public:
                 boolean_value( bool const v )
                     : value_( v )
@@ -186,6 +195,9 @@ namespace rill
                 : public value_base
             {
             public:
+                RILL_AST_ADAPT_VISITOR( string_value )
+
+            public:
                 string_value( std::string const& v )
                     : value_( v )
                 {}
@@ -213,7 +225,7 @@ namespace rill
             : public value
         {
         public:
-            //RILL_AST_ADAPT_VISITOR( nested_identifier_value )
+            RILL_AST_ADAPT_VISITOR( nested_identifier_value )
 
         public:
             explicit nested_identifier_value(

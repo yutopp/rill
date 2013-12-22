@@ -45,13 +45,6 @@ namespace rill
         };
         typedef int attributes_t;
 
-        enum progress : int {
-            constructed,
-            checked,
-            completed
-        };
-        typedef int progress_t;
-
     public:
         // pre construct
         function_symbol_environment( environment_id_t const& id, weak_env_base_pointer const& parent, environment_id_t const& parameter_wrapper_env_id )
@@ -60,7 +53,6 @@ namespace rill
             , parent_class_env_id_( environment_id_undefined )
             , return_type_id_( type_id_undefined )
             , attributes_( e_normal )
-            , progress_( constructed )
         {}
 
     public:
@@ -70,23 +62,7 @@ namespace rill
             return KindValue;
         }
 
-        auto is_incomplete() const
-            -> bool
-        {
-            return progress_ == constructed;
-        }
 
-        auto is_checked() const
-            -> bool
-        {
-            return progress_ >= progress::checked;
-        }
-
-        auto is_complete() const
-            -> bool
-        {
-            return progress_ >= progress::completed;
-        }
 
         auto get_parameter_wrapper_env()
             -> std::shared_ptr<has_parameter_environment<function_symbol_environment>>
@@ -106,11 +82,7 @@ namespace rill
             return parameter_type_ids_;
         }
 
-        auto check()
-            -> void
-        {
-            progress_ = progress::checked;
-        }
+
 
         auto complete(
             type_id_t const& return_type_id,
@@ -122,7 +94,8 @@ namespace rill
             return_type_id_ = return_type_id;
             name_ = name;
             attributes_ = attrbute;
-            progress_ = progress::completed;
+
+            change_progress_to_completed();
         }
 
         auto add_return_type_candidate( type_id_t const& type_id )
@@ -157,7 +130,8 @@ namespace rill
             )
             -> variable_symbol_environment_ptr;
 
-        auto mangled_name() const -> native_string_type;
+        auto mangled_name() const
+            -> native_string_type;
 
         bool is_return_type_completed() const
         {
@@ -200,7 +174,6 @@ namespace rill
 
         native_string_type name_;
         attributes_t attributes_;
-        progress_t progress_;
     };
 
 } // namespace rill

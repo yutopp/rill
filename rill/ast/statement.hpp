@@ -44,7 +44,7 @@ namespace rill
             : public ast_base
         {
         public:
-            RILL_AST_ADAPT_VISITOR( statement )
+            RILL_AST_ADAPT_VISITOR_VIRTUAL( statement )
 
         public:
             virtual ~statement()

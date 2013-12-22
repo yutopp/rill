@@ -20,11 +20,13 @@ namespace rill
         namespace interpreter
         {
             class type_evaluator
-                : public ast::detail::tree_visitor_base<type_info>
+                : public ast::detail::tree_visitor<type_evaluator, type_info>
             {
             public:
                 RILL_TV_OP_DECL( ast::type_identifier_expression )
                 RILL_TV_OP_DECL( ast::compiletime_return_type_expression )
+
+                RILL_TV_OP_FAIL
             };
 
         } // namespace interpreter

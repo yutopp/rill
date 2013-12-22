@@ -29,9 +29,10 @@ namespace rill
         // ========================================
         class type_id_to_llvm_type_ptr;
 
+
         // ========================================
         class llvm_ir_generator RILL_CXX11_FINAL
-            : public ast::detail::tree_visitor_base<llvm::Value*>
+            : public ast::detail::tree_visitor<llvm_ir_generator, llvm::Value*>
         {
         public:
             llvm_ir_generator(
@@ -80,6 +81,7 @@ namespace rill
             //RILL_TV_OP_DECL_CONST( ast::template_instance_value )
             RILL_TV_OP_DECL_CONST( ast::literal_value )
 
+            RILL_TV_OP_FAIL
 
             // TEST
             void debug() const

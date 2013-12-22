@@ -20,7 +20,7 @@ namespace rill
         //
         //
         class identifier_collector RILL_CXX11_FINAL
-            : public ast::detail::tree_visitor_base<environment_base_ptr>
+            : public ast::detail::tree_visitor<identifier_collector, environment_base_ptr>
         {
         public:
             RILL_TV_OP_DECL( ast::root )
@@ -35,6 +35,8 @@ namespace rill
             RILL_TV_OP_DECL( ast::variable_declaration_statement )
             RILL_TV_OP_DECL( ast::class_variable_declaration_statement )
             RILL_TV_OP_DECL( ast::class_definition_statement )
+
+            RILL_TV_OP_FAIL
         };
 
     } // namespace semantic_analysis

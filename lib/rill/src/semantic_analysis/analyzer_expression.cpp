@@ -137,12 +137,13 @@ return c.type_id;
         RILL_TV_OP( analyzer, ast::element_selector_expression, e, parent_env )
         {
             // ========================================
-            //
+            // eval lhs
             auto const& reciever_type_id_with_env
                 = dispatch( e->reciever_, parent_env );
 
             // ========================================
-            // FIXME: support function...
+            // eval rhs
+            // TODO: support function, class, namespace...
             if ( reciever_type_id_with_env.type_id != type_id_special ) {
                 auto const& reciever_type
                     = parent_env->get_type_at( reciever_type_id_with_env.type_id );
@@ -185,7 +186,7 @@ return c.type_id;
                         = std::static_pointer_cast<variable_symbol_environment>( t_env );
                     
                     // memoize
-                    std::cout << "memoed" << std::endl;
+                    std::cout << "memoed: variable, type id = " << variable_env->get_type_id() << " / " << variable_env->mangled_name() << std::endl;
                     variable_env->connect_from_ast( e );
 
                     return {
@@ -238,8 +239,9 @@ return c.type_id;
         RILL_TV_OP( analyzer, ast::call_expression, e, env )
         {
             using namespace boost::adaptors;
+
             // ========================================
-            //
+            // 
             auto const& reciever_type_id_with_env
                 = dispatch( e->reciever_, env );
 
@@ -250,6 +252,7 @@ return c.type_id;
 
             // if lhs was nested && variable, add argument as "this"
             if ( reciever_type_id_with_env.nest ) {
+                // TODO: change kind check to Callable check. Ex (1+3).operator+(6) should be callable, but can not call it now.
                 if ( reciever_type_id_with_env.nest->back().target_env->get_symbol_kind() == kind::type_value::e_variable ) {
                     argument_type_ids_with_envs.push_back( reciever_type_id_with_env.nest->back() );
                 }
@@ -322,13 +325,14 @@ return c.type_id;
                     // solve_forward_reference
                     for( auto const& incomplete_function_env : generic_function_env->get_incomplete_inners() ) {
                         assert( incomplete_function_env != nullptr );
-                        std::cout << "found marked(ast AND related env) -> " << incomplete_function_env->get_id() << std::endl;
+                        std::cout << "incomplete::: found marked(ast AND related env) -> " << incomplete_function_env->get_id() << std::endl;
 
                         auto const& statement_node = incomplete_function_env->get_related_ast();
                         assert( statement_node != nullptr );
 
                         // to complate incomplete_funciton_env( after that, incomplete_function_env will be complete_function_env)
                         dispatch( statement_node, incomplete_function_env->get_parent_env() );
+                        assert( incomplete_function_env->is_complete() );
                     }
 
 

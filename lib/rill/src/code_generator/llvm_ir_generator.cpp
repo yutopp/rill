@@ -60,7 +60,13 @@ namespace rill
                 auto const& type_attr = t.attributes;
 
                 std::cout << "class env id: " << type_class_env_id << std::endl;
-                return generator.context_->env_conversion_table.ref_type( type_class_env_id );
+                llvm::Type* ty
+                    = generator.context_->env_conversion_table.ref_type( type_class_env_id );
+
+                return ty->isStructTy()
+                    ? ty->getPointerTo()
+                    : ty
+                    ;
             }
 
         private:
@@ -68,6 +74,80 @@ namespace rill
         };
 
 
+
+
+        // ========================================
+        template<typename MatchNode, typename F>
+        class node_filter RILL_CXX11_FINAL
+            : public ast::detail::tree_visitor<node_filter<MatchNode, F>, llvm::Value*>
+        {
+        public:
+                template<typename NodeT>
+                struct result
+                {
+                    typedef typename ast::detail::tree_visitor_result<
+                        llvm::Value*,
+                        typename ast::detail::base_type_specifier<typename std::decay<NodeT>::type>::type
+                    >::type type;
+                };
+
+        public:
+            node_filter( F const& f )
+                : f_( f )
+            {}
+
+        public:
+            RILL_TV_OP_INDIRECT_CONST( ast::root, r, _ )
+            {
+                //
+                for( auto const& node : r->statements_ )
+                    this->dispatch( node, _ );
+            }
+
+            RILL_TV_OP_INDIRECT_CONST( ast::block_statement, s, _ )
+            {
+                //
+                for( auto const& node : s->statements_ )
+                    this->dispatch( node, _ );
+            }
+
+            RILL_TV_OP_INDIRECT_CONST( MatchNode, node, _ )
+            {
+                //
+                return f_( node, _ );
+            }
+
+            RILL_TV_OP_FAIL
+                   template<typename NodeT>
+                auto failed_to_dispatch() const
+                    -> void
+                {
+                    std::cerr
+                        << "!!! DEBUG: message. please implement it!" << std::endl
+                        << " in " << typeid( *this ).name() << std::endl
+                        << "  -> " << typeid( NodeT ).name() << std::endl;
+                        ;
+                }
+             
+        private:
+            F const& f_;
+        };
+    
+        template<typename MatchNode, typename Node, typename Env, typename F>
+        auto do_filter( Node const& node, Env const& env, F const& f )
+            -> decltype( node_filter<MatchNode, F>( f ).dispatch( node, env ) )
+        {
+            node_filter<MatchNode, F> filter( f );
+            return filter.dispatch( node, env );
+        }
+
+        template<typename MatchNode, typename Node, typename Env, typename F>
+        auto do_filter_const( Node const& node, Env const& env, F const& f )
+            -> decltype( node_filter<MatchNode, F>( f ).dispatch( node, env ) )
+        {
+            node_filter<MatchNode, F> const filter( f );
+            return filter.dispatch( node, env );
+        }
 
 
         // = definition ===
@@ -96,14 +176,14 @@ namespace rill
         }
 
 
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::block_statement, s, _ )
+        RILL_TV_OP_CONST( llvm_ir_generator, ast::block_statement, s, parent_env )
         {
             //auto const& scope_env = root_env_->get_related_env_by_ast_ptr( s );
             //std::cout << (const_environment_base_ptr)_ << std::endl;
             //assert( scope_env != nullptr );
 
             for( auto const& node : s->statements_ )
-                dispatch( node );
+                dispatch( node, parent_env );
         }
 
 
@@ -336,14 +416,35 @@ namespace rill
                 );
 
             // construct incomplete Struct Type...
-            llvm::StructType* const llvm_struct_type = llvm::StructType::create( context_->llvm_context /* TODO: add "name", add is_packed*/ );
+            llvm::StructType* const llvm_struct_type
+                = llvm::StructType::create(
+                    context_->llvm_context,
+                    c_env->mangled_name()/*, add is_packed*/
+                    );
             context_->env_conversion_table.bind_type( c_env->get_id(), llvm_struct_type );
 
             // generate statements
-            dispatch( s->block_, c_env );
+            do_filter_const<ast::class_variable_declaration_statement>(
+                s->block_,
+                c_env,
+                [&](
+                    ast::const_class_variable_declaration_statement_ptr const& node,
+                    const_environment_base_ptr const& env
+                    )
+                {
+                    //
+                    std::cout << "ast::class_variable_declaration_statement" << std::endl;
+                    this->dispatch( node, env );
+                } );
 
-            std::cout << "------> " << c_env->get_id() << std::endl;
+            std::cout
+                << "class ------> " << c_env->get_id() << std::endl
+                << "  member num: " << context_->env_conversion_table.ref_class_variable_type_list( c_env->get_id() ).size() << std::endl;
+
             llvm_struct_type->setBody( context_->env_conversion_table.ref_class_variable_type_list( c_env->get_id() ) );
+
+
+            dispatch( s->block_, c_env );
         }
 
 
@@ -490,7 +591,7 @@ namespace rill
             auto const& variable_attr =  variable_type.attributes;
 
             // initial value
-            // TODO: call constructor if there are no initial value
+            // !!!!!!TODO: call constructor if there are no initial value!!!!!!
             auto const& initial_llvm_value
                 = s->declaration_.decl_unit.init_unit.initializer
                 ? dispatch( s->declaration_.decl_unit.init_unit.initializer, v_env )
@@ -557,17 +658,20 @@ namespace rill
                 = std::static_pointer_cast<variable_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( s ) );
             assert( v_env != nullptr );
 
+            //
+            std::cout << "v_env->get_type_id() = " << v_env->get_type_id() << std::endl;
 
-
-            // ???:
+            // 
+            // 
             auto const& variable_type = v_env->get_type_at( v_env->get_type_id() );
             if ( !context_->env_conversion_table.is_defined( variable_type.class_env_id ) ) {
                 auto const& c_env = root_env_->get_env_strong_at( variable_type.class_env_id );
                 dispatch( c_env->get_related_ast(), c_env );
             }
-
             auto const& variable_llvm_type = context_->env_conversion_table.ref_type( variable_type.class_env_id );
             auto const& variable_attr =  variable_type.attributes;
+
+            
 
             //
             switch( variable_attr.quality )
@@ -831,6 +935,45 @@ namespace rill
         //
         RILL_TV_OP_CONST( llvm_ir_generator, ast::element_selector_expression, e, parent_env )
         {
+            //
+            auto const& element_env = root_env_->get_related_env_by_ast_ptr( e );
+            if ( element_env != nullptr ) {
+                // 
+
+                if ( element_env->get_symbol_kind() == kind::type_value::e_variable ) {
+                    // variable that belonged to class
+                    auto const& v_env
+                        = std::static_pointer_cast<variable_symbol_environment const>( element_env );
+                    assert( v_env != nullptr );
+                    assert( v_env->is_in_class() );
+
+                    //return context_->env_conversion_table.ref_value( v_env->get_id() );
+                    llvm::Value* const lhs = dispatch( e->reciever_, parent_env );
+
+                    lhs->dump();
+                    lhs->getType()->dump();
+
+                    auto const& index
+                        = context_->env_conversion_table.get_class_variable_index(
+                            v_env->get_parent_class_env_id(),
+                            v_env->get_id()
+                            );
+                    std::cout << "index: " << index << std::endl;
+
+                    return ( index < ( static_cast<std::size_t>( 2 ) << 32 ) )
+                        ? context_->ir_builder.CreateConstGEP2_32( lhs, 0, 1 )
+                        : context_->ir_builder.CreateConstGEP1_64( lhs, index )
+                        ;
+                } else {
+                    assert( false && "[[ice]]" );
+                }
+
+            } else {
+                llvm::Value* const rhs = dispatch( e->selector_id_, parent_env );
+                llvm::Value* const lhs = dispatch( e->reciever_, parent_env );
+
+                return lhs;
+            }
         }
 
 
@@ -921,14 +1064,19 @@ namespace rill
                     }
                 }();
 
+                result_value->dump();
+//                assert( false );
+                
                 // TODO: value conversion...(ref, val, etc...)
                 args[e->arguments_.size()-i-1] = result_value;
             }
 
 
             // evaluate lhs
-            // dispatch( e->reciever_, parent_env );
-
+            llvm::Value* const lhs = dispatch( e->reciever_, parent_env );
+            if ( lhs != nullptr ) {
+                args.insert( args.begin(), lhs );
+            }
 
             // invocation
             return context_->ir_builder.CreateCall( callee_function, args/*, "calltmp"*/ );
@@ -972,13 +1120,21 @@ namespace rill
         }
 
 
-        //
+        // identifier node returns Variable
         RILL_TV_OP_CONST( llvm_ir_generator, ast::identifier_value, v, parent_env )
         {
             //
             std::cout << "solving: " << v->get_inner_symbol()->to_native_string() << std::endl;
-            // todo: maybe function environment will come
-            auto const v_env = std::static_pointer_cast<variable_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( v ) );
+
+            //
+            auto const& env = root_env_->get_related_env_by_ast_ptr( v );
+            if ( env == nullptr ) {
+                std::cout << "skiped" << std::endl;
+                return nullptr;
+            }
+
+            auto const& v_env
+                = std::static_pointer_cast<variable_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( v ) );
             assert( v_env != nullptr );
 
             return context_->env_conversion_table.ref_value( v_env->get_id() );

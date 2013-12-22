@@ -123,6 +123,15 @@ namespace rill
                 return class_variable_type_table_.at( class_env_id ).type_list;
             }
 
+            auto get_class_variable_index(
+                environment_id_t const& class_env_id,
+                environment_id_t const& env_id
+                ) const
+                -> std::size_t
+            {
+                auto& table = class_variable_type_table_.at( class_env_id );
+                return table.type_index.at( env_id );
+            }
 /*
             auto ref_function_type( environment_id_t const& env_id ) const
                 -> llvm::FunctionType*
@@ -151,7 +160,7 @@ namespace rill
             struct class_variable_type_holder
             {
                 std::vector<llvm::Type*> type_list;
-                std::unordered_map<environment_id_t, std::size_t> type_index;                    
+                std::unordered_map<environment_id_t, std::size_t> type_index;
             };
             std::unordered_map<environment_id_t, class_variable_type_holder> class_variable_type_table_;
 

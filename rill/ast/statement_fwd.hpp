@@ -52,10 +52,6 @@ namespace rill
 
         RILL_AST_FWD_DECL( return_statement, statement )
 
-        /*
-        struct native_function_definition_statement;
-        typedef std::shared_ptr<native_function_definition_statement> native_function_definition_statement_ptr;
-        */
 
 
         RILL_AST_FWD_DECL( extern_statement_base, statement )

@@ -51,19 +51,17 @@ namespace rill
             return KindValue;
         }
 
-        auto is_incomplete() const
-            -> bool RILL_CXX11_OVERRIDE
-        {
-            return true;
-        }
-
         auto complete(
             native_string_type const& name
             )
             -> void
         {
             name_ = name;
+
+            change_progress_to_completed();
         }
+        auto mangled_name() const
+            -> native_string_type;
 
         auto dump( std::ostream& os, std::string const& indent ) const
             -> std::ostream& RILL_CXX11_OVERRIDE

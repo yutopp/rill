@@ -117,9 +117,18 @@ namespace rill
                 // in declaration unit, can not specify "quality" by type_expression
                 assert( type_value.attributes.quality == boost::none );
 
-                if ( auto const class_env = lookup_with_instanciation( parent_env, type_value.identifiers ) ) {
+                if ( auto const class_env = std::static_pointer_cast<class_symbol_environment>( lookup_with_instanciation( parent_env, type_value.identifiers ) ) ) {
                     assert( class_env != nullptr );
                     assert( class_env->get_symbol_kind() == kind::type_value::e_class );
+
+                    if ( class_env->is_incomplete() ) {
+                        //
+                        auto const& class_node = class_env->get_related_ast();
+                        assert( class_node != nullptr );
+
+                        dispatch( class_node, class_env->get_parent_env() );
+                        assert( class_env->is_complete() );
+                    }
 
                     auto attr = determine_type_attributes( type_value.attributes );
                     attr <<= val_decl.quality;
@@ -131,13 +140,13 @@ namespace rill
                         = parent_env->construct(
                             kind::k_variable,
                             unit.name,
-                            nullptr,
+                            s,
                             std::dynamic_pointer_cast<class_symbol_environment const>( class_env ),
                             attr
                             );
 
                     //
-                    variable_env->connect_from_ast( s );
+                    // variable_env->connect_from_ast( s );
 
                 } else {
                     // type was not found, !! compilation error !!
@@ -163,6 +172,9 @@ namespace rill
         {
             assert( parent_env->get_symbol_kind() == kind::type_value::e_class );
 
+            // TODO: make unit of variable decl to "AST NODE".
+            // for( auto const& decl : s->decls_ ) {
+
             auto const related_env = parent_env->get_related_env_by_ast_ptr( s );
             // Forward referencable
             assert( related_env != nullptr );
@@ -172,12 +184,11 @@ namespace rill
             assert( v_env != nullptr );
 
 
-/*
-// guard double check
-if ( f_env->is_checked() )
-return;
-f_env->check();
-*/
+            // guard double check
+            if ( v_env->is_checked() )
+                return;
+            v_env->change_progress_to_checked();
+
             auto const& val_decl = s->declaration_;
             // TODO: decl_unit will be unit_list
             // for( auto const& unit : val_decl.decl_unit_list ) {
@@ -206,18 +217,19 @@ f_env->check();
                     auto attr = determine_type_attributes( type_value.attributes );
                     attr <<= val_decl.quality;
 
-                    // declare
-                    auto variable_env
-                        = parent_env->construct(
-                            kind::k_variable,
-                            unit.name,
-                            nullptr,
-                            std::dynamic_pointer_cast<class_symbol_environment const>( class_env ),
-                            attr
-                            );
-
                     //
-                    variable_env->connect_from_ast( s );
+                    std::cout << "class variable: " << unit.name->get_inner_symbol()->to_native_string() << std::endl;
+
+                    // completion
+                    v_env->complete(
+                        v_env->make_type_id(
+                            std::static_pointer_cast<class_symbol_environment const>( class_env ),
+                            attr
+                            ),
+                        unit.name->get_inner_symbol()->to_native_string()
+                        );
+
+                    //v_env->set_parent_class_env_id( class_env->get_id() );
 
                 } else {
                     // type was not found, !! compilation error !!
@@ -230,6 +242,9 @@ f_env->check();
                 // TODO: implement type inference
                 assert( false );
             }
+
+
+            
         }
 
 
@@ -260,7 +275,7 @@ f_env->check();
             // guard double check
             if ( f_env->is_checked() )
                 return;
-            f_env->check();
+            f_env->change_progress_to_checked();
 
 
 
@@ -372,7 +387,7 @@ f_env->check();
             // guard double check
             if ( f_env->is_checked() )
                 return;
-            f_env->check();
+            f_env->change_progress_to_checked();
 
 
             // declare "this" at first
@@ -489,17 +504,20 @@ f_env->check();
             assert( related_env != nullptr );
             assert( related_env->get_symbol_kind() == kind::type_value::e_class );
 
-            auto const& c_env = std::static_pointer_cast<class_symbol_environment>( related_env );
+            auto const& c_env
+                = std::static_pointer_cast<class_symbol_environment>( related_env );
             assert( c_env != nullptr );
 
-/*
             // guard double check
-            if ( c_env->is_checked() )
+            if ( c_env->is_checked() ) {
+                std::cout << "Already, checked" << std::endl;
                 return;
-            c_env->check();
-*/
+            }
+            c_env->change_progress_to_checked();
 
             dispatch( s->block_, c_env );
+
+            c_env->complete( s->get_identifier()->get_inner_symbol()->to_native_string() );
         }
 
 
@@ -568,7 +586,7 @@ f_env->check();
             // guard double check
             if ( f_env->is_checked() )
                 return;
-            f_env->check();
+            f_env->change_progress_to_checked();
 
             // construct function environment in progress phase
 
