@@ -1,0 +1,4 @@
+def main()
+{
+    val a: int mutable[20];
+}

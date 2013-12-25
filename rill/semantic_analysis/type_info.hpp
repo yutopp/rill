@@ -30,10 +30,44 @@ namespace rill
         };
 
 
+        class type_id_wrapper
+        {
+        public:
+            type_id_wrapper()
+                : tid_( type_id_undefined )
+            {}
+
+            /*implicit*/
+            type_id_wrapper( type_id_t const& tid )
+                : tid_( tid )
+            {}
+
+        public:
+            friend auto operator==( type_id_wrapper const& lhs, type_id_wrapper const& rhs )
+                -> bool
+            {
+                return lhs.tid_ == rhs.tid_;
+            }
+
+            friend auto operator==( type_id_wrapper const& lhs, type_id_t const& rhs )
+                -> bool
+            {
+                return lhs.tid_ == rhs;
+            }
+
+            operator type_id_t() const
+            {
+                return tid_;
+            }
+
+        private:
+            type_id_t tid_;
+        };
+
         // TODO: move to any where
         struct type_id_with_env
         {
-            type_id_t type_id;
+            type_id_wrapper type_id;
             environment_base_ptr target_env;
             std::shared_ptr<std::vector<type_id_with_env>> nest;
         };

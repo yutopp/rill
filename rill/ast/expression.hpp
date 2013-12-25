@@ -160,6 +160,8 @@ namespace rill
 
 
 
+
+        
         struct type_expression
             : public expression
         {
@@ -168,6 +170,7 @@ namespace rill
             //ADAPT_EXPRESSION_VISITOR( type_expression )
 
         public:
+            ~type_expression() {}
         };
 
 

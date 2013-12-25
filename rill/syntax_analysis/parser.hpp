@@ -172,13 +172,12 @@ namespace rill
                         > string_literal_sequenece_
                         )
                       )[
-                        qi::_val
-                            = helper::make_node_ptr<ast::extern_function_declaration_statement>(
-                                qi::_1,
-                                qi::_2,
-                                qi::_3,
-                                qi::_4
-                                )
+                        qi::_val = helper::make_node_ptr<ast::extern_function_declaration_statement>(
+                            qi::_1,
+                            qi::_2,
+                            qi::_3,
+                            qi::_4
+                            )
                       ]
                     ;
 
@@ -251,13 +250,12 @@ namespace rill
                       > -type_specifier_
                       > ( function_body_block_/* | expression_*/ )
                       )[
-                          qi::_val
-                            = helper::make_node_ptr<ast::function_definition_statement>(
-                                qi::_1,
-                                qi::_2,
-                                qi::_3,
-                                qi::_4
-                                )
+                          qi::_val = helper::make_node_ptr<ast::function_definition_statement>(
+                              qi::_1,
+                              qi::_2,
+                              qi::_3,
+                              qi::_4
+                              )
                       ]
                     ;
 
@@ -271,13 +269,12 @@ namespace rill
                       > -type_specifier_
                       > ( function_body_block_/* | expression_*/ )
                       )[
-                          qi::_val
-                            = helper::make_node_ptr<ast::class_function_definition_statement>(
-                                qi::_1,
-                                qi::_2,
-                                qi::_3,
-                                qi::_4
-                                )
+                          qi::_val = helper::make_node_ptr<ast::class_function_definition_statement>(
+                              qi::_1,
+                              qi::_2,
+                              qi::_3,
+                              qi::_4
+                              )
                       ]
                     ;
 
@@ -304,11 +301,10 @@ namespace rill
                         >> ( parameter_variable_declaration_list_ | qi::eps )    // constructor
                         >> class_body_block_
                       )[
-                          qi::_val
-                              = helper::make_node_ptr<ast::class_definition_statement>(
-                                  qi::_1,
-                                  qi::_2,
-                                  qi::_3
+                          qi::_val = helper::make_node_ptr<ast::class_definition_statement>(
+                              qi::_1,
+                              qi::_2,
+                              qi::_3
                               )
                       ]
                     ;
@@ -326,11 +322,10 @@ namespace rill
                       > ( qi::lit( "(" ) > expression_ > qi::lit( ")" ) )
                       > wrapped_flow_statement_
                       )[
-                          qi::_val
-                            = helper::make_node_ptr<ast::test_while_statement>(
-                                qi::_1,
-                                qi::_2
-                                )
+                          qi::_val = helper::make_node_ptr<ast::test_while_statement>(
+                              qi::_1,
+                              qi::_2
+                              )
                       ]
                     ;
 
@@ -344,12 +339,11 @@ namespace rill
                             qi::lit( "else" ) > wrapped_flow_statement_
                         )
                       )[
-                          qi::_val
-                            = helper::make_node_ptr<ast::test_if_statement>(
-                                qi::_1,
-                                qi::_2,
-                                qi::_3
-                                )
+                          qi::_val = helper::make_node_ptr<ast::test_if_statement>(
+                              qi::_1,
+                              qi::_2,
+                              qi::_3
+                              )
                       ]
                     ;
 
@@ -359,7 +353,7 @@ namespace rill
                     = qi::as<ast::variable_declaration>()[
                         variable_declaration_ > statement_termination_
                       ][
-                        qi::_val = helper::make_node_ptr<ast::variable_declaration_statement>( qi::_1 )
+                          qi::_val = helper::make_node_ptr<ast::variable_declaration_statement>( qi::_1 )
                       ]
                     ;
 
@@ -367,7 +361,7 @@ namespace rill
                     = qi::as<ast::variable_declaration>()[
                         variable_declaration_ > statement_termination_
                       ][
-                        qi::_val = helper::make_node_ptr<ast::class_variable_declaration_statement>( qi::_1 )
+                          qi::_val = helper::make_node_ptr<ast::class_variable_declaration_statement>( qi::_1 )
                       ]
                     ;
 
@@ -376,7 +370,7 @@ namespace rill
                 //
                 expression_statement_
                     = ( expression_ > statement_termination_ )[
-                        qi::_val = helper::make_node_ptr<ast::expression_statement>( qi::_1 )
+                          qi::_val = helper::make_node_ptr<ast::expression_statement>( qi::_1 )
                       ]
                     ;
 
@@ -458,22 +452,66 @@ namespace rill
                 //
                 type_specifier_.name( "type_specifier" );
                 type_specifier_
-                    = ( qi::lit( ':' ) > type_expression_ )
+                    = ( qi::lit( ':' ) > type_ )
                     ;
 
 
-
-
+                // ==================================================
+                // ==================================================
                 //
-                type_expression_.name( "type_expression" );
+                // ==================================================
+
+                type_.name( "type" );
+                type_
+                    = type_identifier_expression_.alias()
+                    ;
+
+#if 0
+                    = base_type_
+                    | compiletime_type_expression_
+                    ;
+
                 type_expression_
-                    = type_identifier_expression_
-                    | compiletime_return_type_expression_
+                    = type_expression_priority_[TypeExpressionHierarchyNum-1]
                     ;
 
-                //
-                type_identifier_expression_
-                    = ( nested_identifier_ >> type_attributes_ )[
+                {
+                    // Postfix Expression
+                    auto const priority = 1;
+                    expression_priority_[priority]
+                        = expression_priority_[priority-1][qi::_val = qi::_1]
+                        >> *( ( qi::lit( "[" ) >> expression_ >> qi:: )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, "||", qi::_1 )]
+                            )
+                        ;
+
+                    logical_or_expression_ = expression_priority_[priority].alias();
+
+                    qi::debug( expression_priority_[priority] );
+                }
+
+                {
+                    // Primary Expression
+                    auto const priority = 0;
+                    expression_priority_[priority]
+                        = qi::as<ast::value_ptr>()
+                            [ identifier_
+                            | identifier_with_root_
+                            | template_instance_
+                            | template_instance_with_root_
+                            | numeric_literal_
+                            | boolean_literal_
+                            | string_literal_
+                          ][ qi::_val = helper::make_node_ptr<ast::term_expression>( qi::_1 ) ]
+                        | ( qi::lit( '(' ) >> expression_ >> qi::lit( ')' ) )[qi::_val = qi::_1]
+                        ;
+                        
+                    primary_expression_ = expression_priority_[priority].alias();
+
+                    qi::debug( expression_priority_[priority] );
+                }
+
+                base_type_
+                    = ( compound_type_ >> type_attributes_ )[
                         qi::_val = helper::make_node_ptr<ast::type_identifier_expression>(
                             qi::_1,
                             qi::_2
@@ -481,13 +519,41 @@ namespace rill
                       ]
                     ;
 
+                compound_type_
+                    = base_types_
+                    >> *( compound_type_postfix_ >> type_attributes_ )
+                    ;
+                
+                base_types_
+                    = nested_identifier_
+                    | ( qi::lit( '(' ) >> compiletime_type_expression_ >> qi::lit( ')' ) )[qi::_val = qi::_1]
+                    ;
+
+                compound_type_postfix_
+                    = ( qi::lit('[') >> -expression_ >> qi::lit(']')
+                    ;
+
+                compiletime_type_expression_
+                    = ( assign_expression_ )[
+                          qi::_val = helper::make_node_ptr<ast::compiletime_type_expression>( qi::_1 )
+                      ]
+                    ;
+#endif
+
+
                 //
-                compiletime_return_type_expression_
-                    = ( qi::lit( '^' ) > expression_ )[
-                        qi::_val = helper::make_node_ptr<ast::compiletime_return_type_expression>( qi::_1 )
+                type_identifier_expression_
+                    = ( nested_identifier_ >> type_attributes_ )[
+                          qi::_val = helper::make_node_ptr<ast::type_identifier_expression>(
+                              qi::_1,
+                              qi::_2
+                              )
                       ]
                     ;
 
+
+
+                // ========================================
 
 
                 expression_
@@ -495,40 +561,168 @@ namespace rill
                     ;
                 qi::debug( expression_ );
 
+
                 {
-                    auto const priority = 6u;
+                    // Comma Expression
+                    auto const priority = 15;
+                    expression_priority_[priority]
+                        = expression_priority_[priority-1][qi::_val = qi::_1]
+                        >> *( ( qi::lit( "," ) >> expression_priority_[priority-1] )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, ",", qi::_1 )]
+                            )
+                        ;
+
+                    commma_expression_ = expression_priority_[priority].alias();
+                    
+                    qi::debug( expression_priority_[priority] );
+                }
+
+                {
+                    // Assign Expression
+                    auto const priority = 14;
                     expression_priority_[priority]
                         = expression_priority_[priority-1][qi::_val = qi::_1]
                         >> *( ( qi::lit( "=" ) >> expression_priority_[priority-1] )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, "=", qi::_1 )]
                             )
                         ;
+                    
+                    assign_expression_ = expression_priority_[priority].alias();
+
                     qi::debug( expression_priority_[priority] );
                 }
 
                 {
-                    auto const priority = 5u;
+                    // Conditional Expression
+                    auto const priority = 13;
+                    expression_priority_[priority]
+                        = expression_priority_[priority-1][qi::_val = qi::_1]
+                        // TODO: add conditional operator( ? : )
+                        ;
+
+                    conditional_expression_ = expression_priority_[priority].alias();
+
+                    qi::debug( expression_priority_[priority] );
+                }
+
+                {
+                    // Logical OR Expression
+                    auto const priority = 12;
+                    expression_priority_[priority]
+                        = expression_priority_[priority-1][qi::_val = qi::_1]
+                        >> *( ( qi::lit( "||" ) >> expression_priority_[priority-1] )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, "||", qi::_1 )]
+                            )
+                        ;
+
+                    logical_or_expression_ = expression_priority_[priority].alias();
+
+                    qi::debug( expression_priority_[priority] );
+                }
+
+                {
+                    // Logical AND Expression
+                    auto const priority = 11;
+                    expression_priority_[priority]
+                        = expression_priority_[priority-1][qi::_val = qi::_1]
+                        >> *( ( qi::lit( "&&" ) >> expression_priority_[priority-1] )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, "&&", qi::_1 )]
+                            )
+                        ;
+
+                    logical_and_expression_ = expression_priority_[priority].alias();
+
+                    qi::debug( expression_priority_[priority] );
+                }
+
+                {
+                    // Bitwise OR Expression
+                    auto const priority = 10;
+                    expression_priority_[priority]
+                        = expression_priority_[priority-1][qi::_val = qi::_1]
+                        >> *( ( qi::lit( "|" ) >> expression_priority_[priority-1] )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, "|", qi::_1 )]
+                            )
+                        ;
+
+                    bitwise_or_expression_ = expression_priority_[priority].alias();
+
+                    qi::debug( expression_priority_[priority] );
+                }
+
+                {
+                    // Bitwise XOR Expression
+                    auto const priority = 9;
+                    expression_priority_[priority]
+                        = expression_priority_[priority-1][qi::_val = qi::_1]
+                        >> *( ( qi::lit( "^" ) >> expression_priority_[priority-1] )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, "^", qi::_1 )]
+                            )
+                        ;
+
+                    bitwise_xor_expression_ = expression_priority_[priority].alias();
+
+                    qi::debug( expression_priority_[priority] );
+                }
+
+                {
+                    // Bitwise AND Expression
+                    auto const priority = 8;
+                    expression_priority_[priority]
+                        = expression_priority_[priority-1][qi::_val = qi::_1]
+                        >> *( ( qi::lit( "&" ) >> expression_priority_[priority-1] )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, "&", qi::_1 )]
+                            )
+                        ;
+
+                    bitwise_and_expression_ = expression_priority_[priority].alias();
+
+                    qi::debug( expression_priority_[priority] );
+                }
+
+                {
+                    // Equality Expression
+                    auto const priority = 7;
                     expression_priority_[priority]
                         = expression_priority_[priority-1][qi::_val = qi::_1]
                         >> *( ( qi::lit( "==" ) >> expression_priority_[priority-1] )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, "==", qi::_1 )]
+                            | ( qi::lit( "!=" ) >> expression_priority_[priority-1] )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, "!=", qi::_1 )]
                             )
                         ;
+
+                    equality_expression_ = expression_priority_[priority].alias();
 
                     qi::debug( expression_priority_[priority] );
                 }
 
                 {
-                    auto const priority = 4u;
+                    // Relational Expression
+                    auto const priority = 6;
                     expression_priority_[priority]
                         = expression_priority_[priority-1][qi::_val = qi::_1]
                         >> *( ( qi::lit( "<" ) >> expression_priority_[priority-1] )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, "<", qi::_1 )]
+                            | ( qi::lit( "<=" ) >> expression_priority_[priority-1] )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, "<=", qi::_1 )]
+                            | ( qi::lit( ">" ) >> expression_priority_[priority-1] )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, ">", qi::_1 )]
+                            | ( qi::lit( ">=" ) >> expression_priority_[priority-1] )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, ">=", qi::_1 )]
                             )
                         ;
+
+                    relational_expression_ = expression_priority_[priority].alias();
 
                     qi::debug( expression_priority_[priority] );
                 }
 
                 {
-                    auto const priority = 3u;
+                    // Shift Expression
+                    auto const priority = 5;
+                    expression_priority_[priority]
+                        = expression_priority_[priority-1][qi::_val = qi::_1]
+                        >> *( ( qi::lit( "<<" ) >> expression_priority_[priority-1] )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, "<<", qi::_1 )]
+                            | ( qi::lit( ">>" ) >> expression_priority_[priority-1] )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, ">>", qi::_1 )]
+                            )
+                        ;
+
+                    shift_expression_ = expression_priority_[priority].alias();
+
+                    qi::debug( expression_priority_[priority] );
+                }
+
+                {
+                    // Add/Sub Expression
+                    auto const priority = 4;
                     expression_priority_[priority]
                         = expression_priority_[priority-1][qi::_val = qi::_1]
                         >> *( ( qi::lit( "+" ) >> expression_priority_[priority-1] )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, "+", qi::_1 )]
@@ -536,11 +730,14 @@ namespace rill
                             )
                         ;
 
+                    add_sub_expression_ = expression_priority_[priority].alias();
+
                     qi::debug( expression_priority_[priority] );
                 }
 
                 {
-                    auto const priority = 2u;
+                    // Mul/Div/Rem Expression
+                    auto const priority = 3;
                     expression_priority_[priority]
                         = expression_priority_[priority-1][qi::_val = qi::_1]
                         >> *( ( qi::lit( "*" ) >> expression_priority_[priority-1] )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, "*", qi::_1 )]
@@ -549,68 +746,81 @@ namespace rill
                             )
                         ;
 
+                    mul_div_rem_expression_ = expression_priority_[priority].alias();
+
                     qi::debug( expression_priority_[priority] );
                 }
 
                 {
-                    auto const priority = 1u;
+                    // Unary Expression
+                    auto const priority = 2;
                     expression_priority_[priority]
                         = expression_priority_[priority-1][qi::_val = qi::_1]
                         ;
 
+                    unary_expression_ = expression_priority_[priority].alias();
+
+                    qi::debug( expression_priority_[priority] );
+                }
+
+                {
+                    // Postfix Expression
+                    auto const priority = 1;
+                    expression_priority_[priority]
+                        = expression_priority_[priority-1][qi::_val = qi::_1]
+                        >> *( (   qi::lit( "." )
+                               >> qi::as<ast::identifier_value_base_ptr>()
+                                   [ identifier_
+                                   | identifier_with_root_
+                                   | template_instance_
+                                   | template_instance_with_root_
+                                 ]
+                              )[
+                                  qi::_val = helper::make_node_ptr<ast::element_selector_expression>(
+                                      qi::_val,
+                                      qi::_1
+                                      )
+                               ]
+
+                            | ( argument_list_ )[
+                                  qi::_val = helper::make_node_ptr<ast::call_expression>(
+                                      qi::_val,
+                                      qi::_1
+                                      )
+                              ]
+                            )
+                        ;
+                    
+
+                    postfix_expression_ = expression_priority_[priority].alias();
+
                     qi::debug( expression_priority_[priority] );
                 }
 
 
                 {
-                    auto const priority = 0u;
+                    // Primary Expression
+                    auto const priority = 0;
                     expression_priority_[priority]
-                        = primary_expression_[qi::_val = qi::_1]
-                        >> *( ( qi::lit( "." ) >> qi::as<ast::identifier_value_base_ptr>()
-                                  [ identifier_
-                                    | identifier_with_root_
-                                    | template_instance_
-                                    | template_instance_with_root_
-                                      ] )[qi::_val = helper::make_node_ptr<ast::element_selector_expression>(
-                                      qi::_val,
-                                      qi::_1
-                                      )]
-                            | ( argument_list_ )[qi::_val
-                                                 = helper::make_node_ptr<ast::call_expression>(
-                                                     qi::_val,
-                                                     qi::_1
-                                                     )]
-                            )
+                        = qi::as<ast::value_ptr>()
+                            [ identifier_
+                            | identifier_with_root_
+                            | template_instance_
+                            | template_instance_with_root_
+                            | numeric_literal_
+                            | boolean_literal_
+                            | string_literal_
+                          ][ qi::_val = helper::make_node_ptr<ast::term_expression>( qi::_1 ) ]
+                        | ( qi::lit( '(' ) >> expression_ >> qi::lit( ')' ) )[qi::_val = qi::_1]
                         ;
+                        
+                    primary_expression_ = expression_priority_[priority].alias();
+
                     qi::debug( expression_priority_[priority] );
                 }
 
 
 
-
-
-                // termination
-                primary_expression_
-                    = qi::as<ast::value_ptr>()
-                      [ identifier_
-                      | identifier_with_root_
-                      | template_instance_
-                      | template_instance_with_root_
-                      | numeric_literal_
-                      | boolean_literal_
-                      | string_literal_
-                    ][ qi::_val = helper::make_node_ptr<ast::term_expression>( qi::_1 ) ]
-                    | ( qi::lit( '(' ) >> expression_ >> qi::lit( ')' ) )[qi::_val = qi::_1]
-                    ;
-                qi::debug( primary_expression_ );
-/*
-                //
-                variable_value_
-                    = identifier_[
-                        qi::_val = helper::make_node_ptr<ast::variable_value>( qi::_1 )
-                      ]
-                    ;
-*/
                 nested_identifier_
                     = qi::as<std::vector<ast::identifier_value_base_ptr>>()[
                           ( identifier_ | template_instance_ ) % qi::lit( '.' )
@@ -619,10 +829,12 @@ namespace rill
                       ]
                     ;
 
+                // TODO: add "nested_identifier_with_root_"
+
                 //
                 integer_literal_
                     = ( qi::int_ )[
-                        qi::_val = helper::make_literal_value_ptr<ast::intrinsic::int32_value>( qi::_1 )
+                          qi::_val = helper::make_literal_value_ptr<ast::intrinsic::int32_value>( qi::_1 )
                       ];
 
                 numeric_literal_
@@ -641,7 +853,7 @@ namespace rill
                 //
                 string_literal_
                     = string_literal_sequenece_[
-                        qi::_val = helper::make_literal_value_ptr<ast::intrinsic::string_value>( qi::_1 )
+                          qi::_val = helper::make_literal_value_ptr<ast::intrinsic::string_value>( qi::_1 )
                       ]
                     ;
 
@@ -672,26 +884,26 @@ namespace rill
                 identifier_.name( "identifier" );
                 identifier_
                     = native_symbol_string_/*TODO: fix...*/[
-                        qi::_val = helper::make_node_ptr<ast::identifier_value>( qi::_1 )
+                          qi::_val = helper::make_node_ptr<ast::identifier_value>( qi::_1 )
                       ]
                     ;
                 identifier_with_root_
                     = qi::lit( '.' )
                    >> native_symbol_string_/*TODO: fix...*/[
-                        qi::_val = helper::make_node_ptr<ast::identifier_value>( qi::_1, phx::val( true ) )
+                          qi::_val = helper::make_node_ptr<ast::identifier_value>( qi::_1, phx::val( true ) )
                       ]
                     ;
 
 
                 template_instance_
                     = native_symbol_string_/*TODO: fix...*/[
-                        qi::_val = helper::make_node_ptr<ast::template_instance_value>( qi::_1 )
+                          qi::_val = helper::make_node_ptr<ast::template_instance_value>( qi::_1 )
                       ]
                     ;
                 template_instance_with_root_
                     = qi::lit( '.' )
                    >> native_symbol_string_/*TODO: fix...*/[
-                        qi::_val = helper::make_node_ptr<ast::template_instance_value>( qi::_1, phx::val( true ) )
+                          qi::_val = helper::make_node_ptr<ast::template_instance_value>( qi::_1, phx::val( true ) )
                       ]
                     ;
 
@@ -705,7 +917,7 @@ namespace rill
                 native_symbol_.name( "native_symbol" );
                 native_symbol_
                     = native_symbol_string_[
-                        qi::_val = helper::make_node_ptr<ast::intrinsic::symbol_value>( qi::_1 )
+                          qi::_val = helper::make_node_ptr<ast::intrinsic::symbol_value>( qi::_1 )
                       ]
                     ;
 
@@ -760,13 +972,53 @@ namespace rill
             rule<ast::value_initializer_unit()> value_initializer_unit_;
             rule<ast::type_expression_ptr()> type_specifier_;
 
-            static std::size_t const ExpressionHierarchyNum = 7;
-            rule<ast::expression_ptr()> expression_, expression_priority_[ExpressionHierarchyNum];
-            rule<ast::expression_list()> argument_list_;
+            rule<ast::expression_ptr()> expression_;
+            static std::size_t const ExpressionHierarchyNum = 16;
+            rule<ast::expression_ptr()> expression_priority_[ExpressionHierarchyNum];
+            rule<ast::expression_ptr()> commma_expression_;
+            rule<ast::expression_ptr()> assign_expression_;
+            rule<ast::expression_ptr()> conditional_expression_;
+            rule<ast::expression_ptr()> logical_or_expression_;
+            rule<ast::expression_ptr()> logical_and_expression_;
+            rule<ast::expression_ptr()> bitwise_or_expression_;
+            rule<ast::expression_ptr()> bitwise_xor_expression_;
+            rule<ast::expression_ptr()> bitwise_and_expression_;
+            rule<ast::expression_ptr()> equality_expression_;
+            rule<ast::expression_ptr()> relational_expression_;
+            rule<ast::expression_ptr()> shift_expression_;
+            rule<ast::expression_ptr()> add_sub_expression_;
+            rule<ast::expression_ptr()> mul_div_rem_expression_;
+            rule<ast::expression_ptr()> unary_expression_;
+            rule<ast::expression_ptr()> postfix_expression_;
             rule<ast::expression_ptr()> primary_expression_;
 
 
-            rule<ast::type_expression_ptr()> type_expression_;
+            rule<ast::expression_list()> argument_list_;
+
+
+#if 0
+            rule<ast::type_expression_ptr()> expression_;
+            static std::size_t const ExpressionHierarchyNum = 16;
+            rule<ast::expression_ptr()> expression_priority_[ExpressionHierarchyNum];
+            rule<ast::expression_ptr()> commma_expression_;
+            rule<ast::expression_ptr()> assign_expression_;
+            rule<ast::expression_ptr()> conditional_expression_;
+            rule<ast::expression_ptr()> logical_or_expression_;
+            rule<ast::expression_ptr()> logical_and_expression_;
+            rule<ast::expression_ptr()> bitwise_or_expression_;
+            rule<ast::expression_ptr()> bitwise_xor_expression_;
+            rule<ast::expression_ptr()> bitwise_and_expression_;
+            rule<ast::expression_ptr()> equality_expression_;
+            rule<ast::expression_ptr()> relational_expression_;
+            rule<ast::expression_ptr()> shift_expression_;
+            rule<ast::expression_ptr()> add_sub_expression_;
+            rule<ast::expression_ptr()> mul_div_rem_expression_;
+            rule<ast::expression_ptr()> unary_expression_;
+            rule<ast::expression_ptr()> postfix_expression_;
+            rule<ast::expression_ptr()> primary_expression_;
+#endif
+
+            rule<ast::type_expression_ptr()> type_;
             rule<ast::type_identifier_expression_ptr()> type_identifier_expression_;
             rule<ast::compiletime_return_type_expression_ptr()> compiletime_return_type_expression_;
 
