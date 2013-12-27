@@ -22,7 +22,6 @@
 #include "../ast/value.hpp"
 #include "../ast/expression.hpp"
 #include "../ast/statement.hpp"
-#include "../ast/root.hpp"
 
 
 namespace rill
@@ -35,12 +34,7 @@ namespace rill
             struct make_node_pointer_lazy
             {
                 typedef std::shared_ptr<T>      result_type;
-/*
-                template<class>
-                struct result {
-                    typename std::shared_ptr<T> type;
-                };
-*/
+
                 template<typename... Args>
                 auto operator()( Args&&... args ) const
                     -> result_type

@@ -22,7 +22,6 @@
 
 #include "statement_fwd.hpp"
 
-#include "ast_base.hpp"
 #include "value.hpp"
 #include "expression.hpp"
 
@@ -52,6 +51,28 @@ namespace rill
         };
 
 
+        struct statements RILL_CXX11_FINAL
+            : public statement
+        {
+        public:
+            RILL_AST_ADAPT_VISITOR( statements )
+
+        public:
+            statements( statement_list const& s )
+                : statement_list_( s )
+            {}
+
+            statements( statement_ptr const& s )
+                : statement_list_( 1, s ) // initialize with one element
+            {}
+/*
+            statements( statement_list&& s )
+                : s_( s )
+            {}
+*/
+        public:
+            statement_list const statement_list_;
+        };
 
 
 
@@ -62,20 +83,16 @@ namespace rill
             RILL_AST_ADAPT_VISITOR( block_statement )
             
         public:
-            block_statement( std::vector<statement_ptr> const& s )
-                : statements_( s )
+            block_statement( statements_ptr const& ss )
+                : statements_( ss )
             {}
 
-            block_statement( statement_ptr const& s )
-                : statements_( 1, s ) // initialize with one element
+            explicit block_statement( statement_ptr const& s )
+                : statements_( std::make_shared<statements>( s ) )
             {}
-/*
-            block_statement( statement_list&& s )
-                : s_( s )
-            {}
-*/
+
         public:
-            statement_list const statements_;
+            statements_ptr const statements_;
         };
 
 
@@ -212,11 +229,9 @@ namespace rill
         struct function_definition_statement_base
             : public statement
         {
-//            ADAPT_STATEMENT_VISITOR( function_definition_statement_base )
-
         public:
-            function_definition_statement_base( block_statement_ptr const& block )
-                : block_( block )
+            function_definition_statement_base( statement_ptr const& inner )
+                : inner_( inner )
             {}
 
             virtual ~function_definition_statement_base()
@@ -226,7 +241,7 @@ namespace rill
 
 
         public:
-            block_statement_ptr const block_;
+            statement_ptr const inner_;
         };
 
 
@@ -242,9 +257,9 @@ namespace rill
                 identifier_value_ptr const& symbol_name,
                 parameter_list const& parameter_list,
                 boost::optional<type_expression_ptr> const& return_type,
-                block_statement_ptr const& block
+                statement_ptr const& inner
                 )
-                : function_definition_statement_base( block )
+                : function_definition_statement_base( inner )
                 , identifier_( symbol_name )
                 , parameter_list_( parameter_list )
                 , return_type_( return_type )
@@ -277,8 +292,8 @@ namespace rill
             RILL_AST_ADAPT_VISITOR( intrinsic_function_definition_statement )
 
         public:
-            intrinsic_function_definition_statement( block_statement_ptr const& block )
-                : function_definition_statement_base( block )
+            intrinsic_function_definition_statement( statement_ptr const& inner )
+                : function_definition_statement_base( inner )
             {}
         };
 
@@ -296,9 +311,9 @@ namespace rill
                 identifier_value_base_ptr const& function_name,
                 parameter_list const& parameter_list,
                 boost::optional<type_expression_ptr> const& return_type,
-                block_statement_ptr const& block
+                statement_ptr const& inner
                 )
-                : function_definition_statement_base( block )
+                : function_definition_statement_base( inner )
                 , identifier_( function_name )
                 , parameter_list_( parameter_list )
                 , return_type_( return_type )
@@ -343,11 +358,11 @@ namespace rill
             class_definition_statement(
                 identifier_value_ptr const& identifier,
                 boost::optional<parameter_list> const& constructor_parameter_list,
-                block_statement_ptr const& block
+                statement_ptr const& inner
                 )
                 : identifier_( identifier )
                 , constructor_parameter_list_( constructor_parameter_list ? std::move( *constructor_parameter_list ) : parameter_list() )
-                , block_( block )
+                , inner_( inner )
             {}
 
         public:
@@ -366,7 +381,7 @@ namespace rill
         public:
             identifier_value_ptr const identifier_;
             parameter_list const constructor_parameter_list_;
-            block_statement_ptr const block_;
+            statement_ptr const inner_;
         };
 
 
@@ -381,7 +396,7 @@ namespace rill
         public:
             test_while_statement(
                 expression_ptr const& cond,
-                statement_ptr const& body_statement
+                block_statement_ptr const& body_statement
                 )
                 : conditional_( cond )
                 , body_statement_( body_statement )
@@ -389,7 +404,7 @@ namespace rill
 
         public:
             expression_ptr const conditional_;
-            statement_ptr const body_statement_;
+            block_statement_ptr const body_statement_;
         };
 
 
@@ -403,8 +418,8 @@ namespace rill
         public:
             test_if_statement(
                 expression_ptr const& cond,
-                statement_ptr const& then_statement,
-                boost::optional<statement_ptr> const& else_statement
+                block_statement_ptr const& then_statement,
+                boost::optional<block_statement_ptr> const& else_statement
                 )
                 : conditional_( cond )
                 , then_statement_( then_statement )
@@ -413,8 +428,8 @@ namespace rill
 
         public:
             expression_ptr const conditional_;
-            statement_ptr const then_statement_;
-            boost::optional<statement_ptr> else_statement_;
+            block_statement_ptr const then_statement_;
+            boost::optional<block_statement_ptr> else_statement_;
         };
 
  
@@ -488,6 +503,21 @@ namespace rill
             expression_ptr const expression_;
         };
 
+
+        struct jit_statement
+            : public statement
+        {
+        public:
+            RILL_AST_ADAPT_VISITOR( jit_statement )
+
+        public:
+            jit_statement( expression_ptr const& expr )
+                : expression_( expr )
+            {}
+
+        public:
+            expression_ptr const expression_;
+        };
 
 
 

@@ -9,7 +9,6 @@
 #include <rill/debug/ast_printer.hpp>
 #include <rill/environment/environment.hpp>
 
-#include <rill/ast/root.hpp>
 #include <rill/ast/statement.hpp>
 #include <rill/ast/expression.hpp>
 #include <rill/ast/value.hpp>
@@ -22,11 +21,11 @@ namespace rill
         //
         // Root Scope
         //
-        RILL_TV_OP( ast_printer, ast::root, r, _ )
+        RILL_TV_OP( ast_printer, ast::statements, s, _ )
         {
-            o( "root", [&]( std::string const& ss ) {
-                    for( auto const& node : r->statements_ )
-                        dispatch( node );
+            o( "statements", [&]( std::string const& ss ) {
+                    for( auto const& ss : s->statement_list_ )
+                        dispatch( ss );
                 } );
         }
 
@@ -34,8 +33,7 @@ namespace rill
         RILL_TV_OP( ast_printer, ast::block_statement, s, _ )
         {
             o( "block_statement", [&]( std::string const& ss ) {
-                    for( auto const& node : s->statements_ )
-                        dispatch( node );
+                    dispatch( s->statements_ );
                 } );
         }
 
@@ -69,7 +67,7 @@ namespace rill
         RILL_TV_OP( ast_printer, ast::function_definition_statement, s, _ )
         {
             o( "function_definition_statement", [&]( std::string const& ss ) {
-                    dispatch( s->block_ );
+                    dispatch( s->inner_ );
                 } );
         }
 
@@ -82,7 +80,7 @@ namespace rill
         RILL_TV_OP( ast_printer, ast::class_function_definition_statement, s, _ )
         {
             o( "class_function_definition_statement", [&]( std::string const& ss ) {
-                    dispatch( s->block_ );
+                    dispatch( s->inner_ );
                 } );
         }
 
@@ -93,7 +91,7 @@ namespace rill
         RILL_TV_OP( ast_printer, ast::class_definition_statement, s, _ )
         {
             o( "class_definition_statement", [&]( std::string const& ss ) {
-                    dispatch( s->block_ );
+                    dispatch( s->inner_ );
                 } );
         }
 
@@ -113,7 +111,7 @@ namespace rill
         RILL_TV_OP( ast_printer, ast::intrinsic_function_definition_statement, s, _ )
         {
             o( "intrinsic_function_daginition_statement", [&]( std::string const& ss ) {
-                    dispatch( s->block_ );
+                    dispatch( s->inner_ );
                 } );
         }
 

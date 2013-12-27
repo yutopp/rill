@@ -12,14 +12,13 @@
 #include <memory>
 #include <unordered_set>
 
-#include <llvm/IR/LLVMContext.h>
-#include <llvm/IR/Module.h>
-#include <llvm/IR/IRBuilder.h>
+#include <llvm/ExecutionEngine/ExecutionEngine.h>
 
 #include "../ast/detail/tree_visitor_base.hpp"
 #include "../behavior/intrinsic_function_holder_fwd.hpp"
 
 #include "llvm_ir_generator_context.hpp"
+#include "llvm_ir_generator.hpp"
 
 
 namespace rill
@@ -31,8 +30,8 @@ namespace rill
 
 
         // ========================================
-        class llvm_ir_generator RILL_CXX11_FINAL
-            : public ast::detail::tree_visitor<llvm_ir_generator, llvm::Value*>
+        class llvm_ir_executor RILL_CXX11_FINAL
+            : public ast::detail::tree_visitor<llvm_ir_executor, llvm::GenericValue>
         {
         public:
             llvm_ir_generator(
@@ -76,14 +75,14 @@ namespace rill
 
             RILL_TV_OP_FAIL
 
-        public:
+
             // TEST
             void debug() const
             {
                 context_->llvm_module.dump();
             }
 
-        public:
+
             auto is_built( ast::const_ast_base_ptr const& node ) const
                 -> bool
             {

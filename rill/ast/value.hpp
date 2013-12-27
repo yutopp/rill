@@ -20,8 +20,6 @@
 
 #include "value_fwd.hpp"
 
-#include "ast_base.hpp"
-
 
 namespace rill
 {

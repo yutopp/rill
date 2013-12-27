@@ -11,6 +11,7 @@
 #include "../ast/value_fwd.hpp"
 #include "../semantic_analysis/type_info.hpp"
 #include <llvm/IR/Value.h>
+#include <llvm/ExecutionEngine/GenericValue.h>
 
 
 // * IMPORTANT *
@@ -22,4 +23,5 @@
     (( dispatch_as_type_value_tag,          semantic_analysis::type_info )) \
     (( dispatch_as_type_id_with_env_tag,    semantic_analysis::type_id_with_env )) \
     (( dispatch_as_llvm_ir_value_tag,       llvm::Value* )) \
+    (( dispatch_as_llvm_generic_value_tag,  llvm::GenericValue )) \
     (( dispatch_as_void_tag,                void ))

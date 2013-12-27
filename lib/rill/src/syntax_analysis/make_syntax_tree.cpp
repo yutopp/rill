@@ -16,7 +16,8 @@ namespace rill
 {
     namespace syntax_analysis
     {
-        auto make_syntax_tree( ast::native_string_t const& source ) -> ast::root_ptr
+        auto make_syntax_tree( ast::native_string_t const& source )
+            -> ast::statements_ptr
         {
             namespace spirit = boost::spirit;
             namespace qi = spirit::qi;
@@ -33,7 +34,7 @@ namespace rill
                 grammer_type grammer( first );
                 grammer_type::skip_grammer_type skipper;
 
-                ast::statement_list program;
+                ast::statements_ptr program;
 
                 std::cout << "!!! === !!!" << std::endl
                           << "Start to parse" << std::endl
@@ -51,14 +52,14 @@ namespace rill
                     std::cout << "false" << std::endl;
                 }
 
-                return std::make_shared<ast::root>( std::move( program ) );
+                return program;
             }
             catch( qi::expectation_failure<pos_iterator_type> const& e )
             {
                 std::cout << "Exception handled. " << e.what() << std::endl;
                 std::exit( -1 );
-                ast::statement_list p;
-                return std::make_shared<ast::root>( std::move( p ) /* TODO: insert error*/ );
+
+                return nullptr; // TODO: insert error
             }
         }
 

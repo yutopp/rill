@@ -10,7 +10,6 @@
 
 #include "../environment/environment.hpp"
 
-#include "../ast/root.hpp"
 #include "../ast/statement.hpp"
 #include "../ast/expression.hpp"
 #include "../ast/value.hpp"

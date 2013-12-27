@@ -32,7 +32,6 @@
 #include "../ast/value.hpp"
 #include "../ast/expression.hpp"
 #include "../ast/statement.hpp"
-#include "../ast/root.hpp"
 
 #include "../attribute/attribute.hpp"
 
@@ -57,7 +56,7 @@ namespace rill
         //
         template<typename Iterator>
         class code_grammer
-            : public qi::grammar<Iterator, ast::statement_list(), skip_grammer<Iterator>>
+            : public qi::grammar<Iterator, ast::statements_ptr(), skip_grammer<Iterator>>
         {
         public:
             using skip_grammer_type = skip_grammer<Iterator>;
@@ -109,33 +108,95 @@ namespace rill
 
 
                 //
-                program_ = ( top_level_statements_ > ( qi::eol | qi::eoi ) );
+                program_
+                    = ( top_level_statements_ > ( qi::eol | qi::eoi ) );
                 attr( program_, "program" );
 
                 //
+                top_level_statement_
+                    = ( function_definition_statement_
+                      | class_definition_statement_
+                      | extern_statement_
+                      | empty_statement_
+                      )
+                    ;
+
                 top_level_statements_.name( "top_level_statements" );
                 top_level_statements_
-                    %= *( function_definition_statement_
-                        | class_definition_statement_
-                        | extern_statement_
-                        | empty_statement_
-                        )
+                    = qi::as<ast::statement_list>()[
+                        *top_level_statement_
+                      ][qi::_val = helper::make_node_ptr<ast::statements>( qi::_1 )]
                     ;
 
+
+                program_body_statement_
+                    = ( block_statement_
+                      | variable_declaration_statement_
+                      | while_statement_
+                      | if_statement_
+                      | return_statement_
+                      | jit_statement_
+                      | empty_statement_
+                      | expression_statement_     // NOTE: this statement must be set at last
+                      )
+                    ;
+
+                program_body_statements_
+                    = qi::as<ast::statement_list>()[
+                        *program_body_statement_
+                      ][qi::_val = helper::make_node_ptr<ast::statements>( qi::_1 )]
+                    ;
+
+                program_block_statement_
+                    = program_body_statement_[
+                        qi::_val = helper::make_node_ptr<ast::block_statement>( qi::_1 )
+                       ]
+                    ;
+
+
+                class_body_statement_
+                    = ( class_function_definition_statement_
+                      | class_variable_declaration_statement_
+                      | empty_statement_
+                      )
+                    ;
 
                 class_body_statements_
-                    %= *( class_function_definition_statement_
-                        | class_variable_declaration_statement_
-                        | empty_statement_
-                        )
+                    = qi::as<ast::statement_list>()[
+                        *class_body_statement_
+                      ][qi::_val = helper::make_node_ptr<ast::statements>( qi::_1 )]
+                    ;
+
+                class_body_block_
+                    = qi::lit( "{" ) >> class_body_statements_ >> qi::lit( "}" )
                     ;
 
 
 
+                //
+                function_body_block_
+                    = (qi::lit( "{" ) >> program_body_statements_ >> qi::lit( "}" ) )[
+                        qi::_val = qi::_1
+                       ]
+                    | (qi::lit( "=>" ) >> expression_statement_ )[
+                        qi::_val = helper::make_node_ptr<ast::statements>( qi::_1 )
+                       ]
+                    ;
+
+
 
                 //
                 //
                 //
+                //
+                block_statement_
+                    = ( qi::lit( "{" )
+                     >> program_body_statements_
+                     >> qi::lit( "}" )
+                      )[qi::_val = helper::make_node_ptr<ast::block_statement>( qi::_1 )]
+                    ;
+
+
                 empty_statement_.name( "empty_statement" );
                 empty_statement_
                     = statement_termination_[qi::_val = helper::make_node_ptr<ast::empty_statement>()]
@@ -151,94 +212,16 @@ namespace rill
                     ;
 
 
-                //
-                extern_statement_.name( "extern_statement" );
-                extern_statement_
-                    = qi::lit( "extern" )
-                    > ( extern_function_declaration_statement_
-                      )
-                    > statement_termination_
-                    ;
 
-
-                //
-                extern_function_declaration_statement_.name( "extern_function_declaration_statement" );
-                extern_function_declaration_statement_
-                    = (
-                        ( qi::lit( "def" )
-                        > identifier_
-                        > parameter_variable_declaration_list_
-                        > type_specifier_
-                        > string_literal_sequenece_
-                        )
-                      )[
-                        qi::_val = helper::make_node_ptr<ast::extern_function_declaration_statement>(
-                            qi::_1,
-                            qi::_2,
-                            qi::_3,
-                            qi::_4
-                            )
+                jit_statement_
+                    = qi::lit( "jit" )
+                    > ( expression_ > statement_termination_ )[
+                        qi::_val = helper::make_node_ptr<ast::jit_statement>( qi::_1 )
                       ]
                     ;
 
 
 
-                flow_statement_
-                    = ( variable_declaration_statement_
-                      | while_statement_
-                      | if_statement_
-                      | return_statement_
-                      | flow_block_statement_
-                      | empty_statement_
-                      | expression_statement_     // NOTE: this statement must be set at last
-                      );
-
-                flow_statements_
-                    = *flow_statement_
-                    ;
-
-                //
-                flow_block_statement_
-                    = qi::as<ast::statement_list>()[
-                        qi::lit( "{" )
-                     >> function_body_statements_
-                     >> qi::lit( "}" )
-                        ][
-                        qi::_val = helper::make_node_ptr<ast::block_statement>(
-                            //helper::move( qi::_1 )
-                            qi::_1
-                            )
-                       ]
-                    ;
-
-                wrapped_flow_statement_
-                    = flow_statement_[
-                        qi::_val = helper::make_node_ptr<ast::block_statement>(
-                            qi::_1
-                            )
-                       ]
-                    ;
-
-
-                function_body_statements_
-                    = *( variable_declaration_statement_
-                       | while_statement_
-                       | if_statement_
-                       | return_statement_
-                       | flow_block_statement_
-                       | empty_statement_
-                       | expression_statement_     // NOTE: this statement must be set at last
-                       );
-
-                //
-                function_body_block_
-                    = qi::as<ast::statement_list>()[ qi::lit( "{" ) >> function_body_statements_ >> qi::lit( "}" ) ][
-                        qi::_val = helper::make_node_ptr<ast::block_statement>(
-                            //helper::move( qi::_1 )
-                            qi::_1
-                            )
-                       ]
-                    ;
 
                 //function_body_expression_
                 //
@@ -248,7 +231,7 @@ namespace rill
                       > identifier_
                       > parameter_variable_declaration_list_
                       > -type_specifier_
-                      > ( function_body_block_/* | expression_*/ )
+                      > function_body_block_
                       )[
                           qi::_val = helper::make_node_ptr<ast::function_definition_statement>(
                               qi::_1,
@@ -267,7 +250,7 @@ namespace rill
                       > identifier_
                       > parameter_variable_declaration_list_
                       > -type_specifier_
-                      > ( function_body_block_/* | expression_*/ )
+                      > function_body_block_
                       )[
                           qi::_val = helper::make_node_ptr<ast::class_function_definition_statement>(
                               qi::_1,
@@ -281,15 +264,6 @@ namespace rill
 
 
 
-
-                class_body_block_
-                    = qi::as<ast::statement_list>()[qi::lit( "{" ) >> class_body_statements_ >> qi::lit( "}" )][
-                        qi::_val = helper::make_node_ptr<ast::block_statement>(
-                            //helper::move( qi::_1 )
-                            qi::_1
-                            )
-                       ]
-                    ;
 
 
 
@@ -311,16 +285,43 @@ namespace rill
 
 
 
+                //
+                extern_statement_.name( "extern_statement" );
+                extern_statement_
+                    = qi::lit( "extern" )
+                    > ( extern_function_declaration_statement_
+                      )
+                    > statement_termination_
+                    ;
 
 
+                //
+                extern_function_declaration_statement_.name( "extern_function_declaration_statement" );
+                extern_function_declaration_statement_
+                    = ( qi::lit( "def" )
+                      > identifier_
+                      > parameter_variable_declaration_list_
+                      > type_specifier_
+                      > string_literal_sequenece_
+                      )[
+                        qi::_val = helper::make_node_ptr<ast::extern_function_declaration_statement>(
+                            qi::_1,
+                            qi::_2,
+                            qi::_3,
+                            qi::_4
+                            )
+                      ]
+                    ;
 
-
-
+#if 0
+                template_statement_
+                    =
+#endif
 
                 while_statement_
                     = ( qi::lit( "while" )
                       > ( qi::lit( "(" ) > expression_ > qi::lit( ")" ) )
-                      > wrapped_flow_statement_
+                      > program_block_statement_
                       )[
                           qi::_val = helper::make_node_ptr<ast::test_while_statement>(
                               qi::_1,
@@ -334,9 +335,9 @@ namespace rill
                 if_statement_
                     = ( qi::lit( "if" )
                       > ( qi::lit( "(" ) > expression_ > qi::lit( ")" ) )
-                      > wrapped_flow_statement_
+                      > program_block_statement_
                         > -(
-                            qi::lit( "else" ) > wrapped_flow_statement_
+                            qi::lit( "else" ) > program_block_statement_
                         )
                       )[
                           qi::_val = helper::make_node_ptr<ast::test_if_statement>(
@@ -504,7 +505,7 @@ namespace rill
                           ][ qi::_val = helper::make_node_ptr<ast::term_expression>( qi::_1 ) ]
                         | ( qi::lit( '(' ) >> expression_ >> qi::lit( ')' ) )[qi::_val = qi::_1]
                         ;
-                        
+
                     primary_expression_ = expression_priority_[priority].alias();
 
                     qi::debug( expression_priority_[priority] );
@@ -523,7 +524,7 @@ namespace rill
                     = base_types_
                     >> *( compound_type_postfix_ >> type_attributes_ )
                     ;
-                
+
                 base_types_
                     = nested_identifier_
                     | ( qi::lit( '(' ) >> compiletime_type_expression_ >> qi::lit( ')' ) )[qi::_val = qi::_1]
@@ -572,7 +573,7 @@ namespace rill
                         ;
 
                     commma_expression_ = expression_priority_[priority].alias();
-                    
+
                     qi::debug( expression_priority_[priority] );
                 }
 
@@ -584,7 +585,7 @@ namespace rill
                         >> *( ( qi::lit( "=" ) >> expression_priority_[priority-1] )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, "=", qi::_1 )]
                             )
                         ;
-                    
+
                     assign_expression_ = expression_priority_[priority].alias();
 
                     qi::debug( expression_priority_[priority] );
@@ -768,15 +769,22 @@ namespace rill
                     auto const priority = 1;
                     expression_priority_[priority]
                         = expression_priority_[priority-1][qi::_val = qi::_1]
-                        >> *( (   qi::lit( "." )
-                               >> qi::as<ast::identifier_value_base_ptr>()
-                                   [ identifier_
-                                   | identifier_with_root_
-                                   | template_instance_
-                                   | template_instance_with_root_
-                                 ]
+                        >> *( ( qi::lit( "." )
+                             >> qi::as<ast::identifier_value_base_ptr>()
+                                [ identifier_
+                                | identifier_with_root_
+                                | template_instance_
+                                | template_instance_with_root_
+                                ]
                               )[
                                   qi::_val = helper::make_node_ptr<ast::element_selector_expression>(
+                                      qi::_val,
+                                      qi::_1
+                                      )
+                               ]
+
+                              | ( qi::lit( "[" ) > -expression_ > qi::lit( "]" ) )[
+                                  qi::_val = helper::make_node_ptr<ast::subscrpting_expression>(
                                       qi::_val,
                                       qi::_1
                                       )
@@ -790,7 +798,7 @@ namespace rill
                               ]
                             )
                         ;
-                    
+
 
                     postfix_expression_ = expression_priority_[priority].alias();
 
@@ -813,7 +821,7 @@ namespace rill
                           ][ qi::_val = helper::make_node_ptr<ast::term_expression>( qi::_1 ) ]
                         | ( qi::lit( '(' ) >> expression_ >> qi::lit( ')' ) )[qi::_val = qi::_1]
                         ;
-                        
+
                     primary_expression_ = expression_priority_[priority].alias();
 
                     qi::debug( expression_priority_[priority] );
@@ -873,7 +881,7 @@ namespace rill
                 argument_list_.name( "argument_list" );
                 argument_list_
                     = ( qi::lit( '(' ) >> qi::lit( ')' ) )
-                    | ( qi::lit( '(' ) >> ( expression_ % ',' ) >> qi::lit( ')' ) )
+                    | ( qi::lit( '(' ) >> ( assign_expression_ % ',' ) >> qi::lit( ')' ) )
                     ;
 
 
@@ -933,19 +941,36 @@ namespace rill
             }
 
         private:
-            rule<ast::statement_list()> program_;
+            rule<ast::statements_ptr()> program_;
+            rule<ast::statement_ptr()> top_level_statement_;
+            rule<ast::statements_ptr()> top_level_statements_;
 
-            rule<ast::statement_list()> top_level_statements_, function_body_statements_, class_body_statements_;
-            rule<ast::block_statement_ptr()> function_body_block_, /*function_body_expression_, */class_body_block_;
+            rule<ast::statement_ptr()> program_body_statement_;
+            rule<ast::statements_ptr()> program_body_statements_;
+            rule<ast::block_statement_ptr()> program_block_statement_;
+
+            rule<ast::statement_ptr()> class_body_statement_;
+            rule<ast::statements_ptr()> class_body_statements_;
+
+            rule<ast::block_statement_ptr()> block_statement_;
 
             rule<ast::function_definition_statement_ptr()> function_definition_statement_;
-            rule<ast::class_function_definition_statement_ptr()> class_function_definition_statement_;
-            rule<ast::class_definition_statement_ptr()> class_definition_statement_;
+            rule<ast::statements_ptr()> function_body_block_;
+
             rule<ast::variable_declaration_statement_ptr()> variable_declaration_statement_;
-            rule<ast::class_variable_declaration_statement_ptr()> class_variable_declaration_statement_;
+
             rule<ast::extern_statement_base_ptr()> extern_statement_;
             rule<ast::extern_function_declaration_statement_ptr()> extern_function_declaration_statement_;
+
+            rule<ast::class_definition_statement_ptr()> class_definition_statement_;
+            rule<ast::statements_ptr()> class_body_block_;
+
+            rule<ast::class_function_definition_statement_ptr()> class_function_definition_statement_;
+            rule<ast::class_variable_declaration_statement_ptr()> class_variable_declaration_statement_;
+
+
             rule<ast::return_statement_ptr()> return_statement_;
+            rule<ast::jit_statement_ptr()> jit_statement_; // experimental
             rule<ast::expression_statement_ptr()> expression_statement_;
             rule<ast::empty_statement_ptr()> empty_statement_;
 
@@ -1038,14 +1063,6 @@ namespace rill
             rule_no_skip<ast::native_string_t()> native_symbol_string_;
 
             rule_no_skip<ast::native_string_t()> string_literal_sequenece_;
-
-
-            rule<ast::statement_ptr()> flow_statement_;
-            rule<ast::statement_list()> flow_statements_;
-            rule<ast::statement_ptr()> flow_block_statement_;
-            rule<ast::statement_ptr()> wrapped_flow_statement_;
-
-
 
 
             rule_no_skip<char()> escape_sequence_;

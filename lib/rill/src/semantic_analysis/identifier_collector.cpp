@@ -9,7 +9,6 @@
 #include <rill/semantic_analysis/identifier_collector.hpp>
 #include <rill/environment/environment.hpp>
 
-#include <rill/ast/root.hpp>
 #include <rill/ast/statement.hpp>
 #include <rill/ast/expression.hpp>
 #include <rill/ast/value.hpp>
@@ -20,11 +19,11 @@ namespace rill
     namespace semantic_analysis
     {
         // Root Scope
-        RILL_TV_OP( identifier_collector, ast::root, r, env )
+        RILL_TV_OP( identifier_collector, ast::statements, s, env )
         {
             // build environment
-            for( auto const& node : r->statements_ )
-                dispatch( node, env );
+            for( auto const& ss : s->statement_list_ )
+                dispatch( ss, env );
         }
 
 
@@ -32,8 +31,7 @@ namespace rill
         {
             // TODO: make environment...
 
-            for( auto const& node : s->statements_ )
-                dispatch( node, env );           
+            dispatch( s->statements_, env );
         }
 
 
@@ -56,6 +54,13 @@ namespace rill
         }
 
 
+        //
+        RILL_TV_OP( identifier_collector, ast::variable_declaration_statement, s, env )
+        {
+            // NOTHING TO DO
+        }
+
+
 
         //
         RILL_TV_OP( identifier_collector, ast::extern_function_declaration_statement, s, env )
@@ -65,6 +70,18 @@ namespace rill
 
             // add function symbol to current environment
             env->mark_as( kind::k_function, s->get_identifier(), s );
+        }
+
+
+
+        //
+        RILL_TV_OP( identifier_collector, ast::class_definition_statement, s, env )
+        {
+            // add class symbol to current environment
+            auto c_env = env->mark_as( kind::k_class, s->get_identifier(), s );
+
+            // build environment
+            dispatch( s->inner_, c_env );
         }
 
 
@@ -85,14 +102,6 @@ namespace rill
 
 
         //
-        RILL_TV_OP( identifier_collector, ast::variable_declaration_statement, s, env )
-        {
-            // NOTHING TO DO
-        }
-
-
-
-        //
         RILL_TV_OP( identifier_collector, ast::class_variable_declaration_statement, s, parent_env )
         {
             assert( parent_env->get_symbol_kind() == kind::type_value::e_class );
@@ -103,19 +112,6 @@ namespace rill
             auto const& v_env
                 = parent_env->mark_as( kind::k_variable, s->get_identifier(), s );
             v_env->set_parent_class_env_id( parent_env->get_id() );
-        }
-
-
-
-
-        //
-        RILL_TV_OP( identifier_collector, ast::class_definition_statement, s, env )
-        {
-            // add class symbol to current environment
-            auto c_env = env->mark_as( kind::k_class, s->get_identifier(), s );
-
-            // build environment
-            dispatch( s->block_, c_env );
         }
 
     } // namespace semantic_analysis

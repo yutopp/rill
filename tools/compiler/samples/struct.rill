@@ -1,6 +1,6 @@
 def main(): int
 {
-    val b = Test( 20, 10 ): Test;
+    val b /*= Test( 20, 10 )*/: Test;
 
     b.aaa();
 

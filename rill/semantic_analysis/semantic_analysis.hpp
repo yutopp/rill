@@ -10,7 +10,6 @@
 #define RILL_SEMANTIC_ANALYSIS_HPP
 
 #include "compiletime_interpreter/interpreter.hpp"
-
 #include "identifier_collector.hpp"
 #include "analyzer.hpp"
 #include "helper.hpp"
@@ -29,16 +28,6 @@ namespace rill
         //
         //
         template<typename EnvironmentPtr, typename T>
-        auto collect_identifier( EnvironmentPtr const& env, std::vector<T> const& nodes )
-            -> void
-        {
-            identifier_collector visitor;
-
-            for( auto const& node : nodes )
-                visitor.dispatch( node, env );
-        }
-
-        template<typename EnvironmentPtr, typename T>
         auto collect_identifier( EnvironmentPtr const& env, T const& node )
             -> void//decltype( node->dispatch_as_env( std::declval<identifier_collector>(), env ) )
         {
@@ -47,29 +36,20 @@ namespace rill
             return visitor.dispatch( node, env );
         }
 
-/*
+
         //
         //
         //
-       template<typename EnvironmentPtr, typename T>
-        auto check_and_instantiation( EnvironmentPtr const& env, T const& node )
-           -> void
+        template<typename EnvironmentPtr, typename ActionHolderPtr, typename Node>
+        void analyse_and_complement(
+            EnvironmentPtr const& env,
+            ActionHolderPtr const& action_holder,
+            Node const& node
+            )
         {
-            analyzer visitor( node ); // ?
+            collect_identifier( env, node );
 
-            return visitor.dispatch( node, env );
-        }
-*/
-
-
-        //
-        //
-        //
-        template<typename EnvironmentPtr, typename T>
-        void analyse_and_complement( EnvironmentPtr const& env, T const& node )
-        {
-            analyzer visitor( env );
-
+            analyzer visitor( env, action_holder );
             return visitor.dispatch( node, env );
         }
 

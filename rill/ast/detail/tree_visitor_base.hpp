@@ -21,7 +21,6 @@
 #include "../value_fwd.hpp"
 #include "../expression_fwd.hpp"
 #include "../statement_fwd.hpp"
-#include "../root_fwd.hpp"
 
 #include "dispatch_functions.hpp"
 
@@ -112,9 +111,8 @@
 #include <boost/preprocessor.hpp>
 
 #define RILL_TV_ALL_AST_LIST() \
-((root, VOID)) \
-\
 ((statement, VOID)) \
+((statements, VOID)) \
 ((block_statement, VOID)) \
 ((empty_statement, VOID)) \
 ((expression_statement, VOID)) \
@@ -124,6 +122,7 @@
 ((class_function_definition_statement, VOID)) \
 ((class_definition_statement, VOID)) \
 ((return_statement, VOID)) \
+((jit_statement, VOID)) \
 ((extern_statement_base, VOID)) \
 ((extern_function_declaration_statement, VOID)) \
 ((variable_declaration_statement, VOID)) \
@@ -134,6 +133,7 @@
 ((expression, RETURN)) \
 ((binary_operator_expression, RETURN)) \
 ((element_selector_expression, RETURN)) \
+((subscrpting_expression, RETURN)) \
 ((call_expression, RETURN)) \
 ((intrinsic_function_call_expression, RETURN)) \
 ((term_expression, RETURN)) \
@@ -186,7 +186,6 @@ namespace rill
             template<typename R, typename BaseNode>
             struct tree_visitor_result;
 
-            template<typename R> struct tree_visitor_result<R, ast::root>       { typedef void type; };
             template<typename R> struct tree_visitor_result<R, ast::statement>  { typedef void type; };
             template<typename R> struct tree_visitor_result<R, ast::expression> { typedef R type; };
             template<typename R> struct tree_visitor_result<R, ast::value>      { typedef R type; };

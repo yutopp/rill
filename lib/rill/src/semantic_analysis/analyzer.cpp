@@ -9,11 +9,6 @@
 #include <rill/semantic_analysis/semantic_analysis.hpp>
 #include <rill/environment/environment.hpp>
 
-#include <rill/ast/root.hpp>
-#include <rill/ast/statement.hpp>
-#include <rill/ast/expression.hpp>
-#include <rill/ast/value.hpp>
-
 
 namespace rill
 {
@@ -21,9 +16,11 @@ namespace rill
     {
         //
         analyzer::analyzer(
-            environment_base_ptr const& root_env
+            environment_base_ptr const& root_env,
+            intrinsic_function_action_holder_ptr const& holder
             )
             : root_env_( root_env )
+            , runner_( std::make_shared<compile_time_runner>( holder ) )
         {}
 
     } // namespace semantic_analysis

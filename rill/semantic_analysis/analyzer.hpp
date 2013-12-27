@@ -9,7 +9,12 @@
 #ifndef RILL_SEMANTIC_ANALYSIS_ANALYZER_HPP
 #define RILL_SEMANTIC_ANALYSIS_ANALYZER_HPP
 
+#include <memory>
+
 #include "../ast/detail/tree_visitor_base.hpp"
+#include "../behavior/intrinsic_function_holder_fwd.hpp"
+
+#include "compile_time_runner.hpp"
 
 
 namespace rill
@@ -21,37 +26,33 @@ namespace rill
         {
         public:
             analyzer(
-                environment_base_ptr const&
+                environment_base_ptr const&,
+                intrinsic_function_action_holder_ptr const&
                 );
 
         public:
-            // statement_list
-            RILL_TV_OP_FAIL
-            RILL_TV_OP_DECL( ast::root )
-
-            RILL_TV_OP_DECL( ast::block_statement )
-
             // statement
-            // virtual void operator()( template_statement const& s, environment_base_ptr const& env ) const =0;
-            
+            RILL_TV_OP_DECL( ast::statements )
+            RILL_TV_OP_DECL( ast::block_statement )
+          // RILL_TV_OP_DECL( ast::template_statement )
             RILL_TV_OP_DECL( ast::expression_statement )
             RILL_TV_OP_DECL( ast::return_statement )
+            RILL_TV_OP_DECL( ast::jit_statement )
             RILL_TV_OP_DECL( ast::function_definition_statement )
-            RILL_TV_OP_DECL( ast::class_definition_statement )
             RILL_TV_OP_DECL( ast::variable_declaration_statement )
+          //RILL_TV_OP_DECL( ast::intrinsic_function_definition_statement )
             RILL_TV_OP_DECL( ast::extern_function_declaration_statement )
+            RILL_TV_OP_DECL( ast::class_definition_statement )
             RILL_TV_OP_DECL( ast::class_function_definition_statement )
             RILL_TV_OP_DECL( ast::class_variable_declaration_statement )
-            //RILL_TV_OP_DECL( ast::intrinsic_function_definition_statement )
-
             RILL_TV_OP_DECL( ast::test_while_statement )
             RILL_TV_OP_DECL( ast::test_if_statement )
 
-            // expression
-            RILL_TV_OP_DECL( ast::binary_operator_expression )
+            // expression            
             RILL_TV_OP_DECL( ast::element_selector_expression )
             RILL_TV_OP_DECL( ast::call_expression )
             //RILL_TV_OP_DECL( ast::intrinsic_function_call_expression )
+            RILL_TV_OP_DECL( ast::binary_operator_expression )
             RILL_TV_OP_DECL( ast::term_expression )
 
             // value
@@ -60,9 +61,13 @@ namespace rill
             //RILL_TV_OP_DECL( ast::template_instance_value )
             RILL_TV_OP_DECL( ast::literal_value )
 
+            RILL_TV_OP_FAIL
+
         private:
             environment_base_ptr root_env_;
+            std::shared_ptr<compile_time_runner> runner_;
         };
+
     } // namespace semantic_analysis
 } // namespace rill
 

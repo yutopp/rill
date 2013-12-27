@@ -10,7 +10,6 @@
 #include <rill/semantic_analysis/analyzer_type.hpp>
 #include <rill/environment/environment.hpp>
 
-#include <rill/ast/root.hpp>
 #include <rill/ast/statement.hpp>
 #include <rill/ast/expression.hpp>
 #include <rill/ast/value.hpp>
@@ -332,7 +331,6 @@ return c.type_id;
 
                         // to complate incomplete_funciton_env( after that, incomplete_function_env will be complete_function_env)
                         dispatch( statement_node, incomplete_function_env->get_parent_env() );
-                        assert( incomplete_function_env->is_complete() );
                     }
 
 

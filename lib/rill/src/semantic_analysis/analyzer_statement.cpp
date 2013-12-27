@@ -10,7 +10,6 @@
 #include <rill/semantic_analysis/analyzer_type.hpp>
 #include <rill/environment/environment.hpp>
 
-#include <rill/ast/root.hpp>
 #include <rill/ast/statement.hpp>
 #include <rill/ast/expression.hpp>
 #include <rill/ast/value.hpp>
@@ -22,17 +21,11 @@ namespace rill
     {
 
         // Root Scope
-        RILL_TV_OP( analyzer, ast::root, r, parent_env )
+        RILL_TV_OP( analyzer, ast::statements, s, parent_env )
         {
-            // collect all type identifiers under this scope
-            //collect_type_identifier( env, r.statements_ );
-
-            // collect all identifiers(except types) under this scope
-            collect_identifier( parent_env, r );
-
             // build environment
-            for( auto const& node : r->statements_ )
-                dispatch( node, parent_env );
+            for( auto const& ss : s->statement_list_ )
+                dispatch( ss, parent_env );
         }
 
 
@@ -42,8 +35,7 @@ namespace rill
             auto const& scope_env = parent_env->allocate_env<scope_environment>( parent_env );
             scope_env->link_with_ast( s );
 
-            for( auto const& node : s->statements_ )
-                dispatch( node, scope_env );
+            dispatch( s->statements_, scope_env );
         }
 
 
@@ -70,6 +62,29 @@ namespace rill
             auto const& f_env = std::static_pointer_cast<function_symbol_environment>( a_env );
             f_env->add_return_type_candidate( type_id_and_env.type_id );
         }
+
+
+        // TODO: change to ctfe_expression
+        RILL_TV_OP( analyzer, ast::jit_statement, s, parent_env )
+        {
+            // Return Statement is valid only in Function Envirionment...
+            auto const& a_env = parent_env->lookup_layer( kind::type_value::e_function );
+            assert( a_env != nullptr ); // TODO: change to error_handler
+
+            auto const type_id_and_env
+                = dispatch( s->expression_, parent_env );
+
+            assert( type_id_and_env.type_id != type_id_special && "[[CE]] this object couldn't be returned" );
+
+
+//            run_on_compile_time( parent_env, s->expression_ );
+
+
+            auto const& f_env = std::static_pointer_cast<function_symbol_environment>( a_env );
+            f_env->add_return_type_candidate( type_id_and_env.type_id );
+        }
+
+
 
 
 
@@ -319,7 +334,7 @@ namespace rill
             }
 
             // scan all statements in this function body
-            dispatch( s->block_, f_env );
+            dispatch( s->inner_, f_env );
 
 
             // ?: TODO: use block expression
@@ -452,7 +467,7 @@ namespace rill
             }
 
             // scan all statements in this function body
-            dispatch( s->block_, f_env );
+            dispatch( s->inner_, f_env );
 
             // ?: TODO: use block expression
 
@@ -515,7 +530,7 @@ namespace rill
             }
             c_env->change_progress_to_checked();
 
-            dispatch( s->block_, c_env );
+            dispatch( s->inner_, c_env );
 
             c_env->complete( s->get_identifier()->get_inner_symbol()->to_native_string() );
         }

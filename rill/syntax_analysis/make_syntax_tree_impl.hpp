@@ -11,7 +11,7 @@
 #include <string>
 #include <memory>
 
-#include "../ast/root_fwd.hpp"
+#include "../ast/statement_fwd.hpp"
 
 
 namespace rill
@@ -22,7 +22,7 @@ namespace rill
         typedef input_type::const_iterator      input_iterator;
 
 
-        auto make_syntax_tree( input_type const& source ) -> ast::root_ptr;
+        auto make_syntax_tree( input_type const& source ) -> ast::statements_ptr;
 
     } // namespace syntax_analysis
 } // namespace rill

@@ -13,6 +13,8 @@
 
 #include "detail/specifier.hpp"
 
+#include "ast_base.hpp"
+
 
 namespace rill
 {
@@ -26,11 +28,11 @@ namespace rill
         // ----------------------------------------------------------------------
         // ----------------------------------------------------------------------
         RILL_AST_FWD_DECL( statement, statement )
+
+        typedef std::vector<statement_ptr>  statement_list;
+        RILL_AST_FWD_DECL( statements, statement )
+        
         RILL_AST_FWD_DECL( block_statement, statement )
-
-
-        typedef std::vector<statement_ptr>  program;
-
 
         template<typename Target>
         struct template_statement;
@@ -38,8 +40,6 @@ namespace rill
 
         RILL_AST_FWD_DECL( empty_statement, statement )
         RILL_AST_FWD_DECL( expression_statement, statement )
-
-
 
 
         RILL_AST_FWD_DECL( function_definition_statement_base, statement )
@@ -51,7 +51,7 @@ namespace rill
 
 
         RILL_AST_FWD_DECL( return_statement, statement )
-
+        RILL_AST_FWD_DECL( jit_statement, statement )
 
 
         RILL_AST_FWD_DECL( extern_statement_base, statement )
@@ -66,7 +66,7 @@ namespace rill
 
 
 
-        typedef std::vector<statement_ptr>  statement_list;
+        
 
     } // namespace ast
 } // namespace rill

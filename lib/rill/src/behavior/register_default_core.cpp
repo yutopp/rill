@@ -11,7 +11,6 @@
 #include <rill/environment/environment.hpp>
 #include <rill/behavior/intrinsic_function_holder.hpp>
 
-#include <rill/ast/root.hpp>
 #include <rill/ast/statement.hpp>
 #include <rill/ast/expression.hpp>
 #include <rill/ast/value.hpp>
@@ -38,7 +37,7 @@ namespace rill
             auto const& intrinsic_call_expr = std::make_shared<rill::ast::intrinsic_function_call_expression>( action_id );
             rill::ast::statement_list const sl = { std::make_shared<rill::ast::return_statement>( intrinsic_call_expr ) };
             auto f_ast = std::make_shared<rill::ast::intrinsic_function_definition_statement>(
-                std::make_shared<ast::block_statement>( sl )
+                std::make_shared<ast::statements>( sl )
                 );
 
             // function definition

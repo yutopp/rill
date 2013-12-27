@@ -27,6 +27,7 @@ void sample( boost::program_options::variables_map const& vm )
 {
     // create default rill world
     auto const& t = rill::create_world<>();
+
     auto const root_env = std::get<0>( t );
     auto const intrinsic_function_action = std::get<1>( t );
 
@@ -50,14 +51,15 @@ void sample( boost::program_options::variables_map const& vm )
         << input_source_code << std::endl;
 
     //
-    auto const parse_tree = rill::syntax_analysis::make_syntax_tree( input_source_code );
+    auto const program
+        = rill::syntax_analysis::make_syntax_tree( input_source_code );
 
     // debug
     std::cout
-        << "Top statements size: " << parse_tree->statements_.size() << std::endl;
+        << "Top statements size: " << program->statement_list_.size() << std::endl;
 
 
-    rill::debug::print_ast( parse_tree );
+    rill::debug::print_ast( program );
 
 
 
@@ -74,7 +76,7 @@ void sample( boost::program_options::variables_map const& vm )
     //   check identifiers type and template instantiation
     std::cout << " = Semantic Analysis ====== " << std::endl;
 
-    rill::semantic_analysis::analyse_and_complement( root_env, parse_tree );
+    rill::semantic_analysis::analyse_and_complement( root_env, intrinsic_function_action, program );
 
 
 
@@ -87,10 +89,10 @@ void sample( boost::program_options::variables_map const& vm )
 
     //
     std::cout << " = LLVM =================== " << std::endl;
-    rill::code_generator::generate_llvm_ir( root_env, intrinsic_function_action, parse_tree );
+    rill::code_generator::generate_llvm_ir( root_env, intrinsic_function_action, program );
 
 
-
+#if 0
     // Not implemented...
     {
         std::cout << "======================================" << std::endl;
@@ -104,6 +106,7 @@ void sample( boost::program_options::variables_map const& vm )
             }
         }
     }
+#endif
 
 }
 

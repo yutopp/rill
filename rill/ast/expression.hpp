@@ -20,7 +20,6 @@
 
 #include "expression_fwd.hpp"
 
-#include "ast_base.hpp"
 #include "value.hpp"
 
 
@@ -73,6 +72,26 @@ namespace rill
             expression_ptr const rhs_;
         };
 
+
+        struct subscrpting_expression
+            : public expression
+        {
+        public:
+            RILL_AST_ADAPT_VISITOR( subscrpting_expression )
+
+        public:
+            subscrpting_expression(
+                expression_ptr const& lhs,
+                boost::optional<expression_ptr> const& rhs
+                )
+                : lhs_( lhs )
+                , rhs_( rhs )
+            {}
+
+        public:
+            expression_ptr const lhs_;
+            boost::optional<expression_ptr> const rhs_;
+        };
 
 
         //
@@ -161,7 +180,7 @@ namespace rill
 
 
 
-        
+
         struct type_expression
             : public expression
         {

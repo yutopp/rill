@@ -22,12 +22,9 @@ namespace rill
             : public ast::detail::tree_visitor<ast_printer, void>
         {
         public:
-            // statement_list
-            RILL_TV_OP_DECL( ast::root )
-
-            RILL_TV_OP_DECL( ast::block_statement )
-
             // statement
+            RILL_TV_OP_DECL( ast::statements )
+            RILL_TV_OP_DECL( ast::block_statement )
             RILL_TV_OP_DECL( ast::expression_statement )
             RILL_TV_OP_DECL( ast::return_statement )
             RILL_TV_OP_DECL( ast::function_definition_statement )
@@ -54,7 +51,7 @@ namespace rill
             //RILL_TV_OP_DECL( ast::template_instance_value )
             RILL_TV_OP_DECL( ast::literal_value )
 
-                RILL_TV_OP_FAIL
+            RILL_TV_OP_FAIL
 
         private:
             template<typename T, typename F>

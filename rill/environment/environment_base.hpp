@@ -36,7 +36,6 @@
 #include "../ast/value.hpp"
 #include "../ast/expression.hpp"
 #include "../ast/statement.hpp"
-#include "../ast/root.hpp"
 
 
 namespace rill

@@ -33,14 +33,10 @@ namespace rill
 {
     namespace code_generator
     {
-        // ========================================
-        // 
-        // ========================================
         class type_id_to_llvm_type_ptr
         {
         public:
             typedef llvm::Type*    result_type;
-
         public:
             type_id_to_llvm_type_ptr(
                 std::reference_wrapper<llvm_ir_generator const> const& gen
@@ -66,25 +62,6 @@ namespace rill
                 llvm::Type* ty
                     = generator.context_->env_conversion_table.ref_type( type_class_env_id );
 
-#if 0
-                //
-                switch( v.attributes.quality )
-                {
-                case attribute::quality_kind::k_val:
-                    // TODO: implement
-                    return context_->env_conversion_table.ref_type( v.class_env_id );
-
-                case attribute::quality_kind::k_ref:
-                    // TODO: implement
-                    return context_->env_conversion_table.ref_type( v.class_env_id )->getPointerTo();
-
-                default:
-                    assert( false && "[ice]" );
-                    break;
-                }
-#endif
-
-
                 return ty->isStructTy()
                     ? ty->getPointerTo()
                     : ty
@@ -98,78 +75,6 @@ namespace rill
 
 
 
-
-        // ========================================
-        // 
-        // ========================================
-        class function_env_to_llvm_constatnt_ptr
-        {
-        public:
-            typedef llvm::Constatnt*    result_type;
-
-        public:
-            function_env_to_llvm_constatnt_ptr(
-                std::reference_wrapper<llvm_ir_generator const> const& gen
-                )
-                : gen_( gen )
-            {}
-
-        public:
-            auto operator()( function_environment_ptr const& type_id ) const
-                -> result_type
-            {
-                auto const& generator = gen_.get();
-
-                // if function was not generated, generate function IR
-                if ( !generator.context_->env_conversion_table.is_defined( f_env->get_id() ) ) {
-                    //
-                    std::cout
-                        << "!context_->env_conversion_table.is_defined( f_env->get_id() ): "
-                        << f_env->mangled_name()
-                        << std::endl;
-
-                    generator.dispatch( f_env->get_related_ast(), f_env );
-                }
-
-                return [&]() -> llvm::Constatnt*
-                {
-                    if ( f_env->has_attribute( function_symbol_environment::attr::e_extern ) ) {
-                        // external function
-                        llvm::FunctionType* const func_type
-                            = generator.context_->env_conversion_table.ref_function_type( f_env->get_id() );
-
-                        auto const& s
-                            = std::static_pointer_cast<ast::extern_function_declaration_statement const>( f_env->get_related_ast() );
-                        assert( s != nullptr );
-                        return generator.context_->llvm_module.getOrInsertFunction( s->get_extern_symbol_name(), func_type );
-
-                    } else {
-                        // nornal function
-                        auto const& target_name
-                            = f_env->mangled_name();
-                        std::cout << "SS: " << target_name << std::endl;
-
-                        if ( auto const f = generator.context_->llvm_module.getFunction( target_name ) )
-                            return f;
-
-                        return nullptr;
-                    }
-
-                }();
-            }
-
-        private:
-            std::reference_wrapper<llvm_ir_generator const> gen_;
-        };
-
-
-
-
-
-
-
-        // ========================================
-        // 
         // ========================================
         template<typename MatchNode, typename F>
         class node_filter RILL_CXX11_FINAL
@@ -191,9 +96,10 @@ namespace rill
             {}
 
         public:
-            RILL_TV_OP_INDIRECT_CONST( ast::statements, s, _ )
+            RILL_TV_OP_INDIRECT_CONST( ast::statements, r, _ )
             {
-                for( auto const& ss : s->statement_list_ )
+                //
+                for( auto const& ss : r->statement_list_ )
                     this->dispatch( ss, _ );
             }
 
@@ -210,11 +116,16 @@ namespace rill
             }
 
             RILL_TV_OP_FAIL
-
-            template<typename NodeT>
-            auto failed_to_dispatch() const
-                -> void
-            {}
+                   template<typename NodeT>
+                auto failed_to_dispatch() const
+                    -> void
+                {
+                    std::cerr
+                        << "!!! DEBUG: message. please implement it!" << std::endl
+                        << " in " << typeid( *this ).name() << std::endl
+                        << "  -> " << typeid( NodeT ).name() << std::endl;
+                        ;
+                }
              
         private:
             F const& f_;
@@ -235,14 +146,6 @@ namespace rill
             node_filter<MatchNode, F> const filter( f );
             return filter.dispatch( node, env );
         }
-
-
-
-
-
-        // ========================================
-        // ========================================
-
 
 
         // = definition ===
@@ -312,8 +215,8 @@ namespace rill
                 return;
 
             // information about paramaters
-            auto const& parameter_variable_type_ids = f_env->get_parameter_type_ids();
             auto const& parameter_variable_decl_env_ids = f_env->get_parameter_decl_ids();
+            auto const& parameter_variable_type_ids = f_env->get_parameter_type_ids();
             std::cout << "()()=> :" << f_env->mangled_name() << std::endl;
 
             //
@@ -333,27 +236,34 @@ namespace rill
 
             // signature
             std::vector<llvm::Type*> parameter_types;
-            boost::copy(
-                parameter_variable_type_ids | boost::adaptors::transformed( type_id_to_llvm_type_ptr( std::cref( *this ) ) ),
-                std::back_inserter( parameter_types )
-                );
+//            for( auto const& type_env_id : parameter_variable_type_env_ids ) {
+            for( auto const& decl_type_id : parameter_variable_type_ids ) {
+/*
+                auto const& pv_decl_env = std::static_pointer_cast<variable_symbol_environment const>( self_env->get_env_strong_at( decl_env_id ) );
+                assert( pv_decl_env != nullptr );
 
+                auto const& type_env_id = pv_decl_env->get_type_environment_id();
+                auto const& type_attr = pv_decl_env->get_type_attributes();
+*/
+                auto const& v = f_env->get_type_at( decl_type_id );
+                if ( !context_->env_conversion_table.is_defined( v.class_env_id ) ) {
+                    auto const& c_env = root_env_->get_env_strong_at( v.class_env_id );
+                    dispatch( c_env->get_related_ast(), c_env );
+                }
 
-            // ========================================
-            // return type
-            llvm::Type* const return_type
-                = type_id_to_llvm_type_ptr( std::cref( *this ) )( f_env->get_return_type_id() );
+                auto const& class_env_id = v.class_env_id;
+                auto const& type_attr = v.attributes;
 
-            // ========================================
-            // function type signature
+                std::cout << class_env_id << std::endl;
+                parameter_types.push_back( context_->env_conversion_table.ref_type( class_env_id ) );
+            }
+            auto const& v = f_env->get_type_at( f_env->get_return_type_id() );
+            llvm::Type* const return_type = context_->env_conversion_table.ref_type( v.class_env_id );
             llvm::FunctionType* const func_type = llvm::FunctionType::get( return_type, parameter_types, false/*not variable*/ );
-            context_->env_conversion_table.bind_function_type( f_env->get_id(), func_type );
 
-            // ========================================
+
             // function body
             llvm::Function* const func = llvm::Function::Create( func_type, linkage, f_env->mangled_name(), &context_->llvm_module );
-
-            // ========================================
             for( llvm::Function::arg_iterator ait = func->arg_begin(); ait != func->arg_end(); ++ait ) {
                 std::cout << "Argument No: " << ait->getArgNo() << std::endl;
                 auto const& var = std::static_pointer_cast<variable_symbol_environment const>( f_env->get_env_at( parameter_variable_decl_env_ids[ait->getArgNo()] ).lock() );
@@ -364,10 +274,11 @@ namespace rill
 
 //            func->setGC( "shadow-stack" );
 
-            // ========================================
+            //
+            context_->env_conversion_table.bind_function_type( f_env->get_id(), func_type );
+
             // create a new basic block to start insertion into.
-            llvm::BasicBlock* const basic_brock
-                = llvm::BasicBlock::Create( llvm::getGlobalContext(), "entry", func );
+            llvm::BasicBlock* const basic_brock = llvm::BasicBlock::Create( llvm::getGlobalContext(), "entry", func );
             context_->ir_builder.SetInsertPoint( basic_brock );
 
             // generate statements
@@ -550,8 +461,8 @@ namespace rill
             if ( context_->env_conversion_table.is_defined( f_env->get_id() ) )
                 return;
 
-            auto const& parameter_variable_decl_ids = f_env->get_parameter_decl_ids();
-            auto const& parameter_variable_type_ids = f_env->get_parameter_type_ids();
+            auto const& parameter_variable_decl_env_ids = f_env->get_parameter_decl_ids();
+            auto const& parameter_variable_type_env_ids = f_env->get_parameter_type_ids();
 
 
             //
@@ -572,17 +483,7 @@ namespace rill
 
             // define paramter and return types
             std::vector<llvm::Type*> parmeter_types;
-            boost::copy(
-                parameter_variable_type_ids | boost::adaptors::transformed( type_id_to_llvm_type_ptr( std::cref( *this ) ) ),
-                std::back_inserter( parameter_types )
-                );
-
-
             for( auto const& type_env_id : parameter_variable_type_env_ids ) {
-
-                = type_id_to_llvm_type_ptr( std::cref( *this ) )( f_env->get_return_type_id() );
-
-
                 auto const& v = f_env->get_type_at( type_env_id );
                 if ( !context_->env_conversion_table.is_defined( v.class_env_id ) ) {
                     auto const& c_env = root_env_->get_env_strong_at( v.class_env_id );
@@ -611,7 +512,21 @@ namespace rill
             }
             auto const& v = f_env->get_type_at( f_env->get_return_type_id() );
             auto const& return_type = [&]() -> llvm::Type* {
+                //
+                switch( v.attributes.quality )
+                {
+                case attribute::quality_kind::k_val:
+                    // TODO: implement
+                    return context_->env_conversion_table.ref_type( v.class_env_id );
 
+                    case attribute::quality_kind::k_ref:
+                        // TODO: implement
+                        return context_->env_conversion_table.ref_type( v.class_env_id )->getPointerTo();
+
+                    default:
+                        assert( false && "[ice]" );
+                        break;
+                    }
                 }();
             //context_->env_conversion_table.ref_type( v.class_env_id );
 
@@ -1077,11 +992,31 @@ namespace rill
                 = std::static_pointer_cast<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( e ) );
             assert( f_env != nullptr );
 
+            if ( !context_->env_conversion_table.is_defined( f_env->get_id() ) ) {
+                //
+                std::cout << "!context_->env_conversion_table.is_defined( f_env->get_id() ): " << f_env->mangled_name() << std::endl;
+                dispatch( f_env->get_related_ast(), f_env );
+            }
+
 
             // ========================================
             std::cout << "current : " << f_env->mangled_name() << std::endl;
             auto const& callee_function
-                = function_env_to_llvm_constatnt_ptr( *this )( f_env )
+                = ( f_env->has_attribute( function_symbol_environment::attr::e_extern ) )
+                ? [&, this]() -> llvm::Constant* const {
+                    llvm::FunctionType* const func_type = context_->env_conversion_table.ref_function_type( f_env->get_id() );
+                    auto const& s = f_env->get_related_ast();
+                    assert( s != nullptr );
+                    return context_->llvm_module.getOrInsertFunction( std::static_pointer_cast<ast::extern_function_declaration_statement const>( s )->get_extern_symbol_name(), func_type );
+                }()
+                : [&, this]() -> llvm::Constant* const {
+                    auto const& target_name = f_env->mangled_name();
+                    std::cout << "SS: " << target_name << std::endl;
+                    if ( auto const f = context_->llvm_module.getFunction( target_name ) )
+                        return f;
+
+                    return nullptr;
+                }()
                 ;
             if ( !callee_function ) {
                 // unexpected error...

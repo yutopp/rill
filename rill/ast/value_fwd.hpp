@@ -15,6 +15,8 @@
 
 #include "detail/specifier.hpp"
 
+#include "ast_base.hpp"
+
 
 namespace rill
 {

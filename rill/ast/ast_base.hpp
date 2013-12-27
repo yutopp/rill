@@ -10,6 +10,7 @@
 #define RILL_AST_AST_BASE_HPP
 
 #include <cstddef>
+#include <memory>
 
 
 namespace rill
@@ -21,6 +22,9 @@ namespace rill
         public:
             std::size_t line, column, length;
         };
+
+        typedef std::shared_ptr<ast_base> ast_base_ptr;
+        typedef std::shared_ptr<ast_base const> const_ast_base_ptr;
 
     } // namespace ast
 } // namespace rill

@@ -10,6 +10,8 @@
 
 #include "detail/specifier.hpp"
 
+#include "ast_base.hpp"
+
 
 namespace rill
 {
@@ -27,16 +29,16 @@ namespace rill
         RILL_AST_FWD_DECL( binary_operator_expression, expression )
 
         RILL_AST_FWD_DECL( element_selector_expression, expression )
+        RILL_AST_FWD_DECL( subscrpting_expression, expression )
         RILL_AST_FWD_DECL( call_expression, expression )
         RILL_AST_FWD_DECL( intrinsic_function_call_expression, expression )
+
 
         RILL_AST_FWD_DECL( term_expression, expression )
 
 
         RILL_AST_FWD_DECL( type_expression, expression )
-
         RILL_AST_FWD_DECL( type_identifier_expression, expression )
-
         RILL_AST_FWD_DECL( compiletime_return_type_expression, expression )
 
     } // namespace ast
