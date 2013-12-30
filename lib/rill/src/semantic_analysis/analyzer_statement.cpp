@@ -76,7 +76,10 @@ namespace rill
 
             assert( type_id_and_env.type_id != type_id_special && "[[CE]] this object couldn't be returned" );
 
-
+            
+            std::cout << "!!! jit eval" << std::endl;
+            engine_->dispatch( s->expression_, parent_env );
+            std::cout << "~~~~~~~~~~~~" << std::endl;
 //            run_on_compile_time( parent_env, s->expression_ );
 
 

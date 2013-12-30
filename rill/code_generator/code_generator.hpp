@@ -48,7 +48,7 @@ namespace rill
             binary_gen.test();
         }
 
-
+ 
         template<typename EnvironmentPtr, typename ActionHolderPtr, typename Node>
         auto run_as_ctfe(
             EnvironmentPtr const& env,
@@ -79,7 +79,7 @@ namespace rill
         }
 
 
-TheExecutionEngine = EngineBuilder(TheModule).create();
+//TheExecutionEngine = EngineBuilder(TheModule).create();
 
 
 

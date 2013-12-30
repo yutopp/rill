@@ -13,8 +13,7 @@
 
 #include "../ast/detail/tree_visitor_base.hpp"
 #include "../behavior/intrinsic_function_holder_fwd.hpp"
-
-#include "compile_time_runner.hpp"
+#include "../compile_time/llvm_engine.hpp"
 
 
 namespace rill
@@ -27,7 +26,8 @@ namespace rill
         public:
             analyzer(
                 environment_base_ptr const&,
-                intrinsic_function_action_holder_ptr const&
+                intrinsic_function_action_holder_ptr const&,
+                std::shared_ptr<compile_time::llvm_engine const> const&
                 );
 
         public:
@@ -65,7 +65,7 @@ namespace rill
 
         private:
             environment_base_ptr root_env_;
-            std::shared_ptr<compile_time_runner> runner_;
+            std::shared_ptr<compile_time::llvm_engine const> engine_;
         };
 
     } // namespace semantic_analysis

@@ -17,10 +17,11 @@ namespace rill
         //
         analyzer::analyzer(
             environment_base_ptr const& root_env,
-            intrinsic_function_action_holder_ptr const& holder
+            intrinsic_function_action_holder_ptr const& holder,
+            std::shared_ptr<compile_time::llvm_engine const> const& engine
             )
             : root_env_( root_env )
-            , runner_( std::make_shared<compile_time_runner>( holder ) )
+            , engine_( engine )
         {}
 
     } // namespace semantic_analysis

@@ -105,13 +105,13 @@ namespace rill
 
             auto bind_class_variable_type(
                 environment_id_t const& class_env_id,
-                environment_id_t const& env_id,
+                environment_id_t const& variable_env_id,
                 llvm::Type* const type
                 )
                 -> void
             {
                 auto& table = class_variable_type_table_.at( class_env_id );
-                table.type_index[env_id] = table.type_list.size();
+                table.type_index[variable_env_id] = table.type_list.size();
                 table.type_list.push_back( type );
             }
 
@@ -125,12 +125,12 @@ namespace rill
 
             auto get_class_variable_index(
                 environment_id_t const& class_env_id,
-                environment_id_t const& env_id
+                environment_id_t const& variable_env_id
                 ) const
                 -> std::size_t
             {
                 auto& table = class_variable_type_table_.at( class_env_id );
-                return table.type_index.at( env_id );
+                return table.type_index.at( variable_env_id );
             }
 /*
             auto ref_function_type( environment_id_t const& env_id ) const
@@ -145,12 +145,26 @@ namespace rill
             //
             auto is_defined( environment_id_t const& env_id ) const
                 -> bool
-                {
-                    return ( value_table_.find( env_id ) != value_table_.cend() )
-                        || ( type_table_.find( env_id ) != type_table_.cend() )
-                        || ( function_type_table_.find( env_id ) != function_type_table_.cend() )
-                        ;
-                }
+            {
+                return ( value_table_.find( env_id ) != value_table_.cend() )
+                    || ( type_table_.find( env_id ) != type_table_.cend() )
+                    || ( function_type_table_.find( env_id ) != function_type_table_.cend() )
+                    ;
+            }
+
+            auto is_defined(
+                environment_id_t const& class_env_id,
+                environment_id_t const& variable_env_id
+                ) const
+                -> bool
+            {
+                auto const& it = class_variable_type_table_.find( class_env_id );
+                if ( it == class_variable_type_table_.cend() )
+                    return false;
+
+                auto const& ti = it->second.type_index;
+                return ti.find( variable_env_id ) != ti.cend();
+            }
 
         private:
             std::unordered_map<environment_id_t, llvm::Value*> value_table_;

@@ -80,6 +80,20 @@ namespace rill
                 break;
             }
 
+            // Class identifier should be "type" type
+            case kind::type_value::e_class:
+            {
+/*                auto const& class_env
+                    = std::static_pointer_cast<class_symbol_environment>( target_env );
+*/
+                auto const& type_class_env = root_env_->lookup( ast::make_identifier( "type" ) );
+                assert( type_class_env != nullptr );  // literal type must exist
+                return {
+                    type_class_env->make_type_id( type_class_env, determine_type_attributes() ),
+                    type_class_env
+                };
+            }
+
             default:
                 assert( false && "[[CE]] invalid..." );
                 break;
@@ -99,6 +113,7 @@ namespace rill
         RILL_TV_OP( analyzer, ast::literal_value, v, env )
         {
             // look up literal type
+            // TODO: look up on ROOT
             auto const class_env = env->lookup( v->literal_type_name_ );
             assert( class_env != nullptr );  // literal type must exist
 

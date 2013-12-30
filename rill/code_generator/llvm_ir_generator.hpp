@@ -9,9 +9,6 @@
 #ifndef RILL_CODE_GENERATOR_LLVM_IR_GENERATOR_HPP
 #define RILL_CODE_GENERATOR_LLVM_IR_GENERATOR_HPP
 
-#include <memory>
-#include <unordered_set>
-
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/IRBuilder.h>
@@ -28,6 +25,7 @@ namespace rill
     {
         // ========================================
         class type_id_to_llvm_type_ptr;
+        class function_env_to_llvm_constatnt_ptr;
 
 
         // ========================================
@@ -43,7 +41,8 @@ namespace rill
 
         public:
             friend class type_id_to_llvm_type_ptr;
-            
+            friend class function_env_to_llvm_constatnt_ptr;
+
         public:
             // statement_list
             RILL_TV_OP_DECL_CONST( ast::statements )
@@ -83,24 +82,11 @@ namespace rill
                 context_->llvm_module.dump();
             }
 
-        public:
-            auto is_built( ast::const_ast_base_ptr const& node ) const
-                -> bool
-            {
-                return built_set_.count( node ) != 0;
-            }
-
-            void check( ast::const_ast_base_ptr const& node ) const
-            {
-                built_set_.insert( node );
-            }
-
         private:
             const_environment_base_ptr root_env_;
             intrinsic_function_action_holder_ptr action_holder_;
 
             llvm_ir_generator_context_ptr context_;
-            mutable std::unordered_set<ast::const_ast_base_ptr> built_set_;
         };
 
 #if 0

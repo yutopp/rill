@@ -34,7 +34,7 @@ namespace rill
     namespace code_generator
     {
         // ========================================
-        // 
+        //
         // ========================================
         class type_id_to_llvm_type_ptr
         {
@@ -100,12 +100,12 @@ namespace rill
 
 
         // ========================================
-        // 
+        //
         // ========================================
         class function_env_to_llvm_constatnt_ptr
         {
         public:
-            typedef llvm::Constatnt*    result_type;
+            typedef llvm::Constant*     result_type;
 
         public:
             function_env_to_llvm_constatnt_ptr(
@@ -115,7 +115,7 @@ namespace rill
             {}
 
         public:
-            auto operator()( function_environment_ptr const& type_id ) const
+            auto operator()( const_function_symbol_environment_ptr const& f_env ) const
                 -> result_type
             {
                 auto const& generator = gen_.get();
@@ -131,7 +131,7 @@ namespace rill
                     generator.dispatch( f_env->get_related_ast(), f_env );
                 }
 
-                return [&]() -> llvm::Constatnt*
+                return [&]() -> llvm::Constant*
                 {
                     if ( f_env->has_attribute( function_symbol_environment::attr::e_extern ) ) {
                         // external function
@@ -169,7 +169,7 @@ namespace rill
 
 
         // ========================================
-        // 
+        //
         // ========================================
         template<typename MatchNode, typename F>
         class node_filter RILL_CXX11_FINAL
@@ -215,11 +215,11 @@ namespace rill
             auto failed_to_dispatch() const
                 -> void
             {}
-             
+
         private:
             F const& f_;
         };
-    
+
         template<typename MatchNode, typename Node, typename Env, typename F>
         auto do_filter( Node const& node, Env const& env, F const& f )
             -> decltype( node_filter<MatchNode, F>( f ).dispatch( node, env ) )
@@ -490,7 +490,8 @@ namespace rill
             // TODO: support structures contain self type. Ex, class T { ref T; val T; }
 
             //
-            auto const& c_env = std::static_pointer_cast<class_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( s ) );
+            auto const& c_env
+                = std::static_pointer_cast<class_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( s ) );
 
             //
             context_->env_conversion_table.create_class_variable_type_holder(
@@ -550,9 +551,11 @@ namespace rill
             if ( context_->env_conversion_table.is_defined( f_env->get_id() ) )
                 return;
 
-            auto const& parameter_variable_decl_ids = f_env->get_parameter_decl_ids();
+            // ========================================
+            // information about paramaters
             auto const& parameter_variable_type_ids = f_env->get_parameter_type_ids();
-
+            auto const& parameter_variable_decl_env_ids = f_env->get_parameter_decl_ids();
+            std::cout << "()()=> :" << f_env->mangled_name() << std::endl;
 
             //
             auto const current_insert_point = context_->ir_builder.saveIP();
@@ -571,52 +574,23 @@ namespace rill
             }
 
             // define paramter and return types
-            std::vector<llvm::Type*> parmeter_types;
+            std::vector<llvm::Type*> parameter_types;
             boost::copy(
                 parameter_variable_type_ids | boost::adaptors::transformed( type_id_to_llvm_type_ptr( std::cref( *this ) ) ),
                 std::back_inserter( parameter_types )
                 );
 
 
-            for( auto const& type_env_id : parameter_variable_type_env_ids ) {
 
+
+
+            auto const& return_type
                 = type_id_to_llvm_type_ptr( std::cref( *this ) )( f_env->get_return_type_id() );
 
-
-                auto const& v = f_env->get_type_at( type_env_id );
-                if ( !context_->env_conversion_table.is_defined( v.class_env_id ) ) {
-                    auto const& c_env = root_env_->get_env_strong_at( v.class_env_id );
-                    dispatch( c_env->get_related_ast(), c_env );
-                }
-
-                auto const& llvm_type = [&]() -> llvm::Type* {
-                    //
-                    switch( v.attributes.quality )
-                    {
-                    case attribute::quality_kind::k_val:
-                        // TODO: implement
-                        return context_->env_conversion_table.ref_type( v.class_env_id );
-
-                    case attribute::quality_kind::k_ref:
-                        // TODO: implement
-                        return context_->env_conversion_table.ref_type( v.class_env_id )->getPointerTo();
-
-                    default:
-                        assert( false && "[ice]" );
-                        break;
-                    }
-                }();
-
-                parmeter_types.push_back( llvm_type );
-            }
-            auto const& v = f_env->get_type_at( f_env->get_return_type_id() );
-            auto const& return_type = [&]() -> llvm::Type* {
-
-                }();
             //context_->env_conversion_table.ref_type( v.class_env_id );
 
             // get function type
-            llvm::FunctionType* const func_type = llvm::FunctionType::get( return_type, parmeter_types, false/*is not variadic*/ );
+            llvm::FunctionType* const func_type = llvm::FunctionType::get( return_type, parameter_types, false/*is not variadic*/ );
 
             //
             context_->env_conversion_table.bind_function_type( f_env->get_id(), func_type );
@@ -739,29 +713,32 @@ namespace rill
             assert( parent_env != nullptr );
             assert( parent_env->get_symbol_kind() == kind::type_value::e_class );
 
-            if ( is_built( s ) )
-                return;
-            check( s );
-
             // cast to variable symbol env
             auto const& v_env
                 = std::static_pointer_cast<variable_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( s ) );
             assert( v_env != nullptr );
 
+            // duplicate check
+            assert( v_env->is_in_class() );
+            if ( context_->env_conversion_table.is_defined( v_env->get_parent_class_env_id(), v_env->get_id() ) )
+                return;
+
+
             //
             std::cout << "v_env->get_type_id() = " << v_env->get_type_id() << std::endl;
 
-            // 
-            // 
+
             auto const& variable_type = v_env->get_type_at( v_env->get_type_id() );
             if ( !context_->env_conversion_table.is_defined( variable_type.class_env_id ) ) {
                 auto const& c_env = root_env_->get_env_strong_at( variable_type.class_env_id );
                 dispatch( c_env->get_related_ast(), c_env );
             }
+
+
             auto const& variable_llvm_type = context_->env_conversion_table.ref_type( variable_type.class_env_id );
             auto const& variable_attr =  variable_type.attributes;
 
-            
+
 
             //
             switch( variable_attr.quality )
@@ -773,7 +750,7 @@ namespace rill
                 case attribute::modifiability_kind::k_immutable:
                 {
                     std::cout << "ABABABAB: " << parent_env->get_id() << std::endl;
-                    context_->env_conversion_table.bind_class_variable_type( parent_env->get_id(), v_env->get_id(), variable_llvm_type );
+                    context_->env_conversion_table.bind_class_variable_type( v_env->get_parent_class_env_id(), v_env->get_id(), variable_llvm_type );
                 }
                     break;
 
@@ -783,7 +760,7 @@ namespace rill
 
                 case attribute::modifiability_kind::k_mutable:
                 {
-                    context_->env_conversion_table.bind_class_variable_type( parent_env->get_id(), v_env->get_id(), variable_llvm_type->getPointerTo() );
+                    context_->env_conversion_table.bind_class_variable_type( v_env->get_parent_class_env_id(), v_env->get_id(), variable_llvm_type->getPointerTo() );
                 }
                     break;
                 }
@@ -932,22 +909,16 @@ namespace rill
             // Look up Function
             auto const f_env = std::static_pointer_cast<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( e ) );
             assert( f_env != nullptr );
-            auto const& target_name = f_env->mangled_name();
-            auto const& callee_function = [&]() -> llvm::Function* const {
-                if ( auto const f = context_->llvm_module.getFunction( target_name ) )
-                    return f;
 
-                // generate
-                dispatch( f_env->get_related_ast(), f_env );
-                if ( auto const f = context_->llvm_module.getFunction( target_name ) )
-                    return f;
-
-                return nullptr;
-            }();
+            std::cout << "current : " << f_env->mangled_name() << std::endl;
+            auto const& callee_function
+                = function_env_to_llvm_constatnt_ptr( *this )( f_env );
             if ( !callee_function ) {
                 // unexpected error...
-                assert( false );
+                assert( false && "unexpected... callee_function was not found" );
             }
+
+
 
 /*
             // evaluate values(and push to stack) and returned value type
@@ -1028,7 +999,7 @@ namespace rill
             //
             auto const& element_env = root_env_->get_related_env_by_ast_ptr( e );
             if ( element_env != nullptr ) {
-                // 
+                //
 
                 if ( element_env->get_symbol_kind() == kind::type_value::e_variable ) {
                     // variable that belonged to class
@@ -1081,8 +1052,7 @@ namespace rill
             // ========================================
             std::cout << "current : " << f_env->mangled_name() << std::endl;
             auto const& callee_function
-                = function_env_to_llvm_constatnt_ptr( *this )( f_env )
-                ;
+                = function_env_to_llvm_constatnt_ptr( *this )( f_env );
             if ( !callee_function ) {
                 // unexpected error...
                 assert( false && "unexpected... callee_function was not found" );
@@ -1134,7 +1104,7 @@ namespace rill
 
                 result_value->dump();
 //                assert( false );
-                
+
                 // TODO: value conversion...(ref, val, etc...)
                 args[e->arguments_.size()-i-1] = result_value;
             }

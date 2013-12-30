@@ -1,6 +1,6 @@
-def main(): void
+def main(): int
 {
+    jit int;
 
-    jit 1 + 2;
-
+    return 0;
 }

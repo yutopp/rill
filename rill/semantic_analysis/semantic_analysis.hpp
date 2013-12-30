@@ -15,6 +15,7 @@
 #include "helper.hpp"
 
 #include "../behavior/intrinsic_function_holder.hpp"
+#include "../compile_time/llvm_engine.hpp"
 
 
 namespace rill
@@ -49,7 +50,7 @@ namespace rill
         {
             collect_identifier( env, node );
 
-            analyzer visitor( env, action_holder );
+            analyzer visitor( env, action_holder, compile_time::make_llvm_engine( env, action_holder, node ) );
             return visitor.dispatch( node, env );
         }
 

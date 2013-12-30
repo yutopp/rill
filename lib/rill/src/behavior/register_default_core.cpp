@@ -61,6 +61,11 @@ namespace rill
             std::shared_ptr<intrinsic_function_action_holder> const& intrinsic_function_action
             )
         {
+            auto const type_type_id = rill::ast::make_single_identifier( "type" );
+            auto const type_class = std::make_shared<rill::ast::class_definition_statement>( type_type_id );
+            auto const type_class_env_pointer = root_env->construct( rill::kind::k_class, type_type_id, type_class );
+
+
             auto const int_type
                 = rill::ast::make_single_identifier( "int" );
             auto const int_class = std::make_shared<rill::ast::class_definition_statement>( int_type );
