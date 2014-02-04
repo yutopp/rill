@@ -1,0 +1,6 @@
+int main()
+{
+    print_int( global_value );
+}
+
+val global_value: int mutable;

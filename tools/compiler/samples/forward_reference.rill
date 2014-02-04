@@ -1,0 +1,16 @@
+int main()
+{
+    val klass: A;
+
+    klass.print();
+}
+
+val global_value: int mutable;
+
+class A
+{
+    def print()
+    {
+        print_int( global_value );
+    }
+}
