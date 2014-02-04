@@ -69,8 +69,8 @@ namespace rill
         static kind::type_value const KindValue = InlineEnvironment::KindValue;
 
     public:
-        has_parameter_environment( environment_id_t const id, weak_env_base_pointer const& parent )
-            : has_parameter_environment_base( id, parent )
+        has_parameter_environment( environment_parameter_t&& pp )
+            : has_parameter_environment_base( std::move( pp ) )
         {}
 
     public:
@@ -90,8 +90,9 @@ namespace rill
         auto allocate_inner_env( Args&&... args )
             -> std::shared_ptr<InlineEnvironment>
         {
-            // NOTE: parant environment is not this env but one rank top env
-            return allocate_env<InlineEnvironment>( get_parent_env(), get_id(), std::forward<Args>( args )... );
+            // NOTE: parant environment is not "this env" but "one rank top env"
+            assert( has_parent() );
+            return get_parent_env()->template allocate_env<InlineEnvironment>( get_id(), std::forward<Args>( args )... );
         }
 
         template<typename... Args>

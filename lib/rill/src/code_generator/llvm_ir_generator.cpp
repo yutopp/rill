@@ -66,29 +66,28 @@ namespace rill
                 llvm::Type* ty
                     = generator.context_->env_conversion_table.ref_type( type_class_env_id );
 
-#if 0
-                //
-                switch( v.attributes.quality )
+                return [&]() -> result_type
                 {
-                case attribute::quality_kind::k_val:
-                    // TODO: implement
-                    return context_->env_conversion_table.ref_type( v.class_env_id );
+                    if ( ty->isStructTy() ) {
+                        return ty->getPointerTo();
 
-                case attribute::quality_kind::k_ref:
-                    // TODO: implement
-                    return context_->env_conversion_table.ref_type( v.class_env_id )->getPointerTo();
+                    } else {
+                        switch( type_attr.quality )
+                        {
+                        case attribute::quality_kind::k_val:
+                            // TODO: implement
+                            return ty;
 
-                default:
-                    assert( false && "[ice]" );
-                    break;
-                }
-#endif
+                        case attribute::quality_kind::k_ref:
+                            // TODO: implement
+                            return ty->getPointerTo();
 
-
-                return ty->isStructTy()
-                    ? ty->getPointerTo()
-                    : ty
-                    ;
+                        default:
+                            assert( false && "[ice]" );
+                            break;
+                        }
+                    }
+                }();
             }
 
         private:

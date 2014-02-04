@@ -117,6 +117,7 @@ namespace rill
                     = ( function_definition_statement_
                       | class_definition_statement_
                       | extern_statement_
+                      | template_statement_
                       | empty_statement_
                       )
                     ;
@@ -178,8 +179,10 @@ namespace rill
                     = (qi::lit( "{" ) >> program_body_statements_ >> qi::lit( "}" ) )[
                         qi::_val = qi::_1
                        ]
-                    | (qi::lit( "=>" ) >> expression_statement_ )[
-                        qi::_val = helper::make_node_ptr<ast::statements>( qi::_1 )
+                    | (qi::lit( "=>" ) >> expression_ >> statement_termination_ )[
+                        qi::_val = helper::make_node_ptr<ast::statements>(
+                            helper::make_node_ptr<ast::block_statement>( helper::make_node_ptr<ast::return_statement>( qi::_1 ) )
+                            )
                        ]
                     ;
 
@@ -313,10 +316,29 @@ namespace rill
                       ]
                     ;
 
-#if 0
+
+                //
+                templatable_statement_
+                    = ( function_definition_statement_
+                      | class_definition_statement_
+                      )
+                    ;
+
+
                 template_statement_
-                    =
-#endif
+                    = ( qi::lit( "template" )
+                      > parameter_variable_declaration_list_ // TODO: change
+                      > templatable_statement_
+                      )[
+                          ((&(*qi::_2))->*&ast::can_be_template_statement::mark_as_template)(),     // qi::_2 is templatable_statement(function, class, etc...)
+                          qi::_val = helper::make_node_ptr<ast::template_statement>(
+                              qi::_1,
+                              qi::_2
+                              )
+                       ]
+                    ;
+
+
 
                 while_statement_
                     = ( qi::lit( "while" )
@@ -811,10 +833,10 @@ namespace rill
                     auto const priority = 0;
                     expression_priority_[priority]
                         = qi::as<ast::value_ptr>()
-                            [ identifier_
-                            | identifier_with_root_
+                            [ template_instance_with_root_
                             | template_instance_
-                            | template_instance_with_root_
+                            | identifier_with_root_
+                            | identifier_                            
                             | numeric_literal_
                             | boolean_literal_
                             | string_literal_
@@ -904,15 +926,15 @@ namespace rill
 
 
                 template_instance_
-                    = native_symbol_string_/*TODO: fix...*/[
-                          qi::_val = helper::make_node_ptr<ast::template_instance_value>( qi::_1 )
+                        = (native_symbol_string_ >> qi::lit( '!' ) >> argument_list_/*TODO: fix...*/)[
+                        qi::_val = helper::make_node_ptr<ast::template_instance_value>( qi::_1, qi::_2 )
                       ]
                     ;
                 template_instance_with_root_
-                    = qi::lit( '.' )
-                   >> native_symbol_string_/*TODO: fix...*/[
-                          qi::_val = helper::make_node_ptr<ast::template_instance_value>( qi::_1, phx::val( true ) )
-                      ]
+                        = ( qi::lit( '.' )
+                            >> native_symbol_string_ >> qi::lit( '!' ) >> argument_list_/*TODO: fix...*/)[
+                       qi::_val = helper::make_node_ptr<ast::template_instance_value>( qi::_1, qi::_2, phx::val( true ) )
+                     ]
                     ;
 
                 // instanced_identifier
@@ -977,6 +999,10 @@ namespace rill
             // test
             rule<ast::test_while_statement_ptr()> while_statement_;
             rule<ast::test_if_statement_ptr()> if_statement_;
+
+
+            rule<ast::can_be_template_statement_ptr()> templatable_statement_;
+            rule<ast::template_statement_ptr()> template_statement_;
 
 
             rule<attribute::type_attributes_optional()> type_attributes_;

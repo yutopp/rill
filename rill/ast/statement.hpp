@@ -125,14 +125,7 @@ namespace rill
         typedef std::vector<variable_declaration> parameter_list;
 
 
-        //
-        template<typename Target>
-        struct template_statement
-            : statement
-        {
-        public:
-//            RILL_AST_ADAPT_VISITOR( template_statement )
-        };
+
 
 
 
@@ -166,10 +159,96 @@ namespace rill
 
 
 
-        struct extern_statement_base
+        struct can_be_template_statement
             : public statement
         {
         public:
+            can_be_template_statement( identifier_value_ptr const& symbol_name )
+                : identifier_( symbol_name )
+                , is_templated_( false )
+            {}
+
+            virtual ~can_be_template_statement()
+            {}
+
+        public:
+            auto get_identifier() const
+                -> identifier_value_base_ptr
+            {
+                return identifier_;
+            }
+            
+            void mark_as_template()
+            {
+                is_templated_ = true;
+            }
+
+            void mark_as_nontemplate()
+            {
+                is_templated_ = false;
+            }
+
+            auto is_templated() const
+                -> bool
+            {
+                return is_templated_;
+            }
+               
+        private:
+            identifier_value_ptr identifier_;
+            bool is_templated_;
+        };
+
+
+
+
+        //
+        struct template_statement
+            : public statement
+        {
+        public:
+            RILL_AST_ADAPT_VISITOR( template_statement )
+
+        public:
+            template_statement(
+                parameter_list const& parameter_list,
+                can_be_template_statement_ptr const& inner
+                )
+                : parameter_list_( parameter_list )
+                , inner_( inner )
+            {}
+
+        public:
+            auto get_identifier() const
+                -> identifier_value_base_ptr
+            {
+                return get_inner_statement()->get_identifier();
+            }    
+
+            //
+            auto get_inner_statement() const
+                -> can_be_template_statement_ptr
+            {
+                return inner_;
+            }
+
+        public:
+            parameter_list parameter_list_;
+            can_be_template_statement_ptr const inner_;
+        };
+
+
+
+
+
+        struct extern_statement_base
+            : public can_be_template_statement
+        {
+        public:
+            extern_statement_base( identifier_value_ptr const& symbol_name )
+                : can_be_template_statement( symbol_name )
+            {}
+
             virtual ~extern_statement_base()
             {}
         };
@@ -188,19 +267,13 @@ namespace rill
                 type_expression_ptr const& return_type,
                 native_string_t const& extern_symbol_name
                 )
-                : identifier_( symbol_name )
+                : extern_statement_base( symbol_name )
                 , parameter_list_( parameter_list )
                 , return_type_( return_type )
                 , extern_symbol_name_( extern_symbol_name )
             {}
 
         public:
-            auto get_identifier() const
-                -> identifier_value_ptr
-            {
-                return identifier_;
-            }
-
             auto get_parameter_list() const
                 -> parameter_list
             {
@@ -214,7 +287,6 @@ namespace rill
             }
 
         public:
-            identifier_value_ptr identifier_;
             parameter_list parameter_list_;
             type_expression_ptr return_type_;
 
@@ -227,11 +299,15 @@ namespace rill
 
 
         struct function_definition_statement_base
-            : public statement
+            : public can_be_template_statement
         {
         public:
-            function_definition_statement_base( statement_ptr const& inner )
-                : inner_( inner )
+            function_definition_statement_base(
+                identifier_value_ptr const& symbol_name,
+                statement_ptr const& inner
+                )
+                : can_be_template_statement( symbol_name )
+                , inner_( inner )
             {}
 
             virtual ~function_definition_statement_base()
@@ -259,19 +335,12 @@ namespace rill
                 boost::optional<type_expression_ptr> const& return_type,
                 statement_ptr const& inner
                 )
-                : function_definition_statement_base( inner )
-                , identifier_( symbol_name )
+                : function_definition_statement_base( symbol_name, inner )
                 , parameter_list_( parameter_list )
                 , return_type_( return_type )
             {}
 
         public:
-            auto get_identifier() const
-                -> identifier_value_ptr
-            {
-                return identifier_;
-            }
-
             auto get_parameter_list() const
                 -> parameter_list
             {
@@ -279,7 +348,6 @@ namespace rill
             }
 
         public:
-            identifier_value_ptr identifier_;
             parameter_list parameter_list_;
             boost::optional<type_expression_ptr> return_type_;
         };
@@ -292,8 +360,11 @@ namespace rill
             RILL_AST_ADAPT_VISITOR( intrinsic_function_definition_statement )
 
         public:
-            intrinsic_function_definition_statement( statement_ptr const& inner )
-                : function_definition_statement_base( inner )
+            intrinsic_function_definition_statement(
+                identifier_value_ptr const& function_name,
+                statement_ptr const& inner
+                )
+                : function_definition_statement_base( function_name, inner )
             {}
         };
 
@@ -308,24 +379,17 @@ namespace rill
 
         public:
             class_function_definition_statement(
-                identifier_value_base_ptr const& function_name,
+                identifier_value_ptr const& function_name,
                 parameter_list const& parameter_list,
                 boost::optional<type_expression_ptr> const& return_type,
                 statement_ptr const& inner
                 )
-                : function_definition_statement_base( inner )
-                , identifier_( function_name )
+                : function_definition_statement_base( function_name, inner )
                 , parameter_list_( parameter_list )
                 , return_type_( return_type )
             {}
 
         public:
-            auto get_identifier() const
-                -> identifier_value_base_ptr
-            {
-                return identifier_;
-            }
-
             auto get_parameter_list() const
                 -> parameter_list
             {
@@ -333,7 +397,6 @@ namespace rill
             }
 
         public:
-            identifier_value_base_ptr identifier_;
             parameter_list parameter_list_;
             boost::optional<type_expression_ptr> return_type_;
         };
@@ -343,7 +406,7 @@ namespace rill
 
 
         struct class_definition_statement
-            : public statement
+            : public can_be_template_statement
         {
         public:
             RILL_AST_ADAPT_VISITOR( class_definition_statement )
@@ -352,7 +415,7 @@ namespace rill
             class_definition_statement(
                 identifier_value_ptr const& identifier
                 )
-                : identifier_( identifier )
+                : can_be_template_statement( identifier )
             {}
 
             class_definition_statement(
@@ -360,18 +423,12 @@ namespace rill
                 boost::optional<parameter_list> const& constructor_parameter_list,
                 statement_ptr const& inner
                 )
-                : identifier_( identifier )
+                : can_be_template_statement( identifier )
                 , constructor_parameter_list_( constructor_parameter_list ? std::move( *constructor_parameter_list ) : parameter_list() )
                 , inner_( inner )
             {}
 
         public:
-            auto get_identifier() const
-                -> identifier_value_ptr
-            {
-                return identifier_;
-            }
-
             auto get_constructor_parameter_list() const
                 -> parameter_list
             {
@@ -379,7 +436,6 @@ namespace rill
             }
 
         public:
-            identifier_value_ptr const identifier_;
             parameter_list const constructor_parameter_list_;
             statement_ptr const inner_;
         };

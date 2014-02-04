@@ -45,9 +45,6 @@ namespace rill
         };
 
 
-        typedef std::vector<expression_ptr>     expression_list;
-
-
 
         struct binary_operator_expression
             : public expression

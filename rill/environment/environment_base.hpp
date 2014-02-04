@@ -55,25 +55,31 @@ namespace rill
         struct function_tag {};
         auto const k_function = function_tag();
 
+        struct variable_tag {};
+        auto const k_variable = variable_tag();
+
         struct class_tag {};
         auto const k_class = class_tag();
 
-        struct variable_tag {};
-        auto const k_variable = variable_tag();
+        struct template_tag {};
+        auto const k_template = template_tag();
+
+        struct mixin_tag {};
+        auto const k_mixin = mixin_tag();
+ 
 
         enum struct type_value
         {
             e_none,
-            e_function,
             e_parameter_wrapper,
+            e_function,
             e_variable,
-            e_class
+            e_class,
+            e_template_set,
+            e_template,
+            e_mixin
         };
     }
-
-    template<typename>
-    struct kind_classifier;
-
 
 
 
@@ -83,11 +89,7 @@ namespace rill
     };
 
 
-    enum struct length_type
-    {
-        fixed,
-        variable
-    };
+
 
 
     enum struct typed_process
@@ -152,7 +154,11 @@ namespace rill
         // construct as ROOT environment
         environment_base( root_initialize_tag )
             : id_( environment_id_undefined )
+            , forward_referenceable_( true )
+            , decl_order_( 0 )
             , root_shared_resource_( std::make_shared<environment_shared_resource<env_type>>() )
+            , do_mark_child_env_as_forward_referenceable_( true )
+            , next_child_env_order_( nullptr )
         {
             std::cout << ">> environment allocated" << " ( "  << root_shared_resource_->debug_allocate_counter_.value <<" )" << std::endl;
 
@@ -160,10 +166,16 @@ namespace rill
         }
 
         // normal constructor
-        environment_base( environment_id_t const& id, weak_env_base_pointer const& parent )
-            : id_( id )
-            , parent_( parent )
-            , root_shared_resource_( parent.lock()->root_shared_resource_ )
+        environment_base(
+            environment_parameter_t const& ep
+            )
+            : id_( ep.id )
+            , parent_( ep.parent )
+            , forward_referenceable_( ep.forward_referenceable )
+            , decl_order_( ep.decl_order )
+            , root_shared_resource_( ep.parent.lock()->root_shared_resource_ )
+            , do_mark_child_env_as_forward_referenceable_( ep.do_mark_child_env_as_forward_referenceable )
+            , next_child_env_order_( ep.next_child_env_order )
         {
             std::cout << ">> environment allocated(inner): " << id_ << " ( "  << root_shared_resource_->debug_allocate_counter_.value <<" )"  << std::endl;
 
@@ -319,7 +331,23 @@ namespace rill
         auto allocate_env( Args&&... args )
             -> typename shared_resource_type::environment_registry_type::template result<Env>::type
         {
-            return root_shared_resource_->container.allocate<Env>( /*std::forward<Args>( args )...*/ args... );
+            weak_env_base_pointer const& base_env
+                = shared_from_this();
+            bool const forward_referenceable
+                = do_mark_child_env_as_forward_referenceable_;
+            std::size_t const decl_order
+                = forward_referenceable ? 0 : (*next_child_env_order_)++;
+            std::shared_ptr<std::size_t> const& next_child_env_order
+                = do_mark_child_env_as_forward_referenceable_ ? nullptr : next_child_env_order_;
+
+            return root_shared_resource_->container.template allocate<Env>(
+                base_env,
+                forward_referenceable,
+                decl_order,
+                do_mark_child_env_as_forward_referenceable_,
+                next_child_env_order,
+                args... /*std::forward<Args>( args )...*/
+                );
         }
 
 
@@ -391,6 +419,14 @@ namespace rill
             ast::statement_ptr const&
             ) -> class_symbol_environment_ptr;
 
+        auto mark_as(
+            kind::template_tag,
+            ast::identifier_value_base_ptr const&,
+            ast::statement_ptr const&
+            ) -> std::pair<
+                     template_set_environment_ptr,
+                     template_environment_ptr
+                 >;
 
         //
         // incomplete_construct
@@ -416,6 +452,14 @@ namespace rill
             ) -> class_symbol_environment_ptr
         { assert( false ); return nullptr; }
 
+        virtual auto incomplete_construct(
+            kind::template_tag,
+            ast::identifier_value_base_ptr const&
+            ) -> std::pair<
+                     template_set_environment_ptr,
+                     template_environment_ptr
+                 >
+        { assert( false ); return std::make_pair( nullptr, nullptr ); }
 
         //
         // incomplete_construct
@@ -545,8 +589,14 @@ namespace rill
     private:
         environment_id_t id_;
         weak_env_base_pointer parent_;
+        bool forward_referenceable_;
+        std::size_t decl_order_;
 
+    private:
         std::shared_ptr<shared_resource_type> root_shared_resource_;
+
+        bool do_mark_child_env_as_forward_referenceable_;
+        std::shared_ptr<std::size_t> next_child_env_order_;
     };
 
 } // namespace rill

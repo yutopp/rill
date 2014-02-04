@@ -47,8 +47,8 @@ namespace rill
 
     public:
         // pre construct
-        function_symbol_environment( environment_id_t const& id, weak_env_base_pointer const& parent, environment_id_t const& parameter_wrapper_env_id )
-            : single_identifier_environment_base( id, parent )
+        function_symbol_environment( environment_parameter_t&& pp, environment_id_t const& parameter_wrapper_env_id )
+            : single_identifier_environment_base( std::move( pp ) )
             , parameter_wrapper_env_id_( parameter_wrapper_env_id )
             , parent_class_env_id_( environment_id_undefined )
             , return_type_id_( type_id_undefined )

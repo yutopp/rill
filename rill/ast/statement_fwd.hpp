@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include <memory>
 #include <vector>
 
 #include "detail/specifier.hpp"
@@ -29,13 +28,13 @@ namespace rill
         // ----------------------------------------------------------------------
         RILL_AST_FWD_DECL( statement, statement )
 
-        typedef std::vector<statement_ptr>  statement_list;
+
         RILL_AST_FWD_DECL( statements, statement )
         
         RILL_AST_FWD_DECL( block_statement, statement )
 
-        template<typename Target>
-        struct template_statement;
+        RILL_AST_FWD_DECL( can_be_template_statement, statement )
+        RILL_AST_FWD_DECL( template_statement, statement )
 
 
         RILL_AST_FWD_DECL( empty_statement, statement )
@@ -65,8 +64,8 @@ namespace rill
         RILL_AST_FWD_DECL( test_if_statement, statement )
 
 
-
-        
+        // etc...
+        typedef std::vector<statement_ptr>  statement_list;
 
     } // namespace ast
 } // namespace rill

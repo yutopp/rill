@@ -21,7 +21,6 @@ namespace rill
         // Root Scope
         RILL_TV_OP( identifier_collector, ast::statements, s, env )
         {
-            // build environment
             for( auto const& ss : s->statement_list_ )
                 dispatch( ss, env );
         }
@@ -29,8 +28,6 @@ namespace rill
 
         RILL_TV_OP( identifier_collector, ast::block_statement, s, env )
         {
-            // TODO: make environment...
-
             dispatch( s->statements_, env );
         }
 
@@ -46,18 +43,25 @@ namespace rill
         //
         RILL_TV_OP( identifier_collector, ast::function_definition_statement, s, env )
         {
+            // Function symbol that on (global | namespace)
+
             std::cout << "collected : " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
                       << "param_num : " << s->get_parameter_list().size() << std::endl;
 
-            // add function symbol to current environment
-            env->mark_as( kind::k_function, s->get_identifier(), s );
+            if ( s->is_templated() ) {
+                
+            } else {
+                // add function symbol to current environment
+                env->mark_as( kind::k_function, s->get_identifier(), s );
+            }
         }
 
 
         //
         RILL_TV_OP( identifier_collector, ast::variable_declaration_statement, s, env )
         {
-            // NOTHING TO DO
+            // Variable symbol that on (global | namespace)
+            // TODO: make variable forward referenceable
         }
 
 
@@ -65,11 +69,16 @@ namespace rill
         //
         RILL_TV_OP( identifier_collector, ast::extern_function_declaration_statement, s, env )
         {
+            // Function symbol that on (global | namespace)
+
             std::cout << "collected : " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
                       << "param_num : " << s->get_parameter_list().size() << std::endl;
 
-            // add function symbol to current environment
-            env->mark_as( kind::k_function, s->get_identifier(), s );
+            if ( s->is_templated() ) {
+            } else {
+                // add function symbol to current environment
+                env->mark_as( kind::k_function, s->get_identifier(), s );
+            }
         }
 
 
@@ -77,11 +86,16 @@ namespace rill
         //
         RILL_TV_OP( identifier_collector, ast::class_definition_statement, s, env )
         {
-            // add class symbol to current environment
-            auto c_env = env->mark_as( kind::k_class, s->get_identifier(), s );
+            // Class symbol that on (global | namespace)
 
-            // build environment
-            dispatch( s->inner_, c_env );
+            if ( s->is_templated() ) {
+            } else {
+                // add class symbol to current environment
+                auto c_env = env->mark_as( kind::k_class, s->get_identifier(), s );
+
+                // build environment
+                dispatch( s->inner_, c_env );
+            }
         }
 
 
@@ -90,6 +104,8 @@ namespace rill
         RILL_TV_OP( identifier_collector, ast::class_function_definition_statement, s, parent_env )
         {
             assert( parent_env->get_symbol_kind() == kind::type_value::e_class );
+
+            // TODO: add support for template
 
             std::cout << "collected : " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
                       << "param_num : " << s->get_parameter_list().size() << std::endl;
@@ -113,6 +129,30 @@ namespace rill
                 = parent_env->mark_as( kind::k_variable, s->get_identifier(), s );
             v_env->set_parent_class_env_id( parent_env->get_id() );
         }
+
+
+        //
+        RILL_TV_OP( identifier_collector, ast::template_statement, s, parent_env )
+        {
+//            s->get_identifier()
+            auto const& t_env
+                = parent_env->mark_as( kind::k_template, s->get_identifier(), s );
+
+            // delegate inner statement...
+            dispatch( s->get_inner_statement(), t_env );
+
+#if 0
+            assert( parent_env->get_symbol_kind() == kind::type_value::e_class );
+
+            // variable declared in class scope should be forward referencable
+
+            // add variable symbol to current environment
+            auto const& v_env
+                = parent_env->mark_as( kind::k_variable, s->get_identifier(), s );
+            v_env->set_parent_class_env_id( parent_env->get_id() );
+#endif
+        }
+
 
     } // namespace semantic_analysis
 } // namespace rill

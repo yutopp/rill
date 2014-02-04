@@ -54,8 +54,8 @@ namespace rill
             , progress_( environment_process_progress_t::constructed )
         {}
     
-        single_identifier_environment_base( environment_id_t const& id, weak_env_base_pointer const& parent )
-            : environment_base( id, parent )
+        single_identifier_environment_base( environment_parameter_t&& pp )
+            : environment_base( std::move( pp ) )
             , progress_( environment_process_progress_t::constructed )
         {}
 
@@ -145,13 +145,18 @@ namespace rill
             ast::identifier_value_base_ptr const&
             ) -> variable_symbol_environment_ptr;
 
-
         virtual auto incomplete_construct(
             kind::class_tag,
             ast::identifier_value_base_ptr const&
             ) -> class_symbol_environment_ptr;
 
-
+        virtual auto incomplete_construct(
+            kind::template_tag,
+            ast::identifier_value_base_ptr const&
+            ) -> std::pair<
+                     template_set_environment_ptr,
+                     template_environment_ptr
+                 >;
 
         //
         // construct
@@ -195,7 +200,7 @@ namespace rill
         auto dump_include_env( std::ostream& os, std::string const& indent ) const
             -> std::ostream&
         {
-            for( auto const& ins : instanced_env_ ) {
+            for( auto const& ins : nontemplate_env_ ) {
                 os << indent
                    << "-> symbol: " << ins.first
                    << " / id: " << ins.second->get_id()
@@ -205,15 +210,23 @@ namespace rill
             return os;
         }
 
+        // TODO: fixit
+        // logic is wrong
         auto is_instanced( native_string_type const& name ) const
             -> bool
         {
-            return instanced_env_.find( name ) != instanced_env_.end();
+            return nontemplate_env_.find( name ) != nontemplate_env_.end();
+        }
+
+        auto is_exist_at_template( native_string_type const& name ) const
+            -> bool
+        {
+            return template_env_.find( name ) != template_env_.end();
         }
 
     private:
-        std::unordered_map<native_string_type, env_base_pointer> instanced_env_;
-        std::unordered_map<native_string_type, std::shared_ptr<template_environment>> template_env_;
+        std::unordered_map<native_string_type, env_base_pointer> nontemplate_env_;
+        std::unordered_map<native_string_type, template_set_environment_ptr> template_env_;
 
         environment_process_progress_t progress_;
     };

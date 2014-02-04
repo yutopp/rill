@@ -52,10 +52,10 @@ namespace rill
         auto const& c_env = [&]() {
             if ( !is_instanced( symbol_name ) ) {
                 // make new incomplete env
-                auto const& i_env = allocate_env<class_symbol_environment>( shared_from_this() );
-                instanced_env_[symbol_name] = i_env;
+                auto const& i_env = allocate_env<class_symbol_environment>();
+                nontemplate_env_[symbol_name] = i_env;
             }
-            auto const& env = instanced_env_.at( symbol_name );
+            auto const& env = nontemplate_env_.at( symbol_name );
             assert( env != nullptr );
             assert( env->get_symbol_kind() == kind::type_value::e_class );
 

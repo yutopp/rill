@@ -43,17 +43,17 @@ namespace rill
     auto single_identifier_environment_base::find_on_env( ast::const_identifier_value_base_ptr const& name )
         -> env_base_pointer
     {
-        auto const it = instanced_env_.find( name->get_inner_symbol()->to_native_string() );
+        auto const it = nontemplate_env_.find( name->get_inner_symbol()->to_native_string() );
 
-        return ( it != instanced_env_.end() ) ? it->second : nullptr;
+        return ( it != nontemplate_env_.end() ) ? it->second : nullptr;
     }
 
     auto single_identifier_environment_base::find_on_env( ast::const_identifier_value_base_ptr const& name ) const
         -> const_env_base_pointer
     {
-        auto const it = instanced_env_.find( name->get_inner_symbol()->to_native_string() );
+        auto const it = nontemplate_env_.find( name->get_inner_symbol()->to_native_string() );
 
-        return ( it != instanced_env_.end() ) ? it->second : nullptr;
+        return ( it != nontemplate_env_.end() ) ? it->second : nullptr;
     }
 
 

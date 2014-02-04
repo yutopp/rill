@@ -39,8 +39,8 @@ namespace rill
         static kind::type_value const KindValue = kind::type_value::e_class;
 
     public:
-        class_symbol_environment( environment_id_t const& id, weak_env_base_pointer const& parent )
-            : single_identifier_environment_base( id, parent )
+        class_symbol_environment( environment_parameter_t&& pp )
+            : single_identifier_environment_base( std::move( pp ) )
             //, kind_( kind )
         {}
 

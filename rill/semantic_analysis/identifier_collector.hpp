@@ -33,6 +33,7 @@ namespace rill
             RILL_TV_OP_DECL( ast::class_definition_statement )
             RILL_TV_OP_DECL( ast::class_function_definition_statement )
             RILL_TV_OP_DECL( ast::class_variable_declaration_statement )
+            RILL_TV_OP_DECL( ast::template_statement )
 
             RILL_TV_OP_FAIL
         };

@@ -36,8 +36,8 @@ namespace rill
         : public single_identifier_environment_base
     {
     public:
-        scope_environment( environment_id_t const& id, weak_env_base_pointer const& parent )
-            : single_identifier_environment_base( id, parent )
+        scope_environment( environment_parameter_t&& pp )
+            : single_identifier_environment_base( std::move( pp ) )
         {}
 
     public:

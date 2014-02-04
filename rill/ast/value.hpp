@@ -19,6 +19,7 @@
 #include "detail/dispatch_assets.hpp"
 
 #include "value_fwd.hpp"
+#include "expression_fwd.hpp"
 
 
 namespace rill
@@ -430,14 +431,16 @@ namespace rill
         public:
             template_instance_value(
                 native_string_t const& name,
+                expression_list const& arguments,
                 bool const started_from_root = false
                 )
-                : template_instance_value( intrinsic::make_symbol( name ), started_from_root )
+                : template_instance_value( intrinsic::make_symbol( name ), arguments, started_from_root )
             {}
 
             // TODO: implement
             template_instance_value(
                 intrinsic::symbol_value_ptr const& name,
+                expression_list const& arguments,
                 bool const started_from_root = false
                 )
                 : identifier_value_base( name, started_from_root )

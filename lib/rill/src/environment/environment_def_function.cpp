@@ -36,7 +36,7 @@ namespace rill
         std::cout << "Marked, %&%& " << has_param_env->get_id() << " : " << created_function_env->get_id() << std::endl;
 
         //
-        has_param_env->connect_to_ast( ast );
+        has_param_env->connect_to_ast( ast );       // ???
         created_function_env->connect_to_ast( ast );
 
         //
@@ -66,10 +66,10 @@ namespace rill
         auto const& parameter_env = [&]() {
             if ( !is_instanced( symbol_name ) ) {
                 // make new incomplete env
-                auto const& w_env = allocate_env<has_parameter_environment<function_symbol_environment>>( shared_from_this() );
-                instanced_env_[symbol_name] = w_env;
+                auto const& w_env = allocate_env<has_parameter_environment<function_symbol_environment>>();
+                nontemplate_env_[symbol_name] = w_env;
             }
-            auto const& env = instanced_env_.at( symbol_name );
+            auto const& env = nontemplate_env_.at( symbol_name );
             assert( env != nullptr );
             assert( env->get_symbol_kind() == kind::type_value::e_parameter_wrapper );
             assert( std::dynamic_pointer_cast<has_parameter_environment_base>( env )->get_inner_symbol_kind() == kind::type_value::e_function );

@@ -107,6 +107,17 @@ namespace rill
         }
 
 
+
+        //
+        //
+        //
+        RILL_TV_OP( analyzer, ast::template_instance_value, v, env )
+        {
+
+        }
+
+
+
         //
         //
         //

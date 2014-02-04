@@ -53,18 +53,19 @@ namespace rill
 
                 if ( !is_instanced( symbol_name ) ) {
                     // make new incomplete env
-                    auto const& i_env = allocate_env<variable_symbol_environment>( shared_from_this() );
-                    instanced_env_[symbol_name] = i_env;
+                    auto const& i_env = allocate_env<variable_symbol_environment>();
+                    nontemplate_env_[symbol_name] = i_env;
                 }
 
-                auto const& env = instanced_env_.at( symbol_name );
+                auto const& env = nontemplate_env_.at( symbol_name );
                 assert( env != nullptr );
                 assert( env->get_symbol_kind() == kind::type_value::e_variable );
 
                 return std::static_pointer_cast<variable_symbol_environment>( env );
 
             } else {
-                auto const& i_env = allocate_env<variable_symbol_environment>( shared_from_this() );
+                // *unnamed* variable
+                auto const& i_env = allocate_env<variable_symbol_environment>();
                 native_string_type const& symbol_name
                     = variable_name
                     ? variable_name->get_inner_symbol()->to_native_string()
@@ -76,7 +77,7 @@ namespace rill
                     assert( false );
                 }
 
-                instanced_env_[symbol_name] = i_env;
+                nontemplate_env_[symbol_name] = i_env;
                 return i_env;
             }
         }();
@@ -110,7 +111,7 @@ namespace rill
 
         std::cout << "instanced!: " << symbol_name << std::endl;
 
-        instanced_env_[symbol_name] = v_env;
+        nontemplate_env_[symbol_name] = v_env;
         return v_env;
     }
 

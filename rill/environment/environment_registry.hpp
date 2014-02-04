@@ -30,15 +30,34 @@ namespace rill
         };
 
         //
-        template<typename Env, typename... T>
-        auto allocate( T&&... ts )
-            -> typename result<Env>::type
+        template<typename TargetEnv, typename... Args>
+        auto allocate(
+            weak_environment_base_ptr const& parent,
+            bool const forward_referenceable,
+            std::size_t const& decl_order,
+            bool const do_mark_child_env_as_forward_referenceable,
+            std::shared_ptr<std::size_t> const& next_child_env_order,
+            Args&&... args
+            )
+            -> typename result<TargetEnv>::type
         {
             environment_id_t const next_id = environment_id_t( nodes_.size() );
             if ( next_id == environment_id_limit )
                 assert( false );
 
-            auto const p = std::make_shared<Env>( next_id, std::forward<T>( ts )... );
+            environment_parameter_t params = {
+                next_id,
+                parent,
+                forward_referenceable,
+                decl_order,
+                do_mark_child_env_as_forward_referenceable,
+                next_child_env_order
+            };
+
+            auto const p = std::make_shared<TargetEnv>(
+                std::move( params ),
+                std::forward<Args>( args )...
+                );
             nodes_.push_back( p );
 
             return p;

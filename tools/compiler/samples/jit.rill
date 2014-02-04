@@ -2,5 +2,53 @@ def main(): int
 {
     jit int;
 
+    pp( f( 10, 10 ) );
+    //val v: nantoka!(int);
+
+    val a = 50: int;
+
+    tf!(int)( 42 );
+
     return 0;
 }
+
+
+def f( val a: int, val b: int ): int => a + b;
+
+extern def p( val :int ): void "put_string2";
+def pp( val v: int ): void
+{
+    p( v );
+    print( "\n" );
+}
+
+// TODO: change parser
+template(val T:type)
+def tf( val a: T ): void
+    => pp( a );
+
+
+/*
+template(val T: type)
+class nantoka
+{
+    val v: T;
+
+    def a(): T
+    {
+        print("template nantoka");
+
+        return 42;
+    }
+};
+*/
+
+
+
+
+/*
+def const( val :type ): type
+{
+    return int;
+}
+*/

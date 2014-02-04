@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <vector>
+
 #include "detail/specifier.hpp"
 
 #include "ast_base.hpp"
@@ -25,6 +27,7 @@ namespace rill
         // ----------------------------------------------------------------------
         // ----------------------------------------------------------------------
         RILL_AST_FWD_DECL( expression, expression )
+        
 
         RILL_AST_FWD_DECL( binary_operator_expression, expression )
 
@@ -40,6 +43,9 @@ namespace rill
         RILL_AST_FWD_DECL( type_expression, expression )
         RILL_AST_FWD_DECL( type_identifier_expression, expression )
         RILL_AST_FWD_DECL( compiletime_return_type_expression, expression )
+
+        // etc...
+        typedef std::vector<expression_ptr> expression_list;
 
     } // namespace ast
 } // namespace rill

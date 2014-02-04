@@ -19,7 +19,6 @@
 namespace rill
 {
     BOOST_STRONG_TYPEDEF( std::size_t, environment_id_t );
-//    typedef std::size_t  environment_id_t;
     environment_id_t const environment_id_limit = environment_id_t( std::numeric_limits<std::size_t>::max() - 1 );
     environment_id_t const environment_id_undefined = environment_id_t( std::numeric_limits<std::size_t>::max() );
 
@@ -37,8 +36,19 @@ namespace rill
     typedef std::vector<const_environment_base_ptr>  type_environment_base_ptr_list;
 
 
-    //
-    class template_environment;
+    // 
+    struct environment_parameter_t
+    {
+        environment_id_t id;
+        weak_environment_base_ptr parent;
+        bool forward_referenceable;
+        std::size_t decl_order;
+        bool do_mark_child_env_as_forward_referenceable;
+        std::shared_ptr<std::size_t> next_child_env_order;
+    };
+
+
+
 
 
     //
@@ -50,9 +60,22 @@ namespace rill
 
 
     class has_parameter_environment_base;
+    typedef std::shared_ptr<has_parameter_environment_base>     has_parameter_environment_base_ptr;
+
+
     //
     template<typename>
     class has_parameter_environment;
+
+
+    //
+    class template_set_environment;
+    typedef std::shared_ptr<template_set_environment>           template_set_environment_ptr;
+
+
+    //
+    class template_environment;
+    typedef std::shared_ptr<template_environment>               template_environment_ptr;
 
 
     //
