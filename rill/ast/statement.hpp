@@ -202,7 +202,7 @@ namespace rill
 
 
 
-        //
+        // inner statement will be templated
         struct template_statement
             : public statement
         {

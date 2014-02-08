@@ -114,6 +114,8 @@
 ((statement, VOID)) \
 ((statements, VOID)) \
 ((block_statement, VOID)) \
+((can_be_template_statement, VOID)) \
+((template_statement, VOID)) \
 ((empty_statement, VOID)) \
 ((expression_statement, VOID)) \
 ((function_definition_statement_base, VOID)) \

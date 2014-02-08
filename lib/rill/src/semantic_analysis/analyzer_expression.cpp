@@ -7,7 +7,8 @@
 //
 
 #include <rill/semantic_analysis/semantic_analysis.hpp>
-#include <rill/semantic_analysis/analyzer_type.hpp>
+#include <rill/semantic_analysis/analyzer_identifier_solver.hpp>
+
 #include <rill/environment/environment.hpp>
 
 #include <rill/ast/statement.hpp>
@@ -135,6 +136,13 @@ return c.type_id;
         //
         RILL_TV_OP( analyzer, ast::element_selector_expression, e, parent_env )
         {
+            // 
+            // expr: A.B
+            // A is reciever
+            // B is element
+            // 
+
+
             // ========================================
             // eval lhs
             auto const& reciever_type_id_with_env
@@ -157,19 +165,7 @@ return c.type_id;
                 std::cout << (const_environment_base_ptr)(reciever_class_env) << std::endl;
 
                 // ========================================
-                //
-                auto const& t_env
-                    = reciever_class_env->find_on_env( e->selector_id_ );
-                if ( t_env == nullptr ) {
-                    // try to make instance
-
-
-
-                    // compilation error
-                    assert( false && "[[CE]] identifier was not found..." );
-                }
-
-                // ========================================
+                // 
                 auto const& nested
                     = reciever_type_id_with_env.nest != nullptr
                     ? reciever_type_id_with_env.nest
@@ -177,45 +173,23 @@ return c.type_id;
                     ;
                 nested->push_back( reciever_type_id_with_env );
 
+
                 // ========================================
-                switch( t_env->get_symbol_kind() ) {
-                case kind::type_value::e_variable:
-                {
-                    auto const& variable_env
-                        = std::static_pointer_cast<variable_symbol_environment>( t_env );
-                    
-                    // memoize
-                    std::cout << "memoed: variable, type id = " << variable_env->get_type_id() << " / " << variable_env->mangled_name() << std::endl;
-                    variable_env->connect_from_ast( e );
+                //
+                // use solve_identifier directly instead of doing dispatch
+                // FIXME:
+                auto const& selector_id_detail
+                    = e->selector_id_->is_template()
+                    ? solve_identifier( std::static_pointer_cast<ast::template_instance_value const>( e->selector_id_ ), reciever_class_env, root_env_, true )
+                    : solve_identifier( std::static_pointer_cast<ast::identifier_value const>( e->selector_id_ ), reciever_class_env, root_env_, true )
+                    ;
 
-                    return {
-                        variable_env->get_type_id(),
-                        variable_env,
-                        nested
-                    };
-                }
-                
-                case kind::type_value::e_parameter_wrapper:
-                    switch( std::static_pointer_cast<has_parameter_environment_base>( t_env )->get_inner_symbol_kind() ) {
-                    case kind::type_value::e_function:
-                    {
-                        return {
-                            type_id_special,
-                            t_env,
-                            nested
-                        };
-                    }
-
-                    default:
-                        assert( false && "[[CE]] invalid..." );
-                        break;
-                    }
-                    break;
-
-                default:
-                    assert( false && "[[CE]] invalid..." );
-                    break;
-                }
+                return {
+                    selector_id_detail.type_id,
+                    selector_id_detail.target_env,
+                    nested,
+                    selector_id_detail.template_args
+                };
 
             } else {
                 assert( false && "[[ICE]]" );
@@ -225,6 +199,7 @@ return c.type_id;
             assert( false );
             return {
                 type_id_undefined,
+                nullptr,
                 nullptr,
                 nullptr
             };
@@ -238,6 +213,8 @@ return c.type_id;
         RILL_TV_OP( analyzer, ast::call_expression, e, env )
         {
             using namespace boost::adaptors;
+
+            std::cout << "call_expr" << std::endl;
 
             // ========================================
             // 

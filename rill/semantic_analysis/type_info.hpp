@@ -17,7 +17,7 @@
 #include "../ast/value_fwd.hpp"
 #include "../ast/expression_fwd.hpp"
 #include "../attribute/type.hpp"
-
+//#include "../compile_time/"
 
 namespace rill
 {
@@ -64,12 +64,21 @@ namespace rill
             type_id_t tid_;
         };
 
+
         // TODO: move to any where
+        // TODO: rename it!
         struct type_id_with_env
         {
+            struct dependent_type
+            {
+                //type_id_with_env type;
+                // TODO: implement llvm_jit_value value;
+            };
+               
             type_id_wrapper type_id;
             environment_base_ptr target_env;
             std::shared_ptr<std::vector<type_id_with_env>> nest;
+            std::shared_ptr<std::vector<dependent_type>> template_args;
         };
 
     } // namespace semantic_analysis

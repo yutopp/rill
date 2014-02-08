@@ -77,7 +77,7 @@ namespace rill
 
             // second, create llvm JIT Engine
             // the ownership of context.llvm_module is moved to engine.
-            // FIXME: the destructor of llvm::ExecutionEngine will execute "delete ptr to module", so this "&context->llvm_module" can be dangerous. MUST BE CHANGE.(cause Undefined behaviour)
+            // FIXME: the destructor of llvm::ExecutionEngine will execute "delete ptr to module", so this "&context->llvm_module" can be dangerous. MUST BE CHANGED.(cause Undefined behaviour)
             auto const engine
                 = std::shared_ptr<llvm::ExecutionEngine>(
                     llvm::EngineBuilder( &context->llvm_module ).create() \

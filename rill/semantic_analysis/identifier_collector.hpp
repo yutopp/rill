@@ -25,6 +25,8 @@ namespace rill
         public:
             // statements
             RILL_TV_OP_DECL( ast::statements )
+            RILL_TV_OP_DECL( ast::can_be_template_statement )
+
             RILL_TV_OP_DECL( ast::block_statement )
             RILL_TV_OP_DECL( ast::expression_statement )            
             RILL_TV_OP_DECL( ast::function_definition_statement )
@@ -33,6 +35,7 @@ namespace rill
             RILL_TV_OP_DECL( ast::class_definition_statement )
             RILL_TV_OP_DECL( ast::class_function_definition_statement )
             RILL_TV_OP_DECL( ast::class_variable_declaration_statement )
+
             RILL_TV_OP_DECL( ast::template_statement )
 
             RILL_TV_OP_FAIL

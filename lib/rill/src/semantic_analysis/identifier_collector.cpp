@@ -26,6 +26,12 @@ namespace rill
         }
 
 
+        // Root Scope
+        RILL_TV_OP( identifier_collector, ast::can_be_template_statement, s, env )
+        {
+        }
+
+
         RILL_TV_OP( identifier_collector, ast::block_statement, s, env )
         {
             dispatch( s->statements_, env );
@@ -135,8 +141,11 @@ namespace rill
         RILL_TV_OP( identifier_collector, ast::template_statement, s, parent_env )
         {
 //            s->get_identifier()
-            auto const& t_env
+            auto const& t_env_pair
                 = parent_env->mark_as( kind::k_template, s->get_identifier(), s );
+
+            auto& t_set_env = t_env_pair.first;
+            auto& t_env = t_env_pair.second;
 
             // delegate inner statement...
             dispatch( s->get_inner_statement(), t_env );

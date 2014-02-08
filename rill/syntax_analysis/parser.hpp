@@ -917,6 +917,7 @@ namespace rill
                           qi::_val = helper::make_node_ptr<ast::identifier_value>( qi::_1 )
                       ]
                     ;
+                identifier_.name( "identifier_with_root" );
                 identifier_with_root_
                     = qi::lit( '.' )
                    >> native_symbol_string_/*TODO: fix...*/[
@@ -924,12 +925,13 @@ namespace rill
                       ]
                     ;
 
-
+                identifier_.name( "template_instance" );
                 template_instance_
                         = (native_symbol_string_ >> qi::lit( '!' ) >> argument_list_/*TODO: fix...*/)[
                         qi::_val = helper::make_node_ptr<ast::template_instance_value>( qi::_1, qi::_2 )
                       ]
                     ;
+                identifier_.name( "template_instance_with_root_" );
                 template_instance_with_root_
                         = ( qi::lit( '.' )
                             >> native_symbol_string_ >> qi::lit( '!' ) >> argument_list_/*TODO: fix...*/)[
