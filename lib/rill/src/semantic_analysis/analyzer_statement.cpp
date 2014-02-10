@@ -54,13 +54,13 @@ namespace rill
             auto const& a_env = parent_env->lookup_layer( kind::type_value::e_function );
             assert( a_env != nullptr ); // TODO: change to error_handler
 
-            auto const type_id_and_env
+            auto const t_detail
                 = dispatch( s->expression_, parent_env );
 
-            assert( type_id_and_env.type_id != type_id_special && "[[CE]] this object couldn't be returned" );
+            assert( !is_nontype_id( t_detail->type_id ) && "[[CE]] this object couldn't be returned" );
 
-            auto const& f_env = std::static_pointer_cast<function_symbol_environment>( a_env );
-            f_env->add_return_type_candidate( type_id_and_env.type_id );
+            auto const& callee_f_env = std::static_pointer_cast<function_symbol_environment>( a_env );
+            callee_f_env->add_return_type_candidate( t_detail->type_id );
         }
 
 
@@ -71,10 +71,10 @@ namespace rill
             auto const& a_env = parent_env->lookup_layer( kind::type_value::e_function );
             assert( a_env != nullptr ); // TODO: change to error_handler
 
-            auto const type_id_and_env
+            auto const t_detail
                 = dispatch( s->expression_, parent_env );
 
-            assert( type_id_and_env.type_id != type_id_special && "[[CE]] this object couldn't be returned" );
+            assert( !is_nontype_id( t_detail->type_id ) && "[[CE]] this object couldn't be returned" );
 
             
             std::cout << "!!! jit eval" << std::endl;
@@ -84,7 +84,7 @@ namespace rill
 
 
             auto const& f_env = std::static_pointer_cast<function_symbol_environment>( a_env );
-            f_env->add_return_type_candidate( type_id_and_env.type_id );
+            f_env->add_return_type_candidate( t_detail->type_id );
         }
 
 
@@ -111,13 +111,13 @@ namespace rill
             auto const& iv_type_id_and_env
                 = unit.init_unit.initializer
                 ? dispatch( unit.init_unit.initializer, parent_env )
-                : []() ->  type_id_with_env
+                : [this]() -> type_detail_ptr
                 {
                     //assert( false && "[[]] Currently, uninitialized value was not supported..." );
-                    return {
+                    return type_detail_pool_.construct(
                         type_id_undefined,
                         nullptr
-                    };
+                    );
                 }();
 
             // TODO: make method to determine "type"

@@ -14,6 +14,9 @@
 #include <memory>
 #include <vector>
 
+//#include <boost/pool/object_pool.hpp>
+#include "work_around_object_pool.hpp"
+
 #include "../ast/value_fwd.hpp"
 #include "../ast/expression_fwd.hpp"
 #include "../attribute/type.hpp"
@@ -65,21 +68,62 @@ namespace rill
         };
 
 
+        struct type_detail;
+
+        using type_detail_pool_t = boost::object_pool_workarounded<type_detail>;
+        using type_detail_ptr = type_detail*;
+
+
         // TODO: move to any where
         // TODO: rename it!
-        struct type_id_with_env
+        struct type_detail
         {
             struct dependent_type
             {
-                //type_id_with_env type;
-                // TODO: implement llvm_jit_value value;
+                std::shared_ptr<void> jit_value;    // TODO: implement llvm_jit_value value;
+                type_detail_ptr type;
+
+                // if jit_value is nullptr, this is pure TYPE.
             };
-               
+
+            typedef std::vector<type_detail_ptr> nest_type;
+            typedef std::shared_ptr<nest_type> nest_pointer;
+
+            typedef std::vector<dependent_type> template_arg_type;
+            typedef std::shared_ptr<template_arg_type> template_arg_pointer;
+
+            explicit
+            type_detail(
+                type_id_wrapper const& w, 
+                environment_base_ptr const& e,
+                nest_pointer const& st = nullptr,
+                template_arg_pointer const& sd = nullptr
+                )
+                : type_id( w )
+                , target_env( e )
+                , nest( st )
+                , template_args( sd )
+            {}
+            
+
+
             type_id_wrapper type_id;
             environment_base_ptr target_env;
-            std::shared_ptr<std::vector<type_id_with_env>> nest;
-            std::shared_ptr<std::vector<dependent_type>> template_args;
+            nest_pointer nest;
+            template_arg_pointer template_args;
         };
+        //typedef type_detail type_id_with_env;
+
+
+        // only type template argument
+        inline auto create_dependent_type( type_detail_ptr const& detail )
+            -> type_detail::dependent_type
+        {
+            return {
+                nullptr,
+                detail
+            };
+        }
 
     } // namespace semantic_analysis
 } // namespace rill

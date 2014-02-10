@@ -19,6 +19,7 @@
 #include "detail/dispatch_assets.hpp"
 
 #include "value_fwd.hpp"
+// expression_fwd is required to implement template identifier...
 #include "expression_fwd.hpp"
 
 
@@ -312,7 +313,7 @@ namespace rill
             virtual auto is_template() const
                 -> bool =0;
             virtual auto template_argument() const
-                -> template_argument_list_ptr =0;
+                -> expression_list const& =0;
 
             auto get_inner_symbol() const
                 -> intrinsic::symbol_value_ptr
@@ -371,9 +372,9 @@ namespace rill
             }
 
             virtual auto template_argument() const
-                -> template_argument_list_ptr
+                -> expression_list const&
             {
-                return nullptr;
+                return {};
             }
         };
 
@@ -444,6 +445,7 @@ namespace rill
                 bool const started_from_root = false
                 )
                 : identifier_value_base( name, started_from_root )
+                , template_args_( arguments )
             {}
 
         public:
@@ -460,12 +462,13 @@ namespace rill
             }
 
             virtual auto template_argument() const
-                -> template_argument_list_ptr
+                -> expression_list const&
             {
-                return nullptr; // TODO: implement
+                return template_args_;
             }
 
         private:
+            expression_list template_args_;
         };
 
 

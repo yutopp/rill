@@ -24,38 +24,31 @@ ADD_DEFINITIONS( -DBoost_USE_STATIC_LIBS=ON )
 find_package(
   Boost
   1.55.0
-  # COMPONENTS
-  #                 spirit
-  # REQUIRED
+  COMPONENTS
+    system
+  REQUIRED
   )
 
 include_directories( ${Boost_INCLUDE_DIRS} )
 
-# target_link_libraries(<target_name> ${Boost_LIBRARIES})
+# the Boost's "target_link_libraries" is specified at tools/compiler/CMakeLists.txt
+
 
 #
 # LLVM
 #
-# A convenience variable:
-set(LLVM_ROOT "" CACHE PATH "Root of LLVM install.")
+# ref. http://llvm.org/docs/CMake.html#embedding-llvm-in-your-project
+find_package( LLVM )
 
-# A bit of a sanity check:
-if( NOT EXISTS ${LLVM_ROOT}/include/llvm )
-message(FATAL_ERROR "LLVM_ROOT (${LLVM_ROOT}) is not a valid LLVM install")
+if( NOT LLVM_FOUND )
+  message( FATAL_ERROR "LLVM package can't be found. Set CMAKE_PREFIX_PATH variable to LLVM's installation prefix." )
+else()
+  message( STATUS "LLVM lib: ${LLVM_LIBRARY_DIRS}" )
 endif()
 
-# We incorporate the CMake features provided by LLVM:
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${LLVM_ROOT}/share/llvm/cmake")
-include(LLVMConfig)
-
-# Now set the header and library paths:
 include_directories( ${LLVM_INCLUDE_DIRS} )
 link_directories( ${LLVM_LIBRARY_DIRS} )
 add_definitions( ${LLVM_DEFINITIONS} )
-
-# Let's suppose we want to build a JIT compiler with support for
-# binary code (no interpreter):
-# llvm_map_components_to_libraries(REQ_LLVM_LIBRARIES jit native)
 
 llvm_map_components_to_libraries(
   REQ_LLVM_LIBRARIES
@@ -75,18 +68,13 @@ llvm_map_components_to_libraries(
   asmparser
   asmprinter
   )
-# llvm_map_components_to_libraries( REQ_LLVM_LIBRARIES all )
 
-add_definitions(
-  -D__STDC_LIMIT_MACROS
-  -D__STDC_CONSTANT_MACROS
-)
+# the LLMV's "target_link_libraries" is specified at lib/rill/CMakeLists.txt
 
 
-# target_link_libraries(mycompiler ${REQ_LLVM_LIBRARIES})
-
-
-
+#
+# Rill projects
+#
 
 # librill(lib)
 add_subdirectory( ${PROJECT_SOURCE_DIR}/lib/rill )
@@ -95,7 +83,7 @@ install( DIRECTORY ${PROJECT_SOURCE_DIR}/rill DESTINATION include )
 # tools(compiler)
 add_subdirectory( ${PROJECT_SOURCE_DIR}/tools )
 
-# librill-rt
+# librill-rt(rill runtime)
 add_subdirectory( ${PROJECT_SOURCE_DIR}/rill-rt )
 
 

@@ -20,7 +20,7 @@
 
 namespace rill
 {
-    // type is composed to Class and Attributs
+    // type is composed to Class and Attributes
     struct type
     {
         environment_id_t class_env_id;
@@ -34,6 +34,8 @@ namespace rill
         attribute::type_attributes const& type_attr
         )
 */
+
+    // type_id is reference id to type that attributed!
 
     //
     class type_registry

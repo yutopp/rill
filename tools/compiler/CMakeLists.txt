@@ -9,7 +9,9 @@ target_link_libraries(
 
 set_target_properties( rillc PROPERTIES LINKER_LANGUAGE CXX )
 
-# Boost
+#
+# Boost Libraries
+#
 find_package(
   Boost
   1.55.0

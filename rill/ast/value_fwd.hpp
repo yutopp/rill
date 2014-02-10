@@ -24,13 +24,6 @@ namespace rill
     {
         RILL_AST_FWD_DECL( value, value )
 
-        typedef std::vector<const_value_ptr>    argument_list;
-        typedef std::shared_ptr<argument_list>  argument_list_ptr;
-
-        typedef std::vector<value_ptr>                      template_argument_list;
-        typedef std::shared_ptr<template_argument_list>     template_argument_list_ptr;
-
-
         RILL_AST_FWD_DECL_IN_NAMESPACE( intrinsic, value_base, value )
 
         RILL_AST_FWD_DECL_IN_NAMESPACE( intrinsic, symbol_value, value )

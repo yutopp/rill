@@ -79,6 +79,32 @@ namespace rill
             e_template,
             e_mixin
         };
+
+
+        template<typename R = std::string>
+        auto debug_string( type_value const& e )
+            -> R
+        {
+            switch( e )
+            {
+            case type_value::e_none:
+                return "e_none";
+            case type_value::e_parameter_wrapper:
+                return "e_parameter_wrapper";
+            case type_value::e_function:
+                return "e_function";
+            case type_value::e_variable:
+                return "e_variable";
+            case type_value::e_class:
+                return "e_class";
+            case type_value::e_template_set:
+                return "e_template_set";
+            case type_value::e_template:
+                return "e_template";
+            case type_value::e_mixin:
+                return "e_mixin";
+            }
+        }
     }
 
 
@@ -202,7 +228,8 @@ namespace rill
         virtual auto find_on_env( ast::const_identifier_value_base_ptr const& name ) const
             -> const_env_base_pointer =0;
 
-        //
+
+        // this function will be deleted in the future...
         template<typename F>
         auto nest_lookup( ast::const_nested_identifier_value_ptr const& ids, F const& failed_callback )
             -> env_base_pointer
@@ -252,6 +279,9 @@ namespace rill
             }
             return env;
         }
+
+
+
 
 
         //

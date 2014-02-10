@@ -21,7 +21,7 @@ namespace rill
     namespace semantic_analysis
     {
         class analyzer RILL_CXX11_FINAL
-            : public ast::detail::tree_visitor<analyzer, type_id_with_env>
+            : public ast::detail::tree_visitor<analyzer, type_detail_ptr>
         {
         public:
             analyzer(
@@ -65,6 +65,8 @@ namespace rill
 
         private:
             environment_base_ptr root_env_;
+
+            type_detail_pool_t type_detail_pool_;
             std::shared_ptr<compile_time::llvm_engine const> engine_;
         };
 

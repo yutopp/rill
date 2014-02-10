@@ -35,9 +35,23 @@ Rill
     
 (using Clang)
 
+specify dir LLVM installed
+-DCMAKE_PREFIX_PATH
+
+Ex
+cmake ../. -DCMAKE_PREFIX_PATH=/usr/local
+
+
+specify dir to RIll will be installed
+-DCMAKE_INSTALL_PREFIX
+
+Ex
+cmake ../. -DCMAKE_INSTALL_PREFIX=/usr/local/torigoya
+
+
     mkdir build
     cd build
-    cmake ../. -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -DLLVM_ROOT=/usr/local
+    cmake ../. -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
     make
     sudo make install
 

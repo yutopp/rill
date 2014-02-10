@@ -51,11 +51,16 @@ namespace rill
         {
             // Function symbol that on (global | namespace)
 
-            std::cout << "collected : " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
-                      << "param_num : " << s->get_parameter_list().size() << std::endl;
+            std::cout << "collected    : " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
+                      << "param_num    : " << s->get_parameter_list().size() << std::endl
+                      << "is_templated : " << s->is_templated() << std::endl;
 
             if ( s->is_templated() ) {
-                
+                // TODO: add symbol type duplicate check
+                std::static_pointer_cast<template_set_environment>( env )->set_inner_env_symbol_kind(
+                    kind::type_value::e_function
+                    );
+
             } else {
                 // add function symbol to current environment
                 env->mark_as( kind::k_function, s->get_identifier(), s );
@@ -81,6 +86,8 @@ namespace rill
                       << "param_num : " << s->get_parameter_list().size() << std::endl;
 
             if ( s->is_templated() ) {
+                assert( false );
+
             } else {
                 // add function symbol to current environment
                 env->mark_as( kind::k_function, s->get_identifier(), s );
@@ -95,6 +102,8 @@ namespace rill
             // Class symbol that on (global | namespace)
 
             if ( s->is_templated() ) {
+                assert( false );
+
             } else {
                 // add class symbol to current environment
                 auto c_env = env->mark_as( kind::k_class, s->get_identifier(), s );
@@ -140,26 +149,28 @@ namespace rill
         //
         RILL_TV_OP( identifier_collector, ast::template_statement, s, parent_env )
         {
-//            s->get_identifier()
-            auto const& t_env_pair
+            // mark AST as templated
+            s->get_inner_statement()->mark_as_template();
+
+            // 
+            auto const& template_env_pair
                 = parent_env->mark_as( kind::k_template, s->get_identifier(), s );
 
-            auto& t_set_env = t_env_pair.first;
-            auto& t_env = t_env_pair.second;
+            // unlike the has_parameter_environment, template_set cannot determine the inner environment type of template
+            auto& template_set_env = template_env_pair.first;
+            auto& template_env = template_env_pair.second;
+
+            // TODO: link template variables to this env
+            //template_env
+
+            // save with argument length
+            // if Variaic templates, use template_environment::variadic_length
+            // TODO: support variadic templates
+            // FIXME: currently preset as 1 length
+            template_set_env->add_candidate( template_env );
 
             // delegate inner statement...
-            dispatch( s->get_inner_statement(), t_env );
-
-#if 0
-            assert( parent_env->get_symbol_kind() == kind::type_value::e_class );
-
-            // variable declared in class scope should be forward referencable
-
-            // add variable symbol to current environment
-            auto const& v_env
-                = parent_env->mark_as( kind::k_variable, s->get_identifier(), s );
-            v_env->set_parent_class_env_id( parent_env->get_id() );
-#endif
+            dispatch( s->get_inner_statement(), template_set_env );
         }
 
 

@@ -34,7 +34,7 @@ namespace rill
         //
         RILL_TV_OP( analyzer, ast::identifier_value, v, parent_env )
         {
-            return solve_identifier( v, parent_env, root_env_ );
+            return solve_identifier( type_detail_pool_, v, parent_env, root_env_ );
         }
 
 
@@ -44,7 +44,7 @@ namespace rill
         //
         RILL_TV_OP( analyzer, ast::template_instance_value, v, parent_env )
         {
-            return solve_identifier( v, parent_env, root_env_ );
+            return solve_identifier( type_detail_pool_, v, parent_env, root_env_ );
         }
 
 
@@ -60,10 +60,10 @@ namespace rill
             assert( class_env != nullptr );  // literal type must exist
 
             //
-            return {
+            return type_detail_pool_.construct(
                 class_env->make_type_id( class_env, determine_type_attributes() ),
                 class_env
-            };
+            );
         }
 
     } // namespace semantic_analysis

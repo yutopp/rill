@@ -73,7 +73,6 @@ namespace rill
         virtual auto find_on_env( ast::const_identifier_value_base_ptr const& ) const
             -> const_env_base_pointer RILL_CXX11_OVERRIDE;
 
-
         //
         //
         //

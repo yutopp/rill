@@ -330,7 +330,6 @@ namespace rill
                       > parameter_variable_declaration_list_ // TODO: change
                       > templatable_statement_
                       )[
-                          ((&(*qi::_2))->*&ast::can_be_template_statement::mark_as_template)(),     // qi::_2 is templatable_statement(function, class, etc...)
                           qi::_val = helper::make_node_ptr<ast::template_statement>(
                               qi::_1,
                               qi::_2

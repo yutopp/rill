@@ -30,11 +30,18 @@
 namespace rill
 {
     //
-    // template
+    // template environment
+    // this environment holds template parameters
+    // and bacomes the POINT linked to TEMPLATE symbol's AST.
+    // So, to get inner AST(AST of class, function, etc...), get 's', the template AST, linked from this env, then call s.get_inner_statement() member function
     //
     class template_environment RILL_CXX11_FINAL
         : public single_identifier_environment_base
     {
+    public:
+        typedef std::size_t     template_argument_length_type;
+        static template_argument_length_type const variadic_length = -1;
+
     public:
         template_environment( environment_parameter_t&& pp, environment_id_t const& template_set_env_id )
             : single_identifier_environment_base( std::move( pp ) )
@@ -44,11 +51,18 @@ namespace rill
         auto get_symbol_kind() const
             -> kind::type_value RILL_CXX11_OVERRIDE
         {
-            assert( has_parent() );
-            return get_parent_env()->get_symbol_kind();
+            return kind::type_value::e_template;
+        }
+
+        auto get_arg_size() const
+            -> template_argument_length_type
+        {
+            // TODO: IMPLEMENT!!!!!!!
+            return 1;
         }
 
     private:
+        type_id_list_t template_parameter_type_ids_;
     };
 
 } // namespace rill

@@ -147,6 +147,13 @@ namespace rill
         }
 
 
+        RILL_TV_OP( ast_printer, ast::template_statement, s, _ )
+        {
+            o( "template_statement", [&]( std::string const& ss ) {
+                    dispatch( s->get_inner_statement() );
+                } );
+        }
+
 
         RILL_TV_OP( ast_printer, ast::test_while_statement, s, _ )
         {

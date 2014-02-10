@@ -60,7 +60,8 @@ namespace rill
     }
 
 
-
+    // This class holds a environment set of InlineEnvironment that has the same name
+    // InlineEnvironment can be candidates of overload solving by invocation of 'add_overload' member function
     template<typename InlineEnvironment>
     class has_parameter_environment RILL_CXX11_FINAL
         : public has_parameter_environment_base
@@ -132,28 +133,17 @@ namespace rill
             return it != overloads_.cend() ? it->second : nullptr;
         }
 
+
         // delegate lookup
         auto lookup( ast::const_identifier_value_base_ptr const& name )
-            -> env_base_pointer RILL_CXX11_OVERRIDE { return get_parent_env()->lookup( name ); }
+            -> env_base_pointer RILL_CXX11_OVERRIDE { assert(false); return nullptr; }
         auto lookup( ast::const_identifier_value_base_ptr const& name ) const
-            -> const_env_base_pointer RILL_CXX11_OVERRIDE { return get_parent_env()->lookup( name ); }
+            -> const_env_base_pointer RILL_CXX11_OVERRIDE { assert(false); return nullptr; }
 
         auto find_on_env( ast::const_identifier_value_base_ptr const& name )
-            -> env_base_pointer RILL_CXX11_OVERRIDE { return get_parent_env()->find_on_env( name ); }
+            -> env_base_pointer RILL_CXX11_OVERRIDE { assert(false); return nullptr; }
         auto find_on_env( ast::const_identifier_value_base_ptr const& name ) const
-            -> const_env_base_pointer RILL_CXX11_OVERRIDE { return get_parent_env()->find_on_env( name ); }
-    /*
-        auto lookup( environment_ptr const& parent, parameter_list const& parameter ) const
-            -> const_environment_ptr
-        {
-            if ( parameter.size() == 2 ) {
-                return p_;
-                //if ( parameter[0].type->type()-> )
-            }
-
-            return nullptr;
-        }*/
-
+            -> const_env_base_pointer RILL_CXX11_OVERRIDE { assert(false); return nullptr; }
 
 
         auto dump( std::ostream& os, std::string const& indent ) const
