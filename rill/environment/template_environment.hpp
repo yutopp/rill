@@ -58,11 +58,23 @@ namespace rill
             -> template_argument_length_type
         {
             // TODO: IMPLEMENT!!!!!!!
+            // return nontemplate_env_.size();
             return 1;
         }
 
+        auto parameter_variable_construct(
+            ast::identifier_value_base_ptr const& name,
+            const_class_symbol_environment_ptr const& type_env,
+            attribute::type_attributes const& type_attr = attribute::make_default_type_attributes()
+            )
+            -> variable_symbol_environment_ptr;
+
     private:
-        type_id_list_t template_parameter_type_ids_;
+        // parameter variable environments
+        environment_id_list_t parameter_decl_ids_;
+
+        // types
+        type_id_list_t parameter_type_ids_;
     };
 
 } // namespace rill

@@ -374,7 +374,9 @@ namespace rill
             virtual auto template_argument() const
                 -> expression_list const&
             {
-                return {};
+                // TODO: fix
+                expression_list static a;
+                return a;
             }
         };
 

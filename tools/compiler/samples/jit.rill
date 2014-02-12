@@ -24,7 +24,7 @@ def pp( val v: int ): void
 
 // TODO: change parser
 template(val T:type)
-def tf( val a: T ): void
+def tf( val a: int ): void
     => pp( a );
 
 

@@ -306,11 +306,10 @@ namespace rill
 
                         // TODO: evaluate reciever_type_detail->template_args
 
-                        std::vector<int> dummy;
-
                         auto const& f
                             = overload_solver_allow_no_entry_with_template(
-                                dummy,
+                                this,
+                                reciever_type_detail->template_args,
                                 argument_type_details,
                                 template_set_env,
                                 env
@@ -356,8 +355,9 @@ namespace rill
                     }();
 
                     // memoize called function env
-                    std::cout << "memoed" << std::endl;
+                    std::cout << "memoed template" << std::endl;
                     function_env->connect_from_ast( e );
+                    //function_env->connect_to_ast( e );
 
                     return type_detail_pool_.construct(
                         function_env->get_return_type_id(),

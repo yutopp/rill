@@ -232,6 +232,12 @@ namespace rill
                 return inner_;
             }
 
+            auto get_parameter_list() const
+                -> parameter_list const&
+            {
+                return parameter_list_;
+            }
+
         public:
             parameter_list parameter_list_;
             can_be_template_statement_ptr const inner_;

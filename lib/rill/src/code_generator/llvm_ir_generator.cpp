@@ -127,6 +127,7 @@ namespace rill
                         << f_env->mangled_name()
                         << std::endl;
 
+                    assert( f_env->get_related_ast() != nullptr );
                     generator.dispatch( f_env->get_related_ast(), f_env );
                 }
 

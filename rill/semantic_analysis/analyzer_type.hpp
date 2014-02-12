@@ -15,6 +15,10 @@
 #include "../ast/value.hpp"
 
 
+#include <boost/range/adaptor/transformed.hpp>
+using namespace boost::adaptors;
+
+
 namespace rill
 {
     namespace semantic_analysis
@@ -274,6 +278,17 @@ namespace rill
 
 
 
+        struct to_type_id_t2
+        {
+            typedef type_id_t result_type;
+
+            template<typename T>
+            auto operator()(T const& c) const
+                -> result_type
+            {
+                return c->type_id;
+            }
+        };
 
 
 
@@ -282,21 +297,23 @@ namespace rill
 
 
 
-
-        template<typename TemplateArgs, typename TypeIds, typename EnvPtr, typename ResultCallbackT>
+        template<typename Visitor, typename TemplateArgs, typename TypeIds, typename EnvPtr, typename ResultCallbackT>
         static auto overload_solver_with_template(
+            Visitor visitor,
             TemplateArgs const& template_args,
-            TypeIds const& arg_type_ids,
+            TypeIds const& arg_type_ids2,
             std::shared_ptr<template_set_environment> const& template_set_env,
             EnvPtr const& env,
             ResultCallbackT const& f
             )
             -> function_symbol_environment_ptr
         {
-            //
-            //
-            type_id_list_t holder( arg_type_ids.size() );
-            std::vector<function_symbol_environment_ptr> f_candidate_envs;
+            assert( template_args != nullptr );
+
+
+
+            std::shared_ptr<has_parameter_environment<function_symbol_environment>> generic_function_env
+                = nullptr;
 
 
             //
@@ -306,49 +323,230 @@ namespace rill
                 std::cout << "hogehoge" << std::endl;
 
                 // if number of template arguments is over, skip
-                if ( template_args.size() > template_env->get_arg_size() )
+                if ( template_args->size() > template_env->get_arg_size() )
                     continue;
 
-                //
-                for( auto const& t_arg : template_args ) {
-                    ;
+ 
+
+                auto const& template_ast
+                    = std::static_pointer_cast<ast::template_statement const>( template_env->get_related_ast() );
+                assert( template_ast != nullptr );
+
+
+
+
+                for( auto const& e : template_ast->get_parameter_list() ) {
+                    assert( e.decl_unit.init_unit.type != nullptr || e.decl_unit.init_unit.initializer != nullptr );
+
+                    if ( e.decl_unit.init_unit.type ) { // is parameter variavle type specified ?
+                        // evaluate constant expresison as type
+                        // TODO: support for identifier that has template parameter
+                        auto const& type_value = interpreter::evaluate_as_type( env, e.decl_unit.init_unit.type );
+
+                        // in declaration unit, can not specify "quality" by type_expression
+                        assert( type_value.attributes.quality == boost::none );
+                        
+                        // fix lookup_with_instantiation
+                        if ( auto const class_env = lookup_with_instanciation( env, type_value.identifiers ) ) {
+                            assert( class_env != nullptr );
+                            assert( class_env->get_symbol_kind() == kind::type_value::e_class );
+
+                            auto attr = determine_type_attributes( type_value.attributes );
+                            attr <<= e.quality;
+
+                            // declare
+                            template_env->parameter_variable_construct(
+                                e.decl_unit.name,
+                                std::dynamic_pointer_cast<class_symbol_environment const>( class_env ),
+                                attr
+                                );
+
+                        } else {
+                            // type was not found, !! compilation error !!
+                            assert( false );
+                        }
+
+                    } else {
+                        // type inferenced by result of evaluated [[default initializer expression]]
+
+                        // TODO: implement type inference
+                        assert( false && "TODO: it will be type" );
+                    }
                 }
 
 
-                auto const& template_node = template_env->get_related_ast();
-                assert( template_node != nullptr );
+                std::map<ast::const_identifier_value_base_ptr, type_detail_ptr> substitution_table;
 
-                auto const& function_node
-                    = std::static_pointer_cast<ast::template_statement const>( template_node )->get_inner_statement();
-                assert( function_node != nullptr );
-            }
+                //
+                for( auto const& t_arg : *template_args ) {
+                    ;
+                }
+
+                auto const& function_ast
+                    = std::static_pointer_cast<ast::function_definition_statement>(
+                        template_ast->get_inner_statement()
+                        );
+                assert( function_ast != nullptr );
 
 
+                // Create function emvironment frame
+                // FIX: template_env to another
+                auto f_env_pair
+                    = template_set_env->get_parent_env()->incomplete_construct( kind::k_function, function_ast->get_identifier() );
+        
+                generic_function_env = f_env_pair.first;
 
+                auto f_env
+                    = f_env_pair.second;
+
+                std::cout << "fugafuga" << std::endl;
+
+                //
+                // function instanciation
+                //
+
+                // make function parameter variable decl
+                for( auto const& e : function_ast->get_parameter_list() ) {
+                    assert( e.decl_unit.init_unit.type != nullptr || e.decl_unit.init_unit.initializer != nullptr );
+
+                    if ( e.decl_unit.init_unit.type ) { // is parameter variavle type specified ?
+                        // evaluate constant expresison as type
+                        auto const& type_value = interpreter::evaluate_as_type( f_env, e.decl_unit.init_unit.type );
+
+                        // in declaration unit, can not specify "quality" by type_expression
+                        assert( type_value.attributes.quality == boost::none );
+
+
+                        if ( auto const class_env = lookup_with_instanciation( f_env, type_value.identifiers ) ) {
+                            assert( class_env != nullptr );
+                            assert( class_env->get_symbol_kind() == kind::type_value::e_class );
+
+                            auto attr = determine_type_attributes( type_value.attributes );
+                            attr <<= e.quality;
+
+                            // declare
+                            f_env->parameter_variable_construct(
+                                e.decl_unit.name,
+                                std::dynamic_pointer_cast<class_symbol_environment const>( class_env ),
+                                attr
+                                );
 #if 0
-            //
-            //
-            type_id_list_t holder( arg_type_ids.size() );
-            std::vector<function_symbol_environment_ptr> f_candidate_envs;
+                            if ( type_env->get_symbol_kind() == kind::type_value::e_class ) {
+                                auto attr = determine_type_attributes( type_value.attributes );
+                                attr <<= e.quality;
+                                
+                                // declare
+                                f_env->parameter_variable_construct(
+                                    e.decl_unit.name,
+                                    std::dynamic_pointer_cast<class_symbol_environment const>( type_env ),
+                                    attr
+                                    );
 
+                            } else if ( type_env->get_symbol_kind() == kind::type_value::e_variable ) {
+//                                // declare
+//                                f_env->parameter_variable_construct(
+//                                    e.decl_unit.name,
+//                                    std::dynamic_pointer_cast<class_symbol_environment const>( class_env ),
+//                                    attr
+//                                    );
+
+                            } else {
+                                assert( false );
+                            }
+#endif
+                        } else {
+                            // type was not found, !! compilation error !!
+                            assert( false );
+                        }
+
+                    } else {
+                        // type inferenced by result of evaluated [[default initializer expression]]
+
+                        // TODO: implement type inference
+                        assert( false );
+                    }
+                }
+
+                // scan all statements in this function body
+                visitor->dispatch( function_ast->inner_, f_env );
+
+
+                // ?: TODO: use block expression
+
+
+                // Return type
+                if ( function_ast->return_type_ ) {
+                    // evaluate constant expresison as type
+                    auto const& type_value = interpreter::evaluate_as_type( f_env, *function_ast->return_type_ );
+
+                    if ( auto const return_class_env = lookup_with_instanciation( f_env, type_value.identifiers ) ) {
+                        assert( return_class_env != nullptr );
+                        assert( return_class_env->get_symbol_kind() == kind::type_value::e_class );
+
+                        // TODO: check return statement types...
+                        // f_env->get_return_type_candidates()
+
+                        //
+                        auto const& return_type_id = f_env->make_type_id(
+                            return_class_env,
+                            determine_type_attributes( type_value.attributes )
+                            );
+                        f_env->complete( return_type_id, function_ast->get_identifier()->get_inner_symbol()->to_native_string() );
+
+                    } else {
+                        // type was not found, !! compilation error !!
+                        assert( false );
+                    }
+
+                } else {
+                    // TODO: implement return type inference
+                    assert( false && "function return type inference was not supported yet" );
+                }
+
+                //
+                std::cout << std::endl << "!!add overload!!" << std::endl << std::endl;
+                f_env->get_parameter_wrapper_env()->add_overload( f_env );
+
+                //
+                f_env->connect_to_ast( function_ast );
+            } // for
+
+
+
+
+
+            assert( generic_function_env != nullptr );
+
+
+            std::cout
+                << (const_environment_base_ptr)generic_function_env << std::endl
+                << "overload num is " << generic_function_env->get_overloads().size() << std::endl;
 
             // DEBUG
-            //std::cout << "...resolving function : " << identifier->get_inner_symbol()->to_native_string() << std::endl;
 
 
+            {
+                auto const& arg_type_ids = arg_type_ids2 | transformed( to_type_id_t2() );
+            type_id_list_t holder( arg_type_ids.size() );
+            std::vector<function_symbol_environment_ptr> f_candidate_envs;
             // TODO: fix over load solver
             // TODO: check variadic parameter...
             // TODO: count conversion times
             for( auto const& f_env : generic_function_env->get_overloads() ) {
-                // DEBUG
-                std::cout << "..." << f_env << std::endl;
+                 // DEBUG
+                std::cout << "overloads ... " << __func__ << std::endl;
+                std::cout << " : " << (const_environment_base_ptr)f_env << std::endl;
 
 
                 auto const& f_env_parameter_type_ids = f_env->get_parameter_type_ids();
-
+std::cout << "2overloads ... " << __func__ << " : " << (const_environment_base_ptr)f_env << std::endl;
+std::cout << f_env_parameter_type_ids.size() << " / " << arg_type_ids.size() << std::endl;
+std::cout << "3overloads ... " << __func__ << " : " << (const_environment_base_ptr)f_env << std::endl;
                 // argument size is different
                 if ( f_env_parameter_type_ids.size() != arg_type_ids.size() )
                     continue;
+
+                std::cout << "overloads ... " << __func__ << " : " << (const_environment_base_ptr)f_env << std::endl;
 
                 // has no argument
                 if ( f_env_parameter_type_ids.size() == 0 ) {
@@ -358,9 +556,13 @@ namespace rill
                     continue;
                 }
 
+
                 //
                 bool succeed = true;
                 for( int i=0; i<arg_type_ids.size(); ++i ) {
+
+                    std::cout << "overloads ... " << __func__ << " : " << i << " / " << arg_type_ids.size() << std::endl; 
+
                     if ( f_env_parameter_type_ids[i] == arg_type_ids[i] ) {
                         // has same type!
                         holder[i] = arg_type_ids[i];
@@ -489,17 +691,19 @@ namespace rill
                 }
             }
 
+            std::cout << "finished " << __func__ << std::endl;
 
             return f( f_candidate_envs );
-#endif
-            return nullptr;
+            }
+
         }
 
 
 
 
-        template<typename TemplateArgs, typename TypeIds, typename EnvPtr>
+        template<typename Visitor, typename TemplateArgs, typename TypeIds, typename EnvPtr>
         static inline auto overload_solver_with_template(
+            Visitor visitor,
             TemplateArgs const& template_args,
             TypeIds const& arg_type_ids,
             std::shared_ptr<template_set_environment> const& generic_function_env,
@@ -508,6 +712,7 @@ namespace rill
             -> function_symbol_environment_ptr
         {
             return overload_solver_with_template(
+                visitor,
                 template_args,
                 arg_type_ids,
                 generic_function_env,
@@ -528,8 +733,9 @@ namespace rill
                 );
         }
 
-        template<typename TemplateArgs, typename TypeIds, typename EnvPtr>
+        template<typename Visitor, typename TemplateArgs, typename TypeIds, typename EnvPtr>
         static inline auto overload_solver_allow_no_entry_with_template(
+            Visitor visitor,
             TemplateArgs const& template_args,
             TypeIds const& arg_type_ids ,
             std::shared_ptr<template_set_environment> const& generic_function_env,
@@ -538,6 +744,7 @@ namespace rill
             -> function_symbol_environment_ptr
         {
             return overload_solver_with_template(
+                visitor,
                 template_args,
                 arg_type_ids,
                 generic_function_env,

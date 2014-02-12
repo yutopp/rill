@@ -26,7 +26,7 @@
 #include "../config/macros.hpp"
 
 #include "environment_fwd.hpp"
-
+#include "environment_kind.hpp"
 
 #include "detail/mapper.hpp"
 
@@ -50,62 +50,7 @@ namespace rill
 
 
 
-    namespace kind
-    {
-        struct function_tag {};
-        auto const k_function = function_tag();
 
-        struct variable_tag {};
-        auto const k_variable = variable_tag();
-
-        struct class_tag {};
-        auto const k_class = class_tag();
-
-        struct template_tag {};
-        auto const k_template = template_tag();
-
-        struct mixin_tag {};
-        auto const k_mixin = mixin_tag();
- 
-
-        enum struct type_value
-        {
-            e_none,
-            e_parameter_wrapper,
-            e_function,
-            e_variable,
-            e_class,
-            e_template_set,
-            e_template,
-            e_mixin
-        };
-
-
-        template<typename R = std::string>
-        auto debug_string( type_value const& e )
-            -> R
-        {
-            switch( e )
-            {
-            case type_value::e_none:
-                return "e_none";
-            case type_value::e_parameter_wrapper:
-                return "e_parameter_wrapper";
-            case type_value::e_function:
-                return "e_function";
-            case type_value::e_variable:
-                return "e_variable";
-            case type_value::e_class:
-                return "e_class";
-            case type_value::e_template_set:
-                return "e_template_set";
-            case type_value::e_template:
-                return "e_template";
-            case type_value::e_mixin:
-                return "e_mixin";
-            }
-        }
-    }
 
 
 
@@ -559,6 +504,7 @@ namespace rill
         auto get_related_ast() const
             -> shared_resource_type::env_id_to_ast_mapper_type::const_value_type
         {
+            // registered by connect_to_ast
             return root_shared_resource_->env_id_to_ast_map.get( get_id() );
         }
 
