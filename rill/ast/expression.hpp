@@ -38,10 +38,11 @@ namespace rill
             : public ast_base
         {
         public:
-            RILL_AST_ADAPT_VISITOR_VIRTUAL( expression )
-
-        public:
             virtual ~expression() {}
+
+
+            //////////////////////////////////////////////////
+            RILL_MAKE_AST_BASE( expression )
         };
 
 
@@ -49,9 +50,6 @@ namespace rill
         struct binary_operator_expression
             : public expression
         {
-        public:
-            RILL_AST_ADAPT_VISITOR( binary_operator_expression )
-
         public:
             binary_operator_expression(
                 expression_ptr const& lhs,
@@ -63,19 +61,21 @@ namespace rill
                 , rhs_( rhs )
             {}
 
-        public:
-            expression_ptr const lhs_;
-            identifier_value_ptr const op_;
-            expression_ptr const rhs_;
+
+            //////////////////////////////////////////////////
+            RILL_MAKE_AST(
+                binary_operator_expression,
+                (( expression_ptr, lhs_ ))
+                (( identifier_value_ptr, op_, 72; ))
+                (( expression_ptr, rhs_ ))
+                )
         };
 
 
+        // will be used by Array, Range, Slice...
         struct subscrpting_expression
             : public expression
         {
-        public:
-            RILL_AST_ADAPT_VISITOR( subscrpting_expression )
-
         public:
             subscrpting_expression(
                 expression_ptr const& lhs,
@@ -85,9 +85,16 @@ namespace rill
                 , rhs_( rhs )
             {}
 
-        public:
-            expression_ptr const lhs_;
-            boost::optional<expression_ptr> const rhs_;
+
+            //////////////////////////////////////////////////
+            RILL_MAKE_AST(
+                subscrpting_expression,
+                (( expression_ptr, lhs_ ))
+                (( boost::optional<expression_ptr>, rhs_,
+                   if ( rhs_ )
+                       cloned->rhs_ = (*rhs_)->clone();
+                    ))
+                )
         };
 
 
@@ -95,9 +102,6 @@ namespace rill
         struct element_selector_expression
             : public expression
         {
-        public:
-            RILL_AST_ADAPT_VISITOR( element_selector_expression )
-
         public:
             element_selector_expression(
                 expression_ptr const& reciever,
@@ -107,9 +111,13 @@ namespace rill
                 , selector_id_( selector_id )
             {}
 
-        public:
-            expression_ptr const reciever_;
-            identifier_value_base_ptr const selector_id_;
+
+            //////////////////////////////////////////////////
+            RILL_MAKE_AST(
+                element_selector_expression,
+                (( expression_ptr, reciever_ ))
+                (( identifier_value_base_ptr, selector_id_, 72; ))
+                )
         };
 
 
@@ -119,9 +127,6 @@ namespace rill
             : public expression
         {
         public:
-            RILL_AST_ADAPT_VISITOR( call_expression )
-
-        public:
             call_expression(
                 expression_ptr const& reciever,
                 expression_list const& arguments
@@ -130,9 +135,16 @@ namespace rill
                 , arguments_( arguments )
             {}
 
-        public:
-            expression_ptr const reciever_;
-            expression_list const arguments_;
+
+            //////////////////////////////////////////////////
+            RILL_MAKE_AST(
+                call_expression,
+                (( expression_ptr, reciever_ ))
+                (( expression_list, arguments_,
+                   for( auto const& e : arguments_ )
+                       cloned->arguments_.push_back( e->clone() );
+                    ))
+                )
         };
 
 
@@ -146,15 +158,18 @@ namespace rill
             : public expression
         {
         public:
-            RILL_AST_ADAPT_VISITOR( intrinsic_function_call_expression )
-
-        public:
             intrinsic_function_call_expression( intrinsic_function_action_id_t const& action_id )
                 : action_id_( action_id )
             {}
 
-        public:
-            intrinsic_function_action_id_t const action_id_;
+
+            //////////////////////////////////////////////////
+            RILL_MAKE_AST(
+                intrinsic_function_call_expression,
+                (( intrinsic_function_action_id_t, action_id_,
+                   cloned->action_id_ = action_id_;
+                    ))
+                )
         };
 
 
@@ -163,15 +178,16 @@ namespace rill
             : public expression
         {
         public:
-            RILL_AST_ADAPT_VISITOR( term_expression )
-
-        public:
             term_expression( value_ptr const& v )
                 : value_( v )
             {}
 
-        public:
-            value_ptr const value_;
+
+            //////////////////////////////////////////////////
+            RILL_MAKE_AST(
+                term_expression,
+                (( value_ptr, value_, 72; ))
+                )
         };
 
 
@@ -181,12 +197,13 @@ namespace rill
         struct type_expression
             : public expression
         {
-            RILL_AST_ADAPT_VISITOR( type_expression );
-            //ast_base_type a;
-            //ADAPT_EXPRESSION_VISITOR( type_expression )
-
         public:
-            ~type_expression() {}
+            virtual ~type_expression() {}
+
+            //////////////////////////////////////////////////
+            RILL_MAKE_AST(
+                type_expression
+                )
         };
 
 
@@ -194,9 +211,6 @@ namespace rill
         struct type_identifier_expression
             : public type_expression
         {
-        public:
-            RILL_AST_ADAPT_VISITOR( type_identifier_expression )
-
         public:
             type_identifier_expression(
                 nested_identifier_value_ptr const& v,
@@ -206,9 +220,15 @@ namespace rill
                 , attributes_( attributes )
             {}
 
-        public:
-            nested_identifier_value_ptr const value_;
-            attribute::type_attributes_optional const attributes_;
+
+            //////////////////////////////////////////////////
+            RILL_MAKE_AST(
+                type_identifier_expression,
+                (( nested_identifier_value_ptr, value_, 72; ))
+                (( attribute::type_attributes_optional, attributes_,
+                   cloned->attributes_ = attributes_;
+                    ))
+                )
         };
 
 
@@ -218,15 +238,16 @@ namespace rill
             : public type_expression
         {
         public:
-            RILL_AST_ADAPT_VISITOR( compiletime_return_type_expression )
-
-        public:
             compiletime_return_type_expression( expression_ptr const& e )
                 : expression_( e )
             {}
 
-        public:
-            expression_ptr expression_;
+
+            //////////////////////////////////////////////////
+            RILL_MAKE_AST(
+                compiletime_return_type_expression,
+                (( expression_ptr, expression_, 72; ))
+                )
         };
 
     } // namespace ast

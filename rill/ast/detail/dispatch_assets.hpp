@@ -78,11 +78,7 @@
     RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_VIRTUAL_(class_name, rill::ast::detail:: BOOST_PP_TUPLE_ELEM(2, 0/*tag*/, elem))
 
 
-// !!! --
-//
-// insert this macro into AST node class
-//
-// -- !!!
+
 #define RILL_AST_ADAPT_VISITOR(class_name) \
     BOOST_PP_SEQ_FOR_EACH(RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER, class_name, RILL_DISPATCH_TYPES_SEQ)
 

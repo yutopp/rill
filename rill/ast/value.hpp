@@ -49,7 +49,7 @@ namespace rill
             : public ast_base
         {
         public:
-            RILL_AST_ADAPT_VISITOR_VIRTUAL( value )
+            RILL_MAKE_AST_BASE( value )
 
         public:
             virtual ~value() {}
@@ -99,9 +99,6 @@ namespace rill
                 : public value_base
             {
             public:
-                RILL_AST_ADAPT_VISITOR( symbol_value )
-
-            public:
                 explicit symbol_value( native_string_t const& name )
                     : value_( name )
                 {}
@@ -118,8 +115,12 @@ namespace rill
                     return value_;
                 }
 
-            private:
-                native_string_t value_;
+
+                //////////////////////////////////////////////////
+                RILL_MAKE_AST(
+                    symbol_value,
+                    (( native_string_t, value_, cloned->value_ = value_; ))
+                    )
             };
 
             inline auto make_symbol( native_string_t const& native_symbol_name )
@@ -137,9 +138,6 @@ namespace rill
                 : public value_base
             {
             public:
-                RILL_AST_ADAPT_VISITOR( int32_value )
-
-            public:
                 int32_value( int const v )
                     : value_( v )
                 {}
@@ -155,17 +153,18 @@ namespace rill
                     return value_;
                 }
 
-            public:
-                int const value_;
+
+                //////////////////////////////////////////////////
+                RILL_MAKE_AST(
+                    int32_value,
+                    (( int, value_, cloned->value_ = value_; ))
+                    )
             };
 
 
             struct boolean_value RILL_CXX11_FINAL
                 : public value_base
             {
-            public:
-                RILL_AST_ADAPT_VISITOR( boolean_value )
-
             public:
                 boolean_value( bool const v )
                     : value_( v )
@@ -182,8 +181,12 @@ namespace rill
                     return value_;
                 }
 
-            public:
-                bool const value_;
+
+                //////////////////////////////////////////////////
+                RILL_MAKE_AST(
+                    boolean_value,
+                    (( bool, value_, cloned->value_ = value_; ))
+                    )
             };
 
 
@@ -194,9 +197,6 @@ namespace rill
             struct string_value RILL_CXX11_FINAL
                 : public value_base
             {
-            public:
-                RILL_AST_ADAPT_VISITOR( string_value )
-
             public:
                 string_value( std::string const& v )
                     : value_( v )
@@ -209,8 +209,12 @@ namespace rill
                 }
 
 
-            public:
-                std::string value_;
+
+                //////////////////////////////////////////////////
+                RILL_MAKE_AST(
+                    string_value,
+                    (( std::string, value_, cloned->value_ = value_; ))
+                    )
             };
         } // namespace intrinsic
 
@@ -224,9 +228,6 @@ namespace rill
         struct nested_identifier_value RILL_CXX11_FINAL
             : public value
         {
-        public:
-            RILL_AST_ADAPT_VISITOR( nested_identifier_value )
-
         public:
             explicit nested_identifier_value(
                 std::vector<identifier_value_base_ptr> const& ids,
@@ -273,9 +274,13 @@ namespace rill
                 return started_from_root_;
             }
 
-        private:
-            std::vector<identifier_value_base_ptr> const ids_;
-            bool started_from_root_;
+
+            //////////////////////////////////////////////////
+            RILL_MAKE_AST(
+                nested_identifier_value,
+                (( std::vector<identifier_value_base_ptr>, ids_, 72;))
+                (( bool, started_from_root_, cloned->started_from_root_ = started_from_root_; ))
+                )
         };
 
 
@@ -292,6 +297,7 @@ namespace rill
         //
         //
         //
+        // MM
         struct identifier_value_base
             : public value
         {
@@ -327,9 +333,14 @@ namespace rill
                     return started_from_root_;
                 }
 
-        private:
-            intrinsic::symbol_value_ptr const name_symbol_;
-            bool const started_from_root_;
+
+            //////////////////////////////////////////////////
+            RILL_MAKE_AST_INTERFACE(
+                identifier_value_base,
+                (( intrinsic::symbol_value_ptr, name_symbol_ ))
+                (( bool, started_from_root_,
+                   cloned->started_from_root_ = started_from_root_; ))
+                )
         };
 
 
@@ -340,9 +351,6 @@ namespace rill
         struct identifier_value RILL_CXX11_FINAL
             : public identifier_value_base
         {
-        public:
-            RILL_AST_ADAPT_VISITOR( identifier_value )
-
         public:
             identifier_value(
                 native_string_t const& name,
@@ -378,6 +386,11 @@ namespace rill
                 expression_list static a;
                 return a;
             }
+
+            //////////////////////////////////////////////////
+            RILL_MAKE_AST_DERIVED(
+                identifier_value, identifier_value_base
+                )
         };
 
 
@@ -429,9 +442,6 @@ namespace rill
             : public identifier_value_base
         {
         public:
-            RILL_AST_ADAPT_VISITOR( template_instance_value )
-
-        public:
             template_instance_value(
                 native_string_t const& name,
                 expression_list const& arguments,
@@ -469,8 +479,12 @@ namespace rill
                 return template_args_;
             }
 
-        private:
-            expression_list template_args_;
+
+            //////////////////////////////////////////////////
+            RILL_MAKE_AST_DERIVED(
+                template_instance_value, identifier_value_base,
+                (( expression_list, template_args_, 72; ))
+                )
         };
 
 
@@ -480,9 +494,6 @@ namespace rill
         struct literal_value RILL_CXX11_FINAL
             : public value
         {
-        public:
-            RILL_AST_ADAPT_VISITOR( literal_value )
-
         public:
             // specify value's type name
             literal_value( intrinsic::value_base_ptr const& bv )
@@ -498,9 +509,13 @@ namespace rill
                 return true;
             }
 
-        public:
-            intrinsic::value_base_ptr holder_;
-            const_identifier_value_ptr literal_type_name_;
+
+            //////////////////////////////////////////////////
+            RILL_MAKE_AST(
+                literal_value,
+                (( intrinsic::value_base_ptr, holder_, 72; ))
+                (( const_identifier_value_ptr, literal_type_name_ ))
+                )
         };
 
     } // namespace ast
