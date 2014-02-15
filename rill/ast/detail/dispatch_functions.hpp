@@ -29,7 +29,6 @@
 //#include "../statement_fwd.hpp"
 //#include "../expression_fwd.hpp"
 //#include "../value_fwd.hpp"
-//#include "../root_fwd.hpp"
 
 
 #define RILL_DETAIL_PP_MAKE_TAG_STRUCTURE(r, unused, elem) \

@@ -18,6 +18,7 @@
 #include "detail/tree_visitor_base.hpp"
 #include "detail/dispatch_assets.hpp"
 
+#include "ast_base.hpp"
 #include "value_fwd.hpp"
 // expression_fwd is required to implement template identifier...
 #include "expression_fwd.hpp"
@@ -34,26 +35,17 @@ namespace rill
         //
         // ----------------------------------------------------------------------
         // ----------------------------------------------------------------------
-        enum struct value_spec
-        {
-            constatnt = 0
-        };
 
-
+        //enum struct value_spec
+        //{
+        //    constatnt = 0
+        //};
 
         typedef std::string     native_string_t;
 
 
 
-        struct value
-            : public ast_base
-        {
-        public:
-            RILL_MAKE_AST_BASE( value )
-
-        public:
-            virtual ~value() {}
-
+        RILL_AST_CORE_BEGIN( value )
         public:
             virtual bool is_intrinsic() const
             {
@@ -64,7 +56,7 @@ namespace rill
             {
                 return false;
             }
-        };
+        RILL_AST_CORE_END
 
 
 
@@ -74,12 +66,7 @@ namespace rill
             //
             // Intrinsic Value Base
             //
-            struct value_base
-                : public value
-            {
-            public:
-                virtual ~value_base() {}
-
+            RILL_AST_INTERFACE_BEGIN( value_base, value )
             public:
                 bool is_system() const  RILL_CXX11_FINAL
                 {
@@ -88,7 +75,8 @@ namespace rill
 
                 virtual auto get_native_typename_string() const
                     -> native_string_t =0;
-            };
+
+            RILL_AST_INTERFACE_END
 
 
 
@@ -117,8 +105,8 @@ namespace rill
 
 
                 //////////////////////////////////////////////////
-                RILL_MAKE_AST(
-                    symbol_value,
+                RILL_MAKE_AST_DERIVED(
+                    symbol_value, value_base,
                     (( native_string_t, value_, cloned->value_ = value_; ))
                     )
             };
@@ -155,8 +143,8 @@ namespace rill
 
 
                 //////////////////////////////////////////////////
-                RILL_MAKE_AST(
-                    int32_value,
+                RILL_MAKE_AST_DERIVED(
+                    int32_value, value_base,
                     (( int, value_, cloned->value_ = value_; ))
                     )
             };
@@ -183,8 +171,8 @@ namespace rill
 
 
                 //////////////////////////////////////////////////
-                RILL_MAKE_AST(
-                    boolean_value,
+                RILL_MAKE_AST_DERIVED(
+                    boolean_value, value_base,
                     (( bool, value_, cloned->value_ = value_; ))
                     )
             };
@@ -211,8 +199,8 @@ namespace rill
 
 
                 //////////////////////////////////////////////////
-                RILL_MAKE_AST(
-                    string_value,
+                RILL_MAKE_AST_DERIVED(
+                    string_value, value_base,
                     (( std::string, value_, cloned->value_ = value_; ))
                     )
             };
@@ -278,7 +266,12 @@ namespace rill
             //////////////////////////////////////////////////
             RILL_MAKE_AST(
                 nested_identifier_value,
-                (( std::vector<identifier_value_base_ptr>, ids_, 72;))
+                (( std::vector<identifier_value_base_ptr>, ids_,
+                   for( auto const& v : ids_ )
+                       cloned->ids_.push_back(
+                           clone_ast<identifier_value_base_ptr>( v )
+                           );
+                    ))
                 (( bool, started_from_root_, cloned->started_from_root_ = started_from_root_; ))
                 )
         };
@@ -297,7 +290,6 @@ namespace rill
         //
         //
         //
-        // MM
         struct identifier_value_base
             : public value
         {
@@ -483,7 +475,12 @@ namespace rill
             //////////////////////////////////////////////////
             RILL_MAKE_AST_DERIVED(
                 template_instance_value, identifier_value_base,
-                (( expression_list, template_args_, 72; ))
+                (( expression_list, template_args_,
+                   for( auto const& e : template_args_ )
+                       cloned->template_args_.push_back(
+                           clone_ast<expression_ptr>( e )
+                           );
+                    ))
                 )
         };
 
@@ -513,7 +510,7 @@ namespace rill
             //////////////////////////////////////////////////
             RILL_MAKE_AST(
                 literal_value,
-                (( intrinsic::value_base_ptr, holder_, 72; ))
+                (( intrinsic::value_base_ptr, holder_ ))
                 (( const_identifier_value_ptr, literal_type_name_ ))
                 )
         };

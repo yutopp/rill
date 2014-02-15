@@ -18,6 +18,7 @@
 #include "detail/tree_visitor_base.hpp"
 #include "detail/dispatch_assets.hpp"
 
+#include "ast_base.hpp"
 #include "expression_fwd.hpp"
 
 #include "value.hpp"
@@ -34,20 +35,12 @@ namespace rill
         //
         // ----------------------------------------------------------------------
         // ----------------------------------------------------------------------
-        struct expression
-            : public ast_base
-        {
-        public:
-            virtual ~expression() {}
-
-
-            //////////////////////////////////////////////////
-            RILL_MAKE_AST_BASE( expression )
-        };
+        RILL_AST_CORE_BEGIN( expression )
+        RILL_AST_CORE_END
 
 
 
-        struct binary_operator_expression
+        struct binary_operator_expression RILL_CXX11_FINAL
             : public expression
         {
         public:
@@ -66,14 +59,14 @@ namespace rill
             RILL_MAKE_AST(
                 binary_operator_expression,
                 (( expression_ptr, lhs_ ))
-                (( identifier_value_ptr, op_, 72; ))
+                (( identifier_value_ptr, op_ ))
                 (( expression_ptr, rhs_ ))
                 )
         };
 
 
         // will be used by Array, Range, Slice...
-        struct subscrpting_expression
+        struct subscrpting_expression RILL_CXX11_FINAL
             : public expression
         {
         public:
@@ -92,14 +85,14 @@ namespace rill
                 (( expression_ptr, lhs_ ))
                 (( boost::optional<expression_ptr>, rhs_,
                    if ( rhs_ )
-                       cloned->rhs_ = (*rhs_)->clone();
+                       cloned->rhs_ = clone_ast( *rhs_ );
                     ))
                 )
         };
 
 
         //
-        struct element_selector_expression
+        struct element_selector_expression RILL_CXX11_FINAL
             : public expression
         {
         public:
@@ -116,14 +109,14 @@ namespace rill
             RILL_MAKE_AST(
                 element_selector_expression,
                 (( expression_ptr, reciever_ ))
-                (( identifier_value_base_ptr, selector_id_, 72; ))
+                (( identifier_value_base_ptr, selector_id_ ))
                 )
         };
 
 
 
 
-        struct call_expression
+        struct call_expression RILL_CXX11_FINAL
             : public expression
         {
         public:
@@ -142,7 +135,7 @@ namespace rill
                 (( expression_ptr, reciever_ ))
                 (( expression_list, arguments_,
                    for( auto const& e : arguments_ )
-                       cloned->arguments_.push_back( e->clone() );
+                       cloned->arguments_.push_back( clone_ast( e ) );
                     ))
                 )
         };
@@ -154,7 +147,7 @@ namespace rill
 
 
         //
-        struct intrinsic_function_call_expression
+        struct intrinsic_function_call_expression RILL_CXX11_FINAL
             : public expression
         {
         public:
@@ -174,7 +167,7 @@ namespace rill
 
 
 
-        struct term_expression
+        struct term_expression RILL_CXX11_FINAL
             : public expression
         {
         public:
@@ -186,7 +179,7 @@ namespace rill
             //////////////////////////////////////////////////
             RILL_MAKE_AST(
                 term_expression,
-                (( value_ptr, value_, 72; ))
+                (( value_ptr, value_ ))
                 )
         };
 
@@ -201,14 +194,14 @@ namespace rill
             virtual ~type_expression() {}
 
             //////////////////////////////////////////////////
-            RILL_MAKE_AST(
+            RILL_MAKE_AST_INTERFACE(
                 type_expression
                 )
         };
 
 
         //
-        struct type_identifier_expression
+        struct type_identifier_expression RILL_CXX11_FINAL
             : public type_expression
         {
         public:
@@ -222,9 +215,9 @@ namespace rill
 
 
             //////////////////////////////////////////////////
-            RILL_MAKE_AST(
-                type_identifier_expression,
-                (( nested_identifier_value_ptr, value_, 72; ))
+            RILL_MAKE_AST_DERIVED(
+                type_identifier_expression, type_identifier_expression,
+                (( nested_identifier_value_ptr, value_ ))
                 (( attribute::type_attributes_optional, attributes_,
                    cloned->attributes_ = attributes_;
                     ))
@@ -234,7 +227,7 @@ namespace rill
 
 
         //
-        struct compiletime_return_type_expression
+        struct compiletime_return_type_expression RILL_CXX11_FINAL
             : public type_expression
         {
         public:
@@ -244,9 +237,9 @@ namespace rill
 
 
             //////////////////////////////////////////////////
-            RILL_MAKE_AST(
-                compiletime_return_type_expression,
-                (( expression_ptr, expression_, 72; ))
+            RILL_MAKE_AST_DERIVED(
+                compiletime_return_type_expression, type_expression,
+                (( expression_ptr, expression_ ))
                 )
         };
 

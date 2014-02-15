@@ -10,60 +10,13 @@
 
 #include <vector>
 
-#include "detail/specifier.hpp"
-
-#include "ast_base.hpp"
+#include "statement_def.ipp"
 
 
 namespace rill
 {
     namespace ast
     {
-        // ----------------------------------------------------------------------
-        // ----------------------------------------------------------------------
-        //
-        // statements
-        //
-        // ----------------------------------------------------------------------
-        // ----------------------------------------------------------------------
-        RILL_AST_FWD_DECL( statement, statement )
-
-
-        RILL_AST_FWD_DECL( statements, statement )
-        
-        RILL_AST_FWD_DECL( block_statement, statement )
-
-        RILL_AST_FWD_DECL( can_be_template_statement, statement )
-        RILL_AST_FWD_DECL( template_statement, statement )
-
-
-        RILL_AST_FWD_DECL( empty_statement, statement )
-        RILL_AST_FWD_DECL( expression_statement, statement )
-
-
-        RILL_AST_FWD_DECL( function_definition_statement_base, statement )
-        RILL_AST_FWD_DECL( function_definition_statement, statement )
-        RILL_AST_FWD_DECL( intrinsic_function_definition_statement, statement )
-        RILL_AST_FWD_DECL( class_function_definition_statement, statement )
-
-        RILL_AST_FWD_DECL( class_definition_statement, statement )
-
-
-        RILL_AST_FWD_DECL( return_statement, statement )
-        RILL_AST_FWD_DECL( jit_statement, statement )
-
-
-        RILL_AST_FWD_DECL( extern_statement_base, statement )
-        RILL_AST_FWD_DECL( extern_function_declaration_statement, statement )
-
-        RILL_AST_FWD_DECL( variable_declaration_statement, statement )
-        RILL_AST_FWD_DECL( class_variable_declaration_statement, statement )
-
-        //// TEST
-        RILL_AST_FWD_DECL( test_while_statement, statement )
-        RILL_AST_FWD_DECL( test_if_statement, statement )
-
-
         // etc...
         typedef std::vector<statement_ptr>  statement_list;
 

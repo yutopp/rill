@@ -199,6 +199,16 @@ namespace rill
             struct tree_visitor_base;
 
 
+            // TODO: reuse
+            template<typename ReturnT, typename NodeT>
+            struct visitor_result_traits
+            {
+                typedef typename tree_visitor_result<
+                    ReturnT,
+                    typename base_type_specifier<typename std::decay<NodeT>::type>::type
+                >::type type;
+            };
+
 
             //
             template<typename ReturnT>
@@ -218,6 +228,8 @@ namespace rill
                 //
                 BOOST_PP_SEQ_FOR_EACH( RILL_TV_INVOKER_OP_VIATURL_GEN, _,  RILL_TV_ALL_AST_LIST() )
             };
+
+
 
 
 

@@ -14,6 +14,8 @@
 
 #include <boost/preprocessor.hpp>
 
+#include "detail/dispatch_assets.hpp"
+
 
 #define RILL_AST_VAR_DECL( r, unused, elem ) \
     BOOST_PP_TUPLE_ELEM( 0, elem ) BOOST_PP_TUPLE_ELEM( 1, elem );
@@ -22,10 +24,10 @@
 #define RILL_AST_DEF_CLONE_STMT_CUSTOMIZED_STATEMENT( class_name, elem ) \
     BOOST_PP_TUPLE_ELEM( 2, elem )
 
-#define RILL_AST_DEF_CLONE_STMT_ORIGINAL( class_name, elem ) \
-    cloned->BOOST_PP_TUPLE_ELEM( 1, elem ) \
-    = std::static_pointer_cast<BOOST_PP_TUPLE_ELEM( 0, elem )::element_type>(   \
-        BOOST_PP_TUPLE_ELEM( 1, elem )->clone() \
+#define RILL_AST_DEF_CLONE_STMT_ORIGINAL( class_name, elem )            \
+    cloned->BOOST_PP_TUPLE_ELEM( 1, elem )                              \
+    = clone_ast<BOOST_PP_TUPLE_ELEM( 0, elem )>(                        \
+        BOOST_PP_TUPLE_ELEM( 1, elem )                                  \
         );
 
 
@@ -52,7 +54,7 @@
     }
 
 
-#define RILL_AST_DEF_CLONE_INTERFACE( base_class, elem )                     \
+#define RILL_AST_DEF_CLONE_INTERFACE( base_class, elem )                \
     template<typename ClonedPtr>                                        \
     auto clone_value( ClonedPtr const& cloned ) const -> void           \
     {                                                                   \
@@ -91,6 +93,10 @@
     {                                                                   \
         BOOST_PP_SEQ_FOR_EACH( RILL_AST_DEF_CLONE_EACH, class_name, elem ) \
         base_class::clone_value( cloned );                              \
+    }                                                                   \
+    auto clone() const -> cloned_pointer_type                       \
+    {                                                               \
+        return nullptr;                                             \
     }
 
 #define RILL_AST_DEF_CLONE_DERIVED_INTERFACE_SINGLE( class_name, base_class ) \
@@ -98,8 +104,11 @@
     auto clone_value( ClonedPtr const& cloned ) const -> void \
     {                                                         \
         base_class::clone_value( cloned );                    \
+    }                                                               \
+    auto clone() const -> cloned_pointer_type                       \
+    {                                                               \
+        return nullptr;                                             \
     }
-
 
 
 
@@ -224,6 +233,58 @@
     RILL_AST_ADAPT_VISITOR_VIRTUAL( class_name )    \
     typedef class_name ## _ptr cloned_pointer_type; \
     RILL_AST_DEF_CLONE_VIRTUAL()
+
+
+
+
+
+#define RILL_AST_CORE_BEGIN( class_name )       \
+    struct class_name                           \
+        : public ast_base                       \
+    {                                           \
+    public:                                     \
+        virtual ~class_name() {}                \
+                                                \
+        RILL_MAKE_AST_BASE( class_name )        \
+
+#define RILL_AST_CORE_END \
+    };
+
+
+
+#define RILL_AST_INTERFACE_BEGIN( class_name, group )  \
+    struct class_name                           \
+        : public group                          \
+    {                                           \
+    public:                                     \
+        virtual ~class_name() {}                \
+        RILL_MAKE_AST_INTERFACE(                \
+            class_name                          \
+            )
+
+
+#define RILL_AST_INTERFACE_END                  \
+    };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 namespace rill

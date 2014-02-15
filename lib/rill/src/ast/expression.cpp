@@ -6,22 +6,22 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#pragma once
+#include <rill/ast/value.hpp>
+#include <rill/ast/expression.hpp>
+#include <rill/ast/statement.hpp>
 
-#include <memory>
-#include <vector>
-// for helper
-#include <iostream>
-
-#include "value_def.ipp"
+#define RILL_AST_MAKE_DEFINITION
+#define RILL_AST_FILE_RELOAD
+#  include <rill/ast/expression_def.ipp>
+#undef RILL_AST_FILE_RELOAD
+#undef RILL_AST_MAKE_DEFINITION
 
 
 namespace rill
 {
     namespace ast
     {
-        //
-        std::ostream& operator<<( std::ostream& os, value const& vp );
 
     } // namespace ast
 } // namespace rill
+

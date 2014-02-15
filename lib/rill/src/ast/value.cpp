@@ -14,6 +14,12 @@
 
 #include <rill/environment/environment.hpp>
 
+#define RILL_AST_MAKE_DEFINITION
+#define RILL_AST_FILE_RELOAD
+#  include <rill/ast/value_def.ipp>
+#undef RILL_AST_FILE_RELOAD
+#undef RILL_AST_MAKE_DEFINITION
+
 
 namespace rill
 {

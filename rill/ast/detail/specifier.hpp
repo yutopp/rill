@@ -57,6 +57,7 @@
     namespace NS { RILL_AST_FWD_DECL_BASE( node_name ) } \
     RILL_AST_SPECIFY_BASETYPE( NS::node_name, Base )
 
+
 namespace rill
 {
     namespace ast

@@ -12,13 +12,14 @@
 #include <memory>
 
 #include "../../config/macros.hpp"
-#include "../../environment/environment_fwd.hpp"
+// #include "../../environment/environment_fwd.hpp"
 
 #include "tree_visitor_base.hpp"
 #include "dispatch_functions.hpp"
 #include "specifier.hpp"
 
 
+// class_name means node_name...
 #define RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_(class_name, tag) \
     virtual auto dispatch( \
         tag, \

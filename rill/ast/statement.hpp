@@ -20,6 +20,7 @@
 
 #include "../attribute/attribute.hpp"
 
+#include "ast_base.hpp"
 #include "statement_fwd.hpp"
 
 #include "value.hpp"
@@ -73,7 +74,7 @@ namespace rill
                 statements,
                 (( statement_list, statement_list_,
                    for( auto const& s : statement_list_ )
-                       cloned->statement_list_.push_back( s->clone() );
+                       cloned->statement_list_.push_back( clone_ast( s ) );
                     ))
                 )
         };
@@ -245,7 +246,7 @@ namespace rill
                 -> can_be_template_statement_ptr
             {
                 auto const& cloned
-                    = std::static_pointer_cast<can_be_template_statement_ptr::element_type>( inner_->clone() );
+                    = clone_ast<can_be_template_statement_ptr>( inner_ );
 
                 cloned_inners_.push_back( cloned );
 
@@ -256,7 +257,7 @@ namespace rill
             //////////////////////////////////////////////////
             RILL_MAKE_AST(
                 template_statement,
-                (( parameter_list, parameter_list_, 72; ))
+                (( parameter_list, parameter_list_, cloned->parameter_list_ = parameter_list_; ))
                 (( can_be_template_statement_ptr, inner_ ))
                 )
 
@@ -320,7 +321,7 @@ namespace rill
             //////////////////////////////////////////////////
             RILL_MAKE_AST_DERIVED(
                 extern_function_declaration_statement, extern_statement_base,
-                (( parameter_list, parameter_list_, 72;))
+                (( parameter_list, parameter_list_, cloned->parameter_list_ = parameter_list_; ))
                 (( type_expression_ptr, return_type_ ))
                 (( native_string_t, extern_symbol_name_, cloned->extern_symbol_name_ = extern_symbol_name_; ))
                 )
@@ -383,8 +384,12 @@ namespace rill
             //////////////////////////////////////////////////
             RILL_MAKE_AST_DERIVED(
                 function_definition_statement, function_definition_statement_base,
-                (( parameter_list, parameter_list_, 72; ))
-                (( boost::optional<type_expression_ptr>, return_type_, 72; ))
+                (( parameter_list, parameter_list_, cloned->parameter_list_ = parameter_list_; ))
+                (( boost::optional<type_expression_ptr>, return_type_,
+                   if ( return_type_ )
+                       cloned->return_type_
+                           = clone_ast<type_expression_ptr>( *return_type_ );
+                    ))
                 )
         };
 
@@ -436,8 +441,14 @@ namespace rill
             //////////////////////////////////////////////////
             RILL_MAKE_AST_DERIVED(
                 class_function_definition_statement, can_be_template_statement,
-                (( parameter_list, parameter_list_, 72; ))
-                (( boost::optional<type_expression_ptr>, return_type_, 72; ))
+                (( parameter_list, parameter_list_, cloned->parameter_list_ = parameter_list_; ))
+                (( boost::optional<type_expression_ptr>, return_type_,
+                   if ( return_type_ )
+                       cloned->return_type_
+                           = clone_ast(
+                               std::static_pointer_cast<type_expression_ptr::element_type>( *return_type_ )
+                               );
+                    ))
                 )
         };
 
@@ -461,7 +472,7 @@ namespace rill
                 statement_ptr const& inner
                 )
                 : can_be_template_statement( identifier )
-                , constructor_parameter_list_( constructor_parameter_list ? std::move( *constructor_parameter_list ) : parameter_list() )
+                , constructor_parameter_list_( constructor_parameter_list ? *constructor_parameter_list : parameter_list() )
                 , inner_( inner )
             {}
 
@@ -476,7 +487,8 @@ namespace rill
             //////////////////////////////////////////////////
             RILL_MAKE_AST_DERIVED(
                 class_definition_statement, can_be_template_statement,
-                (( parameter_list, constructor_parameter_list_, 72; ))
+                (( parameter_list, constructor_parameter_list_,
+                   cloned->constructor_parameter_list_ = constructor_parameter_list_; ))
                 (( statement_ptr, inner_ ))
                 )
         };
@@ -527,7 +539,13 @@ namespace rill
                 test_if_statement,
                 (( expression_ptr, conditional_ ))
                 (( block_statement_ptr, then_statement_ ))
-                (( boost::optional<block_statement_ptr>, else_statement_, 72; ))
+                (( boost::optional<block_statement_ptr>, else_statement_,
+                   if ( else_statement_ )
+                       cloned->else_statement_
+                           = clone_ast(
+                               std::static_pointer_cast<block_statement_ptr::element_type>( *else_statement_ )
+                               );
+                    ))
                 )
         };
 
@@ -556,7 +574,7 @@ namespace rill
             //////////////////////////////////////////////////
             RILL_MAKE_AST(
                 variable_declaration_statement,
-                (( variable_declaration, declaration_, 72; ))
+                (( variable_declaration, declaration_, cloned->declaration_ = declaration_; ))
                 )
         };
 
@@ -581,7 +599,7 @@ namespace rill
             //////////////////////////////////////////////////
             RILL_MAKE_AST(
                 class_variable_declaration_statement,
-                (( variable_declaration, declaration_, 72; ))
+                (( variable_declaration, declaration_, cloned->declaration_ = declaration_; ))
                 )
         };
 
