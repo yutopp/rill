@@ -57,9 +57,20 @@ namespace rill
         auto get_arg_size() const
             -> template_argument_length_type
         {
-            // TODO: IMPLEMENT!!!!!!!
-            // return nontemplate_env_.size();
+            // TODO: fix
             return 1;
+        }
+
+        auto get_parameter_decl_ids() const
+            -> environment_id_list_t const&
+        {
+            return parameter_decl_ids_;
+        }
+
+        auto get_parameter_type_ids() const
+            -> type_id_list_t const&
+        {
+            return parameter_type_ids_;
         }
 
         auto parameter_variable_construct(

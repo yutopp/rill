@@ -51,8 +51,9 @@ namespace rill
             environment_id_t const& class_env_id,
             attribute::type_attributes const& type_attr
             )
-            -> type_id_t        
+            -> type_id_t
         try {
+            // TODO: add assertion to check whether class_env_id is kind::k_class
             // FIXME
 
             if ( auto const& o = is_exist( class_env_id, type_attr ) ) {
@@ -80,7 +81,7 @@ namespace rill
             ClassEnvPtr const& class_env,
             attribute::type_attributes const& type_attr
             )
-            -> type_id_t        
+            -> type_id_t
         {
              // FIXME
             assert( class_env != nullptr );

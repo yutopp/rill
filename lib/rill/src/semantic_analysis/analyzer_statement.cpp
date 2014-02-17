@@ -78,7 +78,7 @@ namespace rill
 
             
             std::cout << "!!! jit eval" << std::endl;
-            engine_->dispatch( s->expression_, parent_env );
+            ctfe_engine_->dispatch( s->expression_, parent_env );
             std::cout << "~~~~~~~~~~~~" << std::endl;
 //            run_on_compile_time( parent_env, s->expression_ );
 
@@ -114,7 +114,7 @@ namespace rill
                 : [this]() -> type_detail_ptr
                 {
                     //assert( false && "[[]] Currently, uninitialized value was not supported..." );
-                    return type_detail_pool_.construct(
+                    return type_detail_pool_->construct(
                         type_id_undefined,
                         nullptr
                     );

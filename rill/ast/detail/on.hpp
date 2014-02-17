@@ -1,7 +1,16 @@
+//
+// Copyright yutopp 2013 - .
+//
+// Distributed under the Boost Software License, Version 1.0.
+// (See accompanying file LICENSE_1_0.txt or copy at
+// http://www.boost.org/LICENSE_1_0.txt)
+//
+
 #include "specifier.hpp"
 
 
 #ifdef RILL_AST_MAKE_DEFINITION
+
 // in definition
 # define RILL_AST_DEF( class_name, group )
 
@@ -14,13 +23,11 @@
         return ast->clone();                                            \
     }
 
-
-
 #else
-
-#ifndef RILL_AST_TEMPLATE_CLONE_AST
 // in header
-#define RILL_AST_TEMPLATE_CLONE_AST( class_name, group, prefix )        \
+
+# ifndef RILL_AST_TEMPLATE_CLONE_AST
+#  define RILL_AST_TEMPLATE_CLONE_AST( class_name, group, prefix )        \
     template<typename AstPtr = prefix class_name ## _ptr>               \
     auto clone_ast( prefix const_ ## class_name ## _ptr const& v )      \
         -> AstPtr                                                       \
@@ -37,7 +44,7 @@
             clone_ast_bridge( std::static_pointer_cast<const group>( v ) ) \
             );                                                          \
     }
-#endif
+# endif
 
 # define RILL_AST_DEF( class_name, group ) \
     RILL_AST_FWD_DECL( class_name, group ) \
@@ -48,7 +55,7 @@
     RILL_AST_TEMPLATE_CLONE_AST( class_name, group, ns:: )
 
 
-#define RILL_AST_DEF_GROUP( group )                                     \
+# define RILL_AST_DEF_GROUP( group )                                     \
     RILL_AST_FWD_DECL( group, group )                                   \
     auto clone_ast_bridge( const_ ## group ## _ptr const& ) -> group ## _ptr; \
     RILL_AST_TEMPLATE_CLONE_AST( group, group, )

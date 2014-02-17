@@ -1,0 +1,22 @@
+def main(): int
+{
+    dispatch!(int)( 42 );
+    dispatch!(string)( "~~~" );
+
+    return 0;
+}
+
+template(val T:type)
+def dispatch( ref a: T ): void
+    => overload( a );
+
+
+def overload( val v: int ): void
+{
+    print( "int!!!\n" );
+}
+
+def overload( ref v: string ): void
+{
+    print( "string!!!\n" );
+}

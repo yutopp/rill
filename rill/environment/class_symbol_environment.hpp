@@ -70,6 +70,15 @@ namespace rill
             return dump_include_env( os, indent );
         }
 
+        auto make_type_id_from(
+            attribute::type_attributes const& type_attr
+                = attribute::make_default_type_attributes()
+            ) const
+            -> shared_resource_type::type_registry_type::type_id_type
+        {
+            return make_type_id( get_id(), type_attr );
+        }
+
     private:
 
         native_string_type name_;

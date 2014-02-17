@@ -12,7 +12,7 @@
 
 #define RILL_AST_MAKE_DEFINITION
 #define RILL_AST_FILE_RELOAD
-#  include <rill/ast/statement_def.ipp>
+# include <rill/ast/statement_def.ipp>
 #undef RILL_AST_FILE_RELOAD
 #undef RILL_AST_MAKE_DEFINITION
 

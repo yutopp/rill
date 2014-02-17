@@ -100,14 +100,15 @@
     }
 
 #define RILL_AST_DEF_CLONE_DERIVED_INTERFACE_SINGLE( class_name, base_class ) \
-    template<typename ClonedPtr>                              \
-    auto clone_value( ClonedPtr const& cloned ) const -> void \
-    {                                                         \
-        base_class::clone_value( cloned );                    \
-    }                                                               \
-    auto clone() const -> cloned_pointer_type                       \
-    {                                                               \
-        return nullptr;                                             \
+    template<typename ClonedPtr>                                        \
+    auto clone_value( ClonedPtr const& cloned ) const -> void           \
+    {                                                                   \
+        base_class::clone_value( cloned );                              \
+    }                                                                   \
+    auto clone() const -> cloned_pointer_type                           \
+    {                                                                   \
+        assert( false );                                                \
+        return nullptr;                                                 \
     }
 
 

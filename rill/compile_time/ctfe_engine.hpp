@@ -6,19 +6,21 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#ifndef RILL_COMPILE_TIME_LLVM_ENGINE_HPP
-#define RILL_COMPILE_TIME_LLVM_ENGINE_HPP
+#ifndef RILL_COMPILE_TIME_CTFE_ENGINE_HPP
+#define RILL_COMPILE_TIME_CTFE_ENGINE_HPP
 
 #include <memory>
+#include <cstdint>
 
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
 
 #include "../ast/detail/tree_visitor_base.hpp"
 
-#include "../behavior/intrinsic_function_holder_fwd.hpp"
+#include "../behavior/intrinsic_function_holder.hpp"
 #include "../code_generator/llvm_ir_generator.hpp"
+#include "../semantic_analysis/type_info.hpp"
 
-#include "engine_value_holder_fwd.hpp"
+#include "engine_value_holder.hpp"
 
 
 namespace rill
@@ -26,13 +28,14 @@ namespace rill
     namespace compile_time
     {
         // this class holds llvm_ir_generator and llvm_ir_execute_engine
-        class llvm_engine RILL_CXX11_FINAL
-            : public ast::detail::tree_visitor<llvm_engine, std::shared_ptr<void>>
+        class ctfe_engine RILL_CXX11_FINAL
+            : public ast::detail::tree_visitor<ctfe_engine, void*>
         {
         public:
-            llvm_engine(
-                std::shared_ptr<code_generator::llvm_ir_generator> const& generator,
-                std::shared_ptr<llvm::ExecutionEngine> const& engine
+            ctfe_engine(
+                std::shared_ptr<code_generator::llvm_ir_generator> const&,
+                std::shared_ptr<llvm::ExecutionEngine> const&,
+                std::shared_ptr<semantic_analysis::type_detail_pool_t> const&
                 );
 
         public:
@@ -40,22 +43,31 @@ namespace rill
 
             RILL_TV_OP_FAIL
 
+        public:
+            // TODO: fix this...
+            auto value_holder() const
+                -> std::shared_ptr<engine_value_holder>
+            {
+                return value_holder_;
+            }
+
         private:
-            std::shared_ptr<code_generator::llvm_ir_generator> generator_;
-            std::shared_ptr<llvm::ExecutionEngine> engine_;
+            std::shared_ptr<code_generator::llvm_ir_generator> ir_generator_;
+            std::shared_ptr<llvm::ExecutionEngine> execution_engine_;
+
             std::shared_ptr<engine_value_holder> value_holder_;
+            std::shared_ptr<semantic_analysis::type_detail_pool_t> type_detail_pool_;
         };
 
 
-
         //
-        template<typename EnvironmentPtr, typename ActionHolderPtr, typename Node>
-        auto make_llvm_engine(
+        template<typename EnvironmentPtr, typename ActionHolderPtr, typename TypeDetailPoolPtr>
+        auto make_ctfe_engine(
             EnvironmentPtr const& env,
             ActionHolderPtr const& action_holder,
-            std::shared_ptr<Node> const& node
+            TypeDetailPoolPtr const& type_detail_pool
             )
-            -> std::shared_ptr<llvm_engine const>
+            -> std::shared_ptr<ctfe_engine const>
         {
             // first, create llvm_ir_generator
             auto const& context
@@ -67,7 +79,7 @@ namespace rill
                 env
                 );
 
-            auto const& generator
+            auto const& ir_generator
                 = std::make_shared<code_generator::llvm_ir_generator>(
                     env,
                     action_holder,
@@ -83,7 +95,7 @@ namespace rill
                     llvm::EngineBuilder( &context->llvm_module ).create() \
                     );
 
-            return std::make_shared<llvm_engine const>( generator, engine );
+            return std::make_shared<ctfe_engine const>( ir_generator, engine, type_detail_pool );
         }
 
 
@@ -91,4 +103,4 @@ namespace rill
     } // namespace compile_time
 } // namespace rill
 
-#endif /*RILL_COMPILE_TIME_LLVM_ENGINE_HPP*/
+#endif /*RILL_COMPILE_TIME_CTFE_ENGINE_HPP*/

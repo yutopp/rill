@@ -49,6 +49,7 @@ namespace rill
         }
 
  
+#if 0
         template<typename EnvironmentPtr, typename ActionHolderPtr, typename Node>
         auto run_as_ctfe(
             EnvironmentPtr const& env,
@@ -77,10 +78,7 @@ namespace rill
             auto const binary_gen = binary_generator_from_llvm_ir( context );
             binary_gen.test();
         }
-
-
-//TheExecutionEngine = EngineBuilder(TheModule).create();
-
+#endif
 
 
     } // namespace code_generator

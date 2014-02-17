@@ -78,19 +78,14 @@ namespace rill
         // TODO: rename it!
         struct type_detail
         {
-            struct dependent_type
-            {
-                std::shared_ptr<void> jit_value;    // TODO: implement llvm_jit_value value;
-                type_detail_ptr type;
+            typedef std::vector<type_detail_ptr>        nest_type;
+            typedef std::shared_ptr<nest_type>          nest_pointer;
 
-                // if jit_value is nullptr, this is pure TYPE.
-            };
-
-            typedef std::vector<type_detail_ptr> nest_type;
-            typedef std::shared_ptr<nest_type> nest_pointer;
-
-            typedef std::vector<dependent_type> template_arg_type;
-            typedef std::shared_ptr<template_arg_type> template_arg_pointer;
+            // dependent_type will contains type_detail_ptr or llvm::Value*
+            // please check/detemine type by using the semantic_analyzer ;(
+            typedef void*                               dependent_type;
+            typedef std::vector<dependent_type>         template_arg_type;
+            typedef std::shared_ptr<template_arg_type>  template_arg_pointer;
 
             explicit
             type_detail(
@@ -104,26 +99,12 @@ namespace rill
                 , nest( st )
                 , template_args( sd )
             {}
-            
-
 
             type_id_wrapper type_id;
             environment_base_ptr target_env;
             nest_pointer nest;
             template_arg_pointer template_args;
         };
-        //typedef type_detail type_id_with_env;
-
-
-        // only type template argument
-        inline auto create_dependent_type( type_detail_ptr const& detail )
-            -> type_detail::dependent_type
-        {
-            return {
-                nullptr,
-                detail
-            };
-        }
 
     } // namespace semantic_analysis
 } // namespace rill

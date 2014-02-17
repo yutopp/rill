@@ -2,12 +2,16 @@ def main(): int
 {
     jit int;
 
-    pp( f( 10, 10 ) );
+    //pp( f( 10, 10 ) );
     //val v: nantoka!(int);
 
     val a = 50: int;
 
     tf!(int)( 42 );
+    tf!(string)( "on" );
+
+    //pp(1);
+    //pp("string");
 
     return 0;
 }
@@ -18,13 +22,17 @@ def f( val a: int, val b: int ): int => a + b;
 extern def p( val :int ): void "put_string2";
 def pp( val v: int ): void
 {
-    p( v );
-    print( "\n" );
+    print( "int!!!\n" );
+}
+
+def pp( ref v: string ): void
+{
+    print( "string!!!\n" );
 }
 
 // TODO: change parser
 template(val T:type)
-def tf( val a: int ): void
+def tf( ref a: T ): void
     => pp( a );
 
 

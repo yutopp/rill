@@ -23,19 +23,17 @@ namespace rill
         class engine_value_holder
         {
         public:
-            typedef std::shared_ptr<void>   value_type;
+            typedef void*   value_type;
 
         public:
             //
             // Values
             //
-            auto bind_value( environment_id_t const& env_id, llvm::Value* const value )
+            auto bind_value( environment_id_t const& env_id, value_type const value )
                 -> void
             {
-                // TODO: dup check
-                //value_table_.emplace( env_id, value );
+                value_table_[env_id] = value;
             }
-
 
             //
             //
@@ -44,6 +42,13 @@ namespace rill
                 -> bool
             {
                 return value_table_.find( env_id ) != value_table_.cend();
+            }
+
+            template<typename R = value_type>
+            auto ref_value( environment_id_t const& env_id ) const
+                -> R const&
+            {
+                return static_cast<R const&>( value_table_.at( env_id ) );
             }
 
         private:

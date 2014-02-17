@@ -13,7 +13,9 @@
 
 #include "../ast/detail/tree_visitor_base.hpp"
 #include "../behavior/intrinsic_function_holder_fwd.hpp"
-#include "../compile_time/llvm_engine.hpp"
+#include "../compile_time/ctfe_engine.hpp"
+
+#include "type_info.hpp"
 
 
 namespace rill
@@ -26,8 +28,7 @@ namespace rill
         public:
             analyzer(
                 environment_base_ptr const&,
-                intrinsic_function_action_holder_ptr const&,
-                std::shared_ptr<compile_time::llvm_engine const> const&
+                intrinsic_function_action_holder_ptr const&
                 );
 
         public:
@@ -63,11 +64,38 @@ namespace rill
 
             RILL_TV_OP_FAIL
 
+            template<typename AnalyzerPtr, typename EnvPtr>
+            friend auto solve_identifier(
+                AnalyzerPtr const&,
+                ast::const_identifier_value_ptr const&,
+                EnvPtr const&,
+                bool const = false
+                ) -> type_detail_ptr;
+
+            template<typename AnalyzerPtr, typename EnvPtr>
+            friend auto solve_identifier(
+                AnalyzerPtr const&,
+                ast::const_template_instance_value_ptr const&,
+                EnvPtr const&,
+                bool const = false
+                ) -> type_detail_ptr;
+
+            template<typename Visitor, typename TemplateArgs, typename TypeIds, typename EnvPtr, typename ResultCallbackT>
+            friend auto overload_solver_with_template(
+                Visitor visitor,
+                TemplateArgs const& template_args,
+                TypeIds const& arg_type_ids2,
+                std::shared_ptr<template_set_environment> const& template_set_env,
+                EnvPtr const& env,
+                ResultCallbackT const& f
+                )
+                -> function_symbol_environment_ptr;
+
         private:
             environment_base_ptr root_env_;
 
-            type_detail_pool_t type_detail_pool_;
-            std::shared_ptr<compile_time::llvm_engine const> engine_;
+            std::shared_ptr<type_detail_pool_t> type_detail_pool_;
+            std::shared_ptr<compile_time::ctfe_engine const> ctfe_engine_;
         };
 
     } // namespace semantic_analysis

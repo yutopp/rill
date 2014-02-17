@@ -543,11 +543,12 @@ namespace rill
         //
         //
         //
-        template<typename EnvPtrOrId>
+        template<typename ClassEnvPtrOrId>
         auto make_type_id(
-            EnvPtrOrId const& e,
+            ClassEnvPtrOrId const& e,
             attribute::type_attributes const& type_attr
-            )
+                = attribute::make_default_type_attributes()
+            ) const
             -> shared_resource_type::type_registry_type::type_id_type
         {
             // TODO: DUPLICATE CHECK!!!
@@ -557,7 +558,7 @@ namespace rill
         auto get_type_at(
             shared_resource_type::type_registry_type::type_id_type const& type_id
             ) const
-            -> shared_resource_type::type_registry_type::type_type
+            -> shared_resource_type::type_registry_type::type_type const&
         {
             return root_shared_resource_->types_container.at( type_id );
         }

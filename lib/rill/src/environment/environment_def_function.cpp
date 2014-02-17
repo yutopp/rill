@@ -130,6 +130,8 @@ namespace rill
         )
         -> variable_symbol_environment_ptr
     {
+        std::cout << ">>> parameter_variable_construct! " << std::endl
+                  << ">>> name : " << class_env->mangled_name() << std::endl;
         // declare parameter variable
         auto const& var_env = construct( kind::k_variable, variable_name, nullptr, class_env, type_attr );
         parameter_decl_ids_.push_back( var_env->get_id() );
@@ -138,6 +140,29 @@ namespace rill
         return var_env;
     }
 
+
+    auto function_symbol_environment::parameter_variable_construct(
+        ast::identifier_value_base_ptr const& variable_name,   // may be nullptr, if unnamed parameter variable
+        environment_id_t const& type_env_id,
+        attribute::type_attributes const& type_attr
+        )
+        -> variable_symbol_environment_ptr
+    {
+        // TODO: add env kind check
+
+        auto const& c_env
+            = std::static_pointer_cast<class_symbol_environment const>(
+                get_env_strong_at( type_env_id )
+                );
+        assert( c_env != nullptr );
+
+        // delegate
+        return parameter_variable_construct(
+            variable_name,
+            c_env,
+            type_attr
+            );
+    }
 
 
 } // namespace rill

@@ -11,6 +11,7 @@
 #include <rill/environment/environment.hpp>
 
 #include <iterator>
+#include <cstdint>
 
 #include <boost/scope_exit.hpp>
 #include <boost/range/algorithm/copy.hpp>
@@ -306,7 +307,8 @@ namespace rill
             //std::cout << "!!!!!!ast::function_definition_statem" << self_env << " / " << root_env_->get_id() << std::endl;
 
             //
-            auto const& f_env = std::static_pointer_cast<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( s ) );
+            auto const& f_env
+                = std::static_pointer_cast<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( s ) );
             assert( f_env != nullptr );
             if ( context_->env_conversion_table.is_defined( f_env->get_id() ) )
                 return;
@@ -1163,19 +1165,71 @@ namespace rill
         {
             //
             std::cout << "solving: " << v->get_inner_symbol()->to_native_string() << std::endl;
+            std::cout << (const_environment_base_ptr)root_env_ << std::endl;
 
             //
-            auto const& env = root_env_->get_related_env_by_ast_ptr( v );
-            if ( env == nullptr ) {
-                std::cout << "skiped" << std::endl;
-                return nullptr;
+            auto const& id_env = [&]() -> const_environment_base_ptr {
+                auto const& e = root_env_->get_related_env_by_ast_ptr( v );
+                if ( e )
+                    return e;
+                assert( e == nullptr );
+
+                // will be reached to this code when v is the "standard type" identifier.
+                // "standard type" is memorized in "global scope", so find from root env
+                auto const& re = parent_env->root_env()->find_on_env( v );
+                if ( re == nullptr ) {
+                    std::cout << "skiped" << std::endl;
+                    return nullptr;
+                }
+
+                return re;
+            }();
+
+
+            switch( id_env->get_symbol_kind() )
+            {
+            case kind::type_value::e_variable:
+            {
+                auto const& v_env
+                    = std::static_pointer_cast<variable_symbol_environment const>( id_env );
+                assert( v_env != nullptr );
+
+                // TODO: check the type of variable !
+                // if type is "type", ...(should return id of type...?)
+
+                // reference the holder of variable...
+                return context_->env_conversion_table.ref_value( v_env->get_id() );
             }
 
-            auto const& v_env
-                = std::static_pointer_cast<variable_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( v ) );
-            assert( v_env != nullptr );
+            case kind::type_value::e_class:
+            {
+                auto const& c_env
+                    = std::static_pointer_cast<class_symbol_environment const>( id_env );
+                assert( c_env != nullptr );
 
-            return context_->env_conversion_table.ref_value( v_env->get_id() );
+                auto const& type_id_c
+                    = c_env->make_type_id_from();
+
+                std::cout << "in llvm.class_name " << c_env->mangled_name() << " (" << type_id_c << ")" << std::endl;
+
+                
+
+                // return id of type!
+                llvm::Value* type_id_ptr
+                    = llvm::ConstantInt::get( context_->llvm_context, llvm::APInt( sizeof( type_id_c ), type_id_c ) );
+
+                // !important!
+                // set '1' to LSB to recognize this value is TYPE!
+                llvm::Value* flaged_type_id_ptr
+                    = reinterpret_cast<llvm::Value*>( reinterpret_cast<std::uintptr_t>( type_id_ptr ) | 0x1 );
+
+                return flaged_type_id_ptr;
+            }
+
+            default:
+                std::cout << "skipped" << std::endl;
+                return nullptr;
+            }
         }
 
 

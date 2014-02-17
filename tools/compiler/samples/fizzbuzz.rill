@@ -18,10 +18,18 @@ def main(): int
     }
     print( "\n" );
     // Test
-    overload( 2, 5 );
+    overload( 2, 3 );
     overload( "bun!" );
 
+    // cause error...
+    overload( 2 );
+
     return 0;
+}
+
+def overload( val a: int ): void
+{
+    print( "uuu " );
 }
 
 def overload( val a: int, val b: int ): void

@@ -71,6 +71,12 @@ namespace rill
             return value_type_id_;
         }
 
+        auto get_type() const
+            -> shared_resource_type::type_registry_type::type_type const&
+        {
+            return get_type_at( get_type_id() );
+        }
+
         auto dump( std::ostream& os, std::string const& indent ) const
             -> std::ostream& RILL_CXX11_OVERRIDE
         {
@@ -102,6 +108,7 @@ namespace rill
         }
 
     private:
+        // used when this environment is member variable
         environment_id_t parent_class_env_id_;
 
         type_id_t value_type_id_;

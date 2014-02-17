@@ -124,7 +124,7 @@ namespace rill
             function_env->connect_from_ast( e );
 
             // return retult type env of function
-            return type_detail_pool_.construct(
+            return type_detail_pool_->construct(
                 function_env->get_return_type_id(),
                 function_env
             );
@@ -184,11 +184,21 @@ namespace rill
                 // FIXME:
                 auto const& selector_id_detail
                     = e->selector_id_->is_template()
-                    ? solve_identifier( type_detail_pool_, std::static_pointer_cast<ast::template_instance_value const>( e->selector_id_ ), reciever_class_env, root_env_, true )
-                    : solve_identifier( type_detail_pool_, std::static_pointer_cast<ast::identifier_value const>( e->selector_id_ ), reciever_class_env, root_env_, true )
+                    ? solve_identifier(
+                        this,
+                        std::static_pointer_cast<ast::template_instance_value const>( e->selector_id_ ),
+                        reciever_class_env,
+                        true
+                        )
+                    : solve_identifier(
+                        this,
+                        std::static_pointer_cast<ast::identifier_value const>( e->selector_id_ ),
+                        reciever_class_env,
+                        true
+                        )
                     ;
 
-                return type_detail_pool_.construct(
+                return type_detail_pool_->construct(
                     selector_id_detail->type_id,
                     selector_id_detail->target_env,
                     nested,
@@ -201,7 +211,7 @@ namespace rill
 
             //
             assert( false );
-            return type_detail_pool_.construct(
+            return type_detail_pool_->construct(
                 type_id_undefined,
                 nullptr,
                 nullptr,
@@ -351,15 +361,21 @@ namespace rill
                         // may be overload failed
                         // TODO: dig environment once...
 
+                        assert( false && "[ice] reached" );
+
                         return std::shared_ptr<function_symbol_environment>()/*DUMMY*/;
                     }();
+
+                    assert( function_env != nullptr );
 
                     // memoize called function env
                     std::cout << "memoed template" << std::endl;
                     function_env->connect_from_ast( e );
                     //function_env->connect_to_ast( e );
 
-                    return type_detail_pool_.construct(
+                    std::cout << "connected template" << std::endl;
+
+                    return type_detail_pool_->construct(
                         function_env->get_return_type_id(),
                         function_env,
                         nullptr
@@ -437,7 +453,7 @@ namespace rill
                     std::cout << "memoed" << std::endl;
                     function_env->connect_from_ast( e );
 
-                    return type_detail_pool_.construct(
+                    return type_detail_pool_->construct(
                         function_env->get_return_type_id(),
                         function_env,
                         nullptr

@@ -1014,7 +1014,7 @@ namespace rill
 
             rule<ast::variable_declaration()> variable_declaration_;
             rule<ast::variable_declaration_unit()> variable_initializer_unit_;
-            rule<ast::variable_declaration_unit_list()> variable_initializer_unit_list_;
+            rule<ast::variable_declaration_unit_container_t()> variable_initializer_unit_list_;
 
             rule<ast::variable_declaration()> parameter_variable_declaration_;
             rule<ast::variable_declaration_unit()> parameter_variable_initializer_unit_;

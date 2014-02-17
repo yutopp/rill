@@ -130,6 +130,13 @@ namespace rill
             )
             -> variable_symbol_environment_ptr;
 
+        auto parameter_variable_construct(
+            ast::identifier_value_base_ptr const& name,
+            environment_id_t const& type_env_id,
+            attribute::type_attributes const& type_attr = attribute::make_default_type_attributes()
+            )
+            -> variable_symbol_environment_ptr;
+
         auto mangled_name() const
             -> native_string_type;
 

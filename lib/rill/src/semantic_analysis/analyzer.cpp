@@ -17,11 +17,11 @@ namespace rill
         //
         analyzer::analyzer(
             environment_base_ptr const& root_env,
-            intrinsic_function_action_holder_ptr const& holder,
-            std::shared_ptr<compile_time::llvm_engine const> const& engine
+            intrinsic_function_action_holder_ptr const& holder
             )
             : root_env_( root_env )
-            , engine_( engine )
+            , type_detail_pool_( std::make_shared<type_detail_pool_t>() )
+            , ctfe_engine_( compile_time::make_ctfe_engine( root_env, holder, type_detail_pool_ ) )
         {}
 
     } // namespace semantic_analysis
