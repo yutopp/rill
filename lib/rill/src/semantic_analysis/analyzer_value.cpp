@@ -7,7 +7,7 @@
 //
 
 #include <rill/semantic_analysis/semantic_analysis.hpp>
-#include <rill/semantic_analysis/analyzer_identifier_solver.hpp>
+#include <rill/semantic_analysis/analyzer/identifier_solver.hpp>
 
 #include <rill/environment/environment.hpp>
 

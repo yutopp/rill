@@ -6,23 +6,23 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#pragma once
-
-#include "../environment/environment.hpp"
-
-#include "../ast/statement.hpp"
-#include "../ast/expression.hpp"
-#include "../ast/value.hpp"
-
+#ifndef RILL_SEMANTIC_ANALYSIS_ANALYZER_IDENTIFIER_TYPE_HPP
+#define RILL_SEMANTIC_ANALYSIS_ANALYZER_IDENTIFIER_TYPE_HPP
 
 #include <boost/range/adaptor/transformed.hpp>
-using namespace boost::adaptors;
+
+#include "../../environment/environment.hpp"
+#include "../../ast/statement.hpp"
+#include "../../ast/expression.hpp"
+#include "../../ast/value.hpp"
 
 
 namespace rill
 {
     namespace semantic_analysis
     {
+        using namespace boost::adaptors;
+
         static inline auto determine_type_attributes(
             attribute::type_attributes_optional const& attr = attribute::type_attributes_optional()
             )
@@ -706,13 +706,13 @@ namespace rill
                 );
         }
 
-        template<typename Visitor,
+        template<typename AnalyzerPtr,
                  typename TemplateArgs,
                  typename TypeIds,
                  typename EnvPtr
                  >
         static inline auto overload_solver_allow_no_entry_with_template(
-            Visitor visitor,
+            AnalyzerPtr visitor,
             TemplateArgs const& template_args,
             TypeIds const& arg_type_ids ,
             std::shared_ptr<template_set_environment> const& generic_function_env,
@@ -750,3 +750,5 @@ namespace rill
 
     } // namespace semantic_analysis
 } // namespace rill
+
+#endif /*RILL_SEMANTIC_ANALYSIS_ANALYZER_IDENTIFIER_TYPE_HPP*/

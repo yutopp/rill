@@ -18,7 +18,7 @@
 
 #include "../behavior/intrinsic_function_holder.hpp"
 #include "../code_generator/llvm_ir_generator.hpp"
-#include "../semantic_analysis/type_info.hpp"
+#include "../semantic_analysis/type_detail.hpp"
 
 #include "engine_value_holder.hpp"
 

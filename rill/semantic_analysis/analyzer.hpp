@@ -15,7 +15,7 @@
 #include "../behavior/intrinsic_function_holder_fwd.hpp"
 #include "../compile_time/ctfe_engine.hpp"
 
-#include "type_info.hpp"
+#include "type_detail.hpp"
 
 
 namespace rill
@@ -64,6 +64,9 @@ namespace rill
 
             RILL_TV_OP_FAIL
 
+            //
+            // friends
+            //
             template<typename AnalyzerPtr, typename EnvPtr>
             friend auto solve_identifier(
                 AnalyzerPtr const&,
@@ -80,7 +83,12 @@ namespace rill
                 bool const = false
                 ) -> type_detail_ptr;
 
-            template<typename Visitor, typename TemplateArgs, typename TypeIds, typename EnvPtr, typename ResultCallbackT>
+            template<typename Visitor,
+                     typename TemplateArgs,
+                     typename TypeIds,
+                     typename EnvPtr,
+                     typename ResultCallbackT
+                     >
             friend auto overload_solver_with_template(
                 Visitor visitor,
                 TemplateArgs const& template_args,
@@ -88,8 +96,7 @@ namespace rill
                 std::shared_ptr<template_set_environment> const& template_set_env,
                 EnvPtr const& env,
                 ResultCallbackT const& f
-                )
-                -> function_symbol_environment_ptr;
+                ) -> function_symbol_environment_ptr;
 
         private:
             environment_base_ptr root_env_;

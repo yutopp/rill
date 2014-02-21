@@ -11,10 +11,10 @@
 
 #include <memory>
 
-#include "analyzer_type.hpp"
-#include "../environment/environment_kind.hpp"
+#include "../../environment/environment_kind.hpp"
+#include "../../ast/value.hpp"
 
-#include "../ast/value.hpp"
+#include "type.hpp"
 
 
 namespace rill

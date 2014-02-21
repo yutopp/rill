@@ -9,7 +9,7 @@
 #include "../environment/environment_fwd.hpp"
 #include "../environment/type_registry_fwd.hpp"
 #include "../ast/value_fwd.hpp"
-#include "../semantic_analysis/type_info.hpp"
+#include "../semantic_analysis/type_detail.hpp"
 #include <memory>
 #include <llvm/IR/Value.h>
 

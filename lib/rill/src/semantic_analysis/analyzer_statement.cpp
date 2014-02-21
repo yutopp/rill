@@ -7,7 +7,8 @@
 //
 
 #include <rill/semantic_analysis/semantic_analysis.hpp>
-#include <rill/semantic_analysis/analyzer_type.hpp>
+#include <rill/semantic_analysis/analyzer/type.hpp>
+
 #include <rill/environment/environment.hpp>
 
 #include <rill/ast/statement.hpp>
