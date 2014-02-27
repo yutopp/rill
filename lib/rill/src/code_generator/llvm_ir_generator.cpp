@@ -8,6 +8,8 @@
 
 #include <rill/code_generator/llvm_ir_generator.hpp>
 #include <rill/behavior/intrinsic_function_holder.hpp>
+#include <rill/semantic_analysis/analyzer.hpp>
+
 #include <rill/environment/environment.hpp>
 
 #include <iterator>
@@ -174,7 +176,7 @@ namespace rill
         // ========================================
         template<typename MatchNode, typename F>
         class node_filter RILL_CXX11_FINAL
-            : public ast::detail::tree_visitor<node_filter<MatchNode, F>, llvm::Value*>
+            : public ast::detail::const_tree_visitor<node_filter<MatchNode, F>, llvm::Value*>
         {
         public:
                 template<typename NodeT>
@@ -253,11 +255,13 @@ namespace rill
         llvm_ir_generator::llvm_ir_generator(
             const_environment_base_ptr const& root_env,
             intrinsic_function_action_holder_ptr const& action_holder,
-            llvm_ir_generator_context_ptr const& context
+            llvm_ir_generator_context_ptr const& context,
+            semantic_analysis::analyzer* const analyzer
             )
             : root_env_( root_env )
             , action_holder_( action_holder )
             , context_( context )
+            , analyzer_( analyzer )
         {}
 
 
@@ -495,41 +499,77 @@ namespace rill
             auto const& c_env
                 = std::static_pointer_cast<class_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( s ) );
 
-            //
-            context_->env_conversion_table.create_class_variable_type_holder(
-                c_env->get_id()
-                );
+            if ( s->inner_ ) {
+                // if inner statements, it will be USER DEFINED NORMAL class
 
-            // construct incomplete Struct Type...
-            llvm::StructType* const llvm_struct_type
-                = llvm::StructType::create(
-                    context_->llvm_context,
-                    c_env->mangled_name()/*, add is_packed*/
+                //
+                context_->env_conversion_table.create_class_variable_type_holder(
+                    c_env->get_id()
                     );
-            context_->env_conversion_table.bind_type( c_env->get_id(), llvm_struct_type );
 
-            // generate statements
-            do_filter_const<ast::class_variable_declaration_statement>(
-                s->inner_,
-                c_env,
-                [&](
-                    ast::const_class_variable_declaration_statement_ptr const& node,
-                    const_environment_base_ptr const& env
-                    )
-                {
-                    //
-                    std::cout << "ast::class_variable_declaration_statement" << std::endl;
-                    this->dispatch( node, env );
-                } );
+                // construct incomplete Struct Type...
+                llvm::StructType* const llvm_struct_type
+                    = llvm::StructType::create(
+                        context_->llvm_context,
+                        c_env->mangled_name()/*, add is_packed*/
+                        );
+                context_->env_conversion_table.bind_type( c_env->get_id(), llvm_struct_type );
 
-            std::cout
-                << "class ------> " << c_env->get_id() << std::endl
-                << "  member num: " << context_->env_conversion_table.ref_class_variable_type_list( c_env->get_id() ).size() << std::endl;
+                            // filter statements
+                // collect class variables
+                do_filter_const<ast::class_variable_declaration_statement>(
+                    s->inner_,
+                    c_env,
+                    [&](
+                        ast::const_class_variable_declaration_statement_ptr const& node,
+                        const_environment_base_ptr const& env
+                        )
+                    {
+                        //
+                        std::cout << "ast::class_variable_declaration_statement" << std::endl;
+                        this->dispatch( node, env );
+                    } );
 
-            llvm_struct_type->setBody( context_->env_conversion_table.ref_class_variable_type_list( c_env->get_id() ) );
+                std::cout
+                    << "class ------> " << c_env->get_id() << std::endl
+                    << "  member num: " << context_->env_conversion_table.ref_class_variable_type_list( c_env->get_id() ).size() << std::endl;
 
+                llvm_struct_type->setBody( context_->env_conversion_table.ref_class_variable_type_list( c_env->get_id() ) );
 
-            dispatch( s->inner_, c_env );
+                //
+                dispatch( s->inner_, c_env );
+
+            } else {
+                // it will be BUILTIN class
+
+                std::cout << "builtin!" << std::endl;
+
+                // special treatment for Array...
+                if ( c_env->is_array() ) {
+                    auto const& array_detail = c_env->get_array_detail();
+
+                    llvm::Type* const inner_type
+                        = type_id_to_llvm_type_ptr( std::cref( *this ) )(
+                            array_detail->inner_type_id
+                            );
+
+                    std::cout << "NUM: " << array_detail->elements_num << std::endl;
+
+                    auto const& array_ty = llvm::ArrayType::get(
+                        inner_type,
+                        array_detail->elements_num
+                        );
+
+                    context_->env_conversion_table.bind_type(
+                        c_env->get_id(),
+                        array_ty
+                        );
+
+                } else {
+                    // another builtin types are defined at beheviour/register_default_core.cpp ...
+                    assert( false && "[[ice]] reached..." );
+                }
+            }
         }
 
 
@@ -1154,6 +1194,12 @@ namespace rill
         }
 
 
+        RILL_TV_OP_CONST( llvm_ir_generator, ast::type_expression, e, parent_env )
+        {
+            return dispatch( e->type_, parent_env );
+        }
+
+
         RILL_TV_OP_CONST( llvm_ir_generator, ast::term_expression, e, parent_env )
         {
             return dispatch( e->value_, parent_env );
@@ -1164,32 +1210,22 @@ namespace rill
         RILL_TV_OP_CONST( llvm_ir_generator, ast::identifier_value, v, parent_env )
         {
             //
-            std::cout << "solving: " << v->get_inner_symbol()->to_native_string() << std::endl;
+            std::cout << "ir sym solving: " << v->get_inner_symbol()->to_native_string() << std::endl;
             std::cout << (const_environment_base_ptr)root_env_ << std::endl;
 
             //
-            auto const& id_env = [&]() -> const_environment_base_ptr {
-                auto const& e = root_env_->get_related_env_by_ast_ptr( v );
-                if ( e )
-                    return e;
-                assert( e == nullptr );
-
-                // will be reached to this code when v is the "standard type" identifier.
-                // "standard type" is memorized in "global scope", so find from root env
-                auto const& re = parent_env->root_env()->find_on_env( v );
-                if ( re == nullptr ) {
-                    std::cout << "skiped" << std::endl;
-                    return nullptr;
-                }
-
-                return re;
-            }();
+            auto const& id_env = root_env_->get_related_env_by_ast_ptr( v );
+            if ( id_env == nullptr ) {
+                std::cout << "skipped" << std::endl;
+                return nullptr;
+            }
 
 
             switch( id_env->get_symbol_kind() )
             {
             case kind::type_value::e_variable:
             {
+                std::cout << "llvm_ir_generator -> case Variable!" << std::endl;
                 auto const& v_env
                     = std::static_pointer_cast<variable_symbol_environment const>( id_env );
                 assert( v_env != nullptr );
@@ -1198,7 +1234,28 @@ namespace rill
                 // if type is "type", ...(should return id of type...?)
 
                 // reference the holder of variable...
-                return context_->env_conversion_table.ref_value( v_env->get_id() );
+                if ( context_->env_conversion_table.is_defined( v_env->get_id() ) ) {
+                    return context_->env_conversion_table.ref_value( v_env->get_id() );
+
+                } else {
+                    // fallback...
+                    if ( is_jit() ) {
+                        // assert( false && "pyaaaaaaaaai" );
+                        if ( analyzer_->ctfe_engine_->value_holder_->is_defined( v_env->get_id() ) ) {
+                            // TODO: add type check...;(
+                            return static_cast<llvm::Value*>(
+                                analyzer_->ctfe_engine_->value_holder_->ref_value(
+                                    v_env->get_id()
+                                    )
+                                );
+
+                        } else {
+                            assert( false && "[[ice]] llvm-jit -> value was not found..." );
+                        }
+                    } else {
+                        assert( false && "[[ice]] llvm -> value was not found..." );
+                    }
+                }
             }
 
             case kind::type_value::e_class:
@@ -1212,7 +1269,7 @@ namespace rill
 
                 std::cout << "in llvm.class_name " << c_env->mangled_name() << " (" << type_id_c << ")" << std::endl;
 
-                
+
 
                 // return id of type!
                 llvm::Value* type_id_ptr
@@ -1231,6 +1288,98 @@ namespace rill
                 return nullptr;
             }
         }
+
+
+
+
+
+
+        // identifier node returns Variable
+        RILL_TV_OP_CONST( llvm_ir_generator, ast::template_instance_value, v, parent_env )
+        {
+            //
+            std::cout << "ir sym solving: " << v->get_inner_symbol()->to_native_string() << std::endl;
+            std::cout << (const_environment_base_ptr)root_env_ << std::endl;
+
+            //
+            //
+            auto const& id_env = root_env_->get_related_env_by_ast_ptr( v );
+            if ( id_env == nullptr ) {
+                std::cout << "skipped" << std::endl;
+                return nullptr;
+            }
+
+
+            switch( id_env->get_symbol_kind() )
+            {
+            case kind::type_value::e_variable:
+            {
+                std::cout << "llvm_ir_generator -> case Variable!" << std::endl;
+                auto const& v_env
+                    = std::static_pointer_cast<variable_symbol_environment const>( id_env );
+                assert( v_env != nullptr );
+
+                // TODO: check the type of variable !
+                // if type is "type", ...(should return id of type...?)
+
+                // reference the holder of variable...
+                if ( context_->env_conversion_table.is_defined( v_env->get_id() ) ) {
+                    return context_->env_conversion_table.ref_value( v_env->get_id() );
+
+                } else {
+                    // fallback...
+                    if ( is_jit() ) {
+                        // assert( false && "pyaaaaaaaaai" );
+                        if ( analyzer_->ctfe_engine_->value_holder_->is_defined( v_env->get_id() ) ) {
+                            // TODO: add type check...;(
+                            return static_cast<llvm::Value*>(
+                                analyzer_->ctfe_engine_->value_holder_->ref_value(
+                                    v_env->get_id()
+                                    )
+                                );
+
+                        } else {
+                            assert( false && "[[ice]] llvm-jit -> value was not found..." );
+                        }
+                    } else {
+                        assert( false && "[[ice]] llvm -> value was not found..." );
+                    }
+                }
+            }
+
+            case kind::type_value::e_class:
+            {
+                auto const& c_env
+                    = std::static_pointer_cast<class_symbol_environment const>( id_env );
+                assert( c_env != nullptr );
+
+                auto const& type_id_c
+                    = c_env->make_type_id_from();
+
+                std::cout << "in llvm.class_name " << c_env->mangled_name() << " (" << type_id_c << ")" << std::endl;
+
+
+
+                // return id of type!
+                llvm::Value* type_id_ptr
+                    = llvm::ConstantInt::get( context_->llvm_context, llvm::APInt( sizeof( type_id_c ), type_id_c ) );
+
+                // !important!
+                // set '1' to LSB to recognize this value is TYPE!
+                llvm::Value* flaged_type_id_ptr
+                    = reinterpret_cast<llvm::Value*>( reinterpret_cast<std::uintptr_t>( type_id_ptr ) | 0x1 );
+
+                return flaged_type_id_ptr;
+            }
+
+            default:
+                std::cout << "skipped " << debug_string( id_env->get_symbol_kind() ) << std::endl;
+                assert( false && "" );
+                return nullptr;
+            }
+        }
+
+
 
 
 

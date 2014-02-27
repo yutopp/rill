@@ -15,7 +15,7 @@
 #include <iostream>
 
 #ifndef BOOST_SPIRIT_USE_PHOENIX_V3
-# define BOOST_SPIRIT_USE_PHOENIX_V3
+# define BOOST_SPIRIT_USE_PHOENIX_V3 1
 #endif
 #include <boost/spirit/include/qi.hpp>
 #include <boost/spirit/include/qi_as.hpp>
@@ -485,84 +485,14 @@ namespace rill
 
                 type_.name( "type" );
                 type_
-                    = type_identifier_expression_.alias()
+                    = expression_[
+                        qi::_val = helper::make_node_ptr<ast::type_expression>(
+                            qi::_1
+                            )
+                        ]
                     ;
 
 #if 0
-                    = base_type_
-                    | compiletime_type_expression_
-                    ;
-
-                type_expression_
-                    = type_expression_priority_[TypeExpressionHierarchyNum-1]
-                    ;
-
-                {
-                    // Postfix Expression
-                    auto const priority = 1;
-                    expression_priority_[priority]
-                        = expression_priority_[priority-1][qi::_val = qi::_1]
-                        >> *( ( qi::lit( "[" ) >> expression_ >> qi:: )[qi::_val = helper::make_binary_op_node_ptr( qi::_val, "||", qi::_1 )]
-                            )
-                        ;
-
-                    logical_or_expression_ = expression_priority_[priority].alias();
-
-                    qi::debug( expression_priority_[priority] );
-                }
-
-                {
-                    // Primary Expression
-                    auto const priority = 0;
-                    expression_priority_[priority]
-                        = qi::as<ast::value_ptr>()
-                            [ identifier_
-                            | identifier_with_root_
-                            | template_instance_
-                            | template_instance_with_root_
-                            | numeric_literal_
-                            | boolean_literal_
-                            | string_literal_
-                          ][ qi::_val = helper::make_node_ptr<ast::term_expression>( qi::_1 ) ]
-                        | ( qi::lit( '(' ) >> expression_ >> qi::lit( ')' ) )[qi::_val = qi::_1]
-                        ;
-
-                    primary_expression_ = expression_priority_[priority].alias();
-
-                    qi::debug( expression_priority_[priority] );
-                }
-
-                base_type_
-                    = ( compound_type_ >> type_attributes_ )[
-                        qi::_val = helper::make_node_ptr<ast::type_identifier_expression>(
-                            qi::_1,
-                            qi::_2
-                            )
-                      ]
-                    ;
-
-                compound_type_
-                    = base_types_
-                    >> *( compound_type_postfix_ >> type_attributes_ )
-                    ;
-
-                base_types_
-                    = nested_identifier_
-                    | ( qi::lit( '(' ) >> compiletime_type_expression_ >> qi::lit( ')' ) )[qi::_val = qi::_1]
-                    ;
-
-                compound_type_postfix_
-                    = ( qi::lit('[') >> -expression_ >> qi::lit(']')
-                    ;
-
-                compiletime_type_expression_
-                    = ( assign_expression_ )[
-                          qi::_val = helper::make_node_ptr<ast::compiletime_type_expression>( qi::_1 )
-                      ]
-                    ;
-#endif
-
-
                 //
                 type_identifier_expression_
                     = ( nested_identifier_ >> type_attributes_ )[
@@ -572,7 +502,7 @@ namespace rill
                               )
                       ]
                     ;
-
+#endif
 
 
                 // ========================================
@@ -1048,32 +978,12 @@ namespace rill
             rule<ast::expression_list()> argument_list_;
 
 
-#if 0
-            rule<ast::type_expression_ptr()> expression_;
-            static std::size_t const ExpressionHierarchyNum = 16;
-            rule<ast::expression_ptr()> expression_priority_[ExpressionHierarchyNum];
-            rule<ast::expression_ptr()> commma_expression_;
-            rule<ast::expression_ptr()> assign_expression_;
-            rule<ast::expression_ptr()> conditional_expression_;
-            rule<ast::expression_ptr()> logical_or_expression_;
-            rule<ast::expression_ptr()> logical_and_expression_;
-            rule<ast::expression_ptr()> bitwise_or_expression_;
-            rule<ast::expression_ptr()> bitwise_xor_expression_;
-            rule<ast::expression_ptr()> bitwise_and_expression_;
-            rule<ast::expression_ptr()> equality_expression_;
-            rule<ast::expression_ptr()> relational_expression_;
-            rule<ast::expression_ptr()> shift_expression_;
-            rule<ast::expression_ptr()> add_sub_expression_;
-            rule<ast::expression_ptr()> mul_div_rem_expression_;
-            rule<ast::expression_ptr()> unary_expression_;
-            rule<ast::expression_ptr()> postfix_expression_;
-            rule<ast::expression_ptr()> primary_expression_;
-#endif
 
             rule<ast::type_expression_ptr()> type_;
+#if 0
             rule<ast::type_identifier_expression_ptr()> type_identifier_expression_;
             rule<ast::compiletime_return_type_expression_ptr()> compiletime_return_type_expression_;
-
+#endif
 
             // rule<ast::variable_value_ptr()> variable_value_;
 

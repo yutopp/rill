@@ -86,7 +86,7 @@ namespace rill
                       << "param_num : " << s->get_parameter_list().size() << std::endl;
 
             if ( s->is_templated() ) {
-                assert( false );
+                assert( false && "[ice] not implemented" );
 
             } else {
                 // add function symbol to current environment
@@ -102,14 +102,23 @@ namespace rill
             // Class symbol that on (global | namespace)
 
             if ( s->is_templated() ) {
-                assert( false );
+                // TODO: add symbol type duplicate check
+                std::static_pointer_cast<template_set_environment>( env )->set_inner_env_symbol_kind(
+                    kind::type_value::e_class
+                    );
 
             } else {
-                // add class symbol to current environment
-                auto c_env = env->mark_as( kind::k_class, s->get_identifier(), s );
+                if ( is_builtin() ) {
+                    // for builtin symbol
+                    env->construct( kind::k_class, s->get_identifier(), s );
 
-                // build environment
-                dispatch( s->inner_, c_env );
+                } else {
+                    // add class symbol to current environment
+                    auto c_env = env->mark_as( kind::k_class, s->get_identifier(), s );
+
+                    // build environment
+                    dispatch( s->inner_, c_env );
+                }
             }
         }
 
@@ -125,9 +134,14 @@ namespace rill
             std::cout << "collected : " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
                       << "param_num : " << s->get_parameter_list().size() << std::endl;
 
-            // add function symbol to current environment
-            auto const& f_env_pair = parent_env->mark_as( kind::k_function, s->get_identifier(), s );
-            f_env_pair.second->set_parent_class_env_id( parent_env->get_id() );
+            if ( s->is_templated() ) {
+                assert( false && "[ice] not implemented" );
+
+            } else {
+                // add function symbol to current environment
+                auto const& f_env_pair = parent_env->mark_as( kind::k_function, s->get_identifier(), s );
+                f_env_pair.second->set_parent_class_env_id( parent_env->get_id() );
+            }
         }
 
 

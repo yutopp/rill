@@ -16,12 +16,24 @@ namespace rill
 {
     namespace semantic_analysis
     {
-        //
-        //
+        enum class collection_type
+        {
+            e_normal,
+            e_builtin
+        };
+
+
         //
         class identifier_collector RILL_CXX11_FINAL
             : public ast::detail::tree_visitor<identifier_collector, environment_base_ptr>
         {
+        public:
+            identifier_collector(
+                collection_type const& ct = collection_type::e_normal
+                )
+                : ct_( ct )
+            {}
+
         public:
             // statements
             RILL_TV_OP_DECL( ast::statements )
@@ -39,6 +51,16 @@ namespace rill
             RILL_TV_OP_DECL( ast::template_statement )
 
             RILL_TV_OP_FAIL
+
+        public:
+            inline auto is_builtin() const
+                -> bool
+            {
+                return ct_ == collection_type::e_builtin;
+            }
+
+        private:
+            collection_type ct_;
         };
 
     } // namespace semantic_analysis

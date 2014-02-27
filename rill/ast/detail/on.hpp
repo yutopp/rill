@@ -20,7 +20,7 @@
 # define RILL_AST_DEF_GROUP( group ) \
     auto clone_ast_bridge( const_ ## group ## _ptr const& ast ) -> group ## _ptr \
     {                                                                   \
-        return ast->clone();                                            \
+        return ast != nullptr ? ast->clone() : nullptr;                 \
     }
 
 #else

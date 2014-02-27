@@ -1,0 +1,7 @@
+def main(): int
+{
+    val i = 10: int;
+    extern_print_int( i );
+}
+
+extern def extern_print_int( val :int ): void "put_string2"; 

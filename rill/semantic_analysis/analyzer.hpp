@@ -13,6 +13,7 @@
 
 #include "../ast/detail/tree_visitor_base.hpp"
 #include "../behavior/intrinsic_function_holder_fwd.hpp"
+#include "../code_generator/llvm_ir_generator_fwd.hpp"
 #include "../compile_time/ctfe_engine.hpp"
 
 #include "type_detail.hpp"
@@ -54,6 +55,7 @@ namespace rill
             RILL_TV_OP_DECL( ast::call_expression )
             //RILL_TV_OP_DECL( ast::intrinsic_function_call_expression )
             RILL_TV_OP_DECL( ast::binary_operator_expression )
+            RILL_TV_OP_DECL( ast::type_expression )
             RILL_TV_OP_DECL( ast::term_expression )
 
             // value
@@ -67,6 +69,8 @@ namespace rill
             //
             // friends
             //
+            friend class code_generator::llvm_ir_generator;
+
             template<typename AnalyzerPtr, typename EnvPtr>
             friend auto solve_identifier(
                 AnalyzerPtr const&,
@@ -97,6 +101,16 @@ namespace rill
                 EnvPtr const& env,
                 ResultCallbackT const& f
                 ) -> function_symbol_environment_ptr;
+
+            template<typename AnalyzerPtr, typename EnvPtr>
+            friend auto eval_expression_as_ctfe(
+                AnalyzerPtr const& a,
+                ast::expression_ptr const& expression,
+                EnvPtr const& parent_env
+                ) -> std::tuple<
+                    const_class_symbol_environment_ptr,
+                    void*
+                >;
 
         private:
             environment_base_ptr root_env_;

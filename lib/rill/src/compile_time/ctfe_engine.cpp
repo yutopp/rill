@@ -19,7 +19,7 @@ namespace rill
     namespace compile_time
     {
         ctfe_engine::ctfe_engine(
-            std::shared_ptr<code_generator::llvm_ir_generator> const& generator,
+            std::shared_ptr<code_generator::llvm_ir_generator const> const& generator,
             std::shared_ptr<llvm::ExecutionEngine> const& execution_engine,
             std::shared_ptr<semantic_analysis::type_detail_pool_t> const& type_detail_pool
             )
@@ -28,6 +28,12 @@ namespace rill
             , value_holder_( std::make_shared<engine_value_holder>() )
             , type_detail_pool_( type_detail_pool )
         {}
+
+
+        RILL_TV_OP_CONST( ctfe_engine, ast::type_expression, e, parent_env )
+        {
+            return dispatch( e->type_, parent_env );
+        }
 
 
         RILL_TV_OP_CONST( ctfe_engine, ast::term_expression, e, parent_env )
@@ -45,6 +51,7 @@ namespace rill
                 return pure_val_ptr;
 
             } else {
+                // Type Id
                 llvm::ConstantInt const* const type_id_value_ptr
                     = static_cast<llvm::ConstantInt const* const>( pure_val_ptr );
 

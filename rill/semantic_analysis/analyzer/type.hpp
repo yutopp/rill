@@ -21,7 +21,7 @@ namespace rill
 {
     namespace semantic_analysis
     {
-        using namespace boost::adaptors;
+        using namespace boost::adaptors;// TODO: remove
 
         static inline auto determine_type_attributes(
             attribute::type_attributes_optional const& attr = attribute::type_attributes_optional()
@@ -340,90 +340,42 @@ namespace rill
                 assert( template_ast != nullptr );
 
 
-
+#if 0
                 // template parameters
                 for( auto const& e : template_ast->get_parameter_list() ) {
                     assert( e.decl_unit.init_unit.type != nullptr || e.decl_unit.init_unit.initializer != nullptr );
 
                     if ( e.decl_unit.init_unit.type ) { // is parameter variavle type specified ?
-                        // evaluate constant expresison as type
-                        // TODO: support for identifier that has template parameter
-                        auto const& type_value = interpreter::evaluate_as_type( env, e.decl_unit.init_unit.type );
+                        solve_type(
+                            visitor,
+                            e.decl_unit.init_unit.type,
+                            /*parent_env*/env,
+                            [&]( type_id_t const& ty_id,
+                                 type const& ty,
+                                 class_symbol_environment_ptr const& class_env
+                                ) {
+                                auto attr = ty.attributes;
+                                attr <<= e.quality;
 
-                        // in declaration unit, can not specify "quality" by type_expression
-                        assert( type_value.attributes.quality == boost::none );
-
-                        // fix lookup_with_instantiation
-                        if ( auto const class_env = lookup_with_instanciation( env, type_value.identifiers ) ) {
-                            assert( class_env != nullptr );
-                            assert( class_env->get_symbol_kind() == kind::type_value::e_class );
-
-                            auto attr = determine_type_attributes( type_value.attributes );
-                            attr <<= e.quality;
-
-                            // declare
-                            template_env->parameter_variable_construct(
-                                e.decl_unit.name,
-                                std::dynamic_pointer_cast<class_symbol_environment const>( class_env ),
-                                attr
-                                );
-
-                        } else {
-                            // type was not found, !! compilation error !!
-                            assert( false );
-                        }
+                                // declare
+                                template_env->parameter_variable_construct(
+                                    e.decl_unit.name,
+                                    class_env,
+                                    attr
+                                    );
+                            });
 
                     } else {
-                        // type inferenced by result of evaluated [[default initializer expression]]
-
-                        // TODO: implement type inference
+                        // TODO: set as TYPE
                         assert( false && "TODO: it will be type" );
                     }
                 }
-
-
-                // TODO: check length of parameters and arguments
-                //
-                std::cout << "TEMPLATE bef" << std::endl;
-                for( std::size_t i=0; i<template_args->size(); ++i ) {
-                    std::cout << "TEMPLATE ARGS!! " << i << std::endl;
-
-                    auto const& template_arg = template_args->at( i );
-
-                    {
-                        // DEBUG
-                        auto const& t_detail
-                            = static_cast<type_detail_ptr>( template_arg );
-                        assert( t_detail != nullptr );
-
-                        // get environment of arguments
-                        auto const& tt
-                            = visitor->root_env_->get_type_at( t_detail->type_id );
-
-                        std::cout << "** typeid << " << t_detail->type_id << std::endl
-                                  << "** " << tt.class_env_id << std::endl;;
-                    }
-
-                    // TODO: check type...
-                    auto const& decl_env_id
-                        = template_env->get_parameter_decl_ids()[i];
-
-/*
-                    auto const& type_env_id
-                        = get_parameter_type_ids()[i];
-*/
-
-                    // TODO: fix...
-                    visitor->ctfe_engine_->value_holder()->bind_value( decl_env_id, template_arg );
-                }
-                std::cout << "TEMPLATE aftre" << std::endl;
-#if 0
-                auto const& function_ast
-                    = std::static_pointer_cast<ast::function_definition_statement>(
-                        template_ast->get_inner_statement()
-                        );
-                assert( function_ast != nullptr );
 #endif
+
+                // ==================================================
+                // INNER function
+                // ==================================================
+
                 // make new ast(cloned)
                 auto const& function_ast
                     = std::static_pointer_cast<ast::function_definition_statement>(
@@ -431,7 +383,6 @@ namespace rill
                         );
                 assert( function_ast != nullptr );
 
-                std::cout << "fugafuga bef" << std::endl;
 
                 // Create function emvironment frame
                 // FIX: template_env to another
@@ -442,153 +393,130 @@ namespace rill
                         );
 
                 generic_function_env = f_env_pair.first;
+                auto f_env = f_env_pair.second;
 
-
-
-
-
-                auto f_env
-                    = f_env_pair.second;
 
                 std::cout << "fugafuga" << std::endl;
 
+                std::cout << "TEMPLATE bef" << std::endl;
+
+                // template parameters
+                // import template parameter's variables with instantiation!
+                {
+                    auto const& template_parameter_list = template_ast->get_parameter_list();
+                    std::vector<environment_base_ptr> decl_arg_holder( template_parameter_list.size() );
+
+                    for( std::size_t i=0; i<template_parameter_list.size(); ++i ) {
+                        auto const& template_parameter = template_parameter_list.at( i );
+
+                        //
+                        // declare template parameters
+                        assert(
+                            template_parameter.decl_unit.init_unit.type != nullptr
+                            || template_parameter.decl_unit.init_unit.initializer != nullptr
+                            );
+
+                        if ( template_parameter.decl_unit.init_unit.type ) {
+                            solve_type(
+                                visitor,
+                                template_parameter.decl_unit.init_unit.type,
+                                /*parent_env*/env,
+                                [&]( type_id_t const& ty_id,
+                                     type const& ty,
+                                     class_symbol_environment_ptr const& class_env
+                                    ) {
+                                    auto attr = ty.attributes;
+                                    attr <<= template_parameter.quality;
+
+                                    // declare the template parameter into function env as variable
+                                    auto const& v_env
+                                        = f_env->construct(
+                                            kind::k_variable,
+                                            template_parameter.decl_unit.name,
+                                            nullptr/*TODO: change to valid ptr to ast*/,
+                                            class_env,
+                                            attr
+                                            );
+
+                                    decl_arg_holder[i] = v_env;
+                                });
+
+                        } else {
+                            // TODO: set as TYPE
+                            assert( false && "TODO: it will be type" );
+                        }
+
+
+                        //
+                        // template arguments
+                        // if the template argument was passed explicitly, save argument value
+                        // if NOT, it will be deduced after that...
+                        if ( i < template_args->size() ) {
+
+                            std::cout << "TEMPLATE ARGS!! " << i << std::endl;
+                            auto const& template_var_env = decl_arg_holder[i];
+                            auto const& template_arg = template_args->at( i );
+
+                            {
+                                // DEBUG
+                                auto const& t_detail
+                                    = static_cast<type_detail_ptr>( template_arg );
+                                assert( t_detail != nullptr );
+
+                                // get environment of arguments
+                                auto const& tt
+                                    = visitor->root_env_->get_type_at( t_detail->type_id );
+
+                                std::cout << "** typeid << " << t_detail->type_id << std::endl
+                                          << "** " << tt.class_env_id << std::endl;;
+                            }
+
+                            // TODO: fix...
+                            visitor->ctfe_engine_->value_holder()->bind_value(
+                                template_var_env->get_id(),
+                                template_arg
+                                );
+
+                        } else {
+                            // TODO:
+                            assert( false );
+                        }
+                    }
+                }
+
+
+                std::cout << "TEMPLATE aftre" << std::endl;
+
+
+
+
                 //
                 // function instanciation
-                //
+                // TODO: generize
 
                 // make function parameter variable decl
                 for( auto const& e : function_ast->get_parameter_list() ) {
                     assert( e.decl_unit.init_unit.type != nullptr || e.decl_unit.init_unit.initializer != nullptr );
 
-                    if ( e.decl_unit.init_unit.type ) { // is parameter variavle type specified ?
-                        // evaluate constant expresison as type
-                        auto const& type_value = interpreter::evaluate_as_type( f_env, e.decl_unit.init_unit.type );
-
-                        // in declaration unit, can not specify "quality" by type_expression
-                        assert( type_value.attributes.quality == boost::none );
-
-
-                        if ( auto const class_env = lookup_with_instanciation( f_env, type_value.identifiers ) ) {
-                            assert( class_env != nullptr );
-                            assert( class_env->get_symbol_kind() == kind::type_value::e_class );
-
-                            auto attr = determine_type_attributes( type_value.attributes );
-                            attr <<= e.quality;
-
-                            // declare
-                            f_env->parameter_variable_construct(
-                                e.decl_unit.name,
-                                std::dynamic_pointer_cast<class_symbol_environment const>( class_env ),
-                                attr
-                                );
-#if 0
-                            if ( type_env->get_symbol_kind() == kind::type_value::e_class ) {
-                                auto attr = determine_type_attributes( type_value.attributes );
-                                attr <<= e.quality;
-
-                                // declare
-                                f_env->parameter_variable_construct(
-                                    e.decl_unit.name,
-                                    std::dynamic_pointer_cast<class_symbol_environment const>( type_env ),
-                                    attr
-                                    );
-
-                            } else if ( type_env->get_symbol_kind() == kind::type_value::e_variable ) {
-                                assert( false && "invalid" );
-//                                // declare
-//                                f_env->parameter_variable_construct(
-//                                    e.decl_unit.name,
-//                                    std::dynamic_pointer_cast<class_symbol_environment const>( class_env ),
-//                                    attr
-//                                    );
-
-                            } else {
-                                assert( false );
-                            }
-#endif
-                        } else {
-                            // Re prove from template env
-                            if ( auto const type_env = lookup_with_instanciation( template_env, type_value.identifiers ) ) {
-                                assert( type_env != nullptr );
-
-                                std::cout << "kind: " << debug_string( type_env->get_symbol_kind() ) << std::endl;
-
-                                if ( type_env->get_symbol_kind() == kind::type_value::e_class ) {
-                                    auto attr = determine_type_attributes( type_value.attributes );
+                    if ( e.decl_unit.init_unit.type ) { // is parameter variavle type specified 
+                        solve_type(
+                            visitor,
+                            e.decl_unit.init_unit.type,
+                            /*parent_env*/f_env,
+                            [&]( type_id_t const& ty_id,
+                                 type const& ty,
+                                 class_symbol_environment_ptr const& class_env
+                                ) {
+                                    auto attr = ty.attributes;
                                     attr <<= e.quality;
 
                                     // declare
                                     f_env->parameter_variable_construct(
                                         e.decl_unit.name,
-                                        std::dynamic_pointer_cast<class_symbol_environment const>( type_env ),
+                                        class_env,
                                         attr
                                         );
-
-                                } else if ( type_env->get_symbol_kind() == kind::type_value::e_variable ) {
-                                    auto const& v_env
-                                        = std::dynamic_pointer_cast<variable_symbol_environment const>( type_env );
-                                    assert( v_env );
-
-                                    auto const& v_type
-                                        = v_env->get_type();
-
-                                    auto const& c_env
-                                        = std::dynamic_pointer_cast<class_symbol_environment const>(
-                                            visitor->root_env_->get_env_strong_at( v_type.class_env_id )
-                                            );
-                                    assert( c_env );
-
-                                    // TODO: fix cond
-                                    if ( c_env->mangled_name() != "type" ) {
-                                        assert( false && "[error] currently non type was not supported..." );
-                                    }
-
-                                    if ( visitor->ctfe_engine_->value_holder()->is_defined( v_env->get_id() ) ) {
-                                        //
-                                        std::cout << "type is determined!!!!1" << std::endl;
-
-                                        auto const& t_detail
-                                            = static_cast<type_detail_ptr>(
-                                                visitor->ctfe_engine_->value_holder()->ref_value( v_env->get_id() )
-                                                );
-                                        assert( t_detail != nullptr );
-
-                                        // get environment of arguments
-                                        auto const& tt
-                                            = visitor->root_env_->get_type_at( t_detail->type_id );
-
-                                        std::cout << "** typeid << " << t_detail->type_id << std::endl
-                                                  << "** " << tt.class_env_id << std::endl;;
-
-                                        // TODO: set hint to know that type was determined from template arguments
-                                        f_env->parameter_variable_construct(
-                                            e.decl_unit.name,
-                                            tt.class_env_id,
-                                            tt.attributes
-                                            );
-
-                                    } else {
-                                        // TODO: type inference from type of passed function arguments
-                                        assert( false && "[ice] uu..." );
-                                    }
-
-//                                    assert(false&&"nyan");
-//                                // declare
-//                                f_env->parameter_variable_construct(
-//                                    e.decl_unit.name,
-//                                    std::dynamic_pointer_cast<class_symbol_environment const>( class_env ),
-//                                    attr
-//                                    );
-
-                                } else {
-                                    assert( false );
-                                }
-
-                            } else {
-                                // type was not found, !! compilation error !!
-                                assert( false );
-                            }
-                        }
+                            });
 
                     } else {
                         // type inferenced by result of evaluated [[default initializer expression]]
@@ -597,6 +525,8 @@ namespace rill
                         assert( false );
                     }
                 }
+
+                
 
                 // scan all statements in this function body
                 visitor->dispatch( function_ast->inner_, f_env );
@@ -607,27 +537,19 @@ namespace rill
 
                 // Return type
                 if ( function_ast->return_type_ ) {
-                    // evaluate constant expresison as type
-                    auto const& type_value = interpreter::evaluate_as_type( f_env, *function_ast->return_type_ );
-
-                    if ( auto const return_class_env = lookup_with_instanciation( f_env, type_value.identifiers ) ) {
-                        assert( return_class_env != nullptr );
-                        assert( return_class_env->get_symbol_kind() == kind::type_value::e_class );
-
-                        // TODO: check return statement types...
-                        // f_env->get_return_type_candidates()
-
-                        //
-                        auto const& return_type_id = f_env->make_type_id(
-                            return_class_env,
-                            determine_type_attributes( type_value.attributes )
-                            );
-                        f_env->complete( return_type_id, function_ast->get_identifier()->get_inner_symbol()->to_native_string() );
-
-                    } else {
-                        // type was not found, !! compilation error !!
-                        assert( false );
-                    }
+                    solve_type(
+                        visitor,
+                        *function_ast->return_type_,
+                        /*parent_env*/f_env,
+                        [&]( type_id_t const& return_type_id,
+                             type const& ty,
+                             class_symbol_environment_ptr const& class_env
+                            ) {
+                            f_env->complete(
+                                return_type_id,
+                                function_ast->get_identifier()->get_inner_symbol()->to_native_string()
+                                );
+                        });
 
                 } else {
                     // TODO: implement return type inference
@@ -639,7 +561,7 @@ namespace rill
                 f_env->get_parameter_wrapper_env()->add_overload( f_env );
 
 
-
+                // ???
                 f_env->link_with_ast( function_ast );
             } // for
 

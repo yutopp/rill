@@ -85,7 +85,9 @@ namespace rill
             -> type_attributes
         {
             // FIXME
-            return { quality_kind::k_val, modifiability_kind::k_immutable };
+            // currentry, default MUTABLE
+            // return { quality_kind::k_val, modifiability_kind::k_immutable };
+            return { quality_kind::k_val, modifiability_kind::k_mutable };
         }
 
         template<typename... Args>

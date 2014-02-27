@@ -15,7 +15,9 @@
 
 #include "../ast/detail/tree_visitor_base.hpp"
 #include "../behavior/intrinsic_function_holder_fwd.hpp"
+#include "../semantic_analysis/analyzer_fwd.hpp"
 
+#include "llvm_ir_generator_fwd.hpp"
 #include "llvm_ir_generator_context.hpp"
 
 
@@ -24,19 +26,15 @@ namespace rill
     namespace code_generator
     {
         // ========================================
-        class type_id_to_llvm_type_ptr;
-        class function_env_to_llvm_constatnt_ptr;
-
-
-        // ========================================
         class llvm_ir_generator RILL_CXX11_FINAL
-            : public ast::detail::tree_visitor<llvm_ir_generator, llvm::Value*>
+            : public ast::detail::const_tree_visitor<llvm_ir_generator, llvm::Value*>
         {
         public:
             llvm_ir_generator(
                 const_environment_base_ptr const&,
                 intrinsic_function_action_holder_ptr const&,
-                llvm_ir_generator_context_ptr const&
+                llvm_ir_generator_context_ptr const&,
+                semantic_analysis::analyzer* const = nullptr
                 );
 
         public:
@@ -65,12 +63,13 @@ namespace rill
             RILL_TV_OP_DECL_CONST( ast::element_selector_expression )
             RILL_TV_OP_DECL_CONST( ast::call_expression )
             RILL_TV_OP_DECL_CONST( ast::intrinsic_function_call_expression )
+            RILL_TV_OP_DECL_CONST( ast::type_expression )
             RILL_TV_OP_DECL_CONST( ast::term_expression )
 
             // value
             //RILL_TV_OP_DECL_CONST( ast::nested_identifier_value )
             RILL_TV_OP_DECL_CONST( ast::identifier_value )
-            //RILL_TV_OP_DECL_CONST( ast::template_instance_value )
+            RILL_TV_OP_DECL_CONST( ast::template_instance_value )
             RILL_TV_OP_DECL_CONST( ast::literal_value )
 
             RILL_TV_OP_FAIL
@@ -82,25 +81,19 @@ namespace rill
                 context_->llvm_module.dump();
             }
 
+            inline auto is_jit() const
+                -> bool
+            {
+                return analyzer_ != nullptr;
+            }
+
         private:
             const_environment_base_ptr root_env_;
             intrinsic_function_action_holder_ptr action_holder_;
 
             llvm_ir_generator_context_ptr context_;
+            semantic_analysis::analyzer* analyzer_;
         };
-
-#if 0
-        template<typename EnvIdT, typename IdTablePtr, typename IRBuilderPtr>
-        auto inline ref_value_with( EnvIdT const& env_id, IdTablePtr const& table, IRBuilderPtr builder )
-            -> llvm::Value*
-        {
-            auto const ref_value = table.ref_value( env_id );
-            if ( table.is_alloca_inst( env_id ) ) {
-                return builder.CreateLoad( ref_value );
-            }
-            return ref_value;
-        }
-#endif
 
     } // namespace code_generator
 } // namespace rill

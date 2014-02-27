@@ -34,13 +34,8 @@ namespace rill
         RILL_AST_DEF( call_expression, expression )
         RILL_AST_DEF( intrinsic_function_call_expression, expression )
 
-
-        RILL_AST_DEF( term_expression, expression )
-
-
         RILL_AST_DEF( type_expression, expression )
-        RILL_AST_DEF( type_identifier_expression, expression )
-        RILL_AST_DEF( compiletime_return_type_expression, expression )
+        RILL_AST_DEF( term_expression, expression )
     }
 }
 #include "detail/off.hpp"

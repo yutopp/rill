@@ -1,0 +1,11 @@
+def main(): int
+{
+    val a: A;
+
+    return 0;
+}
+
+class A
+{
+    val n: int;
+}

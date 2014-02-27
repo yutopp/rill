@@ -29,16 +29,17 @@ namespace rill
     {
         // this class holds llvm_ir_generator and llvm_ir_execute_engine
         class ctfe_engine RILL_CXX11_FINAL
-            : public ast::detail::tree_visitor<ctfe_engine, void*>
+            : public ast::detail::const_tree_visitor<ctfe_engine, void*>
         {
         public:
             ctfe_engine(
-                std::shared_ptr<code_generator::llvm_ir_generator> const&,
+                std::shared_ptr<code_generator::llvm_ir_generator const> const&,
                 std::shared_ptr<llvm::ExecutionEngine> const&,
                 std::shared_ptr<semantic_analysis::type_detail_pool_t> const&
                 );
 
         public:
+            RILL_TV_OP_DECL_CONST( ast::type_expression )
             RILL_TV_OP_DECL_CONST( ast::term_expression )
 
             RILL_TV_OP_FAIL
@@ -51,8 +52,14 @@ namespace rill
                 return value_holder_;
             }
 
+
+            //
+            // friend
+            //
+            friend class code_generator::llvm_ir_generator;
+
         private:
-            std::shared_ptr<code_generator::llvm_ir_generator> ir_generator_;
+            std::shared_ptr<code_generator::llvm_ir_generator const> ir_generator_;
             std::shared_ptr<llvm::ExecutionEngine> execution_engine_;
 
             std::shared_ptr<engine_value_holder> value_holder_;
@@ -61,8 +68,14 @@ namespace rill
 
 
         //
-        template<typename EnvironmentPtr, typename ActionHolderPtr, typename TypeDetailPoolPtr>
+        template<
+            typename AnalyzerVisitorPtr,
+            typename EnvironmentPtr,
+            typename ActionHolderPtr,
+            typename TypeDetailPoolPtr
+            >
         auto make_ctfe_engine(
+            AnalyzerVisitorPtr const& analyzer_visitor,
             EnvironmentPtr const& env,
             ActionHolderPtr const& action_holder,
             TypeDetailPoolPtr const& type_detail_pool
@@ -83,7 +96,8 @@ namespace rill
                 = std::make_shared<code_generator::llvm_ir_generator>(
                     env,
                     action_holder,
-                    context
+                    context,
+                    analyzer_visitor
                     )
                 ;
 
@@ -97,7 +111,6 @@ namespace rill
 
             return std::make_shared<ctfe_engine const>( ir_generator, engine, type_detail_pool );
         }
-
 
 
     } // namespace compile_time

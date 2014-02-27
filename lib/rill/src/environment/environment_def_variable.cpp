@@ -30,9 +30,10 @@ namespace rill
     {
         auto const& variable_env = incomplete_construct( kind::k_variable, variable_name );
 
-        std::cout << "%% Marked(class) " << variable_env->get_id() << std::endl;
+        std::cout << "%% Marked(variable) " << variable_env->get_id() << std::endl;
 
         if ( ast != nullptr ) {
+            std::cout << "%% Linked(variable) " << variable_env->get_id() << std::endl;
             variable_env->link_with_ast( ast );
         }
 

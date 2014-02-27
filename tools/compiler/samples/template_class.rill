@@ -1,0 +1,11 @@
+def main(): int
+{
+    val s: array!(int);
+    val b = 72: int;
+
+    p( b );
+
+    return 0;
+}
+
+extern def p( val :int ): void "put_string2"; 

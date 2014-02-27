@@ -26,6 +26,7 @@ namespace rill
 {
     namespace semantic_analysis
     {
+        // TODO remove
         struct type_info
         {
             ast::nested_identifier_value_ptr identifiers;
@@ -81,15 +82,15 @@ namespace rill
             typedef std::vector<type_detail_ptr>        nest_type;
             typedef std::shared_ptr<nest_type>          nest_pointer;
 
-            // dependent_type will contains type_detail_ptr or llvm::Value*
-            // please check/detemine type by using the semantic_analyzer ;(
+            // dependent_type will holds type_detail_ptr or llvm::Value*
+            // please check/detemine the type by using the semantic_analyzer ;(
             typedef void*                               dependent_type;
             typedef std::vector<dependent_type>         template_arg_type;
             typedef std::shared_ptr<template_arg_type>  template_arg_pointer;
 
             explicit
             type_detail(
-                type_id_wrapper const& w, 
+                type_id_t const& w, 
                 environment_base_ptr const& e,
                 nest_pointer const& st = nullptr,
                 template_arg_pointer const& sd = nullptr
@@ -100,10 +101,17 @@ namespace rill
                 , template_args( sd )
             {}
 
-            type_id_wrapper type_id;
+            type_id_t type_id;
             environment_base_ptr target_env;
             nest_pointer nest;
             template_arg_pointer template_args;
+
+        public:
+            inline auto has_template_args() const
+                -> bool
+            {
+                return template_args != nullptr;
+            }
         };
 
     } // namespace semantic_analysis

@@ -167,6 +167,26 @@ namespace rill
 
 
 
+        //
+        // 
+        //
+        struct type_expression RILL_CXX11_FINAL
+            : public expression
+        {
+        public:
+            type_expression( expression_ptr const& type )
+                : type_( type )
+            {}
+
+            //////////////////////////////////////////////////
+            RILL_MAKE_AST(
+                type_expression,
+                (( expression_ptr, type_ ))
+                )
+        };
+
+
+
         struct term_expression RILL_CXX11_FINAL
             : public expression
         {
@@ -180,66 +200,6 @@ namespace rill
             RILL_MAKE_AST(
                 term_expression,
                 (( value_ptr, value_ ))
-                )
-        };
-
-
-
-
-
-        struct type_expression
-            : public expression
-        {
-        public:
-            virtual ~type_expression() {}
-
-            //////////////////////////////////////////////////
-            RILL_MAKE_AST_INTERFACE(
-                type_expression
-                )
-        };
-
-
-        //
-        struct type_identifier_expression RILL_CXX11_FINAL
-            : public type_expression
-        {
-        public:
-            type_identifier_expression(
-                nested_identifier_value_ptr const& v,
-                attribute::type_attributes_optional const& attributes
-                )
-                : value_( v )
-                , attributes_( attributes )
-            {}
-
-
-            //////////////////////////////////////////////////
-            RILL_MAKE_AST_DERIVED(
-                type_identifier_expression, type_identifier_expression,
-                (( nested_identifier_value_ptr, value_ ))
-                (( attribute::type_attributes_optional, attributes_,
-                   cloned->attributes_ = attributes_;
-                    ))
-                )
-        };
-
-
-
-        //
-        struct compiletime_return_type_expression RILL_CXX11_FINAL
-            : public type_expression
-        {
-        public:
-            compiletime_return_type_expression( expression_ptr const& e )
-                : expression_( e )
-            {}
-
-
-            //////////////////////////////////////////////////
-            RILL_MAKE_AST_DERIVED(
-                compiletime_return_type_expression, type_expression,
-                (( expression_ptr, expression_ ))
                 )
         };
 

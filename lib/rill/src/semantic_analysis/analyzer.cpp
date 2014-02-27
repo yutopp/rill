@@ -21,7 +21,7 @@ namespace rill
             )
             : root_env_( root_env )
             , type_detail_pool_( std::make_shared<type_detail_pool_t>() )
-            , ctfe_engine_( compile_time::make_ctfe_engine( root_env, holder, type_detail_pool_ ) )
+            , ctfe_engine_( compile_time::make_ctfe_engine( this, root_env, holder, type_detail_pool_ ) )
         {}
 
     } // namespace semantic_analysis

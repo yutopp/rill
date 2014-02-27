@@ -9,7 +9,9 @@
 #include <rill/behavior/default_generator.hpp>
 
 #include <rill/environment/environment.hpp>
+
 #include <rill/behavior/intrinsic_function_holder.hpp>
+#include <rill/semantic_analysis/identifier_collector.hpp>
 
 #include <rill/ast/statement.hpp>
 #include <rill/ast/expression.hpp>
@@ -53,7 +55,6 @@ namespace rill
 
 
 
-
         //
         //
         //
@@ -62,31 +63,68 @@ namespace rill
             std::shared_ptr<intrinsic_function_action_holder> const& intrinsic_function_action
             )
         {
-            auto const type_type_id = rill::ast::make_single_identifier( "type" );
-            auto const type_class = std::make_shared<rill::ast::class_definition_statement>( type_type_id );
-            auto const type_class_env_pointer = root_env->construct( rill::kind::k_class, type_type_id, type_class );
+            auto id_c = semantic_analysis::identifier_collector(
+                semantic_analysis::collection_type::e_builtin
+                );
+
+//
+#define RILL_DEFINE_BUILTIN_CLASS( name )                               \
+            auto const name ## _class_name = rill::ast::make_single_identifier( #name ); \
+            auto const name ## _class = std::make_shared<rill::ast::class_definition_statement>( name ## _class_name ); \
+            id_c.dispatch( name ## _class, root_env );              \
+            auto const name ## _class_env_pointer = std::static_pointer_cast<class_symbol_environment>( \
+                root_env->get_related_env_by_ast_ptr( name ## _class )  \
+                );
+
+            RILL_DEFINE_BUILTIN_CLASS( type );
+            RILL_DEFINE_BUILTIN_CLASS( int );
+            RILL_DEFINE_BUILTIN_CLASS( string );
+            RILL_DEFINE_BUILTIN_CLASS( void );
+            RILL_DEFINE_BUILTIN_CLASS( bool );
+            //RILL_DEFINE_BUILTIN_CLASS( double );
 
 
-            auto const int_type
-                = rill::ast::make_single_identifier( "int" );
-            auto const int_class = std::make_shared<rill::ast::class_definition_statement>( int_type );
-            auto const int_class_env_pointer = root_env->construct( rill::kind::k_class, int_type, int_class );
+            {
+                // template( val T: type )
+                // class array
 
-            auto const string_type
-                = rill::ast::make_single_identifier( "string" );
-            auto const string_class = std::make_shared<rill::ast::class_definition_statement>( string_type );
-            auto const string_class_env_pointer = root_env->construct( rill::kind::k_class, string_type, string_class );
+                auto const array_type
+                    = rill::ast::make_single_identifier( "array" );
+
+                // template
+                rill::ast::parameter_list template_params;
+
+                // val T: type
+                rill::ast::variable_declaration ty = {
+                    rill::attribute::quality_kind::k_val,
+                    {
+                        rill::ast::make_single_identifier( "T" ),
+                        {
+                            nullptr,
+                            std::make_shared<rill::ast::type_expression>(
+                                std::make_shared<rill::ast::term_expression>(
+                                    type_class_name
+                                    )
+                                )
+                        }
+                    }
+                };
+                template_params.push_back( ty );
+
+                auto const array_class
+                    = std::make_shared<rill::ast::class_definition_statement>( array_type );
+
+                auto const template_array
+                    = std::make_shared<rill::ast::template_statement>( template_params, array_class );
+
+                id_c.dispatch( template_array, root_env );
+                auto const template_array_env_pointer = std::static_pointer_cast<template_set_environment>(
+                    root_env->get_related_env_by_ast_ptr( template_array )
+                    );
+
+            }
 
 
-            auto const void_type
-                = rill::ast::make_single_identifier( "void" );
-            auto const void_class = std::make_shared<rill::ast::class_definition_statement>( void_type );
-            auto const void_class_env_pointer = root_env->construct( rill::kind::k_class, void_type, void_class );
-
-            auto const bool_type
-                = rill::ast::make_single_identifier( "bool" );
-            auto const bool_class = std::make_shared<rill::ast::class_definition_statement>( bool_type );
-            auto const bool_class_env_pointer = root_env->construct( rill::kind::k_class, bool_type, bool_class );
 
 
             {

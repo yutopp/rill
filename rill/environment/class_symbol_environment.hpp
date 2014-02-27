@@ -79,9 +79,50 @@ namespace rill
             return make_type_id( get_id(), type_attr );
         }
 
-    private:
 
+        auto make_as_array(
+            type_id_t const& inner_type_id,
+            std::size_t const& elements_num
+            )
+            -> void
+        {
+            std::cout << "???" << std::endl;
+            array_detail_ = std::make_shared<array_detail>( inner_type_id, elements_num );
+        }
+
+        auto is_array() const
+            -> bool
+        {
+            return array_detail_ != nullptr;
+        }
+
+
+    public:
+        struct array_detail
+        {
+            array_detail(
+                type_id_t const& i,
+                std::size_t const& e
+                )
+                : inner_type_id( i )
+                , elements_num( e )
+            {}
+
+            type_id_t inner_type_id;
+            std::size_t elements_num;
+        };
+
+        auto get_array_detail() const
+            -> std::shared_ptr<array_detail const>
+        {
+            return array_detail_;
+        }
+
+
+    private:
         native_string_type name_;
+
+        std::shared_ptr<array_detail> array_detail_;
     };
 
 } // namespace rill

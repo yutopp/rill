@@ -93,6 +93,10 @@ namespace rill
         auto at( type_id_t const& type_id ) const
             -> type_type const&
         {
+            if ( type_id >= type_id_limit ) {
+                assert( false && "[[ICE]]" );
+            }
+
             return data_holder_.at( type_id );
         }
 

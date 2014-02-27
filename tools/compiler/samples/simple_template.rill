@@ -7,8 +7,10 @@ def main(): int
 }
 
 template(val T:type)
-def dispatch( ref a: T ): void
-    => overload( a );
+def dispatch( val a: T ): void
+{
+    overload( a );
+}
 
 
 def overload( val v: int ): void
@@ -16,7 +18,7 @@ def overload( val v: int ): void
     print( "int!!!\n" );
 }
 
-def overload( ref v: string ): void
+def overload( val v: string ): void
 {
     print( "string!!!\n" );
 }

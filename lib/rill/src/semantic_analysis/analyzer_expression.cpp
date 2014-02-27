@@ -450,7 +450,7 @@ namespace rill
                     }();
 
                     // memoize called function env
-                    std::cout << "memoed" << std::endl;
+                    std::cout << "memoed function call!!!" << std::endl;
                     function_env->connect_from_ast( e );
 
                     return type_detail_pool_->construct(
@@ -472,6 +472,14 @@ namespace rill
             //return function_env->get_return_type_environment();
         }
 
+
+        //
+        //
+        //
+        RILL_TV_OP( analyzer, ast::type_expression, e, env )
+        {
+            return dispatch( e->type_, env );
+        }
 
 
         //

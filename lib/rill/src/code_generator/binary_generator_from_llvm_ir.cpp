@@ -197,8 +197,6 @@ namespace rill
                     /*"/NOLOGO /MACHINE:X86 /SUBSYSTEM:CONSOLE "*/      \
                     /*"-nodefaultlibs"*/" -dynamic-linker /lib64/ld-linux-x86-64.so.2 -lc -o a.out out.obj /usr/local/lib/librill-rt.a";
                 std::system( command.c_str() );
-                std::string const command2 = "a.out";
-                std::system( command2.c_str() );
             }
 
 #if 0

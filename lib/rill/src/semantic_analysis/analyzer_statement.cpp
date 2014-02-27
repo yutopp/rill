@@ -7,6 +7,7 @@
 //
 
 #include <rill/semantic_analysis/semantic_analysis.hpp>
+#include <rill/semantic_analysis/analyzer/identifier_solver.hpp>
 #include <rill/semantic_analysis/analyzer/type.hpp>
 
 #include <rill/environment/environment.hpp>
@@ -77,7 +78,7 @@ namespace rill
 
             assert( !is_nontype_id( t_detail->type_id ) && "[[CE]] this object couldn't be returned" );
 
-            
+
             std::cout << "!!! jit eval" << std::endl;
             ctfe_engine_->dispatch( s->expression_, parent_env );
             std::cout << "~~~~~~~~~~~~" << std::endl;
@@ -130,47 +131,43 @@ namespace rill
             //       default( int )
 
             if ( unit.init_unit.type ) { // is parameter variable type specified ?
-                // evaluate constant expresison as type
-                auto const& type_value = interpreter::evaluate_as_type( parent_env, unit.init_unit.type );
+                solve_type(
+                    this,
+                    unit.init_unit.type,
+                    parent_env,
+                    [&]( type_id_t const& ty_id,
+                         type const& ty,
+                         class_symbol_environment_ptr const& class_env
+                        ) {
+                        if ( is_nontype_id( ty_id ) ) {
+                            assert( false && "[[error]] incomplete template class was not supported" );
+                        }
 
-                // in declaration unit, can not specify "quality" by type_expression
-                assert( type_value.attributes.quality == boost::none );
+                        // TODO: move to elsewhere
+                        if ( class_env->is_incomplete() ) {
+                            //
+                            auto const& class_node = class_env->get_related_ast();
+                            assert( class_node != nullptr );
 
-                if ( auto const class_env = std::static_pointer_cast<class_symbol_environment>( lookup_with_instanciation( parent_env, type_value.identifiers ) ) ) {
-                    assert( class_env != nullptr );
-                    assert( class_env->get_symbol_kind() == kind::type_value::e_class );
+                            dispatch( class_node, class_env->get_parent_env() );
+                            assert( class_env->is_complete() );
+                        }
 
-                    if ( class_env->is_incomplete() ) {
-                        //
-                        auto const& class_node = class_env->get_related_ast();
-                        assert( class_node != nullptr );
+                        auto attr = ty.attributes;
+                        attr <<= val_decl.quality;
 
-                        dispatch( class_node, class_env->get_parent_env() );
-                        assert( class_env->is_complete() );
-                    }
+                        // TODO: type check with "iv_type_id_and_env"
 
-                    auto attr = determine_type_attributes( type_value.attributes );
-                    attr <<= val_decl.quality;
-
-                    // TODO: type check with "iv_type_id_and_env"
-
-                    // declare
-                    auto variable_env
-                        = parent_env->construct(
-                            kind::k_variable,
-                            unit.name,
-                            s,
-                            std::dynamic_pointer_cast<class_symbol_environment const>( class_env ),
-                            attr
-                            );
-
-                    //
-                    // variable_env->connect_from_ast( s );
-
-                } else {
-                    // type was not found, !! compilation error !!
-                    assert( false && "type was not found" );
-                }
+                        // definition...
+                        auto variable_env
+                            = parent_env->construct(
+                                kind::k_variable,
+                                unit.name,
+                                s,
+                                class_env,
+                                attr
+                                );
+                    });
 
             } else {
                 // type inferenced by result of evaluated "iv_type_id_and_env"
@@ -223,37 +220,31 @@ namespace rill
             //       default( int )
 
             if ( unit.init_unit.type ) { // is parameter variable type specified ?
-                // evaluate constant expresison as type
-                auto const& type_value = interpreter::evaluate_as_type( parent_env, unit.init_unit.type );
+                solve_type(
+                    this,
+                    unit.init_unit.type,
+                    parent_env,
+                    [&]( type_id_t const& ty_id,
+                         type const& ty,
+                         class_symbol_environment_ptr const& class_env
+                        ) {
+                        auto attr = ty.attributes;
+                        attr <<= val_decl.quality;
 
-                // in declaration unit, can not specify "quality" by type_expression
-                assert( type_value.attributes.quality == boost::none );
+                        //
+                        std::cout << "class variable: " << unit.name->get_inner_symbol()->to_native_string() << std::endl;
 
-                if ( auto const class_env = lookup_with_instanciation( parent_env, type_value.identifiers ) ) {
-                    assert( class_env != nullptr );
-                    assert( class_env->get_symbol_kind() == kind::type_value::e_class );
+                        // completion
+                        v_env->complete(
+                            v_env->make_type_id(
+                                class_env,
+                                attr
+                                ),
+                            unit.name->get_inner_symbol()->to_native_string()
+                            );
 
-                    auto attr = determine_type_attributes( type_value.attributes );
-                    attr <<= val_decl.quality;
-
-                    //
-                    std::cout << "class variable: " << unit.name->get_inner_symbol()->to_native_string() << std::endl;
-
-                    // completion
-                    v_env->complete(
-                        v_env->make_type_id(
-                            std::static_pointer_cast<class_symbol_environment const>( class_env ),
-                            attr
-                            ),
-                        unit.name->get_inner_symbol()->to_native_string()
-                        );
-
-                    //v_env->set_parent_class_env_id( class_env->get_id() );
-
-                } else {
-                    // type was not found, !! compilation error !!
-                    assert( false && "type was not found" );
-                }
+                        //v_env->set_parent_class_env_id( class_env->get_id() );
+                    });
 
             } else {
                 // type inferenced by result of evaluated [[default initializer expression]]
@@ -263,7 +254,7 @@ namespace rill
             }
 
 
-            
+
         }
 
 
@@ -303,31 +294,24 @@ namespace rill
                 assert( e.decl_unit.init_unit.type != nullptr || e.decl_unit.init_unit.initializer != nullptr );
 
                 if ( e.decl_unit.init_unit.type ) { // is parameter variavle type specified ?
-                    // evaluate constant expresison as type
-                    auto const& type_value = interpreter::evaluate_as_type( f_env, e.decl_unit.init_unit.type );
+                    solve_type(
+                        this,
+                        e.decl_unit.init_unit.type,
+                        parent_env,
+                        [&]( type_id_t const& ty_id,
+                             type const& ty,
+                             class_symbol_environment_ptr const& class_env
+                            ) {
+                            auto attr = ty.attributes;
+                            attr <<= e.quality;
 
-                    // in declaration unit, can not specify "quality" by type_expression
-                    assert( type_value.attributes.quality == boost::none );
-
-
-                    if ( auto const class_env = lookup_with_instanciation( f_env, type_value.identifiers ) ) {
-                        assert( class_env != nullptr );
-                        assert( class_env->get_symbol_kind() == kind::type_value::e_class );
-
-                        auto attr = determine_type_attributes( type_value.attributes );
-                        attr <<= e.quality;
-
-                        // declare
-                        f_env->parameter_variable_construct(
-                            e.decl_unit.name,
-                            std::dynamic_pointer_cast<class_symbol_environment const>( class_env ),
-                            attr
-                            );
-
-                    } else {
-                        // type was not found, !! compilation error !!
-                        assert( false );
-                    }
+                            // declare
+                            f_env->parameter_variable_construct(
+                                e.decl_unit.name,
+                                class_env,
+                                attr
+                                );
+                        });
 
                 } else {
                     // type inferenced by result of evaluated [[default initializer expression]]
@@ -346,27 +330,22 @@ namespace rill
 
             // Return type
             if ( s->return_type_ ) {
-                // evaluate constant expresison as type
-                auto const& type_value = interpreter::evaluate_as_type( f_env, *s->return_type_ );
+                solve_type(
+                    this,
+                    *s->return_type_,
+                    parent_env,
+                    [&]( type_id_t const& return_type_id,
+                         type const& ty,
+                         class_symbol_environment_ptr const& class_env
+                        ) {
+                        // TODO: check return statement types...
+                        // f_env->get_return_type_candidates()
 
-                if ( auto const return_class_env = lookup_with_instanciation( f_env, type_value.identifiers ) ) {
-                    assert( return_class_env != nullptr );
-                    assert( return_class_env->get_symbol_kind() == kind::type_value::e_class );
-
-                    // TODO: check return statement types...
-                    // f_env->get_return_type_candidates()
-
-                    //
-                    auto const& return_type_id = f_env->make_type_id(
-                        return_class_env,
-                        determine_type_attributes( type_value.attributes )
-                        );
-                    f_env->complete( return_type_id, s->get_identifier()->get_inner_symbol()->to_native_string() );
-
-                } else {
-                    // type was not found, !! compilation error !!
-                    assert( false );
-                }
+                        f_env->complete(
+                            return_type_id,
+                            s->get_identifier()->get_inner_symbol()->to_native_string()
+                            );
+                    });
 
             } else {
                 // TODO: implement return type inference
@@ -436,31 +415,24 @@ namespace rill
                 assert( e.decl_unit.init_unit.type != nullptr || e.decl_unit.init_unit.initializer != nullptr );
 
                 if ( e.decl_unit.init_unit.type ) { // is parameter variavle type specified ?
-                    // evaluate constant expresison as type
-                    auto const& type_value = interpreter::evaluate_as_type( f_env, e.decl_unit.init_unit.type );
+                    solve_type(
+                        this,
+                        e.decl_unit.init_unit.type,
+                        parent_env,
+                        [&]( type_id_t const& ty_id,
+                             type const& ty,
+                             class_symbol_environment_ptr const& class_env
+                            ) {
+                            auto attr = ty.attributes;
+                            attr <<= e.quality;
 
-                    // in declaration unit, can not specify "quality" by type_expression
-                    assert( type_value.attributes.quality == boost::none );
-
-
-                    if ( auto const class_env = lookup_with_instanciation( f_env, type_value.identifiers ) ) {
-                        assert( class_env != nullptr );
-                        assert( class_env->get_symbol_kind() == kind::type_value::e_class );
-
-                        auto attr = determine_type_attributes( type_value.attributes );
-                        attr <<= e.quality;
-
-                        // declare
-                        f_env->parameter_variable_construct(
-                            e.decl_unit.name,
-                            std::dynamic_pointer_cast<class_symbol_environment const>( class_env ),
-                            attr
-                            );
-
-                    } else {
-                        // type was not found, !! compilation error !!
-                        assert( false );
-                    }
+                            // declare
+                            f_env->parameter_variable_construct(
+                                e.decl_unit.name,
+                                class_env,
+                                attr
+                                );
+                        });
 
                 } else {
                     // type inferenced by result of evaluated [[default initializer expression]]
@@ -478,27 +450,22 @@ namespace rill
 
             // Return type
             if ( s->return_type_ ) {
-                // evaluate constant expresison as type
-                auto const& type_value = interpreter::evaluate_as_type( f_env, *s->return_type_ );
+                solve_type(
+                    this,
+                    *s->return_type_,
+                    parent_env,
+                    [&]( type_id_t const& return_type_id,
+                         type const& ty,
+                         class_symbol_environment_ptr const& class_env
+                        ) {
+                        // TODO: check return statement types...
+                        // f_env->get_return_type_candidates()
 
-                if ( auto const return_class_env = lookup_with_instanciation( f_env, type_value.identifiers ) ) {
-                    assert( return_class_env != nullptr );
-                    assert( return_class_env->get_symbol_kind() == kind::type_value::e_class );
-
-                    // TODO: check return statement types...
-                    // f_env->get_return_type_candidates()
-
-                    //
-                    auto const& return_type_id = f_env->make_type_id(
-                        return_class_env,
-                        determine_type_attributes( type_value.attributes )
-                        );
-                    f_env->complete( return_type_id, s->get_identifier()->get_inner_symbol()->to_native_string() );
-
-                } else {
-                    // type was not found, !! compilation error !!
-                    assert( false );
-                }
+                        f_env->complete(
+                            return_type_id,
+                            s->get_identifier()->get_inner_symbol()->to_native_string()
+                            );
+                    });
 
             } else {
                 // TODO: implement return type inference
@@ -560,7 +527,7 @@ namespace rill
 
         RILL_TV_OP( analyzer, ast::test_if_statement, s, parent_env )
         {
-            // if 
+            // if
             auto const& if_scope_env = parent_env->allocate_env<scope_environment>();
             if_scope_env->link_with_ast( s );
             dispatch( s->conditional_, if_scope_env );  // TODO: type check
@@ -608,24 +575,21 @@ namespace rill
                 assert( e.decl_unit.init_unit.type != nullptr || e.decl_unit.init_unit.initializer != nullptr );
 
                 if ( e.decl_unit.init_unit.type ) { // is parameter variavle type specified ?
-                    // evaluate constant expresison as type
-                    auto const& type = interpreter::evaluate_as_type( f_env, e.decl_unit.init_unit.type );
-
-                    if ( auto const type_env = lookup_with_instanciation( f_env, type.identifiers ) ) {
-                        assert( type_env != nullptr );
-                        assert( type_env->get_symbol_kind() == kind::type_value::e_class );
-
-                        // declare
-                        f_env->parameter_variable_construct(
-                            /*TODO: add attributes, */
-                            e.decl_unit.name,
-                            std::dynamic_pointer_cast<class_symbol_environment const>( type_env )
+                    solve_type(
+                        this,
+                        e.decl_unit.init_unit.type,
+                        parent_env,
+                        [&]( type_id_t const& ty_id,
+                             type const& ty,
+                             class_symbol_environment_ptr const& class_env
+                            ) {
+                            // declare
+                            f_env->parameter_variable_construct(
+                                /*TODO: add attributes, */
+                                e.decl_unit.name,
+                                class_env
                             );
-
-                    } else {
-                        // type was not found, !! compilation error !!
-                        assert( false );
-                    }
+                        });
 
                 } else {
                     // type inferenced by result of evaluated [[default initializer expression]]
@@ -639,24 +603,20 @@ namespace rill
             //
             // Return type
             if ( s->return_type_ ) {
-                // evaluate constant expresison as type
-                auto const& type_value = interpreter::evaluate_as_type( f_env, s->return_type_ );
-
-                if ( auto const return_class_env = lookup_with_instanciation( f_env, type_value.identifiers ) ) {
-                    assert( return_class_env != nullptr );
-                    assert( return_class_env->get_symbol_kind() == kind::type_value::e_class );
-
-                    //
-                    auto const& return_type_id = f_env->make_type_id(
-                        return_class_env,
-                        determine_type_attributes( type_value.attributes )
-                        );
-                    f_env->complete( return_type_id, s->get_identifier()->get_inner_symbol()->to_native_string(), function_symbol_environment::attr::e_extern );
-
-                } else {
-                    // type was not found, !! compilation error !!
-                    assert( false );
-                }
+                solve_type(
+                    this,
+                    s->return_type_,
+                    parent_env,
+                    [&]( type_id_t const& return_type_id,
+                         type const& ty,
+                         class_symbol_environment_ptr const& class_env
+                        ) {
+                        f_env->complete(
+                            return_type_id,
+                            s->get_identifier()->get_inner_symbol()->to_native_string(),
+                            function_symbol_environment::attr::e_extern
+                            );
+                    });
 
             } else {
                 // extern function MUST specifies RETURN TYPE. [[compilation error]]
