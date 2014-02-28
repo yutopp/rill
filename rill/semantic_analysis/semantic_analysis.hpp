@@ -9,7 +9,6 @@
 #ifndef RILL_SEMANTIC_ANALYSIS_HPP
 #define RILL_SEMANTIC_ANALYSIS_HPP
 
-#include "compiletime_interpreter/interpreter.hpp"
 #include "identifier_collector.hpp"
 #include "analyzer.hpp"
 #include "helper.hpp"

@@ -15,17 +15,12 @@
 
 #include "type_registry_fwd.hpp"
 #include "environment_fwd.hpp"
-#include "../attribute/type.hpp"
+
 
 
 namespace rill
 {
-    // type is composed to Class and Attributes
-    struct type
-    {
-        environment_id_t class_env_id;
-        attribute::type_attributes attributes;
-    };
+
 
 /*
     template<typename ClassEnvPtr>

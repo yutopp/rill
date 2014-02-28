@@ -7,6 +7,7 @@
 //
 
 #include <rill/code_generator/llvm_ir_generator.hpp>
+#include <rill/code_generator/llvm_ir_generator/helper.hpp>
 #include <rill/behavior/intrinsic_function_holder.hpp>
 #include <rill/semantic_analysis/analyzer.hpp>
 
@@ -515,7 +516,7 @@ namespace rill
                         );
                 context_->env_conversion_table.bind_type( c_env->get_id(), llvm_struct_type );
 
-                            // filter statements
+                // filter statements
                 // collect class variables
                 do_filter_const<ast::class_variable_declaration_statement>(
                     s->inner_,
@@ -686,61 +687,66 @@ namespace rill
             auto const& variable_attr
                 = variable_type.attributes;
 
+
             // initial value
-            // !!!!!!TODO: call constructor if there are no initial value!!!!!!
-            auto const& initial_llvm_value
-                = s->declaration_.decl_unit.init_unit.initializer
-                ? dispatch( s->declaration_.decl_unit.init_unit.initializer, v_env )
-                : (llvm::Value*)llvm::ConstantStruct::get( (llvm::StructType*)variable_llvm_type, llvm::ConstantInt::get( context_->llvm_context, llvm::APInt( 32, 42 ) ), nullptr );//nullptr;
+            if ( s->declaration_.decl_unit.init_unit.initializer ) {
+                //
+                auto const& initial_llvm_value
+                    = dispatch( s->declaration_.decl_unit.init_unit.initializer, v_env );
 
-            //
-            switch( variable_attr.quality )
-            {
-            case attribute::quality_kind::k_val:
-
-                switch( variable_attr.modifiability )
+                //
+                switch( variable_attr.quality )
                 {
-                case attribute::modifiability_kind::k_immutable:
-                {
-                    if ( !initial_llvm_value ) {
-                        assert( false && "[ice" );
-                    }
+                case attribute::quality_kind::k_val:
 
-                    if ( variable_llvm_type->isStructTy() ) {
-                        llvm::AllocaInst* const allca_inst = context_->ir_builder.CreateAlloca( variable_llvm_type, 0/*length*/ );
-                        context_->env_conversion_table.bind_value( v_env->get_id(), allca_inst );
+                    switch( variable_attr.modifiability )
+                    {
+                    case attribute::modifiability_kind::k_immutable:
+                    {
+                        if ( !initial_llvm_value ) {
+                            assert( false && "[ice" );
+                        }
 
-                    } else {
-                        context_->env_conversion_table.bind_value( v_env->get_id(), initial_llvm_value );
+                        if ( variable_llvm_type->isStructTy() ) {
+                            llvm::AllocaInst* const allca_inst = context_->ir_builder.CreateAlloca( variable_llvm_type, 0/*length*/ );
+                            context_->env_conversion_table.bind_value( v_env->get_id(), allca_inst );
+
+                        } else {
+                            context_->env_conversion_table.bind_value( v_env->get_id(), initial_llvm_value );
+                        }
                     }
-                }
                     break;
 
-                case attribute::modifiability_kind::k_const:
+                    case attribute::modifiability_kind::k_const:
+                        assert( false && "[ice]" );
+                        break;
+
+                    case attribute::modifiability_kind::k_mutable:
+                    {
+                        llvm::AllocaInst* const allca_inst = context_->ir_builder.CreateAlloca( variable_llvm_type, 0/*length*/ );
+                        if ( initial_llvm_value ) {
+                            context_->ir_builder.CreateStore( initial_llvm_value, allca_inst /*, is_volatile */ );
+                        }
+
+                        context_->env_conversion_table.bind_value( v_env->get_id(), allca_inst );
+                    }
+                    break;
+                    }
+
+                    break;
+
+                case attribute::quality_kind::k_ref:
+                    assert( false && "not implemented..." );
+                    break;
+
+                default:
                     assert( false && "[ice]" );
                     break;
-
-                case attribute::modifiability_kind::k_mutable:
-                {
-                    llvm::AllocaInst* const allca_inst = context_->ir_builder.CreateAlloca( variable_llvm_type, 0/*length*/ );
-                    if ( initial_llvm_value ) {
-                        context_->ir_builder.CreateStore( initial_llvm_value, allca_inst /*, is_volatile */ );
-                    }
-
-                    context_->env_conversion_table.bind_value( v_env->get_id(), allca_inst );
-                }
-                    break;
                 }
 
-                break;
-
-            case attribute::quality_kind::k_ref:
-                assert( false && "not implemented..." );
-                break;
-
-            default:
-                assert( false && "[ice]" );
-                break;
+            } else {
+                // has NO initial value...
+                //: (llvm::Value*)llvm::ConstantStruct::get( (llvm::StructType*)variable_llvm_type, llvm::ConstantInt::get( context_->llvm_context, llvm::APInt( 32, 42 ) ), nullptr );//nullptr;
             }
         }
 
@@ -961,75 +967,23 @@ namespace rill
             }
 
 
-
-/*
-            // evaluate values(and push to stack) and returned value type
-            // evalute rhs -> lhs
-            auto const& rhs_value = dispatch( e->rhs_, _ );
-            auto const& lhs_value = dispatch( e->lhs_, _ );
-            assert( rhs_value != nullptr && lhs_value != nullptr );
-
-
-
-            std::vector<llvm::Value*> const args = { lhs_value, rhs_value };
-*/
             // call function that defined in rill modules
             // evaluate argument from last to front(but ordering of vector is from front to last)
             ast::expression_list const& e_arguments = { e->lhs_, e->rhs_ };
-            auto const& parameter_type_ids = f_env->get_parameter_type_ids();
-            std::vector<llvm::Value*> args( e_arguments.size() );
-
-            for( std::size_t i=0; i<e_arguments.size(); ++i ) {
-                auto const& type = f_env->get_type_at( parameter_type_ids[e_arguments.size()-i-1] );
-                if ( !context_->env_conversion_table.is_defined( type.class_env_id ) ) {
-                    auto const& c_env = root_env_->get_env_strong_at( type.class_env_id );
-                    dispatch( c_env->get_related_ast(), c_env );
-                }
-
-                auto const value = dispatch( e_arguments[e_arguments.size()-i-1], parent_env );
-                assert( value != nullptr );
-
-                // TODO: check more strict
-                auto const& result_value = [&]() -> llvm::Value* {
-                    switch( type.attributes.quality )
-                    {
-                    case attribute::quality_kind::k_val:
-                    {
-                        // TODO: implement
-                        if ( value->getType()->isPointerTy() ) {
-                            return context_->ir_builder.CreateLoad( value );
-                        } else {
-                            return value;
-                        }
-                    }
-
-                    case attribute::quality_kind::k_ref:
-                        // TODO: implement
-                        if ( value->getType()->isPointerTy() ) {
-                            return value;
-                        } else {
-                            assert( false && "[ice]" );
-                            return value;
-                        }
-                        return value;
-
-                    default:
-                        assert( false && "[ice]" );
-                        break;
-                    }
-                }();
-
-                // TODO: value conversion...(ref, val, etc...)
-                args[e_arguments.size()-i-1] = result_value;
-            }
-
-
+            std::vector<llvm::Value*> args = eval_args(
+                f_env->get_parameter_type_ids(),
+                e_arguments,
+                parent_env
+                );
 
             std::cout << "CALL!!!!!" << std::endl;
 
             // invocation
             return context_->ir_builder.CreateCall( callee_function, args, "calltmp" );
         }
+
+
+
 
 
 
@@ -1078,7 +1032,6 @@ namespace rill
         }
 
 
-
         //
         //
         //
@@ -1102,55 +1055,13 @@ namespace rill
 
 
             // call function that defined in rill modules
-            // evaluate argument from last to front(but ordering of vector is from front to last)
-            auto const& parameter_type_ids = f_env->get_parameter_type_ids();
-            std::vector<llvm::Value*> args( e->arguments_.size() );
-            for( std::size_t i=0; i<e->arguments_.size(); ++i ) {
-                auto const& type = f_env->get_type_at( parameter_type_ids[e->arguments_.size()-i-1] );
-                if ( !context_->env_conversion_table.is_defined( type.class_env_id ) ) {
-                    auto const& c_env = root_env_->get_env_strong_at( type.class_env_id );
-                    dispatch( c_env->get_related_ast(), c_env );
-                }
-                auto const value = dispatch( e->arguments_[e->arguments_.size()-i-1], parent_env );
-                assert( value != nullptr );
+            std::vector<llvm::Value*> args = eval_args(
+                f_env->get_parameter_type_ids(),
+                e->arguments_,
+                parent_env
+                );
 
-                // TODO: check more strict
-                auto const& result_value = [&]() -> llvm::Value* {
-                    switch( type.attributes.quality )
-                    {
-                    case attribute::quality_kind::k_val:
-                    {
-                        // TODO: implement
-                        if ( value->getType()->isPointerTy() ) {
-                            return context_->ir_builder.CreateLoad( value );
-                        } else {
-                            return value;
-                        }
-                    }
-
-                    case attribute::quality_kind::k_ref:
-                        // TODO: implement
-                        if ( value->getType()->isPointerTy() ) {
-                            return value;
-                        } else {
-                            assert( false && "[ice]" );
-                            return value;
-                        }
-                        return value;
-
-                    default:
-                        assert( false && "[ice]" );
-                        break;
-                    }
-                }();
-
-                result_value->dump();
-//                assert( false );
-
-                // TODO: value conversion...(ref, val, etc...)
-                args[e->arguments_.size()-i-1] = result_value;
-            }
-
+            
 
             // evaluate lhs
             llvm::Value* const lhs = dispatch( e->reciever_, parent_env );

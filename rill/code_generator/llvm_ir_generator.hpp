@@ -87,6 +87,20 @@ namespace rill
                 return analyzer_ != nullptr;
             }
 
+
+        private:
+            auto convert_value_by_attr(
+                type const& parameter_type_id,
+                llvm::Value* const source_value 
+                ) const -> llvm::Value*;
+
+            template<typename Px, typename EnvPtr>
+            auto eval_args(
+                Px const& parameter_type_ids,
+                ast::expression_list const& arguments,
+                EnvPtr const& parent_env
+                ) const -> std::vector<llvm::Value*>;
+
         private:
             const_environment_base_ptr root_env_;
             intrinsic_function_action_holder_ptr action_holder_;

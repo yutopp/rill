@@ -12,9 +12,18 @@
 #include <vector>
 #include <limits>
 
+#include "../attribute/type.hpp"
+
 
 namespace rill
 {
+    // type is composed to Class and Attributes
+    struct type
+    {
+        environment_id_t class_env_id;
+        attribute::type_attributes attributes;
+    };
+
     // TODO: change to strong typedef
     typedef std::size_t type_id_t;
 
@@ -55,7 +64,6 @@ namespace rill
     
 
     // type is composed to Class and Attributs
-    struct type;
 
     //
     class type_registry;

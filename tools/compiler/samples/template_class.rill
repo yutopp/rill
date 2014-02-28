@@ -1,8 +1,8 @@
 def main(): int
 {
     val s: array!(int);
-    val b = 72: int;
-
+    val b = (72 + 30) + (10 + 20): int;
+    
     p( b );
 
     return 0;
