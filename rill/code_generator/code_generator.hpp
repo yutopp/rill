@@ -25,7 +25,7 @@ namespace rill
             ActionHolderPtr const& action_holder,
             std::shared_ptr<Node> const& node
             )
-            -> void
+            -> std::shared_ptr<llvm_ir_generator_context>
         {
             auto const& context = std::make_shared<llvm_ir_generator_context>();
 
@@ -43,9 +43,7 @@ namespace rill
             //
             ir_generator.debug();
 
-            // FIXME
-            auto const binary_gen = binary_generator_from_llvm_ir( context );
-            binary_gen.test();
+            return context;
         }
 
  

@@ -88,8 +88,26 @@ void sample( boost::program_options::variables_map const& vm )
 //    rill::interpreter::run( root_env, intrinsic_function_action, parse_tree );
 
     //
+    //assert( vm.count( "output,o" ) != 0 );
+
+
+    //
     std::cout << " = LLVM =================== " << std::endl;
-    rill::code_generator::generate_llvm_ir( root_env, intrinsic_function_action, program );
+    auto const& code_context
+        = rill::code_generator::generate_llvm_ir(
+            root_env,
+            intrinsic_function_action,
+            program
+            );
+
+
+    // FIXME
+    std::string const output_name
+        = vm["output"].as<std::string>();
+
+    auto const binary_gen
+        = rill::code_generator::binary_generator_from_llvm_ir( code_context );
+    binary_gen.test( output_name );
 
 
 #if 0
@@ -202,8 +220,6 @@ int main( int argc, char* argv[] )
         }
 
     } catch( std::exception const& e ) {
-        // 実際には引数に指定されなかった値を operator[] でアクセスしようとすると
-        // 例外が帰ってきたりする
         std::cerr << e.what() << std::endl;
         return -1;
     }

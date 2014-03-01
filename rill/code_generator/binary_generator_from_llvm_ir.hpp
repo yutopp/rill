@@ -24,7 +24,7 @@ namespace rill
             {}
 
         public:
-            void test() const;
+            void test( std::string const& ) const;
 
         private:
             llvm_ir_generator_context_ptr const& context_;
