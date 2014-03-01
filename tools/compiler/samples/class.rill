@@ -2,6 +2,8 @@ def main(): int
 {
     val a: A;
 
+    p( a.n );
+
     return 0;
 }
 
@@ -9,3 +11,5 @@ class A
 {
     val n: int;
 }
+
+extern def p( val :int ): void "put_string2";

@@ -682,71 +682,43 @@ namespace rill
                 dispatch( c_env->get_related_ast(), c_env );
             }
 
-            auto const& variable_llvm_type
-                = context_->env_conversion_table.ref_type( variable_type.class_env_id );
-            auto const& variable_attr
-                = variable_type.attributes;
-
 
             // initial value
             if ( s->declaration_.decl_unit.init_unit.initializer ) {
-                //
+                // has default value
+
                 auto const& initial_llvm_value
                     = dispatch( s->declaration_.decl_unit.init_unit.initializer, v_env );
+                assert( initial_llvm_value != nullptr && "[ice]" );
 
-                //
-                switch( variable_attr.quality )
-                {
-                case attribute::quality_kind::k_val:
-
-                    switch( variable_attr.modifiability )
-                    {
-                    case attribute::modifiability_kind::k_immutable:
-                    {
-                        if ( !initial_llvm_value ) {
-                            assert( false && "[ice" );
-                        }
-
-                        if ( variable_llvm_type->isStructTy() ) {
-                            llvm::AllocaInst* const allca_inst = context_->ir_builder.CreateAlloca( variable_llvm_type, 0/*length*/ );
-                            context_->env_conversion_table.bind_value( v_env->get_id(), allca_inst );
-
-                        } else {
-                            context_->env_conversion_table.bind_value( v_env->get_id(), initial_llvm_value );
-                        }
-                    }
-                    break;
-
-                    case attribute::modifiability_kind::k_const:
-                        assert( false && "[ice]" );
-                        break;
-
-                    case attribute::modifiability_kind::k_mutable:
-                    {
-                        llvm::AllocaInst* const allca_inst = context_->ir_builder.CreateAlloca( variable_llvm_type, 0/*length*/ );
-                        if ( initial_llvm_value ) {
-                            context_->ir_builder.CreateStore( initial_llvm_value, allca_inst /*, is_volatile */ );
-                        }
-
-                        context_->env_conversion_table.bind_value( v_env->get_id(), allca_inst );
-                    }
-                    break;
-                    }
-
-                    break;
-
-                case attribute::quality_kind::k_ref:
-                    assert( false && "not implemented..." );
-                    break;
-
-                default:
-                    assert( false && "[ice]" );
-                    break;
-                }
+                store_value(
+                    variable_type,
+                    initial_llvm_value,
+                    v_env
+                    );
 
             } else {
                 // has NO initial value...
-                //: (llvm::Value*)llvm::ConstantStruct::get( (llvm::StructType*)variable_llvm_type, llvm::ConstantInt::get( context_->llvm_context, llvm::APInt( 32, 42 ) ), nullptr );//nullptr;
+
+                auto const& variable_llvm_type
+                    = context_->env_conversion_table.ref_type( variable_type.class_env_id );
+
+                // TEST:
+                auto const& initial_llvm_value
+                    = (llvm::Value*)llvm::ConstantStruct::get(
+                        (llvm::StructType*)variable_llvm_type,
+                        llvm::ConstantInt::get(
+                            context_->llvm_context,
+                            llvm::APInt( 32, 42 )
+                            ),
+                        nullptr
+                        );
+
+                store_value(
+                    variable_type,
+                    initial_llvm_value,
+                    v_env
+                    );
             }
         }
 
@@ -993,9 +965,14 @@ namespace rill
         RILL_TV_OP_CONST( llvm_ir_generator, ast::element_selector_expression, e, parent_env )
         {
             //
+            std::cout << "element selection" << std::endl;
+
             auto const& element_env = root_env_->get_related_env_by_ast_ptr( e );
             if ( element_env != nullptr ) {
-                //
+                // this pass processes variables belongs the class
+                std::cout << "has element" << std::endl;
+
+                // this element selsction affects to the reciever
 
                 if ( element_env->get_symbol_kind() == kind::type_value::e_variable ) {
                     // variable that belonged to class
@@ -1024,6 +1001,7 @@ namespace rill
                 }
 
             } else {
+                std::cout << "has NO selection" << std::endl;
                 llvm::Value* const rhs = dispatch( e->selector_id_, parent_env );
                 llvm::Value* const lhs = dispatch( e->reciever_, parent_env );
 
@@ -1141,6 +1119,8 @@ namespace rill
                     = std::static_pointer_cast<variable_symbol_environment const>( id_env );
                 assert( v_env != nullptr );
 
+                
+
                 // TODO: check the type of variable !
                 // if type is "type", ...(should return id of type...?)
 
@@ -1151,7 +1131,6 @@ namespace rill
                 } else {
                     // fallback...
                     if ( is_jit() ) {
-                        // assert( false && "pyaaaaaaaaai" );
                         if ( analyzer_->ctfe_engine_->value_holder_->is_defined( v_env->get_id() ) ) {
                             // TODO: add type check...;(
                             return static_cast<llvm::Value*>(

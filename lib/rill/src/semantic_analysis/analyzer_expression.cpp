@@ -154,8 +154,8 @@ namespace rill
             // ========================================
             // eval rhs
             // TODO: support function, class, namespace...
-            // A.B is passed when A is not nontype_id symbol(currently variable)
-            if ( !is_nontype_id( reciever_type_detail->type_id ) ) {
+            // "A.B" will be passed when the value "A" is type_id symbol(currently, only variable type has type_id)
+            if ( is_type_id( reciever_type_detail->type_id ) ) {
                 auto const& reciever_type
                     = parent_env->get_type_at( reciever_type_detail->type_id );
                 assert( reciever_type.class_env_id != environment_id_undefined );
@@ -173,8 +173,9 @@ namespace rill
                 auto const& nested
                     = reciever_type_detail->nest != nullptr
                     ? reciever_type_detail->nest
-                    : type_detail::nest_pointer()
+                    : std::make_shared<type_detail::nest_type>()
                     ;
+                assert( nested != nullptr );
                 nested->push_back( reciever_type_detail );
 
 
@@ -197,6 +198,17 @@ namespace rill
                         true
                         )
                     ;
+
+                // memoize
+#if 0
+                std::cout << "memoed: variable, type id = "
+                          << selector_id_detail->target_env->get_type_id()
+                          << " / "
+                          << selector_id_detail->target_env->mangled_name()
+                          << std::endl;
+#endif
+                selector_id_detail->target_env->connect_from_ast( e );
+
 
                 return type_detail_pool_->construct(
                     selector_id_detail->type_id,

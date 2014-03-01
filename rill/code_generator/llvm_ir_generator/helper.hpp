@@ -41,7 +41,8 @@ namespace rill
             Px const& parameter_type_ids,
             ast::expression_list const& arguments,
             EnvPtr const& parent_env
-            ) const -> std::vector<llvm::Value*>
+            ) const
+            -> std::vector<llvm::Value*>
         {
             std::vector<llvm::Value*> args( arguments.size() );
 
@@ -64,6 +65,88 @@ namespace rill
             }
 
             return args;
+        }
+
+
+        template<typename EnvPtr>
+        auto llvm_ir_generator::store_value(
+            type const& value_ty,
+            llvm::Value* const value,
+            EnvPtr const& v_env
+            ) const
+            -> void
+        {
+            auto const& variable_attr = value_ty.attributes;
+            auto const& variable_llvm_type = value->getType();
+
+            //
+            switch( variable_attr.quality )
+            {
+            // VAL
+            case attribute::quality_kind::k_val:
+                switch( variable_attr.modifiability )
+                {
+                case attribute::modifiability_kind::k_immutable:
+                {
+                    // FIXME:
+                    if ( variable_llvm_type->isStructTy() ) {
+                        llvm::AllocaInst* const allca_inst
+                            = context_->ir_builder.CreateAlloca(
+                                variable_llvm_type,
+                                0/*length of array*/
+                                );
+                        context_->env_conversion_table.bind_value(
+                            v_env->get_id(),
+                            allca_inst
+                            );
+
+                    } else {
+                        context_->env_conversion_table.bind_value(
+                            v_env->get_id(),
+                            value
+                            );
+                    }
+                }
+                break;
+
+                case attribute::modifiability_kind::k_const:
+                    assert( false && "[ice] notsuported" );
+                    break;
+
+                case attribute::modifiability_kind::k_mutable:
+                {
+                    // FIXME:
+                    llvm::AllocaInst* const allca_inst
+                        = context_->ir_builder.CreateAlloca(
+                            variable_llvm_type,
+                            0/*length*/
+                            );
+                    if ( value ) {
+                        context_->ir_builder.CreateStore(
+                            value,
+                            allca_inst /*, is_volatile */
+                            );
+                    }
+
+                    context_->env_conversion_table.bind_value(
+                        v_env->get_id(),
+                        allca_inst
+                        );
+                }
+                break;
+                }
+
+                break;
+
+            // REF
+            case attribute::quality_kind::k_ref:
+                assert( false && "not implemented..." );
+                break;
+
+            default:
+                assert( false && "[ice]" );
+                break;
+            }
         }
 
     } // namespace code_generator

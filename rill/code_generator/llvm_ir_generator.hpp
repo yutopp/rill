@@ -90,7 +90,7 @@ namespace rill
 
         private:
             auto convert_value_by_attr(
-                type const& parameter_type_id,
+                type const& target_type,
                 llvm::Value* const source_value 
                 ) const -> llvm::Value*;
 
@@ -100,6 +100,13 @@ namespace rill
                 ast::expression_list const& arguments,
                 EnvPtr const& parent_env
                 ) const -> std::vector<llvm::Value*>;
+
+            template<typename EnvPtr>
+            auto store_value(
+                type const& arg_type,
+                llvm::Value* const arg_value,
+                EnvPtr const& v_env
+                ) const -> void;
 
         private:
             const_environment_base_ptr root_env_;

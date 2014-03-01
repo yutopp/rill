@@ -46,6 +46,12 @@ namespace rill
         return tid >= type_id_special && tid < type_id_special_limit;
     }
 
+    inline auto is_type_id( type_id_t const& tid )
+        -> bool
+    {
+        return !is_nontype_id( tid );
+    }
+
 
     namespace detail
     {
