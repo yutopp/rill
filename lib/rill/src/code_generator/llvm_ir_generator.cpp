@@ -970,7 +970,7 @@ namespace rill
             auto const& element_env = root_env_->get_related_env_by_ast_ptr( e );
             if ( element_env != nullptr ) {
                 // this pass processes variables belongs the class
-                std::cout << "has element" << std::endl;
+                std::cout << "has element / kind " << debug_string( element_env->get_symbol_kind() ) << std::endl;
 
                 // this element selsction affects to the reciever
 
@@ -995,6 +995,10 @@ namespace rill
                     std::cout << "index: " << index << std::endl;
 
                     return context_->ir_builder.CreateStructGEP( lhs, index );
+
+                } if ( element_env->get_symbol_kind() == kind::type_value::e_parameter_wrapper ) {
+                    assert( false && "[[ice]] function" );
+                    return nullptr;
 
                 } else {
                     assert( false && "[[ice]]" );

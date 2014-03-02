@@ -4,12 +4,18 @@ def main(): int
 
     p( a.n );
 
+    a.f();
+
     return 0;
 }
 
 class A
 {
     val n: int;
+
+    def f(): void
+    {
+    }   
 }
 
 extern def p( val :int ): void "put_string2";

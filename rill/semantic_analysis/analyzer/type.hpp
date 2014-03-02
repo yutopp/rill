@@ -145,7 +145,7 @@ namespace rill
 
                                         case attribute::modifiability_kind::k_immutable:
                                             // TODO: implement
-                                            assert( false );
+                                            //assert( false );
                                             break;
 
                                         default:
