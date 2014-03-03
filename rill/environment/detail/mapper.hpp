@@ -16,11 +16,12 @@
 
 #include "../../ast/statement.hpp"
 #include "../../ast/detail/dispatch_assets.hpp"
+#include "../type_registry_fwd.hpp"
 
 
 namespace rill
 {
-    // table[ast_ptr -> env_id]
+    // table[ast_ptr -> [env_id] env_ptr]
     class ast_to_environment_id_mapper
     {
     public:
@@ -85,40 +86,37 @@ namespace rill
         std::unordered_map<key_type, value_type> map_;
     };
 
-#if 0
-    // table[env_id -> {env_id, ast_ptr}]
-    class environment_to_asts_mapper
+
+    // table[ast_ptr -> env_id]
+    class ast_to_type_id_mapper
     {
     public:
-        typedef environment_id_t        key_type;
-        struct value_type
-        {
-            environment_id_t related_env_id;
-            ast::statement_ptr statement_ast;
-        };
-        typedef std::unordered_multimap<key_type, value_type> container_type;
-        typedef container_type::const_iterator const_iterator_type;
-        typedef std::pair<container_type::const_iterator, container_type::const_iterator> const_iterator_pair_type;
+        typedef void const*         key_type;
+        typedef type_id_t           value_type;
+
     public:
-        template<typename Id, typename AstPtr>
-        auto add( Id const& env_id, Id const& env_id_on_time, AstPtr const& ast_ptr )
+        template<typename SmartPtr>
+        auto add( SmartPtr const& ast_ptr, value_type const& tid )
             -> void
         {
-            value_type vv = { env_id_on_time, ast_ptr };
-            map_.emplace( env_id, vv );
+            map_.emplace( ast_ptr.get(), tid );
         }
 
-        template<typename Id>
-        auto get( Id const& env_id ) const
-            -> const_iterator_pair_type
+        template<typename SmartPtr>
+        auto get( SmartPtr const& ast_ptr ) const
+            -> type_id_t
         {
-            return map_.equal_range( env_id );
+            assert( ast_ptr != nullptr );
+
+            std::cout << "tid ptr-> " << ast_ptr << std::endl;
+            return ( map_.find( ast_ptr.get() ) != map_.cend() )
+                ? ( map_.at( ast_ptr.get() ) )
+                : type_id_undefined;
         }
 
     private:
-        container_type map_;
+        std::unordered_map<key_type, value_type> map_;
     };
-#endif
 } // namespace rill
 
 #endif /*RILL_ENVIRONMENT_MAPPER*/

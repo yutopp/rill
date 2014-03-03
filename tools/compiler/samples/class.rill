@@ -2,7 +2,7 @@ def main(): int
 {
     val a: A;
 
-    p( a.n );
+//    p( a.n );
 
     a.f();
 
@@ -11,11 +11,20 @@ def main(): int
 
 class A
 {
-    val n: int;
+//    val n: int;
 
     def f(): void
     {
+        print( "\n" );
+        print( "class function f\n" );
+
+        this.g();
     }   
+
+    def g(): void
+    {
+        print( "g dayo~\n" );
+    }
 }
 
 extern def p( val :int ): void "put_string2";

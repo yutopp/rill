@@ -163,7 +163,7 @@ namespace rill
 
         bool is_in_class() const
         {
-            return parent_class_env_id_ == environment_id_undefined;
+            return parent_class_env_id_ != environment_id_undefined;
         }
 
     private:

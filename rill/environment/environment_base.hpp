@@ -84,13 +84,16 @@ namespace rill
         typedef environment_registry<BaseEnvT>      environment_registry_type;
         typedef ast_to_environment_id_mapper        ast_to_env_id_mapper_type;
         typedef environment_id_to_ast_mapper        env_id_to_ast_mapper_type;
+
         typedef type_registry                       type_registry_type;
+        typedef ast_to_type_id_mapper               ast_to_type_id_mapper_type;
 
         environment_registry_type container;
         ast_to_env_id_mapper_type ast_to_env_id_map;
         env_id_to_ast_mapper_type env_id_to_ast_map;
 
         type_registry_type types_container;
+        ast_to_type_id_mapper_type ast_to_type_id_map;
 
         debug_allocate_counter debug_allocate_counter_;
     };
@@ -99,10 +102,6 @@ namespace rill
 
 
     struct root_initialize_tag {};
-
-
-
-    static auto const unnamed = nullptr;
 
 
 
@@ -562,6 +561,25 @@ namespace rill
         {
             return root_shared_resource_->types_container.at( type_id );
         }
+
+
+        template<typename AstPtr>
+        auto bind_type_id_with_ast( AstPtr const& ast_ptr, type_id_t const& tid )
+            -> void
+        {
+            root_shared_resource_->ast_to_type_id_map.add( ast_ptr, tid );
+        }
+        
+
+
+        template<typename AstPtr>
+        auto get_related_type_id_by_ast_ptr( AstPtr const& ast_ptr ) const
+            -> type_id_t
+        {
+            return root_shared_resource_->ast_to_type_id_map.get( ast_ptr );
+        }
+
+
 
     private:
         environment_id_t id_;

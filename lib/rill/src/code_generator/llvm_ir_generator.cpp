@@ -17,9 +17,11 @@
 #include <cstdint>
 
 #include <boost/scope_exit.hpp>
+
 #include <boost/range/algorithm/copy.hpp>
 #include <boost/range/adaptor/reversed.hpp>
 #include <boost/range/adaptor/transformed.hpp>
+#include <boost/range/adaptor/sliced.hpp>
 #include <boost/range/join.hpp>
 
 #include <llvm/IR/IRBuilder.h>
@@ -619,7 +621,8 @@ namespace rill
             // define paramter and return types
             std::vector<llvm::Type*> parameter_types;
             boost::copy(
-                parameter_variable_type_ids | boost::adaptors::transformed( type_id_to_llvm_type_ptr( std::cref( *this ) ) ),
+                parameter_variable_type_ids
+                    | boost::adaptors::transformed( type_id_to_llvm_type_ptr( std::cref( *this ) ) ),
                 std::back_inserter( parameter_types )
                 );
 
@@ -996,20 +999,40 @@ namespace rill
 
                     return context_->ir_builder.CreateStructGEP( lhs, index );
 
-                } if ( element_env->get_symbol_kind() == kind::type_value::e_parameter_wrapper ) {
-                    assert( false && "[[ice]] function" );
-                    return nullptr;
+                } else if ( element_env->get_symbol_kind() == kind::type_value::e_parameter_wrapper ) {
+                    // class funcion invocation
+                    std::cout << "class functio invocation" << std::endl;
+
+                    // eval reciever
+                    llvm::Value* const lhs = dispatch( e->reciever_, parent_env );
+                    // push temporary value
+                    context_->temporary_reciever_stack_.push(
+                        std::make_tuple(
+                            root_env_->get_related_type_id_by_ast_ptr( e->reciever_ ),
+                            lhs
+                            )
+                        );
+
+                    //
+                    llvm::Value* const rhs = dispatch( e->selector_id_, parent_env );
+
+
+                    // eval reciever
+                    return rhs;
 
                 } else {
                     assert( false && "[[ice]]" );
                 }
 
             } else {
-                std::cout << "has NO selection" << std::endl;
-                llvm::Value* const rhs = dispatch( e->selector_id_, parent_env );
-                llvm::Value* const lhs = dispatch( e->reciever_, parent_env );
+                // namespace
+                assert( false && "[ababa!w]" );
+                return nullptr;
+                //std::cout << "has NO selection" << std::endl;
+                //llvm::Value* const rhs = dispatch( e->selector_id_, parent_env );
+                //llvm::Value* const lhs = dispatch( e->reciever_, parent_env );
 
-                return lhs;
+                //return lhs;
             }
         }
 
@@ -1019,6 +1042,8 @@ namespace rill
         //
         RILL_TV_OP_CONST( llvm_ir_generator, ast::call_expression, e, parent_env )
         {
+            std::cout << "CALL expr" << std::endl;
+
             // ========================================
             // look up self function
             auto const f_env
@@ -1036,23 +1061,75 @@ namespace rill
             }
 
 
-            // call function that defined in rill modules
-            std::vector<llvm::Value*> args = eval_args(
-                f_env->get_parameter_type_ids(),
-                e->arguments_,
-                parent_env
-                );
+            std::vector<llvm::Value*> total_args = [&]() -> std::vector<llvm::Value*> {
+                if ( f_env->is_in_class() ) {
+                    // need reviever
+                    // make temporary space
+                    std::vector<llvm::Value*> args = { nullptr };
 
-            
+                    auto const& parameter_type_ids
+                        = f_env->get_parameter_type_ids();
+                    std::vector<llvm::Value*> const args_without_this
+                        = eval_args(
+                            parameter_type_ids
+                                | boost::adaptors::sliced( 1, parameter_type_ids.size() ),
+                            e->arguments_,
+                            parent_env
+                            );
 
-            // evaluate lhs
-            llvm::Value* const lhs = dispatch( e->reciever_, parent_env );
-            if ( lhs != nullptr ) {
-                args.insert( args.begin(), lhs );
+                    // copy to total_args
+                    std::copy(
+                        args_without_this.cbegin(),
+                        args_without_this.cend(),
+                        std::back_inserter( args )
+                        );
+
+                    return args;
+
+                } else {
+                    return eval_args(
+                        f_env->get_parameter_type_ids(),
+                        e->arguments_,
+                        parent_env
+                        );
+                }
+            }();
+
+
+
+            // evaluate lhs(reciever)
+            // if reciever is exist, valid value and type will be stacked
+            dispatch( e->reciever_, parent_env );
+            // save the reciever object to the temprary space
+            if ( f_env->is_in_class() ) {
+                //
+                assert( context_->temporary_reciever_stack_.size() > 0 );
+
+                auto const& reciever_obj_value
+                    = context_->temporary_reciever_stack_.top();
+
+                auto const& parameter_type
+                    = root_env_->get_type_at( f_env->get_parameter_type_ids()[0] );
+
+                auto const& ty
+                    = root_env_->get_type_at(
+                        std::get<0>( reciever_obj_value )
+                        );
+                auto const val
+                    = std::get<1>( reciever_obj_value );
+                assert( val != nullptr );
+
+                total_args[0] = convert_value_by_attr(
+                    parameter_type,
+                    ty,
+                    val
+                    );
+                assert( total_args[0] != nullptr );
+                context_->temporary_reciever_stack_.pop();
             }
 
             // invocation
-            return context_->ir_builder.CreateCall( callee_function, args/*, "calltmp"*/ );
+            return context_->ir_builder.CreateCall( callee_function, total_args/*, "calltmp"*/ );
         }
 
 

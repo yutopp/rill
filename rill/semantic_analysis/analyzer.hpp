@@ -12,6 +12,7 @@
 #include <memory>
 
 #include "../ast/detail/tree_visitor_base.hpp"
+#include "../environment/environment_base.hpp"
 #include "../behavior/intrinsic_function_holder_fwd.hpp"
 #include "../code_generator/llvm_ir_generator_fwd.hpp"
 #include "../compile_time/ctfe_engine.hpp"
@@ -111,6 +112,18 @@ namespace rill
                     const_class_symbol_environment_ptr,
                     void*
                 >;
+
+        private:
+            template<typename AstPtr>
+            auto bind_type(
+                AstPtr const& ast,
+                type_detail_ptr const& ty_p
+                ) -> type_detail_ptr
+            {
+                root_env_->bind_type_id_with_ast( ast, ty_p->type_id );
+                return ty_p;
+            }
+
 
         private:
             environment_base_ptr root_env_;

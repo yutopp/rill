@@ -66,7 +66,12 @@ namespace rill
                 return "e_template";
             case type_value::e_mixin:
                 return "e_mixin";
+
+            default:
+                assert( false );
             }
+
+            return "";
         }
     }
 

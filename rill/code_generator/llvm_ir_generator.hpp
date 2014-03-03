@@ -91,6 +91,7 @@ namespace rill
         private:
             auto convert_value_by_attr(
                 type const& target_type,
+                type const& source_type,
                 llvm::Value* const source_value 
                 ) const -> llvm::Value*;
 

@@ -42,8 +42,6 @@ namespace rill
 
 
         // statement
-        // virtual void operator()( template_statement const& s, environment_base_ptr const& env ) const =0;
-
         RILL_TV_OP( analyzer, ast::expression_statement, s, parent_env )
         {
             dispatch( s->expression_, parent_env );
@@ -501,6 +499,7 @@ namespace rill
             }
             c_env->change_progress_to_checked();
 
+            // analyze class body
             dispatch( s->inner_, c_env );
 
             c_env->complete( s->get_identifier()->get_inner_symbol()->to_native_string() );

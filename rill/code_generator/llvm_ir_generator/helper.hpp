@@ -52,12 +52,19 @@ namespace rill
 
                 auto const& parameter_type
                     = root_env_->get_type_at( parameter_type_ids[reversed_i] );
+                auto const arg_type
+                    = root_env_->get_type_at(
+                        root_env_->get_related_type_id_by_ast_ptr(
+                            arguments[reversed_i]
+                            )
+                        );
                 auto const arg_value
                     = dispatch( arguments[reversed_i], parent_env );
                 assert( arg_value != nullptr );
 
                 auto const& result_value = convert_value_by_attr(
                     parameter_type,
+                    arg_type,
                     arg_value
                     );
 
@@ -68,6 +75,7 @@ namespace rill
         }
 
 
+        // create new Value holder
         template<typename EnvPtr>
         auto llvm_ir_generator::store_value(
             type const& value_ty,

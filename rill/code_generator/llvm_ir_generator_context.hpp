@@ -10,6 +10,8 @@
 #define RILL_CODE_GENERATOR_LLVM_IR_GENERATOR_CONTEXT_HPP
 
 #include <memory>
+#include <tuple>
+#include <stack>
 
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
@@ -22,6 +24,8 @@ namespace rill
 {
     namespace code_generator
     {
+        typedef std::stack<std::tuple<type_id_t, llvm::Value*>> temporary_reciever_stack_t;
+
         class llvm_ir_generator_context
         {
         public:
@@ -37,6 +41,7 @@ namespace rill
             llvm::IRBuilder<> ir_builder;
 
             env_id_llvm_table env_conversion_table;
+            temporary_reciever_stack_t temporary_reciever_stack_;
         };
         typedef std::shared_ptr<llvm_ir_generator_context> llvm_ir_generator_context_ptr;
 

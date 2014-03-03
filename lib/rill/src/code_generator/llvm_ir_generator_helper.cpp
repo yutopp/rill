@@ -36,8 +36,11 @@ namespace rill
 {
     namespace code_generator
     {
+        // convert llvm::Value type to 
+        // in LLVM, the structure type is treated as pointer type
         auto llvm_ir_generator::convert_value_by_attr(
             type const& target_type,
+            type const& source_type,
             llvm::Value* const source_value
             ) const -> llvm::Value*
         {
@@ -46,6 +49,8 @@ namespace rill
                 auto const& c_env = root_env_->get_env_strong_at( target_type.class_env_id );
                 dispatch( c_env->get_related_ast(), c_env );
             }
+
+
 
             switch( target_type.attributes.quality )
             {

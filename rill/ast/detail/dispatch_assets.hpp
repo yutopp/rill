@@ -31,6 +31,7 @@
                 boost::mpl::at<rill::ast::detail::as_type, tag>::type \
            >::result<class_name>::type \
     { \
+        std::cout << "<DISPATCH> " << #class_name << std::endl; \
         return visitor.invoke( std::static_pointer_cast<class_name>( self_pointer ), env ); \
     } \
     virtual auto dispatch( \
@@ -43,6 +44,7 @@
                 boost::mpl::at<rill::ast::detail::as_type, tag>::type \
            >::result<class_name>::type \
     { \
+        std::cout << "<DISPATCH> " << #class_name << std::endl; \
         return visitor.invoke( std::static_pointer_cast<class_name const>( const_self_pointer ), env ); \
     }
 

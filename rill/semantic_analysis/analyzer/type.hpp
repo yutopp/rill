@@ -127,7 +127,7 @@ namespace rill
                                             case attribute::modifiability_kind::k_immutable:
                                                 // mutable -> immutable : INVARID
                                                 // TODO: check flag
-                                                assert( false );
+                                                // assert( false );
                                                 break;
 
                                             default:

@@ -36,10 +36,10 @@ namespace rill
     class type_registry
     {
     public:
-        typedef type_id_t       type_id_type;
-        typedef type            type_type;
+        typedef type_id_t                   type_id_type;
+        typedef type                        type_type;
 
-        typedef std::allocator<type_type> dereference_allocator_type;
+        typedef std::allocator<type_type>   dereference_allocator_type;
 
     public:
         auto add(
