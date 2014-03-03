@@ -2,7 +2,7 @@ def main(): int
 {
     val a: A;
 
-//    p( a.n );
+    p( a.n );
 
     a.f();
 
@@ -11,18 +11,22 @@ def main(): int
 
 class A
 {
-//    val n: int;
+    val n: int;
 
     def f(): void
     {
         print( "\n" );
         print( "class function f\n" );
 
-        this.g();
+        this.g( 12345 );
     }   
 
-    def g(): void
+    def g( val v: int ): void
     {
+        p( v );
+        print( "\n" );
+        p( this.n );
+        print( "\n" );
         print( "g dayo~\n" );
     }
 }
