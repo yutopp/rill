@@ -204,6 +204,40 @@ namespace rill
                     (( std::string, value_, cloned->value_ = value_; ))
                     )
             };
+
+
+
+            //
+            // Array Value
+            //
+            struct array_value RILL_CXX11_FINAL
+                : public value_base
+            {
+            public:
+                array_value( expression_list const& ex )
+                    : elements_list_( ex )
+                {}
+
+            public:
+                virtual auto get_native_typename_string() const
+                    -> native_string_t
+                {
+                    return "array";
+                }
+
+
+                //////////////////////////////////////////////////
+                RILL_MAKE_AST_DERIVED(
+                    array_value, value_base,
+                    (( expression_list, elements_list_,
+                       for( auto const& e : elements_list_ )
+                           cloned->elements_list_.push_back(
+                               clone_ast<expression_ptr>( e )
+                               );
+                        ))
+                    )
+            };
+
         } // namespace intrinsic
 
 

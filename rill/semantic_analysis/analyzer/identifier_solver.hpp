@@ -440,7 +440,7 @@ namespace rill
                             // [1]: number of elements
                             c_env->make_as_array(
                                 static_cast<type_detail_ptr>( template_args->at( 0 ) )->type_id,
-                                20
+                                3
                                 );
                         }
 

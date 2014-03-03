@@ -769,6 +769,7 @@ namespace rill
                             | numeric_literal_
                             | boolean_literal_
                             | string_literal_
+                            | array_literal_
                           ][ qi::_val = helper::make_node_ptr<ast::term_expression>( qi::_1 ) ]
                         | ( qi::lit( '(' ) >> expression_ >> qi::lit( ')' ) )[qi::_val = qi::_1]
                         ;
@@ -800,14 +801,11 @@ namespace rill
                     = integer_literal_
                     ;
 
+                //
                 boolean_literal_
                     = qi::lit( "true" )[qi::_val = helper::make_literal_value_ptr<ast::intrinsic::boolean_value>( phx::val( true ) )]
                     | qi::lit( "false" )[qi::_val = helper::make_literal_value_ptr<ast::intrinsic::boolean_value>( phx::val( false ) )];
                     ;
-/*
-                type_
-                  =
-*/
 
                 //
                 string_literal_
@@ -820,10 +818,15 @@ namespace rill
                 string_literal_sequenece_
                     = qi::as_string[qi::lexeme[ qi::lit('"') >> *( ( escape_sequence_ | qi::char_ )- '"') >> qi::lit('"') ]];
 
-
                 // TODO: support escape sequence
                 escape_sequence_
                     = qi::lit( "\\n" )[qi::_val = phx::val( '\n' )]
+                    ;
+
+
+                array_literal_
+                    = ( qi::lit( '[' ) >> qi::lit( ']' ) )[qi::_val = helper::make_literal_value_ptr<ast::intrinsic::array_value>()]
+                    | ( qi::lit( '[' ) >> ( assign_expression_ % ',' ) >> qi::lit( ']' ) )[qi::_val = helper::make_literal_value_ptr<ast::intrinsic::array_value>( qi::_1 )]
                     ;
 
 
@@ -991,6 +994,7 @@ namespace rill
             rule<ast::literal_value_ptr()> integer_literal_;
             rule<ast::literal_value_ptr()> boolean_literal_;
             rule<ast::literal_value_ptr()> string_literal_;
+            rule<ast::literal_value_ptr()> array_literal_;
 
             rule<ast::nested_identifier_value_ptr()> nested_identifier_;
             rule<ast::identifier_value_ptr()> identifier_, identifier_with_root_;

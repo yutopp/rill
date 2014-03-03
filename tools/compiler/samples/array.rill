@@ -1,4 +1,4 @@
 def main()
 {
-    val a: int mutable[20];
+    val a = [1,2,3]: array!(int);
 }

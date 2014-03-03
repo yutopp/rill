@@ -147,6 +147,7 @@
 ((intrinsic::int32_value, RETURN)) \
 ((intrinsic::boolean_value, RETURN)) \
 ((intrinsic::string_value, RETURN)) \
+((intrinsic::array_value, RETURN)) \
 ((identifier_value_base, RETURN)) \
 ((identifier_value, RETURN)) \
 ((template_instance_value, RETURN)) \
