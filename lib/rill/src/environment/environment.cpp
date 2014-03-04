@@ -100,9 +100,7 @@ namespace rill
     {
         // TODO: call parent mangled_name()
 
-
-
-        return name_ + make_parameter_hash( this, parameter_type_ids_ );
+        return base_name_ + qualified_name_ + make_parameter_hash( this, parameter_type_ids_ );
 //        return name_ + make_parameter_hash( parameter_type_ids_ );
     }
 

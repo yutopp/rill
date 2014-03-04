@@ -86,13 +86,15 @@ namespace rill
 
         auto complete(
             type_id_t const& return_type_id,
-            native_string_type const& name,
+            native_string_type const& base_name,
+            native_string_type const& qualified_name = "",
             attributes_t const& attrbute = attr::e_normal
             )
             -> void
         {
             return_type_id_ = return_type_id;
-            name_ = name;
+            base_name_ = base_name;
+            qualified_name_ = qualified_name;
             attributes_ = attrbute;
 
             change_progress_to_completed();
@@ -140,6 +142,12 @@ namespace rill
         auto mangled_name() const
             -> native_string_type;
 
+        auto unique_key_for_overload() const
+            ->  native_string_type
+        {
+            return mangled_name();
+        }
+
         bool is_return_type_completed() const
         {
             return return_type_id_ != type_id_undefined;
@@ -179,7 +187,7 @@ namespace rill
 
         type_id_list_t return_type_candidates_;
 
-        native_string_type name_;
+        native_string_type base_name_, qualified_name_;
         attributes_t attributes_;
     };
 

@@ -339,6 +339,11 @@ namespace rill
                         // TODO: check return statement types...
                         // f_env->get_return_type_candidates()
 
+
+                        std::cout << "<<>>" << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
+
+
+
                         f_env->complete(
                             return_type_id,
                             s->get_identifier()->get_inner_symbol()->to_native_string()
@@ -613,6 +618,7 @@ namespace rill
                         f_env->complete(
                             return_type_id,
                             s->get_identifier()->get_inner_symbol()->to_native_string(),
+                            ""/*FIXME*/,
                             function_symbol_environment::attr::e_extern
                             );
                     });

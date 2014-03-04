@@ -90,7 +90,8 @@ namespace rill
 
                     } else {
                         // try to type conversion
-                        auto const& f_env_arg_type = f_env->get_type_at( f_env_parameter_type_ids[i] );
+                        auto const& f_env_arg_type
+                            = f_env->get_type_at( f_env_parameter_type_ids[i] );
                         auto self_arg_type = env->get_type_at( arg_type_ids[i] );
 
 
@@ -452,10 +453,13 @@ namespace rill
                         // if the template argument was passed explicitly, save argument value
                         // if NOT, it will be deduced after that...
                         if ( i < template_args->size() ) {
-
-                            std::cout << "TEMPLATE ARGS!! " << i << std::endl;
                             auto const& template_var_env = decl_arg_holder[i];
                             auto const& template_arg = template_args->at( i );
+
+                            std::cout << "TEMPLATE ARGS!! " << i
+                                      << " * " << template_var_env->get_id() << std::endl;
+
+
 
                             {
                                 // DEBUG
@@ -467,8 +471,20 @@ namespace rill
                                 auto const& tt
                                     = visitor->root_env_->get_type_at( t_detail->type_id );
 
+                                auto const& c_e
+                                    = std::static_pointer_cast<class_symbol_environment const>(
+                                        visitor->root_env_->get_env_strong_at(
+                                            tt.class_env_id
+                                            )
+                                        );
+
                                 std::cout << "** typeid << " << t_detail->type_id << std::endl
-                                          << "** " << tt.class_env_id << std::endl;;
+                                          << "** " << tt.class_env_id << std::endl
+                                          << "** " << c_e->mangled_name() << std::endl;
+
+                                std::cout << "BINDED " << template_var_env->get_id()
+                                          << " -> " << c_e->mangled_name() << std::endl;
+
                             }
 
                             // TODO: fix...
@@ -510,6 +526,9 @@ namespace rill
                                     auto attr = ty.attributes;
                                     attr <<= e.quality;
 
+                                    std::cout << "<<TEMPLATE PARAM CLASS>> : "
+                                              << class_env->mangled_name() << std::endl;
+
                                     // declare
                                     f_env->parameter_variable_construct(
                                         e.decl_unit.name,
@@ -545,9 +564,19 @@ namespace rill
                              type const& ty,
                              class_symbol_environment_ptr const& class_env
                             ) {
+
+                            // mangling
+                            std::string mangle;
+
+
+
+
+
+
                             f_env->complete(
                                 return_type_id,
-                                function_ast->get_identifier()->get_inner_symbol()->to_native_string()
+                                function_ast->get_identifier()->get_inner_symbol()->to_native_string(),
+                                std::to_string( std::rand() )/*FIXME*/
                                 );
                         });
 

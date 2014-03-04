@@ -116,21 +116,11 @@ namespace rill
             -> env_base_pointer
         {
             // TODO: add duplicate check
-            overloads_[make_parameter_hash( this, inner_env->get_parameter_type_ids() )] = inner_env;
+            overloads_[inner_env->unique_key_for_overload()] = inner_env;
 
             overloads_2_.push_back( inner_env );
 
             return inner_env;
-        }
-
-        auto solve_overload( type_id_list_t const& arg_type_ids ) const
-            -> std::shared_ptr<InlineEnvironment>
-        {
-            std::cout << "solve_overload? hash: " << make_parameter_hash( this, arg_type_ids ) << std::endl;
-
-            auto const it = overloads_.find( make_parameter_hash( this, arg_type_ids ) );
-
-            return it != overloads_.cend() ? it->second : nullptr;
         }
 
 

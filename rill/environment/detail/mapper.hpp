@@ -35,7 +35,10 @@ namespace rill
             -> void
         {
             assert( ast_ptr != nullptr );
-            map_.emplace( ast_ptr.get(), env_ptr );
+            //map_.emplace( ast_ptr.get(), env_ptr );
+            map_[ast_ptr.get()] = env_ptr;
+
+            assert( map_.at( ast_ptr.get() ) == env_ptr );
         }
 
         template<typename SmartPtr>
@@ -72,7 +75,9 @@ namespace rill
             // TODO: add dup check
             assert( ast_ptr != nullptr );
 
-            map_.emplace( env_id, ast_ptr );
+            //map_.emplace( env_id, ast_ptr );
+            map_[env_id] = ast_ptr;
+            assert( map_.at( env_id ) == ast_ptr );
         }
 
         template<typename Id>
@@ -99,7 +104,9 @@ namespace rill
         auto add( SmartPtr const& ast_ptr, value_type const& tid )
             -> void
         {
-            map_.emplace( ast_ptr.get(), tid );
+            //map_.emplace( ast_ptr.get(), tid );
+            map_[ast_ptr.get()] = tid;
+            assert( map_.at( ast_ptr.get() ) == tid );
         }
 
         template<typename SmartPtr>
