@@ -36,7 +36,7 @@ namespace rill
         std::cout << "Marked, %&%& " << has_param_env->get_id() << " : " << created_function_env->get_id() << std::endl;
 
         //
-        has_param_env->connect_to_ast( ast );       // ???
+        //has_param_env->connect_to_ast( ast );       // ???
         created_function_env->connect_to_ast( ast );
 
         //
