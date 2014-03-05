@@ -105,6 +105,21 @@ namespace rill
         //
         struct value_initializer_unit
         {
+            value_initializer_unit() = default;
+
+            value_initializer_unit(
+                expression_ptr const& ep,
+                type_expression_ptr const& tp
+                )
+                : initializer( ep )
+                , type( tp )
+            {}
+
+            value_initializer_unit( value_initializer_unit const& rhs )
+                : initializer( clone_ast( rhs.initializer ) )
+                , type( clone_ast( rhs.type ) )
+            {}
+
             expression_ptr initializer;
             type_expression_ptr type;
         };
@@ -112,6 +127,21 @@ namespace rill
 
         struct variable_declaration_unit
         {
+            variable_declaration_unit() = default;
+
+            variable_declaration_unit(
+                identifier_value_base_ptr const& n,
+                value_initializer_unit const& i
+                )
+                : name( n )
+                , init_unit( i )
+            {}
+
+            variable_declaration_unit( variable_declaration_unit const& rhs )
+                : name( clone_ast( rhs.name ) )
+                , init_unit( rhs.init_unit )
+            {}
+
             identifier_value_base_ptr name;
             value_initializer_unit init_unit;
         };

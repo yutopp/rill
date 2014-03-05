@@ -97,9 +97,9 @@ namespace rill
                 // val T: type
                 rill::ast::variable_declaration ty = {
                     rill::attribute::quality_kind::k_val,
-                    {
+                    rill::ast::variable_declaration_unit{
                         rill::ast::make_single_identifier( "T" ),
-                        {
+                        rill::ast::value_initializer_unit{
                             nullptr,
                             std::make_shared<rill::ast::type_expression>(
                                 std::make_shared<rill::ast::term_expression>(

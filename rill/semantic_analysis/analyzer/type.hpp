@@ -341,37 +341,7 @@ namespace rill
                 assert( template_ast != nullptr );
 
 
-#if 0
-                // template parameters
-                for( auto const& e : template_ast->get_parameter_list() ) {
-                    assert( e.decl_unit.init_unit.type != nullptr || e.decl_unit.init_unit.initializer != nullptr );
 
-                    if ( e.decl_unit.init_unit.type ) { // is parameter variavle type specified ?
-                        solve_type(
-                            visitor,
-                            e.decl_unit.init_unit.type,
-                            /*parent_env*/env,
-                            [&]( type_id_t const& ty_id,
-                                 type const& ty,
-                                 class_symbol_environment_ptr const& class_env
-                                ) {
-                                auto attr = ty.attributes;
-                                attr <<= e.quality;
-
-                                // declare
-                                template_env->parameter_variable_construct(
-                                    e.decl_unit.name,
-                                    class_env,
-                                    attr
-                                    );
-                            });
-
-                    } else {
-                        // TODO: set as TYPE
-                        assert( false && "TODO: it will be type" );
-                    }
-                }
-#endif
 
                 // ==================================================
                 // INNER function
@@ -429,6 +399,8 @@ namespace rill
                                     auto attr = ty.attributes;
                                     attr <<= template_parameter.quality;
 
+                                    std::cout << "TEMPLATE TYPE VAL: " << i << std::endl;
+
                                     // declare the template parameter into function env as variable
                                     auto const& v_env
                                         = f_env->construct(
@@ -438,7 +410,7 @@ namespace rill
                                             class_env,
                                             attr
                                             );
-
+                                    
                                     decl_arg_holder[i] = v_env;
                                 });
 
@@ -501,7 +473,7 @@ namespace rill
                 }
 
 
-                std::cout << "TEMPLATE aftre" << std::endl;
+                std::cout << "TEMPLATE aftre" << (const_environment_base_ptr)f_env << std::endl;
 
 
 

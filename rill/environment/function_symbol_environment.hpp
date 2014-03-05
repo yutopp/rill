@@ -121,7 +121,8 @@ namespace rill
         auto dump( std::ostream& os, std::string const& indent ) const
             -> std::ostream& RILL_CXX11_OVERRIDE
         {
-            os  << indent << "function_symbol_environment" << std::endl;
+            os  << indent << "function_symbol_environment[ "
+                << base_name_ << " : " << qualified_name_ << " ]" << std::endl;
             return dump_include_env( os, indent );
         }
 

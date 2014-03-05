@@ -199,10 +199,12 @@ namespace rill
         auto dump_include_env( std::ostream& os, std::string const& indent ) const
             -> std::ostream&
         {
+            os << indent << "== NON template ==" << std::endl;
             for( auto const& ins : nontemplate_env_ ) {
                 os << indent
-                   << "-> symbol: " << ins.first
+                   << "-> symbol_name: " << ins.first
                    << " / id: " << ins.second->get_id()
+                   << " / ptr: " << ins.second.get()
                    << " / symbol kind: " << static_cast<int>( ins.second->get_symbol_kind() ) << std::endl;
             }
 

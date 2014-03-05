@@ -35,7 +35,9 @@ namespace rill
             {
                 // TODO: check is identifier from root
 
-                std::cout << "Find Identifier: " << identifier->get_inner_symbol()->to_native_string() << std::endl;
+                std::cout << "Finding Identifier: "
+                          << identifier->get_inner_symbol()->to_native_string() << std::endl
+                          << (const_environment_base_ptr)parent_env << std::endl;;
 
                 auto const target_env
                     = do_not_lookup

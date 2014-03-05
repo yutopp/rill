@@ -1180,8 +1180,10 @@ namespace rill
         RILL_TV_OP_CONST( llvm_ir_generator, ast::identifier_value, v, parent_env )
         {
             //
-            std::cout << "ir sym solving: " << v->get_inner_symbol()->to_native_string() << std::endl;
-            std::cout << (const_environment_base_ptr)root_env_ << std::endl;
+            std::cout << "ir sym solving: "
+                      << v->get_inner_symbol()->to_native_string() << std::endl
+                      << "ast ptr: " << v.get() << std::endl
+                      << (const_environment_base_ptr)parent_env << std::endl;
 
             //
             auto const& id_env = root_env_->get_related_env_by_ast_ptr( v );
@@ -1269,8 +1271,10 @@ namespace rill
         RILL_TV_OP_CONST( llvm_ir_generator, ast::template_instance_value, v, parent_env )
         {
             //
-            std::cout << "ir sym solving: " << v->get_inner_symbol()->to_native_string() << std::endl;
-            std::cout << (const_environment_base_ptr)root_env_ << std::endl;
+            std::cout << "ir sym solving: "
+                      << v->get_inner_symbol()->to_native_string() << std::endl
+                      << "ast ptr: " << v.get() << std::endl
+                      << (const_environment_base_ptr)parent_env << std::endl;
 
             //
             //
