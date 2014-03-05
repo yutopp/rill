@@ -37,6 +37,7 @@ namespace rill
 
                 std::cout << "Finding Identifier: "
                           << identifier->get_inner_symbol()->to_native_string() << std::endl
+                          << "astptr: " << identifier->get_id() << std::endl
                           << (const_environment_base_ptr)parent_env << std::endl;;
 
                 auto const target_env
@@ -146,7 +147,7 @@ namespace rill
                         = std::static_pointer_cast<class_symbol_environment>( target_env );
 
                     // memoize
-                    std::cout << "()memoed.class" << std::endl;
+                    std::cout << "()memoed.class " << class_env->mangled_name() << std::endl;
                     class_env->connect_from_ast( identifier );
 
 

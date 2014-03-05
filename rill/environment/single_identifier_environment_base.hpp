@@ -201,11 +201,16 @@ namespace rill
         {
             os << indent << "== NON template ==" << std::endl;
             for( auto const& ins : nontemplate_env_ ) {
+                auto const& key = ins.first;
+                auto const& env = ins.second;
+
+                auto const& ast = env->get_related_ast();
+
                 os << indent
-                   << "-> symbol_name: " << ins.first
-                   << " / id: " << ins.second->get_id()
-                   << " / ptr: " << ins.second.get()
-                   << " / symbol kind: " << static_cast<int>( ins.second->get_symbol_kind() ) << std::endl;
+                   << "-> symbol_name: " << key
+                   << " / id: " << env->get_id()
+                   << " / linked_astptr: " << ast.get()
+                   << " / symbol kind: " << static_cast<int>( env->get_symbol_kind() ) << std::endl;
             }
 
             return os;

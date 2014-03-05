@@ -25,7 +25,7 @@ namespace rill
     class ast_to_environment_id_mapper
     {
     public:
-        typedef void const*                     key_type;
+        typedef ast::ast_id_t                  key_type;
         //typedef environment_id_t                value_type;
         typedef const_environment_base_ptr     value_type;
 
@@ -36,9 +36,14 @@ namespace rill
         {
             assert( ast_ptr != nullptr );
 
-            map_.emplace( ast_ptr.get(), env_ptr );
+            if ( map_.find( ast_ptr->get_id() ) != map_.cend() ) {
+                std::cout << "Already mapped..." << std::endl;
+                std::cout << "env id -> " << map_.at( ast_ptr->get_id() )->get_id() << std::endl;
+            }
+
+            map_.emplace( ast_ptr->get_id(), env_ptr );
             //map_[ast_ptr.get()] = env_ptr;
-            assert( map_.at( ast_ptr.get() ) == env_ptr );
+            assert( map_.at( ast_ptr->get_id() ) == env_ptr );
         }
 
         template<typename SmartPtr>
@@ -48,8 +53,8 @@ namespace rill
             assert( ast_ptr != nullptr );
 
             std::cout << "ptr-> " << ast_ptr << std::endl;
-            return ( map_.find( ast_ptr.get() ) != map_.cend() )
-                ? ( map_.at( ast_ptr.get() )->get_id() )
+            return ( map_.find( ast_ptr->get_id() ) != map_.cend() )
+                ? ( map_.at( ast_ptr->get_id() )->get_id() )
                 : environment_id_undefined;
         }
 
@@ -96,7 +101,7 @@ namespace rill
     class ast_to_type_id_mapper
     {
     public:
-        typedef void const*         key_type;
+        typedef ast::ast_id_t       key_type;
         typedef type_id_t           value_type;
 
     public:
@@ -104,9 +109,9 @@ namespace rill
         auto add( SmartPtr const& ast_ptr, value_type const& tid )
             -> void
         {
-            map_.emplace( ast_ptr.get(), tid );
+            map_.emplace( ast_ptr->get_id(), tid );
             //map_[ast_ptr.get()] = tid;
-            assert( map_.at( ast_ptr.get() ) == tid );
+            assert( map_.at( ast_ptr->get_id() ) == tid );
         }
 
         template<typename SmartPtr>
@@ -116,8 +121,8 @@ namespace rill
             assert( ast_ptr != nullptr );
 
             std::cout << "tid ptr-> " << ast_ptr << std::endl;
-            return ( map_.find( ast_ptr.get() ) != map_.cend() )
-                ? ( map_.at( ast_ptr.get() ) )
+            return ( map_.find( ast_ptr->get_id() ) != map_.cend() )
+                ? ( map_.at( ast_ptr->get_id() ) )
                 : type_id_undefined;
         }
 

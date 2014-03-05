@@ -286,7 +286,6 @@ namespace rill
             f_env->change_progress_to_checked();
 
 
-
             // make function parameter variable decl
             for( auto const& e : s->get_parameter_list() ) {
                 assert( e.decl_unit.init_unit.type != nullptr || e.decl_unit.init_unit.initializer != nullptr );

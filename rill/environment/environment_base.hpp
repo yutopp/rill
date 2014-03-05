@@ -472,7 +472,7 @@ namespace rill
         auto connect_from_ast( AstPtr const& ast )
             -> void
         {
-            std::cout << "connect_from " << ast.get() << " -> : env " << get_id() << std::endl;
+            std::cout << "connect_from " << ast->get_id() << " -> : env " << get_id() << std::endl;
             //
             root_shared_resource_->ast_to_env_id_map.add( ast, shared_from_this() );
         }
@@ -481,7 +481,7 @@ namespace rill
         auto connect_to_ast( AstPtr const& ast )
             -> void
         {
-            std::cout << "connect_to " << ast.get() << " -> : env " << get_id() << std::endl;
+            std::cout << "connect_to " << ast->get_id() << " -> : env " << get_id() << std::endl;
             //
             root_shared_resource_->env_id_to_ast_map.add( get_id(), ast );
         }

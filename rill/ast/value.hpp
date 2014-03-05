@@ -334,7 +334,9 @@ namespace rill
                 )
                 : name_symbol_( name )
                 , started_from_root_( started_from_root )
-                {}
+            {
+                std::cout << "IDENTIFIER INSTNCED: " << this << " / " << name->to_native_string() << std::endl;
+            }
 
             virtual ~identifier_value_base() {}
 

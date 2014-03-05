@@ -261,7 +261,7 @@ namespace rill
 
             //
             auto get_inner_statement() const
-                -> can_be_template_statement_ptr
+                -> can_be_template_statement_ptr const&
             {
                 return inner_;
             }
@@ -336,13 +336,13 @@ namespace rill
 
         public:
             auto get_parameter_list() const
-                -> parameter_list
+                -> parameter_list const&
             {
                 return parameter_list_;
             }
 
             auto get_extern_symbol_name() const
-                -> native_string_t
+                -> native_string_t const&
             {
                 return extern_symbol_name_;
             }
@@ -404,7 +404,7 @@ namespace rill
 
         public:
             auto get_parameter_list() const
-                -> parameter_list
+                -> parameter_list const&
             {
                 return parameter_list_;
             }
@@ -462,7 +462,7 @@ namespace rill
 
         public:
             auto get_parameter_list() const
-                -> parameter_list
+                -> parameter_list const&
             {
                 return parameter_list_;
             }
@@ -508,7 +508,7 @@ namespace rill
 
         public:
             auto get_constructor_parameter_list() const
-                -> parameter_list
+                -> parameter_list const&
             {
                 return constructor_parameter_list_;
             }
@@ -595,7 +595,7 @@ namespace rill
 
         public:
             auto get_identifier() const
-                -> identifier_value_base_ptr
+                -> identifier_value_base_ptr const&
             {
                 return declaration_.decl_unit.name;
             }
@@ -620,7 +620,7 @@ namespace rill
 
         public:
             auto get_identifier() const
-                -> identifier_value_base_ptr
+                -> identifier_value_base_ptr const&
             {
                 return declaration_.decl_unit.name;
             }
