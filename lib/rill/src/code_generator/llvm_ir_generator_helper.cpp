@@ -8,28 +8,14 @@
 
 #include <rill/code_generator/llvm_ir_generator.hpp>
 #include <rill/behavior/intrinsic_function_holder.hpp>
-#include <rill/semantic_analysis/analyzer.hpp>
 
 #include <rill/environment/environment.hpp>
-
-#include <iterator>
-#include <cstdint>
-
-#include <boost/scope_exit.hpp>
-#include <boost/range/algorithm/copy.hpp>
-#include <boost/range/adaptor/reversed.hpp>
-#include <boost/range/adaptor/transformed.hpp>
-#include <boost/range/join.hpp>
 
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/Analysis/Verifier.h>
-
-#include <rill/ast/statement.hpp>
-#include <rill/ast/expression.hpp>
-#include <rill/ast/value.hpp>
 
 
 namespace rill
@@ -51,28 +37,44 @@ namespace rill
             }
 
 
-
+            // swiched with TARGET type
             switch( target_type.attributes.quality )
             {
+            // convert to the VAL attribute from...
             case attribute::quality_kind::k_val:
             {
-                // TODO: implement
-                if ( source_value->getType()->isPointerTy() ) {
-                    return context_->ir_builder.CreateLoad( source_value );
-                } else {
+                switch( source_type.attributes.quality ) {
+                // from VAL
+                case attribute::quality_kind::k_val:
                     return source_value;
+
+                // from ref
+                case attribute::quality_kind::k_ref:
+                    return context_->ir_builder.CreateLoad( source_value );
+
+                default:
+                    assert( false && "[[ice]]" );
                 }
             }
 
+            // convert to the REF attribute from...
             case attribute::quality_kind::k_ref:
-                // TODO: implement
-                if ( source_value->getType()->isPointerTy() ) {
+                switch( source_type.attributes.quality ) {
+                // from VAL
+                case attribute::quality_kind::k_val:
+                    //assert( false && "[[ice]] not implemented" );
+                    // FIXME: maybe wrong..., use GEP
                     return source_value;
-                } else {
-                    assert( false && "[ice]" );
-                    return source_value;
+
+                // from ref
+                case attribute::quality_kind::k_ref:
+                    assert( false && "[[ice]] not implemented" );
+
+                default:
+                    assert( false && "[[ice]]" );
                 }
 
+            // convert to the unknown attribute...
             default:
                 assert( false && "[ice]" );
                 break;

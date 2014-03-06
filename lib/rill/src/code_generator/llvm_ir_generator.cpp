@@ -1064,7 +1064,7 @@ namespace rill
             std::vector<llvm::Value*> total_args = [&]() -> std::vector<llvm::Value*> {
                 if ( f_env->is_in_class() ) {
                     // need reviever
-                    // make temporary space
+                    // make temporary space at [0] for "this" pointer
                     std::vector<llvm::Value*> args = { nullptr };
 
                     auto const& parameter_type_ids
