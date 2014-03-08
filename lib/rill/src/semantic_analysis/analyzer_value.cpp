@@ -61,18 +61,26 @@ namespace rill
         RILL_TV_OP( analyzer, ast::literal_value, v, env )
         {
             // look up literal type
-            // TODO: look up on ROOT
-            auto const class_env = env->lookup( v->literal_type_name_ );
-            assert( class_env != nullptr );  // literal type must exist
+            std::cout << v->literal_type_name_->get_inner_symbol()->to_native_string() << std::endl;
 
-            //
-            return bind_type(
-                v,
-                type_detail_pool_->construct(
-                    class_env->make_type_id( class_env, determine_type_attributes() ),
-                    class_env
-                    )
-                );
+            // TODO: fix
+            if ( v->literal_type_name_->get_inner_symbol()->to_native_string() == "array" ) {
+                assert( false && "byaa" );
+                
+            } else {
+
+                auto const class_env = root_env_->lookup( v->literal_type_name_ );
+                assert( class_env != nullptr );  // literal type must exist
+
+                //
+                return bind_type(
+                    v,
+                    type_detail_pool_->construct(
+                        class_env->make_type_id( class_env, determine_type_attributes() ),
+                        class_env
+                        )
+                    );
+            }
         }
 
     } // namespace semantic_analysis

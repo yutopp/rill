@@ -12,6 +12,7 @@
 #include <memory>
 #include <tuple>
 #include <stack>
+#include <set>
 
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
@@ -25,6 +26,7 @@ namespace rill
     namespace code_generator
     {
         typedef std::stack<std::tuple<type_id_t, llvm::Value*>> temporary_reciever_stack_t;
+        typedef std::set<llvm::Value*> llvm_value_ptr_set_t;
 
         class llvm_ir_generator_context
         {
@@ -42,6 +44,7 @@ namespace rill
 
             env_id_llvm_table env_conversion_table;
             temporary_reciever_stack_t temporary_reciever_stack_;
+            llvm_value_ptr_set_t represented_as_pointer_set;
         };
         typedef std::shared_ptr<llvm_ir_generator_context> llvm_ir_generator_context_ptr;
 

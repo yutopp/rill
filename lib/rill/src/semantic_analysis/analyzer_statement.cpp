@@ -506,7 +506,11 @@ namespace rill
             // analyze class body
             dispatch( s->inner_, c_env );
 
-            c_env->complete( s->get_identifier()->get_inner_symbol()->to_native_string() );
+            // complete class data
+            c_env->complete(
+                s->get_identifier()->get_inner_symbol()->to_native_string(),
+                class_attribute::structed
+                );
         }
 
 
@@ -586,11 +590,15 @@ namespace rill
                              type const& ty,
                              class_symbol_environment_ptr const& class_env
                             ) {
+                            auto attr = ty.attributes;
+                            attr <<= e.quality;
+
                             // declare
                             f_env->parameter_variable_construct(
                                 /*TODO: add attributes, */
                                 e.decl_unit.name,
-                                class_env
+                                class_env,
+                                attr
                             );
                         });
 

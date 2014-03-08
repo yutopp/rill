@@ -10,7 +10,7 @@
 #define RILL_SYNTAX_ANALYSIS_SKIP_PARSER_HPP
 
 #ifndef BOOST_SPIRIT_USE_PHOENIX_V3
-# define BOOST_SPIRIT_USE_PHOENIX_V3
+# define BOOST_SPIRIT_USE_PHOENIX_V3 1
 #endif
 #include <boost/spirit/include/qi.hpp>
 
@@ -31,7 +31,7 @@ namespace rill
                 : skip_grammer::base_type( comment_, "rill_comment" )
             {
                 comment_
-                    = ascii::space
+                    = ascii::space /*includes newlines*/
                     | ( "//" >> *( ascii::char_ - '\n' ) >> ( '\n' | qi::eoi ) )
                     | ( "/*" >> *( ascii::char_ - "*/" ) >> "*/" );
             }

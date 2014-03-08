@@ -60,33 +60,38 @@ namespace rill
             {
                 auto const& generator = gen_.get();
 
-                auto const& t = generator.root_env_->get_type_at( type_id );
-                if ( !generator.context_->env_conversion_table.is_defined( t.class_env_id ) ) {
-                    auto const& c_env = generator.root_env_->get_env_strong_at( t.class_env_id );
+                auto const& ty = generator.root_env_->get_type_at( type_id );
+                auto const& type_class_env_id = ty.class_env_id;
+                auto const& type_attr = ty.attributes;
+
+                auto const& c_env
+                    = std::static_pointer_cast<class_symbol_environment const>(
+                        generator.root_env_->get_env_strong_at( type_class_env_id )
+                        );
+                assert( c_env != nullptr );
+                if ( !generator.context_->env_conversion_table.is_defined( type_class_env_id ) ) {
                     generator.dispatch( c_env->get_related_ast(), c_env );
                 }
-                auto const& type_class_env_id = t.class_env_id;
-                auto const& type_attr = t.attributes;
 
                 std::cout << "class env id: " << type_class_env_id << std::endl;
-                llvm::Type* ty
+                llvm::Type* llvm_ty
                     = generator.context_->env_conversion_table.ref_type( type_class_env_id );
 
                 return [&]() -> result_type
                 {
-                    if ( ty->isStructTy() ) {
-                        return ty->getPointerTo();
+                    if ( c_env->has( class_attribute::structed ) ) {
+                        // if type is "structed", argument is always passed by pointer
+                        return llvm_ty->getPointerTo();
 
                     } else {
+                        //
                         switch( type_attr.quality )
                         {
                         case attribute::quality_kind::k_val:
-                            // TODO: implement
-                            return ty;
+                            return llvm_ty;
 
                         case attribute::quality_kind::k_ref:
-                            // TODO: implement
-                            return ty->getPointerTo();
+                            return llvm_ty->getPointerTo();
 
                         default:
                             assert( false && "[ice]" );
@@ -762,7 +767,13 @@ namespace rill
             auto const& variable_attr =  variable_type.attributes;
 
 
-
+            // in struct, variable is all normal type
+            context_->env_conversion_table.bind_class_variable_type(
+                v_env->get_parent_class_env_id(),
+                v_env->get_id(),
+                variable_llvm_type
+                );
+#if 0
             //
             switch( variable_attr.quality )
             {
@@ -798,6 +809,7 @@ namespace rill
                 assert( false && "[ice]" );
                 break;
             }
+#endif
         }
 
 
@@ -980,7 +992,9 @@ namespace rill
                 if ( element_env->get_symbol_kind() == kind::type_value::e_variable ) {
                     // variable that belonged to class
                     auto const& v_env
-                        = std::static_pointer_cast<variable_symbol_environment const>( element_env );
+                        = std::static_pointer_cast<variable_symbol_environment const>(
+                            element_env
+                            );
                     assert( v_env != nullptr );
                     assert( v_env->is_in_class() );
 
@@ -990,6 +1004,7 @@ namespace rill
                     lhs->dump();
                     lhs->getType()->dump();
 
+                    // data index in struct
                     auto const& index
                         = context_->env_conversion_table.get_class_variable_index(
                             v_env->get_parent_class_env_id(),
@@ -997,7 +1012,11 @@ namespace rill
                             );
                     std::cout << "index: " << index << std::endl;
 
-                    return context_->ir_builder.CreateStructGEP( lhs, index );
+                    auto const& value
+                        = context_->ir_builder.CreateStructGEP( lhs, index );
+                    context_->represented_as_pointer_set.emplace( value );
+
+                    return value;
 
                 } else if ( element_env->get_symbol_kind() == kind::type_value::e_parameter_wrapper ) {
                     // class funcion invocation
@@ -1304,7 +1323,6 @@ namespace rill
                 } else {
                     // fallback...
                     if ( is_jit() ) {
-                        // assert( false && "pyaaaaaaaaai" );
                         if ( analyzer_->ctfe_engine_->value_holder_->is_defined( v_env->get_id() ) ) {
                             // TODO: add type check...;(
                             return static_cast<llvm::Value*>(

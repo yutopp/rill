@@ -29,7 +29,11 @@ namespace rill
             Identifier const& function_name,
             ParameterConstructor const& tpc_func,
             Env const& return_class_env,
-            attribute::type_attributes const& return_type_attr = attribute::make_default_type_attributes()
+            attribute::type_attributes const& return_type_attr
+                = attribute::make_type_attributes(
+                    attribute::quality_kind::k_val,
+                    attribute::modifiability_kind::k_immutable
+                    )
             )
         {
             // allocate the new action holder
@@ -616,7 +620,7 @@ namespace rill
             // ============================================================
             {
                 //
-                // def print( ref :string ): void => native
+                // def print( val :string ): void => native
                 //
 
                 struct action
@@ -654,7 +658,9 @@ namespace rill
                 construct_predefined_function<action>( intrinsic_function_action, root_env, print, [&]( rill::function_symbol_environment_ptr const& fenv ) {
                         // ( ref :string )
                         fenv->parameter_variable_construct( nullptr, string_class_env_pointer,attribute::make_type_attributes(
-                                                                attribute::quality_kind::k_ref) );    // :string
+                                                                attribute::quality_kind::k_val,
+                                                                attribute::modifiability_kind::k_immutable
+                                                                ) );    // :string
 
                         return fenv;
                     }, void_class_env_pointer );

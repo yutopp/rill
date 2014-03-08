@@ -22,7 +22,7 @@ namespace rill
 {
     namespace code_generator
     {
-        // convert llvm::Value type to 
+        // convert llvm::Value type to
         // in LLVM, the structure type is treated as pointer type
         auto llvm_ir_generator::convert_value_by_attr(
             type const& target_type,
@@ -31,55 +31,157 @@ namespace rill
             ) const -> llvm::Value*
         {
             // if the target type has not been instanced, do instantiation.
+            auto const& target_c_env
+                = std::static_pointer_cast<class_symbol_environment const>(
+                    root_env_->get_env_strong_at( target_type.class_env_id )
+                    );
             if ( !context_->env_conversion_table.is_defined( target_type.class_env_id ) ) {
-                auto const& c_env = root_env_->get_env_strong_at( target_type.class_env_id );
-                dispatch( c_env->get_related_ast(), c_env );
+                dispatch( target_c_env->get_related_ast(), target_c_env );
+            }
+
+            auto const& f_attr
+                = attribute::flat_attributes_conbination(
+                    source_type.attributes,
+                    target_type.attributes
+                    );
+
+
+#define ababa( nn ) \
+            case attribute::flatten_attribute::nn:          \
+                std::cout << "--> " << #nn << std::endl;    \
+                break;
+
+            switch( f_attr )
+            {
+                //
+                ababa( from_val_immutable_to_val_immutable )
+                ababa( from_val_immutable_to_val_const )
+                ababa( from_val_immutable_to_val_mutable )
+                ababa( from_val_immutable_to_ref_immutable )
+                ababa( from_val_immutable_to_ref_const )
+                ababa( from_val_immutable_to_ref_mutable )
+
+                ababa( from_val_const_to_val_immutable )
+                ababa( from_val_const_to_val_const )
+                ababa( from_val_const_to_val_mutable )
+                ababa( from_val_const_to_ref_immutable )
+                ababa( from_val_const_to_ref_const )
+                ababa( from_val_const_to_ref_mutable )
+
+                ababa( from_val_mutable_to_val_immutable )
+                ababa( from_val_mutable_to_val_const )
+                ababa( from_val_mutable_to_val_mutable )
+                ababa( from_val_mutable_to_ref_immutable )
+                ababa( from_val_mutable_to_ref_const )
+                ababa( from_val_mutable_to_ref_mutable )
+
+
+                ababa( from_ref_immutable_to_val_immutable )
+                ababa( from_ref_immutable_to_val_const )
+                ababa( from_ref_immutable_to_val_mutable )
+                ababa( from_ref_immutable_to_ref_immutable )
+                ababa( from_ref_immutable_to_ref_const )
+                ababa( from_ref_immutable_to_ref_mutable )
+
+                ababa( from_ref_const_to_val_immutable )
+                ababa( from_ref_const_to_val_const )
+                ababa( from_ref_const_to_val_mutable )
+                ababa( from_ref_const_to_ref_immutable )
+                ababa( from_ref_const_to_ref_const )
+                ababa( from_ref_const_to_ref_mutable )
+
+                ababa( from_ref_mutable_to_val_immutable )
+                ababa( from_ref_mutable_to_val_const )
+                ababa( from_ref_mutable_to_val_mutable )
+                ababa( from_ref_mutable_to_ref_immutable )
+                ababa( from_ref_mutable_to_ref_const )
+                ababa( from_ref_mutable_to_ref_mutable )
+
+                ababa( unknown )
             }
 
 
-            // swiched with TARGET type
-            switch( target_type.attributes.quality )
+            switch( f_attr )
             {
-            // convert to the VAL attribute from...
-            case attribute::quality_kind::k_val:
-            {
-                switch( source_type.attributes.quality ) {
-                // from VAL
-                case attribute::quality_kind::k_val:
+            case attribute::flatten_attribute::from_val_immutable_to_val_immutable:
+            case attribute::flatten_attribute::from_val_immutable_to_val_const:
+            case attribute::flatten_attribute::from_val_immutable_to_val_mutable:
+                if ( context_->represented_as_pointer_set.count( source_value ) == 1 ) {
+                    // TODO: copy constructor
+                    return context_->ir_builder.CreateLoad( source_value );
+                } else {
                     return source_value;
+                }
 
-                // from ref
-                case attribute::quality_kind::k_ref:
+            case attribute::flatten_attribute::from_val_immutable_to_ref_immutable:
+            case attribute::flatten_attribute::from_val_immutable_to_ref_const:
+            case attribute::flatten_attribute::from_val_immutable_to_ref_mutable:
+                return source_value;
+
+            case attribute::flatten_attribute::from_val_const_to_val_immutable:
+            case attribute::flatten_attribute::from_val_const_to_val_const:
+            case attribute::flatten_attribute::from_val_const_to_val_mutable:
+            case attribute::flatten_attribute::from_val_const_to_ref_immutable:
+            case attribute::flatten_attribute::from_val_const_to_ref_const:
+            case attribute::flatten_attribute::from_val_const_to_ref_mutable:
+                assert( false );
+
+            case attribute::flatten_attribute::from_val_mutable_to_val_immutable:
+            case attribute::flatten_attribute::from_val_mutable_to_val_const:
+            case attribute::flatten_attribute::from_val_mutable_to_val_mutable:
+                // struct is always represented as pointer
+                if ( target_c_env->has( class_attribute::structed ) ) {
                     return context_->ir_builder.CreateLoad( source_value );
 
-                default:
-                    assert( false && "[[ice]]" );
-                }
-            }
-
-            // convert to the REF attribute from...
-            case attribute::quality_kind::k_ref:
-                switch( source_type.attributes.quality ) {
-                // from VAL
-                case attribute::quality_kind::k_val:
-                    //assert( false && "[[ice]] not implemented" );
-                    // FIXME: maybe wrong..., use GEP
-                    return source_value;
-
-                // from ref
-                case attribute::quality_kind::k_ref:
-                    assert( false && "[[ice]] not implemented" );
-
-                default:
-                    assert( false && "[[ice]]" );
+                } else {
+                    if ( context_->represented_as_pointer_set.count( source_value ) == 1 ) {
+                        // TODO: copy constructor
+                        return context_->ir_builder.CreateLoad( source_value );
+                    } else {
+                        return source_value;
+                    }
                 }
 
-            // convert to the unknown attribute...
-            default:
-                assert( false && "[ice]" );
-                break;
+            case attribute::flatten_attribute::from_val_mutable_to_ref_immutable:
+            case attribute::flatten_attribute::from_val_mutable_to_ref_const:
+            case attribute::flatten_attribute::from_val_mutable_to_ref_mutable:
+                return source_value;
+
+
+            //
+            case attribute::flatten_attribute::from_ref_immutable_to_val_immutable:
+            case attribute::flatten_attribute::from_ref_immutable_to_val_const:
+            case attribute::flatten_attribute::from_ref_immutable_to_val_mutable:
+                assert( false && "not supoprted" );
+
+            case attribute::flatten_attribute::from_ref_immutable_to_ref_immutable:
+            case attribute::flatten_attribute::from_ref_immutable_to_ref_const:
+            case attribute::flatten_attribute::from_ref_immutable_to_ref_mutable:
+                return source_value;
+
+            case attribute::flatten_attribute::from_ref_const_to_val_immutable:
+            case attribute::flatten_attribute::from_ref_const_to_val_const:
+            case attribute::flatten_attribute::from_ref_const_to_val_mutable:
+                assert( false && "not supoprted" );
+
+            case attribute::flatten_attribute::from_ref_const_to_ref_immutable:
+            case attribute::flatten_attribute::from_ref_const_to_ref_const:
+            case attribute::flatten_attribute::from_ref_const_to_ref_mutable:
+                assert( false );
+
+            case attribute::flatten_attribute::from_ref_mutable_to_val_immutable:
+            case attribute::flatten_attribute::from_ref_mutable_to_val_const:
+            case attribute::flatten_attribute::from_ref_mutable_to_val_mutable:
+                assert( false );
+
+            case attribute::flatten_attribute::from_ref_mutable_to_ref_immutable:
+            case attribute::flatten_attribute::from_ref_mutable_to_ref_const:
+            case attribute::flatten_attribute::from_ref_mutable_to_ref_mutable:
+                return source_value;
             }
 
+            // failed...
+            assert( false && "[[ice]]" );
             return nullptr;
         }
 

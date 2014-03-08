@@ -23,12 +23,21 @@
 //#include <boost/optional.hpp>
 
 #include "../config/macros.hpp"
+#include "../utility/make_bitflag.hpp"
 
 #include "environment_fwd.hpp"
 
 
 namespace rill
 {
+    enum class class_attribute
+    {
+        none        = 0,
+        structed    = 1 << 0,
+    };
+    RILL_MAKE_ENUM_TO_BITFLAG( class_attribute );
+
+
     //
     // class
     //
@@ -52,16 +61,30 @@ namespace rill
         }
 
         auto complete(
-            native_string_type const& name
+            native_string_type const& name,
+            class_attribute const& attr = class_attribute::none
             )
             -> void
         {
             name_ = name;
+            attribute_ = attr;
 
             change_progress_to_completed();
         }
         auto mangled_name() const
             -> native_string_type;
+
+        auto attribute() const
+            -> class_attribute const&
+        {
+            return attribute_;
+        }
+
+        auto has( class_attribute const& attr ) const
+            -> bool
+        {
+            return ( attribute_ & attr ) != static_cast<class_attribute>( 0 );
+        }
 
         auto dump( std::ostream& os, std::string const& indent ) const
             -> std::ostream& RILL_CXX11_OVERRIDE
@@ -121,6 +144,7 @@ namespace rill
 
     private:
         native_string_type name_;
+        class_attribute attribute_;
 
         std::shared_ptr<array_detail> array_detail_;
     };

@@ -84,76 +84,87 @@ namespace rill
             ) const
             -> void
         {
+            auto const& c_env
+                = std::static_pointer_cast<class_symbol_environment const>(
+                    root_env_->get_env_strong_at( value_ty.class_env_id )
+                    );
             auto const& variable_attr = value_ty.attributes;
+
             auto const& variable_llvm_type = value->getType();
 
-            //
-            switch( variable_attr.quality )
-            {
-            // VAL
-            case attribute::quality_kind::k_val:
-                switch( variable_attr.modifiability )
-                {
-                case attribute::modifiability_kind::k_immutable:
-                {
-                    // FIXME:
-                    if ( variable_llvm_type->isStructTy() ) {
-                        llvm::AllocaInst* const allca_inst
-                            = context_->ir_builder.CreateAlloca(
-                                variable_llvm_type,
-                                0/*length of array*/
-                                );
-                        context_->env_conversion_table.bind_value(
-                            v_env->get_id(),
-                            allca_inst
-                            );
+            if ( c_env->has( class_attribute::structed ) ) {
+                llvm::AllocaInst* const allca_inst
+                    = context_->ir_builder.CreateAlloca(
+                        variable_llvm_type,
+                        0/*length of array*/
+                        );
+                if ( value ) {
+                    context_->ir_builder.CreateStore(
+                        value,
+                        allca_inst /*, is_volatile */
+                        );
+                }
+                context_->env_conversion_table.bind_value(
+                    v_env->get_id(),
+                    allca_inst
+                    );
 
-                    } else {
+            } else {
+                //
+
+                switch( variable_attr.quality )
+                {
+                    // VAL
+                case attribute::quality_kind::k_val:
+                    switch( variable_attr.modifiability )
+                    {
+                    case attribute::modifiability_kind::k_immutable:
+                    {
                         context_->env_conversion_table.bind_value(
                             v_env->get_id(),
                             value
                             );
                     }
-                }
-                break;
-
-                case attribute::modifiability_kind::k_const:
-                    assert( false && "[ice] notsuported" );
                     break;
 
-                case attribute::modifiability_kind::k_mutable:
-                {
-                    // FIXME:
-                    llvm::AllocaInst* const allca_inst
-                        = context_->ir_builder.CreateAlloca(
-                            variable_llvm_type,
-                            0/*length*/
-                            );
-                    if ( value ) {
-                        context_->ir_builder.CreateStore(
-                            value,
-                            allca_inst /*, is_volatile */
+                    case attribute::modifiability_kind::k_const:
+                        assert( false && "[ice] notsuported" );
+                        break;
+
+                    case attribute::modifiability_kind::k_mutable:
+                    {
+                        // FIXME:
+                        llvm::AllocaInst* const allca_inst
+                            = context_->ir_builder.CreateAlloca(
+                                variable_llvm_type,
+                                0/*length*/
+                                );
+                        if ( value ) {
+                            context_->ir_builder.CreateStore(
+                                value,
+                                allca_inst /*, is_volatile */
+                                );
+                        }
+
+                        context_->env_conversion_table.bind_value(
+                            v_env->get_id(),
+                            allca_inst
                             );
                     }
+                    break;
+                    }
 
-                    context_->env_conversion_table.bind_value(
-                        v_env->get_id(),
-                        allca_inst
-                        );
+                    break;
+
+                    // REF
+                case attribute::quality_kind::k_ref:
+                    assert( false && "not implemented..." );
+                    break;
+
+                default:
+                    assert( false && "[ice]" );
+                    break;
                 }
-                break;
-                }
-
-                break;
-
-            // REF
-            case attribute::quality_kind::k_ref:
-                assert( false && "not implemented..." );
-                break;
-
-            default:
-                assert( false && "[ice]" );
-                break;
             }
         }
 
