@@ -519,7 +519,7 @@ namespace rill
                 llvm::StructType* const llvm_struct_type
                     = llvm::StructType::create(
                         context_->llvm_context,
-                        c_env->mangled_name()/*, add is_packed*/
+                        c_env->get_qualified_name()/*, add is_packed*/
                         );
                 context_->env_conversion_table.bind_type( c_env->get_id(), llvm_struct_type );
 
@@ -1221,7 +1221,7 @@ namespace rill
                     = std::static_pointer_cast<variable_symbol_environment const>( id_env );
                 assert( v_env != nullptr );
 
-                
+
 
                 // TODO: check the type of variable !
                 // if type is "type", ...(should return id of type...?)
@@ -1234,12 +1234,12 @@ namespace rill
                     // fallback...
                     if ( is_jit() ) {
                         if ( analyzer_->ctfe_engine_->value_holder_->is_defined( v_env->get_id() ) ) {
-                            // TODO: add type check...;(
-                            return static_cast<llvm::Value*>(
-                                analyzer_->ctfe_engine_->value_holder_->ref_value(
+                            auto const& d_val
+                                = analyzer_->ctfe_engine_->value_holder_->ref_value(
                                     v_env->get_id()
-                                    )
-                                );
+                                    );
+                            assert( d_val.is_type() );
+                            return static_cast<llvm::Value*>( d_val.element );
 
                         } else {
                             assert( false && "[[ice]] llvm-jit -> value was not found..." );
@@ -1259,7 +1259,7 @@ namespace rill
                 auto const& type_id_c
                     = c_env->make_type_id_from();
 
-                std::cout << "in llvm.class_name " << c_env->mangled_name() << " (" << type_id_c << ")" << std::endl;
+                std::cout << "in llvm.class_name " << c_env->get_qualified_name() << " (" << type_id_c << ")" << std::endl;
 
 
 
@@ -1324,12 +1324,12 @@ namespace rill
                     // fallback...
                     if ( is_jit() ) {
                         if ( analyzer_->ctfe_engine_->value_holder_->is_defined( v_env->get_id() ) ) {
-                            // TODO: add type check...;(
-                            return static_cast<llvm::Value*>(
-                                analyzer_->ctfe_engine_->value_holder_->ref_value(
+                            auto const& d_val
+                                = analyzer_->ctfe_engine_->value_holder_->ref_value(
                                     v_env->get_id()
-                                    )
-                                );
+                                    );
+                            assert( d_val.is_type() );
+                            return static_cast<llvm::Value*>( d_val.element );
 
                         } else {
                             assert( false && "[[ice]] llvm-jit -> value was not found..." );
@@ -1349,7 +1349,7 @@ namespace rill
                 auto const& type_id_c
                     = c_env->make_type_id_from();
 
-                std::cout << "in llvm.class_name " << c_env->mangled_name() << " (" << type_id_c << ")" << std::endl;
+                std::cout << "in llvm.class_name " << c_env->get_qualified_name() << " (" << type_id_c << ")" << std::endl;
 
 
 
@@ -1388,6 +1388,59 @@ namespace rill
             } else if ( v->literal_type_name_->get_inner_symbol()->to_native_string() == "string" ) {
                 // char pointer...(string?)
                 return context_->ir_builder.CreateGlobalStringPtr( std::static_pointer_cast<ast::intrinsic::string_value const>( v->holder_ )->value_.c_str() );
+
+            } else if ( v->literal_type_name_->get_inner_symbol()->to_native_string() == "array" ) {
+                auto const& c_env
+                    = std::static_pointer_cast<class_symbol_environment const>(
+                        root_env_->get_related_env_by_ast_ptr( v )
+                        );
+                assert( c_env != nullptr );
+                assert( c_env->is_array() );
+                auto const& array_detail = c_env->get_array_detail();
+
+
+                llvm::Type* const inner_type
+                    = type_id_to_llvm_type_ptr( std::cref( *this ) )(
+                        array_detail->inner_type_id
+                        );
+
+                std::cout << "NUM: " << array_detail->elements_num << std::endl;
+
+                auto const& array_ty = llvm::ArrayType::get(
+                    inner_type,
+                    array_detail->elements_num
+                    );
+
+                llvm::AllocaInst* const alloca_inst
+                    = context_->ir_builder.CreateAlloca(
+                        array_ty,
+                        0/*length of array*/
+                        );
+
+                for( std::size_t i=0; i<array_detail->elements_num; ++i ) {
+                    llvm::Value* elem_v
+                        = context_->ir_builder.CreateConstInBoundsGEP2_64(
+                            alloca_inst,
+                            0,
+                            i
+                            );
+
+                    auto const& e = std::static_pointer_cast<ast::intrinsic::array_value const>(v->holder_)->elements_list_[i];
+                    llvm::Value* inner = dispatch( e, parent_env );
+
+                    context_->ir_builder.CreateStore(
+                        inner,
+                        elem_v /*, is_volatile */
+                        );
+                }
+
+
+                return alloca_inst;
+
+
+
+
+
 
             } else {
                 assert( false && "[ice] this primitive type is not supported" );

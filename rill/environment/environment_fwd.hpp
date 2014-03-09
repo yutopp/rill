@@ -53,14 +53,16 @@ namespace rill
 
     //
     class single_identifier_environment_base;
-
+    typedef std::shared_ptr<single_identifier_environment_base> single_identifier_environment_base_ptr;
+    typedef std::shared_ptr<single_identifier_environment_base const> const_single_identifier_environment_base_ptr;
 
     //
     class root_environment;
 
 
     class has_parameter_environment_base;
-    typedef std::shared_ptr<has_parameter_environment_base>     has_parameter_environment_base_ptr;
+    typedef std::shared_ptr<has_parameter_environment_base> has_parameter_environment_base_ptr;
+    typedef std::shared_ptr<has_parameter_environment_base const> const_has_parameter_environment_base_ptr;
 
 
     //

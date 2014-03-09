@@ -1,4 +1,8 @@
-def main()
+def main(): int
 {
     val a = [1,2,3]: array!(int);
+    //val a = [1,2,3]: int;
+
+
+    return 0;
 }

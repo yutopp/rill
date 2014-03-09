@@ -61,18 +61,30 @@ namespace rill
         }
 
         auto complete(
-            native_string_type const& name,
+            native_string_type const& base_name,
+            native_string_type const& qualified_name,
             class_attribute const& attr = class_attribute::none
             )
             -> void
         {
-            name_ = name;
+            base_name_ = base_name;
+            qualified_name_ = qualified_name;
             attribute_ = attr;
 
             change_progress_to_completed();
         }
-        auto mangled_name() const
-            -> native_string_type;
+
+        auto get_base_name() const
+            -> native_string_type const&
+        {
+            return base_name_;
+        }
+
+        auto get_qualified_name() const
+            -> native_string_type const&
+        {
+            return qualified_name_;
+        }
 
         auto attribute() const
             -> class_attribute const&
@@ -93,6 +105,8 @@ namespace rill
             return dump_include_env( os, indent );
         }
 
+
+    public:
         auto make_type_id_from(
             attribute::type_attributes const& type_attr
                 = attribute::make_default_type_attributes()
@@ -143,7 +157,7 @@ namespace rill
 
 
     private:
-        native_string_type name_;
+        native_string_type base_name_, qualified_name_;
         class_attribute attribute_;
 
         std::shared_ptr<array_detail> array_detail_;

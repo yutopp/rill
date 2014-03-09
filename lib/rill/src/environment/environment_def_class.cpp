@@ -79,7 +79,7 @@ namespace rill
 
         auto const& symbol_name = class_name->get_inner_symbol()->to_native_string();
 
-        c_env->complete( symbol_name );
+        c_env->complete( symbol_name, symbol_name/*qualified name*//*, attribute*/ );
 
         return c_env;
     }

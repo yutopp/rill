@@ -373,104 +373,12 @@ namespace rill
 
                 // template parameters
                 // import template parameter's variables with instantiation!
-                {
-                    auto const& template_parameter_list = template_ast->get_parameter_list();
-                    std::vector<environment_base_ptr> decl_arg_holder( template_parameter_list.size() );
-
-                    for( std::size_t i=0; i<template_parameter_list.size(); ++i ) {
-                        auto const& template_parameter = template_parameter_list.at( i );
-
-                        //
-                        // declare template parameters
-                        assert(
-                            template_parameter.decl_unit.init_unit.type != nullptr
-                            || template_parameter.decl_unit.init_unit.initializer != nullptr
-                            );
-
-                        if ( template_parameter.decl_unit.init_unit.type ) {
-                            solve_type(
-                                visitor,
-                                template_parameter.decl_unit.init_unit.type,
-                                /*parent_env*/env,
-                                [&]( type_id_t const& ty_id,
-                                     type const& ty,
-                                     class_symbol_environment_ptr const& class_env
-                                    ) {
-                                    auto attr = ty.attributes;
-                                    attr <<= template_parameter.quality;
-
-                                    std::cout << "TEMPLATE TYPE VAL: " << i << std::endl;
-
-                                    // declare the template parameter into function env as variable
-                                    auto const& v_env
-                                        = f_env->construct(
-                                            kind::k_variable,
-                                            template_parameter.decl_unit.name,
-                                            nullptr/*TODO: change to valid ptr to ast*/,
-                                            class_env,
-                                            attr
-                                            );
-                                    
-                                    decl_arg_holder[i] = v_env;
-                                });
-
-                        } else {
-                            // TODO: set as TYPE
-                            assert( false && "TODO: it will be type" );
-                        }
-
-
-                        //
-                        // template arguments
-                        // if the template argument was passed explicitly, save argument value
-                        // if NOT, it will be deduced after that...
-                        if ( i < template_args->size() ) {
-                            auto const& template_var_env = decl_arg_holder[i];
-                            auto const& template_arg = template_args->at( i );
-
-                            std::cout << "TEMPLATE ARGS!! " << i
-                                      << " * " << template_var_env->get_id() << std::endl;
-
-
-
-                            {
-                                // DEBUG
-                                auto const& t_detail
-                                    = static_cast<type_detail_ptr>( template_arg );
-                                assert( t_detail != nullptr );
-
-                                // get environment of arguments
-                                auto const& tt
-                                    = visitor->root_env_->get_type_at( t_detail->type_id );
-
-                                auto const& c_e
-                                    = std::static_pointer_cast<class_symbol_environment const>(
-                                        visitor->root_env_->get_env_strong_at(
-                                            tt.class_env_id
-                                            )
-                                        );
-
-                                std::cout << "** typeid << " << t_detail->type_id << std::endl
-                                          << "** " << tt.class_env_id << std::endl
-                                          << "** " << c_e->mangled_name() << std::endl;
-
-                                std::cout << "BINDED " << template_var_env->get_id()
-                                          << " -> " << c_e->mangled_name() << std::endl;
-
-                            }
-
-                            // TODO: fix...
-                            visitor->ctfe_engine_->value_holder()->bind_value(
-                                template_var_env->get_id(),
-                                template_arg
-                                );
-
-                        } else {
-                            // TODO:
-                            assert( false );
-                        }
-                    }
-                }
+                visitor->tp(
+                    template_ast->get_parameter_list(),
+                    template_args,
+                    f_env,
+                    /*parent_env*/env
+                    );
 
 
                 std::cout << "TEMPLATE aftre" << (const_environment_base_ptr)f_env << std::endl;
@@ -486,12 +394,12 @@ namespace rill
                 for( auto const& e : function_ast->get_parameter_list() ) {
                     assert( e.decl_unit.init_unit.type != nullptr || e.decl_unit.init_unit.initializer != nullptr );
 
-                    if ( e.decl_unit.init_unit.type ) { // is parameter variavle type specified 
+                    if ( e.decl_unit.init_unit.type ) { // is parameter variavle type specified
                         solve_type(
                             visitor,
                             e.decl_unit.init_unit.type,
                             /*parent_env*/f_env,
-                            [&]( type_id_t const& ty_id,
+                            [&]( type_detail_ptr const& ty_d,
                                  type const& ty,
                                  class_symbol_environment_ptr const& class_env
                                 ) {
@@ -499,7 +407,7 @@ namespace rill
                                     attr <<= e.quality;
 
                                     std::cout << "<<TEMPLATE PARAM CLASS>> : "
-                                              << class_env->mangled_name() << std::endl;
+                                              << class_env->get_qualified_name() << std::endl;
 
                                     // declare
                                     f_env->parameter_variable_construct(
@@ -517,7 +425,7 @@ namespace rill
                     }
                 }
 
-                
+
 
                 // scan all statements in this function body
                 visitor->dispatch( function_ast->inner_, f_env );
@@ -532,7 +440,7 @@ namespace rill
                         visitor,
                         *function_ast->return_type_,
                         /*parent_env*/f_env,
-                        [&]( type_id_t const& return_type_id,
+                        [&]( type_detail_ptr const& return_ty_d,
                              type const& ty,
                              class_symbol_environment_ptr const& class_env
                             ) {
@@ -546,7 +454,7 @@ namespace rill
 
 
                             f_env->complete(
-                                return_type_id,
+                                return_ty_d->type_id,
                                 function_ast->get_identifier()->get_inner_symbol()->to_native_string(),
                                 std::to_string( std::rand() )/*FIXME*/
                                 );

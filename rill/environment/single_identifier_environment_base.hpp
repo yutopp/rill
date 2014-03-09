@@ -39,7 +39,7 @@ namespace rill
     };
 
 
-    // 
+    //
     //
     class single_identifier_environment_base
         : public environment_base
@@ -53,7 +53,7 @@ namespace rill
             : environment_base( root_initialize_tag() )
             , progress_( environment_process_progress_t::constructed )
         {}
-    
+
         single_identifier_environment_base( environment_parameter_t&& pp )
             : environment_base( std::move( pp ) )
             , progress_( environment_process_progress_t::constructed )
@@ -109,7 +109,7 @@ namespace rill
             progress_ = environment_process_progress_t::completed;
         }
 
-        
+
     /*
         auto is_exist_in_instanced( native_string_type const& name ) const
             -> boost::optional<env_base_pointer>
@@ -188,6 +188,29 @@ namespace rill
 
 
 
+        //
+        //
+        auto construct_template_parameter_var(
+            ast::identifier_value_base_ptr const& param_name,
+            ast::statement_ptr const& s,
+            const_class_symbol_environment_ptr const& c_env,
+            attribute::type_attributes const& t_attr
+            ) -> variable_symbol_environment_ptr
+        {
+            auto const& v_env = construct( kind::k_variable, param_name, s, c_env, t_attr );
+            template_parameter_var_decl_ids_.push_back(
+                std::static_pointer_cast<environment_base const>( v_env )->get_id()
+                );
+
+            return v_env;
+        }
+
+        auto get_template_parameter_var_decl_ids() const
+            -> environment_id_list_t const&
+        {
+            return template_parameter_var_decl_ids_;
+        }
+
 
         auto dump( std::ostream& os, std::string const& indent ) const
             -> std::ostream& RILL_CXX11_OVERRIDE
@@ -230,11 +253,23 @@ namespace rill
             return template_env_.find( name ) != template_env_.end();
         }
 
+        template<typename EnvPtr>
+        auto insert( EnvPtr const& e )
+            -> void
+        {
+            // TODO: duplicate check
+            nontemplate_env_[e->get_qualified_name()] = e;
+        }
+
     private:
         std::unordered_map<native_string_type, env_base_pointer> nontemplate_env_;
         std::unordered_map<native_string_type, template_set_environment_ptr> template_env_;
 
+        //
         environment_process_progress_t progress_;
+
+        //
+        environment_id_list_t template_parameter_var_decl_ids_;
     };
 
 } // namespace rill

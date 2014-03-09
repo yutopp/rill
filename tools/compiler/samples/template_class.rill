@@ -1,6 +1,7 @@
 def main(): int
 {
     val s: array!(int);
+    //val s2: array!(string);
     val b = (72 + 30) + (10 + 20): int;
     
     p( b );

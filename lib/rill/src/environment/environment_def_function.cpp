@@ -105,7 +105,7 @@ namespace rill
 
         // complete parameter decl
         auto const& parameter_completed_function_env_pointer = parameter_decl_initializer( incomplete_function_env );
-        
+
         // complete return type, name
         auto const& return_type_id = parameter_completed_function_env_pointer->make_type_id( return_class_env, return_type_attr );
         parameter_completed_function_env_pointer->complete( return_type_id, symbol_name );
@@ -131,7 +131,7 @@ namespace rill
         -> variable_symbol_environment_ptr
     {
         std::cout << ">>> parameter_variable_construct! " << std::endl
-                  << ">>> name : " << class_env->mangled_name() << std::endl;
+                  << ">>> name : " << class_env->get_qualified_name() << std::endl;
         // declare parameter variable
         auto const& var_env = construct( kind::k_variable, variable_name, nullptr, class_env, type_attr );
         parameter_decl_ids_.push_back( var_env->get_id() );

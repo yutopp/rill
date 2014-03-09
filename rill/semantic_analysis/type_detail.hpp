@@ -74,17 +74,35 @@ namespace rill
         using type_detail_pool_t = boost::object_pool_workarounded<type_detail>;
         using type_detail_ptr = type_detail*;
 
-
         // TODO: move to any where
-        // TODO: rename it!
+        enum class value_kind_mask : char
+        {
+            k_value = 0,
+            k_type = 1,
+            k_alias = 2/*unused*/
+        };
+        // TODO: move to any where
+
         struct type_detail
         {
             typedef std::vector<type_detail_ptr>        nest_type;
             typedef std::shared_ptr<nest_type>          nest_pointer;
 
-            // dependent_type will holds type_detail_ptr or llvm::Value*
-            // please check/detemine the type by using the semantic_analyzer ;(
-            typedef void*                               dependent_type;
+            // dependent_type will holds type_detail_ptr or llvm::Value* in "element"
+            // if "element_class_env" holds "type" class env, "element" holds type_detail_ptr value.
+            // otherwise, "elements" holds llvm::Value*
+            struct dependent_type
+            {
+                const_class_symbol_environment_ptr  element_class_env;
+                void*                               element;
+                value_kind_mask                     kind;
+
+                inline auto const is_type() const
+                   -> bool
+                {
+                    return kind == value_kind_mask::k_type;
+                }
+            };
             typedef std::vector<dependent_type>         template_arg_type;
             typedef std::shared_ptr<template_arg_type>  template_arg_pointer;
 

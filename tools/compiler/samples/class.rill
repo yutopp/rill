@@ -27,7 +27,11 @@ class A
         print( "\n" );
         p( this.n );
         print( "\n" );
+
         print( "g dayo~\n" );
+        //this.n = 1234;
+        p( this.n );
+        print( "\n" );
     }
 }
 

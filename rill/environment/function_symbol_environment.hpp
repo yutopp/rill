@@ -39,6 +39,7 @@ namespace rill
     public:
         static kind::type_value const KindValue = kind::type_value::e_function;
 
+        // TODO: rename
         enum attr : int {
             e_normal = 0,
             e_extern = 1 << 0

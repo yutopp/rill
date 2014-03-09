@@ -25,4 +25,4 @@ def overload( val v: string ): void
     print( "\n" );
 }
 
-extern def print_int( val :int ): void "put_string2"; 
+extern def print_int( val :int ): void "put_string2";

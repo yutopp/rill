@@ -133,11 +133,11 @@ namespace rill
                     this,
                     unit.init_unit.type,
                     parent_env,
-                    [&]( type_id_t const& ty_id,
+                    [&]( type_detail_ptr const& ty_d,
                          type const& ty,
                          class_symbol_environment_ptr const& class_env
                         ) {
-                        if ( is_nontype_id( ty_id ) ) {
+                        if ( is_nontype_id( ty_d->type_id ) ) {
                             assert( false && "[[error]] incomplete template class was not supported" );
                         }
 
@@ -222,7 +222,7 @@ namespace rill
                     this,
                     unit.init_unit.type,
                     parent_env,
-                    [&]( type_id_t const& ty_id,
+                    [&]( type_detail_ptr const& ty_d,
                          type const& ty,
                          class_symbol_environment_ptr const& class_env
                         ) {
@@ -295,7 +295,7 @@ namespace rill
                         this,
                         e.decl_unit.init_unit.type,
                         parent_env,
-                        [&]( type_id_t const& ty_id,
+                        [&]( type_detail_ptr const& ty_d,
                              type const& ty,
                              class_symbol_environment_ptr const& class_env
                             ) {
@@ -331,7 +331,7 @@ namespace rill
                     this,
                     *s->return_type_,
                     parent_env,
-                    [&]( type_id_t const& return_type_id,
+                    [&]( type_detail_ptr const& return_ty_d,
                          type const& ty,
                          class_symbol_environment_ptr const& class_env
                         ) {
@@ -344,7 +344,7 @@ namespace rill
 
 
                         f_env->complete(
-                            return_type_id,
+                            return_ty_d->type_id,
                             s->get_identifier()->get_inner_symbol()->to_native_string()
                             );
                     });
@@ -421,7 +421,7 @@ namespace rill
                         this,
                         e.decl_unit.init_unit.type,
                         parent_env,
-                        [&]( type_id_t const& ty_id,
+                        [&]( type_detail_ptr const& ty_d,
                              type const& ty,
                              class_symbol_environment_ptr const& class_env
                             ) {
@@ -456,7 +456,7 @@ namespace rill
                     this,
                     *s->return_type_,
                     parent_env,
-                    [&]( type_id_t const& return_type_id,
+                    [&]( type_detail_ptr const& return_ty_d,
                          type const& ty,
                          class_symbol_environment_ptr const& class_env
                         ) {
@@ -464,7 +464,7 @@ namespace rill
                         // f_env->get_return_type_candidates()
 
                         f_env->complete(
-                            return_type_id,
+                            return_ty_d->type_id,
                             s->get_identifier()->get_inner_symbol()->to_native_string()
                             );
                     });
@@ -496,21 +496,73 @@ namespace rill
                 = std::static_pointer_cast<class_symbol_environment>( related_env );
             assert( c_env != nullptr );
 
+
+            //
+            complete_class( s, c_env );
+        }
+
+
+
+        auto analyzer::complete_class(
+            ast::class_definition_statement_ptr const& s,
+            class_symbol_environment_ptr const& c_env,
+            type_detail::template_arg_pointer const& template_args
+            )
+            -> bool
+        {
             // guard double check
             if ( c_env->is_checked() ) {
                 std::cout << "Already, checked" << std::endl;
-                return;
+                // assert( false );
+                return false;
             }
             c_env->change_progress_to_checked();
 
-            // analyze class body
-            dispatch( s->inner_, c_env );
 
-            // complete class data
-            c_env->complete(
-                s->get_identifier()->get_inner_symbol()->to_native_string(),
-                class_attribute::structed
-                );
+            //
+            auto const& base_name
+                = s->get_identifier()->get_inner_symbol()->to_native_string();
+            auto const& qualified_name
+                = s->get_identifier()->get_inner_symbol()->to_native_string();
+
+            if ( s->inner_ != nullptr ) {
+                // analyse class body
+                dispatch( s->inner_, c_env );
+
+                // complete class data
+                c_env->complete(
+                    base_name,
+                    qualified_name,
+                    class_attribute::structed
+                    );
+
+            } else {
+                std::cout << "builtin class!" << std::endl;
+
+                // complete class data
+                c_env->complete(
+                    base_name,
+                    qualified_name,
+                    class_attribute::none
+                    );
+
+                // TODO: change...;(;(;(
+                if ( s->get_identifier()->get_inner_symbol()->to_native_string() == "array" ) {
+                    // set special flag as Array
+                    // array template args are
+                    // [0]: type
+                    // [1]: number of elements
+                    assert( template_args->at( 0 ).is_type() );
+                    auto const& array_element_ty_detail
+                        = static_cast<type_detail_ptr>( template_args->at( 0 ).element );
+                    c_env->make_as_array(
+                        array_element_ty_detail->type_id,
+                        3/*temp*/
+                        );
+                }
+            }
+
+            return true;
         }
 
 
@@ -586,7 +638,7 @@ namespace rill
                         this,
                         e.decl_unit.init_unit.type,
                         parent_env,
-                        [&]( type_id_t const& ty_id,
+                        [&]( type_detail_ptr const& ty_d,
                              type const& ty,
                              class_symbol_environment_ptr const& class_env
                             ) {
@@ -618,12 +670,12 @@ namespace rill
                     this,
                     s->return_type_,
                     parent_env,
-                    [&]( type_id_t const& return_type_id,
+                    [&]( type_detail_ptr const& return_ty_d,
                          type const& ty,
                          class_symbol_environment_ptr const& class_env
                         ) {
                         f_env->complete(
-                            return_type_id,
+                            return_ty_d->type_id,
                             s->get_identifier()->get_inner_symbol()->to_native_string(),
                             ""/*FIXME*/,
                             function_symbol_environment::attr::e_extern

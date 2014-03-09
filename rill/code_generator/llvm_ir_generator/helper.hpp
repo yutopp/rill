@@ -92,7 +92,7 @@ namespace rill
 
             auto const& variable_llvm_type = value->getType();
 
-            if ( c_env->has( class_attribute::structed ) ) {
+            if ( c_env->has( class_attribute::structed ) || c_env->is_array() ) {
                 llvm::AllocaInst* const allca_inst
                     = context_->ir_builder.CreateAlloca(
                         variable_llvm_type,
@@ -104,6 +104,7 @@ namespace rill
                         allca_inst /*, is_volatile */
                         );
                 }
+
                 context_->env_conversion_table.bind_value(
                     v_env->get_id(),
                     allca_inst

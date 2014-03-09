@@ -15,6 +15,8 @@
 
 #include <llvm/IR/DerivedTypes.h>
 
+#include "../semantic_analysis/type_detail.hpp"
+
 
 namespace rill
 {
@@ -23,7 +25,7 @@ namespace rill
         class engine_value_holder
         {
         public:
-            typedef void*   value_type;
+            typedef semantic_analysis::type_detail::dependent_type      value_type;
 
         public:
             //
@@ -32,6 +34,7 @@ namespace rill
             auto bind_value( environment_id_t const& env_id, value_type const value )
                 -> void
             {
+                //
                 value_table_[env_id] = value;
             }
 
@@ -44,11 +47,10 @@ namespace rill
                 return value_table_.find( env_id ) != value_table_.cend();
             }
 
-            template<typename R = value_type>
             auto ref_value( environment_id_t const& env_id ) const
-                -> R const&
+                -> value_type const&
             {
-                return static_cast<R const&>( value_table_.at( env_id ) );
+                return value_table_.at( env_id );
             }
 
         private:

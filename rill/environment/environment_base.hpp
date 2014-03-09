@@ -529,7 +529,7 @@ namespace rill
 
 
         ///
-        virtual auto mangled_name() const -> ast::native_string_t { return ""; }
+        /// virtual auto mangled_name() const -> ast::native_string_t { return ""; }
 
         ///
         ///
@@ -569,7 +569,7 @@ namespace rill
         {
             root_shared_resource_->ast_to_type_id_map.add( ast_ptr, tid );
         }
-        
+
 
 
         template<typename AstPtr>

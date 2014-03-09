@@ -124,6 +124,57 @@ namespace rill
                 return ty_p;
             }
 
+        private:
+            auto instanciate_class_candidate(
+                type_detail_ptr const& target_ty_detail,
+                environment_base_ptr const& parent_env
+                )
+                -> std::vector<class_symbol_environment_ptr>;
+
+            template<typename F>
+            auto instanciate_class(
+                type_detail_ptr const& target_ty_detail,
+                environment_base_ptr const& parent_env,
+                F&& f
+                )
+                -> class_symbol_environment_ptr
+            {
+                return f(
+                    instanciate_class_candidate(
+                        target_ty_detail,
+                        parent_env
+                        )
+                    );
+            }
+
+            auto instanciate_class(
+                type_detail_ptr const& target_ty_detail,
+                environment_base_ptr const& parent_env
+                )
+                -> class_symbol_environment_ptr;
+
+            auto tp(
+                ast::parameter_list const& template_parameter_list,
+                type_detail::template_arg_pointer const& template_args,
+                single_identifier_environment_base_ptr const& inner_env,
+                environment_base_ptr const& parent_env
+                )
+                -> void;
+
+
+            auto evaluate_template_args(
+                ast::expression_list const& arguments,
+                environment_base_ptr const& parent_env
+                )
+                -> type_detail::template_arg_type;
+
+            // return false, if class is already defined
+            auto complete_class(
+                ast::class_definition_statement_ptr const& s,
+                class_symbol_environment_ptr const& c_env,
+                type_detail::template_arg_pointer const& template_args = nullptr
+                )
+                -> bool;
 
         private:
             environment_base_ptr root_env_;
