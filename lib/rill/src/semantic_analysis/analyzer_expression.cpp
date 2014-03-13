@@ -134,11 +134,81 @@ namespace rill
         }
 
 
+        //
+        // lhs[rhs]
+        //
+        RILL_TV_OP( analyzer, ast::subscrpting_expression, e, parent_env )
+        {
+            if ( e->rhs_ ) {
+                // has capseled value
+                // lhs[rhs]
+
+                // evaluate rhs first, then lhs
+                //
+                auto const& rhs_ty_d
+                    = dispatch( *e->rhs_, parent_env );
+                //
+                auto const& lhs_ty_d
+                    = dispatch( e->lhs_, parent_env );
+
+                //
+                auto const& rhs_ty
+                    = root_env_->get_type_at( rhs_ty_d->type_id );
+                auto const& rhs_c_env
+                    = std::static_pointer_cast<class_symbol_environment>(
+                        root_env_->get_env_strong_at( rhs_ty.class_env_id )
+                        );
+                assert( rhs_c_env != nullptr );
+
+                //
+                auto const& lhs_ty
+                    = root_env_->get_type_at( lhs_ty_d->type_id );
+                auto const& lhs_c_env
+                    = std::static_pointer_cast<class_symbol_environment>(
+                        root_env_->get_env_strong_at( lhs_ty.class_env_id )
+                        );
+                assert( lhs_c_env != nullptr );
+                // if lhs is "array", treat as builtin array type...
+                if ( lhs_c_env->is_array() ) {
+                    // this is builtin ARRAY!
+
+                    // if array, AST connects class environment
+                    lhs_c_env->connect_from_ast( e );
+
+                    auto const& inner_ty_id
+                        = lhs_c_env->get_array_detail()->inner_type_id;
+                    auto const& inner_ty
+                        = root_env_->get_type_at( inner_ty_id );
+                    auto const& inner_c_env
+                        = root_env_->get_env_strong_at( inner_ty.class_env_id );
+
+                    //
+                    return bind_type(
+                        e,
+                        /* incomplete...? */
+                        type_detail_pool_->construct(
+                            inner_ty_id,
+                            inner_c_env
+                            )
+                        );
+
+                } else {
+                    // lhs[rhs]
+                    // TODO: call operator[expr]
+                    assert( false && "[ice] not supported..." );
+                }
+
+            } else {
+                // lhs[]
+                // TODO: call operator[]
+                assert( false && "[ice] not supported..." );
+            }
+        }
 
 
 
         //
-        //
+        // reciever.element
         //
         RILL_TV_OP( analyzer, ast::element_selector_expression, e, parent_env )
         {
@@ -319,7 +389,7 @@ namespace rill
 
 
                     if ( reciever_type_detail->template_args != nullptr ) {
-                        
+
                         // maybe function identifier
                         assert( reciever_type_detail->target_env->get_symbol_kind() == kind::type_value::e_template_set && "[[ICE]] not supported" );
                         auto const& template_set_env
@@ -331,7 +401,7 @@ namespace rill
                             // symbol type was not matched
                             assert( false );
                         }
-                    
+
                         // generic_function_env has only one scope. should check parent environment.
                         auto const& function_env = [&](){
                             std::cout << (const_environment_base_ptr)env << std::endl;
@@ -368,7 +438,7 @@ namespace rill
                                 // to complate incomplete_funciton_env( after that, incomplete_function_env will be complete_function_env)
                                 //dispatch( statement_node, incomplete_function_env->get_parent_env() );
                             }
-                        
+
 #if 0
                             // retry
                             auto const& re_f = overload_solver(
@@ -456,7 +526,7 @@ namespace rill
                                 // to complate incomplete_funciton_env( after that, incomplete_function_env will be complete_function_env)
                                 dispatch( statement_node, incomplete_function_env->get_parent_env() );
                             }
-                        
+
 
                             // retry
                             auto const& re_f = overload_solver(
@@ -513,6 +583,7 @@ namespace rill
                 dispatch( e->type_, env )
                 );
         }
+
 
 
         //

@@ -5,11 +5,12 @@ def main(): int
     val sum = 0: int;
 
     while( i < 10 ) {
-         i = i + 1;
+        sum = sum + a[i];
+        i = i + 1;
     }
-    a[9] = a[9] + 10;
 
-    p( a[9] );
+    p( sum );
+    print( "\n" );
     return 0;
 }
 

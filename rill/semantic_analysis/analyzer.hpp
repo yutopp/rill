@@ -51,8 +51,9 @@ namespace rill
             RILL_TV_OP_DECL( ast::test_while_statement )
             RILL_TV_OP_DECL( ast::test_if_statement )
 
-            // expression            
+            // expression
             RILL_TV_OP_DECL( ast::element_selector_expression )
+            RILL_TV_OP_DECL( ast::subscrpting_expression )
             RILL_TV_OP_DECL( ast::call_expression )
             //RILL_TV_OP_DECL( ast::intrinsic_function_call_expression )
             RILL_TV_OP_DECL( ast::binary_operator_expression )

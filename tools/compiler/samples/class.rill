@@ -19,7 +19,7 @@ class A
         print( "class function f\n" );
 
         this.g( 12345 );
-    }   
+    }
 
     def g( val v: int ): void
     {

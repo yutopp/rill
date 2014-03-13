@@ -20,7 +20,6 @@
 #define RILL_DISPATCH_TYPES_SEQ                                         \
     (( dispatch_as_environment_tag,         environment_base_ptr ))     \
     (( dispatch_as_value_tag,               ast::value_ptr ))           \
-    (( dispatch_as_type_value_tag,          semantic_analysis::type_info )) \
     (( dispatch_as_type_detail_ptr_tag,     semantic_analysis::type_detail_ptr )) \
     (( dispatch_as_llvm_ir_value_tag,       llvm::Value* ))             \
     (( dispatch_as_void_ptr,                void* ))                    \

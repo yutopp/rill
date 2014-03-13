@@ -32,7 +32,7 @@ namespace rill
             // import template parameter's variables with instantiation!
 
             std::vector<environment_base_ptr> decl_arg_holder( template_parameter_list.size() );
-
+            std::cout << "TEMPLATE param size is " << template_parameter_list.size() << std::endl;
 
             for( std::size_t i=0; i<template_parameter_list.size(); ++i ) {
                 auto const& template_parameter = template_parameter_list.at( i );
@@ -77,13 +77,13 @@ namespace rill
 
                 // TODO: add error check to varidate param and arg size...
 
-                std::cout << "pp" << std::endl;
+                std::cout << "pp i = " << i << " / " << template_args->size() << std::endl;
 
                 //
                 // template arguments
                 // if the template argument was passed explicitly, save argument value
                 // if NOT, it will be deduced after that...
-                if ( i < template_args->size() ) {
+                if ( i <= template_args->size() ) {
 
                     std::cout << "TEMPLATE ARGS!! " << i << std::endl;
                     auto const& template_var_env = decl_arg_holder[i];
@@ -91,27 +91,30 @@ namespace rill
 
                     {
                         // DEBUG
-                        assert( template_arg.is_type() );
-                        auto const& t_detail
-                            = static_cast<type_detail_ptr>( template_arg.element );
-                        assert( t_detail != nullptr );
+                        if ( template_arg.is_type() ) {
+                            auto const& t_detail
+                                = static_cast<type_detail_ptr>( template_arg.element );
+                            assert( t_detail != nullptr );
 
-                        // get environment of arguments
-                        auto const& tt
-                            = root_env_->get_type_at( t_detail->type_id );
+                            // get environment of arguments
+                            auto const& tt
+                                = root_env_->get_type_at( t_detail->type_id );
 
-                        auto const& c_e
-                            = std::static_pointer_cast<class_symbol_environment const>(
-                                root_env_->get_env_strong_at(
-                                    tt.class_env_id
-                                    )
-                                );
+                            auto const& c_e
+                                = std::static_pointer_cast<class_symbol_environment const>(
+                                    root_env_->get_env_strong_at(
+                                        tt.class_env_id
+                                        )
+                                    );
 
-                        std::cout << "** typeid << " << t_detail->type_id << std::endl
-                                  << "** " << tt.class_env_id << std::endl;
+                            std::cout << "** typeid << " << t_detail->type_id << std::endl
+                                      << "** " << tt.class_env_id << std::endl;
 
-                        std::cout << "BINDED " << template_var_env->get_id()
-                                  << " -> " << c_e->get_qualified_name() << std::endl;
+                            std::cout << "BINDED " << template_var_env->get_id()
+                                      << " -> " << c_e->get_qualified_name() << std::endl;
+                        } else {
+                            std::cout << "value" << std::endl;
+                        }
                     }
 
                     // TODO: fix...
@@ -121,7 +124,7 @@ namespace rill
                         );
 
                 } else {
-                    // TODO:
+                    // TODO: error...?
                     assert( false );
                 }
             }
@@ -152,7 +155,6 @@ namespace rill
             auto const& template_args
                 = target_ty_detail->template_args;
 
-
             //
             for( auto const& template_env : template_set_env->get_candidates() ) {
                 // TODO: add template length check...
@@ -161,7 +163,7 @@ namespace rill
                 std::cout << "hogehoge !" << std::endl;
 
                 // if number of template arguments is over, skip
-                if ( template_args->size() > template_env->get_arg_size() )
+                if ( template_args->size() > template_env->get_parameter_num() )
                     continue;
 
                 // TODO: type check(even if template contains "class")
@@ -256,6 +258,7 @@ namespace rill
                     target_ty_detail,
                     parent_env,
                     []( std::vector<class_symbol_environment_ptr> const & c_candidate_envs ) {
+                        assert( c_candidate_envs.size() == 1 && "[ice]" );
                         // TODO: add duplication check
                         return c_candidate_envs[0];
                     } );
@@ -314,10 +317,17 @@ namespace rill
                     // TODO: fix cond
                     if ( c_env->get_base_name() == "type" ) {
                         return {
-                            c_env,
+                            argument_ty_detail,
                             static_cast<type_detail_ptr>( argument_evaled_value ),
                             value_kind_mask::k_type
                         };
+                    } if ( c_env->get_base_name() == "int" ) {
+                        return {
+                            argument_ty_detail,
+                            argument_evaled_value,
+                            value_kind_mask::k_value
+                        };
+
                     } else {
                         assert( false && "[[ice]] value parameter was not supported yet" );
                         return { nullptr, nullptr, value_kind_mask::k_value };
@@ -386,13 +396,26 @@ namespace rill
             // TODO: fix
             if ( v->literal_type_name_->get_inner_symbol()->to_native_string() == "array" ) {
 
+                auto const& ar
+                    = std::static_pointer_cast<ast::intrinsic::array_value>(
+                        v->holder_
+                        );
+
                 // abyaaa
                 ast::expression_list args = {
                     std::make_shared<ast::type_expression>(
                         std::make_shared<ast::term_expression>(
                             ast::make_identifier( "int" )
                             )
+                        ),
+                    std::make_shared<ast::term_expression>(
+                        std::make_shared<ast::literal_value>(
+                            std::make_shared<ast::intrinsic::int32_value>(
+                                ar->elements_list_.size()
+                                )
+                            )
                         )
+
                 };
                 auto const& i
                     = std::make_shared<ast::type_expression>(

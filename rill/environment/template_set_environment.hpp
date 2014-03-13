@@ -19,7 +19,7 @@
 namespace rill
 {
     // This class holds a environment set of template_environment that has the same name
-    // 
+    //
     class template_set_environment RILL_CXX11_FINAL
         : public has_parameter_environment_base
     {
@@ -74,8 +74,11 @@ namespace rill
         auto add_candidate( std::shared_ptr<template_environment> const& template_env )
             -> void
         {
-            // template_candidates_.emplace( template_env->get_arg_size(), template_env );
-            template_candidates_.insert( { template_env->get_arg_size(), template_env } );
+            // template_candidates_.emplace( template_env->get_parameter_num(), template_env );
+            template_candidates_.insert( {
+                    template_env->get_parameter_num(),
+                    template_env
+                } );
             template_candidates_list_.push_back( template_env );
         }
 

@@ -166,13 +166,18 @@ namespace rill
             // mark AST as templated
             s->get_inner_statement()->mark_as_template();
 
-            // 
+            //
             auto const& template_env_pair
                 = parent_env->mark_as( kind::k_template, s->get_identifier(), s );
 
             // unlike the has_parameter_environment, template_set cannot determine the inner environment type of template
             auto& template_set_env = template_env_pair.first;
             auto& template_env = template_env_pair.second;
+
+            //
+            auto const& template_parameter_num
+                = s->parameter_list_.size();
+            template_env->set_parameter_num( template_parameter_num );
 
             // TODO: link template variables to this env
             //template_env

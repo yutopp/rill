@@ -331,7 +331,7 @@ namespace rill
                 std::cout << "hogehoge !" << std::endl;
 
                 // if number of template arguments is over, skip
-                if ( template_args->size() > template_env->get_arg_size() )
+                if ( template_args->size() > template_env->get_parameter_num() )
                     continue;
 
 

@@ -553,11 +553,19 @@ namespace rill
                     // [0]: type
                     // [1]: number of elements
                     assert( template_args->at( 0 ).is_type() );
+
                     auto const& array_element_ty_detail
                         = static_cast<type_detail_ptr>( template_args->at( 0 ).element );
+
+                    llvm::ConstantInt const* const llvm_array_element_num
+                        = static_cast<llvm::ConstantInt const* const>( template_args->at( 1 ).element );
+
+                    std::size_t const array_element_num
+                        = type_id_t( llvm_array_element_num->getZExtValue() );
+
                     c_env->make_as_array(
                         array_element_ty_detail->type_id,
-                        3/*temp*/
+                        array_element_num
                         );
                 }
             }

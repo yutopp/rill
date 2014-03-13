@@ -86,8 +86,9 @@ namespace rill
         {
             // FIXME
             // currentry, default MUTABLE
-            return { quality_kind::k_val, modifiability_kind::k_immutable };
-        //return { quality_kind::k_val, modifiability_kind::k_mutable };
+            // TODO: default is IMmutable
+            // return { quality_kind::k_val, modifiability_kind::k_immutable };
+            return { quality_kind::k_val, modifiability_kind::k_mutable };
         }
 
         template<typename... Args>
@@ -168,8 +169,8 @@ namespace rill
 
             unknown
         };
-         
-     
+
+
         // This is hell
         template<typename Attributes>
         auto flat_attributes_conbination(
@@ -337,11 +338,11 @@ namespace rill
             assert( false && "[[ice]]" );
             return flatten_attribute::unknown;
         }
-     
-     
-     
-     
-     
+
+
+
+
+
 
 
 

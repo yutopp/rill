@@ -79,6 +79,7 @@ namespace rill
         template<typename EnvPtr>
         auto llvm_ir_generator::store_value(
             type const& value_ty,
+            llvm::Type* const variable_llvm_type,
             llvm::Value* const value,
             EnvPtr const& v_env
             ) const
@@ -90,13 +91,10 @@ namespace rill
                     );
             auto const& variable_attr = value_ty.attributes;
 
-            auto const& variable_llvm_type = value->getType();
-
             if ( c_env->has( class_attribute::structed ) || c_env->is_array() ) {
                 llvm::AllocaInst* const allca_inst
                     = context_->ir_builder.CreateAlloca(
-                        variable_llvm_type,
-                        0/*length of array*/
+                        variable_llvm_type
                         );
                 if ( value ) {
                     context_->ir_builder.CreateStore(
@@ -121,6 +119,7 @@ namespace rill
                     {
                     case attribute::modifiability_kind::k_immutable:
                     {
+                        assert( value != nullptr );
                         context_->env_conversion_table.bind_value(
                             v_env->get_id(),
                             value

@@ -462,7 +462,16 @@ namespace rill
                 = llvm::Function::Create( func_type, linkage, f_env->mangled_name(), &context_->llvm_module );
 
             // ========================================
+            // create a new basic block to start insertion into.
+            llvm::BasicBlock* const basic_brock
+                = llvm::BasicBlock::Create( llvm::getGlobalContext(), "entry", func );
+            context_->ir_builder.SetInsertPoint( basic_brock );
+
+
+            // ========================================
             // function parameter variables
+            // and, make local variable creation
+            std::size_t i = 0;
             for( llvm::Function::arg_iterator ait = func->arg_begin(); ait != func->arg_end(); ++ait ) {
                 std::cout << "Argument No: " << ait->getArgNo() << std::endl;
                 auto const& v_env
@@ -471,16 +480,125 @@ namespace rill
                         );
                 ait->setName( v_env->mangled_name() );
 
-                context_->env_conversion_table.bind_value( v_env->get_id(), ait );
+                auto const& ty = root_env_->get_type_at( parameter_variable_type_ids[i] );
+
+                auto const& f = [&](
+                    type const& value_ty,
+                    llvm::Type* const variable_llvm_type,
+                    llvm::Value* const value,
+                    const_variable_symbol_environment_ptr const& v_env
+                    ){
+                    auto const& c_env
+                    = std::static_pointer_cast<class_symbol_environment const>(
+                        root_env_->get_env_strong_at( value_ty.class_env_id )
+                        );
+                    auto const& variable_attr = value_ty.attributes;
+
+                    if ( c_env->has( class_attribute::structed ) || c_env->is_array() ) {
+                        // always passed by pointer
+
+                        // TODO: copy ctor
+#if 0
+                        llvm::AllocaInst* const allca_inst
+                            = context_->ir_builder.CreateAlloca(
+                                variable_llvm_type
+                                );
+                        if ( value ) {
+                            context_->ir_builder.CreateStore(
+                                value,
+                                allca_inst /*, is_volatile */
+                                );
+                        }
+
+                        context_->env_conversion_table.bind_value(
+                            v_env->get_id(),
+                            allca_inst
+                            );
+#endif
+                        context_->env_conversion_table.bind_value(
+                            v_env->get_id(),
+                            value
+                            );
+
+                    } else {
+
+                        switch( variable_attr.quality )
+                        {
+                            // VAL
+                        case attribute::quality_kind::k_val:
+                        switch( variable_attr.modifiability )
+                        {
+                        case attribute::modifiability_kind::k_immutable:
+                        {
+                            assert( value != nullptr );
+                            context_->env_conversion_table.bind_value(
+                                v_env->get_id(),
+                                value
+                                );
+                        }
+                        break;
+
+                        case attribute::modifiability_kind::k_const:
+                        assert( false && "[ice] notsuported" );
+                        break;
+
+                        case attribute::modifiability_kind::k_mutable:
+                        {
+                            // FIXME:
+                            llvm::AllocaInst* const allca_inst
+                                = context_->ir_builder.CreateAlloca(
+                                    variable_llvm_type,
+                                    0/*length*/
+                                    );
+                            if ( value ) {
+                                context_->ir_builder.CreateStore(
+                                    value,
+                                    allca_inst /*, is_volatile */
+                                    );
+                            }
+
+                            context_->env_conversion_table.bind_value(
+                                v_env->get_id(),
+                                allca_inst
+                                );
+                        }
+                        break;
+                        }
+
+                        break;
+
+                        // REF
+                        case attribute::quality_kind::k_ref:
+                        assert( false && "not implemented..." );
+                        break;
+
+                        default:
+                        assert( false && "[ice]" );
+                        break;
+                        }
+                    }
+                };
+
+                // val to
+                f(
+                    ty,
+                    ait->getType(),
+                    ait,
+                    v_env
+                    );
+
+                ++i;
+                //context_->env_conversion_table.bind_value( v_env->get_id(), ait );
             }
 
 //            func->setGC( "shadow-stack" );
 
             // ========================================
             // create a new basic block to start insertion into.
-            llvm::BasicBlock* const basic_brock
-                = llvm::BasicBlock::Create( llvm::getGlobalContext(), "entry", func );
-            context_->ir_builder.SetInsertPoint( basic_brock );
+            //llvm::BasicBlock* const function_body_block
+            //    = llvm::BasicBlock::Create( llvm::getGlobalContext(), "function_body", func );
+            //context_->ir_builder.SetInsertPoint( function_body_block );
+
 
             // ========================================
             // generate statements
@@ -554,6 +672,7 @@ namespace rill
 
                 // special treatment for Array...
                 if ( c_env->is_array() ) {
+                    std::cout << "array" << std::endl;
                     auto const& array_detail = c_env->get_array_detail();
 
                     llvm::Type* const inner_type
@@ -701,15 +820,19 @@ namespace rill
 
                 store_value(
                     variable_type,
+                    initial_llvm_value->getType(),
                     initial_llvm_value,
                     v_env
                     );
 
             } else {
                 // has NO initial value...
+                // TODO: call constructor
 
                 auto const& variable_llvm_type
                     = context_->env_conversion_table.ref_type( variable_type.class_env_id );
+
+#if 0
 
                 // TEST:
                 auto const& initial_llvm_value
@@ -721,9 +844,12 @@ namespace rill
                             ),
                         nullptr
                         );
+#endif
+                auto const& initial_llvm_value = nullptr;
 
                 store_value(
                     variable_type,
+                    variable_llvm_type,
                     initial_llvm_value,
                     v_env
                     );
@@ -1056,6 +1182,81 @@ namespace rill
         }
 
 
+
+        //
+        RILL_TV_OP_CONST( llvm_ir_generator, ast::subscrpting_expression, e, parent_env )
+        {
+            std::cout << "subscripting selection" << std::endl;
+
+            auto const& target_env = root_env_->get_related_env_by_ast_ptr( e );
+            assert( target_env != nullptr );
+
+            // evaluate [rhs] first
+            llvm::Value* rhs_value = e->rhs_ ? dispatch( *e->rhs_, parent_env ) : nullptr;
+
+            //
+            llvm::Value* lhs_value = dispatch( e->lhs_, parent_env );
+
+            //
+            std::cout << debug_string( target_env->get_symbol_kind() ) << std::endl;
+            if ( target_env->get_symbol_kind() == kind::type_value::e_class ) {
+                // builtin array type...
+                auto const& rhs_c_env
+                    = std::static_pointer_cast<class_symbol_environment const>(
+                        target_env
+                        );
+                lhs_value->dump();
+
+                assert( rhs_c_env->is_array() );
+
+                // TODO: fix...
+                // load array address
+                auto const& pp = [&]() -> llvm::Value* {
+                    if ( context_->represented_as_pointer_set.count( lhs_value ) == 1 ) {
+                        return lhs_value;
+                    } else {
+                        return context_->ir_builder.CreateLoad( lhs_value );
+                    }
+                }();
+
+                pp->dump();
+                context_->llvm_module.dump();
+
+                // TODO: fix...
+                // rhs must be integer. if it is pointer, load instruction is required...
+                auto const& idx_value = rhs_value->getType()->isPointerTy() ? context_->ir_builder.CreateLoad( rhs_value ) : rhs_value;
+                // load address of index 0
+                llvm::Value *head
+                    = context_->ir_builder.CreateConstInBoundsGEP2_32( pp, 0, 0 );
+
+                llvm::Value* elem_v
+                    = context_->ir_builder.CreateInBoundsGEP(
+                        head,
+                        idx_value
+                        );
+
+                //context_->represented_as_pointer_set.emplace( elem_v );
+
+                return elem_v;
+
+            } else if ( target_env->get_symbol_kind() == kind::type_value::e_function ) {
+                //
+                assert( false && "[ICE] TODO: call operator[]");
+
+            } else {
+                assert( false );
+            }
+
+            return nullptr;
+        }
+
+
+
+
+
+
+
+
         //
         //
         //
@@ -1280,6 +1481,7 @@ namespace rill
                 return nullptr;
             }
         }
+
 
 
 

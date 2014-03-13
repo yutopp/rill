@@ -126,21 +126,41 @@ namespace rill
             case attribute::flatten_attribute::from_val_const_to_ref_mutable:
                 assert( false );
 
+
             case attribute::flatten_attribute::from_val_mutable_to_val_immutable:
-            case attribute::flatten_attribute::from_val_mutable_to_val_const:
-            case attribute::flatten_attribute::from_val_mutable_to_val_mutable:
                 // struct is always represented as pointer
                 if ( target_c_env->has( class_attribute::structed ) ) {
+                    // TODO: impl copy constructor
+                    return source_value;
+
+                } else {
+                    // TODO: copy constructor
+                    if ( context_->represented_as_pointer_set.count( source_value ) == 1 ) {
+                        return source_value;
+                    } else {
+                        return context_->ir_builder.CreateLoad( source_value );
+                    }
+                }
+
+            case attribute::flatten_attribute::from_val_mutable_to_val_const:
+            case attribute::flatten_attribute::from_val_mutable_to_val_mutable:
+                source_value->dump();
+                // struct is always represented as pointer
+                if ( target_c_env->has( class_attribute::structed ) ) {
+                    return source_value;
+
                     return context_->ir_builder.CreateLoad( source_value );
 
                 } else {
                     if ( context_->represented_as_pointer_set.count( source_value ) == 1 ) {
                         // TODO: copy constructor
+                        //return source_value;
                         return context_->ir_builder.CreateLoad( source_value );
                     } else {
-                        return source_value;
+                        return context_->ir_builder.CreateLoad( source_value );
                     }
                 }
+
 
             case attribute::flatten_attribute::from_val_mutable_to_ref_immutable:
             case attribute::flatten_attribute::from_val_mutable_to_ref_const:

@@ -51,17 +51,18 @@ namespace rill
             RILL_TV_OP_DECL_CONST( ast::test_while_statement )
             RILL_TV_OP_DECL_CONST( ast::test_if_statement )
             RILL_TV_OP_DECL_CONST( ast::function_definition_statement )
-            RILL_TV_OP_DECL_CONST( ast::variable_declaration_statement )              
+            RILL_TV_OP_DECL_CONST( ast::variable_declaration_statement )
             RILL_TV_OP_DECL_CONST( ast::extern_function_declaration_statement )
             RILL_TV_OP_DECL_CONST( ast::intrinsic_function_definition_statement )
             RILL_TV_OP_DECL_CONST( ast::class_definition_statement )
             RILL_TV_OP_DECL_CONST( ast::class_function_definition_statement )
             RILL_TV_OP_DECL_CONST( ast::class_variable_declaration_statement )
-            
+
             // expression
-            RILL_TV_OP_DECL_CONST( ast::binary_operator_expression )
             RILL_TV_OP_DECL_CONST( ast::element_selector_expression )
+            RILL_TV_OP_DECL_CONST( ast::subscrpting_expression )
             RILL_TV_OP_DECL_CONST( ast::call_expression )
+            RILL_TV_OP_DECL_CONST( ast::binary_operator_expression )
             RILL_TV_OP_DECL_CONST( ast::intrinsic_function_call_expression )
             RILL_TV_OP_DECL_CONST( ast::type_expression )
             RILL_TV_OP_DECL_CONST( ast::term_expression )
@@ -92,7 +93,7 @@ namespace rill
             auto convert_value_by_attr(
                 type const& target_type,
                 type const& source_type,
-                llvm::Value* const source_value 
+                llvm::Value* const source_value
                 ) const -> llvm::Value*;
 
             template<typename Px, typename EnvPtr>
@@ -105,6 +106,7 @@ namespace rill
             template<typename EnvPtr>
             auto store_value(
                 type const& arg_type,
+                llvm::Type* const variable_llvm_type,
                 llvm::Value* const arg_value,
                 EnvPtr const& v_env
                 ) const -> void;

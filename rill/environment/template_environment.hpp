@@ -45,6 +45,7 @@ namespace rill
     public:
         template_environment( environment_parameter_t&& pp, environment_id_t const& template_set_env_id )
             : single_identifier_environment_base( std::move( pp ) )
+            , parameter_num_( 0 )
         {}
 
     public:
@@ -54,12 +55,19 @@ namespace rill
             return kind::type_value::e_template;
         }
 
-        auto get_arg_size() const
-            -> template_argument_length_type
+
+        auto set_parameter_num( std::size_t const& n )
+            -> void
         {
-            // TODO: fix
-            return 1;
+            parameter_num_ = n;
         }
+
+        auto get_parameter_num() const
+            -> std::size_t const&
+        {
+            return parameter_num_;
+        }
+
 
         auto get_parameter_decl_ids() const
             -> environment_id_list_t const&
@@ -81,6 +89,9 @@ namespace rill
             -> variable_symbol_environment_ptr;
 
     private:
+        std::size_t parameter_num_;
+
+
         // parameter variable environments
         environment_id_list_t parameter_decl_ids_;
 
