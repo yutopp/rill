@@ -45,7 +45,7 @@ namespace rill
             }
 
             void inline set_type_attribute(
-                type_attributes& attr,
+               type_attributes& attr,
                 attribute::modifiability_kind const k
                 )
             {
