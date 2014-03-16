@@ -39,6 +39,7 @@ namespace rill
                 );
 
         public:
+            RILL_TV_OP_DECL_CONST( ast::binary_operator_expression )
             RILL_TV_OP_DECL_CONST( ast::type_expression )
             RILL_TV_OP_DECL_CONST( ast::term_expression )
 

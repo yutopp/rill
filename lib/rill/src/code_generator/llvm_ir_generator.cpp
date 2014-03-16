@@ -1091,8 +1091,15 @@ namespace rill
 
             std::cout << "CALL!!!!!" << std::endl;
 
-            // invocation
-            return context_->ir_builder.CreateCall( callee_function, args, "calltmp" );
+
+            if ( is_jit() ) {
+                std::cout << "yaaaaaann" << std::endl;
+                analyzer_->ctfe_engine_->execution_engine_;//();
+                return nullptr;
+            } else {
+                // invocation
+                return context_->ir_builder.CreateCall( callee_function, args, "calltmp" );
+            }
         }
 
 

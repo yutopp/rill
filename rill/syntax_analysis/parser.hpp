@@ -485,24 +485,12 @@ namespace rill
 
                 type_.name( "type" );
                 type_
-                    = expression_[
+                    = assign_expression_[
                         qi::_val = helper::make_node_ptr<ast::type_expression>(
                             qi::_1
                             )
                         ]
                     ;
-
-#if 0
-                //
-                type_identifier_expression_
-                    = ( nested_identifier_ >> type_attributes_ )[
-                          qi::_val = helper::make_node_ptr<ast::type_identifier_expression>(
-                              qi::_1,
-                              qi::_2
-                              )
-                      ]
-                    ;
-#endif
 
 
                 // ========================================
@@ -765,7 +753,7 @@ namespace rill
                             [ template_instance_with_root_
                             | template_instance_
                             | identifier_with_root_
-                            | identifier_                            
+                            | identifier_
                             | numeric_literal_
                             | boolean_literal_
                             | string_literal_

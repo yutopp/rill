@@ -18,6 +18,29 @@ namespace rill
 {
     namespace compile_time
     {
+        auto is_type_id_value( llvm::Value const* const v )
+            -> bool
+        {
+            return ( reinterpret_cast<std::uintptr_t>( v ) & 0x1 ) != 0;
+        }
+
+        auto is_pure_value( llvm::Value const* const v )
+            -> bool
+        {
+            return !( is_type_id_value( v ) );
+        }
+
+        auto to_pure_value( llvm::Value* v )
+            -> llvm::Value*
+        {
+            // mask 2bit from LSB.
+            return reinterpret_cast<llvm::Value*>(
+                reinterpret_cast<std::uintptr_t>( v ) & ~0x3/*0b11*/
+                );
+        }
+
+
+
         ctfe_engine::ctfe_engine(
             std::shared_ptr<code_generator::llvm_ir_generator const> const& generator,
             std::shared_ptr<llvm::ExecutionEngine> const& execution_engine,
@@ -28,6 +51,18 @@ namespace rill
             , value_holder_( std::make_shared<engine_value_holder>() )
             , type_detail_pool_( type_detail_pool )
         {}
+
+
+        RILL_TV_OP_CONST( ctfe_engine, ast::binary_operator_expression, e, parent_env )
+        {
+            llvm::Value* gen_val
+                = ir_generator_->dispatch( e, parent_env );
+
+            gen_val->dump();
+            assert(false);
+            return nullptr;
+        }
+
 
 
         RILL_TV_OP_CONST( ctfe_engine, ast::type_expression, e, parent_env )
@@ -44,13 +79,13 @@ namespace rill
             assert( gen_val != nullptr );
 
             llvm::Value* pure_val_ptr
-                = reinterpret_cast<llvm::Value*>( reinterpret_cast<std::uintptr_t>( gen_val ) & ~1 );
+                = to_pure_value( gen_val );
 
-            if ( ( reinterpret_cast<std::uintptr_t>( gen_val ) & 0x1 ) == 0 ) {
+            if ( is_pure_value( gen_val ) ) {
                 // pure value
                 return pure_val_ptr;
 
-            } else {
+            } else if ( is_type_id_value( gen_val ) ) {
                 // Type Id
                 llvm::ConstantInt const* const type_id_value_ptr
                     = static_cast<llvm::ConstantInt const* const>( pure_val_ptr );
@@ -64,6 +99,8 @@ namespace rill
                     type_id,
                     nullptr //variable_env
                     );
+            } else {
+                assert( false );
             }
 
             return nullptr;
