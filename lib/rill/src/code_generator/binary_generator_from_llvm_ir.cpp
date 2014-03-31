@@ -86,7 +86,7 @@ namespace rill
         };
 
 
-        void binary_generator_from_llvm_ir::test( std::string const& output_name ) const
+        void binary_generator_from_llvm_ir::test( std::string const& output_name, std::string const& runtime_library_path ) const
         {
             static llvm_initializer const li;   // initialize LLVM at once
 
@@ -204,7 +204,7 @@ namespace rill
                     "-e rill_main "\
                     /*"/NOLOGO /MACHINE:X86 /SUBSYSTEM:CONSOLE "*/      \
                     /*"-nodefaultlibs"*/" -dynamic-linker /lib64/ld-linux-x86-64.so.2 -lc " \
-                    "-o " + output_name + " out.obj /usr/local/lib/librill-rt.a";
+                    "-o " + output_name + " out.obj " + runtime_library_path;
                 std::system( command.c_str() );
             }
 

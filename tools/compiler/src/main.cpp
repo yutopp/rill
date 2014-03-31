@@ -104,10 +104,12 @@ void sample( boost::program_options::variables_map const& vm )
     // FIXME
     std::string const output_name
         = vm["output"].as<std::string>();
+    std::string const runtime_lib_path
+        = vm["runtime-lib-path"].as<std::string>();
 
     auto const binary_gen
         = rill::code_generator::binary_generator_from_llvm_ir( code_context );
-    binary_gen.test( output_name );
+    binary_gen.test( output_name, runtime_lib_path );
 
 
 #if 0
@@ -166,6 +168,9 @@ int main( int argc, char* argv[] )
           "rill runtime library path")
         ( "output,o",
           po::value<std::string>()->default_value( "a.out" ),
+          "gahaha!w")
+        ( "runtime-lib-path",
+          po::value<std::string>()->default_value( "/usr/local/lib/librill-rt.a" ),
           "gahaha!w")
         ;
 
