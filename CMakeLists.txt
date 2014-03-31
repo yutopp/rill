@@ -20,7 +20,6 @@ add_definitions(
 #
 # Boost Libraries
 #
-set( BOOST_ROOT "~\\boost_1_55_0" )
 ADD_DEFINITIONS( -DBoost_USE_STATIC_LIBS=ON )
 find_package(
   Boost
@@ -86,5 +85,3 @@ add_subdirectory( ${PROJECT_SOURCE_DIR}/tools )
 
 # librill-rt(rill runtime)
 add_subdirectory( ${PROJECT_SOURCE_DIR}/rill-rt )
-
-

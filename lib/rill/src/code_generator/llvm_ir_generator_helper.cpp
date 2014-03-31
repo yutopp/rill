@@ -15,7 +15,11 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/DerivedTypes.h>
-#include <llvm/Analysis/Verifier.h>
+#if ( LLVM_MAJOR_VERSION == 3 && LLVM_MINOR_VERSION >= 5 )
+# include <llvm/IR/Verifier.h>
+#else
+# include <llvm/Analysis/Verifier.h>
+#endif
 
 
 namespace rill
