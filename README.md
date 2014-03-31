@@ -15,7 +15,7 @@
 
 #### Libraries
 - Boost 1.55.0
-- LLVM 3.3
+- LLVM 3.4
 
 
 
