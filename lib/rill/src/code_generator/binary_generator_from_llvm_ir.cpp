@@ -13,7 +13,6 @@
 
 #include <llvm/ADT/Triple.h>
 
-#include <llvm/Assembly/PrintModulePass.h>
 
 #include <llvm/CodeGen/LinkAllAsmWriterComponents.h>
 #include <llvm/CodeGen/LinkAllCodegenComponents.h>
@@ -21,6 +20,11 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/DataLayout.h>
 #include <llvm/IR/Module.h>
+#if ( LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR >= 5 )
+# include <llvm/IR/PrintModulePass.h>
+#else
+# include <llvm/Assembly/PrintModulePass.h>
+#endif
 
 #include <llvm/IRReader/IRReader.h>
 
