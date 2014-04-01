@@ -28,11 +28,7 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/DerivedTypes.h>
-#if ( LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR >= 5 )
-# include <llvm/IR/Verifier.h>
-#else
-# include <llvm/Analysis/Verifier.h>
-#endif
+#include <llvm/Analysis/Verifier.h> // will be changed #if ( LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR >= 5 )
 
 #include <rill/ast/statement.hpp>
 #include <rill/ast/expression.hpp>
@@ -1144,7 +1140,7 @@ namespace rill
 
                     auto const& value
                         = context_->ir_builder.CreateStructGEP( lhs, index );
-                    context_->represented_as_pointer_set.emplace( value );
+                    context_->represented_as_pointer_set.insert( value ); //.emplace( value );
 
                     return value;
 

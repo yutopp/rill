@@ -10,7 +10,7 @@
 ## How to build
 ### Requirement
 #### Compiler
-- GCC >= 4.7.3
+- GCC >= 4.7.2
 - Clang >= 3.3
 
 #### Libraries

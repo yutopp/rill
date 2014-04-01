@@ -105,7 +105,7 @@ void sample( boost::program_options::variables_map const& vm )
     std::string const output_name
         = vm["output"].as<std::string>();
     std::string const runtime_lib_path
-        = vm["runtime-lib-path"].as<std::string>();
+        = vm["rill-rt-lib-path"].as<std::string>();
 
     auto const binary_gen
         = rill::code_generator::binary_generator_from_llvm_ir( code_context );
@@ -163,15 +163,12 @@ int main( int argc, char* argv[] )
         ( "linker",
           po::value<std::string>()->default_value( "ld" ),
           "linker type(ld, link)")
-        ( "rill-rt",
+        ( "rill-rt-lib-path",
           po::value<std::string>()->default_value( "/usr/local/lib/librill-rt.a" ),
           "rill runtime library path")
         ( "output,o",
           po::value<std::string>()->default_value( "a.out" ),
-          "gahaha!w")
-        ( "runtime-lib-path",
-          po::value<std::string>()->default_value( "/usr/local/lib/librill-rt.a" ),
-          "gahaha!w")
+          "name of output file")
         ;
 
 

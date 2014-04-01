@@ -17,6 +17,7 @@ find_package(
   Boost
   1.55.0
   COMPONENTS
+    system
     program_options
   REQUIRED
   )
