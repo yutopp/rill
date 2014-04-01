@@ -20,7 +20,9 @@ add_definitions(
 #
 # Boost Libraries
 #
-ADD_DEFINITIONS( -DBoost_USE_STATIC_LIBS=ON )
+set( Boost_USE_STATIC_LIBS ON )
+add_definitions( -DBOOST_ERROR_CODE_HEADER_ONLY )
+add_definitions( -DBOOST_SYSTEM_NO_LIB )
 find_package(
   Boost
   1.55.0

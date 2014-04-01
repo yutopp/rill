@@ -12,6 +12,7 @@ set_target_properties( rillc PROPERTIES LINKER_LANGUAGE CXX )
 #
 # Boost Libraries
 #
+set( Boost_USE_STATIC_LIBS ON )
 find_package(
   Boost
   1.55.0
