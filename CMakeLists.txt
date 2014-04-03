@@ -38,38 +38,68 @@ include_directories( ${Boost_INCLUDE_DIRS} )
 
 #
 # LLVM
-#
-# ref. http://llvm.org/docs/CMake.html#embedding-llvm-in-your-project
-find_package( LLVM )
+# aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!!!!!!!!
 
-if( NOT LLVM_FOUND )
-  message( FATAL_ERROR "LLVM package can't be found. Set CMAKE_PREFIX_PATH variable to LLVM's installation prefix." )
-else()
-  message( STATUS "LLVM lib: ${LLVM_LIBRARY_DIRS}" )
+if( NOT DEFINED LLVM_CONFIG_PATH )
+  message( FATAL_ERROR "Please set LLVM_CONFIG_PATH to your 'llvm-config' file" )
 endif()
+
+if( NOT EXISTS ${LLVM_CONFIG_PATH} )
+  message( FATAL_ERROR "The 'llvm-config' file(${LLVM_CONFIG_PATH}) was not found." )
+endif()
+
+execute_process(
+  COMMAND
+    ${LLVM_CONFIG_PATH} --version
+  OUTPUT_VARIABLE
+    LLVM_VERSION
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+execute_process(
+  COMMAND
+    ${LLVM_CONFIG_PATH} --includedir
+  OUTPUT_VARIABLE
+    LLVM_INCLUDE_DIRS
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+execute_process(
+  COMMAND
+    ${LLVM_CONFIG_PATH} --libdir
+  OUTPUT_VARIABLE
+    LLVM_LIBRARY_DIRS
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+set( # FIXME
+  LLVM_DEFINITIONS
+    -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MAC -D__STDC_LIMIT_MACROS
+  )
+
+message( STATUS "LLVM version: ${LLVM_VERSION}" )
+message( STATUS "LLVM Include Dir: ${LLVM_INCLUDE_DIRS}" )
+message( STATUS "LLVM Library Dir: ${LLVM_LIBRARY_DIRS}" )
 
 include_directories( ${LLVM_INCLUDE_DIRS} )
 link_directories( ${LLVM_LIBRARY_DIRS} )
 add_definitions( ${LLVM_DEFINITIONS} )
 
-llvm_map_components_to_libraries(
-  REQ_LLVM_LIBRARIES
-  native
-  support
-  bitreader
-  instrumentation
-  scalaropts
-  ipo
-  vectorize
-  core
-  object
-  jit
-  interpreter
-  nativecodegen
-  selectiondag
-  asmparser
-  asmprinter
-  )
+#llvm_map_components_to_libraries(
+#  REQ_LLVM_LIBRARIES
+#  native
+#  support
+#  bitreader
+#  instrumentation
+#  scalaropts
+#  ipo
+#  vectorize
+#  core
+#  object
+#  jit
+#  interpreter
+#  nativecodegen
+#  selectiondag
+#  asmparser
+#  asmprinter
+#  )
 
 # the LLMV's "target_link_libraries" is specified at lib/rill/CMakeLists.txt
 
