@@ -11,21 +11,16 @@ set( PACKAGE_VERSION "${RILL_VERSION_MAJOR}.${RILL_VERSION_MINOR}" )
 include_directories( "${PROJECT_SOURCE_DIR}" )
 
 #
-message( STATUS "CMAKE_CXX_COMPILER_ID => ${CMAKE_CXX_COMPILER_ID}" )
-
-#
 if( CMAKE_CXX_COMPILER_ID STREQUAL "Clang" )
+  message( STATUS "config for clang." )
+  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11" )
   add_definitions(
-    -std=c++11
     -DBOOST_PP_VARIADICS=1
-#    -Wall
     )
 
 elseif( CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  add_definitions(
-    -std=c++11
-#    -Wall
-    )
+  message( STATUS "config for gnu." )
+  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11" )
 
 else()
   message( WARNING "This compile is not supported..." )
