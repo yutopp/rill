@@ -12,9 +12,25 @@ include_directories( "${PROJECT_SOURCE_DIR}" )
 
 #
 add_definitions(
+
+
+)
+
+#
+if( "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" )
+  add_definitions(
+    -std=c++11
+    -DBOOST_PP_VARIADICS=1
+#    -Wall
+    )
+elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  add_definitions(
     -std=c++11
 #    -Wall
-)
+    )
+else()
+  message( WARNING "This compile is not supported..." )
+endif()
 
 
 ############################################################
