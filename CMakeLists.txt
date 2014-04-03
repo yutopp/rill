@@ -23,8 +23,6 @@ add_definitions(
 # Boost Libraries
 #
 set( Boost_USE_STATIC_LIBS ON )
-#add_definitions( -DBOOST_ERROR_CODE_HEADER_ONLY )
-#add_definitions( -DBOOST_SYSTEM_NO_LIB )
 find_package(
   Boost
   1.55.0
@@ -183,6 +181,8 @@ foreach( l ${LLVM_LIBS} ${LLVM_SYS_LIBS} )
   string( REGEX REPLACE "-l([^ ]+)" "\\1" lib_name ${l} )
   list( APPEND REQ_LLVM_LIBRARIES ${lib_name} )
 endforeach(l)
+
+# the LLMV's "target_link_libraries" is specified at lib/rill/CMakeLists.txt
 
 
 ############################################################
