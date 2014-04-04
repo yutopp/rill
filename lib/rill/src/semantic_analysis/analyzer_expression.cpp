@@ -403,7 +403,7 @@ namespace rill
                         }
 
                         // generic_function_env has only one scope. should check parent environment.
-                        auto const& function_env = [&](){
+                        auto const& function_env = [&]() -> std::shared_ptr<function_symbol_environment> {
                             std::cout << (const_environment_base_ptr)env << std::endl;
 
                             // TODO: evaluate reciever_type_detail->template_args
@@ -496,7 +496,7 @@ namespace rill
                             = std::static_pointer_cast<has_parameter_environment<function_symbol_environment>>( has_parameter_env );
 
                         // generic_function_env has only one scope. should check parent environment.
-                        auto const& function_env = [&](){
+                        auto const& function_env = [&]() -> std::shared_ptr<function_symbol_environment> {
                             std::cout << (const_environment_base_ptr)env << std::endl;
 
 

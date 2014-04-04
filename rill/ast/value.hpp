@@ -68,7 +68,7 @@ namespace rill
             //
             RILL_AST_INTERFACE_BEGIN( value_base, value )
             public:
-                bool is_system() const  RILL_CXX11_FINAL
+                bool is_system() const RILL_CXX11_FINAL
                 {
                     return true;
                 }

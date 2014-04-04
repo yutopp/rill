@@ -54,7 +54,7 @@ namespace rill
                 void*               element;
                 value_kind_mask     kind;
 
-                inline auto const is_type() const
+                inline auto is_type() const
                    -> bool
                 {
                     return kind == value_kind_mask::k_type;
