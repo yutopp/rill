@@ -1,6 +1,5 @@
 # Rill Programming Language
-**experimental**
-
+**experimental...**
 ![chi-](http://yutopp.net/image/chi-.png "Bun")
 [![Build Status](https://travis-ci.org/yutopp/rill.svg?branch=m@ster)](https://travis-ci.org/yutopp/rill)
 
