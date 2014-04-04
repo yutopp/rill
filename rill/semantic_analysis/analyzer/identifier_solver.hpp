@@ -203,7 +203,7 @@ namespace rill
             bool const do_not_lookup
             ) -> type_detail_ptr
         {
-            auto const& ty_detail
+            auto const ty_detail
                 = detail::generic_solve_identifier(
                     a->type_detail_pool_,
                     identifier,
@@ -328,7 +328,7 @@ namespace rill
         {
             std::cout << "ABA" << std::endl;
 
-            auto const& ty_detail = ctfe_as_type( a, type_expression, parent_env );
+            auto const ty_detail = ctfe_as_type( a, type_expression, parent_env );
             auto const& ty_id = ty_detail->type_id;
             std::cout << "ABABA" << std::endl;
 
