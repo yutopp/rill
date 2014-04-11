@@ -1,0 +1,18 @@
+template( type A )
+def func( A i )
+{
+    print_int( i );
+}
+
+
+ababa!w;
+
+def main()
+{
+    func!( int )( 12 );
+}
+
+gahaha;
+
+
+extern def print_int( int i ): void "put_string2";

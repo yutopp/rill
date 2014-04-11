@@ -7,9 +7,9 @@
 //
 
 #include <rill/syntax_analysis/make_syntax_tree.hpp>
-#include <rill/syntax_analysis/parser.hpp>
-
-#include <boost/spirit/include/support_line_pos_iterator.hpp>
+#include <rill/syntax_analysis/code_grammer.hpp>
+#include <rill/syntax_analysis/types.hpp>
+#include <rill/syntax_analysis/error.hpp>
 
 
 namespace rill
@@ -22,8 +22,7 @@ namespace rill
             namespace spirit = boost::spirit;
             namespace qi = spirit::qi;
 
-            typedef spirit::line_pos_iterator<ast::native_string_t::const_iterator> pos_iterator_type;
-            typedef code_grammer<pos_iterator_type>                                 grammer_type;
+            using grammer_type = code_grammer<pos_iterator_type>;
 
             try
             {
@@ -31,7 +30,9 @@ namespace rill
                 auto const last  = pos_iterator_type( source.cend() );
                 auto it = first;
 
-                grammer_type grammer( first );
+                auto const& ec = std::make_shared<error_container>();
+
+                grammer_type grammer( grammer_type::attacher_type( first, ec ) );
                 grammer_type::skip_grammer_type skipper;
 
                 ast::statements_ptr program;
@@ -42,14 +43,18 @@ namespace rill
 
                 bool const success = qi::phrase_parse( it, last, grammer, skipper, program );
                 if ( success ) {
-                    std::cout << "true => " << ( it == last ) << " (1 is ok)" << std::endl;
-                    if ( it != last ) {
+                    bool const is_parsed_to_end = it == last;
+                    bool const has_no_errors = ec->size() == 0;
+
+                    if ( !( is_parsed_to_end && has_no_errors ) ) {
+                        std::cout << "=> is_parsed_to_end = " << is_parsed_to_end << std::endl
+                                  << "   has_no_errors = " << has_no_errors << std::endl;
                         // Test
-                        { char c; std::cin >> c; }
                         std::exit( -1 );
                     }
                 } else {
-                    std::cout << "false" << std::endl;
+                    std::cout << "=> success == false" << std::endl;
+                    std::exit( -1 );
                 }
 
                 return program;

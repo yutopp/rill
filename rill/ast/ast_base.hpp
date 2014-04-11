@@ -27,11 +27,15 @@ namespace rill
             class ast_id_generator
             {
             public:
+#ifdef RILL_DEBUG
                 ast_id_generator()
                     : generated_counter_( 0 )
                 {
                     std::cout << "AST ID GENERATOR" << std::endl;
                 }
+#else
+                ast_id_generator() = default;
+#endif
 
             public:
                 auto operator()()
@@ -42,7 +46,7 @@ namespace rill
                 }
 
             private:
-                ast_id_t generated_counter_;
+                ast_id_t generated_counter_ = 0;
             };
 
         } // namespace detail
@@ -54,7 +58,9 @@ namespace rill
             ast_base()
             {
                 id_ = igen_();
+#ifdef RILL_DEBUG
                 std::cout << "NEW AST( " << typeid( this ).name() << " )@ ID: " << id_ << std::endl;
+#endif
             }
 
         public:

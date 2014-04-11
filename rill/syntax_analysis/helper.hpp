@@ -6,8 +6,8 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#ifndef RILL_SYNTAX_ANALYSIS_PARSER_HELPER_HPP
-#define RILL_SYNTAX_ANALYSIS_PARSER_HELPER_HPP
+#ifndef RILL_SYNTAX_ANALYSIS_HELPER_HPP
+#define RILL_SYNTAX_ANALYSIS_HELPER_HPP
 
 #include <string>
 #include <memory>
@@ -77,53 +77,8 @@ namespace rill
                 return make_node_ptr<ast::literal_value>( make_node_ptr<T>( xs... ) );
             }
 
-
-
-
-            template<typename It>
-            class make_position_annotator_lazy
-            {
-            public:
-                typedef void result_type;
-
-            public:
-                make_position_annotator_lazy(It first)
-                    : head_(first)
-                {}
-
-            public:
-                template<typename Val, typename First, typename Last>
-                void operator()(Val& v, First f, Last l) const {
-                    do_annotate( v, f, l );
-                }
-
-            private:
-                template<typename AstNode>
-                void do_annotate(
-                    std::shared_ptr<AstNode> const& li,
-                    It f,
-                    It l
-                    ) const
-                {
-                    using boost::spirit::get_line;
-                    using boost::spirit::get_column;
-                    using std::distance;
-
-                    li->line   = get_line( f );
-                    li->column = get_column( head_, f );
-                    li->length = distance( f, l );
-                }
-
-                template<typename... Args>
-                void do_annotate( Args&&... ) const
-                {}
-
-            private:
-                It const head_;
-            };
-
         } // namespace helper
-    } // namespace sytax_analysis
+    } // namespace syntax_analysis
 } // rill
 
-#endif /*RILL_SYNTAX_ANALYSIS_PARSER_HELPER_HPP*/
+#endif /*RILL_SYNTAX_ANALYSIS_HELPER_HPP*/

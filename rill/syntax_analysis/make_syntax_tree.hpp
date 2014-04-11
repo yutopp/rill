@@ -6,10 +6,19 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#pragma once
+#ifndef RILL_SYNTAX_ANALYSIS_MAKE_SYNTAX_TREE_HPP
+#define RILL_SYNTAX_ANALYSIS_MAKE_SYNTAX_TREE_HPP
 
-#include "make_syntax_tree_impl.hpp"
+#include "../ast/ast.hpp"
 
-#include "../ast/value.hpp"
-#include "../ast/expression.hpp"
-#include "../ast/statement.hpp"
+
+namespace rill
+{
+    namespace syntax_analysis
+    {
+        auto make_syntax_tree( ast::native_string_t const& source ) -> ast::statements_ptr;
+
+    } // namespace syntax_analysis
+} // namespace rill
+
+#endif /*RILL_SYNTAX_ANALYSIS_MAKE_SYNTAX_TREE_HPP*/

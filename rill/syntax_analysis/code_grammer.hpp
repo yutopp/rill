@@ -18,28 +18,19 @@
 # define BOOST_SPIRIT_USE_PHOENIX_V3 1
 #endif
 #include <boost/spirit/include/qi.hpp>
-#include <boost/spirit/include/qi_as.hpp>
-#include <boost/spirit/include/phoenix_core.hpp>
-#include <boost/spirit/include/phoenix_operator.hpp>
-#include <boost/spirit/include/phoenix_object.hpp>
-#include <boost/spirit/include/phoenix_fusion.hpp>
-#include <boost/spirit/include/phoenix_stl.hpp>
-#include <boost/spirit/include/phoenix_bind.hpp>
+#include <boost/spirit/include/phoenix.hpp>
 
 #include <boost/fusion/include/adapt_struct.hpp>
 #include <boost/fusion/adapted/std_tuple.hpp>
 
-#include "../ast/value.hpp"
-#include "../ast/expression.hpp"
-#include "../ast/statement.hpp"
-
+#include "../ast/ast.hpp"
 #include "../attribute/attribute.hpp"
 
-//#include "environment.hpp"
-#include "skip_parser.hpp"
+#include "skip_grammer.hpp"
 
-#include "parser_helper.hpp"
-#include "error.hpp"
+#include "helper.hpp"
+#include "handlers.hpp"
+#include "support.hpp"
 
 
 namespace rill
@@ -60,57 +51,27 @@ namespace rill
         {
         public:
             using skip_grammer_type = skip_grammer<Iterator>;
+
+            using attacher_type = attacher<Iterator>;
+
             using rule_no_skip_no_type = qi::rule<Iterator>;
             template<typename T> using rule_no_skip = qi::rule<Iterator, T>;
             template<typename T> using rule = qi::rule<Iterator, T, skip_grammer_type>;
 
-            struct t
-            {
-                t( Iterator const& head )
-                    : position_annotator_( head )
-                {}
-
-            public:
-                template<qi::error_handler_result E, typename Rule, typename T>
-                auto operator()( Rule& rule, T const& n ) const
-                    -> void
-                {
-                    rule.name( n );
-
-                    auto const err_handler   = error_handler_( qi::_1, qi::_2, qi::_3, qi::_4 );
-                    auto const pos_annotator = position_annotator_( qi::_val, qi::_1, qi::_3 );
-                    qi::on_error<E>( rule, err_handler );
-                    qi::on_success( rule, pos_annotator );
-                }
-
-                template<typename Rule, typename T>
-                auto operator()( Rule& rule, T const& name ) const
-                    -> void
-                {
-                    this->operator()<qi::accept>( rule, name );
-                }
-
-            private:
-                phx::function<helper::make_position_annotator_lazy<Iterator>> position_annotator_;
-                phx::function<error_handler_lazy<Iterator>> error_handler_;
-            };
-
-            t attr;
-
         public:
-            code_grammer( Iterator const& head )
+            code_grammer( attacher_type&& att )
                 : code_grammer::base_type( program_, "rill" )
-                , attr( head )
+                , att_( att )
             {
                 using ascii::char_;
                 using ascii::string;
                 using namespace qi::labels;
 
-
                 //
                 program_
                     = ( top_level_statements_ > ( qi::eol | qi::eoi ) );
-                attr( program_, "program" );
+                att_( program_, "program" );
+
 
                 //
                 top_level_statement_
@@ -121,15 +82,17 @@ namespace rill
                       | empty_statement_
                       )
                     ;
+                att_( top_level_statement_, "top_level_statement" );
 
-                top_level_statements_.name( "top_level_statements" );
                 top_level_statements_
                     = qi::as<ast::statement_list>()[
                         *top_level_statement_
                       ][qi::_val = helper::make_node_ptr<ast::statements>( qi::_1 )]
                     ;
+                att_( top_level_statements_, "top_level_statements" );
 
 
+                // executable scope, such as function, block, lambda, ...
                 program_body_statement_
                     = ( block_statement_
                       | variable_declaration_statement_
@@ -141,40 +104,46 @@ namespace rill
                       | expression_statement_     // NOTE: this statement must be set at last
                       )
                     ;
+                att_( program_body_statement_, "program_body_statement" );
 
                 program_body_statements_
                     = qi::as<ast::statement_list>()[
                         *program_body_statement_
                       ][qi::_val = helper::make_node_ptr<ast::statements>( qi::_1 )]
                     ;
+                att_( program_body_statements_, "program_body_statements" );
 
                 program_block_statement_
                     = program_body_statement_[
                         qi::_val = helper::make_node_ptr<ast::block_statement>( qi::_1 )
                        ]
                     ;
+                att_( program_block_statement_, "program_block_statement" );
 
 
+                //
                 class_body_statement_
                     = ( class_function_definition_statement_
                       | class_variable_declaration_statement_
                       | empty_statement_
                       )
                     ;
+                att_( class_body_statement_, "class_body_statement" );
 
                 class_body_statements_
                     = qi::as<ast::statement_list>()[
                         *class_body_statement_
                       ][qi::_val = helper::make_node_ptr<ast::statements>( qi::_1 )]
                     ;
+                att_( class_body_statements_, "class_body_statements" );
 
                 class_body_block_
                     = qi::lit( "{" ) >> class_body_statements_ >> qi::lit( "}" )
                     ;
+                att_( class_body_block_, "class_body_block" );
 
 
-
-                //
+                // body of function
                 function_body_block_
                     = (qi::lit( "{" ) >> program_body_statements_ >> qi::lit( "}" ) )[
                         qi::_val = qi::_1
@@ -185,6 +154,7 @@ namespace rill
                             )
                        ]
                     ;
+                att_( function_body_block_, "function_body_block" );
 
 
 
@@ -323,7 +293,7 @@ namespace rill
                       | class_definition_statement_
                       )
                     ;
-
+                att_( templatable_statement_, "templatable_statement" );
 
                 template_statement_
                     = ( qi::lit( "template" )
@@ -336,7 +306,7 @@ namespace rill
                               )
                        ]
                     ;
-
+                att_( template_statement_, "template_statement" );
 
 
                 while_statement_
@@ -447,16 +417,18 @@ namespace rill
                 parameter_variable_declaration_
                     = quality_specifier_ > parameter_variable_initializer_unit_
                     ;
+                att_( parameter_variable_declaration_, "parameter_variable_declaration" );
 
                 parameter_variable_initializer_unit_
                     = -identifier_ > value_initializer_unit_
                     ;
+                att_( parameter_variable_initializer_unit_, "parameter_variable_initializer_unit" );
 
-                parameter_variable_declaration_list_.name( "parameter_variable_declaration_list" );
                 parameter_variable_declaration_list_
                     = ( qi::lit( '(' ) >> qi::lit( ')' ) )
                     | ( qi::lit( '(' ) >> ( parameter_variable_declaration_ % ',' ) >> qi::lit( ')' ) )
                     ;
+                att_( parameter_variable_declaration_list_, "parameter_variable_declaration_list" );
 
 
                 // value initializer unit
@@ -494,12 +466,12 @@ namespace rill
 
 
                 // ========================================
-
-
+                // Expressions
+                // Proritory: High 0 <=> 15 Low
                 expression_
                     %= expression_priority_[ExpressionHierarchyNum-1]
                     ;
-                qi::debug( expression_ );
+                att_( expression_, "expression" );
 
 
                 {
@@ -513,7 +485,7 @@ namespace rill
 
                     commma_expression_ = expression_priority_[priority].alias();
 
-                    qi::debug( expression_priority_[priority] );
+                    att_( expression_priority_[priority], "comma_expression" );
                 }
 
                 {
@@ -527,7 +499,7 @@ namespace rill
 
                     assign_expression_ = expression_priority_[priority].alias();
 
-                    qi::debug( expression_priority_[priority] );
+                    att_( expression_priority_[priority], "assign_expression" );
                 }
 
                 {
@@ -540,7 +512,7 @@ namespace rill
 
                     conditional_expression_ = expression_priority_[priority].alias();
 
-                    qi::debug( expression_priority_[priority] );
+                    att_( expression_priority_[priority], "conditional_expression" );
                 }
 
                 {
@@ -554,7 +526,7 @@ namespace rill
 
                     logical_or_expression_ = expression_priority_[priority].alias();
 
-                    qi::debug( expression_priority_[priority] );
+                    att_( expression_priority_[priority], "logical_or_expression" );
                 }
 
                 {
@@ -568,7 +540,7 @@ namespace rill
 
                     logical_and_expression_ = expression_priority_[priority].alias();
 
-                    qi::debug( expression_priority_[priority] );
+                    att_( expression_priority_[priority], "logical_and_expression" );
                 }
 
                 {
@@ -582,7 +554,7 @@ namespace rill
 
                     bitwise_or_expression_ = expression_priority_[priority].alias();
 
-                    qi::debug( expression_priority_[priority] );
+                    att_( expression_priority_[priority], "bitwise_or_expression" );
                 }
 
                 {
@@ -596,7 +568,7 @@ namespace rill
 
                     bitwise_xor_expression_ = expression_priority_[priority].alias();
 
-                    qi::debug( expression_priority_[priority] );
+                    att_( expression_priority_[priority], "bitwise_xor_expression" );
                 }
 
                 {
@@ -610,7 +582,7 @@ namespace rill
 
                     bitwise_and_expression_ = expression_priority_[priority].alias();
 
-                    qi::debug( expression_priority_[priority] );
+                    att_( expression_priority_[priority], "bitwise_and_expression" );
                 }
 
                 {
@@ -625,7 +597,7 @@ namespace rill
 
                     equality_expression_ = expression_priority_[priority].alias();
 
-                    qi::debug( expression_priority_[priority] );
+                    att_( expression_priority_[priority], "equality_expression" );
                 }
 
                 {
@@ -642,7 +614,7 @@ namespace rill
 
                     relational_expression_ = expression_priority_[priority].alias();
 
-                    qi::debug( expression_priority_[priority] );
+                    att_( expression_priority_[priority], "relational_expression" );
                 }
 
                 {
@@ -657,7 +629,7 @@ namespace rill
 
                     shift_expression_ = expression_priority_[priority].alias();
 
-                    qi::debug( expression_priority_[priority] );
+                    att_( expression_priority_[priority], "shift_expression" );
                 }
 
                 {
@@ -672,7 +644,7 @@ namespace rill
 
                     add_sub_expression_ = expression_priority_[priority].alias();
 
-                    qi::debug( expression_priority_[priority] );
+                    att_( expression_priority_[priority], "add_sub_expression" );
                 }
 
                 {
@@ -688,7 +660,7 @@ namespace rill
 
                     mul_div_rem_expression_ = expression_priority_[priority].alias();
 
-                    qi::debug( expression_priority_[priority] );
+                    att_( expression_priority_[priority], "mul_div_rem_expression" );
                 }
 
                 {
@@ -700,7 +672,7 @@ namespace rill
 
                     unary_expression_ = expression_priority_[priority].alias();
 
-                    qi::debug( expression_priority_[priority] );
+                    att_( expression_priority_[priority], "unary_expression" );
                 }
 
                 {
@@ -741,7 +713,7 @@ namespace rill
 
                     postfix_expression_ = expression_priority_[priority].alias();
 
-                    qi::debug( expression_priority_[priority] );
+                    att_( expression_priority_[priority], "postfix_expression" );
                 }
 
 
@@ -764,7 +736,7 @@ namespace rill
 
                     primary_expression_ = expression_priority_[priority].alias();
 
-                    qi::debug( expression_priority_[priority] );
+                    att_( expression_priority_[priority], "primary_expression" );
                 }
 
 
@@ -883,6 +855,9 @@ namespace rill
                 statement_termination_ = qi::lit( ';' );
 
             }
+
+        private:
+            attacher<Iterator> att_;
 
         private:
             rule<ast::statements_ptr()> program_;
