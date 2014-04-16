@@ -59,7 +59,8 @@ include_directories( ${Boost_INCLUDE_DIRS} )
 #  You must set 'LLVM_CONFIG_PATH' variable.
 #    Ex. cmake ~~ -DLLVM_CONFIG_PATH=/usr/bin/llvm-config-3.4
 if( NOT DEFINED LLVM_CONFIG_PATH )
-  message( FATAL_ERROR "Please set LLVM_CONFIG_PATH to your 'llvm-config' file" )
+  message( STATUS "LLVM_CONFIG_PATH will be /usr/bin/llvm-config as default value." )
+  set( LLVM_CONFIG_PATH "/usr/bin/llvm-config" )
 endif()
 
 if( NOT EXISTS ${LLVM_CONFIG_PATH} )
