@@ -7,6 +7,7 @@
 //
 
 #include <rill/code_generator/llvm_ir_generator.hpp>
+#include <rill/code_generator/llvm_ir_support.hpp>
 #include <rill/code_generator/llvm_ir_generator/helper.hpp>
 #include <rill/behavior/intrinsic_function_holder.hpp>
 #include <rill/semantic_analysis/analyzer.hpp>
@@ -30,9 +31,8 @@
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/Analysis/Verifier.h> // will be changed #if ( LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR >= 5 )
 
-#include <rill/ast/statement.hpp>
-#include <rill/ast/expression.hpp>
-#include <rill/ast/value.hpp>
+#include <rill/ast/ast.hpp>
+#include <rill/ast/detail/tree_filter.hpp>
 
 
 namespace rill
@@ -109,156 +109,12 @@ namespace rill
 
 
 
-        // ========================================
-        //
-        // ========================================
-        class function_env_to_llvm_constatnt_ptr
-        {
-        public:
-            typedef llvm::Constant*     result_type;
-
-        public:
-            function_env_to_llvm_constatnt_ptr(
-                std::reference_wrapper<llvm_ir_generator const> const& gen
-                )
-                : gen_( gen )
-            {}
-
-        public:
-            auto operator()( const_function_symbol_environment_ptr const& f_env ) const
-                -> result_type
-            {
-                auto const& generator = gen_.get();
-
-                // if function was not generated, generate function IR
-                if ( !generator.context_->env_conversion_table.is_defined( f_env->get_id() ) ) {
-                    //
-                    std::cout
-                        << "!context_->env_conversion_table.is_defined( f_env->get_id() ): "
-                        << f_env->mangled_name()
-                        << std::endl;
-
-                    assert( f_env->get_related_ast() != nullptr );
-                    generator.dispatch( f_env->get_related_ast(), f_env );
-                }
-
-                return [&]() -> llvm::Constant*
-                {
-                    if ( f_env->has_attribute( function_symbol_environment::attr::e_extern ) ) {
-                        // external function
-                        llvm::FunctionType* const func_type
-                            = generator.context_->env_conversion_table.ref_function_type( f_env->get_id() );
-
-                        auto const& s
-                            = std::static_pointer_cast<ast::extern_function_declaration_statement const>( f_env->get_related_ast() );
-                        assert( s != nullptr );
-                        return generator.context_->llvm_module.getOrInsertFunction( s->get_extern_symbol_name(), func_type );
-
-                    } else {
-                        // nornal function
-                        auto const& target_name
-                            = f_env->mangled_name();
-                        std::cout << "SS: " << target_name << std::endl;
-
-                        if ( auto const f = generator.context_->llvm_module.getFunction( target_name ) )
-                            return f;
-
-                        return nullptr;
-                    }
-
-                }();
-            }
-
-        private:
-            std::reference_wrapper<llvm_ir_generator const> gen_;
-        };
-
-
-
-
-
-
-
-        // ========================================
-        //
-        // ========================================
-        template<typename MatchNode, typename F>
-        class node_filter RILL_CXX11_FINAL
-            : public ast::detail::const_tree_visitor<node_filter<MatchNode, F>, llvm::Value*>
-        {
-        public:
-                template<typename NodeT>
-                struct result
-                {
-                    typedef typename ast::detail::tree_visitor_result<
-                        llvm::Value*,
-                        typename ast::detail::base_type_specifier<typename std::decay<NodeT>::type>::type
-                    >::type type;
-                };
-
-        public:
-            node_filter( F const& f )
-                : f_( f )
-            {}
-
-        public:
-            RILL_TV_OP_INDIRECT_CONST( ast::statements, s, _ )
-            {
-                for( auto const& ss : s->statement_list_ )
-                    this->dispatch( ss, _ );
-            }
-
-            RILL_TV_OP_INDIRECT_CONST( ast::block_statement, s, _ )
-            {
-                //
-                this->dispatch( s->statements_, _ );
-            }
-
-            RILL_TV_OP_INDIRECT_CONST( MatchNode, node, _ )
-            {
-                //
-                return f_( node, _ );
-            }
-
-            RILL_TV_OP_FAIL
-
-            template<typename NodeT>
-            auto failed_to_dispatch() const
-                -> void
-            {}
-
-        private:
-            F const& f_;
-        };
-
-        template<typename MatchNode, typename Node, typename Env, typename F>
-        auto do_filter( Node const& node, Env const& env, F const& f )
-            -> decltype( node_filter<MatchNode, F>( f ).dispatch( node, env ) )
-        {
-            node_filter<MatchNode, F> filter( f );
-            return filter.dispatch( node, env );
-        }
-
-        template<typename MatchNode, typename Node, typename Env, typename F>
-        auto do_filter_const( Node const& node, Env const& env, F const& f )
-            -> decltype( node_filter<MatchNode, F>( f ).dispatch( node, env ) )
-        {
-            node_filter<MatchNode, F> const filter( f );
-            return filter.dispatch( node, env );
-        }
-
-
 
 
 
         // ========================================
         // ========================================
 
-
-
-        // = definition ===
-        // class llvm_ir_generator
-        // ================
 
         llvm_ir_generator::llvm_ir_generator(
             const_environment_base_ptr const& root_env,
@@ -271,6 +127,52 @@ namespace rill
             , context_( context )
             , analyzer_( analyzer )
         {}
+
+
+
+        auto llvm_ir_generator::function_env_to_llvm_constatnt_ptr(
+            const_function_symbol_environment_ptr const& f_env
+            ) const
+            -> llvm::Constant*
+        {
+            // if function was not generated, generate function IR
+            if ( !context_->env_conversion_table.is_defined( f_env->get_id() ) ) {
+                //
+                std::cout
+                    << "!context_->env_conversion_table.is_defined( f_env->get_id() ): "
+                    << f_env->mangled_name()
+                    << std::endl;
+
+                assert( f_env->get_related_ast() != nullptr );
+                dispatch( f_env->get_related_ast(), f_env );
+            }
+
+            return [&]() -> llvm::Constant*
+            {
+                if ( f_env->has_attribute( function_symbol_environment::attr::e_extern ) ) {
+                    // external function
+                    llvm::FunctionType* const func_type
+                        = context_->env_conversion_table.ref_function_type( f_env->get_id() );
+
+                    auto const& s
+                        = std::static_pointer_cast<ast::extern_function_declaration_statement const>( f_env->get_related_ast() );
+                    assert( s != nullptr );
+                    return context_->llvm_module.getOrInsertFunction( s->get_extern_symbol_name(), func_type );
+
+                } else {
+                    // nornal function
+                    auto const& target_name
+                        = f_env->mangled_name();
+                    std::cout << "SS: " << target_name << std::endl;
+
+                    if ( auto const f = context_->llvm_module.getFunction( target_name ) )
+                        return f;
+
+                    return nullptr;
+                }
+
+            }();
+        }
 
 
         //
@@ -643,7 +545,7 @@ namespace rill
 
                 // filter statements
                 // collect class variables
-                do_filter_const<ast::class_variable_declaration_statement>(
+                ast::detail::apply_to_const_node<ast::class_variable_declaration_statement>(
                     s->inner_,
                     c_env,
                     [&](
@@ -1072,8 +974,7 @@ namespace rill
             assert( f_env != nullptr );
 
             std::cout << "current : " << f_env->mangled_name() << std::endl;
-            auto const& callee_function
-                = function_env_to_llvm_constatnt_ptr( *this )( f_env );
+            auto const& callee_function = function_env_to_llvm_constatnt_ptr( f_env );
             if ( !callee_function ) {
                 // unexpected error...
                 assert( false && "unexpected... callee_function was not found" );
@@ -1094,7 +995,7 @@ namespace rill
 
             if ( is_jit() ) {
                 std::cout << "yaaaaaann" << std::endl;
-                analyzer_->ctfe_engine_->execution_engine_;//();
+//                analyzer_->ctfe_engine_->execution_engine_;//();
                 return nullptr;
             } else {
                 // invocation
@@ -1280,8 +1181,7 @@ namespace rill
 
             // ========================================
             std::cout << "current : " << f_env->mangled_name() << std::endl;
-            auto const& callee_function
-                = function_env_to_llvm_constatnt_ptr( *this )( f_env );
+            auto const& callee_function = function_env_to_llvm_constatnt_ptr( f_env );
             if ( !callee_function ) {
                 // unexpected error...
                 assert( false && "unexpected... callee_function was not found" );
@@ -1439,11 +1339,12 @@ namespace rill
                     return context_->env_conversion_table.ref_value( v_env->get_id() );
 
                 } else {
+#if 0
                     // fallback...
                     if ( is_jit() ) {
-                        if ( analyzer_->ctfe_engine_->value_holder_->is_defined( v_env->get_id() ) ) {
+                        if ( analyzer_->ctfe_engine_->value_holder()->is_defined( v_env->get_id() ) ) {
                             auto const& d_val
-                                = analyzer_->ctfe_engine_->value_holder_->ref_value(
+                                = analyzer_->ctfe_engine_->value_holder()->ref_value(
                                     v_env->get_id()
                                     );
                             assert( d_val.is_type() );
@@ -1455,6 +1356,9 @@ namespace rill
                     } else {
                         assert( false && "[[ice]] llvm -> value was not found..." );
                     }
+#endif
+                    assert( false && "[[ice]]" );
+                    return nullptr;
                 }
             }
 
@@ -1530,11 +1434,12 @@ namespace rill
                     return context_->env_conversion_table.ref_value( v_env->get_id() );
 
                 } else {
+#if 0
                     // fallback...
                     if ( is_jit() ) {
-                        if ( analyzer_->ctfe_engine_->value_holder_->is_defined( v_env->get_id() ) ) {
+                        if ( analyzer_->ctfe_engine_->value_holder()->is_defined( v_env->get_id() ) ) {
                             auto const& d_val
-                                = analyzer_->ctfe_engine_->value_holder_->ref_value(
+                                = analyzer_->ctfe_engine_->value_holder()->ref_value(
                                     v_env->get_id()
                                     );
                             assert( d_val.is_type() );
@@ -1546,6 +1451,9 @@ namespace rill
                     } else {
                         assert( false && "[[ice]] llvm -> value was not found..." );
                     }
+#endif
+                    assert( false && "[[ice]]" );
+                    return nullptr;
                 }
             }
 
@@ -1582,81 +1490,69 @@ namespace rill
         }
 
 
-
-
-
-        //
-        //
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::literal_value, v, parent_env )
+        RILL_TV_OP_CONST( llvm_ir_generator, ast::intrinsic::int32_value, v, parent_env )
         {
-            // TODO: check primitive type
-            if ( v->literal_type_name_->get_inner_symbol()->to_native_string() == "int" ) {
-                // Currently, return int type( 32bit, integer )
-                return llvm::ConstantInt::get( context_->llvm_context, llvm::APInt( 32, std::static_pointer_cast<ast::intrinsic::int32_value const>( v->holder_ )->get_value() ) );
-
-            } else if ( v->literal_type_name_->get_inner_symbol()->to_native_string() == "string" ) {
-                // char pointer...(string?)
-                return context_->ir_builder.CreateGlobalStringPtr( std::static_pointer_cast<ast::intrinsic::string_value const>( v->holder_ )->value_.c_str() );
-
-            } else if ( v->literal_type_name_->get_inner_symbol()->to_native_string() == "array" ) {
-                auto const& c_env
-                    = std::static_pointer_cast<class_symbol_environment const>(
-                        root_env_->get_related_env_by_ast_ptr( v )
-                        );
-                assert( c_env != nullptr );
-                assert( c_env->is_array() );
-                auto const& array_detail = c_env->get_array_detail();
-
-
-                llvm::Type* const inner_type
-                    = type_id_to_llvm_type_ptr( std::cref( *this ) )(
-                        array_detail->inner_type_id
-                        );
-
-                std::cout << "NUM: " << array_detail->elements_num << std::endl;
-
-                auto const& array_ty = llvm::ArrayType::get(
-                    inner_type,
-                    array_detail->elements_num
-                    );
-
-                llvm::AllocaInst* const alloca_inst
-                    = context_->ir_builder.CreateAlloca(
-                        array_ty,
-                        0/*length of array*/
-                        );
-
-                for( std::size_t i=0; i<array_detail->elements_num; ++i ) {
-                    llvm::Value* elem_v
-                        = context_->ir_builder.CreateConstInBoundsGEP2_64(
-                            alloca_inst,
-                            0,
-                            i
-                            );
-
-                    auto const& e = std::static_pointer_cast<ast::intrinsic::array_value const>(v->holder_)->elements_list_[i];
-                    llvm::Value* inner = dispatch( e, parent_env );
-
-                    context_->ir_builder.CreateStore(
-                        inner,
-                        elem_v /*, is_volatile */
-                        );
-                }
-
-
-                return alloca_inst;
-
-
-
-
-
-
-            } else {
-                assert( false && "[ice] this primitive type is not supported" );
-                return nullptr;
-            }
+            // Currently, return int type( 32bit, integer )
+            return llvm::ConstantInt::get( context_->llvm_context, llvm::APInt( 32, v->get_value() ) );
         }
 
+        RILL_TV_OP_CONST( llvm_ir_generator, ast::intrinsic::boolean_value, v, parent_env )
+        {
+            return llvm::ConstantInt::get( context_->llvm_context, llvm::APInt( 1, v->get_value() ) );
+        }
+
+        RILL_TV_OP_CONST( llvm_ir_generator, ast::intrinsic::string_value, v, parent_env )
+        {
+            return context_->ir_builder.CreateGlobalStringPtr( v->get_value().c_str() );
+        }
+
+        RILL_TV_OP_CONST( llvm_ir_generator, ast::intrinsic::array_value, v, parent_env )
+        {
+            auto const& c_env
+                = std::static_pointer_cast<class_symbol_environment const>(
+                    root_env_->get_related_env_by_ast_ptr( v )
+                    );
+            assert( c_env != nullptr );
+            assert( c_env->is_array() );
+            auto const& array_detail = c_env->get_array_detail();
+
+            llvm::Type* const inner_type
+                = type_id_to_llvm_type_ptr( std::cref( *this ) )(
+                    array_detail->inner_type_id
+                    );
+
+            std::cout << "NUM: " << array_detail->elements_num << std::endl;
+
+            auto const& array_ty = llvm::ArrayType::get(
+                inner_type,
+                array_detail->elements_num
+                );
+
+            llvm::AllocaInst* const alloca_inst
+                = context_->ir_builder.CreateAlloca(
+                    array_ty,
+                    0/*length of array*/
+                    );
+
+            for( std::size_t i=0; i<array_detail->elements_num; ++i ) {
+                llvm::Value* elem_v
+                    = context_->ir_builder.CreateConstInBoundsGEP2_64(
+                        alloca_inst,
+                        0,
+                        i
+                        );
+
+                auto const& e = v->elements_list_[i];
+                llvm::Value* inner = dispatch( e, parent_env );
+
+                context_->ir_builder.CreateStore(
+                    inner,
+                    elem_v /*, is_volatile */
+                    );
+            }
+
+            return alloca_inst;
+        }
 
     } // namespace code_generator
 } // namespace rill

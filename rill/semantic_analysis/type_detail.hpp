@@ -32,11 +32,16 @@ namespace rill
         using type_detail_ptr = type_detail*;
 
         // TODO: move to any where
-        enum class value_kind_mask : char
+        enum class dependent_value_kind
         {
-            k_value = 0,
-            k_type = 1,
-            k_alias = 2/*unused*/
+            k_type = 0,
+            k_alias = 1,/*unused*/
+
+                k_int32 = 10,
+                k_string = 11,
+                k_array = 12,
+
+                k_none = 404
         };
         // TODO: move to any where
 
@@ -45,26 +50,23 @@ namespace rill
             typedef std::vector<type_detail_ptr>        nest_type;
             typedef std::shared_ptr<nest_type>          nest_pointer;
 
-            // dependent_type will holds type_detail_ptr or llvm::Value* in "element"
-            // if "element_class_env" holds "type" class env, "element" holds type_detail_ptr value.
-            // otherwise, "elements" holds llvm::Value*
+            // dependent_type will holds type_detail_ptr or "TODO: write"
             struct dependent_type
             {
-                type_detail_ptr     element_type_detail;
-                void*               element;
-                value_kind_mask     kind;
+                type_detail_ptr         element_type_detail;
+                void*                   element;
+                dependent_value_kind    kind;
 
                 inline auto is_type() const
                    -> bool
                 {
-                    return kind == value_kind_mask::k_type;
+                    return kind == dependent_value_kind::k_type;
                 }
             };
             typedef std::vector<dependent_type>         template_arg_type;
             typedef std::shared_ptr<template_arg_type>  template_arg_pointer;
 
-            explicit
-            type_detail(
+            explicit type_detail(
                 type_id_t const& w,
                 environment_base_ptr const& e,
                 nest_pointer const& st = nullptr,

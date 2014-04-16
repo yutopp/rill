@@ -9,8 +9,6 @@
 #ifndef RILL_AST_DETAIL_DISPATCH_FUNCTIONS_HPP
 #define RILL_AST_DETAIL_DISPATCH_FUNCTIONS_HPP
 
-#include <memory>
-
 #include <boost/mpl/map.hpp>
 #include <boost/mpl/at.hpp>
 
@@ -20,15 +18,8 @@
 #include <boost/preprocessor/tuple/elem.hpp>
 #include <boost/preprocessor/repetition/enum_params.hpp>
 
-#include "../../config/macros.hpp"
-#include "../../environment/environment_fwd.hpp"
-
 // load RILL_DISPATCH_TYPES_SEQ macro
 #include "../../config/tags_for_ast_dispatching.hpp"
-
-//#include "../statement_fwd.hpp"
-//#include "../expression_fwd.hpp"
-//#include "../value_fwd.hpp"
 
 
 #define RILL_DETAIL_PP_MAKE_TAG_STRUCTURE(r, unused, elem) \
@@ -52,20 +43,28 @@ namespace rill
         namespace detail
         {
             // dispatch types(tag structures)
+            // RILL_DISPATCH_TYPES_SEQ is defined at config/tags_for_ast_dispatching.hpp
             BOOST_PP_SEQ_FOR_EACH(RILL_DETAIL_PP_MAKE_TAG_STRUCTURE, _, RILL_DISPATCH_TYPES_SEQ)
 
             // temporary typedefs
-            namespace temporary_typedef { BOOST_PP_SEQ_FOR_EACH_I(RILL_DETAIL_PP_TYPEDEF_MPL_PAIR, _, RILL_DISPATCH_TYPES_SEQ) }
+            namespace temporary_typedef {
+                BOOST_PP_SEQ_FOR_EACH_I(RILL_DETAIL_PP_TYPEDEF_MPL_PAIR, _, RILL_DISPATCH_TYPES_SEQ)
+            } // namespace temporary_typedef
 
             // tag -> dispatch type mapping
             typedef boost::mpl::map<
                 BOOST_PP_ENUM_PARAMS(BOOST_PP_SEQ_SIZE(RILL_DISPATCH_TYPES_SEQ), temporary_typedef::RILL_DETAIL_PP_MPL_PAIR_NAME_A_B)
             > as_type;
+            template<typename Key>
+            using tag_to_type = typename boost::mpl::at<as_type, Key>::type;
 
             // dispatch type -> tag mapping
             typedef boost::mpl::map<
                 BOOST_PP_ENUM_PARAMS(BOOST_PP_SEQ_SIZE(RILL_DISPATCH_TYPES_SEQ), temporary_typedef::RILL_DETAIL_PP_MPL_PAIR_NAME_B_A)
             > as_reverse_type;
+            template<typename Key>
+            using type_to_tag = typename boost::mpl::at<as_reverse_type, Key>::type;
+
         } // namespace detail
 
 
@@ -78,7 +77,7 @@ namespace rill
             )
             -> decltype(
                     node->dispatch(
-                        typename boost::mpl::at<detail::as_reverse_type, ReturnT>::type(),
+                        detail::type_to_tag<ReturnT>(),
                         node,
                         std::forward<VisitorT>( visitor ),
                         std::forward<EnvironmentPtr>( env )
@@ -86,7 +85,7 @@ namespace rill
                )
         {
             return node->dispatch(
-                        typename boost::mpl::at<detail::as_reverse_type, ReturnT>::type(),
+                        detail::type_to_tag<ReturnT>(),
                         node,
                         std::forward<VisitorT>( visitor ),
                         std::forward<EnvironmentPtr>( env )
@@ -96,8 +95,10 @@ namespace rill
     } // namespace ast
 } // namespace rill
 
+
 #undef RILL_DETAIL_PP_MPL_PAIR_NAME_A_B
 #undef RILL_DETAIL_PP_MPL_PAIR_NAME_B_A
 #undef RILL_DETAIL_PP_TYPEDEF_MPL_PAIR
+#undef RILL_DETAIL_PP_MAKE_TAG_STRUCTURE
 
 #endif /*RILL_AST_DETAIL_DISPATCH_FUNCTIONS_HPP*/

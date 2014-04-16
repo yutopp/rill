@@ -224,10 +224,17 @@ namespace rill
         }
 
 
-        RILL_TV_OP( ast_printer, ast::literal_value, v, _ )
-        {
-        }
+        RILL_TV_OP( ast_printer, ast::intrinsic::int32_value, v, _ )
+        {}
 
+        RILL_TV_OP( ast_printer, ast::intrinsic::boolean_value, v, _ )
+        {}
+
+        RILL_TV_OP( ast_printer, ast::intrinsic::string_value, v, _ )
+        {}
+
+        RILL_TV_OP( ast_printer, ast::intrinsic::array_value, v, _ )
+        {}
 
     } // namespace code_generator
 } // namespace rill

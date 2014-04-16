@@ -751,10 +751,15 @@ namespace rill
 
                 // TODO: add "nested_identifier_with_root_"
 
+
+                // ========================================
+                // literals
+                // ========================================
+
                 //
                 integer_literal_
                     = ( qi::int_ )[
-                          qi::_val = helper::make_literal_value_ptr<ast::intrinsic::int32_value>( qi::_1 )
+                          qi::_val = helper::make_node_ptr<ast::intrinsic::int32_value>( qi::_1 )
                       ];
 
                 numeric_literal_
@@ -763,14 +768,14 @@ namespace rill
 
                 //
                 boolean_literal_
-                    = qi::lit( "true" )[qi::_val = helper::make_literal_value_ptr<ast::intrinsic::boolean_value>( phx::val( true ) )]
-                    | qi::lit( "false" )[qi::_val = helper::make_literal_value_ptr<ast::intrinsic::boolean_value>( phx::val( false ) )];
+                    = qi::lit( "true" )[qi::_val = helper::make_node_ptr<ast::intrinsic::boolean_value>( phx::val( true ) )]
+                    | qi::lit( "false" )[qi::_val = helper::make_node_ptr<ast::intrinsic::boolean_value>( phx::val( false ) )];
                     ;
 
                 //
                 string_literal_
                     = string_literal_sequenece_[
-                          qi::_val = helper::make_literal_value_ptr<ast::intrinsic::string_value>( qi::_1 )
+                          qi::_val = helper::make_node_ptr<ast::intrinsic::string_value>( qi::_1 )
                       ]
                     ;
 
@@ -785,13 +790,13 @@ namespace rill
 
 
                 array_literal_
-                    = ( qi::lit( '[' ) >> qi::lit( ']' ) )[qi::_val = helper::make_literal_value_ptr<ast::intrinsic::array_value>()]
-                    | ( qi::lit( '[' ) >> ( assign_expression_ % ',' ) >> qi::lit( ']' ) )[qi::_val = helper::make_literal_value_ptr<ast::intrinsic::array_value>( qi::_1 )]
+                    = ( qi::lit( '[' ) >> qi::lit( ']' ) )[qi::_val = helper::make_node_ptr<ast::intrinsic::array_value>()]
+                    | ( qi::lit( '[' ) >> ( assign_expression_ % ',' ) >> qi::lit( ']' ) )[qi::_val = helper::make_node_ptr<ast::intrinsic::array_value>( qi::_1 )]
                     ;
 
 
 
-        /**/
+                /**/
                 argument_list_.name( "argument_list" );
                 argument_list_
                     = ( qi::lit( '(' ) >> qi::lit( ')' ) )
@@ -953,12 +958,14 @@ namespace rill
 
             // rule<ast::variable_value_ptr()> variable_value_;
 
-            rule<ast::literal_value_ptr()> numeric_literal_;
-            rule<ast::literal_value_ptr()> integer_literal_;
-            rule<ast::literal_value_ptr()> boolean_literal_;
-            rule<ast::literal_value_ptr()> string_literal_;
-            rule<ast::literal_value_ptr()> array_literal_;
+            // litarals
+            rule<ast::intrinsic::int32_value_ptr()/*TODO: change*/> numeric_literal_;
+            rule<ast::intrinsic::int32_value_ptr()> integer_literal_;
+            rule<ast::intrinsic::boolean_value_ptr()> boolean_literal_;
+            rule<ast::intrinsic::string_value_ptr()> string_literal_;
+            rule<ast::intrinsic::array_value_ptr()> array_literal_;
 
+            //
             rule<ast::nested_identifier_value_ptr()> nested_identifier_;
             rule<ast::identifier_value_ptr()> identifier_, identifier_with_root_;
             rule<ast::template_instance_value_ptr()> template_instance_, template_instance_with_root_;

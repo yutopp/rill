@@ -69,14 +69,6 @@ namespace rill
                         );
             }
 
-
-            template<typename T, typename... Args>
-            auto make_literal_value_ptr( Args const&... xs )
-                -> decltype( make_node_ptr<ast::literal_value>( make_node_ptr<T>( xs... ) ) )
-            {
-                return make_node_ptr<ast::literal_value>( make_node_ptr<T>( xs... ) );
-            }
-
         } // namespace helper
     } // namespace syntax_analysis
 } // rill

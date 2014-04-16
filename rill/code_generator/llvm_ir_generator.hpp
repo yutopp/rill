@@ -39,7 +39,10 @@ namespace rill
 
         public:
             friend class type_id_to_llvm_type_ptr;
-            friend class function_env_to_llvm_constatnt_ptr;
+
+            auto function_env_to_llvm_constatnt_ptr(
+                const_function_symbol_environment_ptr const& f_env
+                ) const -> llvm::Constant*;
 
         public:
             // statement_list
@@ -71,7 +74,11 @@ namespace rill
             //RILL_TV_OP_DECL_CONST( ast::nested_identifier_value )
             RILL_TV_OP_DECL_CONST( ast::identifier_value )
             RILL_TV_OP_DECL_CONST( ast::template_instance_value )
-            RILL_TV_OP_DECL_CONST( ast::literal_value )
+
+            RILL_TV_OP_DECL_CONST( ast::intrinsic::int32_value )
+            RILL_TV_OP_DECL_CONST( ast::intrinsic::boolean_value )
+            RILL_TV_OP_DECL_CONST( ast::intrinsic::string_value )
+            RILL_TV_OP_DECL_CONST( ast::intrinsic::array_value )
 
             RILL_TV_OP_FAIL
 

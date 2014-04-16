@@ -50,7 +50,10 @@ namespace rill
             RILL_TV_OP_DECL( ast::nested_identifier_value )
             RILL_TV_OP_DECL( ast::identifier_value )
             //RILL_TV_OP_DECL( ast::template_instance_value )
-            RILL_TV_OP_DECL( ast::literal_value )
+            RILL_TV_OP_DECL( ast::intrinsic::int32_value )
+            RILL_TV_OP_DECL( ast::intrinsic::boolean_value )
+            RILL_TV_OP_DECL( ast::intrinsic::string_value )
+            RILL_TV_OP_DECL( ast::intrinsic::array_value )
 
             RILL_TV_OP_FAIL
 

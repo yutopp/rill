@@ -15,7 +15,7 @@
 #include "../../ast/value.hpp"
 #include "../../utility/tie.hpp"
 
-#include "type.hpp"
+#include "function_solver.hpp"
 
 
 namespace rill
@@ -280,14 +280,12 @@ namespace rill
             assert( c_env != nullptr );
 
             // eval expression of arguments
-            // evaled_value is value of "type"(Ex, int, double, ...)
-            auto evaled_value
-                = a->ctfe_engine_->dispatch( expression, parent_env );
+            auto evaled_value = a->ctfe_engine_->execute( expression, parent_env );
             assert( evaled_value != nullptr );
 
             return std::forward_as_tuple(
-                std::move( c_env ),
-                std::move( evaled_value )
+                std::move( c_env ),         // type of eveled_value
+                std::move( evaled_value )   //
                 );
         }
 
@@ -295,6 +293,7 @@ namespace rill
 
 
         // for Template Instance Identifier
+        // guarantees the return type is TYPE
         template<typename AnalyzerPtr, typename EnvPtr>
         auto ctfe_as_type(
             AnalyzerPtr const& a,

@@ -173,6 +173,22 @@ namespace rill
             -> const_env_base_pointer =0;
 
 
+        // support functions, search identifier from native_string as NON templated
+        auto lookup( ast::native_string_t const& name )
+            -> env_base_pointer { return lookup( std::make_shared<ast::identifier_value>( name ) ); }
+        auto lookup( ast::native_string_t const& name ) const
+            -> const_env_base_pointer { return lookup( std::make_shared<ast::identifier_value>( name ) ); }
+
+        //
+        auto find_on_env( ast::native_string_t const& name )
+            -> env_base_pointer { return find_on_env( std::make_shared<ast::identifier_value>( name ) ); }
+        auto find_on_env( ast::native_string_t const& name ) const
+            -> const_env_base_pointer { return find_on_env( std::make_shared<ast::identifier_value>( name ) ); }
+
+
+
+
+
         // this function will be deleted in the future...
         template<typename F>
         auto nest_lookup( ast::const_nested_identifier_value_ptr const& ids, F const& failed_callback )

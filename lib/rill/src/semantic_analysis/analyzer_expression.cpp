@@ -8,12 +8,11 @@
 
 #include <rill/semantic_analysis/semantic_analysis.hpp>
 #include <rill/semantic_analysis/analyzer/identifier_solver.hpp>
+#include <rill/semantic_analysis/analyzer/function_solver.hpp>
 
 #include <rill/environment/environment.hpp>
 
-#include <rill/ast/statement.hpp>
-#include <rill/ast/expression.hpp>
-#include <rill/ast/value.hpp>
+#include <rill/ast/ast.hpp>
 
 #include <vector>
 #include <boost/range/adaptor/transformed.hpp>

@@ -196,7 +196,11 @@ namespace rill
                     return "string";
                 }
 
-
+                auto get_value() const
+                    -> std::string const&
+                {
+                    return value_;
+                }
 
                 //////////////////////////////////////////////////
                 RILL_MAKE_AST_DERIVED(
@@ -522,7 +526,7 @@ namespace rill
                 )
         };
 
-
+#if 0
         //
         //
         //
@@ -552,6 +556,7 @@ namespace rill
                 (( const_identifier_value_ptr, literal_type_name_ ))
                 )
         };
+#endif
 
     } // namespace ast
 } // namespace rill

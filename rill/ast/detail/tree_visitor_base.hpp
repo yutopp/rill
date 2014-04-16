@@ -30,7 +30,7 @@
         -> typename result<node_type>::type
 
 #define RILL_TV_OP_INDIRECT_CONST( node_type, node_name, env_name ) \
-    auto operator()( std::shared_ptr<node_type const> const& node_name, const_environment_base_ptr const& env_name ) const \
+    auto operator()( std::shared_ptr<node_type const> const& node_name, const_environment_base_ptr const& env_name ) \
         -> typename result<node_type>::type
 
 // filter outbound object
@@ -43,13 +43,13 @@
         return typename result<NodeT>::type(); \
     } \
     template<typename NodeT> \
-    auto operator()( std::shared_ptr<NodeT const> const& node_name, const_environment_base_ptr const& env_name ) const \
+    auto operator()( std::shared_ptr<NodeT const> const& node_name, const_environment_base_ptr const& env_name ) \
         -> typename result<NodeT>::type \
     { \
         this->template failed_to_dispatch<NodeT const>();   \
         return typename result<NodeT>::type(); \
     }
-    
+
 
 
 #define RILL_TV_OP_DECL( node_type ) RILL_TV_OP_INDIRECT( node_type, , );
@@ -62,7 +62,7 @@
         -> typename result<node_type>::type
 
 #define RILL_TV_OP_CONST( class_name, node_type, node_name, env_name ) \
-    auto class_name::operator()( std::shared_ptr<node_type const> const& node_name, const_environment_base_ptr const& env_name ) const \
+    auto class_name::operator()( std::shared_ptr<node_type const> const& node_name, const_environment_base_ptr const& env_name ) \
         -> typename result<node_type>::type
 
 
@@ -88,6 +88,14 @@
     void operator()( std::shared_ptr<node_type> const& node, environment_base_ptr const& env, tree_visitor_base<ReturnT>* const v ) RILL_CXX11_OVERRIDE \
     { \
         static_cast<Visitor&>( *v )( node, env ); \
+    } \
+    void operator()( std::shared_ptr<node_type const> const& node, const_environment_base_ptr const& env, tree_visitor_base<ReturnT>* const v ) RILL_CXX11_OVERRIDE \
+    { \
+        static_cast<Visitor&>( *v )( node, env ); \
+    } \
+    void operator()( std::shared_ptr<node_type> const& node, environment_base_ptr const& env, tree_visitor_base<ReturnT> const* const v ) const RILL_CXX11_OVERRIDE \
+    { \
+        static_cast<Visitor const&>( *v )( node, env ); \
     } \
     void operator()( std::shared_ptr<node_type const> const& node, const_environment_base_ptr const& env, tree_visitor_base<ReturnT> const* const v ) const RILL_CXX11_OVERRIDE \
     { \
@@ -152,7 +160,6 @@
 ((identifier_value, RETURN)) \
 ((template_instance_value, RETURN)) \
 ((nested_identifier_value, RETURN)) \
-((literal_value, RETURN))
 
 
 
@@ -215,13 +222,7 @@ namespace rill
             {
             public:
                 template<typename NodeT>
-                struct result
-                {
-                    typedef typename tree_visitor_result<
-                        ReturnT,
-                        typename base_type_specifier<typename std::decay<NodeT>::type>::type
-                    >::type type;
-                };
+                using result = visitor_result_traits<ReturnT, NodeT>;
 
             public:
                 //
@@ -239,13 +240,7 @@ namespace rill
             {
             public:
                 template<typename NodeT>
-                struct result
-                {
-                    typedef typename tree_visitor_result<
-                        ReturnT,
-                        typename base_type_specifier<typename std::decay<NodeT>::type>::type
-                    >::type type;
-                };
+                using result = visitor_result_traits<ReturnT, NodeT>;
 
             public:
                 BOOST_PP_SEQ_FOR_EACH( RILL_TV_INVOKER_OP_GEN, _,  RILL_TV_ALL_AST_LIST() )
@@ -275,13 +270,7 @@ namespace rill
                 typedef self_type const             const_self_type;
 
                 template<typename NodeT>
-                struct result
-                {
-                    typedef typename tree_visitor_result<
-                        ReturnT,
-                        typename base_type_specifier<typename std::decay<NodeT>::type>::type
-                    >::type type;
-                };
+                using result = visitor_result_traits<ReturnT, NodeT>;
 
             public:
                 tree_visitor_base( visitor_invoker_base<ReturnT>& invoker )
@@ -306,7 +295,7 @@ namespace rill
                 {
                     return invoker_( node, env, this );
                 }
-                
+
             public:
                 template<typename NodeT>
                 auto failed_to_dispatch() const
@@ -358,29 +347,18 @@ namespace rill
                 RILL_TV_OP_FAIL
 
             public:
-                //
                 template<typename Node, typename Enveronment = environment_base, typename = typename std::enable_if<(!std::is_const<Node>::value)>::type>
                 auto dispatch( std::shared_ptr<Node> const& node, std::shared_ptr<Enveronment> const& env = nullptr )
                     -> decltype( dispatch_as<ReturnT>( node, *reinterpret_cast<self_type*>(0), env ) )
                 {
-                    return dispatch_as<ReturnT>(
-                        node,
-                        *this,
-                        env
-                        );
+                    return dispatch_as<ReturnT>( node, *this, env );
                 }
 
-            public:
-                //
-                template<typename Node, typename Enveronment = environment_base>
-                auto dispatch_as_terminal( std::shared_ptr<Node> const& node, std::shared_ptr<Enveronment> const& env = nullptr )
-                    -> bool
-                try {
-                    dispatch( node, env );
-                    return true;
-                }
-                catch(...) {
-                    return false;
+                template<typename Node, typename Enveronment = environment_base, typename = typename std::enable_if<(!std::is_const<Node>::value)>::type>
+                auto dispatch( std::shared_ptr<Node> const& node, std::shared_ptr<Enveronment> const& env = nullptr ) const
+                    -> decltype( dispatch_as<ReturnT>( node, *reinterpret_cast<self_type*>(0), env ) )
+                {
+                    return dispatch_as<ReturnT>( node, *this, env );
                 }
 
             private:
@@ -400,16 +378,10 @@ namespace rill
                 typedef const_tree_visitor          self_type;
                 typedef self_type const             const_self_type;
 
-                typedef tree_visitor_base<ReturnT> base_type;
+                typedef tree_visitor_base<ReturnT>  base_type;
 
                 template<typename NodeT>
-                struct result
-                {
-                    typedef typename tree_visitor_result<
-                        ReturnT,
-                        typename base_type_specifier<typename std::decay<NodeT>::type>::type
-                    >::type type;
-                };
+                using result = typename base_type::template result<NodeT>;
 
             public:
                 const_tree_visitor()
@@ -422,39 +394,43 @@ namespace rill
                 RILL_TV_OP_FAIL
 
             public:
-                //
+                template<typename Node, typename Enveronment = environment_base>
+                auto dispatch( std::shared_ptr<Node> const& node, std::shared_ptr<Enveronment> const& env = nullptr )
+                    -> typename result<Node>::type
+                {
+
+                }
+
                 template<typename Node, typename Enveronment = environment_base>
                 auto dispatch( std::shared_ptr<Node> const& node, std::shared_ptr<Enveronment> const& env = nullptr ) const
-                    -> decltype( dispatch_as<ReturnT>( std::const_pointer_cast<Node const>( node ), *reinterpret_cast<const_self_type*>(0), std::static_pointer_cast<environment_base const>( env ) ) )
+                    -> typename result<Node>::type
+                {
+
+                }
+
+                template<typename Node, typename Enveronment = environment_base>
+                auto dispatch( std::shared_ptr<Node const> const& node, std::shared_ptr<Enveronment const> const& env = nullptr )
+                    -> typename result<Node>::type
                 {
                     auto const& p = std::const_pointer_cast<Node const>( node );
                     assert( p != nullptr );
 
-                    return dispatch_as<ReturnT>(
-                        p,
-                        *this,
-                        std::static_pointer_cast<environment_base const>( env )
-                        );
+                    return dispatch_as<ReturnT>( p, *this, std::static_pointer_cast<environment_base const>( env ) );
                 }
 
-            public:
-                //
                 template<typename Node, typename Enveronment = environment_base>
-                auto dispatch_as_terminal( std::shared_ptr<Node> const& node, std::shared_ptr<Enveronment> const& env = nullptr ) const
-                    -> bool
-                try {
-                    dispatch( node, env );
-                    return true;
-                }
-                catch(...) {
-                    return false;
+                auto dispatch( std::shared_ptr<Node const> const& node, std::shared_ptr<Enveronment const> const& env = nullptr ) const
+                    -> typename result<Node>::type
+                {
+                    auto const& p = std::const_pointer_cast<Node const>( node );
+                    assert( p != nullptr );
+
+                    return dispatch_as<ReturnT>( p, *this, std::static_pointer_cast<environment_base const>( env ) );
                 }
 
             private:
                 visitor_invoker<Derived, ReturnT> master_invoker_;
             };
-
-
 
         } // namespace detail
     } // namespace ast

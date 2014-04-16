@@ -6,15 +6,13 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#ifndef RILL_SEMANTIC_ANALYSIS_ANALYZER_IDENTIFIER_TYPE_HPP
-#define RILL_SEMANTIC_ANALYSIS_ANALYZER_IDENTIFIER_TYPE_HPP
+#ifndef RILL_SEMANTIC_ANALYSIS_ANALYZER_IDENTIFIER_FUNCTION_SOLVER_HPP
+#define RILL_SEMANTIC_ANALYSIS_ANALYZER_IDENTIFIER_FUNCTION_SOLVER_HPP
 
 #include <boost/range/adaptor/transformed.hpp>
 
 #include "../../environment/environment.hpp"
-#include "../../ast/statement.hpp"
-#include "../../ast/expression.hpp"
-#include "../../ast/value.hpp"
+#include "../../ast/ast.hpp"
 
 
 namespace rill
@@ -573,13 +571,7 @@ namespace rill
         }
 
 
-
-
-
-
-
-
     } // namespace semantic_analysis
 } // namespace rill
 
-#endif /*RILL_SEMANTIC_ANALYSIS_ANALYZER_IDENTIFIER_TYPE_HPP*/
+#endif /*RILL_SEMANTIC_ANALYSIS_ANALYZER_IDENTIFIER_FUNCTION_SOLVER_HPP*/

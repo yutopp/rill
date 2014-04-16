@@ -8,13 +8,11 @@
 
 #include <rill/semantic_analysis/semantic_analysis.hpp>
 #include <rill/semantic_analysis/analyzer/identifier_solver.hpp>
-#include <rill/semantic_analysis/analyzer/type.hpp>
+#include <rill/semantic_analysis/analyzer/function_solver.hpp>
 
 #include <rill/environment/environment.hpp>
 
-#include <rill/ast/statement.hpp>
-#include <rill/ast/expression.hpp>
-#include <rill/ast/value.hpp>
+#include <rill/ast/ast.hpp>
 
 
 namespace rill
@@ -78,7 +76,7 @@ namespace rill
 
 
             std::cout << "!!! jit eval" << std::endl;
-            ctfe_engine_->dispatch( s->expression_, parent_env );
+            ctfe_engine_->execute( s->expression_, parent_env );
             std::cout << "~~~~~~~~~~~~" << std::endl;
 //            run_on_compile_time( parent_env, s->expression_ );
 

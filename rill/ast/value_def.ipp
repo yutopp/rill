@@ -33,9 +33,6 @@ namespace rill
         RILL_AST_DEF( identifier_value, value )
         RILL_AST_DEF( template_instance_value, value )
         RILL_AST_DEF( nested_identifier_value, value )
-
-        //
-        RILL_AST_DEF( literal_value, value )
     }
 }
 #include "detail/off.hpp"

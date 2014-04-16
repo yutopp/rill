@@ -28,14 +28,12 @@ namespace rill
         std::ostream& operator<<( std::ostream& os, value const& vp )
         {
             if ( vp.is_intrinsic() || vp.is_system() ) {
-                auto const& iv = vp.is_intrinsic()
-                    ? *dynamic_cast<literal_value const&>( vp ).holder_
-                    : dynamic_cast<intrinsic::value_base const&>( vp )
-                    ;
+                auto const& iv = static_cast<intrinsic::value_base const&>( vp );
 
                 os << "  type  is " << iv.get_native_typename_string() << std::endl;
+                // TODO: add primitive type number
                 if ( iv.get_native_typename_string() == "int" ) {
-                    os << "  value is " << dynamic_cast<intrinsic::int32_value const&>( iv ).value_ << std::endl;
+                    os << "  value is " << static_cast<intrinsic::int32_value const&>( iv ).value_ << std::endl;
                 } else {
                     os << "  value is unknown." << std::endl;
                 }

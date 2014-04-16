@@ -8,12 +8,11 @@
 
 #include <rill/semantic_analysis/semantic_analysis.hpp>
 #include <rill/semantic_analysis/analyzer/identifier_solver.hpp>
+#include <rill/semantic_analysis/analyzer/function_solver.hpp>
 
 #include <rill/environment/environment.hpp>
 
-#include <rill/ast/statement.hpp>
-#include <rill/ast/expression.hpp>
-#include <rill/ast/value.hpp>
+#include <rill/ast/ast.hpp>
 
 
 namespace rill
@@ -118,10 +117,10 @@ namespace rill
                     }
 
                     // TODO: fix...
-                    ctfe_engine_->value_holder()->bind_value(
-                        template_var_env->get_id(),
-                        template_arg
-                        );
+                    //ctfe_engine_->value_holder()->bind_value(
+                    //    template_var_env->get_id(),
+                    //    template_arg
+                    //    );
 
                 } else {
                     // TODO: error...?
@@ -309,7 +308,7 @@ namespace rill
 
                 // eval expression of arguments
                 auto const& argument_evaled_value
-                    = ctfe_engine_->dispatch( expression, parent_env );
+                    = ctfe_engine_->execute( expression, parent_env );
                 assert( argument_evaled_value != nullptr );
 
                 //
@@ -319,18 +318,18 @@ namespace rill
                         return {
                             argument_ty_detail,
                             static_cast<type_detail_ptr>( argument_evaled_value ),
-                            value_kind_mask::k_type
+                            dependent_value_kind::k_type
                         };
                     } if ( c_env->get_base_name() == "int" ) {
                         return {
                             argument_ty_detail,
                             argument_evaled_value,
-                            value_kind_mask::k_value
+                            dependent_value_kind::k_int32
                         };
 
                     } else {
                         assert( false && "[[ice]] value parameter was not supported yet" );
-                        return { nullptr, nullptr, value_kind_mask::k_value };
+                        return { nullptr, nullptr, dependent_value_kind::k_none };
                     }
                 }();
                 std::cout << "argt: " << c_env->get_qualified_name() << std::endl;
@@ -385,85 +384,102 @@ namespace rill
 
 
 
-        //
-        //
-        //
-        RILL_TV_OP( analyzer, ast::literal_value, v, parent_env )
+        RILL_TV_OP( analyzer, ast::intrinsic::int32_value, v, parent_env )
         {
-            // look up literal type
-            std::cout << v->literal_type_name_->get_inner_symbol()->to_native_string() << std::endl;
+            auto const class_env = root_env_->lookup( v->get_native_typename_string() );
+            assert( class_env != nullptr );  // literal type must exist
 
-            // TODO: fix
-            if ( v->literal_type_name_->get_inner_symbol()->to_native_string() == "array" ) {
+            //
+            return bind_type(
+                v,
+                type_detail_pool_->construct(
+                    class_env->make_type_id( class_env, determine_type_attributes() ),
+                    class_env
+                    )
+                );
+        }
 
-                auto const& ar
-                    = std::static_pointer_cast<ast::intrinsic::array_value>(
-                        v->holder_
-                        );
+        RILL_TV_OP( analyzer, ast::intrinsic::boolean_value, v, parent_env )
+        {
+            auto const class_env = root_env_->lookup( v->get_native_typename_string() );
+            assert( class_env != nullptr );  // literal type must exist
 
-                // abyaaa
-                ast::expression_list args = {
-                    std::make_shared<ast::type_expression>(
-                        std::make_shared<ast::term_expression>(
-                            ast::make_identifier( "int" )
-                            )
-                        ),
+            //
+            return bind_type(
+                v,
+                type_detail_pool_->construct(
+                    class_env->make_type_id( class_env, determine_type_attributes() ),
+                    class_env
+                    )
+                );
+        }
+
+        RILL_TV_OP( analyzer, ast::intrinsic::string_value, v, parent_env )
+        {
+            auto const class_env = root_env_->lookup( v->get_native_typename_string() );
+            assert( class_env != nullptr );  // literal type must exist
+
+            //
+            return bind_type(
+                v,
+                type_detail_pool_->construct(
+                    class_env->make_type_id( class_env, determine_type_attributes() ),
+                    class_env
+                    )
+                );
+        }
+
+        RILL_TV_OP( analyzer, ast::intrinsic::array_value, v, parent_env )
+        {
+            auto const& ar
+                = std::static_pointer_cast<ast::intrinsic::array_value>( v );
+
+            // abyaaa
+            ast::expression_list args = {
+                std::make_shared<ast::type_expression>(
                     std::make_shared<ast::term_expression>(
-                        std::make_shared<ast::literal_value>(
-                            std::make_shared<ast::intrinsic::int32_value>(
-                                ar->elements_list_.size()
-                                )
-                            )
+                        ast::make_identifier( "int" )
                         )
+                    ),
+                std::make_shared<ast::term_expression>(
+                    std::make_shared<ast::intrinsic::int32_value>(
+                        ar->elements_list_.size()
+                        )
+                    )
+            };
 
-                };
-                auto const& i
-                    = std::make_shared<ast::type_expression>(
-                        std::make_shared<ast::term_expression>(
-                            std::make_shared<ast::template_instance_value>(
-                                "array",
-                                args/*, true*/
+            auto const& i
+                = std::make_shared<ast::type_expression>(
+                    std::make_shared<ast::term_expression>(
+                        std::make_shared<ast::template_instance_value>(
+                            "array",
+                            args/*, true*/
                                 )
-                            )
-                        );
-
-
-                // solve array type...
-                auto const& ty_d
-                    = solve_type(
-                        this,
-                        i,
-                        root_env_,
-                        [&]( type_detail_ptr const& ty_d,
-                             type const& ty,
-                             class_symbol_environment_ptr const& class_env
-                            ) {
-                            assert( class_env->is_array() );
-
-                            // connect fron LITARAL VALUE
-                            class_env->connect_from_ast( v );
-                        } );
-
-                //
-                return bind_type(
-                    v,
-                    ty_d
-                    );
-
-            } else {
-
-                auto const class_env = root_env_->lookup( v->literal_type_name_ );
-                assert( class_env != nullptr );  // literal type must exist
-
-                //
-                return bind_type(
-                    v,
-                    type_detail_pool_->construct(
-                        class_env->make_type_id( class_env, determine_type_attributes() ),
-                        class_env
                         )
                     );
-            }
+
+
+            // solve array type...
+            auto const& ty_d
+                = solve_type(
+                    this,
+                    i,
+                    root_env_,
+                    [&]( type_detail_ptr const& ty_d,
+                         type const& ty,
+                         class_symbol_environment_ptr const& class_env
+                        ) {
+                        assert( class_env->is_array() );
+
+                        // connect fron LITARAL VALUE
+                        class_env->connect_from_ast( v );
+                    } );
+
+            //
+            return bind_type(
+                v,
+                ty_d
+                );
         }
 
     } // namespace semantic_analysis

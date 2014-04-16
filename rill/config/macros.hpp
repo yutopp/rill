@@ -9,6 +9,8 @@
 #ifndef RILL_CONFIG_MACROS_HPP
 #define RILL_CONFIG_MACROS_HPP
 
+#include <cstddef>
+
 // if only using GCC(>= 4.8.1) or clang(>=3.1), use specifier.
 #ifdef _MSC_VER
 // pass
@@ -18,6 +20,7 @@
 # define RILL_MACRO_USE_FINAL_AND_OVERRIDE
 #endif
 
+//
 #ifdef RILL_MACRO_USE_FINAL_AND_OVERRIDE
 # define RILL_CXX11_FINAL      final
 # define RILL_CXX11_OVERRIDE   override
@@ -26,5 +29,11 @@
 # define RILL_CXX11_OVERRIDE
 #endif
 
+//
+#ifdef __GNUC__
+# define RILL_MAX_ALIGN_T       ::max_align_t
+#else
+# define RILL_MAX_ALIGN_T       std::max_align_t
+#endif
 
 #endif /*RILL_CONFIG_MACROS_HPP*/

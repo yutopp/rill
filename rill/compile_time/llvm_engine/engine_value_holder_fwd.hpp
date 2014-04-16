@@ -14,8 +14,11 @@ namespace rill
 {
     namespace compile_time
     {
-        class engine_value_holder;
+        namespace llvm_engine
+        {
+            class engine_value_holder;
 
+        } // namespace llvm_engine
     } // namespace compile_time
 } // namespace rill
 

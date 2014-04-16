@@ -14,8 +14,9 @@
 #include "../ast/detail/tree_visitor_base.hpp"
 #include "../environment/environment_base.hpp"
 #include "../behavior/intrinsic_function_holder_fwd.hpp"
+
 #include "../code_generator/llvm_ir_generator_fwd.hpp"
-#include "../compile_time/ctfe_engine.hpp"
+#include "../compile_time/llvm_engine/ctfe_engine.hpp"
 
 #include "type_detail.hpp"
 
@@ -64,7 +65,11 @@ namespace rill
             RILL_TV_OP_DECL( ast::nested_identifier_value )
             RILL_TV_OP_DECL( ast::identifier_value )
             RILL_TV_OP_DECL( ast::template_instance_value )
-            RILL_TV_OP_DECL( ast::literal_value )
+
+            RILL_TV_OP_DECL( ast::intrinsic::int32_value )
+            RILL_TV_OP_DECL( ast::intrinsic::boolean_value )
+            RILL_TV_OP_DECL( ast::intrinsic::string_value )
+            RILL_TV_OP_DECL( ast::intrinsic::array_value )
 
             RILL_TV_OP_FAIL
 
@@ -181,7 +186,7 @@ namespace rill
             environment_base_ptr root_env_;
 
             std::shared_ptr<type_detail_pool_t> type_detail_pool_;
-            std::shared_ptr<compile_time::ctfe_engine const> ctfe_engine_;
+            std::shared_ptr<compile_time::llvm_engine::ctfe_engine> ctfe_engine_;
         };
 
     } // namespace semantic_analysis

@@ -19,34 +19,49 @@
 #include "specifier.hpp"
 
 
-// class_name means node_name...
-#define RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_(class_name, tag) \
+#define RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_UNIT_HEADER(node_class_name, tag) \
     virtual auto dispatch( \
         tag, \
-        std::shared_ptr<rill::ast::detail::base_type_specifier<class_name>::type> const& self_pointer, \
-        rill::ast::detail::tree_visitor_base<boost::mpl::at<rill::ast::detail::as_type, tag>::type>& visitor, \
+        std::shared_ptr<rill::ast::detail::base_type_specifier<node_class_name>::type> const& self_pointer, \
+        rill::ast::detail::tree_visitor_base<rill::ast::detail::tag_to_type<tag>>& visitor, \
         environment_base_ptr const& env \
         ) \
         -> rill::ast::detail::tree_visitor_base< \
-                boost::mpl::at<rill::ast::detail::as_type, tag>::type \
-           >::result<class_name>::type \
+                rill::ast::detail::tag_to_type<tag> \
+           >::result<node_class_name>::type
+
+#define RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_UNIT(node_class_name, tag) \
+    RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_UNIT_HEADER(node_class_name, tag) \
     { \
-        std::cout << "<DISPATCH> " << #class_name << " ast_this: " << this->get_id() << std::endl; \
-        return visitor.invoke( std::static_pointer_cast<class_name>( self_pointer ), env ); \
-    } \
+        std::cout << "<DISPATCH> " << #node_class_name << " ast_this: " << this->get_id() << std::endl; \
+        /* down casting */ \
+        return visitor.invoke( std::static_pointer_cast<node_class_name>( self_pointer ), env ); \
+    }
+
+
+#define RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_CONST_UNIT_HEADER(node_class_name, tag) \
     virtual auto dispatch( \
         tag, \
-        std::shared_ptr<rill::ast::detail::base_type_specifier<class_name>::type const> const& const_self_pointer, \
-        rill::ast::detail::tree_visitor_base<boost::mpl::at<rill::ast::detail::as_type, tag>::type> const& visitor, \
+        std::shared_ptr<rill::ast::detail::base_type_specifier<node_class_name>::type const> const& self_pointer, \
+        rill::ast::detail::tree_visitor_base<rill::ast::detail::tag_to_type<tag>>& visitor, \
         const_environment_base_ptr const& env \
         ) const \
         -> rill::ast::detail::tree_visitor_base< \
-                boost::mpl::at<rill::ast::detail::as_type, tag>::type \
-           >::result<class_name>::type \
+                rill::ast::detail::tag_to_type<tag> \
+           >::result<node_class_name>::type
+
+#define RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_CONST_UNIT(node_class_name, tag) \
+    RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_CONST_UNIT_HEADER(node_class_name, tag) \
     { \
-        std::cout << "<DISPATCH> " << #class_name << " ast_this: " << this->get_id() << std::endl; \
-        return visitor.invoke( std::static_pointer_cast<class_name const>( const_self_pointer ), env ); \
+        std::cout << "<DISPATCH> " << #node_class_name << " ast_this: " << this->get_id() << std::endl; \
+        /* down casting */ \
+        return visitor.invoke( std::static_pointer_cast<node_class_name const>( self_pointer ), env ); \
     }
+
+// class_name means node_name...
+#define RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_(class_name, tag) \
+    RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_UNIT(class_name, tag) \
+    RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_CONST_UNIT(class_name, tag)
 
 #define RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER(r, class_name, elem) \
     RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_(class_name, rill::ast::detail:: BOOST_PP_TUPLE_ELEM(2, 0/*tag*/, elem))
@@ -55,24 +70,8 @@
 
 
 #define RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_VIRTUAL_(class_name, tag) \
-    virtual auto dispatch( \
-        tag, \
-        std::shared_ptr<rill::ast::detail::base_type_specifier<class_name>::type> const& self_pointer, \
-        rill::ast::detail::tree_visitor_base<boost::mpl::at<rill::ast::detail::as_type, tag>::type>& visitor, \
-        environment_base_ptr const& env \
-        ) \
-        -> rill::ast::detail::tree_visitor_base< \
-                boost::mpl::at<rill::ast::detail::as_type, tag>::type \
-           >::result<class_name>::type =0; \
-    virtual auto dispatch( \
-        tag, \
-        std::shared_ptr<rill::ast::detail::base_type_specifier<class_name>::type const> const& const_self_pointer, \
-        rill::ast::detail::tree_visitor_base<boost::mpl::at<rill::ast::detail::as_type, tag>::type> const& visitor, \
-        const_environment_base_ptr const& env \
-        ) const \
-        -> rill::ast::detail::tree_visitor_base< \
-                boost::mpl::at<rill::ast::detail::as_type, tag>::type \
-           >::result<class_name>::type =0;
+    RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_UNIT_HEADER(class_name, tag) = 0; \
+    RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_CONST_UNIT_HEADER(class_name, tag) = 0; \
 
 
 
