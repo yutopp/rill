@@ -9,7 +9,7 @@
 #ifndef RILL_SEMANTIC_ANALYSIS_IDENTIFILER_COLLECTOR_HPP
 #define RILL_SEMANTIC_ANALYSIS_IDENTIFILER_COLLECTOR_HPP
 
-#include "../ast/detail/tree_visitor_base.hpp"
+#include "../ast/visitor.hpp"
 
 
 namespace rill
@@ -25,7 +25,7 @@ namespace rill
 
         //
         class identifier_collector RILL_CXX11_FINAL
-            : public ast::detail::tree_visitor<identifier_collector, environment_base_ptr>
+            : public ast::ast_visitor_const<identifier_collector, environment_base_ptr>
         {
         public:
             identifier_collector(
@@ -36,21 +36,21 @@ namespace rill
 
         public:
             // statements
-            RILL_TV_OP_DECL( ast::statements )
-            RILL_TV_OP_DECL( ast::can_be_template_statement )
+            RILL_VISITOR_OP_DECL( ast::statements ) const;
+            RILL_VISITOR_OP_DECL( ast::can_be_template_statement ) const;
 
-            RILL_TV_OP_DECL( ast::block_statement )
-            RILL_TV_OP_DECL( ast::expression_statement )            
-            RILL_TV_OP_DECL( ast::function_definition_statement )
-            RILL_TV_OP_DECL( ast::variable_declaration_statement )
-            RILL_TV_OP_DECL( ast::extern_function_declaration_statement )
-            RILL_TV_OP_DECL( ast::class_definition_statement )
-            RILL_TV_OP_DECL( ast::class_function_definition_statement )
-            RILL_TV_OP_DECL( ast::class_variable_declaration_statement )
+            RILL_VISITOR_OP_DECL( ast::block_statement ) const;
+            RILL_VISITOR_OP_DECL( ast::expression_statement ) const;
+            RILL_VISITOR_OP_DECL( ast::function_definition_statement ) const;
+            RILL_VISITOR_OP_DECL( ast::variable_declaration_statement ) const;
+            RILL_VISITOR_OP_DECL( ast::extern_function_declaration_statement ) const;
+            RILL_VISITOR_OP_DECL( ast::class_definition_statement ) const;
+            RILL_VISITOR_OP_DECL( ast::class_function_definition_statement ) const;
+            RILL_VISITOR_OP_DECL( ast::class_variable_declaration_statement ) const;
 
-            RILL_TV_OP_DECL( ast::template_statement )
+            RILL_VISITOR_OP_DECL( ast::template_statement ) const;
 
-            RILL_TV_OP_FAIL
+            RILL_VISITOR_OP_FAIL
 
         public:
             inline auto is_builtin() const

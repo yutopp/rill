@@ -11,7 +11,7 @@
 
 #include <utility>
 
-#include "tree_visitor_base.hpp"
+#include "../visitor.hpp"
 #include "../ast.hpp"
 
 
@@ -23,17 +23,13 @@ namespace rill
         {
             template<typename MatchNode, typename F>
             class node_filter RILL_CXX11_FINAL
-                : public tree_visitor<node_filter<MatchNode, F>, typename std::result_of<F(std::shared_ptr<MatchNode> const&, environment_base_ptr const&)>::type>
+                : public ast_visitor_const<
+                    node_filter<MatchNode, F>,
+                    typename std::result_of<F(std::shared_ptr<MatchNode> const&, environment_base_ptr const&)>::type
+                >
             {
             public:
-                template<typename NodeT>
-                struct result
-                {
-                    typedef typename ast::detail::tree_visitor_result<
-                        typename std::result_of<F(std::shared_ptr<MatchNode> const&, environment_base_ptr const&)>::type,
-                        typename ast::detail::base_type_specifier<typename std::decay<NodeT>::type>::type
-                    >::type type;
-                };
+                typedef node_filter         self_type;
 
             public:
                 node_filter( F const& f )
@@ -41,30 +37,29 @@ namespace rill
                 {}
 
             public:
-                RILL_TV_OP_INDIRECT( ast::statements, s, _ )
+                RILL_VISITOR_OP_DECL_INNER( ast::statements, s, _ ) const
                 {
                     for( auto const& ss : s->statement_list_ )
                         this->dispatch( ss, _ );
                 }
 
-                RILL_TV_OP_INDIRECT( ast::block_statement, s, _ )
+                RILL_VISITOR_OP_DECL_INNER( ast::block_statement, s, _ ) const
                 {
-                    //
                     this->dispatch( s->statements_, _ );
                 }
 
-                RILL_TV_OP_INDIRECT( MatchNode, node, _ )
+                //
+                RILL_VISITOR_OP_DECL_INNER( MatchNode, node, _ ) const
                 {
-                    //
                     return f_( node, _ );
                 }
-
-                RILL_TV_OP_FAIL
 
                 template<typename NodeT>
                 auto failed_to_dispatch() const
                     -> void
                 {}
+
+                RILL_VISITOR_OP_FAIL
 
             private:
                 F const& f_;
@@ -73,49 +68,45 @@ namespace rill
 
 
             template<typename MatchNode, typename F>
-            class const_node_filter RILL_CXX11_FINAL
-                : public const_tree_visitor<const_node_filter<MatchNode, F>, typename std::result_of<F(std::shared_ptr<MatchNode const> const&, const_environment_base_ptr const&)>::type>
+            class readonly_node_filter RILL_CXX11_FINAL
+                : public readonly_ast_visitor_const<
+                    readonly_node_filter<MatchNode, F>,
+                    typename std::result_of<F(std::shared_ptr<MatchNode const> const&, const_environment_base_ptr const&)>::type
+                >
             {
             public:
-                template<typename NodeT>
-                struct result
-                {
-                    typedef typename ast::detail::tree_visitor_result<
-                        typename std::result_of<F(std::shared_ptr<MatchNode const> const&, const_environment_base_ptr const&)>::type,
-                        typename ast::detail::base_type_specifier<typename std::decay<NodeT>::type>::type
-                    >::type type;
-                };
+                typedef readonly_node_filter    self_type;
 
             public:
-                const_node_filter( F const& f )
+                readonly_node_filter( F const& f )
                     : f_( f )
                 {}
 
             public:
-                RILL_TV_OP_INDIRECT_CONST( ast::statements, s, _ )
+                RILL_VISITOR_READONLY_OP_DECL_INNER( ast::statements, s, _ ) const
                 {
                     for( auto const& ss : s->statement_list_ )
                         this->dispatch( ss, _ );
                 }
 
-                RILL_TV_OP_INDIRECT_CONST( ast::block_statement, s, _ )
+                RILL_VISITOR_READONLY_OP_DECL_INNER( ast::block_statement, s, _ ) const
                 {
                     //
                     this->dispatch( s->statements_, _ );
                 }
 
-                RILL_TV_OP_INDIRECT_CONST( MatchNode, node, _ )
+                RILL_VISITOR_READONLY_OP_DECL_INNER( MatchNode, node, _ ) const
                 {
                     //
                     return f_( node, _ );
                 }
 
-                RILL_TV_OP_FAIL
-
                 template<typename NodeT>
                 auto failed_to_dispatch() const
                     -> void
                 {}
+
+                RILL_VISITOR_OP_FAIL
 
             private:
                 F const& f_;
@@ -134,9 +125,9 @@ namespace rill
 
             template<typename MatchNode, typename Node, typename Env, typename F>
             auto apply_to_const_node( Node const& node, Env const& env, F const& f )
-                -> decltype( const_node_filter<MatchNode, F>( f ).dispatch( node, env ) )
+                -> decltype( readonly_node_filter<MatchNode, F>( f ).dispatch( node, env ) )
             {
-                const_node_filter<MatchNode, F> const filter( f );
+                readonly_node_filter<MatchNode, F> filter( f );
 
                 return filter.dispatch( node, env );
             }

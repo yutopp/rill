@@ -41,7 +41,7 @@ namespace rill
             Px const& parameter_type_ids,
             ast::expression_list const& arguments,
             EnvPtr const& parent_env
-            ) const
+            )
             -> std::vector<llvm::Value*>
         {
             std::vector<llvm::Value*> args( arguments.size() );
@@ -82,7 +82,7 @@ namespace rill
             llvm::Type* const variable_llvm_type,
             llvm::Value* const value,
             EnvPtr const& v_env
-            ) const
+            )
             -> void
         {
             auto const& c_env

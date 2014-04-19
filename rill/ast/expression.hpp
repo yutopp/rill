@@ -15,9 +15,6 @@
 #include "../environment/environment_fwd.hpp"
 #include "../behavior/intrinsic_function_holder_fwd.hpp"
 
-#include "detail/tree_visitor_base.hpp"
-#include "detail/dispatch_assets.hpp"
-
 #include "ast_base.hpp"
 #include "expression_fwd.hpp"
 
@@ -168,7 +165,7 @@ namespace rill
 
 
         //
-        // 
+        //
         //
         struct type_expression RILL_CXX11_FINAL
             : public expression

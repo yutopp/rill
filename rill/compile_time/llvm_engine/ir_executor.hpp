@@ -16,7 +16,7 @@
 #include <llvm/ExecutionEngine/JIT.h>
 #include <llvm/ExecutionEngine/GenericValue.h>
 
-#include "../../ast/detail/tree_visitor_base.hpp"
+#include "../../ast/visitor.hpp"
 
 #include "../../code_generator/llvm_ir_generator.hpp"
 #include "../../code_generator/llvm_engine/support.hpp"
@@ -35,31 +35,31 @@ namespace rill
         {
             // this class holds llvm_ir_generator and llvm_ir_execute_engine
             class ir_executor RILL_CXX11_FINAL
-                : public ast::detail::const_tree_visitor<ir_executor, void*>
+                : public ast::readonly_ast_visitor<ir_executor, void*>
             {
                 friend code_generator::llvm_ir_generator;
 
             public:
                 ir_executor(
                     const_environment_base_ptr const&,
-                    std::shared_ptr<code_generator::llvm_ir_generator const> const&,
+                    std::shared_ptr<code_generator::llvm_ir_generator> const&,
                     std::shared_ptr<llvm::ExecutionEngine> const&,
                     std::shared_ptr<semantic_analysis::type_detail_pool_t> const&
                     );
 
             public:
-                RILL_TV_OP_DECL_CONST( ast::binary_operator_expression )
-                RILL_TV_OP_DECL_CONST( ast::type_expression )
-                RILL_TV_OP_DECL_CONST( ast::term_expression )
+                RILL_VISITOR_READONLY_OP_DECL( ast::binary_operator_expression );
+                RILL_VISITOR_READONLY_OP_DECL( ast::type_expression );
+                //RILL_VISITOR_READONLY_OP_DECL( ast::term_expression );
 
-                RILL_TV_OP_DECL_CONST( ast::identifier_value_base )
+                RILL_VISITOR_READONLY_OP_DECL( ast::identifier_value_base );
 
-                RILL_TV_OP_DECL_CONST( ast::intrinsic::int32_value )
-                RILL_TV_OP_DECL_CONST( ast::intrinsic::boolean_value )
-                RILL_TV_OP_DECL_CONST( ast::intrinsic::string_value )
-                RILL_TV_OP_DECL_CONST( ast::intrinsic::array_value )
+                RILL_VISITOR_READONLY_OP_DECL( ast::intrinsic::int32_value );
+                RILL_VISITOR_READONLY_OP_DECL( ast::intrinsic::boolean_value );
+                RILL_VISITOR_READONLY_OP_DECL( ast::intrinsic::string_value );
+                RILL_VISITOR_READONLY_OP_DECL( ast::intrinsic::array_value );
 
-                RILL_TV_OP_FAIL
+                RILL_VISITOR_OP_FAIL
 
             public:
                 // TODO: fix this...
@@ -85,7 +85,7 @@ namespace rill
 
             private:
                 const_environment_base_ptr root_env_;
-                std::shared_ptr<code_generator::llvm_ir_generator const> ir_generator_;
+                std::shared_ptr<code_generator::llvm_ir_generator> ir_generator_;
                 std::shared_ptr<llvm::ExecutionEngine> execution_engine_;
 
                 std::shared_ptr<engine_value_holder> value_holder_;

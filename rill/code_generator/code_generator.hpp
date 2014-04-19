@@ -37,7 +37,7 @@ namespace rill
                 );
 
             //
-            llvm_ir_generator const ir_generator( env, action_holder, context );
+            llvm_ir_generator ir_generator( env, action_holder, context );
             ir_generator.dispatch( node, env );
 
             //
@@ -46,7 +46,7 @@ namespace rill
             return context;
         }
 
- 
+
 #if 0
         template<typename EnvironmentPtr, typename ActionHolderPtr, typename Node>
         auto run_as_ctfe(
@@ -66,7 +66,7 @@ namespace rill
                 );
 
             //
-            llvm_ir_generator const ir_generator( env, action_holder, context );
+            llvm_ir_generator ir_generator( env, action_holder, context );
             ir_generator.dispatch( node, env );
 
             //

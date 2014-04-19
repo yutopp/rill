@@ -30,10 +30,10 @@
 #endif
 
 //
-#ifdef __GNUC__
-# define RILL_MAX_ALIGN_T       ::max_align_t
+#if __GNUC__ >= 4 && __GNUC_MINOR__ >= 7 && __GNUC_PATCHLEVEL__ >= 0
+# define RILL_MAX_ALIGN       alignof( ::max_align_t )
 #else
-# define RILL_MAX_ALIGN_T       std::max_align_t
+# define RILL_MAX_ALIGN       16/*TODO: fix it*/
 #endif
 
 #endif /*RILL_CONFIG_MACROS_HPP*/

@@ -28,7 +28,7 @@ namespace rill
             type const& target_type,
             type const& source_type,
             llvm::Value* const source_value
-            ) const -> llvm::Value*
+            ) -> llvm::Value*
         {
             // if the target type has not been instanced, do instantiation.
             auto const& target_c_env

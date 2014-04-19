@@ -21,7 +21,7 @@ namespace rill
     {
 
         // Root Scope
-        RILL_TV_OP( analyzer, ast::statements, s, parent_env )
+        RILL_VISITOR_OP( analyzer, ast::statements, s, parent_env )
         {
             // build environment
             for( auto const& ss : s->statement_list_ )
@@ -30,7 +30,7 @@ namespace rill
 
 
         // Root Scope
-        RILL_TV_OP( analyzer, ast::block_statement, s, parent_env )
+        RILL_VISITOR_OP( analyzer, ast::block_statement, s, parent_env )
         {
             auto const& scope_env = parent_env->allocate_env<scope_environment>();
             scope_env->link_with_ast( s );
@@ -40,13 +40,13 @@ namespace rill
 
 
         // statement
-        RILL_TV_OP( analyzer, ast::expression_statement, s, parent_env )
+        RILL_VISITOR_OP( analyzer, ast::expression_statement, s, parent_env )
         {
             dispatch( s->expression_, parent_env );
         }
 
         //
-        RILL_TV_OP( analyzer, ast::return_statement, s, parent_env )
+        RILL_VISITOR_OP( analyzer, ast::return_statement, s, parent_env )
         {
             // Return Statement is valid only in Function Envirionment...
             auto const& a_env = parent_env->lookup_layer( kind::type_value::e_function );
@@ -63,7 +63,7 @@ namespace rill
 
 
         // TODO: change to ctfe_expression
-        RILL_TV_OP( analyzer, ast::jit_statement, s, parent_env )
+        RILL_VISITOR_OP( analyzer, ast::jit_statement, s, parent_env )
         {
             // Return Statement is valid only in Function Envirionment...
             auto const& a_env = parent_env->lookup_layer( kind::type_value::e_function );
@@ -92,7 +92,7 @@ namespace rill
         //
         //
         //
-        RILL_TV_OP( analyzer, ast::variable_declaration_statement, s, parent_env )
+        RILL_VISITOR_OP( analyzer, ast::variable_declaration_statement, s, parent_env )
         {
             auto const related_env = parent_env->get_related_env_by_ast_ptr( s );
 
@@ -180,7 +180,7 @@ namespace rill
         //
         //
         //
-        RILL_TV_OP( analyzer, ast::class_variable_declaration_statement, s, parent_env )
+        RILL_VISITOR_OP( analyzer, ast::class_variable_declaration_statement, s, parent_env )
         {
             assert( parent_env->get_symbol_kind() == kind::type_value::e_class );
 
@@ -263,7 +263,7 @@ namespace rill
         //
         //
         //
-        RILL_TV_OP( analyzer, ast::function_definition_statement, s, parent_env )
+        RILL_VISITOR_OP( analyzer, ast::function_definition_statement, s, parent_env )
         {
             std::cout
                 << "function_definition_statement: ast_ptr -> "
@@ -365,7 +365,7 @@ namespace rill
         //
         //
         //
-        RILL_TV_OP( analyzer, ast::class_function_definition_statement, s, parent_env )
+        RILL_VISITOR_OP( analyzer, ast::class_function_definition_statement, s, parent_env )
         {
             std::cout
                 << "function_definition_statement: ast_ptr -> "
@@ -482,7 +482,7 @@ namespace rill
 
 
 
-        RILL_TV_OP( analyzer, ast::class_definition_statement, s, parent_env )
+        RILL_VISITOR_OP( analyzer, ast::class_definition_statement, s, parent_env )
         {
             // TODO: dup check...
             // enverinment is already pre constructed by identifier_collector
@@ -573,7 +573,7 @@ namespace rill
 
 
 
-        RILL_TV_OP( analyzer, ast::test_while_statement, s, parent_env )
+        RILL_VISITOR_OP( analyzer, ast::test_while_statement, s, parent_env )
         {
             auto const& scope_env = parent_env->allocate_env<scope_environment>();
             scope_env->link_with_ast( s );
@@ -590,7 +590,7 @@ namespace rill
 
 
 
-        RILL_TV_OP( analyzer, ast::test_if_statement, s, parent_env )
+        RILL_VISITOR_OP( analyzer, ast::test_if_statement, s, parent_env )
         {
             // if
             auto const& if_scope_env = parent_env->allocate_env<scope_environment>();
@@ -613,7 +613,7 @@ namespace rill
         //
         //
         //
-        RILL_TV_OP( analyzer, ast::extern_function_declaration_statement, s, parent_env )
+        RILL_VISITOR_OP( analyzer, ast::extern_function_declaration_statement, s, parent_env )
         {
             std::cout
                 << "function_definition_statement: ast_ptr -> "

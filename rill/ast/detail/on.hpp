@@ -6,12 +6,12 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#include "specifier.hpp"
+#include "ast_forward_decl_macro.hpp"
 
 
 #ifdef RILL_AST_MAKE_DEFINITION
-
 // in definition
+
 # define RILL_AST_DEF( class_name, group )
 
 # define RILL_AST_DEF_IN_NAMESPACE( ns, class_name, group )
@@ -55,7 +55,7 @@
     RILL_AST_TEMPLATE_CLONE_AST( class_name, group, ns:: )
 
 
-# define RILL_AST_DEF_GROUP( group )                                     \
+# define RILL_AST_DEF_GROUP( group )                                    \
     RILL_AST_FWD_DECL( group, group )                                   \
     auto clone_ast_bridge( const_ ## group ## _ptr const& ) -> group ## _ptr; \
     RILL_AST_TEMPLATE_CLONE_AST( group, group, )

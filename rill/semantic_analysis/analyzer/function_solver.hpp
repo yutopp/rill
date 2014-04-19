@@ -301,7 +301,6 @@ namespace rill
         template<typename Visitor,
                  typename TemplateArgs,
                  typename TypeIds,
-                 typename EnvPtr,
                  typename ResultCallbackT
                  >
         auto overload_solver_with_template(
@@ -309,7 +308,7 @@ namespace rill
             TemplateArgs const& template_args,
             TypeIds const& arg_type_ids2,
             std::shared_ptr<template_set_environment> const& template_set_env,
-            EnvPtr const& env,
+            environment_base_ptr const& env,
             ResultCallbackT const& f
             )
             -> function_symbol_environment_ptr

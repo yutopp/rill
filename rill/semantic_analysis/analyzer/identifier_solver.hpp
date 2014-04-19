@@ -13,7 +13,7 @@
 
 #include "../../environment/environment_kind.hpp"
 #include "../../ast/value.hpp"
-#include "../../utility/tie.hpp"
+
 
 #include "function_solver.hpp"
 
@@ -176,11 +176,11 @@ namespace rill
 
 
         // for Identifier
-        template<typename AnalyzerPtr, typename EnvPtr>
+        template<typename AnalyzerPtr>
         auto solve_identifier(
             AnalyzerPtr const& a,
             ast::const_identifier_value_ptr const& identifier,
-            EnvPtr const& parent_env,
+            environment_base_ptr const& parent_env,
             bool const do_not_lookup
             ) -> type_detail_ptr
         {
@@ -193,13 +193,23 @@ namespace rill
                 );
         }
 
+        template<typename AnalyzerPtr>
+        inline auto solve_identifier(
+            AnalyzerPtr const& a,
+            ast::const_identifier_value_ptr const& identifier,
+            environment_base_ptr const& parent_env
+            ) -> type_detail_ptr
+        {
+            return solve_identifier( a, identifier, parent_env, false );
+        }
+
 
         // for Template Instance Identifier
-        template<typename AnalyzerPtr, typename EnvPtr>
+        template<typename AnalyzerPtr>
         auto solve_identifier(
             AnalyzerPtr const& a,
             ast::const_template_instance_value_ptr const& identifier,
-            EnvPtr const& parent_env,
+            environment_base_ptr const& parent_env,
             bool const do_not_lookup
             ) -> type_detail_ptr
         {
@@ -247,87 +257,33 @@ namespace rill
             return ty_detail;
         }
 
-
-        // returns "environment of expression's TYPE", "evaled value"
-        template<typename AnalyzerPtr, typename EnvPtr>
-        auto eval_expression_as_ctfe(
+        template<typename AnalyzerPtr>
+        inline auto solve_identifier(
             AnalyzerPtr const& a,
-            ast::expression_ptr const& expression,
-            EnvPtr const& parent_env
-            ) -> std::tuple<
-                const_class_symbol_environment_ptr,
-                void*
-            >
-        {
-            std::cout << "TYPE expresison!!!!!!" << std::endl;
-
-            // solve semantics
-            auto const& ty_detail = a->dispatch( expression, parent_env );
-
-            //
-            if ( is_nontype_id( ty_detail->type_id ) ) {
-                assert( false && "[ice]" );
-            }
-
-            // get environment of the type expresison
-            auto const& ty
-                = a->root_env_->get_type_at( ty_detail->type_id );
-
-            auto c_env
-                = std::static_pointer_cast<class_symbol_environment const>(
-                    a->root_env_->get_env_strong_at( ty.class_env_id )
-                    );
-            assert( c_env != nullptr );
-
-            // eval expression of arguments
-            auto evaled_value = a->ctfe_engine_->execute( expression, parent_env );
-            assert( evaled_value != nullptr );
-
-            return std::forward_as_tuple(
-                std::move( c_env ),         // type of eveled_value
-                std::move( evaled_value )   //
-                );
-        }
-
-
-
-
-        // for Template Instance Identifier
-        // guarantees the return type is TYPE
-        template<typename AnalyzerPtr, typename EnvPtr>
-        auto ctfe_as_type(
-            AnalyzerPtr const& a,
-            ast::type_expression_ptr const& type_expression,
-            EnvPtr const& parent_env
+            ast::const_template_instance_value_ptr const& template_identifier,
+            environment_base_ptr const& parent_env
             ) -> type_detail_ptr
         {
-            std::cout << "TYPE expresison!!!!!!" << std::endl;
-            RILL_PP_TIE(
-                c_env, evaled_value,
-                eval_expression_as_ctfe( a, type_expression, parent_env )
-                );
-
-            //
-            if ( c_env->get_base_name() != "type" ) {
-                assert( false && "[[ice]] value parameter was not supported yet" );
-            }
-
-            return static_cast<type_detail_ptr>( evaled_value );
+            return solve_identifier( a, template_identifier, parent_env, false );
         }
+
+
+
+
 
 
         // TODO: throw the exception, when failed to solve the type symbol that contained in the expression
-        template<typename AnalyzerPtr, typename EnvPtr, typename F>
+        template<typename AnalyzerPtr, typename F>
         auto solve_type(
             AnalyzerPtr const& a,
             ast::type_expression_ptr const& type_expression,
-            EnvPtr const& parent_env,
+            environment_base_ptr const& parent_env,
             F&& callback
             ) -> type_detail_ptr
         {
             std::cout << "ABA" << std::endl;
 
-            auto const ty_detail = ctfe_as_type( a, type_expression, parent_env );
+            auto const ty_detail = a->eval_type_expression_as_ctfe( type_expression, parent_env );
             auto const& ty_id = ty_detail->type_id;
             std::cout << "ABABA" << std::endl;
 

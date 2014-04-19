@@ -10,9 +10,12 @@
 #define RILL_AST_AST_BASE_HPP
 
 #include <cstddef>
-#include <iostream> /*debug*/
+#ifdef RILL_DEBUG
+# include <iostream>
+#endif
 
-#include "detail/decl_macro.hpp"
+#include "detail/tree_visitor_base.hpp"
+#include "detail/ast_def_macro.hpp"
 
 
 namespace rill

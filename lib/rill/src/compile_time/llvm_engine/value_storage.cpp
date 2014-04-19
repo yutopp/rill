@@ -22,7 +22,7 @@ namespace rill
                 -> std::shared_ptr<char>
             {
                 // calculate enough memory size
-                auto const raw_buffer_size = ( size + ( alignof( RILL_MAX_ALIGN_T ) - 1 ) ) / alignof( RILL_MAX_ALIGN_T );
+                auto const raw_buffer_size = ( size + ( RILL_MAX_ALIGN - 1 ) ) / RILL_MAX_ALIGN;
                 //
                 std::shared_ptr<char> raw_buffer( new char[raw_buffer_size], std::default_delete<char[]>() );
                 std::uintptr_t const raw_buffer_address = reinterpret_cast<std::uintptr_t>( raw_buffer.get() );

@@ -6,15 +6,15 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#ifndef RILL_AST_DETAIL_AST_DEF_MACRO_HPP
-#define RILL_AST_DETAIL_AST_DEF_MACRO_HPP
+#ifndef RILL_AST_DETAIL_DECL_MACRO_HPP
+#define RILL_AST_DETAIL_DECL_MACRO_HPP
 
 #include <cstddef>
 #include <memory>
 
 #include <boost/preprocessor.hpp>
 
-#include "dispatch_assets.hpp"
+#include "ast_adapt_visitor_macro.hpp"
 
 
 #define RILL_AST_VAR_DECL( r, unused, elem ) \
@@ -269,4 +269,4 @@
     };
 
 
-#endif /*RILL_AST_DETAIL_AST_DEF_MACRO_HPP*/
+#endif /*RILL_AST_DETAIL_DECL_MACRO_HPP*/

@@ -49,7 +49,7 @@ namespace rill
 
         public:
             type_id_to_llvm_type_ptr(
-                std::reference_wrapper<llvm_ir_generator const> const& gen
+                std::reference_wrapper<llvm_ir_generator> const& gen
                 )
                 : gen_( gen )
             {}
@@ -58,7 +58,7 @@ namespace rill
             auto operator()( type_id_t const& type_id ) const
                 -> result_type
             {
-                auto const& generator = gen_.get();
+                auto const& generator = const_cast<llvm_ir_generator&>( gen_.get() );
 
                 auto const& ty = generator.root_env_->get_type_at( type_id );
                 auto const& type_class_env_id = ty.class_env_id;
@@ -70,7 +70,7 @@ namespace rill
                         );
                 assert( c_env != nullptr );
                 if ( !generator.context_->env_conversion_table.is_defined( type_class_env_id ) ) {
-                    generator.dispatch( c_env->get_related_ast(), c_env );
+                    //generator.dispatch( c_env->get_related_ast(), c_env );
                 }
 
                 std::cout << "class env id: " << type_class_env_id << std::endl;
@@ -102,7 +102,7 @@ namespace rill
             }
 
         private:
-            std::reference_wrapper<llvm_ir_generator const> gen_;
+            std::reference_wrapper<llvm_ir_generator> gen_;
         };
 
 
@@ -132,7 +132,7 @@ namespace rill
 
         auto llvm_ir_generator::function_env_to_llvm_constatnt_ptr(
             const_function_symbol_environment_ptr const& f_env
-            ) const
+            )
             -> llvm::Constant*
         {
             // if function was not generated, generate function IR
@@ -178,7 +178,7 @@ namespace rill
         //
         // Root Scope
         //
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::statements, s, parent_env )
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::statements, s, parent_env )
         {
             //
             for( auto const& ss : s->statement_list_ )
@@ -186,7 +186,7 @@ namespace rill
         }
 
 
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::block_statement, s, parent_env )
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::block_statement, s, parent_env )
         {
             dispatch( s->statements_, parent_env );
         }
@@ -195,7 +195,7 @@ namespace rill
         //
         // Expression Statement
         //
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::expression_statement, s, parent_env )
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::expression_statement, s, parent_env )
         {
             dispatch( s->expression_, parent_env );
         }
@@ -205,7 +205,7 @@ namespace rill
         //
         //
         //
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::return_statement, s, parent_env )
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::return_statement, s, parent_env )
         {
             context_->ir_builder.CreateRet( dispatch( s->expression_, parent_env ) );
         }
@@ -215,7 +215,7 @@ namespace rill
         //
         //
         //
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::function_definition_statement, s, parent_env )
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::function_definition_statement, s, parent_env )
         {
             //
             //std::cout << "!!!!!!ast::function_definition_statem" << self_env << " / " << root_env_->get_id() << std::endl;
@@ -250,7 +250,7 @@ namespace rill
             // signature
             std::vector<llvm::Type*> parameter_types;
             boost::copy(
-                parameter_variable_type_ids | boost::adaptors::transformed( type_id_to_llvm_type_ptr( std::cref( *this ) ) ),
+                parameter_variable_type_ids | boost::adaptors::transformed( type_id_to_llvm_type_ptr( std::ref( *this ) ) ),
                 std::back_inserter( parameter_types )
                 );
 
@@ -258,7 +258,7 @@ namespace rill
             // ========================================
             // return type
             llvm::Type* const return_type
-                = type_id_to_llvm_type_ptr( std::cref( *this ) )( f_env->get_return_type_id() );
+                = type_id_to_llvm_type_ptr( std::ref( *this ) )( f_env->get_return_type_id() );
 
             // ========================================
             // function type signature
@@ -304,7 +304,7 @@ namespace rill
         //
         //
         //
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::class_function_definition_statement, s, parent_env )
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::class_function_definition_statement, s, parent_env )
         {
             // ========================================
             // get current function environment
@@ -344,14 +344,14 @@ namespace rill
             // parameter signature
             std::vector<llvm::Type*> parameter_types;
             boost::copy(
-                parameter_variable_type_ids | boost::adaptors::transformed( type_id_to_llvm_type_ptr( std::cref( *this ) ) ),
+                parameter_variable_type_ids | boost::adaptors::transformed( type_id_to_llvm_type_ptr( std::ref( *this ) ) ),
                 std::back_inserter( parameter_types )
                 );
 
             // ========================================
             // return type
             llvm::Type* const return_type
-                = type_id_to_llvm_type_ptr( std::cref( *this ) )( f_env->get_return_type_id() );
+                = type_id_to_llvm_type_ptr( std::ref( *this ) )( f_env->get_return_type_id() );
 
             // ========================================
             // function type signature
@@ -519,7 +519,7 @@ namespace rill
 
 
 
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::class_definition_statement, s, parent_env )
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::class_definition_statement, s, parent_env )
         {
             // TODO: support structures contain self type. Ex, class T { ref T; val T; }
 
@@ -578,7 +578,7 @@ namespace rill
                     auto const& array_detail = c_env->get_array_detail();
 
                     llvm::Type* const inner_type
-                        = type_id_to_llvm_type_ptr( std::cref( *this ) )(
+                        = type_id_to_llvm_type_ptr( std::ref( *this ) )(
                             array_detail->inner_type_id
                             );
 
@@ -614,7 +614,7 @@ namespace rill
 
 
 
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::intrinsic_function_definition_statement, s, parent_env )
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::intrinsic_function_definition_statement, s, parent_env )
         {
             // cast to function symbol env
             auto const& f_env = std::static_pointer_cast<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( s ) );
@@ -648,7 +648,7 @@ namespace rill
             std::vector<llvm::Type*> parameter_types;
             boost::copy(
                 parameter_variable_type_ids
-                    | boost::adaptors::transformed( type_id_to_llvm_type_ptr( std::cref( *this ) ) ),
+                    | boost::adaptors::transformed( type_id_to_llvm_type_ptr( std::ref( *this ) ) ),
                 std::back_inserter( parameter_types )
                 );
 
@@ -657,7 +657,7 @@ namespace rill
 
 
             auto const& return_type
-                = type_id_to_llvm_type_ptr( std::cref( *this ) )( f_env->get_return_type_id() );
+                = type_id_to_llvm_type_ptr( std::ref( *this ) )( f_env->get_return_type_id() );
 
             //context_->env_conversion_table.ref_type( v.class_env_id );
 
@@ -692,7 +692,7 @@ namespace rill
         //
         //
         //
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::variable_declaration_statement, s, parent_env )
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::variable_declaration_statement, s, parent_env )
         {
             // TODO: all of variablea(mutable) should be allocated at head of function...
             // TODO: check kind...
@@ -764,7 +764,7 @@ namespace rill
         //
         //
         //
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::class_variable_declaration_statement, s, parent_env )
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::class_variable_declaration_statement, s, parent_env )
         {
             assert( parent_env != nullptr );
             assert( parent_env->get_symbol_kind() == kind::type_value::e_class );
@@ -843,7 +843,7 @@ namespace rill
 
 
 
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::extern_function_declaration_statement, s, parent_env )
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::extern_function_declaration_statement, s, parent_env )
         {
             // cast to function symbol env
             auto const& f_env = std::static_pointer_cast<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( s ) );
@@ -886,7 +886,7 @@ namespace rill
 
 
 
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::test_while_statement, s, parent_env )
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::test_while_statement, s, parent_env )
         {
             llvm::BasicBlock* const while_begin_block
                 = llvm::BasicBlock::Create( context_->llvm_context, "", context_->ir_builder.GetInsertBlock()->getParent() );
@@ -917,7 +917,7 @@ namespace rill
 
 
 
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::test_if_statement, s, parent_env )
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::test_if_statement, s, parent_env )
         {
             llvm::BasicBlock* const if_begin_block
                 = llvm::BasicBlock::Create( context_->llvm_context, "", context_->ir_builder.GetInsertBlock()->getParent() );
@@ -967,7 +967,7 @@ namespace rill
 
 
 
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::binary_operator_expression, e, parent_env )
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::binary_operator_expression, e, parent_env )
         {
             // Look up Function
             auto const f_env = std::static_pointer_cast<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( e ) );
@@ -1011,7 +1011,7 @@ namespace rill
         //
         //
         //
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::element_selector_expression, e, parent_env )
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::element_selector_expression, e, parent_env )
         {
             //
             std::cout << "element selection" << std::endl;
@@ -1092,7 +1092,7 @@ namespace rill
 
 
         //
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::subscrpting_expression, e, parent_env )
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::subscrpting_expression, e, parent_env )
         {
             std::cout << "subscripting selection" << std::endl;
 
@@ -1168,7 +1168,7 @@ namespace rill
         //
         //
         //
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::call_expression, e, parent_env )
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::call_expression, e, parent_env )
         {
             std::cout << "CALL expr" << std::endl;
 
@@ -1261,7 +1261,7 @@ namespace rill
 
 
         // TODO: change name to native code injection expression
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::intrinsic_function_call_expression, e, parent_env )
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::intrinsic_function_call_expression, e, parent_env )
         {
             // look up the function
             auto const f_env = std::static_pointer_cast<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( e ) );
@@ -1291,20 +1291,20 @@ namespace rill
         }
 
 
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::type_expression, e, parent_env )
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::type_expression, e, parent_env )
         {
             return dispatch( e->type_, parent_env );
         }
 
 
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::term_expression, e, parent_env )
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::term_expression, e, parent_env )
         {
             return dispatch( e->value_, parent_env );
         }
 
 
         // identifier node returns Variable
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::identifier_value, v, parent_env )
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::identifier_value, v, parent_env )
         {
             //
             std::cout << "ir sym solving: "
@@ -1400,7 +1400,7 @@ namespace rill
 
 
         // identifier node returns Variable
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::template_instance_value, v, parent_env )
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::template_instance_value, v, parent_env )
         {
             //
             std::cout << "ir sym solving: "
@@ -1490,23 +1490,23 @@ namespace rill
         }
 
 
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::intrinsic::int32_value, v, parent_env )
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::intrinsic::int32_value, v, parent_env )
         {
             // Currently, return int type( 32bit, integer )
             return llvm::ConstantInt::get( context_->llvm_context, llvm::APInt( 32, v->get_value() ) );
         }
 
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::intrinsic::boolean_value, v, parent_env )
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::intrinsic::boolean_value, v, parent_env )
         {
             return llvm::ConstantInt::get( context_->llvm_context, llvm::APInt( 1, v->get_value() ) );
         }
 
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::intrinsic::string_value, v, parent_env )
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::intrinsic::string_value, v, parent_env )
         {
             return context_->ir_builder.CreateGlobalStringPtr( v->get_value().c_str() );
         }
 
-        RILL_TV_OP_CONST( llvm_ir_generator, ast::intrinsic::array_value, v, parent_env )
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::intrinsic::array_value, v, parent_env )
         {
             auto const& c_env
                 = std::static_pointer_cast<class_symbol_environment const>(
@@ -1517,7 +1517,7 @@ namespace rill
             auto const& array_detail = c_env->get_array_detail();
 
             llvm::Type* const inner_type
-                = type_id_to_llvm_type_ptr( std::cref( *this ) )(
+                = type_id_to_llvm_type_ptr( std::ref( *this ) )(
                     array_detail->inner_type_id
                     );
 

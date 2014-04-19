@@ -19,7 +19,7 @@ namespace rill
     namespace semantic_analysis
     {
         // Root Scope
-        RILL_TV_OP( identifier_collector, ast::statements, s, env )
+        RILL_VISITOR_OP( identifier_collector, ast::statements, s, env ) const
         {
             for( auto const& ss : s->statement_list_ )
                 dispatch( ss, env );
@@ -27,19 +27,19 @@ namespace rill
 
 
         // Root Scope
-        RILL_TV_OP( identifier_collector, ast::can_be_template_statement, s, env )
+        RILL_VISITOR_OP( identifier_collector, ast::can_be_template_statement, s, env ) const
         {
         }
 
 
-        RILL_TV_OP( identifier_collector, ast::block_statement, s, env )
+        RILL_VISITOR_OP( identifier_collector, ast::block_statement, s, env ) const
         {
             dispatch( s->statements_, env );
         }
 
 
         //
-        RILL_TV_OP( identifier_collector, ast::expression_statement, s, env )
+        RILL_VISITOR_OP( identifier_collector, ast::expression_statement, s, env ) const
         {
             // DO NOT COLLECT IDENTIFIERS
         }
@@ -47,7 +47,7 @@ namespace rill
 
 
         //
-        RILL_TV_OP( identifier_collector, ast::function_definition_statement, s, env )
+        RILL_VISITOR_OP( identifier_collector, ast::function_definition_statement, s, env ) const
         {
             // Function symbol that on (global | namespace)
 
@@ -69,7 +69,7 @@ namespace rill
 
 
         //
-        RILL_TV_OP( identifier_collector, ast::variable_declaration_statement, s, env )
+        RILL_VISITOR_OP( identifier_collector, ast::variable_declaration_statement, s, env ) const
         {
             // Variable symbol that on (global | namespace)
             // TODO: make variable forward referenceable
@@ -78,7 +78,7 @@ namespace rill
 
 
         //
-        RILL_TV_OP( identifier_collector, ast::extern_function_declaration_statement, s, env )
+        RILL_VISITOR_OP( identifier_collector, ast::extern_function_declaration_statement, s, env ) const
         {
             // Function symbol that on (global | namespace)
 
@@ -97,7 +97,7 @@ namespace rill
 
 
         //
-        RILL_TV_OP( identifier_collector, ast::class_definition_statement, s, env )
+        RILL_VISITOR_OP( identifier_collector, ast::class_definition_statement, s, env ) const
         {
             // Class symbol that on (global | namespace)
 
@@ -125,7 +125,7 @@ namespace rill
 
 
         //
-        RILL_TV_OP( identifier_collector, ast::class_function_definition_statement, s, parent_env )
+        RILL_VISITOR_OP( identifier_collector, ast::class_function_definition_statement, s, parent_env ) const
         {
             assert( parent_env->get_symbol_kind() == kind::type_value::e_class );
 
@@ -147,7 +147,7 @@ namespace rill
 
 
         //
-        RILL_TV_OP( identifier_collector, ast::class_variable_declaration_statement, s, parent_env )
+        RILL_VISITOR_OP( identifier_collector, ast::class_variable_declaration_statement, s, parent_env ) const
         {
             assert( parent_env->get_symbol_kind() == kind::type_value::e_class );
 
@@ -161,7 +161,7 @@ namespace rill
 
 
         //
-        RILL_TV_OP( identifier_collector, ast::template_statement, s, parent_env )
+        RILL_VISITOR_OP( identifier_collector, ast::template_statement, s, parent_env ) const
         {
             // mark AST as templated
             s->get_inner_statement()->mark_as_template();
@@ -191,7 +191,6 @@ namespace rill
             // delegate inner statement...
             dispatch( s->get_inner_statement(), template_set_env );
         }
-
 
     } // namespace semantic_analysis
 } // namespace rill

@@ -36,7 +36,7 @@ namespace rill
 
 
         //
-        RILL_TV_OP( analyzer, ast::binary_operator_expression, e, env )
+        RILL_VISITOR_OP( analyzer, ast::binary_operator_expression, e, env )
         {
             using namespace boost::adaptors;
 
@@ -136,7 +136,7 @@ namespace rill
         //
         // lhs[rhs]
         //
-        RILL_TV_OP( analyzer, ast::subscrpting_expression, e, parent_env )
+        RILL_VISITOR_OP( analyzer, ast::subscrpting_expression, e, parent_env )
         {
             if ( e->rhs_ ) {
                 // has capseled value
@@ -209,7 +209,7 @@ namespace rill
         //
         // reciever.element
         //
-        RILL_TV_OP( analyzer, ast::element_selector_expression, e, parent_env )
+        RILL_VISITOR_OP( analyzer, ast::element_selector_expression, e, parent_env )
         {
             //
             // expr: A.B
@@ -315,7 +315,7 @@ namespace rill
         //
         //
         // function call expression
-        RILL_TV_OP( analyzer, ast::call_expression, e, env )
+        RILL_VISITOR_OP( analyzer, ast::call_expression, e, env )
         {
             using namespace boost::adaptors;
 
@@ -575,7 +575,7 @@ namespace rill
         //
         //
         //
-        RILL_TV_OP( analyzer, ast::type_expression, e, env )
+        RILL_VISITOR_OP( analyzer, ast::type_expression, e, env )
         {
             return bind_type(
                 e,
@@ -588,7 +588,7 @@ namespace rill
         //
         //
         //
-        RILL_TV_OP( analyzer, ast::term_expression, e, env )
+        RILL_VISITOR_OP( analyzer, ast::term_expression, e, env )
         {
             return bind_type(
                 e,

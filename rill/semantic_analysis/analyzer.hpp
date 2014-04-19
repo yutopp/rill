@@ -11,7 +11,7 @@
 
 #include <memory>
 
-#include "../ast/detail/tree_visitor_base.hpp"
+#include "../ast/visitor.hpp"
 #include "../environment/environment_base.hpp"
 #include "../behavior/intrinsic_function_holder_fwd.hpp"
 
@@ -26,7 +26,7 @@ namespace rill
     namespace semantic_analysis
     {
         class analyzer RILL_CXX11_FINAL
-            : public ast::detail::tree_visitor<analyzer, type_detail_ptr>
+            : public ast::ast_visitor<analyzer, type_detail_ptr>
         {
         public:
             analyzer(
@@ -36,68 +36,89 @@ namespace rill
 
         public:
             // statement
-            RILL_TV_OP_DECL( ast::statements )
-            RILL_TV_OP_DECL( ast::block_statement )
-          // RILL_TV_OP_DECL( ast::template_statement )
-            RILL_TV_OP_DECL( ast::expression_statement )
-            RILL_TV_OP_DECL( ast::return_statement )
-            RILL_TV_OP_DECL( ast::jit_statement )
-            RILL_TV_OP_DECL( ast::function_definition_statement )
-            RILL_TV_OP_DECL( ast::variable_declaration_statement )
-          //RILL_TV_OP_DECL( ast::intrinsic_function_definition_statement )
-            RILL_TV_OP_DECL( ast::extern_function_declaration_statement )
-            RILL_TV_OP_DECL( ast::class_definition_statement )
-            RILL_TV_OP_DECL( ast::class_function_definition_statement )
-            RILL_TV_OP_DECL( ast::class_variable_declaration_statement )
-            RILL_TV_OP_DECL( ast::test_while_statement )
-            RILL_TV_OP_DECL( ast::test_if_statement )
+            RILL_VISITOR_OP_DECL( ast::statements );
+            RILL_VISITOR_OP_DECL( ast::block_statement );
+          // RILL_VISITOR_OP_DECL( ast::template_statement );
+            RILL_VISITOR_OP_DECL( ast::expression_statement );
+            RILL_VISITOR_OP_DECL( ast::return_statement );
+            RILL_VISITOR_OP_DECL( ast::jit_statement );
+            RILL_VISITOR_OP_DECL( ast::function_definition_statement );
+            RILL_VISITOR_OP_DECL( ast::variable_declaration_statement );
+          //RILL_VISITOR_OP_DECL( ast::intrinsic_function_definition_statement );
+            RILL_VISITOR_OP_DECL( ast::extern_function_declaration_statement );
+            RILL_VISITOR_OP_DECL( ast::class_definition_statement );
+            RILL_VISITOR_OP_DECL( ast::class_function_definition_statement );
+            RILL_VISITOR_OP_DECL( ast::class_variable_declaration_statement );
+            RILL_VISITOR_OP_DECL( ast::test_while_statement );
+            RILL_VISITOR_OP_DECL( ast::test_if_statement );
 
             // expression
-            RILL_TV_OP_DECL( ast::element_selector_expression )
-            RILL_TV_OP_DECL( ast::subscrpting_expression )
-            RILL_TV_OP_DECL( ast::call_expression )
-            //RILL_TV_OP_DECL( ast::intrinsic_function_call_expression )
-            RILL_TV_OP_DECL( ast::binary_operator_expression )
-            RILL_TV_OP_DECL( ast::type_expression )
-            RILL_TV_OP_DECL( ast::term_expression )
+            RILL_VISITOR_OP_DECL( ast::element_selector_expression );
+            RILL_VISITOR_OP_DECL( ast::subscrpting_expression );
+            RILL_VISITOR_OP_DECL( ast::call_expression );
+            //RILL_VISITOR_OP_DECL( ast::intrinsic_function_call_expression );
+            RILL_VISITOR_OP_DECL( ast::binary_operator_expression );
+            RILL_VISITOR_OP_DECL( ast::type_expression );
+            RILL_VISITOR_OP_DECL( ast::term_expression );
 
             // value
-            RILL_TV_OP_DECL( ast::nested_identifier_value )
-            RILL_TV_OP_DECL( ast::identifier_value )
-            RILL_TV_OP_DECL( ast::template_instance_value )
+            RILL_VISITOR_OP_DECL( ast::nested_identifier_value );
+            RILL_VISITOR_OP_DECL( ast::identifier_value );
+            RILL_VISITOR_OP_DECL( ast::template_instance_value );
 
-            RILL_TV_OP_DECL( ast::intrinsic::int32_value )
-            RILL_TV_OP_DECL( ast::intrinsic::boolean_value )
-            RILL_TV_OP_DECL( ast::intrinsic::string_value )
-            RILL_TV_OP_DECL( ast::intrinsic::array_value )
+            RILL_VISITOR_OP_DECL( ast::intrinsic::int32_value );
+            RILL_VISITOR_OP_DECL( ast::intrinsic::boolean_value );
+            RILL_VISITOR_OP_DECL( ast::intrinsic::string_value );
+            RILL_VISITOR_OP_DECL( ast::intrinsic::array_value );
 
-            RILL_TV_OP_FAIL
+            RILL_VISITOR_OP_FAIL
 
             //
             // friends
             //
             friend class code_generator::llvm_ir_generator;
 
-            template<typename AnalyzerPtr, typename EnvPtr>
+            auto eval_expression_as_ctfe(
+                ast::expression_ptr const& expression,
+                environment_base_ptr const& parent_env
+                ) -> std::tuple<
+                    const_class_symbol_environment_ptr,
+                    void*
+                >;
+
+            auto eval_type_expression_as_ctfe(
+                ast::type_expression_ptr const& type_expression,
+                environment_base_ptr const& parent_env
+                ) -> type_detail_ptr;
+
+            //
+            template<typename AnalyzerPtr>
             friend auto solve_identifier(
                 AnalyzerPtr const&,
                 ast::const_identifier_value_ptr const&,
-                EnvPtr const&,
-                bool const = false
+                environment_base_ptr const&,
+                bool const
                 ) -> type_detail_ptr;
 
-            template<typename AnalyzerPtr, typename EnvPtr>
+            template<typename AnalyzerPtr>
             friend auto solve_identifier(
                 AnalyzerPtr const&,
                 ast::const_template_instance_value_ptr const&,
-                EnvPtr const&,
-                bool const = false
+                environment_base_ptr const&,
+                bool const
+                ) -> type_detail_ptr;
+
+            template<typename AnalyzerPtr, typename F>
+            friend auto solve_type(
+                AnalyzerPtr const& a,
+                ast::type_expression_ptr const& type_expression,
+                environment_base_ptr const& parent_env,
+                F&& callback
                 ) -> type_detail_ptr;
 
             template<typename Visitor,
                      typename TemplateArgs,
                      typename TypeIds,
-                     typename EnvPtr,
                      typename ResultCallbackT
                      >
             friend auto overload_solver_with_template(
@@ -105,19 +126,11 @@ namespace rill
                 TemplateArgs const& template_args,
                 TypeIds const& arg_type_ids2,
                 std::shared_ptr<template_set_environment> const& template_set_env,
-                EnvPtr const& env,
+                environment_base_ptr const& env,
                 ResultCallbackT const& f
                 ) -> function_symbol_environment_ptr;
 
-            template<typename AnalyzerPtr, typename EnvPtr>
-            friend auto eval_expression_as_ctfe(
-                AnalyzerPtr const& a,
-                ast::expression_ptr const& expression,
-                EnvPtr const& parent_env
-                ) -> std::tuple<
-                    const_class_symbol_environment_ptr,
-                    void*
-                >;
+
 
         private:
             template<typename AstPtr>

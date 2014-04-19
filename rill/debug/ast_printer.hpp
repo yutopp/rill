@@ -11,7 +11,7 @@
 
 #include <iostream>
 
-#include "../ast/detail/tree_visitor_base.hpp"
+#include "../ast/visitor.hpp"
 
 
 namespace rill
@@ -19,47 +19,47 @@ namespace rill
     namespace debug
     {
         class ast_printer RILL_CXX11_FINAL
-            : public ast::detail::tree_visitor<ast_printer, void>
+            : public ast::readonly_ast_visitor_const<ast_printer, void>
         {
         public:
             // statement
-            RILL_TV_OP_DECL( ast::statements )
-            RILL_TV_OP_DECL( ast::block_statement )
-            RILL_TV_OP_DECL( ast::expression_statement )
-            RILL_TV_OP_DECL( ast::return_statement )
-            RILL_TV_OP_DECL( ast::function_definition_statement )
-            RILL_TV_OP_DECL( ast::class_definition_statement )
-            RILL_TV_OP_DECL( ast::variable_declaration_statement )
-            RILL_TV_OP_DECL( ast::extern_function_declaration_statement )
-            RILL_TV_OP_DECL( ast::class_function_definition_statement )
-            RILL_TV_OP_DECL( ast::class_variable_declaration_statement )
-            RILL_TV_OP_DECL( ast::intrinsic_function_definition_statement )
-            RILL_TV_OP_DECL( ast::template_statement )
+            RILL_VISITOR_READONLY_OP_DECL( ast::statements ) const;
+            RILL_VISITOR_READONLY_OP_DECL( ast::block_statement ) const;
+            RILL_VISITOR_READONLY_OP_DECL( ast::expression_statement ) const;
+            RILL_VISITOR_READONLY_OP_DECL( ast::return_statement ) const;
+            RILL_VISITOR_READONLY_OP_DECL( ast::function_definition_statement ) const;
+            RILL_VISITOR_READONLY_OP_DECL( ast::class_definition_statement ) const;
+            RILL_VISITOR_READONLY_OP_DECL( ast::variable_declaration_statement ) const;
+            RILL_VISITOR_READONLY_OP_DECL( ast::extern_function_declaration_statement ) const;
+            RILL_VISITOR_READONLY_OP_DECL( ast::class_function_definition_statement ) const;
+            RILL_VISITOR_READONLY_OP_DECL( ast::class_variable_declaration_statement ) const;
+            RILL_VISITOR_READONLY_OP_DECL( ast::intrinsic_function_definition_statement ) const;
+            RILL_VISITOR_READONLY_OP_DECL( ast::template_statement ) const;
 
-            RILL_TV_OP_DECL( ast::test_while_statement )
-            RILL_TV_OP_DECL( ast::test_if_statement )
+            RILL_VISITOR_READONLY_OP_DECL( ast::test_while_statement ) const;
+            RILL_VISITOR_READONLY_OP_DECL( ast::test_if_statement ) const;
 
             // expression
-            RILL_TV_OP_DECL( ast::binary_operator_expression )
-            RILL_TV_OP_DECL( ast::element_selector_expression )
-            RILL_TV_OP_DECL( ast::call_expression )
-            RILL_TV_OP_DECL( ast::intrinsic_function_call_expression )
-            RILL_TV_OP_DECL( ast::term_expression )
+            RILL_VISITOR_READONLY_OP_DECL( ast::binary_operator_expression ) const;
+            RILL_VISITOR_READONLY_OP_DECL( ast::element_selector_expression ) const;
+            RILL_VISITOR_READONLY_OP_DECL( ast::call_expression ) const;
+            RILL_VISITOR_READONLY_OP_DECL( ast::intrinsic_function_call_expression ) const;
+            RILL_VISITOR_READONLY_OP_DECL( ast::term_expression ) const;
 
             // value
-            RILL_TV_OP_DECL( ast::nested_identifier_value )
-            RILL_TV_OP_DECL( ast::identifier_value )
-            //RILL_TV_OP_DECL( ast::template_instance_value )
-            RILL_TV_OP_DECL( ast::intrinsic::int32_value )
-            RILL_TV_OP_DECL( ast::intrinsic::boolean_value )
-            RILL_TV_OP_DECL( ast::intrinsic::string_value )
-            RILL_TV_OP_DECL( ast::intrinsic::array_value )
+            RILL_VISITOR_READONLY_OP_DECL( ast::nested_identifier_value ) const;
+            RILL_VISITOR_READONLY_OP_DECL( ast::identifier_value ) const;
+            //RILL_VISITOR_READONLY_OP_DECL( ast::template_instance_value ) const;
+            RILL_VISITOR_READONLY_OP_DECL( ast::intrinsic::int32_value ) const;
+            RILL_VISITOR_READONLY_OP_DECL( ast::intrinsic::boolean_value ) const;
+            RILL_VISITOR_READONLY_OP_DECL( ast::intrinsic::string_value ) const;
+            RILL_VISITOR_READONLY_OP_DECL( ast::intrinsic::array_value ) const;
 
-            RILL_TV_OP_FAIL
+            RILL_VISITOR_OP_FAIL
 
         private:
             template<typename T, typename F>
-            auto o( T const& name, F call )
+            auto o( T const& name, F call ) const
                 -> void
             {
                 std::cout << std::string( indent_ * 4, ' ' ) << " = call: " << name << std::endl;
@@ -68,8 +68,9 @@ namespace rill
                 call( std::string( indent_ * 4, ' ' ) );
                 --indent_;
             }
+
         private:
-            std::size_t indent_ = 0;
+            mutable std::size_t indent_ = 0;
         };
 
     } // namespace debug

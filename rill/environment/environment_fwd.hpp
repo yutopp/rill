@@ -12,6 +12,7 @@
 #include <memory>
 #include <vector>
 #include <limits>
+#include <functional>
 
 #include <boost/strong_typedef.hpp>
 
@@ -36,7 +37,7 @@ namespace rill
     typedef std::vector<const_environment_base_ptr>  type_environment_base_ptr_list;
 
 
-    // 
+    //
     struct environment_parameter_t
     {
         environment_id_t id;
@@ -116,7 +117,5 @@ namespace std
         }
     };
 }
-
-
 
 #endif /*RILL_ENVIRONMENT_ENVIRONMENT_FWD_HPP*/

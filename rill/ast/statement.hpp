@@ -14,10 +14,6 @@
 #include <boost/optional.hpp>
 
 #include "../environment/environment_fwd.hpp"
-
-#include "detail/tree_visitor_base.hpp"
-#include "detail/dispatch_assets.hpp"
-
 #include "../attribute/attribute.hpp"
 
 #include "ast_base.hpp"
@@ -39,7 +35,7 @@ namespace rill
         // ----------------------------------------------------------------------
         // ----------------------------------------------------------------------
 
-        // 
+        //
         struct statement
             : public ast_base
         {
@@ -210,7 +206,7 @@ namespace rill
             {
                 return identifier_;
             }
-            
+
             void mark_as_template()
             {
                 is_templated_ = true;
@@ -257,7 +253,7 @@ namespace rill
                 -> identifier_value_base_ptr
             {
                 return get_inner_statement()->get_identifier();
-            }    
+            }
 
             //
             auto get_inner_statement() const
@@ -409,7 +405,7 @@ namespace rill
                 return parameter_list_;
             }
 
- 
+
 
             //////////////////////////////////////////////////
             RILL_MAKE_AST_DERIVED(
@@ -579,7 +575,7 @@ namespace rill
                 )
         };
 
- 
+
 
 
 
@@ -625,7 +621,7 @@ namespace rill
                 return declaration_.decl_unit.name;
             }
 
- 
+
             //////////////////////////////////////////////////
             RILL_MAKE_AST(
                 class_variable_declaration_statement,
@@ -710,4 +706,3 @@ BOOST_FUSION_ADAPT_STRUCT(
     (rill::attribute::quality_kind,         quality)
     (rill::ast::variable_declaration_unit,  decl_unit)
     )
-

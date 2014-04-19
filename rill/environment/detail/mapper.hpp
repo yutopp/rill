@@ -15,7 +15,6 @@
 #include "../environment_fwd.hpp"
 
 #include "../../ast/statement.hpp"
-#include "../../ast/detail/dispatch_assets.hpp"
 #include "../type_registry_fwd.hpp"
 
 

@@ -46,7 +46,7 @@ namespace rill
 
             ir_executor::ir_executor(
                 const_environment_base_ptr const& root_env,
-                std::shared_ptr<code_generator::llvm_ir_generator const> const& generator,
+                std::shared_ptr<code_generator::llvm_ir_generator> const& generator,
                 std::shared_ptr<llvm::ExecutionEngine> const& execution_engine,
                 std::shared_ptr<semantic_analysis::type_detail_pool_t> const& type_detail_pool
                 )
@@ -69,7 +69,7 @@ namespace rill
 
 
 
-            RILL_TV_OP_CONST( ir_executor, ast::binary_operator_expression, e, parent_env )
+            RILL_VISITOR_READONLY_OP( ir_executor, ast::binary_operator_expression, e, parent_env )
             {
                 // Look up Function
                 auto const f_env
@@ -111,15 +111,15 @@ namespace rill
 
 
 
-        RILL_TV_OP_CONST( ir_executor, ast::type_expression, e, parent_env )
-        {
-            return dispatch( e->type_, parent_env );
-        }
+            RILL_VISITOR_READONLY_OP( ir_executor, ast::type_expression, e, parent_env )
+            {
+                return dispatch( e->type_, parent_env );
+            }
 
 
-        // identifier node returns Variable
-        RILL_TV_OP_CONST( ir_executor, ast::identifier_value_base, v, parent_env )
-        {
+            // identifier node returns Variable
+            RILL_VISITOR_READONLY_OP( ir_executor, ast::identifier_value_base, v, parent_env )
+            {
             //
             std::cout << "ir sym solving: "
                       << v->get_inner_symbol()->to_native_string() << std::endl
@@ -182,35 +182,32 @@ namespace rill
 
 
 
-        RILL_TV_OP_CONST( ir_executor, ast::intrinsic::int32_value, v, parent_env )
-        {
-            // Currently, return int type( 32bit, integer )
-            return make_object<int>( v->get_value() );
-        }
+            RILL_VISITOR_READONLY_OP( ir_executor, ast::intrinsic::int32_value, v, parent_env )
+            {
+                // Currently, return int type( 32bit, integer )
+                return make_object<int>( v->get_value() );
+            }
 
-        RILL_TV_OP_CONST( ir_executor, ast::intrinsic::boolean_value, v, parent_env )
-        {
-            return make_object<bool>( v->get_value() );
-        }
+            RILL_VISITOR_READONLY_OP( ir_executor, ast::intrinsic::boolean_value, v, parent_env )
+            {
+                return make_object<bool>( v->get_value() );
+            }
 
-        RILL_TV_OP_CONST( ir_executor, ast::intrinsic::string_value, v, parent_env )
-        {
-            assert( false && "nn" ); // context_->ir_builder.CreateGlobalStringPtr( v->get_value().c_str() );
-            return nullptr;
-        }
+            RILL_VISITOR_READONLY_OP( ir_executor, ast::intrinsic::string_value, v, parent_env )
+            {
+                assert( false && "nn" ); // context_->ir_builder.CreateGlobalStringPtr( v->get_value().c_str() );
+                return nullptr;
+            }
 
-        RILL_TV_OP_CONST( ir_executor, ast::intrinsic::array_value, v, parent_env )
-        {
-            assert( false && "not supported" );
-            return nullptr;
-        }
-
-
+            RILL_VISITOR_READONLY_OP( ir_executor, ast::intrinsic::array_value, v, parent_env )
+            {
+                assert( false && "not supported" );
+                return nullptr;
+            }
 
 
-
-
-        RILL_TV_OP_CONST( ir_executor, ast::term_expression, e, parent_env )
+#if 0
+        RILL_VISITOR_READONLY_OP( ir_executor, ast::term_expression, e, parent_env )
         {
             //
             llvm::Value* gen_val
@@ -244,6 +241,7 @@ namespace rill
 
             return nullptr;
         }
+#endif
 
         } // namespace llvm_engine
     } // namespace compile_time
