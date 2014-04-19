@@ -14,4 +14,4 @@ install:
   - sudo apt-get install -qq llvm-3.4-dev g++-4.8
 script:
   - cmake . -DLLVM_CONFIG_PATH=/usr/bin/llvm-config-3.4
-  - make -j8 VERBOSE=1
+  - make VERBOSE=1
