@@ -50,7 +50,7 @@ namespace rill
             public:
                 RILL_VISITOR_READONLY_OP_DECL( ast::binary_operator_expression );
                 RILL_VISITOR_READONLY_OP_DECL( ast::type_expression );
-                //RILL_VISITOR_READONLY_OP_DECL( ast::term_expression );
+                RILL_VISITOR_READONLY_OP_DECL( ast::term_expression );
 
                 RILL_VISITOR_READONLY_OP_DECL( ast::identifier_value_base );
 
@@ -82,6 +82,17 @@ namespace rill
 
                     return storage;
                 }
+
+                auto convert_storage_to_generic_value(
+                    void* const storage,
+                    llvm::Type const* const
+                    ) -> llvm::GenericValue;
+
+                auto eval_args(
+                    ast::expression_list const& arguments,
+                    const_environment_base_ptr const& parent_env,
+                    llvm::Function const* const target_function
+                    ) -> std::vector<llvm::GenericValue>;
 
             private:
                 const_environment_base_ptr root_env_;

@@ -1,6 +1,6 @@
 def main(): int
 {
-    jit 1+3;
+    jit 1+4;
 
     return 0;
 }

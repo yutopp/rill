@@ -59,7 +59,7 @@ namespace rill
 
 
             auto ir_executor::make_storage( std::size_t const& size, std::size_t const& align ) const
-                    -> void*
+                -> void*
             {
                 auto storage = make_dynamic_storage( size, align );
                 value_holder_->bind_as_temporary( storage );
@@ -67,6 +67,107 @@ namespace rill
                 return storage.get();
             }
 
+
+            auto ir_executor::convert_storage_to_generic_value(
+                void* const storage,
+                llvm::Type const* const to_type
+                ) -> llvm::GenericValue
+            {
+                llvm::GenericValue gv;
+
+                switch( to_type->getTypeID() ) {
+//                case llvm::Type::VoidTyID:
+//                    break;
+//
+//                case llvm::Type::HalfTyID:
+//                    break;
+//
+//                case llvm::Type::FloatTyID:
+//                    break;
+//
+//                case llvm::Type::DoubleTyID:
+//                    break;
+//
+//                case llvm::Type::X86_FP80TyID:
+//                    break;
+//
+//                case llvm::Type::FP128TyID:
+//                    break;
+//
+//                case llvm::Type::PPC_FP128TyID:
+//                    break;
+//
+//                case llvm::Type::LabelTyID:
+//                    break;
+//
+//                case llvm::Type::MetadataTyID:
+//                    break;
+//
+//                case llvm::Type::X86_MMXTyID:
+//                    break;
+//
+                case llvm::Type::IntegerTyID:
+                    switch( to_type->getIntegerBitWidth() ) {
+                    case 32:
+                        gv.IntVal = llvm::APInt(
+                            32,
+                            *static_cast<std::int32_t const* const>( storage )
+                            );
+                        break;
+
+                    default:
+                        std::cout << "bitwidth: " << to_type->getIntegerBitWidth() << std::endl;
+                        assert( false && "[ice] bitwidth" );
+                    }
+                    break;
+//
+//                case llvm::Type::FunctionTyID:
+//                    break;
+//
+//                case llvm::Type::StructTyID:
+//                    break;
+//
+//                case llvm::Type::ArrayTyID:
+//                    break;
+//
+//                case llvm::Type::PointerTyID:
+//                    break;
+//
+//                case llvm::Type::VectorTyID:
+//                    break;
+                default:
+                    assert( false && "[ice] type" );
+                }
+
+                return gv;
+            }
+
+
+            auto ir_executor::eval_args(
+                ast::expression_list const& arguments,
+                const_environment_base_ptr const& parent_env,
+                llvm::Function const* const target_function
+                ) -> std::vector<llvm::GenericValue>
+            {
+                std::cout << "ababa => " << arguments.size() << std::endl;
+                std::vector<llvm::GenericValue> gvs;
+                auto const& function_type = target_function->getFunctionType();
+                std::size_t i = 0;
+
+                for( auto&& argument : arguments ) {
+                    auto const& evaled_data = dispatch( argument, parent_env );
+                    gvs.push_back(
+                        convert_storage_to_generic_value(
+                            evaled_data,
+                            function_type->getParamType( i )
+                            )
+                        );
+
+                    ++i;
+                }
+
+                return gvs;
+            }
 
 
             RILL_VISITOR_READONLY_OP( ir_executor, ast::binary_operator_expression, e, parent_env )
@@ -77,7 +178,7 @@ namespace rill
                 assert( f_env != nullptr );
 
                 std::cout << "current : " << f_env->mangled_name() << std::endl;
-                llvm::Function* callee_function
+                llvm::Function* const callee_function
                     = static_cast<llvm::Function*>(
                         ir_generator_->function_env_to_llvm_constatnt_ptr( f_env )
                         );
@@ -89,14 +190,16 @@ namespace rill
                 //
                 callee_function->dump();
 
-                llvm::GenericValue a;
-                a.IntVal = llvm::APInt( 32, 72 );
+                // call function that defined in rill modules
+                // evaluate argument from last to front(but ordering of vector is from front to last)
+                ast::expression_list const& e_arguments = { e->lhs_, e->rhs_ };
+                auto args = eval_args( e_arguments, parent_env, callee_function );
 
-                std::vector<llvm::GenericValue> args = { a, a };
-                auto const& raw_result = execution_engine_->runFunction( callee_function, args );
+                auto raw_result = execution_engine_->runFunction( callee_function, args );
 
-                std::cout << *(a.IntVal.getRawData())
-                          << " = " << *(raw_result.IntVal.getRawData()) << std::endl;
+                std::cout << "ANs: "
+                          << *(raw_result.IntVal.getRawData()) << std::endl;
+
 
                 assert(false);
                 return nullptr;
@@ -117,22 +220,28 @@ namespace rill
             }
 
 
+            RILL_VISITOR_READONLY_OP( ir_executor, ast::term_expression, e, parent_env )
+            {
+                return dispatch( e->value_, parent_env );
+            }
+
+
             // identifier node returns Variable
             RILL_VISITOR_READONLY_OP( ir_executor, ast::identifier_value_base, v, parent_env )
             {
-            //
-            std::cout << "ir sym solving: "
-                      << v->get_inner_symbol()->to_native_string() << std::endl
-                      << "ast ptr: " << v.get() << std::endl
-                      << (const_environment_base_ptr)parent_env << std::endl;
+                //
+                std::cout << "ir sym solving: "
+                          << v->get_inner_symbol()->to_native_string() << std::endl
+                          << "ast ptr: " << v.get() << std::endl
+                          << (const_environment_base_ptr)parent_env << std::endl;
 
-            //
-            //
-            auto const& id_env = root_env_->get_related_env_by_ast_ptr( v );
-            if ( id_env == nullptr ) {
-                std::cout << "skipped" << std::endl;
-                return nullptr;
-            }
+                //
+                //
+                auto const& id_env = root_env_->get_related_env_by_ast_ptr( v );
+                if ( id_env == nullptr ) {
+                    std::cout << "skipped" << std::endl;
+                    return nullptr;
+                }
 
 
             switch( id_env->get_symbol_kind() )
@@ -185,7 +294,7 @@ namespace rill
             RILL_VISITOR_READONLY_OP( ir_executor, ast::intrinsic::int32_value, v, parent_env )
             {
                 // Currently, return int type( 32bit, integer )
-                return make_object<int>( v->get_value() );
+                return make_object<std::int32_t>( v->get_value() );
             }
 
             RILL_VISITOR_READONLY_OP( ir_executor, ast::intrinsic::boolean_value, v, parent_env )
@@ -206,42 +315,6 @@ namespace rill
             }
 
 
-#if 0
-        RILL_VISITOR_READONLY_OP( ir_executor, ast::term_expression, e, parent_env )
-        {
-            //
-            llvm::Value* gen_val
-                = ir_generator_->dispatch( e, parent_env );
-            assert( gen_val != nullptr );
-
-            llvm::Value* pure_val_ptr
-                = to_pure_value( gen_val );
-
-            if ( is_pure_value( gen_val ) ) {
-                // pure value
-                return pure_val_ptr;
-
-            } else if ( is_type_id_value( gen_val ) ) {
-                // Type Id
-                llvm::ConstantInt const* const type_id_value_ptr
-                    = static_cast<llvm::ConstantInt const* const>( pure_val_ptr );
-
-                type_id_t const type_id
-                    = type_id_t( type_id_value_ptr->getZExtValue() );
-
-                std::cout << "tpre!! " << type_id << std::endl;
-
-                return type_detail_pool_->construct(
-                    type_id,
-                    nullptr //variable_env
-                    );
-            } else {
-                assert( false );
-            }
-
-            return nullptr;
-        }
-#endif
 
         } // namespace llvm_engine
     } // namespace compile_time
