@@ -86,7 +86,7 @@ namespace rill
             // TEST
             void debug() const
             {
-                context_->llvm_module.dump();
+                context_->llvm_module->dump();
             }
 
             inline auto is_jit() const

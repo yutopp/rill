@@ -31,16 +31,28 @@ namespace rill
         class llvm_ir_generator_context
         {
         public:
-            llvm_ir_generator_context( std::string const& module_name = "rill" )
+            llvm_ir_generator_context(
+                std::string const& module_name = "rill"
+                )
                 : llvm_context( llvm::getGlobalContext() )
-                , llvm_module( module_name, llvm_context )
                 , ir_builder( llvm_context )
+                , llvm_module( std::make_shared<llvm::Module>( module_name, llvm_context ) )
+
                 {}
-            
+
+            llvm_ir_generator_context(
+                std::shared_ptr<llvm::Module> const& module
+                )
+                : llvm_context( llvm::getGlobalContext() )
+                , ir_builder( llvm_context )
+                , llvm_module( module )
+                {}
+
         public:
             llvm::LLVMContext& llvm_context;
-            llvm::Module llvm_module;
             llvm::IRBuilder<> ir_builder;
+
+            std::shared_ptr<llvm::Module> llvm_module;
 
             env_id_llvm_table env_conversion_table;
             temporary_reciever_stack_t temporary_reciever_stack_;

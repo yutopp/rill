@@ -775,7 +775,7 @@ namespace rill
 
                             //
                             llvm::Constant* const puts_func
-                                = context->llvm_module.getOrInsertFunction( "put_string", func_type );
+                                = context->llvm_module->getOrInsertFunction( "put_string", func_type );
 
                             context->ir_builder.CreateCall( puts_func, context->env_conversion_table.ref_value( argument_var_env_ids[0] ) );
 

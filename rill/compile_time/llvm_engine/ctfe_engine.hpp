@@ -84,9 +84,14 @@ namespace rill
                     assert( false );
                 }
 
+                // TODO: fix it...
+                // create module
+                // it has no owner ship..., because the custom deleter does NOT delete resource.
+                std::shared_ptr<llvm::Module> module( new llvm::Module( "rill", llvm::getGlobalContext() ), []( llvm::Module* ){} );
+
                 // create llvm_ir_generator
                 auto const& context
-                    = std::make_shared<code_generator::llvm_ir_generator_context>();
+                    = std::make_shared<code_generator::llvm_ir_generator_context>( module );
 
                 action_holder->invoke_initialize_action(
                     processing_context::k_llvm_ir_generator,
@@ -103,12 +108,11 @@ namespace rill
                         );
 
                 // second, create llvm JIT Engine
-                // the ownership of context.llvm_module is moved to engine.
-                // FIXME: the destructor of llvm::ExecutionEngine will execute "delete ptr to module", so this "&context->llvm_module" can be dangerous. MUST BE CHANGED.(cause Undefined behaviour)
+                // delegate owner ship of module to Engine
                 std::string jit_engine_error_log;
                 auto const engine
                     = std::shared_ptr<llvm::ExecutionEngine>(
-                        llvm::EngineBuilder( &context->llvm_module ).setErrorStr( &jit_engine_error_log ).create()
+                        llvm::EngineBuilder( module.get() ).setErrorStr( &jit_engine_error_log ).create()
                         );
                 if ( engine == nullptr ) {
                     std::cerr << "failed to create JIT engine. " << jit_engine_error_log << std::endl;

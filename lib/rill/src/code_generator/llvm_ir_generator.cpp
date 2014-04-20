@@ -160,7 +160,7 @@ namespace rill
                         = std::static_pointer_cast<ast::extern_function_declaration_statement const>( f_env->get_related_ast() );
                     assert( s != nullptr );
 
-                    return context_->llvm_module.getOrInsertFunction( s->get_extern_symbol_name(), func_type );
+                    return context_->llvm_module->getOrInsertFunction( s->get_extern_symbol_name(), func_type );
 
                 } else {
                     // nornal function
@@ -168,7 +168,7 @@ namespace rill
                         = f_env->mangled_name();
                     std::cout << "SS: " << target_name << std::endl;
 
-                    if ( auto const f = context_->llvm_module.getFunction( target_name ) )
+                    if ( auto const f = context_->llvm_module->getFunction( target_name ) )
                         return f;
 
                     return nullptr;
@@ -270,7 +270,7 @@ namespace rill
 
             // ========================================
             // function body
-            llvm::Function* const func = llvm::Function::Create( func_type, linkage, f_env->mangled_name(), &context_->llvm_module );
+            llvm::Function* const func = llvm::Function::Create( func_type, linkage, f_env->mangled_name(), context_->llvm_module.get() );
 
             // ========================================
             for( llvm::Function::arg_iterator ait = func->arg_begin(); ait != func->arg_end(); ++ait ) {
@@ -364,7 +364,7 @@ namespace rill
             // ========================================
             // function body
             llvm::Function* const func
-                = llvm::Function::Create( func_type, linkage, f_env->mangled_name(), &context_->llvm_module );
+                = llvm::Function::Create( func_type, linkage, f_env->mangled_name(), context_->llvm_module.get() );
 
             // ========================================
             // create a new basic block to start insertion into.
@@ -671,7 +671,7 @@ namespace rill
             context_->env_conversion_table.bind_function_type( f_env->get_id(), func_type );
 
             // construct function and paramter variables
-            llvm::Function* const func = llvm::Function::Create( func_type, llvm::Function::ExternalLinkage, f_env->mangled_name(), &context_->llvm_module );
+            llvm::Function* const func = llvm::Function::Create( func_type, llvm::Function::ExternalLinkage, f_env->mangled_name(), context_->llvm_module.get() );
             for( llvm::Function::arg_iterator ait=func->arg_begin(); ait!=func->arg_end(); ++ait ) {
                 auto const& var = std::static_pointer_cast<variable_symbol_environment const>( f_env->get_env_at( parameter_variable_decl_env_ids[ait->getArgNo()] ).lock() );
                 ait->setName( var->mangled_name() );
@@ -1134,7 +1134,7 @@ namespace rill
                 }();
 
                 pp->dump();
-                context_->llvm_module.dump();
+                context_->llvm_module->dump();
 
                 // TODO: fix...
                 // rhs must be integer. if it is pointer, load instruction is required...

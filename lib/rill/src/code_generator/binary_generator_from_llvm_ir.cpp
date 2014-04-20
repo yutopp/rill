@@ -157,7 +157,7 @@ namespace rill
                 PM.add( new llvm::DataLayout( *TD ) );
                 std::cout << "const llvm::DataLayout *TD = target_machine->getDataLayout()" << std::endl;
             } else {
-                PM.add( new llvm::DataLayout( &context_->llvm_module ) );
+                PM.add( new llvm::DataLayout( context_->llvm_module.get() ) );
             }
 
 
@@ -176,7 +176,7 @@ namespace rill
                     std::cout << "failed" << std::endl;
                     //return;
                 }
-                PM.run( context_->llvm_module );
+                PM.run( *context_->llvm_module );
 
                 // Declare success.
                 FDOut.keep();
