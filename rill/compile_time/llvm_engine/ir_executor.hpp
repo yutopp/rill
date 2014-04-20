@@ -10,6 +10,7 @@
 #define RILL_COMPILE_TIME_LLVM_ENGINE_IR_EXECUTOR_HPP
 
 #include <memory>
+#include <unordered_set>
 #include <cstdint>
 
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
@@ -96,6 +97,10 @@ namespace rill
                     llvm::Function const* const target_function
                     ) -> void*;
 
+                auto map_intrinsic_function(
+                    llvm::Function const* const target_function
+                    ) -> void;
+
             private:
                 const_environment_base_ptr root_env_;
                 std::shared_ptr<code_generator::llvm_ir_generator> ir_generator_;
@@ -103,6 +108,8 @@ namespace rill
 
                 std::shared_ptr<engine_value_holder> value_holder_;
                 std::shared_ptr<semantic_analysis::type_detail_pool_t> type_detail_pool_;
+
+                std::unordered_set<std::string> mapped_intrinsic_function_names_;
             };
 
         } // namespace llvm_engine

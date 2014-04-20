@@ -1,6 +1,10 @@
 def main(): int
 {
     jit int;
+
+    val a = 5: mutable(int);
+    a = 10;
+
     return 0;
 }
 

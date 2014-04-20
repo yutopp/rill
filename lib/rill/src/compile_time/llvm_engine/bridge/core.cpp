@@ -12,6 +12,21 @@
 #include <iostream>
 
 
+namespace rill
+{
+    namespace compile_time
+    {
+        namespace llvm_engine
+        {
+            std::unordered_map<std::string, void*> const ctfe_intrinsic_function_table = {
+                { "rill_abababa", reinterpret_cast<void*>( &rill_abababa ) }
+            };
+
+        } // namespace llvm_engine
+    } // namespace compile_time
+} // namespace rill
+
+
 extern "C" {
     auto rill_abababa( rill::semantic_analysis::type_detail_ptr ty_detail )
         -> rill::semantic_analysis::type_detail_ptr

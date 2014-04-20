@@ -159,7 +159,25 @@ namespace rill
             }
 
 
+            auto ir_executor::map_intrinsic_function(
+                llvm::Function const* const target_function
+                ) -> void
+            {
+                std::string const& name = target_function->getName();
 
+                auto const& it = ctfe_intrinsic_function_table.find( name );
+                if ( it != ctfe_intrinsic_function_table.cend() ) {
+                    if ( mapped_intrinsic_function_names_.find( name ) == mapped_intrinsic_function_names_.cend() ) {
+                        // map function manually
+                        execution_engine_->addGlobalMapping(
+                            target_function,
+                            it->second
+                            );
+
+                        mapped_intrinsic_function_names_.insert( name );
+                    }
+                }
+            }
 
 
             RILL_VISITOR_READONLY_OP( ir_executor, ast::call_expression, e, parent_env )
@@ -204,9 +222,7 @@ namespace rill
 
                 callee_function->dump();
 
-
-                execution_engine_->addGlobalMapping(callee_function, reinterpret_cast<void*>( &rill_abababa ) );
-
+                map_intrinsic_function( callee_function );
 
                 // invocation
                 auto const& raw_result
