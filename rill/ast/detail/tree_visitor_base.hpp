@@ -65,34 +65,34 @@
 
 
 // filter outbound object
-#define RILL_VISITOR_OP_FAIL                                \
-    template<typename NodeT>                                \
-    RILL_VISITOR_OP_DECL_INNER( NodeT, , )                  \
-    {                                                       \
-        this->template failed_to_dispatch<NodeT>();         \
+#define RILL_VISITOR_OP_FAIL                                        \
+    template<typename NodeT>                                        \
+    RILL_VISITOR_OP_DECL_INNER( NodeT, , )                          \
+    {                                                               \
+        this->template failed_to_dispatch<NodeT>();                 \
         using R = typename self_type::template result<NodeT>::type; \
-        return R();                                         \
-    }                                                       \
-    template<typename NodeT>                                \
-    RILL_VISITOR_OP_DECL_INNER( NodeT, , ) const            \
-    {                                                       \
-        this->template failed_to_dispatch<NodeT>();         \
-        using R = typename self_type::template result<NodeT>::type;             \
-        return R();                                         \
-    }                                                       \
-    template<typename NodeT>                                \
-    RILL_VISITOR_READONLY_OP_DECL_INNER( NodeT, , )         \
-    {                                                       \
-        this->template failed_to_dispatch<NodeT const>();   \
-        using R = typename self_type::template result<NodeT>::type;             \
-        return R();                                         \
-    }                                                       \
-    template<typename NodeT>                                \
-    RILL_VISITOR_READONLY_OP_DECL_INNER( NodeT, , ) const   \
-    {                                                       \
-        this->template failed_to_dispatch<NodeT const>();   \
-        using R = typename self_type::template result<NodeT>::type;             \
-        return R();                                         \
+        return R();                                                 \
+    }                                                               \
+    template<typename NodeT>                                        \
+    RILL_VISITOR_OP_DECL_INNER( NodeT, , ) const                    \
+    {                                                               \
+        this->template failed_to_dispatch<NodeT>();                 \
+        using R = typename self_type::template result<NodeT>::type; \
+        return R();                                                 \
+    }                                                               \
+    template<typename NodeT>                                        \
+    RILL_VISITOR_READONLY_OP_DECL_INNER( NodeT, , )                 \
+    {                                                               \
+        this->template failed_to_dispatch<NodeT const>();           \
+        using R = typename self_type::template result<NodeT>::type; \
+        return R();                                                 \
+    }                                                               \
+    template<typename NodeT>                                        \
+    RILL_VISITOR_READONLY_OP_DECL_INNER( NodeT, , ) const           \
+    {                                                               \
+        this->template failed_to_dispatch<NodeT const>();           \
+        using R = typename self_type::template result<NodeT>::type; \
+        return R();                                                 \
     }
 
 
@@ -125,22 +125,22 @@
     virtual RILL_VISITOR_INVOKER_READONLY_OP_HEADER( node_type, const ) =0;
 
 
-#define RILL_VISITOR_INVOKER_OP( node_type ) \
-    RILL_VISITOR_INVOKER_OP_HEADER( node_type, ) RILL_CXX11_OVERRIDE \
-    { \
-        return static_cast<Visitor&>( *v )( node, env ); \
-    } \
+#define RILL_VISITOR_INVOKER_OP( node_type )                            \
+    RILL_VISITOR_INVOKER_OP_HEADER( node_type, ) RILL_CXX11_OVERRIDE    \
+    {                                                                   \
+        return static_cast<Visitor&>( *v ).operator()( node, env );     \
+    }                                                                   \
     RILL_VISITOR_INVOKER_OP_HEADER( node_type, const ) RILL_CXX11_OVERRIDE \
-    { \
-        return static_cast<Visitor const&>( *v )( node, env ); \
-    } \
+    {                                                                   \
+        return static_cast<Visitor const&>( *v ).operator()( node, env ); \
+    }                                                                   \
     RILL_VISITOR_INVOKER_READONLY_OP_HEADER( node_type, ) RILL_CXX11_OVERRIDE \
-    { \
-        return static_cast<Visitor&>( *v )( node, env ); \
-    } \
+    {                                                                   \
+        return static_cast<Visitor&>( *v ).operator()( node, env );     \
+    }                                                                   \
     RILL_VISITOR_INVOKER_READONLY_OP_HEADER( node_type, const ) RILL_CXX11_OVERRIDE \
-    { \
-        return static_cast<Visitor const&>( *v )( node, env ); \
+    {                                                                   \
+        return static_cast<Visitor const&>( *v ).operator()( node, env ); \
     }
 
 
@@ -228,34 +228,18 @@ namespace rill
 
             public:
                 // called from dispacher of AST
-                template<typename Node>
-                auto invoke( std::shared_ptr<Node> const& node, environment_base_ptr const& env )
+                template<typename Node, typename Env>
+                auto invoke( std::shared_ptr<Node> const& node, std::shared_ptr<Env> const& env )
                     -> typename result<Node>::type
                 {
                     return invoker_( node, env, this );
                 }
-                template<typename Node>
-                auto invoke( std::shared_ptr<Node> const& node, environment_base_ptr const& env ) const
+                template<typename Node, typename Env>
+                auto invoke( std::shared_ptr<Node> const& node, std::shared_ptr<Env> const& env ) const
                     -> typename result<Node>::type
                 {
                     return invoker_( node, env, this );
                 }
-
-                template<typename Node>
-                auto invoke( std::shared_ptr<Node const> const& node, const_environment_base_ptr const& env )
-                    -> typename result<Node>::type
-                {
-                    return invoker_( node, env, this );
-                }
-                template<typename Node>
-                auto invoke( std::shared_ptr<Node const> const& node, const_environment_base_ptr const& env ) const
-                    -> typename result<Node>::type
-                {
-                    return invoker_( node, env, this );
-                }
-
-            public:
-                RILL_VISITOR_OP_FAIL
 
             public:
                 template<typename NodeT>

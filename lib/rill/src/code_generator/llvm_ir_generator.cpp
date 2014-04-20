@@ -58,7 +58,7 @@ namespace rill
             auto operator()( type_id_t const& type_id ) const
                 -> result_type
             {
-                auto const& generator = const_cast<llvm_ir_generator&>( gen_.get() );
+                auto const& generator = gen_.get();
 
                 auto const& ty = generator.root_env_->get_type_at( type_id );
                 auto const& type_class_env_id = ty.class_env_id;
@@ -139,12 +139,14 @@ namespace rill
             if ( !context_->env_conversion_table.is_defined( f_env->get_id() ) ) {
                 //
                 std::cout
-                    << "!context_->env_conversion_table.is_defined( f_env->get_id() ): "
+                    << "LLVM ir gen / function_env_to_llvm_constatnt_ptr(not defined): "
                     << f_env->mangled_name()
                     << std::endl;
 
                 assert( f_env->get_related_ast() != nullptr );
                 dispatch( f_env->get_related_ast(), f_env );
+
+                std::cout << "LLVM ir gen / dispatched function_env_to_llvm_constatnt_ptr" << std::endl;
             }
 
             return [&]() -> llvm::Constant*
@@ -157,6 +159,7 @@ namespace rill
                     auto const& s
                         = std::static_pointer_cast<ast::extern_function_declaration_statement const>( f_env->get_related_ast() );
                     assert( s != nullptr );
+
                     return context_->llvm_module.getOrInsertFunction( s->get_extern_symbol_name(), func_type );
 
                 } else {
@@ -882,6 +885,9 @@ namespace rill
 
             //
             context_->env_conversion_table.bind_function_type( f_env->get_id(), func_type );
+
+            func_type->dump();
+            //assert( false );
         }
 
 

@@ -1,6 +1,12 @@
 def main(): int
 {
-    jit 1+4;
-
+    jit int;
     return 0;
 }
+
+def f(): mutable(int)
+{
+    return 5;
+}
+
+extern def mutable( val a :type ): type "rill_abababa";

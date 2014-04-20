@@ -8,7 +8,9 @@
 
 #include <rill/compile_time/llvm_engine/ir_executor.hpp>
 #include <rill/compile_time/llvm_engine/value_storage.hpp>
+#include <rill/compile_time/llvm_engine/value_converter.hpp>
 #include <rill/compile_time/llvm_engine/engine_value_holder.hpp>
+#include <rill/compile_time/llvm_engine/bridge.hpp>
 
 #include <rill/environment/environment.hpp>
 #include <rill/ast/ast.hpp>
@@ -68,14 +70,41 @@ namespace rill
             }
 
 
-            auto ir_executor::convert_storage_to_generic_value(
-                void* const storage,
-                llvm::Type const* const to_type
-                ) -> llvm::GenericValue
+            auto ir_executor::eval_args(
+                ast::expression_list const& arguments,
+                const_environment_base_ptr const& parent_env,
+                llvm::Function const* const target_function
+                ) -> std::vector<llvm::GenericValue>
             {
-                llvm::GenericValue gv;
+                std::cout << "ababa => " << arguments.size() << std::endl;
+                std::vector<llvm::GenericValue> gvs;
+                auto const& function_type = target_function->getFunctionType();
+                std::size_t i = 0;
 
-                switch( to_type->getTypeID() ) {
+                for( auto&& argument : arguments ) {
+                    auto const& evaled_data = dispatch( argument, parent_env );
+                    gvs.push_back(
+                        convert_storage_to_generic_value(
+                            evaled_data,
+                            function_type->getParamType( i )
+                            )
+                        );
+
+                    ++i;
+                }
+
+                return gvs;
+            }
+
+
+            auto ir_executor::normalize_generic_value(
+                llvm::GenericValue const& gv,
+                llvm::Function const* const target_function
+                ) -> void*
+            {
+                auto const& function_type = target_function->getFunctionType();
+
+                switch( function_type->getReturnType()->getTypeID() ) {
 //                case llvm::Type::VoidTyID:
 //                    break;
 //
@@ -106,20 +135,8 @@ namespace rill
 //                case llvm::Type::X86_MMXTyID:
 //                    break;
 //
-                case llvm::Type::IntegerTyID:
-                    switch( to_type->getIntegerBitWidth() ) {
-                    case 32:
-                        gv.IntVal = llvm::APInt(
-                            32,
-                            *static_cast<std::int32_t const* const>( storage )
-                            );
-                        break;
-
-                    default:
-                        std::cout << "bitwidth: " << to_type->getIntegerBitWidth() << std::endl;
-                        assert( false && "[ice] bitwidth" );
-                    }
-                    break;
+//                case llvm::Type::IntegerTyID:
+//                    break;
 //
 //                case llvm::Type::FunctionTyID:
 //                    break;
@@ -130,44 +147,75 @@ namespace rill
 //                case llvm::Type::ArrayTyID:
 //                    break;
 //
-//                case llvm::Type::PointerTyID:
-//                    break;
+                case llvm::Type::PointerTyID:
+                    return gv.PointerVal;
 //
 //                case llvm::Type::VectorTyID:
 //                    break;
                 default:
                     assert( false && "[ice] type" );
+                    return nullptr;
                 }
-
-                return gv;
             }
 
 
-            auto ir_executor::eval_args(
-                ast::expression_list const& arguments,
-                const_environment_base_ptr const& parent_env,
-                llvm::Function const* const target_function
-                ) -> std::vector<llvm::GenericValue>
-            {
-                std::cout << "ababa => " << arguments.size() << std::endl;
-                std::vector<llvm::GenericValue> gvs;
-                auto const& function_type = target_function->getFunctionType();
-                std::size_t i = 0;
 
-                for( auto&& argument : arguments ) {
-                    auto const& evaled_data = dispatch( argument, parent_env );
-                    gvs.push_back(
-                        convert_storage_to_generic_value(
-                            evaled_data,
-                            function_type->getParamType( i )
-                            )
+
+
+            RILL_VISITOR_READONLY_OP( ir_executor, ast::call_expression, e, parent_env )
+{
+                std::cout << "CALL expr" << std::endl;
+
+                // ========================================
+                // look up self function
+                auto const f_env
+                    = std::static_pointer_cast<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( e ) );
+                assert( f_env != nullptr );
+
+
+                // ========================================
+                std::cout << "current : " << f_env->mangled_name() << std::endl;
+                llvm::Function* const callee_function
+                    = static_cast<llvm::Function*>(
+                        ir_generator_->function_env_to_llvm_constatnt_ptr( f_env )
                         );
 
-                    ++i;
+
+                auto const& total_args = [&]() -> std::vector<llvm::GenericValue> {
+                    if ( f_env->is_in_class() ) {
+                        // TODO: see llvm_ir_generator...
+                        assert( false && "[ice] not supported" );
+
+                    } else {
+                        return eval_args( e->arguments_, parent_env, callee_function );
+                    }
+                }();
+
+
+
+                // evaluate lhs(reciever)
+                // if reciever is exist, valid value and type will be stacked
+                dispatch( e->reciever_, parent_env );
+
+                // save the reciever object to the temprary space
+                if ( f_env->is_in_class() ) {
+                    assert( false );
                 }
 
-                return gvs;
+                callee_function->dump();
+
+
+                execution_engine_->addGlobalMapping(callee_function, reinterpret_cast<void*>( &rill_abababa ) );
+
+
+                // invocation
+                auto const& raw_result
+                    = execution_engine_->runFunction( callee_function, total_args );
+
+                return normalize_generic_value( raw_result, callee_function );
             }
+
+
 
 
             RILL_VISITOR_READONLY_OP( ir_executor, ast::binary_operator_expression, e, parent_env )
@@ -206,14 +254,6 @@ namespace rill
             }
 
 
-            auto convert_value_from_llvm_world_to_rill_world( llvm::Value* v )
-                -> void
-            {
-
-            }
-
-
-
             RILL_VISITOR_READONLY_OP( ir_executor, ast::type_expression, e, parent_env )
             {
                 return dispatch( e->type_, parent_env );
@@ -227,7 +267,7 @@ namespace rill
 
 
             // identifier node returns Variable
-            RILL_VISITOR_READONLY_OP( ir_executor, ast::identifier_value_base, v, parent_env )
+            RILL_VISITOR_READONLY_OP( ir_executor, ast::identifier_value, v, parent_env )
             {
                 //
                 std::cout << "ir sym solving: "

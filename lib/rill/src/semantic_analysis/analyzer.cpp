@@ -319,7 +319,7 @@ namespace rill
 
                 // eval expression of arguments
                 auto const& argument_evaled_value
-                    = ctfe_engine_->execute( expression, parent_env );
+                    = ctfe_engine_->execute_as_raw_storage( expression, parent_env );
                 assert( argument_evaled_value != nullptr );
 
                 //

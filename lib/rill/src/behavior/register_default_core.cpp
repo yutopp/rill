@@ -13,9 +13,7 @@
 #include <rill/behavior/intrinsic_function_holder.hpp>
 #include <rill/semantic_analysis/identifier_collector.hpp>
 
-#include <rill/ast/statement.hpp>
-#include <rill/ast/expression.hpp>
-#include <rill/ast/value.hpp>
+#include <rill/ast/ast.hpp>
 
 
 namespace rill
@@ -183,6 +181,12 @@ namespace rill
                             context->env_conversion_table.bind_type(
                                 root_env->lookup( ast::make_single_identifier( "bool" ) )->get_id(),
                                 llvm::Type::getInt1Ty( context->llvm_context )
+                                );
+
+                            // bind [ type -> i8*(pointer to type_detail) ]
+                            context->env_conversion_table.bind_type(
+                                root_env->lookup( ast::make_single_identifier( "type" ) )->get_id(),
+                                llvm::Type::getInt8Ty( context->llvm_context )->getPointerTo()
                                 );
 
                             return nullptr;

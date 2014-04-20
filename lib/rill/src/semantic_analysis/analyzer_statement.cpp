@@ -76,7 +76,7 @@ namespace rill
 
 
             std::cout << "!!! jit eval" << std::endl;
-            ctfe_engine_->execute( s->expression_, parent_env );
+            ctfe_engine_->execute_as_raw_storage( s->expression_, parent_env );
             std::cout << "~~~~~~~~~~~~" << std::endl;
 //            run_on_compile_time( parent_env, s->expression_ );
 

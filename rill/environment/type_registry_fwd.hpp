@@ -12,6 +12,7 @@
 #include <vector>
 #include <limits>
 
+#include "environment_fwd.hpp"
 #include "../attribute/type.hpp"
 
 
@@ -67,7 +68,7 @@ namespace rill
 
 
     typedef std::vector<type_id_t> type_id_list_t;
-    
+
 
     // type is composed to Class and Attributs
 

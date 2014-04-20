@@ -17,6 +17,8 @@
 //#include <boost/pool/object_pool.hpp>
 #include "work_around_object_pool.hpp"
 
+#include "../environment/type_registry_fwd.hpp"
+
 #include "../ast/value_fwd.hpp"
 #include "../ast/expression_fwd.hpp"
 #include "../attribute/type.hpp"

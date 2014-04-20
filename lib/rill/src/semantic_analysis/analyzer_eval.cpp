@@ -47,7 +47,8 @@ namespace rill
             assert( c_env != nullptr );
 
             // eval expression of arguments
-            auto evaled_value = ctfe_engine_->execute( expression, parent_env );
+            auto evaled_value
+                = ctfe_engine_->execute_as_raw_storage( expression, parent_env );
             assert( evaled_value != nullptr );
 
             return std::forward_as_tuple(

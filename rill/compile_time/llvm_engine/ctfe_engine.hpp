@@ -10,6 +10,7 @@
 #define RILL_COMPILE_TIME_LLVM_ENGINE_CTFE_ENGINE_HPP
 
 #include "ir_executor.hpp"
+#include "value_converter.hpp"
 
 
 namespace rill
@@ -33,10 +34,17 @@ namespace rill
 
             public:
                 template<typename... Args>
-                auto execute( Args&&... args )
+                auto execute_as_raw_storage( Args&&... args )
                     -> decltype( std::declval<ir_executor>().dispatch( std::forward<Args>( args )... ) )
                 {
                     return executor_.dispatch( std::forward<Args>( args )... );
+                }
+
+                template<typename... Args>
+                auto execute_as_llvm_value( Args&&... args )
+                    -> llvm::Value*
+                {
+                    return execute_as_raw_storage( std::forward<Args>( args )... );
                 }
 
             public:
@@ -106,6 +114,10 @@ namespace rill
                     std::cerr << "failed to create JIT engine. " << jit_engine_error_log << std::endl;
                     assert( false );
                 }
+
+                //
+                engine->DisableSymbolSearching();
+
 
                 return std::make_shared<ctfe_engine>( env, ir_generator, engine, type_detail_pool );
             }
