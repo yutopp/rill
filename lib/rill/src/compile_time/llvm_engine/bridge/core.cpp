@@ -22,18 +22,45 @@ namespace rill
                 { "rill_abababa", reinterpret_cast<void*>( &rill_abababa ) }
             };
 
+            static jit_execution_environmant gje;
+
+            auto set_global_jit_execution_environment(
+                jit_execution_environmant const& je
+                )
+                -> void
+            {
+                gje = je;
+            }
+
+            auto clear_global_jit_execution_environment()
+                -> void
+            {
+                gje = jit_execution_environmant{
+                    nullptr
+                };
+            }
+
         } // namespace llvm_engine
     } // namespace compile_time
 } // namespace rill
 
 
 extern "C" {
+    namespace le = rill::compile_time::llvm_engine;
+
     auto rill_abababa( rill::semantic_analysis::type_detail_ptr ty_detail )
         -> rill::semantic_analysis::type_detail_ptr
     {
-        std::cout << "feife~~i" << std::endl;
+        std::cout << "oioio ~~~ i" << std::endl;
         std::cout << "jit function call!" << std::endl;
 
-        return ty_detail;
+        //
+        rill::type t = le::gje.semantic_analyzer->ref_type( ty_detail );
+        t.attributes <<= rill::attribute::modifiability_kind::k_mutable;
+
+        return le::gje.semantic_analyzer->qualify_type(
+            ty_detail,
+            t.attributes
+            );
     }
 }

@@ -84,11 +84,7 @@ namespace rill
         auto inline make_default_type_attributes()
             -> type_attributes
         {
-            // FIXME
-            // currentry, default MUTABLE
-            // TODO: default is IMmutable
-            // return { quality_kind::k_val, modifiability_kind::k_immutable };
-            return { quality_kind::k_val, modifiability_kind::k_mutable };
+            return { quality_kind::k_val, modifiability_kind::k_immutable };
         }
 
         template<typename... Args>

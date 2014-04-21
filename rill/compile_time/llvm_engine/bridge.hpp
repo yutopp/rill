@@ -12,6 +12,7 @@
 #include <unordered_map>
 #include <string>
 
+#include "../../semantic_analysis/analyzer_fwd.hpp"
 #include "../../semantic_analysis/type_detail.hpp"
 
 
@@ -22,6 +23,21 @@ namespace rill
         namespace llvm_engine
         {
             extern std::unordered_map<std::string, void*> const ctfe_intrinsic_function_table;
+
+            //
+            struct jit_execution_environmant
+            {
+                semantic_analysis::analyzer* semantic_analyzer;
+            };
+
+            //
+            auto set_global_jit_execution_environment(
+                jit_execution_environmant const&
+                )
+                -> void;
+
+            auto clear_global_jit_execution_environment()
+                -> void;
 
         } // namespace llvm_engine
     } // namespace compile_time

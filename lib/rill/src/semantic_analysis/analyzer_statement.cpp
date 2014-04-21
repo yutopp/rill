@@ -152,6 +152,37 @@ namespace rill
                         auto attr = ty.attributes;
                         attr <<= val_decl.quality;
 
+                        std::cout << "Attr:! " << std::endl;
+                        switch( attr.quality ) {
+                        case attribute::quality_kind::k_suggest:
+                            std::cout << "k_suggest" << std::endl;
+                            break;
+
+                        case attribute::quality_kind::k_val:
+                            std::cout << "k_val" << std::endl;
+                            break;
+
+                        case attribute::quality_kind::k_ref:
+                            std::cout << "k_ref" << std::endl;
+                            break;
+                        }
+
+                        switch( attr.modifiability ) {
+                        case attribute::modifiability_kind::k_mutable:
+                            std::cout << "k_mutable" << std::endl;
+                            break;
+
+                        case attribute::modifiability_kind::k_const:
+                            std::cout << "k_const" << std::endl;
+                            break;
+
+                        case attribute::modifiability_kind::k_immutable:
+                            std::cout << "k_immutable" << std::endl;
+                            break;
+                        }
+
+
+
                         // TODO: type check with "iv_type_id_and_env"
 
                         // definition...

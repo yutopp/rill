@@ -11,6 +11,9 @@
 
 #include "ir_executor.hpp"
 #include "value_converter.hpp"
+#include "bridge.hpp"
+
+#include "../../semantic_analysis/analyzer_fwd.hpp"
 
 
 namespace rill
@@ -27,10 +30,22 @@ namespace rill
                     const_environment_base_ptr const& root_env,
                     std::shared_ptr<code_generator::llvm_ir_generator> const& gen,
                     std::shared_ptr<llvm::ExecutionEngine> const& llvm_engine,
-                    std::shared_ptr<semantic_analysis::type_detail_pool_t> const& type_pool
+                    std::shared_ptr<semantic_analysis::type_detail_pool_t> const& type_pool,
+                    semantic_analysis::analyzer* const sa
                     )
                     : executor_( root_env, gen, llvm_engine, type_pool )
-                {}
+                {
+                    jit_execution_environmant const je = {
+                        sa
+                    };
+
+                    set_global_jit_execution_environment( je );
+                }
+
+                ~ctfe_engine()
+                {
+                    clear_global_jit_execution_environment();
+                }
 
             public:
                 template<typename... Args>
@@ -123,7 +138,13 @@ namespace rill
                 engine->DisableSymbolSearching();
 
 
-                return std::make_shared<ctfe_engine>( env, ir_generator, engine, type_detail_pool );
+                return std::make_shared<ctfe_engine>(
+                    env,
+                    ir_generator,
+                    engine,
+                    type_detail_pool,
+                    analyzer_visitor
+                    );
             }
 
         } // namespace llvm_engine

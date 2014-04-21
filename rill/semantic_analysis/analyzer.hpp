@@ -15,7 +15,6 @@
 #include "../environment/environment_base.hpp"
 #include "../behavior/intrinsic_function_holder_fwd.hpp"
 
-#include "../code_generator/llvm_ir_generator_fwd.hpp"
 #include "../compile_time/llvm_engine/ctfe_engine.hpp"
 
 #include "type_detail.hpp"
@@ -73,6 +72,7 @@ namespace rill
 
             RILL_VISITOR_OP_FAIL
 
+        public:
             //
             // friends
             //
@@ -131,6 +131,14 @@ namespace rill
                 ) -> function_symbol_environment_ptr;
 
 
+            auto ref_type(
+                type_detail_ptr const& ty_detail
+                ) const -> type const&;
+
+            auto qualify_type(
+                type_detail_ptr const& ty_detail,
+                attribute::type_attributes const& type_attr
+                ) -> type_detail_ptr;
 
         private:
             template<typename AstPtr>

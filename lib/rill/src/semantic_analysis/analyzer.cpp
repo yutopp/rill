@@ -29,6 +29,37 @@ namespace rill
 
 
 
+        auto analyzer::ref_type(
+            type_detail_ptr const& ty_detail
+            ) const -> type const&
+        {
+            return root_env_->get_type_at( ty_detail->type_id );
+        }
+
+
+        auto analyzer::qualify_type(
+            type_detail_ptr const& ty_detail,
+            attribute::type_attributes const& type_attr
+            ) -> type_detail_ptr
+        {
+            // TODO: add duplicate check
+            auto const& t = ref_type( ty_detail );
+
+            auto const& qualified_type_id
+                = root_env_->make_type_id(
+                    t.class_env_id,
+                    type_attr
+                    );
+
+            return type_detail_pool_->construct(
+                qualified_type_id,
+                ty_detail->target_env,
+                ty_detail->nest,
+                ty_detail->template_args
+                );
+        }
+
+
         //
         auto analyzer::tp(
             ast::parameter_list const& template_parameter_list,
