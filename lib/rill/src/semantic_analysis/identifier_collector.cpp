@@ -57,13 +57,18 @@ namespace rill
 
             if ( s->is_templated() ) {
                 // TODO: add symbol type duplicate check
-                std::static_pointer_cast<template_set_environment>( env )->set_inner_env_symbol_kind(
-                    kind::type_value::e_function
-                    );
+                auto&& set_env = cast_to<multiple_set_environment>( env );
+                assert( set_env != nullptr );
+
+                set_env->set_inner_env_symbol_kind( kind::type_value::e_function );
 
             } else {
                 // add function symbol to current environment
-                env->mark_as( kind::k_function, s->get_identifier(), s );
+                RILL_PP_TIE(
+                    set_environment, f_env,
+                    env->mark_as( kind::k_function, s->get_identifier(), s )
+                    );
+                set_environment->add_to_normal_environments( f_env );
             }
         }
 
@@ -90,7 +95,11 @@ namespace rill
 
             } else {
                 // add function symbol to current environment
-                env->mark_as( kind::k_function, s->get_identifier(), s );
+                RILL_PP_TIE(
+                    set_environment, f_env,
+                    env->mark_as( kind::k_function, s->get_identifier(), s )
+                    );
+                set_environment->add_to_normal_environments( f_env );
             }
         }
 
@@ -103,9 +112,9 @@ namespace rill
 
             if ( s->is_templated() ) {
                 // TODO: add symbol type duplicate check
-                std::static_pointer_cast<template_set_environment>( env )->set_inner_env_symbol_kind(
+                /*std::static_pointer_cast<template_set_environment>( env )->set_inner_env_symbol_kind(
                     kind::type_value::e_class
-                    );
+                    );*/
 
             } else {
                 if ( is_builtin() ) {
@@ -114,9 +123,13 @@ namespace rill
 
                 } else {
                     // add class symbol to current environment
-                    auto c_env = env->mark_as( kind::k_class, s->get_identifier(), s );
+                    RILL_PP_TIE(
+                        set_environment, c_env,
+                        env->mark_as( kind::k_class, s->get_identifier(), s )
+                        );
+                    set_environment->add_to_normal_environments( c_env );
 
-                    // build environment
+                    // build inner environment
                     dispatch( s->inner_, c_env );
                 }
             }
@@ -163,33 +176,17 @@ namespace rill
         //
         RILL_VISITOR_OP( identifier_collector, ast::template_statement, s, parent_env ) const
         {
-            // mark AST as templated
+            // mark inner AST node as templated
             s->get_inner_statement()->mark_as_template();
 
-            //
-            auto const& template_env_pair
-                = parent_env->mark_as( kind::k_template, s->get_identifier(), s );
-
-            // unlike the has_parameter_environment, template_set cannot determine the inner environment type of template
-            auto& template_set_env = template_env_pair.first;
-            auto& template_env = template_env_pair.second;
+            // make template envitonment with linking to this AST node
+            RILL_PP_TIE( set_env, template_env, parent_env->mark_as( kind::k_template, s->get_identifier(), s ) );
 
             //
-            auto const& template_parameter_num
-                = s->parameter_list_.size();
-            template_env->set_parameter_num( template_parameter_num );
-
-            // TODO: link template variables to this env
-            //template_env
-
-            // save with argument length
-            // if Variaic templates, use template_environment::variadic_length
-            // TODO: support variadic templates
-            // FIXME: currently preset as 1 length
-            template_set_env->add_candidate( template_env );
+            set_env->add_to_template_environments( template_env );
 
             // delegate inner statement...
-            dispatch( s->get_inner_statement(), template_set_env );
+            dispatch( s->get_inner_statement(), set_env );
         }
 
     } // namespace semantic_analysis

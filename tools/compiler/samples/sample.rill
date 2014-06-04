@@ -15,7 +15,7 @@ def test_while(): void
     print( "test_while\n" );
     print( "====================\n" );
 
-    val i = 0: int mutable;
+    val i = 0: mutable(int);
     while( i < 10 ) {
         print_int( i );
         i = i + 1;
@@ -28,7 +28,7 @@ def test_while_if(): void
     print( "test_while_if\n" );
     print( "====================\n" );
 
-    val i = 0: int mutable;
+    val i = 0: mutable(int);
     while( i < 10 ) {
         if ( 5 < i ) {
             print( "i > 5" );
@@ -55,7 +55,7 @@ def test_scope(): void
     print( "test_scope\n" );
     print( "====================\n" );
 
-    val i = 42: int mutable;
+    val i = 42: mutable(int);
     {
         val i = 72: int;
         print( "inner: " ); extern_print_int( i ); print( "\n" );
@@ -73,7 +73,7 @@ def test1(): void
     print( "\n" );
 }
 
-extern def extern_print_int( val :int ): void "put_string2"; 
+extern def extern_print_int( val :int ): void "put_string2";
 
 def print_int( val i: int ): int
 {
@@ -102,3 +102,5 @@ def foo(
 
 // comment
 ;/*empty statment*/;;;
+
+extern def mutable( val a :type ): type "rill_abababa";

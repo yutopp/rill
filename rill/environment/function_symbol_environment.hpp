@@ -24,20 +24,20 @@
 
 #include "../config/macros.hpp"
 
-#include "single_identifier_environment_base.hpp"
-#include "has_parameter_environment.hpp"
+#include "environment_base.hpp"
 
 
 namespace rill
 {
     //
-    // function
+    // environments for normal function
+    // per a function
     //
     class function_symbol_environment RILL_CXX11_FINAL
-        : public single_identifier_environment_base
+        : public environment_base
     {
     public:
-        static kind::type_value const KindValue = kind::type_value::e_function;
+        static kind::type_value const KindValue;
 
         // TODO: rename
         enum attr : int {
@@ -48,11 +48,16 @@ namespace rill
 
     public:
         // pre construct
-        function_symbol_environment( environment_parameter_t&& pp, environment_id_t const& parameter_wrapper_env_id )
-            : single_identifier_environment_base( std::move( pp ) )
+        function_symbol_environment(
+            environment_parameter_t&& pp,
+            environment_id_t const& parameter_wrapper_env_id,
+            native_string_type const& base_name
+            )
+            : environment_base( std::move( pp ) )
             , parameter_wrapper_env_id_( parameter_wrapper_env_id )
             , parent_class_env_id_( environment_id_undefined )
             , return_type_id_( type_id_undefined )
+            , base_name_( base_name )
             , attributes_( e_normal )
         {}
 
@@ -66,9 +71,11 @@ namespace rill
 
 
         auto get_parameter_wrapper_env()
-            -> std::shared_ptr<has_parameter_environment<function_symbol_environment>>
+            -> multiple_set_environment_ptr
         {
-            return std::static_pointer_cast<has_parameter_environment<function_symbol_environment>>( get_env_at( parameter_wrapper_env_id_ ).lock() );
+            return cast_to<multiple_set_environment>(
+                get_env_at_as_strong_ref( parameter_wrapper_env_id_ )
+                );
         }
 
         auto get_parameter_decl_ids() const
@@ -87,15 +94,13 @@ namespace rill
 
         auto complete(
             type_id_t const& return_type_id,
-            native_string_type const& base_name,
-            native_string_type const& qualified_name = "",
+            native_string_type const& mangled_name,
             attributes_t const& attrbute = attr::e_normal
             )
             -> void
         {
             return_type_id_ = return_type_id;
-            base_name_ = base_name;
-            qualified_name_ = qualified_name;
+            mangled_name_ = mangled_name;
             attributes_ = attrbute;
 
             change_progress_to_completed();
@@ -123,7 +128,7 @@ namespace rill
             -> std::ostream& RILL_CXX11_OVERRIDE
         {
             os  << indent << "function_symbol_environment[ "
-                << base_name_ << " : " << qualified_name_ << " ]" << std::endl;
+                << base_name_ << " : " << mangled_name_ << " ]" << std::endl;
             return dump_include_env( os, indent );
         }
 
@@ -141,13 +146,22 @@ namespace rill
             )
             -> variable_symbol_environment_ptr;
 
-        auto mangled_name() const
-            -> native_string_type;
+        auto get_base_name() const
+            -> native_string_type const&
+        {
+            return base_name_;
+        }
+
+        auto get_mangled_name() const
+            -> native_string_type const&
+        {
+            return mangled_name_;
+        }
 
         auto unique_key_for_overload() const
             ->  native_string_type
         {
-            return mangled_name();
+            return mangled_name_;
         }
 
         bool is_return_type_completed() const
@@ -189,7 +203,7 @@ namespace rill
 
         type_id_list_t return_type_candidates_;
 
-        native_string_type base_name_, qualified_name_;
+        native_string_type base_name_, mangled_name_;
         attributes_t attributes_;
     };
 

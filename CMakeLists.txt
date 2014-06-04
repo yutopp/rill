@@ -24,6 +24,8 @@ elseif( CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   message( STATUS "config for gnu." )
   add_definitions(
     -std=c++11
+    -Wall
+    -fdiagnostics-color=always
     )
 
 else()
@@ -198,7 +200,7 @@ foreach( l ${LLVM_LIBS} ${LLVM_SYS_LIBS} )
   list( APPEND REQ_LLVM_LIBRARIES ${lib_name} )
 endforeach(l)
 
-# the LLMV's "target_link_libraries" is specified at lib/rill/CMakeLists.txt
+# the LLVM's "target_link_libraries" is specified at lib/rill/CMakeLists.txt
 
 
 ############################################################
@@ -216,3 +218,8 @@ add_subdirectory( ${PROJECT_SOURCE_DIR}/tools )
 
 # librill-rt(rill runtime)
 add_subdirectory( ${PROJECT_SOURCE_DIR}/rill-rt )
+
+# test cases
+if( RUN_TEST )
+  add_subdirectory( ${PROJECT_SOURCE_DIR}/test )
+endif()

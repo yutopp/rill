@@ -18,6 +18,8 @@
 #include <llvm/IR/Module.h>
 #include <llvm/IR/DerivedTypes.h>
 
+#include "../environment/class_symbol_environment.hpp"
+
 
 namespace rill
 {
@@ -32,48 +34,48 @@ namespace rill
             //
             auto bind_value( environment_id_t const& env_id, llvm::Value* const value, bool const is_alloca_inst = false )
                 -> void
-                {
-                    // TODO: dup check
-                    value_table_.emplace( env_id, value );
-                    require_load_inst_[env_id] = is_alloca_inst;
-                }
+            {
+                // TODO: dup check
+                value_table_.emplace( env_id, value );
+                require_load_inst_[env_id] = is_alloca_inst;
+            }
 
             //
             auto bind_value( environment_id_t const& env_id, llvm::AllocaInst* const alloca_inst )
                 -> void
-                {
-                    bind_value( env_id, static_cast<llvm::Value*>( alloca_inst ), true );
+            {
+                bind_value( env_id, static_cast<llvm::Value*>( alloca_inst ), true );
 //                    require_load_inst_[env_id] = true;
-                }
+            }
 
 
             auto ref_value( environment_id_t const& env_id ) const
                 -> llvm::Value*
-                {
-                    return value_table_.at( env_id );
-                }
+            {
+                return value_table_.at( env_id );
+            }
 
             auto is_alloca_inst( environment_id_t const& env_id ) const
                 -> bool
-                {
-                    return require_load_inst_.at( env_id );
-                }
+            {
+                return require_load_inst_.at( env_id );
+            }
 
             //
             // Types
             //
-            auto bind_type( environment_id_t const& env_id, llvm::Type* const type )
+            auto bind_type( const_class_symbol_environment_ptr const& class_env, llvm::Type* const type )
                 -> void
-                {
-                    // TODO: dup check
-                    type_table_.emplace( env_id, type );
-                }
+            {
+                // TODO: dup check
+                type_table_.emplace( class_env->get_id(), type );
+            }
 
             auto ref_type( environment_id_t const& env_id ) const
                 -> llvm::Type*
-                {
-                    return type_table_.at( env_id );
-                }
+            {
+                return type_table_.at( env_id );
+            }
 
 
             //
@@ -81,16 +83,16 @@ namespace rill
             //
             auto bind_function_type( environment_id_t const& env_id, llvm::FunctionType* const f_type )
                 -> void
-                {
-                    // TODO: dup check
-                    function_type_table_.emplace( env_id, f_type );
-                }
+            {
+                // TODO: dup check
+                function_type_table_.emplace( env_id, f_type );
+            }
 
             auto ref_function_type( environment_id_t const& env_id ) const
                 -> llvm::FunctionType*
-                {
-                    return function_type_table_.at( env_id );
-                }
+            {
+                return function_type_table_.at( env_id );
+            }
 
 
             // Classes
@@ -133,11 +135,11 @@ namespace rill
                 return table.type_index.at( variable_env_id );
             }
 /*
-            auto ref_function_type( environment_id_t const& env_id ) const
-                -> llvm::FunctionType*
-                {
-                    return function_type_table_.at( env_id );
-                }
+  auto ref_function_type( environment_id_t const& env_id ) const
+  -> llvm::FunctionType*
+  {
+  return function_type_table_.at( env_id );
+  }
 */
 
             //

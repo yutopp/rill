@@ -39,70 +39,15 @@ namespace rill
 
 
 
-//
-    auto single_identifier_environment_base::find_on_env( ast::const_identifier_value_base_ptr const& name )
-        -> env_base_pointer
-    {
-        if ( name->is_template() ) {
-            auto const it = template_env_.find( name->get_inner_symbol()->to_native_string() );
-            return ( it != template_env_.end() ) ? it->second : nullptr;
-        } else {
-            auto const it = nontemplate_env_.find( name->get_inner_symbol()->to_native_string() );
-            return ( it != nontemplate_env_.end() ) ? it->second : nullptr;
-        }
-    }
-
-    auto single_identifier_environment_base::find_on_env( ast::const_identifier_value_base_ptr const& name ) const
-        -> const_env_base_pointer
-    {
-        if ( name->is_template() ) {
-            auto const it = template_env_.find( name->get_inner_symbol()->to_native_string() );
-            return ( it != template_env_.end() ) ? it->second : nullptr;
-        } else {
-            auto const it = nontemplate_env_.find( name->get_inner_symbol()->to_native_string() );
-            return ( it != nontemplate_env_.end() ) ? it->second : nullptr;
-        }
-    }
-
-
-    auto single_identifier_environment_base::lookup( ast::const_identifier_value_base_ptr const& name )
-        -> env_base_pointer
-    {
-        auto const s = find_on_env( name );
-
-        return s
-            ? s
-            : is_root()
-                ? nullptr   // Not found...
-                : get_parent_env()->lookup( name )
-            ;
-    }
-
-    auto single_identifier_environment_base::lookup( ast::const_identifier_value_base_ptr const& name ) const
-        -> const_env_base_pointer
-    {
-        auto const s = find_on_env( name );
-  
-        return s
-            ? s
-            : is_root()
-                ? nullptr
-                : get_parent_env()->lookup( name )
-            ;
-    }
 
 
 
 
 
-    auto function_symbol_environment::mangled_name() const
-        -> native_string_type
-    {
-        // TODO: call parent mangled_name()
 
-        return base_name_ + qualified_name_ + make_parameter_hash( this, parameter_type_ids_ );
-//        return name_ + make_parameter_hash( parameter_type_ids_ );
-    }
+
+
+
 
 
 

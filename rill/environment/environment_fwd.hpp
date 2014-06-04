@@ -16,6 +16,8 @@
 
 #include <boost/strong_typedef.hpp>
 
+#include "../config/macros.hpp"
+
 
 namespace rill
 {
@@ -48,7 +50,10 @@ namespace rill
         std::shared_ptr<std::size_t> next_child_env_order;
     };
 
-
+    //
+    class multiple_set_environment;
+    typedef std::shared_ptr<multiple_set_environment> multiple_set_environment_ptr;
+    typedef std::shared_ptr<multiple_set_environment const> const_multiple_set_environment_ptr;
 
 
 

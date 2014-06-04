@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "single_identifier_environment_base.hpp"
+#include "environment_base.hpp"
 
 
 namespace rill
@@ -17,11 +17,11 @@ namespace rill
     // for root
     //
     class root_environment RILL_CXX11_FINAL
-        : public single_identifier_environment_base
+        : public environment_base
     {
     public:
         root_environment()
-            : single_identifier_environment_base( root_initialize_tag() )
+            : environment_base( root_initialize_tag() )
         {}
 
     private:

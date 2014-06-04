@@ -40,5 +40,7 @@
             )                                           \
         )
 
-#endif /*RILL_UTILITY_TIE_HPP*/
+// Usage:
+// RILL_PP_TIE( a, b, ..., tupled_value )
 
+#endif /*RILL_UTILITY_TIE_HPP*/

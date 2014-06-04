@@ -24,6 +24,7 @@
 //#include <boost/optional.hpp>
 
 #include "../config/macros.hpp"
+#include "../utility/tie.hpp"
 
 #include "environment_fwd.hpp"
 #include "environment_kind.hpp"
@@ -40,35 +41,15 @@
 
 namespace rill
 {
-    typedef unsigned int    symbol_types_mask_t;
-    enum struct symbol_types : symbol_types_mask_t
+    //
+    enum class environment_process_progress_t
     {
-        root_c = ( 1u << 0 )
+        constructed,
+        checked,
+        completed
     };
 
 
-
-
-
-
-
-
-
-
-    enum struct error_code
-    {
-    };
-
-
-
-
-
-    enum struct typed_process
-    {
-        untyped,
-        processing,
-        typed
-    };
 
 
     struct debug_allocate_counter
@@ -99,13 +80,31 @@ namespace rill
     };
 
 
+    template<typename To, typename Env>
+    inline auto cast_to( std::shared_ptr<Env> const& p )
+        -> std::shared_ptr<To>
+    {
+        return std::static_pointer_cast<To>(
+            p->checked_instance( To::KindValue )
+            );
+    }
+
+    template<typename To, typename Env>
+    inline auto cast_to( std::shared_ptr<Env const> const& p )
+        -> std::shared_ptr<To const>
+    {
+        return std::static_pointer_cast<To const>(
+            p->checked_instance( To::KindValue )
+            );
+    }
 
 
+    //
     struct root_initialize_tag {};
 
 
 
-
+    //
     class environment_base
         : public std::enable_shared_from_this<environment_base>
     {
@@ -124,9 +123,10 @@ namespace rill
         // construct as ROOT environment
         environment_base( root_initialize_tag )
             : id_( environment_id_undefined )
+            , root_shared_resource_( std::make_shared<environment_shared_resource<env_type>>() )
+            , progress_( environment_process_progress_t::constructed )
             , forward_referenceable_( true )
             , decl_order_( 0 )
-            , root_shared_resource_( std::make_shared<environment_shared_resource<env_type>>() )
             , do_mark_child_env_as_forward_referenceable_( true )
             , next_child_env_order_( nullptr )
         {
@@ -141,9 +141,10 @@ namespace rill
             )
             : id_( ep.id )
             , parent_( ep.parent )
+            , root_shared_resource_( ep.parent.lock()->root_shared_resource_ )
+            , progress_( environment_process_progress_t::constructed )
             , forward_referenceable_( ep.forward_referenceable )
             , decl_order_( ep.decl_order )
-            , root_shared_resource_( ep.parent.lock()->root_shared_resource_ )
             , do_mark_child_env_as_forward_referenceable_( ep.do_mark_child_env_as_forward_referenceable )
             , next_child_env_order_( ep.next_child_env_order )
         {
@@ -156,21 +157,21 @@ namespace rill
         {
             --root_shared_resource_->debug_allocate_counter_.value;
 
-            std::cout << "<< environment DEallocated: " << id_ << " ( "  << root_shared_resource_->debug_allocate_counter_.value <<" ) " << typeid( *this).name() << std::endl;
+            std::cout << "<< environment DEallocated: " << id_ << " ( "  << root_shared_resource_->debug_allocate_counter_.value <<" ) " << typeid(*this).name() << std::endl;
         }
 
     public:
         //
         virtual auto lookup( ast::const_identifier_value_base_ptr const& name )
-            -> env_base_pointer =0;
+            -> env_base_pointer;
         virtual auto lookup( ast::const_identifier_value_base_ptr const& name ) const
-            -> const_env_base_pointer =0;
+            -> const_env_base_pointer;
 
         //
         virtual auto find_on_env( ast::const_identifier_value_base_ptr const& name )
-            -> env_base_pointer =0;
+            -> env_base_pointer;
         virtual auto find_on_env( ast::const_identifier_value_base_ptr const& name ) const
-            -> const_env_base_pointer =0;
+            -> const_env_base_pointer;
 
 
         // support functions, search identifier from native_string as NON templated
@@ -354,6 +355,31 @@ namespace rill
         }
 
 
+        inline auto get_env_at_as_strong_ref( environment_id_t const& id )
+            -> env_base_pointer
+        {
+            return get_env_at( id ).lock();
+        }
+        inline auto get_env_at_as_strong_ref( environment_id_t const& id ) const
+            -> const_env_base_pointer
+        {
+            return get_env_at( id ).lock();
+        }
+
+        template<typename T>
+        auto get_env_at_as_strong_ref( environment_id_t const& id )
+            -> std::shared_ptr<T>
+        {
+            return cast_to<T>( get_env_at_as_strong_ref( id ) );
+        }
+        template<typename T>
+        auto get_env_at_as_strong_ref( environment_id_t const& id ) const
+            -> std::shared_ptr<T const>
+        {
+            return cast_to<T const>( get_env_at_as_strong_ref( id ) );
+        }
+
+
         auto get_env_strong_at( environment_id_t const& id )
             -> env_base_pointer
         {
@@ -389,99 +415,113 @@ namespace rill
         //
         //
         auto mark_as(
+            kind::template_tag,
+            ast::identifier_value_base_ptr const&,
+            ast::statement_ptr const&
+            )
+            -> std::pair<multiple_set_environment_ptr, template_environment_ptr>;
+
+        auto mark_as(
             kind::function_tag,
             ast::identifier_value_base_ptr const&,
             ast::statement_ptr const&
-            ) -> std::pair<
-                     std::shared_ptr<has_parameter_environment<function_symbol_environment>>,
-                     function_symbol_environment_ptr
-                 >;
-
-        auto mark_as(
-            kind::variable_tag,
-            ast::identifier_value_base_ptr const&,
-            ast::statement_ptr const&
-            ) -> variable_symbol_environment_ptr;
+            )
+            -> std::pair<multiple_set_environment_ptr, function_symbol_environment_ptr>;
 
         auto mark_as(
             kind::class_tag,
             ast::identifier_value_base_ptr const&,
             ast::statement_ptr const&
-            ) -> class_symbol_environment_ptr;
+            )
+            -> std::pair<multiple_set_environment_ptr, class_symbol_environment_ptr>;
 
         auto mark_as(
-            kind::template_tag,
+            kind::variable_tag,
             ast::identifier_value_base_ptr const&,
             ast::statement_ptr const&
-            ) -> std::pair<
-                     template_set_environment_ptr,
-                     template_environment_ptr
-                 >;
+            )
+            -> variable_symbol_environment_ptr;
+
 
         //
         // incomplete_construct
         //
-        virtual auto incomplete_construct(
-            kind::function_tag,
-            ast::identifier_value_base_ptr const&
-            ) -> std::pair<
-                     std::shared_ptr<has_parameter_environment<function_symbol_environment>>,
-                     function_symbol_environment_ptr
-                 >
-        { assert( false ); return std::make_pair( nullptr, nullptr ); }
-
-        virtual auto incomplete_construct(
-            kind::variable_tag,
-            ast::identifier_value_base_ptr const&
-            ) -> variable_symbol_environment_ptr
-        { assert( false ); return nullptr; }
-
-        virtual auto incomplete_construct(
-            kind::class_tag,
-            ast::identifier_value_base_ptr const&
-            ) -> class_symbol_environment_ptr
-        { assert( false ); return nullptr; }
-
-        virtual auto incomplete_construct(
+        // "incomplete_construct" contructs an environment that is incomplete.
+        // incomplete means this environment is in making phase
+        //
+        auto incomplete_construct(
             kind::template_tag,
             ast::identifier_value_base_ptr const&
-            ) -> std::pair<
-                     template_set_environment_ptr,
-                     template_environment_ptr
-                 >
-        { assert( false ); return std::make_pair( nullptr, nullptr ); }
+            )
+            -> std::pair<multiple_set_environment_ptr, template_environment_ptr>;
+
+        auto incomplete_construct(
+            kind::function_tag,
+            ast::identifier_value_base_ptr const&
+            )
+            -> std::pair<multiple_set_environment_ptr, function_symbol_environment_ptr>;
+
+        auto incomplete_construct(
+            kind::class_tag,
+            ast::identifier_value_base_ptr const&
+            )
+            -> std::pair<multiple_set_environment_ptr, class_symbol_environment_ptr>;
+
+        auto incomplete_construct(
+            kind::variable_tag,
+            ast::identifier_value_base_ptr const&
+            )
+            -> variable_symbol_environment_ptr;
+
+
 
         //
         // incomplete_construct
         //
         typedef std::function<function_symbol_environment_ptr (function_symbol_environment_ptr const&)> function_env_generator_scope_type;
-        virtual auto construct(
+        auto construct(
             kind::function_tag,
             ast::identifier_value_base_ptr const&,
             ast::statement_ptr const&,
             function_env_generator_scope_type const&,
             class_symbol_environment_ptr const&,
             attribute::type_attributes const& = attribute::make_default_type_attributes()
-            ) -> function_symbol_environment_ptr { assert( false ); return nullptr; }
+            ) -> function_symbol_environment_ptr;
 
-        virtual auto construct(
+        auto construct(
             kind::variable_tag,
             ast::identifier_value_base_ptr const&,
             ast::statement_ptr const&,
             const_class_symbol_environment_ptr const&,
             attribute::type_attributes const& = attribute::make_default_type_attributes()
-            ) -> variable_symbol_environment_ptr { assert( false ); return nullptr; }
+            ) -> variable_symbol_environment_ptr;
 
-        virtual auto construct(
+        auto construct(
             kind::class_tag,
             ast::identifier_value_base_ptr const&,
             ast::statement_ptr const&
-            ) -> class_symbol_environment_ptr { assert( false ); return nullptr; }
+            ) -> class_symbol_environment_ptr;
+
+    public:
+        virtual auto checked_instance( kind::type_value const& e )
+            -> env_base_pointer
+        {
+            if ( get_symbol_kind() != e ) return nullptr;
+
+            return shared_from_this();
+        }
+
+        virtual auto checked_instance( kind::type_value const& e ) const
+            -> const_env_base_pointer
+        {
+            if ( get_symbol_kind() != e ) return nullptr;
+
+            return shared_from_this();
+        }
 
 
 
-
-        //
+    public:
         //
         //
         template<typename AstPtr>
@@ -550,19 +590,38 @@ namespace rill
         ///
         ///
         ///
-        virtual auto dump( std::ostream& os, std::string const& indent ) const -> std::ostream& { return os; }
+        virtual auto dump( std::ostream& os, std::string const& indent ) const
+            -> std::ostream&
+        { return os; }
 
+        auto dump_include_env( std::ostream& os, std::string const& indent ) const
+            -> std::ostream&
+        {
+            os << indent << "==" << std::endl;
+            for( auto&& ins : inner_envs_ ) {
+                auto const& key = ins.first;
+                auto const& env = ins.second;
+
+                auto const& ast = env->get_related_ast();
+
+                os << indent
+                   << "-> symbol_name: " << key
+                   << " / id: " << env->get_id()
+                   << " / linked_astptr: " << ast.get()
+                   << " / symbol kind: " << debug_string( env->get_symbol_kind() ) << std::endl;
+            }
+
+            return os;
+        }
 
 
 
         //
         //
         //
-        template<typename ClassEnvPtrOrId>
         auto make_type_id(
-            ClassEnvPtrOrId const& e,
-            attribute::type_attributes const& type_attr
-                = attribute::make_default_type_attributes()
+            const_class_symbol_environment_ptr const& e,
+            attribute::type_attributes const& type_attr = attribute::make_default_type_attributes()
             ) const
             -> shared_resource_type::type_registry_type::type_id_type
         {
@@ -596,15 +655,78 @@ namespace rill
         }
 
 
+    public:
+        //
+        auto is_incomplete() const
+            -> bool
+        {
+            return progress_ == environment_process_progress_t::constructed;
+        }
+
+        auto is_checked() const
+            -> bool
+        {
+            return progress_ >= environment_process_progress_t::checked;
+        }
+
+        auto is_complete() const
+            -> bool
+        {
+            return progress_ >= environment_process_progress_t::completed;
+        }
+
+
+        //
+        auto change_progress_to_checked()
+            -> void
+        {
+            progress_ = environment_process_progress_t::checked;
+        }
+
+        auto change_progress_to_completed()
+            -> void
+        {
+            progress_ = environment_process_progress_t::completed;
+        }
+
+    public:
+        inline auto is_exist( native_string_type const& name ) const
+            -> bool
+        {
+            return inner_envs_.find( name ) != inner_envs_.cend();
+        }
+
+    private:
+        template<typename T, typename... Args>
+        auto allocate_env_unless_exist( native_string_type const& name, Args&&... args )
+            -> std::shared_ptr<T>
+        {
+            if ( !is_exist( name ) ) {
+                // make new incomplete env
+                auto const& w_env = allocate_env<T>( std::forward<Args>( args )... );
+                inner_envs_[name] = w_env;
+            }
+
+            auto const& env = inner_envs_[name];
+            assert( env != nullptr );
+
+            return std::dynamic_pointer_cast<T>( env );
+        }
 
     private:
         environment_id_t id_;
         weak_env_base_pointer parent_;
-        bool forward_referenceable_;
-        std::size_t decl_order_;
 
     private:
         std::shared_ptr<shared_resource_type> root_shared_resource_;
+
+    private:
+        environment_process_progress_t progress_;
+        std::unordered_map<native_string_type, env_base_pointer> inner_envs_;   // children environments
+
+    private:
+        bool forward_referenceable_;
+        std::size_t decl_order_;
 
         bool do_mark_child_env_as_forward_referenceable_;
         std::shared_ptr<std::size_t> next_child_env_order_;

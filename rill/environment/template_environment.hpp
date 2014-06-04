@@ -11,20 +11,8 @@
 
 #include <cassert>
 #include <memory>
-//#include <unordered_map>
-//#include <bitset>
-//#include <vector>
-//#include <utility>
-//#include <boost/range/adaptor/transformed.hpp>
 
-//#include <boost/algorithm/string/join.hpp>
-
-//#include <boost/detail/bitmask.hpp>
-//#include <boost/optional.hpp>
-
-#include "../config/macros.hpp"
-
-#include "environment_fwd.hpp"
+#include "environment_base.hpp"
 
 
 namespace rill
@@ -33,18 +21,22 @@ namespace rill
     // template environment
     // this environment holds template parameters
     // and bacomes the POINT linked to TEMPLATE symbol's AST.
-    // So, to get inner AST(AST of class, function, etc...), get 's', the template AST, linked from this env, then call s.get_inner_statement() member function
+    // So, to get inner AST(AST of class, function, etc...), do like below.
+    //   1. get the template AST(e.g. named 's'), that is linked from this env
+    //   2. call s.get_inner_statement() member function
     //
     class template_environment RILL_CXX11_FINAL
-        : public single_identifier_environment_base
+        : public environment_base
     {
     public:
+        static kind::type_value const KindValue = kind::type_value::e_template;
+
         typedef std::size_t     template_argument_length_type;
         static template_argument_length_type const variadic_length = -1;
 
     public:
         template_environment( environment_parameter_t&& pp, environment_id_t const& template_set_env_id )
-            : single_identifier_environment_base( std::move( pp ) )
+            : environment_base( std::move( pp ) )
             , parameter_num_( 0 )
         {}
 

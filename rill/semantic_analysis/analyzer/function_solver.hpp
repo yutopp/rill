@@ -9,6 +9,7 @@
 #ifndef RILL_SEMANTIC_ANALYSIS_ANALYZER_IDENTIFIER_FUNCTION_SOLVER_HPP
 #define RILL_SEMANTIC_ANALYSIS_ANALYZER_IDENTIFIER_FUNCTION_SOLVER_HPP
 
+#include <boost/optional.hpp>
 #include <boost/range/adaptor/transformed.hpp>
 
 #include "../../environment/environment.hpp"
@@ -37,10 +38,13 @@ namespace rill
         }
 
 
+
+
         template<typename TypeIds, typename EnvPtr, typename ResultCallbackT>
         static auto overload_solver(
             TypeIds const& arg_type_ids,
-            std::shared_ptr<has_parameter_environment<function_symbol_environment>> const& generic_function_env,
+            multiple_set_environment_ptr const& set_environment,
+//            std::shared_ptr<has_parameter_environment<function_symbol_environment>> const& generic_function_env,
             EnvPtr const& env,
             ResultCallbackT const& f
             )
@@ -52,165 +56,8 @@ namespace rill
             std::vector<function_symbol_environment_ptr> f_candidate_envs;
 
 
-            // DEBUG
-            //std::cout << "...resolving function : " << identifier->get_inner_symbol()->to_native_string() << std::endl;
 
 
-            // TODO: fix over load solver
-            // TODO: check variadic parameter...
-            // TODO: count conversion times
-            for( auto const& f_env : generic_function_env->get_overloads() ) {
-                // DEBUG
-                std::cout << "[overloads] " << f_env->mangled_name() << " ..." << std::endl
-                          << (const_environment_base_ptr)f_env << std::endl;
-
-
-                auto const& f_env_parameter_type_ids = f_env->get_parameter_type_ids();
-
-                // argument size is different
-                if ( f_env_parameter_type_ids.size() != arg_type_ids.size() )
-                    continue;
-
-                // has no argument
-                if ( f_env_parameter_type_ids.size() == 0 ) {
-                    // TODO: check context...(Ex. pure)
-                    std::cout << "~~~0~~~~" << std::endl;
-                    f_candidate_envs.push_back( f_env );
-                    continue;
-                }
-
-                //
-                bool succeed = true;
-                for( int i=0; i<arg_type_ids.size(); ++i ) {
-                    if ( f_env_parameter_type_ids[i] == arg_type_ids[i] ) {
-                        // has same type!
-                        holder[i] = arg_type_ids[i];
-
-                    } else {
-                        // try to type conversion
-                        auto const& f_env_arg_type
-                            = f_env->get_type_at( f_env_parameter_type_ids[i] );
-                        auto self_arg_type = env->get_type_at( arg_type_ids[i] );
-
-
-                        // 1. try to attribute check and conversion
-
-                        // 1.1 check quarity comversion
-                        if ( f_env_arg_type.attributes.quality != self_arg_type.attributes.quality ) {
-                            switch( f_env_arg_type.attributes.quality )
-                            {
-                            case attribute::quality_kind::k_ref:
-
-                                switch( self_arg_type.attributes.quality )
-                                {
-                                case attribute::quality_kind::k_val:
-                                    // val -> ref conversion
-
-                                    if ( f_env_arg_type.attributes.modifiability != self_arg_type.attributes.modifiability ) {
-
-                                        // check modifiability
-                                        switch( f_env_arg_type.attributes.modifiability )
-                                        {
-                                        case attribute::modifiability_kind::k_mutable:
-
-                                            switch( self_arg_type.attributes.modifiability )
-                                            {
-                                            case attribute::modifiability_kind::k_mutable:
-                                                // mutable -> mutable : valid
-                                                break;
-
-                                            case attribute::modifiability_kind::k_const:
-                                                // mutable -> const : valid
-                                                break;
-
-                                            case attribute::modifiability_kind::k_immutable:
-                                                // mutable -> immutable : INVARID
-                                                // TODO: check flag
-                                                assert( false );
-                                                break;
-
-                                            default:
-                                                assert( false && "[ice]" );
-                                                break;
-                                            }
-
-
-                                            break;
-
-                                        case attribute::modifiability_kind::k_const:
-                                            // TODO: implement
-                                            assert( false );
-                                            break;
-
-                                        case attribute::modifiability_kind::k_immutable:
-                                            // TODO: implement
-                                            //assert( false );
-                                            break;
-
-                                        default:
-                                            assert( false && "[ice]" );
-                                            break;
-                                        }
-
-
-                                        // copy modifiablity
-                                        self_arg_type.attributes <<= f_env_arg_type.attributes.modifiability;
-                                    }
-
-                                    break;
-
-                                default:
-                                    // TODO: implement
-                                    assert( false && "[ice]" );
-                                    break;
-                                }
-
-
-
-
-
-                                break;
-
-                            case attribute::quality_kind::k_val:
-                                // All type -> val is convertible at the moment
-                                self_arg_type = f_env_arg_type; //attribute::quality_kind:k_val;
-
-                                break;
-
-                            default:
-                                // TODO: implement
-                                assert( false && "[ice]" );
-                                break;
-                            }
-                        }
-                        if ( !succeed )
-                            break;   // change overload resolution target
-
-
-
-                        // TODO: remove this
-                        self_arg_type.attributes <<= f_env_arg_type.attributes.modifiability;
-
-
-
-
-                        // 2. class type conversion
-                        if ( f_env_arg_type.class_env_id != self_arg_type.class_env_id ) {
-                            // TODO: implement
-                            //assert( false && "[ice]" );
-                            succeed = false;
-                        }
-                        if ( !succeed )
-                            break;   // change overload resolution target
-
-                        // rewrite
-                        holder[i] = env->make_type_id( f_env_arg_type.class_env_id, f_env_arg_type.attributes );
-                    }
-                } // for
-                if ( succeed ) {
-                    f_candidate_envs.push_back( f_env );
-                }
-            }
 
 
             return f( f_candidate_envs );
@@ -222,7 +69,7 @@ namespace rill
         template<typename TypeIds, typename EnvPtr>
         static inline auto overload_solver(
             TypeIds const& arg_type_ids ,
-            std::shared_ptr<has_parameter_environment<function_symbol_environment>> const& generic_function_env,
+            multiple_set_environment_ptr const& generic_function_env,
             EnvPtr const& env
             )
             -> function_symbol_environment_ptr
@@ -250,7 +97,7 @@ namespace rill
         template<typename TypeIds, typename EnvPtr>
         static inline auto overload_solver_allow_no_entry(
             TypeIds const& arg_type_ids ,
-            std::shared_ptr<has_parameter_environment<function_symbol_environment>> const& generic_function_env,
+            multiple_set_environment_ptr const& generic_function_env,
             EnvPtr const& env
             )
             -> function_symbol_environment_ptr
@@ -295,7 +142,7 @@ namespace rill
 
 
 
-
+#if 0
 
 
         template<typename Visitor,
@@ -305,7 +152,11 @@ namespace rill
                  >
         auto overload_solver_with_template(
             Visitor visitor,
+
+            multiple_set_environment_ptr const& set_environment,
             TemplateArgs const& template_args,
+            TypeIds const& arg_type_ids,
+
             TypeIds const& arg_type_ids2,
             std::shared_ptr<template_set_environment> const& template_set_env,
             environment_base_ptr const& env,
@@ -315,24 +166,23 @@ namespace rill
         {
             assert( template_args != nullptr );
 
-            // TODO: add duplication check
+            // TODO: add duplication check(e.g. by using cache...)
 
-            std::shared_ptr<has_parameter_environment<function_symbol_environment>> generic_function_env
-                = nullptr;
+            std::shared_ptr<multiple_set_environment> generic_function_env = nullptr;
 
 
             //
-            for( auto const& template_env : template_set_env->get_candidates() ) {
+            for( auto&& env : set_environment->get_template_environments() ) {
+                const_template_environment_ptr const& template_env
+                    = env->cast_to<template_environment>();
+
                 // TODO: add template length check...
 
-                std::cout << "hogehoge !" << std::endl;
-
-                // if number of template arguments is over, skip
+                // skip, if number of template arguments is over
                 if ( template_args->size() > template_env->get_parameter_num() )
                     continue;
 
-
-
+                //
                 auto const& template_ast
                     = std::static_pointer_cast<ast::template_statement>( template_env->get_related_ast() );
                 assert( template_ast != nullptr );
@@ -352,8 +202,7 @@ namespace rill
                 assert( function_ast != nullptr );
 
 
-                // Create function emvironment frame
-                // FIX: template_env to another
+                // Create function environment frame
                 auto f_env_pair
                     = template_set_env->get_parent_env()->incomplete_construct(
                         kind::k_function,
@@ -362,9 +211,6 @@ namespace rill
 
                 generic_function_env = f_env_pair.first;
                 auto f_env = f_env_pair.second;
-
-
-                std::cout << "fugafuga" << std::endl;
 
                 std::cout << "TEMPLATE bef" << std::endl;
 
@@ -387,7 +233,23 @@ namespace rill
                 // function instanciation
                 // TODO: generize
 
-                // make function parameter variable decl
+                // declare function parameter variable
+                for( std::size_t i=0; i<arg_type_ids.size(); ++i ) {
+                    assert( e.decl_unit.init_unit.type != nullptr || e.decl_unit.init_unit.initializer != nullptr );
+
+                    assert( i < function_ast->get_parameter_list().size() );
+                    auto const& parameter_ast = function_ast->get_parameter_list().at( i );
+
+                    if ( parameter_ast.decl_unit.init_unit.type ) { // parameter variable type is specified
+                        determine_parameter(
+                            e.decl_unit.init_unit.type,
+                            arg_type_ids[i],
+                            f_env
+                            );
+                    }
+                }
+
+
                 for( auto const& e : function_ast->get_parameter_list() ) {
                     assert( e.decl_unit.init_unit.type != nullptr || e.decl_unit.init_unit.initializer != nullptr );
 
@@ -569,6 +431,7 @@ namespace rill
                 );
         }
 
+#endif
 
     } // namespace semantic_analysis
 } // namespace rill

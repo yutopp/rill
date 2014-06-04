@@ -13,6 +13,7 @@
 
 // import RILL_DISPATCH_TYPES_SEQ
 #include "../../config/tags_for_ast_dispatching.hpp"
+#include "../../config/macros.hpp"
 
 
 #define RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_UNIT_HEADER(node_class_name, tag, qual) \
@@ -41,7 +42,7 @@
 #define RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_UNIT(node_class_name, tag, qual) \
     RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_UNIT_HEADER(node_class_name, tag, qual) \
     { \
-        std::cout << "<DISPATCH> " << #node_class_name << " ast_this: " << this->get_id() << std::endl; \
+        RILL_DEBUG_S( std::cout << "<DISPATCH> " << #node_class_name << " ast_this: " << this->get_id() << std::endl ); \
         /* down casting */ \
         return visitor.invoke( std::static_pointer_cast<node_class_name>( self_pointer ), env ); \
     }
@@ -49,7 +50,7 @@
 #define RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_READONLY_UNIT(node_class_name, tag, qual) \
     RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_READONLY_UNIT_HEADER(node_class_name, tag, qual) \
     { \
-        std::cout << "<DISPATCH> " << #node_class_name << " ast_this: " << this->get_id() << std::endl; \
+        RILL_DEBUG_S( std::cout << "<DISPATCH> " << #node_class_name << " ast_this: " << this->get_id() << std::endl ); \
         /* down casting */ \
         return visitor.invoke( std::static_pointer_cast<node_class_name const>( self_pointer ), env ); \
     }

@@ -28,10 +28,11 @@ namespace rill
     // TODO: change to strong typedef
     typedef std::size_t type_id_t;
 
-    type_id_t const type_id_limit = type_id_t( std::numeric_limits<std::size_t>::max() - 20 );
-    type_id_t const type_id_special = type_id_t( std::numeric_limits<std::size_t>::max() - 19 );
-    type_id_t const type_id_special_limit = type_id_t( std::numeric_limits<std::size_t>::max() - 1 );
-    type_id_t const type_id_undefined = type_id_t( std::numeric_limits<std::size_t>::max() );
+    //
+    auto const type_id_limit = type_id_t( std::numeric_limits<std::size_t>::max() - 20 );
+    auto const type_id_special = type_id_t( std::numeric_limits<std::size_t>::max() - 19 );
+    auto const type_id_special_limit = type_id_t( std::numeric_limits<std::size_t>::max() - 1 );
+    auto const type_id_undefined = type_id_t( std::numeric_limits<std::size_t>::max() );
 
     // -18 ~ -2
     enum struct type_id_nontype : type_id_t

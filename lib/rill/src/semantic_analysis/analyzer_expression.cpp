@@ -38,6 +38,7 @@ namespace rill
         //
         RILL_VISITOR_OP( analyzer, ast::binary_operator_expression, e, env )
         {
+#if 0
             using namespace boost::adaptors;
 
             // check type environment
@@ -130,6 +131,8 @@ namespace rill
                     function_env
                     )
             );
+#endif
+            return nullptr;
         }
 
 
@@ -315,14 +318,14 @@ namespace rill
         //
         //
         // function call expression
-        RILL_VISITOR_OP( analyzer, ast::call_expression, e, env )
+        RILL_VISITOR_OP( analyzer, ast::call_expression, e, env/*parent_env*/ )
         {
             using namespace boost::adaptors;
 
             std::cout << "call_expr" << std::endl;
 
             // ========================================
-            //
+            // reciever will be "function symbol", "functor object", etc...
             auto const& reciever_type_detail
                 = dispatch( e->reciever_, env );
 
@@ -331,15 +334,20 @@ namespace rill
             // push values to context stack and evaluate type environment
             std::vector<type_detail_ptr> argument_type_details;
 
-            // if lhs was nested && variable, add argument as "this"
             if ( reciever_type_detail->nest ) {
+                // 2014/5/14, selected call has no specification...
+                assert( false && "..." );
+
+                // if lhs was nested && variable, add argument as "this"
                 // TODO: change kind check to Callable check. Ex (1+3).operator+(6) should be callable, but can not call it now.
                 if ( reciever_type_detail->nest->back()->target_env->get_symbol_kind() == kind::type_value::e_variable ) {
                     argument_type_details.push_back( reciever_type_detail->nest->back() );
                 }
             }
 
-            //
+
+
+            // make argument type list
             for( auto const& val : e->arguments_ )
                 argument_type_details.push_back( dispatch( val, env ) );
 
@@ -348,10 +356,8 @@ namespace rill
                 std::count_if(
                     argument_type_details.cbegin(),
                     argument_type_details.cend(), []( type_detail_ptr const& t ) {
-                        return t->type_id == type_id_undefined
-                            || is_nontype_id( t->type_id );
-                    }
-                    ) == 0
+                        return t->type_id == type_id_undefined || is_nontype_id( t->type_id );
+                    } ) == 0
                 );
 
             /// *************
@@ -383,179 +389,54 @@ namespace rill
                     //         if symbol not found
                     //             ERROR
 
-                    // FIXME: reciever_type_detail->target_env will be e_parameter_wrapper(normal) OR e_template_set(template)
-                    // How do we convert template to normal,and vice versa.
+                    // NOTE: reciever_type_detail->target_env will be "multiple_set_environment"
+                    std::cout << "Normal function solve" << std::endl;
 
+                    std::cout << "-> " << debug_string( reciever_type_detail->target_env->get_symbol_kind() ) << std::endl;
 
-                    if ( reciever_type_detail->template_args != nullptr ) {
+                    auto const& set_env = cast_to<multiple_set_environment>( reciever_type_detail->target_env );
+                    assert( set_env != nullptr );
 
-                        // maybe function identifier
-                        assert( reciever_type_detail->target_env->get_symbol_kind() == kind::type_value::e_template_set && "[[ICE]] not supported" );
-                        auto const& template_set_env
-                            = std::static_pointer_cast<template_set_environment>(
-                                reciever_type_detail->target_env
-                                );
-
-                        if ( template_set_env->get_inner_env_symbol_kind() != kind::type_value::e_function ) {
-                            // symbol type was not matched
-                            assert( false );
-                        }
-
-                        // generic_function_env has only one scope. should check parent environment.
-                        auto const& function_env = [&]() -> std::shared_ptr<function_symbol_environment> {
-                            std::cout << (const_environment_base_ptr)env << std::endl;
-
-                            // TODO: evaluate reciever_type_detail->template_args
-
-                            auto const& f
-                            = overload_solver_allow_no_entry_with_template(
-                                this,
-                                reciever_type_detail->template_args,
-                                argument_type_details,
-                                template_set_env,
-                                env
-                                );
-
-                            // function is found!
-                            if ( f )
-                                return f;
-
-                            // rescue phase...
-                            //
-
-                            // solve_forward_reference
-                            for( auto const& template_env : template_set_env->get_candidates() ) {
-                                assert( template_env != nullptr );
-                                std::cout << "template::: found marked(ast AND related env) -> " << template_env->get_id() << std::endl;
-
-                                auto const& template_node = template_env->get_related_ast();
-                                assert( template_node != nullptr );
-
-                                auto const& function_node
-                                    = std::static_pointer_cast<ast::template_statement const>( template_node )->get_inner_statement();
-                                assert( function_node != nullptr );
-                                // to complate incomplete_funciton_env( after that, incomplete_function_env will be complete_function_env)
-                                //dispatch( statement_node, incomplete_function_env->get_parent_env() );
-                            }
-
-#if 0
-                            // retry
-                            auto const& re_f = overload_solver(
-                                argument_type_details | transformed( to_type_id_t() ),
-                                generic_function_env,
-                                env
-                                );
-                            if ( re_f )
-                                return re_f;
-
-#endif
-                            // may be overload failed
-                            // TODO: dig environment once...
-
-                            assert( false && "[ice] reached" );
-
-                            return std::shared_ptr<function_symbol_environment>()/*DUMMY*/;
-                        }();
-
-                        assert( function_env != nullptr );
-
-                        // memoize called function env
-                        std::cout << "memoed template" << std::endl;
-                        function_env->connect_from_ast( e );
-                        //function_env->connect_to_ast( e );
-
-                        std::cout << "connected template" << std::endl;
-
-                        return bind_type(
-                            e,
-                            type_detail_pool_->construct(
-                                function_env->get_return_type_id(),
-                                function_env,
-                                nullptr
-                                )
-                            );
-
-
-                    } else {
-
-                        // maybe function identifier
-                        assert( reciever_type_detail->target_env->get_symbol_kind() == kind::type_value::e_parameter_wrapper && "[[ICE]] not supported" );
-                        auto const& has_parameter_env
-                            = std::static_pointer_cast<has_parameter_environment_base>(
-                                reciever_type_detail->target_env
-                                );
-
-                        if ( has_parameter_env->get_inner_symbol_kind() != kind::type_value::e_function ) {
-                            // symbol type was not matched
-                            assert( false );
-                        }
-
-                        // this environment has all functions that have same identifier
-                        auto generic_function_env
-                            = std::static_pointer_cast<has_parameter_environment<function_symbol_environment>>( has_parameter_env );
-
-                        // generic_function_env has only one scope. should check parent environment.
-                        auto const& function_env = [&]() -> std::shared_ptr<function_symbol_environment> {
-                            std::cout << (const_environment_base_ptr)env << std::endl;
-
-
-
-                            auto const& f
-                            = overload_solver_allow_no_entry(
-                                argument_type_details | transformed( to_type_id_t() ),
-                                generic_function_env,
-                                env
-                                );
-
-                            // function is found!
-                            if ( f )
-                                return f;
-
-                            // rescue phase...
-                            //
-
-                            // solve_forward_reference
-                            for( auto const& incomplete_function_env : generic_function_env->get_incomplete_inners() ) {
-                                assert( incomplete_function_env != nullptr );
-                                std::cout << "incomplete::: found marked(ast AND related env) -> " << incomplete_function_env->get_id() << std::endl;
-
-                                auto const& statement_node = incomplete_function_env->get_related_ast();
-                                assert( statement_node != nullptr );
-
-                                // to complate incomplete_funciton_env( after that, incomplete_function_env will be complete_function_env)
-                                dispatch( statement_node, incomplete_function_env->get_parent_env() );
-                            }
-
-
-                            // retry
-                            auto const& re_f = overload_solver(
-                                argument_type_details | transformed( to_type_id_t() ),
-                                generic_function_env,
-                                env
-                                );
-                            if ( re_f )
-                                return re_f;
-
-
-                            // may be overload failed
-                            // TODO: dig environment once...
-
-                            return re_f/*nullptr*/;
-                        }();
-
-                        // memoize called function env
-                        std::cout << "memoed function call!!!" << std::endl;
-                        function_env->connect_from_ast( e );
-
-                        return bind_type(
-                            e,
-                            type_detail_pool_->construct(
-                                function_env->get_return_type_id(),
-                                function_env,
-                                nullptr
-                                )
-                            );
+                    if ( set_env->get_representation_kind() != kind::type_value::e_function ) {
+                        // symbol type was not matched
+                        assert( false );
                     }
+
+/*
+                    auto const& function_env
+                        = overload_solver_allow_no_entry_with_template(
+                            this,
+                            reciever_type_detail->template_args,
+                            argument_type_details,
+                            template_set_env,
+                            env
+                            );
+*/
+                    auto const& function_env
+                        = solve_function_overload(
+                            set_env,
+                            argument_type_details,                  /* type detailes of arguments */
+                            reciever_type_detail->template_args,    /* template arguments */
+                            env
+                            );
+                    assert( function_env != nullptr );
+
+                    // memoize called function env
+                    std::cout << "memoed template" << std::endl;
+                    function_env->connect_from_ast( e );
+                    //function_env->connect_to_ast( e );
+
+                    std::cout << "connected template" << std::endl;
+
+                    return bind_type(
+                        e,
+                        type_detail_pool_->construct(
+                            function_env->get_return_type_id(),
+                            function_env,
+                            nullptr
+                            )
+                        );
+
                 } else {
                     assert( false );
                 }

@@ -15,7 +15,7 @@ This repository contains the implementation of Rill language.
 ## How to build
 ### Requirement
 #### Compiler
-- GCC >= 4.7.2
+- GCC >= 4.8.0
 - Clang >= 3.3
 
 #### Libraries
@@ -27,21 +27,35 @@ If you are Ubuntu/Mint user, these links will be useful...
 - [LLVM Debian/Ubuntu nightly packages](http://llvm.org/apt/ "LLVM Debian/Ubuntu nightly packages")
 
 
-### build and install
+### Build and install
 For example,
 ```
 git clone git@github.com:yutopp/rill.git
 cd rill
-mkdir test_build
-cd test_build
-cmake ../. -DLLVM_CONFIG_PATH=YOUR_LLVM_CONFIG_PATH -DBOOST_ROOT=YOUR_BOOST_INSTALLED_PATH
+mkdir build
+cd build
+cmake ../.
+make
+# make test
+sudo make install
 ```
-please change `YOUR_LLVM_CONFIG_PATH`(e.g. `/usr/bin/llvm-config-3.4` ) and `YOUR_BOOST_INSTALLED_PATH`(e.g. `/usr/local` ) to fit your environment. But the variable `YOUR_BOOST_INSTALLED_PATH` is *optional*.
+Rill specific variables for CMake
 
-then, execute `make` and `sudo make install` !
+|Name|Description|Default|
+|:--|:--|:--|
+|LLVM_CONFIG_PATH | location path of `llvm-config` | `/usr/bin/llvm-config` |
+|BOOST_ROOT| location path of boost libraries | *auto* |
+|RUN_TEST| set `ON` if you would like to run tests | OFF |
+Please change these variables to fit your environment.
+e.g.
+```
+cmake ../. -DLLVM_CONFIG_PATH=/usr/bin/llvm-config-3.4 -DRUN_TEST=ON
+```
+
+After that, execute `make`, (`make test`),  and `sudo make install`.
 
 
-
+#### Other configuration
 You can specify paths that dependent libraries are installed by using `CMAKE_PREFIX_PATH` . e.g.
 
 ```
@@ -59,6 +73,25 @@ If you want to use Clang, call CMake like below.
 ```
 cmake ../. -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
 ```
+
+## Test
+```
+cd build
+cmake test
+```
+
+### Auto testing
+At first time,
+```
+bundle install --path vendor/bundle
+```
+
+After that, execute below
+```
+cd build
+bundle exec guard -i -G ../Guardfile -w ../
+```
+
 
 ## How to use
 e.g. (on the directory of rill)

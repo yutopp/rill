@@ -24,7 +24,7 @@
 
 #include "../config/macros.hpp"
 
-#include "environment_fwd.hpp"
+#include "environment_base.hpp"
 
 
 namespace rill
@@ -33,16 +33,20 @@ namespace rill
     // variable
     //
     class variable_symbol_environment RILL_CXX11_FINAL
-        : public single_identifier_environment_base
+        : public environment_base
     {
     public:
         static kind::type_value const KindValue = kind::type_value::e_variable;
 
     public:
-        variable_symbol_environment( environment_parameter_t&& pp )
-            : single_identifier_environment_base( std::move( pp ) )
+        variable_symbol_environment(
+            environment_parameter_t&& pp,
+            native_string_type const& name
+            )
+            : environment_base( std::move( pp ) )
             , parent_class_env_id_( environment_id_undefined )
             , value_type_id_( type_id_undefined )
+            , name_( name )
         {}
 
     public:
@@ -85,7 +89,8 @@ namespace rill
             return dump_include_env( os, indent );
         }
 
-        auto mangled_name() const -> native_string_type
+        auto get_mangled_name() const
+            -> native_string_type const&
         {
             // TODO: call parent mangled_name()
             return name_;

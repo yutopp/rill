@@ -1,0 +1,21 @@
+def main(): int {
+    val i = 10: int;
+    val mi = 10: mutable(int);
+    val b = "sss": string;
+
+
+    f( mi );
+
+
+    return 0;
+}
+
+//template(val T: type)
+//def f( val i: int ): int {}
+
+def f( val i: int ): int {}
+def f( val i: mutable(int)): int {}
+
+//def f( val b: string ): int {}
+
+extern def mutable( val a :type ): type "rill_abababa";

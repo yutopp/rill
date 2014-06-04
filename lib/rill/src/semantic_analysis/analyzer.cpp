@@ -12,11 +12,47 @@
 
 #include <rill/environment/environment.hpp>
 
+#include <unordered_map>
+
 
 namespace rill
 {
     namespace semantic_analysis
     {
+        class analyzer::builtin_class_envs_cache
+        {
+            friend analyzer;
+
+        public:
+            builtin_class_envs_cache( environment_base_ptr const& root_env )
+            {
+                auto install_primitive_class = [&]( std::string const& type_name ) mutable {
+                    primitive_cache_[type_name]
+                        = to_unique_class_env(
+                            root_env->lookup( type_name )
+                            );
+                };
+
+                install_primitive_class( "type" );
+                install_primitive_class( "int" );
+                install_primitive_class( "string" );
+            }
+
+        private:
+            inline auto find_primitive( std::string const& type_name ) const
+                -> const_class_symbol_environment_ptr
+            {
+                auto const it = primitive_cache_.find( type_name );
+                assert( it != primitive_cache_.cend() );
+
+                return it->second;
+            }
+
+        private:
+            std::unordered_map<std::string, const_class_symbol_environment_ptr> primitive_cache_;
+        };
+
+
         //
         analyzer::analyzer(
             environment_base_ptr const& root_env,
@@ -25,10 +61,17 @@ namespace rill
             : root_env_( root_env )
             , type_detail_pool_( std::make_shared<type_detail_pool_t>() )
             , ctfe_engine_( compile_time::llvm_engine::make_ctfe_engine( this, root_env, holder, type_detail_pool_ ) )
+            , builtin_class_envs_cache_( std::make_shared<builtin_class_envs_cache>( root_env ) )
         {}
 
+        //
+        auto analyzer::get_primitive_class_env( std::string const& type_name ) const
+            -> const_class_symbol_environment_ptr
+        {
+            return builtin_class_envs_cache_->find_primitive( type_name );
+        }
 
-
+        //
         auto analyzer::ref_type(
             type_detail_ptr const& ty_detail
             ) const -> type const&
@@ -36,7 +79,75 @@ namespace rill
             return root_env_->get_type_at( ty_detail->type_id );
         }
 
+        auto make_mangled_name(
+            const_class_symbol_environment_ptr const& c_env,
+            attribute::type_attributes const& attr
+            )
+            -> std::string
+        {
+            assert( c_env != nullptr );
+            assert( c_env->is_complete() );
 
+            std::string s;
+            s += std::to_string( c_env->get_mangled_name().size() );
+            s += c_env->get_mangled_name();
+
+            s += [&]() {
+                switch( attr.quality )
+                {
+                case attribute::quality_kind::k_val:
+                    return "VAL";
+                case attribute::quality_kind::k_ref:
+                    return "REF";
+                default:
+                    assert( false );
+                }
+            }();
+
+            s += [&]() {
+                switch( attr.modifiability )
+                {
+                case attribute::modifiability_kind::k_mutable:
+                    return "MUT";
+                case attribute::modifiability_kind::k_const:
+                    return "CST";
+                case attribute::modifiability_kind::k_immutable:
+                    return "IMM";
+                default:
+                    assert( false );
+                }
+            }();
+
+            return s;
+        }
+
+
+        auto make_mangled_name( const_function_symbol_environment_ptr const& f_env )
+            -> std::string
+        {
+            assert( f_env != nullptr );
+            assert( f_env->is_checked() );
+
+            std::string s;
+
+            s += f_env->get_base_name();
+
+            for( auto const& type_id : f_env->get_parameter_type_ids() ) {
+                auto const& param_type = f_env->get_type_at( type_id );
+
+                s += make_mangled_name(
+                    f_env->get_env_at_as_strong_ref<class_symbol_environment const>(
+                        param_type.class_env_id
+                        ),
+                    param_type.attributes
+                    );
+            }
+
+            return s;
+        }
+
+
+        //
         auto analyzer::qualify_type(
             type_detail_ptr const& ty_detail,
             attribute::type_attributes const& type_attr
@@ -47,7 +158,7 @@ namespace rill
 
             auto const& qualified_type_id
                 = root_env_->make_type_id(
-                    t.class_env_id,
+                    root_env_->get_env_at_as_strong_ref<class_symbol_environment>( t.class_env_id ),
                     type_attr
                     );
 
@@ -60,26 +171,25 @@ namespace rill
         }
 
 
-        //
-        auto analyzer::tp(
-            ast::parameter_list const& template_parameter_list,
+        auto analyzer::declare_template_parameter_variables(
+            ast::parameter_list const& template_parameters,
             type_detail::template_arg_pointer const& template_args,
-            single_identifier_environment_base_ptr const& inner_env,
-            environment_base_ptr const& parent_env
+            environment_base_ptr const& inner_env,
+            environment_base_ptr const& parent_env,
+            std::vector<environment_base_ptr>& declared_envs
             )
             -> void
         {
-            // template parameters
-            // import template parameter's variables with instantiation!
+            assert( declared_envs.size() == template_parameters.size() );
 
-            std::vector<environment_base_ptr> decl_arg_holder( template_parameter_list.size() );
-            std::cout << "TEMPLATE param size is " << template_parameter_list.size() << std::endl;
+            std::cout << "TEMPLATE param size is " << template_parameters.size() << std::endl;
 
-            for( std::size_t i=0; i<template_parameter_list.size(); ++i ) {
-                auto const& template_parameter = template_parameter_list.at( i );
+            for( std::size_t i=0; i<template_parameters.size(); ++i ) {
+                auto const& template_parameter = template_parameters.at( i );
 
                 //
-                // declare template parameters
+                // 1. declare template parameters
+                //
                 assert(
                     template_parameter.decl_unit.init_unit.type != nullptr
                     || template_parameter.decl_unit.init_unit.initializer != nullptr
@@ -108,30 +218,64 @@ namespace rill
                                     attr
                                     );
 
-                            decl_arg_holder[i] = v_env;
+                            declared_envs[i] = v_env;
                         });
 
                 } else {
                     // TODO: set as TYPE
                     assert( false && "TODO: it will be type" );
                 }
+            }
+        }
+
+
+        // declare template parameter variable, and substitute explicit argument
+        auto analyzer::tp(
+            ast::parameter_list const& template_parameter_list,
+            type_detail::template_arg_pointer const& template_args,
+            environment_base_ptr const& inner_env,
+            environment_base_ptr const& parent_env
+            )
+            -> void
+        {
+            // template parameters
+            // import template parameter's variables with instantiation!
+
+            std::vector<environment_base_ptr> decl_arg_holder( template_parameter_list.size() );
+            std::cout << "TEMPLATE param size is " << template_parameter_list.size() << std::endl;
+
+            // 1. declare template parameters
+            declare_template_parameter_variables(
+                template_parameter_list,
+                template_args,
+                inner_env,
+                parent_env,
+                decl_arg_holder
+                );
+
+
+            for( std::size_t i=0; i<template_parameter_list.size(); ++i ) {
+                auto const& template_parameter = template_parameter_list.at( i );
+
+
 
                 // TODO: add error check to varidate param and arg size...
 
                 std::cout << "pp i = " << i << " / " << template_args->size() << std::endl;
 
                 //
-                // template arguments
-                // if the template argument was passed explicitly, save argument value
+                // 2. substitute template arguments
+                // save argument value, if the template argument was passed explicitly,
                 // if NOT, it will be deduced after that...
-                if ( i <= template_args->size() ) {
+                if ( i < template_args->size() ) {
+                    // do process, if argument was given
 
                     std::cout << "TEMPLATE ARGS!! " << i << std::endl;
                     auto const& template_var_env = decl_arg_holder[i];
                     auto const& template_arg = template_args->at( i );
 
+                    // DEBUG
                     {
-                        // DEBUG
                         if ( template_arg.is_type() ) {
                             auto const& t_detail
                                 = static_cast<type_detail_ptr>( template_arg.element );
@@ -164,12 +308,22 @@ namespace rill
                     //    template_arg
                     //    );
 
-                } else {
-                    // TODO: error...?
-                    assert( false );
                 }
-            }
+            } // for
         }
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
         auto analyzer::instanciate_class_candidate(
@@ -182,16 +336,16 @@ namespace rill
 
             //
             std::vector<class_symbol_environment_ptr> candidates;
-
+#if 0
             std::cout << "template class! : Arg num~ "
                       << target_ty_detail->template_args->size()
                       << std::endl;
 
             // take a template set
             auto const& template_set_env
-                = std::static_pointer_cast<template_set_environment>(
-                    target_ty_detail->target_env
-                    );
+                = target_ty_detail->target_env->cast_to<multiple_set_environment>();
+            assert( template_set_env != nullptr );
+
 
             auto const& template_args
                 = target_ty_detail->template_args;
@@ -233,7 +387,7 @@ namespace rill
 
                 // create class env
                 auto c_env
-                    = template_set_env->allocate_env<class_symbol_environment>();
+                    = template_set_env->allocate_env<class_symbol_environment>( template_set_env->get_id() );
 
                 std::cout << "fugafuga" << std::endl;
 
@@ -278,7 +432,7 @@ namespace rill
                 candidates.push_back( c_env );
             }
 
-
+#endif
             return candidates;
         }
 
@@ -306,15 +460,13 @@ namespace rill
 
             // return type should be "type"
             // TODO: fix
-            auto const& type_class_env
-                = root_env_->lookup( ast::make_identifier( "type" ) );
+            auto const& type_class_env = get_primitive_class_env( "type" );
             assert( type_class_env != nullptr );  // literal type must exist
 
             target_ty_detail->type_id
                 = type_class_env->make_type_id( type_class_env, determine_type_attributes() );
 
-            target_ty_detail->target_env
-                = type_class_env;
+            target_ty_detail->target_env = nullptr; // unused
 
             return c_env;
         }
@@ -381,6 +533,239 @@ namespace rill
 
             return template_args;
         }
+
+
+
+
+
+        //
+        auto qualifier_conversion_from_ref(
+            attribute::type_attributes const& parameter_attributes,
+            attribute::type_attributes const& argument_attributes
+            )
+            -> boost::optional<attribute::type_attributes>
+        {
+            auto result_attr = argument_attributes;
+
+            switch( parameter_attributes.quality )  // to
+            {
+            case attribute::quality_kind::k_ref:
+            {
+                // ref to ref
+                result_attr <<= attribute::quality_kind::k_ref;
+                break;
+            }
+
+            case attribute::quality_kind::k_val:
+            {
+                // ref to val
+                result_attr <<= attribute::quality_kind::k_val;
+                break;
+            }
+
+            default:
+                assert( false );
+            }
+
+            return result_attr;
+        }
+
+        //
+        auto qualifier_conversion_from_val(
+            attribute::type_attributes const& parameter_attributes,
+            attribute::type_attributes const& argument_attributes
+            )
+            -> boost::optional<attribute::type_attributes>
+        {
+            auto result_attr = argument_attributes;
+
+            switch( parameter_attributes.quality )  // to
+            {
+            case attribute::quality_kind::k_ref:
+            {
+                // val to ref
+                result_attr <<= attribute::quality_kind::k_ref;
+                break;
+            }
+
+            case attribute::quality_kind::k_val:
+            {
+                // ref to val
+                result_attr <<= attribute::quality_kind::k_val;
+                break;
+            }
+
+            default:
+                assert( false );
+            }
+
+            return result_attr;
+        }
+
+        //
+        auto qualifier_conversion(
+            attribute::type_attributes const& parameter_attributes,
+            attribute::type_attributes const& argument_attributes
+            )
+            -> boost::optional<attribute::type_attributes>
+        {
+            //
+            switch( argument_attributes.quality ) // from
+            {
+            case attribute::quality_kind::k_ref:
+                return qualifier_conversion_from_ref( parameter_attributes, argument_attributes );
+
+            case attribute::quality_kind::k_val:
+                return qualifier_conversion_from_val( parameter_attributes, argument_attributes );
+
+            default:
+                assert( false );
+            }
+
+            return boost::none;
+        }
+
+
+
+
+        auto analyzer::solve_function_overload(
+            multiple_set_environment_ptr const& set_env,
+            std::vector<type_detail_ptr> const& arg_types,
+            type_detail::template_arg_pointer const& template_args,
+            environment_base_ptr const& parent_env
+            )
+            -> function_symbol_environment_ptr
+        {
+            //
+            //
+            type_id_list_t holder( arg_types.size() );
+            std::vector<function_symbol_environment_ptr> f_candidate_envs;
+
+            std::cout << "!!!! overload solving: " << set_env->get_name() << std::endl
+                      << "!!!! function candidate num: " << set_env->get_normal_environments().size() << std::endl;
+            //
+            assert( set_env->get_representation_kind() == kind::type_value::e_function );
+
+            std::multimap<int, function_symbol_environment_ptr> solved_function_envs;
+
+            // TODO: add hit cache
+
+            // TODO: skip normal function search, if template_args is NOT nullptr
+
+            // 0: exact match
+            // 1: qualifier conversion match
+            // 2: implicit conversion match
+            // 3: no match
+            int best_matched_level = 3;
+            int worst_matched_level = 0;
+
+            // first, see normal envs
+            for( auto&& env : set_env->get_normal_environments() ) {
+                auto const& f_env = cast_to<function_symbol_environment>( env );
+                assert( f_env != nullptr );
+
+                // complate the incomplete function
+                if ( f_env->is_incomplete() ) {
+                    dispatch( f_env->get_related_ast(), f_env->get_parent_env() );
+                }
+
+                // DEBUG
+                std::cout << "[overloads] " << f_env->get_mangled_name() << " ..." << std::endl
+                          << (const_environment_base_ptr)f_env << std::endl;
+
+                assert( f_env->is_complete() );
+
+                auto const& f_env_parameter_type_ids = f_env->get_parameter_type_ids();
+
+                // not matched: argument size is different
+                if ( f_env_parameter_type_ids.size() != arg_types.size() ) continue;
+
+                int function_match_level = 0;   // assume the function is "exact match".
+                // type_id_list_t type_id_holder( arg_types.size() );
+
+                // check each arguments/parameters
+                for( std::size_t i=0; i<arg_types.size(); ++i ) {
+                    auto const& param_type_id = f_env->get_parameter_type_ids()[i];
+                    auto const& arg_type_id = arg_types[i]->type_id;
+
+                    if ( param_type_id == arg_type_id ) {
+                        // exact match
+
+                        // holder[i] = arg_type_id;
+
+                        // update level
+                        function_match_level = std::max( function_match_level, 0 );
+
+                    } else {
+                        // try to type conversion
+                        auto const& param_type = f_env->get_type_at( param_type_id );
+                        auto const& arg_type = f_env->get_type_at( arg_type_id );
+
+                        if ( param_type.class_env_id == arg_type.class_env_id ) {
+                            // check quarity conversion
+                            if ( auto&& attribute_opt = qualifier_conversion( param_type.attributes, arg_type.attributes ) ) {
+                                // qualifier conversion match
+/*
+                                auto const& c_env
+                                    = root_env_->get_env_at_as_strong_ref<class_symbol_environment const>( param_type.class_env_id );
+                                assert( c_env != nullptr );
+                                auto const& converted_type_id
+                                    = root_env_->make_type_id( c_env, *attribute_opt );
+*/
+                                // holder[i] = converted_type_id;
+
+                                // update level
+                                function_match_level = std::max( function_match_level, 1 );
+
+                            } else {
+                                // unmatched
+                            }
+
+                        } else {
+                            // TODO: implement implicit conversion match
+                            // currentry failed immediately
+
+                            function_match_level = std::max( function_match_level, 3 );
+                        }
+
+                    }
+
+                    // this function will be never matched
+                    if ( function_match_level == 3 ) break;
+                } // for
+
+                // not matched: failed
+                if ( function_match_level == 3 ) continue;
+
+
+                f_candidate_envs.push_back( f_env );
+                solved_function_envs.emplace( function_match_level, f_env );
+
+                //
+                best_matched_level = std::min( function_match_level, best_matched_level );
+                worst_matched_level = std::max( function_match_level, worst_matched_level );
+            } // for [normal environment]
+
+
+            std::cout << " !== overload ======================================================" << std::endl
+                      << "best match: " << best_matched_level << std::endl
+                      << "worst match: " << worst_matched_level << std::endl;
+            for( auto&& e : f_candidate_envs ) {
+                std::cout << std::endl
+                          << "  !!!!! condidate found >>> " << std::endl
+                          << std::endl;
+            }
+
+
+            // check overloaded set
+
+
+            assert( f_candidate_envs.size() > 0 );
+            auto&& selected_function = f_candidate_envs.at( 0 );
+
+            return selected_function;
+        }
+
 
 
     } // namespace semantic_analysis

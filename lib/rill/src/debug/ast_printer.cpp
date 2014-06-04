@@ -236,5 +236,5 @@ namespace rill
         RILL_VISITOR_READONLY_OP( ast_printer, ast::intrinsic::array_value, v, _ ) const
         {}
 
-    } // namespace code_generator
+    } // namespace debug
 } // namespace rill

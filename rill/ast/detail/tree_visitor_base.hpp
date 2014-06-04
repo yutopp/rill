@@ -15,6 +15,7 @@
 #include <typeinfo>
 
 #include "../../config/macros.hpp"
+#include "../../message/message.hpp"
 
 #include "../../environment/environment_fwd.hpp"
 
@@ -157,19 +158,19 @@ namespace rill
     {
         namespace detail
         {
-            // --
-            template<typename R, typename BaseNode>
-            struct tree_visitor_result;
-
-            template<typename R> struct tree_visitor_result<R, ast::statement>  { typedef void type; };
-            template<typename R> struct tree_visitor_result<R, ast::expression> { typedef R type; };
-            template<typename R> struct tree_visitor_result<R, ast::value>      { typedef R type; };
-
-
-            //
+            // forward declaration
             template<typename ReturnT>
             struct tree_visitor_base;
 
+            // --
+            template<typename R, typename BaseNode>
+            struct tree_visitor_result;
+            template<typename R> struct tree_visitor_result<R, ast::statement>
+            { typedef void type; };
+            template<typename R> struct tree_visitor_result<R, ast::expression>
+            { typedef R type; };
+            template<typename R> struct tree_visitor_result<R, ast::value>
+            { typedef R type; };
 
             //
             template<typename ReturnT, typename NodeT>
@@ -179,6 +180,26 @@ namespace rill
                     ReturnT,
                     typename base_type_specifier<typename std::decay<NodeT>::type>::type
                 >::type type;
+            };
+
+
+            //
+            template<typename ReturnT>
+            struct visitor_result_default_value_functor
+            {
+                auto operator()() const
+                    -> ReturnT
+                {
+                    // TODO: fix
+                    return nullptr;
+                }
+            };
+            template<>
+            struct visitor_result_default_value_functor<void>
+            {
+                auto operator()() const
+                    -> void
+                {}
             };
 
 
@@ -207,7 +228,7 @@ namespace rill
                 BOOST_PP_SEQ_FOR_EACH( RILL_VISITOR_INVOKER_OP_GEN, _, RILL_AST_NODE_TYPE_SEQ )
             };
 
-
+            //
             // base class of ast visitors
             template<typename ReturnT>
             struct tree_visitor_base
@@ -218,6 +239,9 @@ namespace rill
 
                 template<typename NodeT>
                 using result = visitor_result_traits<ReturnT, NodeT>;
+
+                template<typename NodeT>
+                using result_value_functor = visitor_result_default_value_functor<typename result<NodeT>::type>;
 
             public:
                 tree_visitor_base( visitor_invoker_base<ReturnT>& invoker )
@@ -231,14 +255,23 @@ namespace rill
                 template<typename Node, typename Env>
                 auto invoke( std::shared_ptr<Node> const& node, std::shared_ptr<Env> const& env )
                     -> typename result<Node>::type
-                {
+                try {
                     return invoker_( node, env, this );
+
+                } catch( message::message_object const& e ) {
+                    save_message( e );
+                    return result_value_functor<Node>()();      // implies failed...
                 }
+
                 template<typename Node, typename Env>
                 auto invoke( std::shared_ptr<Node> const& node, std::shared_ptr<Env> const& env ) const
                     -> typename result<Node>::type
-                {
+                try {
                     return invoker_( node, env, this );
+
+                } catch( message::message_object const& e ) {
+                    save_message( e );
+                    return result_value_functor<Node>()();      // implies failed...
                 }
 
             public:
@@ -250,11 +283,75 @@ namespace rill
                         << "!!! DEBUG: this AST node was not implemented" << std::endl
                         << "VISITOR -> " << typeid( *this ).name() << " / is_const: " << std::is_const<decltype( *this )>::value << std::endl
                         << "AST     -> " << typeid( NodeT ).name() << " / is_const: " << std::is_const<NodeT>::value << std::endl;
-                        ;
+                }
+
+            public:
+                template<typename... Args>
+                auto send_error( Args&&... args ) const
+                    -> void
+                {
+                    assert( false );
+
+                    throw message::message_object(
+                        message::message_level::e_error,
+                        std::forward<Args>( args )...
+                        );
+                }
+
+                template<typename... Args>
+                auto send_warning( Args&&... args ) const
+                    -> void
+                {
+                    assert( false );
+
+                    // TODO: see compile switch
+                    save_message(
+                        message::message_object(
+                            message::message_level::e_warning,
+                            std::forward<Args>( args )...
+                            )
+                        );
+                }
+
+                template<typename... Args>
+                auto send_message( Args&&... args ) const
+                    -> void
+                {
+                    assert( false );
+
+                    save_message(
+                        message::message_object(
+                            message::message_level::e_normal,
+                            std::forward<Args>( args )...
+                            )
+                        );
+                }
+
+                auto has_message() const
+                    -> bool
+                {
+                    return !messages_.empty();
+                }
+
+                auto has_error() const
+                    -> bool
+                {
+                    return false;       // TODO: implement
+                }
+
+            private:
+                template<typename T>
+                auto save_message( T&& m ) const
+                    -> void
+                {
+                    messages_.push_back( std::forward<T>( m ) );
                 }
 
             private:
                 std::reference_wrapper<visitor_invoker_base<ReturnT>> invoker_;
+
+            private:
+                mutable std::vector<message::message_object> messages_;
             };
 
         } // namespace detail

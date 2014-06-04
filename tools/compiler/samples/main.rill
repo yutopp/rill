@@ -4,4 +4,4 @@ def main(): int
     extern_print_int( i );
 }
 
-extern def extern_print_int( val :int ): void "put_string2"; 
+extern def extern_print_int( val a :int ): void "put_string2";

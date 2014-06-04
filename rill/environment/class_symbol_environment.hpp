@@ -25,7 +25,7 @@
 #include "../config/macros.hpp"
 #include "../utility/make_bitflag.hpp"
 
-#include "environment_fwd.hpp"
+#include "environment_base.hpp"
 
 
 namespace rill
@@ -42,14 +42,19 @@ namespace rill
     // class
     //
     class class_symbol_environment RILL_CXX11_FINAL
-        : public single_identifier_environment_base
+        : public environment_base
     {
     public:
-        static kind::type_value const KindValue = kind::type_value::e_class;
+        static kind::type_value const KindValue;
 
     public:
-        class_symbol_environment( environment_parameter_t&& pp )
-            : single_identifier_environment_base( std::move( pp ) )
+        class_symbol_environment(
+            environment_parameter_t&& pp,
+            environment_id_t const& wrapper_set_env_id,
+            native_string_type const& base_name
+            )
+            : environment_base( std::move( pp ) )
+            , base_name_( base_name )
             //, kind_( kind )
         {}
 
@@ -86,6 +91,13 @@ namespace rill
             return qualified_name_;
         }
 
+        // TODO: fix it
+        auto get_mangled_name() const
+            -> native_string_type const&
+        {
+            return base_name_;
+        }
+
         auto attribute() const
             -> class_attribute const&
         {
@@ -113,7 +125,10 @@ namespace rill
             ) const
             -> shared_resource_type::type_registry_type::type_id_type
         {
-            return make_type_id( get_id(), type_attr );
+            return make_type_id(
+                std::static_pointer_cast<class_symbol_environment const>( shared_from_this() ),
+                type_attr
+                );
         }
 
 

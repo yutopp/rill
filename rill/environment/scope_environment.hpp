@@ -24,7 +24,7 @@
 
 #include "../config/macros.hpp"
 
-#include "environment_fwd.hpp"
+#include "environment_base.hpp"
 
 
 namespace rill
@@ -33,11 +33,11 @@ namespace rill
     // scope
     //
     class scope_environment RILL_CXX11_FINAL
-        : public single_identifier_environment_base
+        : public environment_base
     {
     public:
         scope_environment( environment_parameter_t&& pp )
-            : single_identifier_environment_base( std::move( pp ) )
+            : environment_base( std::move( pp ) )
         {}
 
     public:

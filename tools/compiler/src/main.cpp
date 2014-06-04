@@ -145,10 +145,18 @@ public:
 } aa;
 
 
+void term()
+{
+    rill::debug::dump_backtrace();
+
+    abort();
+}
+
 int main( int argc, char* argv[] )
 {
     namespace po = boost::program_options;
 
+    std::set_terminate( &term );
 
     // Generic options
     po::options_description generic("Generic options");

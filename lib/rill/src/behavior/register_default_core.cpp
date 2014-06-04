@@ -138,9 +138,9 @@ namespace rill
                     = std::make_shared<rill::ast::template_statement>( template_params, array_class );
 
                 id_c.dispatch( template_array, root_env );
-                auto const template_array_env_pointer = std::static_pointer_cast<template_set_environment>(
+                /*auto const template_array_env_pointer = std::static_pointer_cast<template_set_environment>(
                     root_env->get_related_env_by_ast_ptr( template_array )
-                    );
+                    );*/
 
             }
 
@@ -159,33 +159,47 @@ namespace rill
                         ) const
                         -> llvm::Value*
                         {
+                            auto const install_type = [&]( std::string const& type_name, llvm::Type* const ty ) {
+                                auto const& lookup_env = root_env->lookup( ast::make_single_identifier( type_name ) );
+                                assert( lookup_env != nullptr );
+                                assert( lookup_env->get_symbol_kind() == kind::type_value::e_multi_set );
+                                auto const& multi_set_env = cast_to<multiple_set_environment>( lookup_env );
+                                assert( multi_set_env->get_representation_kind() == kind::type_value::e_class );
+                                auto const& class_env = multi_set_env->get_unique_environment<class_symbol_environment>();
+                                assert( class_env != nullptr );
+
+                                assert( ty != nullptr );
+
+                                context->env_conversion_table.bind_type( class_env, ty );
+                            };
+
                             // bind [ int -> i32 ]
-                            context->env_conversion_table.bind_type(
-                                root_env->lookup( ast::make_single_identifier( "int" ) )->get_id(),
+                            install_type(
+                                "int",
                                 llvm::Type::getInt32Ty( context->llvm_context )
                                 );
 
                             // bind [ string -> i8* ]
-                            context->env_conversion_table.bind_type(
-                                root_env->lookup( ast::make_single_identifier( "string" ) )->get_id(),
+                            install_type(
+                                "string",
                                 llvm::Type::getInt8Ty( context->llvm_context )->getPointerTo()
                                 );
 
                             // bind [ void -> void ]
-                            context->env_conversion_table.bind_type(
-                                root_env->lookup( ast::make_single_identifier( "void" ) )->get_id(),
+                            install_type(
+                                "void",
                                 llvm::Type::getVoidTy( context->llvm_context )
                                 );
 
                             // bind [ bool -> bool ]
-                            context->env_conversion_table.bind_type(
-                                root_env->lookup( ast::make_single_identifier( "bool" ) )->get_id(),
+                            install_type(
+                                "bool",
                                 llvm::Type::getInt1Ty( context->llvm_context )
                                 );
 
                             // bind [ type -> i8*(pointer to type_detail) ]
-                            context->env_conversion_table.bind_type(
-                                root_env->lookup( ast::make_single_identifier( "type" ) )->get_id(),
+                            install_type(
+                                "type",
                                 llvm::Type::getInt8Ty( context->llvm_context )->getPointerTo()
                                 );
 
@@ -270,7 +284,7 @@ namespace rill
                 construct_predefined_function<action>( intrinsic_function_action, root_env, operator_add, [&]( rill::function_symbol_environment_ptr const& fenv ) {
                         // ( :int, :int )
                         fenv->parameter_variable_construct(
-                            nullptr,
+                            rill::ast::make_single_identifier( "__a" ),
                             int_class_env_pointer,
                             attribute::make_type_attributes(
                                 attribute::quality_kind::k_val,
@@ -278,7 +292,7 @@ namespace rill
                                 )
                             );    // :int
                         fenv->parameter_variable_construct(
-                            nullptr,
+                            rill::ast::make_single_identifier( "__b" ),
                             int_class_env_pointer,
                             attribute::make_type_attributes(
                                 attribute::quality_kind::k_val,
@@ -333,7 +347,7 @@ namespace rill
                 construct_predefined_function<action>( intrinsic_function_action, root_env, operator_sub, [&]( rill::function_symbol_environment_ptr const& fenv ) {
                         // ( :int, :int )
                         fenv->parameter_variable_construct(
-                            nullptr,
+                            rill::ast::make_single_identifier( "__a" ),
                             int_class_env_pointer,
                             attribute::make_type_attributes(
                                 attribute::quality_kind::k_val,
@@ -341,7 +355,7 @@ namespace rill
                                 )
                             );    // :int
                         fenv->parameter_variable_construct(
-                            nullptr,
+                            rill::ast::make_single_identifier( "__b" ),
                             int_class_env_pointer,
                             attribute::make_type_attributes(
                                 attribute::quality_kind::k_val,
@@ -394,7 +408,7 @@ namespace rill
                 construct_predefined_function<action>( intrinsic_function_action, root_env, operator_multiply, [&]( rill::function_symbol_environment_ptr const& fenv ) {
                         // ( :int, :int )
                         fenv->parameter_variable_construct(
-                            nullptr,
+                            rill::ast::make_single_identifier( "__a" ),
                             int_class_env_pointer,
                             attribute::make_type_attributes(
                                 attribute::quality_kind::k_val,
@@ -402,7 +416,7 @@ namespace rill
                                 )
                             );    // :int
                         fenv->parameter_variable_construct(
-                            nullptr,
+                            rill::ast::make_single_identifier( "__b" ),
                             int_class_env_pointer,
                             attribute::make_type_attributes(
                                 attribute::quality_kind::k_val,
@@ -457,7 +471,7 @@ namespace rill
                 construct_predefined_function<action>( intrinsic_function_action, root_env, operator_div, [&]( rill::function_symbol_environment_ptr const& fenv ) {
                         // ( :int, :int )
                         fenv->parameter_variable_construct(
-                            nullptr,
+                            rill::ast::make_single_identifier( "__a" ),
                             int_class_env_pointer,
                             attribute::make_type_attributes(
                                 attribute::quality_kind::k_val,
@@ -465,7 +479,7 @@ namespace rill
                                 )
                             );    // :int
                         fenv->parameter_variable_construct(
-                            nullptr,
+                            rill::ast::make_single_identifier( "__b" ),
                             int_class_env_pointer,
                             attribute::make_type_attributes(
                                 attribute::quality_kind::k_val,
@@ -518,7 +532,7 @@ namespace rill
                 construct_predefined_function<action>( intrinsic_function_action, root_env, operator_modulo, [&]( rill::function_symbol_environment_ptr const& fenv ) {
                         // ( :int, :int )
                         fenv->parameter_variable_construct(
-                            nullptr,
+                            rill::ast::make_single_identifier( "__a" ),
                             int_class_env_pointer,
                             attribute::make_type_attributes(
                                 attribute::quality_kind::k_val,
@@ -526,7 +540,7 @@ namespace rill
                                 )
                             );    // :int
                         fenv->parameter_variable_construct(
-                            nullptr,
+                            rill::ast::make_single_identifier( "__b" ),
                             int_class_env_pointer,
                             attribute::make_type_attributes(
                                 attribute::quality_kind::k_val,
@@ -578,7 +592,7 @@ namespace rill
                 construct_predefined_function<action>( intrinsic_function_action, root_env, operator_less_than, [&]( rill::function_symbol_environment_ptr const& fenv ) {
                         // ( :int, :int )
                         fenv->parameter_variable_construct(
-                            nullptr,
+                            rill::ast::make_single_identifier( "__a" ),
                             int_class_env_pointer,
                             attribute::make_type_attributes(
                                 attribute::quality_kind::k_val,
@@ -586,7 +600,7 @@ namespace rill
                                 )
                             );    // :int
                         fenv->parameter_variable_construct(
-                            nullptr,
+                            rill::ast::make_single_identifier( "__b" ),
                             int_class_env_pointer,
                             attribute::make_type_attributes(
                                 attribute::quality_kind::k_val,
@@ -644,7 +658,7 @@ namespace rill
                 construct_predefined_function<action>( intrinsic_function_action, root_env, operator_assign, [&]( rill::function_symbol_environment_ptr const& fenv ) {
                         // ( :int, :int )
                         fenv->parameter_variable_construct(
-                            nullptr,
+                            rill::ast::make_single_identifier( "__a" ),
                             int_class_env_pointer,
                             attribute::make_type_attributes(
                                 attribute::quality_kind::k_ref,
@@ -653,7 +667,7 @@ namespace rill
                             );    // ref :mutable!int
 
                         fenv->parameter_variable_construct(
-                            nullptr,
+                            rill::ast::make_single_identifier( "__b" ),
                             int_class_env_pointer,
                             attribute::make_type_attributes(
                                 attribute::quality_kind::k_val,
@@ -713,7 +727,7 @@ namespace rill
                 construct_predefined_function<action>( intrinsic_function_action, root_env, operator_equal, [&]( rill::function_symbol_environment_ptr const& fenv ) {
                         // ( :int, :int )
                         fenv->parameter_variable_construct(
-                            nullptr,
+                            rill::ast::make_single_identifier( "__a" ),
                             int_class_env_pointer,
                             attribute::make_type_attributes(
                                 attribute::quality_kind::k_val,
@@ -721,7 +735,7 @@ namespace rill
                                 )
                             );    // :int
                         fenv->parameter_variable_construct(
-                            nullptr,
+                            rill::ast::make_single_identifier( "__b" ),
                             int_class_env_pointer,
                             attribute::make_type_attributes(
                                 attribute::quality_kind::k_val,
@@ -785,10 +799,13 @@ namespace rill
 
                 construct_predefined_function<action>( intrinsic_function_action, root_env, print, [&]( rill::function_symbol_environment_ptr const& fenv ) {
                         // ( ref :string )
-                        fenv->parameter_variable_construct( nullptr, string_class_env_pointer,attribute::make_type_attributes(
-                                                                attribute::quality_kind::k_val,
-                                                                attribute::modifiability_kind::k_immutable
-                                                                ) );    // :string
+                        fenv->parameter_variable_construct(
+                            rill::ast::make_single_identifier( "__a" ),
+                            string_class_env_pointer,attribute::make_type_attributes(
+                                attribute::quality_kind::k_val,
+                                attribute::modifiability_kind::k_immutable
+                                )
+                            );    // :string
 
                         return fenv;
                     }, void_class_env_pointer );

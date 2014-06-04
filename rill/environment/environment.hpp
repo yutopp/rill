@@ -10,8 +10,7 @@
 
 #include "environment_base.hpp"
 #include "root_environment.hpp"
-#include "has_parameter_environment.hpp"
-#include "template_set_environment.hpp"
+#include "multiple_set_environment.hpp"
 #include "template_environment.hpp"
 #include "function_symbol_environment.hpp"
 #include "variable_symbol_environment.hpp"

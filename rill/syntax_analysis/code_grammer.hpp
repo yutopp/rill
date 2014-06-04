@@ -311,7 +311,7 @@ namespace rill
 
                 while_statement_
                     = ( qi::lit( "while" )
-                      > ( qi::lit( "(" ) > expression_ > qi::lit( ")" ) )
+                     >> ( qi::lit( "(" ) > expression_ > qi::lit( ")" ) )
                       > program_block_statement_
                       )[
                           qi::_val = helper::make_node_ptr<ast::test_while_statement>(
@@ -325,7 +325,7 @@ namespace rill
 
                 if_statement_
                     = ( qi::lit( "if" )
-                      > ( qi::lit( "(" ) > expression_ > qi::lit( ")" ) )
+                     >> ( qi::lit( "(" ) > expression_ > qi::lit( ")" ) )
                       > program_block_statement_
                         > -(
                             qi::lit( "else" ) > program_block_statement_

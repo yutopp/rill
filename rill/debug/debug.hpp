@@ -25,6 +25,8 @@ namespace rill
             return visitor.dispatch( node );
         }
 
+        void dump_backtrace();
+
     } // namespace debug
 } // namespace rill
 

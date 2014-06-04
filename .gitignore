@@ -1,8 +1,11 @@
 bin/
-test_build/
+build/
 *.out
 *.obj
 
 memo
-TODO.txt
-memo.txt
+*.txt
+
+Gemfile.lock
+.bundle
+vendor

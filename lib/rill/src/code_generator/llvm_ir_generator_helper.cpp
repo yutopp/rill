@@ -101,6 +101,8 @@ namespace rill
             }
 
 
+            // TODO: remove this
+            // do conversion at semantic analyser
             switch( f_attr )
             {
             case attribute::flatten_attribute::from_val_immutable_to_val_immutable:
@@ -172,7 +174,21 @@ namespace rill
             case attribute::flatten_attribute::from_ref_immutable_to_val_immutable:
             case attribute::flatten_attribute::from_ref_immutable_to_val_const:
             case attribute::flatten_attribute::from_ref_immutable_to_val_mutable:
-                assert( false && "not supoprted" );
+                // struct is always represented as pointer
+                if ( target_c_env->has( class_attribute::structed ) ) {
+                    return source_value;
+
+                    return context_->ir_builder.CreateLoad( source_value );
+
+                } else {
+                    if ( context_->represented_as_pointer_set.count( source_value ) == 1 ) {
+                        // TODO: copy constructor
+                        //return source_value;
+                        return context_->ir_builder.CreateLoad( source_value );
+                    } else {
+                        return context_->ir_builder.CreateLoad( source_value );
+                    }
+                }
 
             case attribute::flatten_attribute::from_ref_immutable_to_ref_immutable:
             case attribute::flatten_attribute::from_ref_immutable_to_ref_const:

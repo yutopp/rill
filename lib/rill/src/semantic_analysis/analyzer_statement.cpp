@@ -297,23 +297,23 @@ namespace rill
         RILL_VISITOR_OP( analyzer, ast::function_definition_statement, s, parent_env )
         {
             std::cout
-                << "function_definition_statement: ast_ptr -> "
-                << (environment_base_ptr const&)parent_env << std::endl
-                << "name -- " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
-                << "Args num -- " << s->get_parameter_list().size() << std::endl;
+                << " != Semantic" << std::endl
+                << "    function_definition_statement: " << std::endl
+                << "     name -- " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
+                << "     Args num -- " << s->get_parameter_list().size() << std::endl;
 
             auto const related_env = parent_env->get_related_env_by_ast_ptr( s );
             assert( related_env != nullptr );
             assert( related_env->get_symbol_kind() == kind::type_value::e_function );
 
-            auto const& f_env = std::static_pointer_cast<function_symbol_environment>( related_env );
+            auto const& f_env = cast_to<function_symbol_environment>( related_env );
             assert( f_env != nullptr );
 
+            std::cout << "$" << std::endl;
             // guard double check
-            if ( f_env->is_checked() )
-                return;
+            if ( f_env->is_checked() ) return;
             f_env->change_progress_to_checked();
-
+            std::cout << "$ uncheckd" << std::endl;
 
             // make function parameter variable decl
             for( auto const& e : s->get_parameter_list() ) {
@@ -348,14 +348,17 @@ namespace rill
             }
 
             // scan all statements in this function body
+            std::cout << ">>>>" << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
             dispatch( s->inner_, f_env );
-
+            std::cout << "<<<<" << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
 
             // ?: TODO: use block expression
 
+            std::cout << "returned: " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
 
             // Return type
             if ( s->return_type_ ) {
+
                 solve_type(
                     this,
                     *s->return_type_,
@@ -374,7 +377,7 @@ namespace rill
 
                         f_env->complete(
                             return_ty_d->type_id,
-                            s->get_identifier()->get_inner_symbol()->to_native_string()
+                            make_mangled_name( f_env )
                             );
                     });
 
@@ -384,13 +387,10 @@ namespace rill
             }
 
             //
-            f_env->get_parameter_wrapper_env()->add_overload( f_env );
+            //f_env->get_parameter_wrapper_env()->add_overload( f_env );
 
             std::cout << (environment_base_ptr const)f_env << std::endl;
         }
-
-
-
 
 
         //
@@ -445,7 +445,7 @@ namespace rill
             for( auto const& e : s->get_parameter_list() ) {
                 assert( e.decl_unit.init_unit.type != nullptr || e.decl_unit.init_unit.initializer != nullptr );
 
-                if ( e.decl_unit.init_unit.type ) { // is parameter variavle type specified ?
+                if ( e.decl_unit.init_unit.type ) { // is parameter variable type specified ?
                     solve_type(
                         this,
                         e.decl_unit.init_unit.type,
@@ -463,7 +463,7 @@ namespace rill
                                 class_env,
                                 attr
                                 );
-                        });
+                        } );
 
                 } else {
                     // type inferenced by result of evaluated [[default initializer expression]]
@@ -494,7 +494,7 @@ namespace rill
 
                         f_env->complete(
                             return_ty_d->type_id,
-                            s->get_identifier()->get_inner_symbol()->to_native_string()
+                            make_mangled_name( f_env )
                             );
                     });
 
@@ -504,7 +504,7 @@ namespace rill
             }
 
             //
-            f_env->get_parameter_wrapper_env()->add_overload( f_env );
+            //f_env->get_parameter_wrapper_env()->add_overload( f_env );
 
             std::cout << (environment_base_ptr const)f_env << std::endl;
         }
@@ -647,9 +647,10 @@ namespace rill
         RILL_VISITOR_OP( analyzer, ast::extern_function_declaration_statement, s, parent_env )
         {
             std::cout
-                << "function_definition_statement: ast_ptr -> "
-                << (environment_base_ptr const&)parent_env << std::endl
-                << "Args num -- " << s->get_parameter_list().size() << std::endl;
+                << "= extern_function_definition_statement:" << std::endl
+                << " Name -- " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
+                << " Args num -- " << s->get_parameter_list().size() << std::endl
+                << " Parent env -- " << (const_environment_base_ptr)parent_env << std::endl;
 
             // enverinment is already pre constructed by identifier_collector
             auto const related_env = parent_env->get_related_env_by_ast_ptr( s );
@@ -713,8 +714,7 @@ namespace rill
                         ) {
                         f_env->complete(
                             return_ty_d->type_id,
-                            s->get_identifier()->get_inner_symbol()->to_native_string(),
-                            ""/*FIXME*/,
+                            make_mangled_name( f_env ),
                             function_symbol_environment::attr::e_extern
                             );
                     });
@@ -725,7 +725,7 @@ namespace rill
             }
 
             // TODO: add duplicate check
-            f_env->get_parameter_wrapper_env()->add_overload( f_env );
+            //f_env->get_parameter_wrapper_env()->add_overload( f_env );
 
             std::cout << (environment_base_ptr const)f_env << std::endl;
         }

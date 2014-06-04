@@ -130,7 +130,7 @@ namespace rill
                 ResultCallbackT const& f
                 ) -> function_symbol_environment_ptr;
 
-
+        public:
             auto ref_type(
                 type_detail_ptr const& ty_detail
                 ) const -> type const&;
@@ -152,6 +152,14 @@ namespace rill
             }
 
         private:
+            auto solve_function_overload(
+                multiple_set_environment_ptr const& set_env,
+                std::vector<type_detail_ptr> const& arg_types,
+                type_detail::template_arg_pointer const& template_args,
+                environment_base_ptr const& parent_env
+                )
+                -> function_symbol_environment_ptr;
+
             auto instanciate_class_candidate(
                 type_detail_ptr const& target_ty_detail,
                 environment_base_ptr const& parent_env
@@ -180,10 +188,19 @@ namespace rill
                 )
                 -> class_symbol_environment_ptr;
 
+            auto declare_template_parameter_variables(
+                ast::parameter_list const& template_parameters,
+                type_detail::template_arg_pointer const& template_args,
+                environment_base_ptr const& inner_env,
+                environment_base_ptr const& parent_env,
+                std::vector<environment_base_ptr>& declared_envs
+                )
+                -> void;
+
             auto tp(
                 ast::parameter_list const& template_parameter_list,
                 type_detail::template_arg_pointer const& template_args,
-                single_identifier_environment_base_ptr const& inner_env,
+                environment_base_ptr const& inner_env,
                 environment_base_ptr const& parent_env
                 )
                 -> void;
@@ -204,11 +221,59 @@ namespace rill
                 -> bool;
 
         private:
+            auto get_primitive_class_env( std::string const& type_name ) const
+                -> const_class_symbol_environment_ptr;
+
+        private:
             environment_base_ptr root_env_;
 
             std::shared_ptr<type_detail_pool_t> type_detail_pool_;
             std::shared_ptr<compile_time::llvm_engine::ctfe_engine> ctfe_engine_;
+
+        private:
+            class builtin_class_envs_cache;
+            std::shared_ptr<builtin_class_envs_cache> builtin_class_envs_cache_;
         };
+
+
+        //
+        template<typename EnvPtr>
+        inline auto to_unique_class_env( EnvPtr const& env )
+            -> const_class_symbol_environment_ptr
+        {
+            if ( env == nullptr ) {
+                return nullptr;
+            }
+            if ( env->get_symbol_kind() != kind::type_value::e_multi_set ) {
+                return nullptr;
+            }
+
+            auto const& multi_set_env = cast_to<multiple_set_environment>( env );
+            if ( multi_set_env == nullptr ) {
+                return nullptr;
+            }
+            if ( multi_set_env->get_representation_kind() != kind::type_value::e_class ) {
+                return nullptr;
+            }
+
+            auto const class_env = multi_set_env->template get_unique_environment<class_symbol_environment>();
+            if ( class_env == nullptr ) {
+                return nullptr;
+            }
+
+            return class_env;
+        }
+
+
+        //
+        auto make_mangled_name(
+            const_class_symbol_environment_ptr const& c_env,
+            attribute::type_attributes const& attr
+            )
+            -> std::string;
+        //
+        auto make_mangled_name( const_function_symbol_environment_ptr const& f_env )
+            -> std::string;
 
     } // namespace semantic_analysis
 } // namespace rill

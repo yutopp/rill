@@ -30,6 +30,7 @@ namespace rill
 
             // solve semantics
             auto const& ty_detail = dispatch( expression, parent_env );
+            assert( ty_detail != nullptr );
 
             //
             if ( is_nontype_id( ty_detail->type_id ) ) {
@@ -39,6 +40,9 @@ namespace rill
             // get environment of the type expresison
             auto const& ty
                 = root_env_->get_type_at( ty_detail->type_id );
+
+
+            std::cout << "KKKKK : " << debug_string( root_env_->get_env_strong_at( ty.class_env_id )->get_symbol_kind() ) << std::endl;
 
             auto c_env
                 = std::static_pointer_cast<class_symbol_environment const>(
@@ -70,6 +74,12 @@ namespace rill
                 c_env, evaled_value,
                 eval_expression_as_ctfe( type_expression, parent_env )
                 );
+            assert( c_env != nullptr );
+
+            std::cout << "pass: " << __LINE__ << std::endl;
+            std::cout << ": " << c_env << std::endl;
+            std::cout << c_env->get_base_name() << std::endl;
+            std::cout << "pass: " << __LINE__ << std::endl;
 
             //
             if ( c_env->get_base_name() != "type" ) {

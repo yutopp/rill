@@ -69,7 +69,6 @@ namespace rill
                 return storage.get();
             }
 
-
             auto ir_executor::eval_args(
                 ast::expression_list const& arguments,
                 const_environment_base_ptr const& parent_env,
@@ -192,7 +191,7 @@ namespace rill
 
 
                 // ========================================
-                std::cout << "current : " << f_env->mangled_name() << std::endl;
+                std::cout << "current : " << f_env->get_mangled_name() << std::endl;
                 llvm::Function* const callee_function
                     = static_cast<llvm::Function*>(
                         ir_generator_->function_env_to_llvm_constatnt_ptr( f_env )
@@ -241,7 +240,7 @@ namespace rill
                     = std::static_pointer_cast<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( e ) );
                 assert( f_env != nullptr );
 
-                std::cout << "current : " << f_env->mangled_name() << std::endl;
+                std::cout << "current : " << f_env->get_mangled_name() << std::endl;
                 llvm::Function* const callee_function
                     = static_cast<llvm::Function*>(
                         ir_generator_->function_env_to_llvm_constatnt_ptr( f_env )
@@ -300,50 +299,50 @@ namespace rill
                 }
 
 
-            switch( id_env->get_symbol_kind() )
-            {
-            case kind::type_value::e_variable:
-            {
-                std::cout << "llvm_ir_generator -> case Variable!" << std::endl;
-                auto const& v_env
-                    = std::static_pointer_cast<variable_symbol_environment const>( id_env );
-                assert( v_env != nullptr );
+                switch( id_env->get_symbol_kind() )
+                {
+                case kind::type_value::e_variable:
+                {
+                    std::cout << "llvm_ir_generator -> case Variable!" << std::endl;
+                    auto const& v_env
+                        = std::static_pointer_cast<variable_symbol_environment const>( id_env );
+                    assert( v_env != nullptr );
 
-                // TODO: check the type of variable !
-                // if type is "type", ...(should return id of type...?)
+                    // TODO: check the type of variable !
+                    // if type is "type", ...(should return id of type...?)
 
-                // reference the holder of variable...
-                if ( value_holder_->is_defined( v_env->get_id() ) ) {
-                    return value_holder_->ref_value( v_env->get_id() );
+                    // reference the holder of variable...
+                    if ( value_holder_->is_defined( v_env->get_id() ) ) {
+                        return value_holder_->ref_value( v_env->get_id() );
 
-                } else {
-                    assert( false && "[[ice]] llvm-jit -> value was not found..." );
+                    } else {
+                        assert( false && "[[ice]] llvm-jit -> value was not found..." );
+                    }
+                }
+
+                case kind::type_value::e_class:
+                {
+                    auto const& c_env
+                        = std::static_pointer_cast<class_symbol_environment const>( id_env );
+                    assert( c_env != nullptr );
+
+                    auto const& type_id
+                        = c_env->make_type_id_from();
+
+                    RILL_DEBUG_LOG( "in llvm.class_name " << c_env->get_qualified_name() << " (" << type_id << ")" );
+
+                    return type_detail_pool_->construct(
+                        type_id,
+                        nullptr //variable_env
+                        );
+                }
+
+                default:
+                    std::cout << "skipped " << debug_string( id_env->get_symbol_kind() ) << std::endl;
+                    assert( false && "" );
+                    return nullptr;
                 }
             }
-
-            case kind::type_value::e_class:
-            {
-                auto const& c_env
-                    = std::static_pointer_cast<class_symbol_environment const>( id_env );
-                assert( c_env != nullptr );
-
-                auto const& type_id
-                    = c_env->make_type_id_from();
-
-                std::cout << "in llvm.class_name " << c_env->get_qualified_name() << " (" << type_id << ")" << std::endl;
-
-                return type_detail_pool_->construct(
-                    type_id,
-                    nullptr //variable_env
-                    );
-            }
-
-            default:
-                std::cout << "skipped " << debug_string( id_env->get_symbol_kind() ) << std::endl;
-                assert( false && "" );
-                return nullptr;
-            }
-        }
 
 
 

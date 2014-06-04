@@ -2,8 +2,15 @@ def main(): int
 {
     jit int;
 
-    val a = 5: mutable(int);
+    val a = f(): mutable(int);
+
+    extern_print_int( a );
+    print( "\n" );
+
     a = 10;
+
+    extern_print_int( a );
+    print( "\n" );
 
     return 0;
 }
@@ -14,3 +21,5 @@ def f(): mutable(int)
 }
 
 extern def mutable( val a :type ): type "rill_abababa";
+
+extern def extern_print_int( val :int ): void "put_string2";

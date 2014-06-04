@@ -53,10 +53,9 @@ namespace rill
         }
 
 
-
         RILL_VISITOR_OP( analyzer, ast::intrinsic::int32_value, v, parent_env )
         {
-            auto const class_env = root_env_->lookup( v->get_native_typename_string() );
+            auto const& class_env = get_primitive_class_env( v->get_native_typename_string() );
             assert( class_env != nullptr );  // literal type must exist
 
             //
@@ -64,14 +63,14 @@ namespace rill
                 v,
                 type_detail_pool_->construct(
                     class_env->make_type_id( class_env, determine_type_attributes() ),
-                    class_env
+                    nullptr /*unused*/
                     )
                 );
         }
 
         RILL_VISITOR_OP( analyzer, ast::intrinsic::boolean_value, v, parent_env )
         {
-            auto const class_env = root_env_->lookup( v->get_native_typename_string() );
+            auto const& class_env = get_primitive_class_env( v->get_native_typename_string() );
             assert( class_env != nullptr );  // literal type must exist
 
             //
@@ -79,14 +78,14 @@ namespace rill
                 v,
                 type_detail_pool_->construct(
                     class_env->make_type_id( class_env, determine_type_attributes() ),
-                    class_env
+                    nullptr /*unused*/
                     )
                 );
         }
 
         RILL_VISITOR_OP( analyzer, ast::intrinsic::string_value, v, parent_env )
         {
-            auto const class_env = root_env_->lookup( v->get_native_typename_string() );
+            auto const& class_env = get_primitive_class_env( v->get_native_typename_string() );
             assert( class_env != nullptr );  // literal type must exist
 
             //
@@ -94,7 +93,7 @@ namespace rill
                 v,
                 type_detail_pool_->construct(
                     class_env->make_type_id( class_env, determine_type_attributes() ),
-                    class_env
+                    nullptr /*unused*/
                     )
                 );
         }
@@ -146,10 +145,7 @@ namespace rill
                     } );
 
             //
-            return bind_type(
-                v,
-                ty_d
-                );
+            return bind_type( v, ty_d );
         }
 
     } // namespace semantic_analysis

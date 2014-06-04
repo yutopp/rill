@@ -16,6 +16,7 @@
 #include "type_registry_fwd.hpp"
 #include "environment_fwd.hpp"
 
+#include "../debug/debug.hpp"
 
 
 namespace rill
@@ -42,14 +43,15 @@ namespace rill
         typedef std::allocator<type_type>   dereference_allocator_type;
 
     public:
+        template<typename ClassEnvPtr>
         auto add(
-            environment_id_t const& class_env_id,
+            ClassEnvPtr const& class_env,
             attribute::type_attributes const& type_attr
             )
             -> type_id_t
         try {
-            // TODO: add assertion to check whether class_env_id is kind::k_class
-            // FIXME
+            assert( class_env != nullptr );
+            auto const& class_env_id = class_env->get_id();
 
             if ( auto const& o = is_exist( class_env_id, type_attr ) ) {
                 return *o;
@@ -59,6 +61,7 @@ namespace rill
             data_holder_.emplace( current_index_, std::move( t ) );
 
             std::cout << ">>> type registered." << std::endl
+                      << "id : " << class_env_id << " -> " << class_env->get_base_name() << std::endl
                 /*          << (const_environment_base_ptr)class_env << std::endl*/;
 
             dereference_data_holder_[class_env_id][attribute::detail::make_type_attributes_bit( type_attr )] = current_index_;
@@ -70,25 +73,12 @@ namespace rill
             assert( false && "[ice]" );
         }
 
-        // (TODO: templated class OR) class
-        template<typename ClassEnvPtr>
-        auto add(
-            ClassEnvPtr const& class_env,
-            attribute::type_attributes const& type_attr
-            )
-            -> type_id_t
-        {
-             // FIXME
-            assert( class_env != nullptr );
-
-            return add( class_env->get_id(), type_attr );
-        }
-
 
         auto at( type_id_t const& type_id ) const
             -> type_type const&
         {
             if ( type_id >= type_id_limit ) {
+                rill::debug::dump_backtrace();
                 assert( false && "[[ICE]]" );
             }
 

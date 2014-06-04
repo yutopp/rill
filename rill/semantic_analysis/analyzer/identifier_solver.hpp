@@ -33,28 +33,105 @@ namespace rill
                 bool const do_not_lookup = false
                 ) -> type_detail_ptr
             {
-                // TODO: check is identifier from root
+                // TODO: check that identifier is from root
 
-                std::cout << "Finding Identifier: "
-                          << identifier->get_inner_symbol()->to_native_string() << std::endl
-                          << "astptr: " << identifier->get_id() << std::endl
-                          << (const_environment_base_ptr)parent_env << std::endl;;
+                // TODO: fix
+                auto const do_lookup = !do_not_lookup;
 
-                auto const target_env
-                    = do_not_lookup
-                    ? parent_env->find_on_env( identifier )
-                    : parent_env->lookup( identifier )
+                auto const found_env
+                    = do_lookup
+                    ? parent_env->lookup( identifier )
+                    : parent_env->find_on_env( identifier )
                     ;
-                if ( target_env == nullptr ) {
+                if ( found_env == nullptr ) {
                     // compilation error
                     assert( false && "[[CE]] identifier was not found..." );
                 }
 
-                switch( target_env->get_symbol_kind() ) {
+                // debug
+                std::cout << "## Finding Identifier: " << identifier->get_inner_symbol()->to_native_string() << std::endl
+                          << "## astid: " << identifier->get_id() << std::endl
+                          << "## kind: " << debug_string( found_env->get_symbol_kind() ) << std::endl
+                          << (const_environment_base_ptr)parent_env << std::endl;
+
+
+                switch( found_env->get_symbol_kind() ) {
+                case kind::type_value::e_multi_set:
+                {
+                    auto const& set_env
+                        = std::static_pointer_cast<multiple_set_environment>( found_env );
+
+                    //
+                    switch( set_env->get_representation_kind() ) {
+                    case kind::type_value::e_function:
+                    {
+                        // funcion can be oveloaded, so do not link with identifier
+                        return type_detail_pool->construct(
+                            (type_id_t)type_id_nontype::e_function,
+                            set_env
+                            );
+                    }
+
+                    case kind::type_value::e_class:
+                    {
+                        // Class identifier should be "type" type
+
+                        // TODO: completion the incomplete class
+
+                        // class can not be overloaded, so only one symbol will exist in "set environment".
+                        auto const& ne = set_env->get_normal_environments();
+                        assert( ne.size() == 1 );
+
+                        auto const& class_env
+                            = cast_to<class_symbol_environment>( ne.at( 0 ) );
+                        assert( class_env != nullptr );
+
+                        std::cout << "()memoed.class " << class_env->get_qualified_name() << std::endl;
+                        // link with given identifier!
+                        class_env->connect_from_ast( identifier );
+
+                        // TODO: cache this values
+                        auto const& type_class_env = [&](){
+                            auto const& generic_type_class_set_env
+                                = root_env->lookup( ast::make_identifier( "type" ) );
+                            assert( generic_type_class_set_env != nullptr );  // literal type must exist
+                            auto const& type_class_set_env
+                                = cast_to<multiple_set_environment>( generic_type_class_set_env );
+
+                            assert( type_class_set_env != nullptr );
+
+                            auto const& ne
+                                = type_class_set_env->get_normal_environments();
+                            assert( ne.size() == 1 );
+
+                            return cast_to<class_symbol_environment>( ne.at( 0 ) );
+                        }();
+                        assert( type_class_env != nullptr );
+
+                        auto const& type_type_id
+                            = type_class_env->make_type_id( type_class_env, determine_type_attributes() );
+
+                        return type_detail_pool->construct(
+                            type_type_id,
+                            type_class_env
+                            );
+                    }
+
+                    default:
+                        std::cerr << "kind: " << debug_string( set_env->get_representation_kind() ) << std::endl;
+                        assert( false && "[[CE]] invalid..." );
+                        break;
+                    }
+                    break;
+
+                    assert( false );
+                }
+
+
                 case kind::type_value::e_variable:
                 {
                     auto const& variable_env
-                        = std::static_pointer_cast<variable_symbol_environment>( target_env );
+                        = std::static_pointer_cast<variable_symbol_environment>( found_env );
 
                     // memoize
                     std::cout << "()memoed.variable" << std::endl;
@@ -69,33 +146,13 @@ namespace rill
                     );
                 }
 
-                case kind::type_value::e_parameter_wrapper:
-                {
-                    auto const& has_parameter_env
-                        = std::static_pointer_cast<has_parameter_environment_base>( target_env );
 
-                    switch( has_parameter_env->get_inner_symbol_kind() ) {
-                    case kind::type_value::e_function:
-                    {
-                        return type_detail_pool->construct(
-                            (type_id_t)type_id_nontype::e_function,
-                            target_env
-                        );
-                    }
-
-                    default:
-                        std::cerr << "kind: " << debug_string( has_parameter_env->get_inner_symbol_kind() ) << std::endl;
-                        assert( false && "[[CE]] invalid..." );
-                        break;
-                    }
-                    break;
-                }
-
+#if 0
                 case kind::type_value::e_template_set:
                 {
                     std::cout << "TEMPLATE SET" << std::endl;
                     auto const& template_set_env
-                        = std::static_pointer_cast<template_set_environment>( target_env );
+                        = std::static_pointer_cast<template_set_environment>( found_env );
 
                     switch( template_set_env->get_inner_env_symbol_kind() ) {
                     case kind::type_value::e_class:
@@ -104,6 +161,7 @@ namespace rill
 
 
                         // Class identifier should be "type" type...?
+                        // COUTION: type_class_env will be multiple_set
                         auto const& type_class_env = root_env->lookup( ast::make_identifier( "type" ) );
                         assert( type_class_env != nullptr );  // literal type must exist
 
@@ -114,7 +172,7 @@ namespace rill
 
                         return type_detail_pool->construct(
                             (type_id_t)type_id_nontype::e_template_class,
-                            target_env,
+                            found_env,
                             nullptr/*not nested*/,
                             std::make_shared<type_detail::template_arg_type>()
                             );
@@ -124,7 +182,7 @@ namespace rill
                     {
                         return type_detail_pool->construct(
                             (type_id_t)type_id_nontype::e_function,
-                            target_env,
+                            found_env,
                             nullptr/*not nested*/,
                             std::make_shared<type_detail::template_arg_type>()
                             );
@@ -137,30 +195,12 @@ namespace rill
                     }
                     break;
                 }
-
-                // Class identifier should be "type" type
-                case kind::type_value::e_class:
-                {
-                    // TODO: completion the incomplete class
-
-                    auto const& class_env
-                        = std::static_pointer_cast<class_symbol_environment>( target_env );
-
-                    // memoize
-                    std::cout << "()memoed.class " << class_env->get_qualified_name() << std::endl;
-                    class_env->connect_from_ast( identifier );
+#endif
 
 
-                    auto const& type_class_env = root_env->lookup( ast::make_identifier( "type" ) );
-                    assert( type_class_env != nullptr );  // literal type must exist
-                    return type_detail_pool->construct(
-                        type_class_env->make_type_id( type_class_env, determine_type_attributes() ),
-                        type_class_env
-                    );
-                }
 
                 default:
-                    std::cerr << "kind: " << debug_string( target_env->get_symbol_kind() ) << std::endl;
+                    std::cerr << "kind: " << debug_string( found_env->get_symbol_kind() ) << std::endl;
                     assert( false && "[[CE]] invalid..." );
                     break;
                 }
