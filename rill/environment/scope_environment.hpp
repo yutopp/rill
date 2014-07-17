@@ -45,7 +45,7 @@ namespace rill
             -> kind::type_value RILL_CXX11_OVERRIDE
         {
             assert( has_parent() );
-            return get_parent_env()->get_symbol_kind();
+            return kind::type_value::e_scope;
         }
 
     private:

@@ -62,7 +62,7 @@ namespace rill
         {}
 
     public:
-        virtual auto get_symbol_kind() const
+        auto get_symbol_kind() const
             -> kind::type_value RILL_CXX11_OVERRIDE
         {
             return KindValue;
@@ -90,16 +90,25 @@ namespace rill
             return parameter_type_ids_;
         }
 
+        auto decide_return_type( type_id_t const& return_type_id )
+            -> void
+        {
+            return_type_id_ = return_type_id;
+        }
 
+        auto is_return_type_decided() const
+            -> bool
+        {
+            return return_type_id_ != type_id_undefined;
+        }
 
         auto complete(
-            type_id_t const& return_type_id,
             native_string_type const& mangled_name,
             attributes_t const& attrbute = attr::e_normal
             )
             -> void
         {
-            return_type_id_ = return_type_id;
+            assert( is_return_type_decided() );
             mangled_name_ = mangled_name;
             attributes_ = attrbute;
 
@@ -109,6 +118,7 @@ namespace rill
         auto add_return_type_candidate( type_id_t const& type_id )
             -> void
         {
+            std::cout << "add overload candidate : " << type_id << " -> " << base_name_ << std::endl;
             return_type_candidates_.push_back( type_id );
         }
 

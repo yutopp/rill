@@ -1,0 +1,4 @@
+def main(): int {
+    val a = 0: int;
+    val b = a - 1: int;
+}

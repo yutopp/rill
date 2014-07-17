@@ -33,10 +33,14 @@ namespace rill
         //
         RILL_VISITOR_OP( analyzer, ast::identifier_value, v, parent_env )
         {
-            return bind_type(
-                v,
-                solve_identifier( this, v, parent_env )
-                );
+            auto&& td = solve_identifier( v, parent_env );
+            if ( td == nullptr ) {
+                // compilation error...
+                std::cout << "% name : " << v->get_inner_symbol()->to_native_string() << std::endl;
+                assert( false && "[Error] identifier was not found." );
+            }
+
+            return bind_type( v, td );
         }
 
 
@@ -46,10 +50,14 @@ namespace rill
         //
         RILL_VISITOR_OP( analyzer, ast::template_instance_value, v, parent_env )
         {
-            return bind_type(
-                v,
-                solve_identifier( this, v, parent_env )
-                );
+            auto&& td = solve_identifier( v, parent_env );
+            if ( td == nullptr ) {
+                // compilation error...
+                std::cout << "% name : " << v->get_inner_symbol()->to_native_string() << std::endl;
+                assert( false && "[Error] identifier was not found." );
+            }
+
+            return bind_type( v, td );
         }
 
 

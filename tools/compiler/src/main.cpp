@@ -152,11 +152,23 @@ void term()
     abort();
 }
 
+#include <sys/types.h>
+#include <unistd.h>
+#include <signal.h>
+
+void sighandler(int signum)
+{
+    rill::debug::dump_backtrace();
+    abort();
+}
+
+
 int main( int argc, char* argv[] )
 {
     namespace po = boost::program_options;
 
     std::set_terminate( &term );
+    ::signal( SIGSEGV, sighandler );
 
     // Generic options
     po::options_description generic("Generic options");

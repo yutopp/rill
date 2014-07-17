@@ -42,7 +42,7 @@ namespace rill
 
             map_.emplace( ast_ptr->get_id(), env_ptr );
             //map_[ast_ptr.get()] = env_ptr;
-            assert( map_.at( ast_ptr->get_id() ) == env_ptr );
+            assert( map_.at( ast_ptr->get_id() ) == env_ptr && "tried to reassign" );
         }
 
         template<typename SmartPtr>

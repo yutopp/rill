@@ -52,13 +52,22 @@ namespace rill
             auto const& a_env = parent_env->lookup_layer( kind::type_value::e_function );
             assert( a_env != nullptr ); // TODO: change to error_handler
 
-            auto const t_detail
+            std::cout << "------>> " << std::endl
+                      << a_env << std::endl;
+            std::cout << "->>> " << debug_string( a_env->get_symbol_kind() ) << std::endl;
+
+
+            auto const& return_type_detail
                 = dispatch( s->expression_, parent_env );
 
-            assert( !is_nontype_id( t_detail->type_id ) && "[[CE]] this object couldn't be returned" );
+            assert( !is_nontype_id( return_type_detail->type_id ) && "[[CE]] this object couldn't be returned" );
 
-            auto const& callee_f_env = std::static_pointer_cast<function_symbol_environment>( a_env );
-            callee_f_env->add_return_type_candidate( t_detail->type_id );
+            auto const& callee_f_env = cast_to<function_symbol_environment>( a_env );
+            assert( callee_f_env != nullptr );
+
+            callee_f_env->add_return_type_candidate( return_type_detail->type_id );
+
+            callee_f_env->decide_return_type( return_type_detail->type_id );
         }
 
 
@@ -347,6 +356,23 @@ namespace rill
                 }
             }
 
+            // return type
+            if ( s->return_type_ ) {
+                // if return type was specified, decide type to it.
+                solve_type(
+                    this,
+                    *s->return_type_,
+                    parent_env,
+                    [&]( type_detail_ptr const& return_ty_d,
+                         type const& ty,
+                         class_symbol_environment_ptr const& class_env
+                        ) {
+                        std::cout << "return type is >>" << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
+
+                        f_env->decide_return_type( return_ty_d->type_id );
+                    });
+            }
+
             // scan all statements in this function body
             std::cout << ">>>>" << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
             dispatch( s->inner_, f_env );
@@ -357,37 +383,12 @@ namespace rill
             std::cout << "returned: " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
 
             // Return type
-            if ( s->return_type_ ) {
-
-                solve_type(
-                    this,
-                    *s->return_type_,
-                    parent_env,
-                    [&]( type_detail_ptr const& return_ty_d,
-                         type const& ty,
-                         class_symbol_environment_ptr const& class_env
-                        ) {
-                        // TODO: check return statement types...
-                        // f_env->get_return_type_candidates()
-
-
-                        std::cout << "<<>>" << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
-
-
-
-                        f_env->complete(
-                            return_ty_d->type_id,
-                            make_mangled_name( f_env )
-                            );
-                    });
-
-            } else {
-                // TODO: implement return type inference
-                assert( false && "function return type inference was not supported yet" );
+            if ( !f_env->is_return_type_decided() ) {
+                assert( false && "[Error] return type was not determined..." );
             }
 
             //
-            //f_env->get_parameter_wrapper_env()->add_overload( f_env );
+            f_env->complete( make_mangled_name( f_env ) );
 
             std::cout << (environment_base_ptr const)f_env << std::endl;
         }
@@ -492,10 +493,8 @@ namespace rill
                         // TODO: check return statement types...
                         // f_env->get_return_type_candidates()
 
-                        f_env->complete(
-                            return_ty_d->type_id,
-                            make_mangled_name( f_env )
-                            );
+                        f_env->decide_return_type( return_ty_d->type_id );
+                        f_env->complete( make_mangled_name( f_env ) );
                     });
 
             } else {
@@ -629,13 +628,11 @@ namespace rill
             dispatch( s->conditional_, if_scope_env );  // TODO: type check
 
             // then
-
-            dispatch( s->then_statement_, if_scope_env/*then_scope_env*/ );
+            dispatch( s->then_statement_, if_scope_env );
 
             // else( optional )
             if ( s->else_statement_ ) {
-
-                dispatch( *s->else_statement_, if_scope_env/*then_scope_env*/ );
+                dispatch( *s->else_statement_, if_scope_env );
             }
         }
 
@@ -712,8 +709,8 @@ namespace rill
                          type const& ty,
                          class_symbol_environment_ptr const& class_env
                         ) {
+                        f_env->decide_return_type( return_ty_d->type_id );
                         f_env->complete(
-                            return_ty_d->type_id,
                             make_mangled_name( f_env ),
                             function_symbol_environment::attr::e_extern
                             );

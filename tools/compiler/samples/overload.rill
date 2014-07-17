@@ -5,7 +5,7 @@ def main(): int {
 
 
     f( mi );
-
+    print("abab\n");
 
     return 0;
 }

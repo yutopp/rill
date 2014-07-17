@@ -91,22 +91,6 @@ namespace rill
                 environment_base_ptr const& parent_env
                 ) -> type_detail_ptr;
 
-            //
-            template<typename AnalyzerPtr>
-            friend auto solve_identifier(
-                AnalyzerPtr const&,
-                ast::const_identifier_value_ptr const&,
-                environment_base_ptr const&,
-                bool const
-                ) -> type_detail_ptr;
-
-            template<typename AnalyzerPtr>
-            friend auto solve_identifier(
-                AnalyzerPtr const&,
-                ast::const_template_instance_value_ptr const&,
-                environment_base_ptr const&,
-                bool const
-                ) -> type_detail_ptr;
 
             template<typename AnalyzerPtr, typename F>
             friend auto solve_type(
@@ -129,6 +113,31 @@ namespace rill
                 environment_base_ptr const& env,
                 ResultCallbackT const& f
                 ) -> function_symbol_environment_ptr;
+
+
+        public:
+            // for Identifier
+            auto solve_identifier(
+                ast::const_identifier_value_ptr const&,
+                environment_base_ptr const&,
+                bool const = true
+                ) -> type_detail_ptr;
+
+            // for Template Instance Identifier
+            auto solve_identifier(
+                ast::const_template_instance_value_ptr const&,
+                environment_base_ptr const&,
+                bool const = true
+                ) -> type_detail_ptr;
+
+        private:
+            // solve identifier(env, type) and returns type_detail
+            auto generic_solve_identifier(
+                ast::const_identifier_value_base_ptr const& identifier,
+                environment_base_ptr const& parent_env,
+                bool const do_not_lookup
+                ) -> type_detail_ptr;
+
 
         public:
             auto ref_type(

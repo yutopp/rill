@@ -26,6 +26,10 @@ If you are Ubuntu/Mint user, these links will be useful...
 - [boost-latest](https://launchpad.net/~boost-latest/+archive/ppa "boost-latest")
 - [LLVM Debian/Ubuntu nightly packages](http://llvm.org/apt/ "LLVM Debian/Ubuntu nightly packages")
 
+IF you are Arch/Antergos user, install these packages like below
+```
+sudo pacman -S boost llvm
+```
 
 ### Build and install
 For example,
@@ -44,12 +48,12 @@ Rill specific variables for CMake
 |Name|Description|Default|
 |:--|:--|:--|
 |LLVM_CONFIG_PATH | location path of `llvm-config` | `/usr/bin/llvm-config` |
-|BOOST_ROOT| location path of boost libraries | *auto* |
+|BOOST_ROOT| location path of boost libraries | `/usr/local` |
 |RUN_TEST| set `ON` if you would like to run tests | OFF |
 Please change these variables to fit your environment.
 e.g.
 ```
-cmake ../. -DLLVM_CONFIG_PATH=/usr/bin/llvm-config-3.4 -DRUN_TEST=ON
+cmake ../. -DBOOST_ROOT=/usr -DLLVM_CONFIG_PATH=/usr/bin/llvm-config-3.4 -DRUN_TEST=ON
 ```
 
 After that, execute `make`, (`make test`),  and `sudo make install`.
@@ -85,6 +89,8 @@ At first time,
 ```
 bundle install --path vendor/bundle
 ```
+
+Next, run cmake under the `build` directory.
 
 After that, execute below
 ```

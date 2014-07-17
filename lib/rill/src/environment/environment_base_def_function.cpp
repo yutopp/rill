@@ -98,7 +98,10 @@ namespace rill
 
         // complete return type, name
         auto const& return_type_id = parameter_completed_function_env_pointer->make_type_id( return_class_env, return_type_attr );
-        parameter_completed_function_env_pointer->complete( return_type_id, symbol_name );
+        parameter_completed_function_env_pointer->decide_return_type( return_type_id );
+
+        //
+        parameter_completed_function_env_pointer->complete( symbol_name );
 
         //
         set_environment->add_to_normal_environments( parameter_completed_function_env_pointer );

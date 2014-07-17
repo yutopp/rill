@@ -251,6 +251,8 @@ namespace rill
         {
             auto p = shared_from_this();
             for(;;) {
+                assert( p != nullptr );
+
                 if ( p->get_symbol_kind() == layer_type )
                     return p;
 
@@ -268,6 +270,8 @@ namespace rill
         {
             auto p = shared_from_this();
             for(;;) {
+                assert( p != nullptr );
+
                 if ( p->get_symbol_kind() == layer_type )
                     return p;
 
@@ -324,12 +328,19 @@ namespace rill
         {
             weak_env_base_pointer const& base_env
                 = shared_from_this();
+#if 0
             bool const forward_referenceable
                 = do_mark_child_env_as_forward_referenceable_;
             std::size_t const decl_order
                 = forward_referenceable ? 0 : (*next_child_env_order_)++;
             std::shared_ptr<std::size_t> const& next_child_env_order
                 = do_mark_child_env_as_forward_referenceable_ ? nullptr : next_child_env_order_;
+#else
+            bool const forward_referenceable = true;
+            std::size_t const decl_order = 0;
+            std::shared_ptr<std::size_t> const& next_child_env_order = nullptr;
+#endif
+
 
             return root_shared_resource_->container.template allocate<Env>(
                 base_env,
@@ -337,7 +348,7 @@ namespace rill
                 decl_order,
                 do_mark_child_env_as_forward_referenceable_,
                 next_child_env_order,
-                args... /*std::forward<Args>( args )...*/
+                std::forward<Args>( args )...
                 );
         }
 

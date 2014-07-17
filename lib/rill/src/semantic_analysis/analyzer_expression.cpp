@@ -36,8 +36,90 @@ namespace rill
 
 
         //
-        RILL_VISITOR_OP( analyzer, ast::binary_operator_expression, e, env )
+        RILL_VISITOR_OP( analyzer, ast::binary_operator_expression, e, parent_env )
         {
+            std::cout << "op_call_expr" << std::endl;
+
+            // check lhs(reciever)
+            auto const& lhs_t_detail
+                = dispatch( e->lhs_, parent_env );
+            // check rhs
+            auto const& rhs_t_detail
+                = dispatch( e->rhs_, parent_env );
+
+            // make argument types id list
+            std::vector<type_detail_ptr> const& argument_type_details
+                = { lhs_t_detail, rhs_t_detail };
+
+
+            // TODO: check type_id_special
+            assert(
+                std::count_if(
+                    argument_type_details.cbegin(),
+                    argument_type_details.cend(), []( type_detail_ptr const& t ) {
+                        return t == nullptr || t->type_id == type_id_undefined || is_nontype_id( t->type_id );
+                    } ) == 0
+                );
+
+
+
+            // 1. call lhs.operator( rhs );
+            // 2. call operator( lhs, rhs );
+
+            // 1
+            // solve_identifier( e->op_, lhs_t_detail->target_env )
+
+            // 2
+            auto const& callee_function_type_detail
+                = solve_identifier( e->op_, parent_env );
+
+            //
+            if ( is_nontype_id( callee_function_type_detail->type_id ) ) {
+                // reciever must be function
+                if ( callee_function_type_detail->type_id == (type_id_t)type_id_nontype::e_function ) {
+                    std::cout << "-> " << debug_string( callee_function_type_detail->target_env->get_symbol_kind() ) << std::endl;
+
+                    auto const& set_env = cast_to<multiple_set_environment>( callee_function_type_detail->target_env );
+                    assert( set_env != nullptr );
+
+                    if ( set_env->get_representation_kind() != kind::type_value::e_function ) {
+                        // symbol type was not matched
+                        assert( false );
+                    }
+
+                    auto const& function_env
+                        = solve_function_overload(
+                            set_env,
+                            argument_type_details,                      // type detailes of arguments
+                            callee_function_type_detail->template_args, // template arguments
+                            parent_env
+                            );
+                    assert( function_env != nullptr );
+
+                    // memoize called function env
+                    std::cout << "memoed template" << std::endl;
+                    function_env->connect_from_ast( e );
+                    //function_env->connect_to_ast( e );
+
+                    return bind_type(
+                        e,
+                        type_detail_pool_->construct(
+                            function_env->get_return_type_id(),
+                            function_env,
+                            nullptr
+                            )
+                        );
+
+                } else {
+                    assert( false && "[Error]" );
+                }
+
+            } else {
+                assert( false && "[Error]" );
+            }
+
+
+            assert(false);
 #if 0
             using namespace boost::adaptors;
 
@@ -210,91 +292,97 @@ namespace rill
 
 
         //
-        // reciever.element
+        // check forms like "reciever.element"
         //
         RILL_VISITOR_OP( analyzer, ast::element_selector_expression, e, parent_env )
         {
             //
-            // expr: A.B
-            // A is reciever
-            // B is element
+            // expr: "Expr.B"
+            // Expr is reciever as lhs
+            // B is element as rhs
             //
-
 
             // ========================================
             // eval lhs
             auto const& reciever_type_detail
                 = dispatch( e->reciever_, parent_env );
+            assert( reciever_type_detail != nullptr );
 
             // ========================================
             // eval rhs
             // TODO: support function, class, namespace...
-            // "A.B" will be passed when the value "A" is type_id symbol(currently, only variable type has type_id)
+            // "Expr.B" will be passed when the value "Expr" is type_id symbol(currently, only variable type has type_id)
             if ( is_type_id( reciever_type_detail->type_id ) ) {
                 auto const& reciever_type
                     = parent_env->get_type_at( reciever_type_detail->type_id );
                 assert( reciever_type.class_env_id != environment_id_undefined );
 
                 auto const& reciever_class_env
-                    = parent_env->get_env_strong_at( reciever_type.class_env_id );
+                    = parent_env->get_env_at_as_strong_ref( reciever_type.class_env_id );
                 assert( reciever_class_env != nullptr );
 
-                // TODO: check attributes
-
-                std::cout << (const_environment_base_ptr)(reciever_class_env) << std::endl;
-
                 // ========================================
-                //
+                // nest data
                 auto const& nested
                     = reciever_type_detail->nest != nullptr
                     ? reciever_type_detail->nest
                     : std::make_shared<type_detail::nest_type>()
                     ;
                 assert( nested != nullptr );
+
+                // chain type_detail data
+                // <- old [first evaled reciever type, second evaled..., ..., last evaled reciever type] -> new
                 nested->push_back( reciever_type_detail );
 
-
                 // ========================================
-                //
                 // use solve_identifier directly instead of doing dispatch
                 // FIXME:
-                auto const& selector_id_type_detail
-                    = e->selector_id_->is_template()
-                    ? solve_identifier(
-                        this,
-                        std::static_pointer_cast<ast::template_instance_value const>( e->selector_id_ ),
-                        reciever_class_env,
-                        true
-                        )
-                    : solve_identifier(
-                        this,
-                        std::static_pointer_cast<ast::identifier_value const>( e->selector_id_ ),
-                        reciever_class_env,
-                        true
-                        )
-                    ;
+
+
+                auto const& new_selector_id_type_detail = [&]() {
+                    auto const& selector_id_type_detail
+                        = e->selector_id_->is_template()
+                            ? solve_identifier(
+                                std::static_pointer_cast<ast::template_instance_value const>( e->selector_id_ ),
+                                reciever_class_env,
+                                false
+                                )
+                            : solve_identifier(
+                                std::static_pointer_cast<ast::identifier_value const>( e->selector_id_ ),
+                                reciever_class_env,
+                                false
+                                )
+                        ;
+
+                    if ( selector_id_type_detail != nullptr ) {
+                        return type_detail_pool_->construct(
+                            selector_id_type_detail->type_id,
+                            selector_id_type_detail->target_env,
+                            nested,
+                            selector_id_type_detail->template_args
+                            );
+
+                    } else {
+                        // identifier was not found, but it will be reused by UFCS, so make temporary type data
+
+                        assert( false );
+
+                        return type_detail_pool_->construct(
+                            selector_id_type_detail->type_id,
+                            parent_env,
+                            nested,
+                            selector_id_type_detail->template_args
+                            );
+                    }
+                } ();
+
 
                 // memoize
-#if 0
-                std::cout << "memoed: variable, type id = "
-                          << selector_id_type_detail->target_env->get_type_id()
-                          << " / "
-                          << selector_id_type_detail->target_env->mangled_name()
-                          << std::endl;
-#endif
-                selector_id_type_detail->target_env->connect_from_ast( e );
+                new_selector_id_type_detail->target_env->connect_from_ast( e );
 
-                std::cout << "element delection" << debug_string( selector_id_type_detail->target_env->get_symbol_kind() ) << std::endl;
+                std::cout << "element delection" << debug_string( new_selector_id_type_detail->target_env->get_symbol_kind() ) << std::endl;
 
-                return bind_type(
-                    e,
-                    type_detail_pool_->construct(
-                        selector_id_type_detail->type_id,
-                        selector_id_type_detail->target_env,
-                        nested,
-                        selector_id_type_detail->template_args
-                        )
-                );
+                return bind_type( e, new_selector_id_type_detail );
 
             } else {
                 assert( false && "[[ICE]]" );
@@ -302,15 +390,7 @@ namespace rill
 
             //
             assert( false );
-            return bind_type(
-                e,
-                type_detail_pool_->construct(
-                    type_id_undefined,
-                    nullptr,
-                    nullptr,
-                    nullptr
-                    )
-            );
+            return nullptr;
         }
 
 
@@ -402,16 +482,6 @@ namespace rill
                         assert( false );
                     }
 
-/*
-                    auto const& function_env
-                        = overload_solver_allow_no_entry_with_template(
-                            this,
-                            reciever_type_detail->template_args,
-                            argument_type_details,
-                            template_set_env,
-                            env
-                            );
-*/
                     auto const& function_env
                         = solve_function_overload(
                             set_env,
@@ -425,8 +495,6 @@ namespace rill
                     std::cout << "memoed template" << std::endl;
                     function_env->connect_from_ast( e );
                     //function_env->connect_to_ast( e );
-
-                    std::cout << "connected template" << std::endl;
 
                     return bind_type(
                         e,
@@ -446,7 +514,7 @@ namespace rill
                 assert( false && "[[ICE]] operator() is not supported");
             }
 
-
+            assert( false );
 
             // return retult type env of function
             //return function_env->get_return_type_environment();

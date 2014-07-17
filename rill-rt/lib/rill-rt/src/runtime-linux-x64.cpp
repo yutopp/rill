@@ -2,7 +2,7 @@
 
 extern "C"
 {
-    extern int main0_();    // defined at rill
+    extern int main();    // defined at rill
 }
 
 namespace detail
@@ -78,7 +78,7 @@ extern "C"
 
     int rill_main()
     {
-        int const value = main0_();
+        int const value = main();
         //put_string( "Hello Bunchou!\n" );
 
         _exit( 0 );

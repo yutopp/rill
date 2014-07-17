@@ -34,6 +34,8 @@ namespace rill
         enum struct type_value
         {
             e_none,
+            e_scope,
+
             e_multi_set,
             e_function,
             e_class,
