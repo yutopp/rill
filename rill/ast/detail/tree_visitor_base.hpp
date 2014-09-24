@@ -102,47 +102,78 @@
 // For invoker
 //
 
-#define RILL_VISITOR_INVOKER_OP_HEADER( node_type, qual )  \
-    typename result<node_type>::type \
-    operator()( \
-        std::shared_ptr<node_type> const& node, \
-        environment_base_ptr const& env, \
-        tree_visitor_base<ReturnT> qual* const v \
-        ) qual
+#define RILL_VISITOR_DELEGATOR_SIGNATURE( node_type, qual ) \
+    auto callback_from_node(                              \
+        std::shared_ptr<node_type> const& node,           \
+        environment_base_ptr const& env,                  \
+        tree_visitor_base<ReturnT> qual* const v          \
+        void* storage                                     \
+        ) qual                                            \
+        -> void
 
-#define RILL_VISITOR_INVOKER_READONLY_OP_HEADER( node_type, qual ) \
-    typename result<node_type>::type \
-    operator()( \
-        std::shared_ptr<node_type const> const& node, \
-        const_environment_base_ptr const& env, \
-        tree_visitor_base<ReturnT> qual* const v \
-        ) qual
+#define RILL_VISITOR_DELEGATOR_READONLY_SIGNATURE( node_type, qual )    \
+    auto callback_from_node(                              \
+        std::shared_ptr<node_type const> const& node,     \
+        const_environment_base_ptr const& env,            \
+        tree_visitor_base<ReturnT> qual* const v          \
+        void* storage                                     \
+        ) qual                                            \
+        -> void
 
 
-#define RILL_VISITOR_INVOKER_OP_PURE_VIRTUAL( node_type ) \
+#define RILL_VISITOR_DELEGATOR_INTERFACE( node_type ) \
     virtual RILL_VISITOR_INVOKER_OP_HEADER( node_type, ) =0; \
     virtual RILL_VISITOR_INVOKER_OP_HEADER( node_type, const ) =0; \
     virtual RILL_VISITOR_INVOKER_READONLY_OP_HEADER( node_type, ) =0; \
     virtual RILL_VISITOR_INVOKER_READONLY_OP_HEADER( node_type, const ) =0;
 
 
-#define RILL_VISITOR_INVOKER_OP( node_type )                            \
-    RILL_VISITOR_INVOKER_OP_HEADER( node_type, ) RILL_CXX11_OVERRIDE    \
+#define RILL_VISITOR_DELEGATOR_DEFINITION( node_type )                  \
+    RILL_VISITOR_DELEGATOR_SIGNATURE( node_type, ) override             \
     {                                                                   \
         return static_cast<Visitor&>( *v ).operator()( node, env );     \
     }                                                                   \
-    RILL_VISITOR_INVOKER_OP_HEADER( node_type, const ) RILL_CXX11_OVERRIDE \
+    RILL_VISITOR_DELEGATOR_SIGNATURE( node_type, const ) override       \
     {                                                                   \
         return static_cast<Visitor const&>( *v ).operator()( node, env ); \
     }                                                                   \
-    RILL_VISITOR_INVOKER_READONLY_OP_HEADER( node_type, ) RILL_CXX11_OVERRIDE \
+    RILL_VISITOR_DELEGATOR_READONLY_SIGNATURE( node_type, ) override    \
     {                                                                   \
         return static_cast<Visitor&>( *v ).operator()( node, env );     \
     }                                                                   \
-    RILL_VISITOR_INVOKER_READONLY_OP_HEADER( node_type, const ) RILL_CXX11_OVERRIDE \
+    RILL_VISITOR_DELEGATOR_READONLY_SIGNATURE( node_type, const ) override \
     {                                                                   \
         return static_cast<Visitor const&>( *v ).operator()( node, env ); \
     }
+
+
+namespace rill
+{
+    namespace ast
+    {
+        namespace detail
+        {
+            class visitor_delegator_base
+            {
+            public:
+                BOOST_PP_SEQ_FOR_EACH( RILL_VISITOR_INVOKER_OP_PURE_VIRTUAL_GEN, _, RILL_AST_NODE_TYPE_SEQ )
+            };
+
+            //
+            template<typename Visitor, typename ReturnT>
+            class visitor_delegator
+                : public visitor_invoker_base
+            {
+            public:
+                template<typename NodeT>
+                using result = visitor_result_traits<ReturnT, NodeT>;
+
+            public:
+                BOOST_PP_SEQ_FOR_EACH( RILL_VISITOR_INVOKER_OP_GEN, _, RILL_AST_NODE_TYPE_SEQ )
+            };
+        } // namespace detail
+    } // namespace ast
+} // namespace rill
 
 
 #define RILL_VISITOR_INVOKER_OP_GEN( r, _, node_class )    \
@@ -203,30 +234,7 @@ namespace rill
             };
 
 
-            //
-            template<typename ReturnT>
-            class visitor_invoker_base
-            {
-            public:
-                template<typename NodeT>
-                using result = visitor_result_traits<ReturnT, NodeT>;
 
-            public:
-                BOOST_PP_SEQ_FOR_EACH( RILL_VISITOR_INVOKER_OP_PURE_VIRTUAL_GEN, _, RILL_AST_NODE_TYPE_SEQ )
-            };
-
-            //
-            template<typename Visitor, typename ReturnT>
-            class visitor_invoker
-                : public visitor_invoker_base<ReturnT>
-            {
-            public:
-                template<typename NodeT>
-                using result = visitor_result_traits<ReturnT, NodeT>;
-
-            public:
-                BOOST_PP_SEQ_FOR_EACH( RILL_VISITOR_INVOKER_OP_GEN, _, RILL_AST_NODE_TYPE_SEQ )
-            };
 
             //
             // base class of ast visitors

@@ -24,7 +24,7 @@ namespace rill
 {
     namespace semantic_analysis
     {
-        class analyzer RILL_CXX11_FINAL
+        class analyzer final
             : public ast::ast_visitor<analyzer, type_detail_ptr>
         {
         public:
