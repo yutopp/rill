@@ -5,13 +5,13 @@ before_install:
   - sudo apt-add-repository -y ppa:boost-latest/ppa
   - sudo apt-add-repository -y ppa:ubuntu-toolchain-r/ppa
   - sudo apt-add-repository -y ppa:ubuntu-toolchain-r/test
-  - sudo bash -c "echo 'deb http://llvm.org/apt/precise/ llvm-toolchain-precise-3.4 main' >> /etc/apt/sources.list"
-  - sudo bash -c "echo 'deb-src http://llvm.org/apt/precise/ llvm-toolchain-precise-3.4 main' >> /etc/apt/sources.list"
+  - sudo bash -c "echo 'deb http://llvm.org/apt/precise/ llvm-toolchain-precise-3.5 main' >> /etc/apt/sources.list"
+  - sudo bash -c "echo 'deb-src http://llvm.org/apt/precise/ llvm-toolchain-precise-3.5 main' >> /etc/apt/sources.list"
   - wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key|sudo apt-key add -
   - sudo apt-get update -qq
 install:
-  - sudo apt-get install -qq libboost-system1.55-dev libboost-program-options1.55-dev
-  - sudo apt-get install -qq llvm-3.4-dev g++-4.8
+  - sudo apt-get install -qq libboost-system1.56-dev libboost-program-options1.56-dev
+  - sudo apt-get install -qq llvm-3.5-dev g++-4.8
 script:
-  - cmake . -DLLVM_CONFIG_PATH=/usr/bin/llvm-config-3.4
+  - cmake . -DLLVM_CONFIG_PATH=/usr/bin/llvm-config-3.5
   - make VERBOSE=1
