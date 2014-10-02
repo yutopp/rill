@@ -41,25 +41,6 @@ endif()
 ############################################################
 ############################################################
 #
-# Boost Libraries
-#
-set( Boost_USE_STATIC_LIBS ON )
-find_package(
-  Boost
-  1.56.0
-  COMPONENTS
-    system
-  REQUIRED
-  )
-
-include_directories( ${Boost_INCLUDE_DIRS} )
-
-# the Boost's "target_link_libraries" is specified at tools/compiler/CMakeLists.txt
-
-
-############################################################
-############################################################
-#
 # LLVM
 #  workaround code for LLVM that has no valid cmake files...
 #  You must set 'LLVM_CONFIG_PATH' variable.

@@ -21,6 +21,19 @@ namespace rill
 {
     namespace ast
     {
+        template<typename Ast>
+        auto clone( Ast const& ast )
+            -> Ast
+        {
+            if ( ast != nullptr ) {
+                return std::static_pointer_cast<typename Ast::element_type>(
+                    ast->generic_clone()
+                    );
+            } else {
+                return nullptr;
+            }
+        }
+
         namespace detail
         {
             template<typename T>
@@ -51,14 +64,33 @@ namespace rill
                 }
             };
             template<typename T>
-            constexpr auto has_ast_base_type() -> bool { return has_ast_base_type_t<T>::check(); }
-
-            template<typename T>
-            auto clone_ast_element( T const& )
-                -> T
-            {
-                return T();
+            constexpr auto has_ast_base_type() -> bool {
+                return has_ast_base_type_t<T>::check();
             }
+
+            // generic
+            template<typename ResultT, typename T>
+            auto clone_ast_element(
+                T const& v
+                )
+            {
+                return v;
+            }
+            // vector
+            template<typename ResultT, typename T>
+            auto clone_ast_element(
+                std::vector<T> const& v
+                )
+            {
+                ResultT xs;
+                for( auto&& e : v ) {
+                    xs.push_back( clone_ast_element<T>( e ) );
+                }
+                return xs;
+            }
+            // for nodes are defined in def_switch_begin
+            // TODO: support optional, shared_ptr
+
 
             template<typename T>
             auto dump_ast_element(
@@ -99,35 +131,46 @@ namespace rill
 #define RILL_AST_CLONE_EACH( _unused, class_name, elem )                \
     cloned->BOOST_PP_TUPLE_ELEM( 1, elem )                              \
         = detail::clone_ast_element<BOOST_PP_TUPLE_ELEM( 0, elem )>(    \
-            BOOST_PP_TUPLE_ELEM( 1, elem )                              \
+            this->BOOST_PP_TUPLE_ELEM( 1, elem )                        \
             );
 
 //
 #define RILL_AST_DEFINE_CLONE_ELEMENTS_FUNCITON( class_name, elem )     \
+    private:                                                            \
     template<typename ClonedPtr>                                        \
     auto clone_elements_to( ClonedPtr const& cloned ) const -> void     \
     {                                                                   \
-        this->try_to_call_base_clone_elements_to( cloned );             \
+        this->try_to_call_base_clone_elements_to<decltype(*this)>( cloned ); \
         BOOST_PP_SEQ_FOR_EACH( RILL_AST_CLONE_EACH, class_name, elem )  \
     }                                                                   \
                                                                         \
-    template<typename ClonedPtr>                                        \
+    template<typename Ast, typename ClonedPtr>                          \
     auto try_to_call_base_clone_elements_to( ClonedPtr const& cloned ) const \
-        -> std::enable_if_t<detail::has_ast_base_type<typename ClonedPtr::element_type>()> \
+        -> std::enable_if_t<detail::has_ast_base_type<Ast>()>           \
     {                                                                   \
         ClonedPtr::element_type::ast_base_type::clone_elements_to( cloned ); \
     }                                                                   \
                                                                         \
-    template<typename ClonedPtr>                                        \
+    template<typename Ast, typename ClonedPtr>                          \
     auto try_to_call_base_clone_elements_to( ClonedPtr const& cloned ) const \
-        -> std::enable_if_t<! detail::has_ast_base_type<typename ClonedPtr::element_type>()> \
+        -> std::enable_if_t<! detail::has_ast_base_type<Ast>()>         \
     {                                                                   \
-    }
+        /* no thing to do */                                            \
+    }                                                                   \
+    public:                                                             \
+    template<typename Ast>                                              \
+    friend auto clone( Ast const& ast )                                 \
+        -> Ast;                                                         \
+    friend auto detail::clone_ast_node(                                 \
+        std::shared_ptr<detail::ast_base_type<class_name> const> const& \
+        )                                                               \
+        -> std::shared_ptr<detail::ast_base_type<class_name>>;
 
 
 //
 #define RILL_AST_DEFINE_CLONE_FUNCITON( class_name, elem )              \
-    auto clone() const -> cloned_pointer_type                           \
+    private:                                                            \
+    virtual auto generic_clone() const -> cloned_pointer_type           \
     {                                                                   \
         auto cloned = detail::make_ast_instance<class_name>();          \
         clone_elements_to( cloned );                                    \
@@ -136,8 +179,9 @@ namespace rill
     RILL_AST_DEFINE_CLONE_ELEMENTS_FUNCITON( class_name, elem )
 
 //
-#define RILL_AST_DEFINE_CLONE_SIGNATURE( class_name, elem )     \
-    virtual auto clone() const -> cloned_pointer_type =0;       \
+#define RILL_AST_DEFINE_CLONE_SIGNATURE( class_name, elem )         \
+    private:                                                        \
+    virtual auto generic_clone() const -> cloned_pointer_type =0;   \
     RILL_AST_DEFINE_CLONE_ELEMENTS_FUNCITON( class_name, elem )
 // ========================================
 
@@ -188,11 +232,11 @@ namespace rill
 
 //
 #define RILL_AST_DEFINE_DUMP_FUNCITON( class_name, elem )               \
-    auto dump( std::ostream& os, std::size_t const& i ) const -> void   \
+    virtual auto dump( std::ostream& os, std::size_t const& i ) const -> void \
     {                                                                   \
         dump_elements( os, i );                                         \
     }                                                                   \
-    auto dump( std::ostream& os ) const -> void                         \
+    virtual auto dump( std::ostream& os ) const -> void                 \
     {                                                                   \
         dump( os, 0 );                                                  \
     }                                                                   \

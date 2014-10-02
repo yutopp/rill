@@ -83,8 +83,8 @@ namespace rill
             {}
 
             value_initializer_unit( value_initializer_unit const& rhs )
-                : initializer( detail::clone_ast_element( rhs.initializer ) )
-                , type( detail::clone_ast_element( rhs.type ) )
+                : initializer( clone( rhs.initializer ) )
+                , type( clone( rhs.type ) )
             {}
 
             expression_ptr initializer;
@@ -105,7 +105,7 @@ namespace rill
             {}
 
             variable_declaration_unit( variable_declaration_unit const& rhs )
-                : name( detail::clone_ast_element( rhs.name ) )
+                : name( clone( rhs.name ) )
                 , init_unit( rhs.init_unit )
             {}
 
@@ -226,7 +226,7 @@ namespace rill
             auto clone_inner_node()
                 -> can_be_template_statement_ptr
             {
-                auto const& cloned = detail::clone_ast_element( inner_ );
+                auto const& cloned = clone( inner_ );
 
                 cloned_inners_.push_back( cloned );
 
@@ -418,8 +418,8 @@ namespace rill
             (( variable_declaration, declaration_ ))
             )
         public:
-            variable_declaration_statement( variable_declaration const& decl )
-                : declaration_( decl )
+            variable_declaration_statement( variable_declaration&& decl )
+                : declaration_( std::move( decl ) )
             {}
 
         public:
@@ -437,8 +437,8 @@ namespace rill
             (( variable_declaration, declaration_ ))
             )
         public:
-            class_variable_declaration_statement( variable_declaration const& decl )
-                : declaration_( decl )
+            class_variable_declaration_statement( variable_declaration&& decl )
+                : declaration_( std::move( decl ) )
             {}
 
         public:

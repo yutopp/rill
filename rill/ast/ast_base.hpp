@@ -34,7 +34,6 @@ namespace rill
 
                 ast_id_generator()
 #ifdef RILL_DEBUG
-                    : generated_counter_( 0 )
                 {
                     std::cout << "AST ID GENERATOR" << std::endl;
                 }
@@ -62,14 +61,16 @@ namespace rill
         public:
             ast_base()
             {
-                //id_ = igen_();
+                id_ = igen_();  // generate id
 #ifdef RILL_DEBUG
                 std::cout << "NEW AST( " << typeid( this ).name() << " )@ ID: " << id_ << std::endl;
 #endif
             }
 
         public:
-            inline auto get_id() const -> ast_id_t { return id_; }
+            inline auto get_id() const -> ast_id_t {
+                return id_;
+            }
 
         public:
             std::size_t line, column, length;
@@ -79,6 +80,7 @@ namespace rill
             ast_id_t id_;
         };
 
+        //
         typedef std::shared_ptr<ast_base> ast_base_ptr;
         typedef std::shared_ptr<ast_base const> const_ast_base_ptr;
 

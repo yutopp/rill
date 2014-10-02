@@ -1,3 +1,23 @@
+############################################################
+############################################################
+#
+# Boost Libraries
+#
+set( Boost_USE_STATIC_LIBS ON )
+find_package(
+  Boost
+  1.56.0
+  COMPONENTS
+    system
+    log log_setup thread date_time filesystem
+  REQUIRED
+  )
+
+include_directories( ${Boost_INCLUDE_DIRS} )
+
+
+############################################################
+############################################################
 file( GLOB_RECURSE files ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp )
 
 # librill

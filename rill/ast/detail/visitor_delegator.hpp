@@ -68,10 +68,10 @@ namespace rill
             private:
                 template<typename ResultT, typename Node, typename Env>
                 auto call_visitor(
-                    std::shared_ptr<Node> const node,
-                    std::shared_ptr<Env> const env,
-                    void* const storage,
-                    void*
+                    std::shared_ptr<Node> const& node,
+                    std::shared_ptr<Env> const& env,
+                    void* const /* unused */,
+                    void* /* tag */
                     ) const
                     -> void
                 {
@@ -81,10 +81,10 @@ namespace rill
 
                 template<typename ResultT, typename Node, typename Env>
                 auto call_visitor(
-                    std::shared_ptr<Node> const node,
-                    std::shared_ptr<Env> const env,
+                    std::shared_ptr<Node> const& node,
+                    std::shared_ptr<Env> const& env,
                     void* const storage,
-                    ResultT*
+                    ResultT* /* tag */
                     ) const
                     -> void
                 {

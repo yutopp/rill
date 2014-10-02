@@ -130,34 +130,14 @@ void sample( boost::program_options::variables_map const& vm )
 
 }
 
-static const class A
-{
-public:
-    A()
-    {
-        std::cout << "begin" << std::endl;
-    }
-
-    ~A()
-    {
-        std::cout << "end" << std::endl;
-    }
-} aa;
-
-
-void term()
-{
-    rill::debug::dump_backtrace();
-
-    abort();
-}
-
 #include <sys/types.h>
 #include <unistd.h>
 #include <signal.h>
 
-void sighandler(int signum)
+void sighandler( int signum )
 {
+    ::signal( signum, SIG_DFL );
+
     rill::debug::dump_backtrace();
     abort();
 }
@@ -165,10 +145,9 @@ void sighandler(int signum)
 
 int main( int argc, char* argv[] )
 {
-    namespace po = boost::program_options;
-
-    std::set_terminate( &term );
     ::signal( SIGSEGV, sighandler );
+
+    namespace po = boost::program_options;
 
     // Generic options
     po::options_description generic("Generic options");

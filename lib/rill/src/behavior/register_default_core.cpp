@@ -75,7 +75,7 @@ namespace rill
 #define RILL_DEFINE_BUILTIN_CLASS( name )                               \
             auto const name ## _class_name = rill::ast::make_single_identifier( #name ); \
             auto const name ## _class = std::make_shared<rill::ast::class_definition_statement>( name ## _class_name ); \
-            id_c.dispatch( name ## _class, root_env );              \
+            id_c.dispatch( name ## _class, root_env );                  \
             auto const name ## _class_env_pointer = std::static_pointer_cast<class_symbol_environment>( \
                 root_env->get_related_env_by_ast_ptr( name ## _class )  \
                 );
@@ -87,7 +87,6 @@ namespace rill
             RILL_DEFINE_BUILTIN_CLASS( bool );
             //RILL_DEFINE_BUILTIN_CLASS( double );
 
-
             {
                 // template( val T: type )
                 // class array
@@ -98,6 +97,13 @@ namespace rill
                 // template
                 rill::ast::parameter_list template_params;
 
+                auto const type_type_expression
+                    = std::make_shared<rill::ast::type_expression>(
+                        std::make_shared<rill::ast::term_expression>(
+                            type_class_name
+                            )
+                        );
+
                 // val T: type
                 rill::ast::variable_declaration ty = {
                     rill::attribute::quality_kind::k_val,
@@ -105,15 +111,11 @@ namespace rill
                         rill::ast::make_single_identifier( "T" ),
                         rill::ast::value_initializer_unit{
                             nullptr,
-                            std::make_shared<rill::ast::type_expression>(
-                                std::make_shared<rill::ast::term_expression>(
-                                    type_class_name
-                                    )
-                                )
+                            type_type_expression
                         }
                     }
                 };
-                template_params.push_back( ty );
+                template_params.push_back( std::move( ty ) );
 
                 // val N: int
                 rill::ast::variable_declaration in = {
@@ -130,8 +132,7 @@ namespace rill
                         }
                     }
                 };
-                template_params.push_back( in );
-
+                template_params.push_back( std::move( in ) );
 
                 auto const array_class
                     = std::make_shared<rill::ast::class_definition_statement>(
@@ -139,7 +140,10 @@ namespace rill
                         );
 
                 auto const template_array
-                    = std::make_shared<rill::ast::template_statement>( template_params, array_class );
+                    = std::make_shared<rill::ast::template_statement>(
+                        template_params,
+                        array_class
+                        );
 
                 id_c.dispatch( template_array, root_env );
                 /*auto const template_array_env_pointer = std::static_pointer_cast<template_set_environment>(
@@ -147,8 +151,6 @@ namespace rill
                     );*/
 
             }
-
-
 
 
             {

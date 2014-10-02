@@ -24,7 +24,7 @@
     auto clone_ast_node( const_ ## group ## _ptr const& ast )           \
         -> group ## _ptr                                                \
     {                                                                   \
-        return ast != nullptr ? ast->clone() : nullptr;                 \
+        return ast != nullptr ? ast->generic_clone() : nullptr;         \
     }                                                                   \
     auto dump_ast_node(                                                 \
         const_ ## group ## _ptr const& ast,                             \
@@ -85,21 +85,23 @@
 // free function
 #  define RILL_AST_TEMPLATE_CLONE_AST( class_name, group, prefix )      \
     namespace detail {                                                  \
-    template<typename AstPtr = prefix class_name ## _ptr>               \
-    auto clone_ast_element( prefix const_ ## class_name ## _ptr const& v ) \
-        -> AstPtr                                                       \
+    template<typename ResultT>                                          \
+    auto clone_ast_element(                                             \
+        prefix const_ ## class_name ## _ptr const& v                    \
+        )                                                               \
     {                                                                   \
-        return std::static_pointer_cast<typename AstPtr::element_type>( \
+        return std::static_pointer_cast<typename ResultT::element_type>( \
             clone_ast_node(                                             \
                 std::static_pointer_cast<group const>( v )              \
                 )                                                       \
             );                                                          \
     }                                                                   \
-    template<typename AstPtr = prefix class_name ## _ptr>               \
-    auto clone_ast_element( prefix class_name ## _ptr const& v )        \
-        -> AstPtr                                                       \
+    template<typename ResultT>                                          \
+    auto clone_ast_element(                                             \
+        prefix class_name ## _ptr const& v                              \
+        )                                                               \
     {                                                                   \
-        return std::static_pointer_cast<typename AstPtr::element_type>( \
+        return std::static_pointer_cast<typename ResultT::element_type>( \
             clone_ast_node(                                             \
                 std::static_pointer_cast<group const>( v )              \
                 )                                                       \

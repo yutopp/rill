@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include "environment_base.hpp"
 #include "root_environment.hpp"
 #include "multiple_set_environment.hpp"
 #include "template_environment.hpp"

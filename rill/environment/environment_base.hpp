@@ -8,7 +8,6 @@
 
 #pragma once
 
-
 #include <cassert>
 #include <memory>
 #include <unordered_map>
@@ -19,9 +18,6 @@
 #include <boost/range/iterator_range.hpp>
 
 #include <boost/algorithm/string/join.hpp>
-
-//#include <boost/detail/bitmask.hpp>
-//#include <boost/optional.hpp>
 
 #include "../config/macros.hpp"
 
@@ -43,9 +39,9 @@ namespace rill
     //
     enum class environment_process_progress_t
     {
-        constructed,
-        checked,
-        completed
+        constructed,    // only constructed(incomplete status)
+        checked,        // id is collected
+        completed       // constructed perfectly
     };
 
 
@@ -53,9 +49,7 @@ namespace rill
 
     struct debug_allocate_counter
     {
-        debug_allocate_counter() : value( 0 ) {}
-
-        unsigned int value;
+        unsigned int value = 0;
     };
 
     template<typename BaseEnvT>
@@ -119,7 +113,7 @@ namespace rill
         typedef environment_shared_resource<env_type>   shared_resource_type;
 
     public:
-        // construct as ROOT environment
+        // construct as a ROOT environment
         environment_base( root_initialize_tag )
             : id_( environment_id_undefined )
             , root_shared_resource_( std::make_shared<environment_shared_resource<env_type>>() )
@@ -129,7 +123,11 @@ namespace rill
             , do_mark_child_env_as_forward_referenceable_( true )
             , next_child_env_order_( nullptr )
         {
-            std::cout << ">> environment allocated" << " ( "  << root_shared_resource_->debug_allocate_counter_.value <<" )" << std::endl;
+            std::cout << ">> environment constructed"
+                      << " ( no: "
+                      << root_shared_resource_->debug_allocate_counter_.value
+                      <<" )"
+                      << std::endl;
 
             ++root_shared_resource_->debug_allocate_counter_.value;
         }
@@ -147,7 +145,12 @@ namespace rill
             , do_mark_child_env_as_forward_referenceable_( ep.do_mark_child_env_as_forward_referenceable )
             , next_child_env_order_( ep.next_child_env_order )
         {
-            std::cout << ">> environment allocated(inner): " << id_ << " ( "  << root_shared_resource_->debug_allocate_counter_.value <<" )"  << std::endl;
+            std::cout << ">> environment constructed(as a child)"
+                      << " / id: " << id_
+                      << " ( no: "
+                      << root_shared_resource_->debug_allocate_counter_.value
+                      <<" )"
+                      << std::endl;
 
             ++root_shared_resource_->debug_allocate_counter_.value;
         }
@@ -156,7 +159,7 @@ namespace rill
         {
             --root_shared_resource_->debug_allocate_counter_.value;
 
-            std::cout << "<< environment DEallocated: " << id_ << " ( "  << root_shared_resource_->debug_allocate_counter_.value <<" ) " << typeid(*this).name() << std::endl;
+            std::cout << "<< environment destructed / id: " << id_ << " ( no: " << root_shared_resource_->debug_allocate_counter_.value <<" ) " << typeid(*this).name() << std::endl;
         }
 
     public:
@@ -226,7 +229,7 @@ namespace rill
             return nullptr;
         }
 
-        //
+        // returns environment kind
         virtual auto get_symbol_kind() const
             -> kind::type_value =0;
 
@@ -481,8 +484,7 @@ namespace rill
         auto connect_from_ast( AstPtr const& ast )
             -> void
         {
-            std::cout << "connect_from " << ast->get_id() << " -> : env " << get_id() << std::endl;
-            //
+            std::cout << "connect_from ast_id: " << ast->get_id() << " -> env_id: " << get_id() << std::endl;
             root_shared_resource_->ast_to_env_id_map.add( ast, shared_from_this() );
         }
 
@@ -490,8 +492,7 @@ namespace rill
         auto connect_to_ast( AstPtr const& ast )
             -> void
         {
-            std::cout << "connect_to " << ast->get_id() << " -> : env " << get_id() << std::endl;
-            //
+            std::cout << "connect_to env_id: " << get_id() << " -> ast_id: " << ast->get_id() << std::endl;
             root_shared_resource_->env_id_to_ast_map.add( get_id(), ast );
         }
 
@@ -529,9 +530,8 @@ namespace rill
         auto get_related_env_by_ast_ptr( AstPtr const& ast_ptr ) const
             -> const_env_base_pointer
         {
-
             auto const id = root_shared_resource_->ast_to_env_id_map.get( ast_ptr );
-            std::cout << "id: " << id << std::endl;
+            std::cout << "env_id: " << id << std::endl;
             return ( id != environment_id_undefined ) ? get_env_at( id ).lock() : const_env_base_pointer();
         }
 

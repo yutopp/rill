@@ -8,19 +8,16 @@
 
 #pragma once
 
-
 #include <cassert>
 #include <memory>
 #include <unordered_map>
 #include <bitset>
 #include <vector>
 #include <utility>
+
 #include <boost/range/adaptor/transformed.hpp>
-
 #include <boost/algorithm/string/join.hpp>
-
-//#include <boost/detail/bitmask.hpp>
-//#include <boost/optional.hpp>
+#include <boost/log/trivial.hpp>
 
 #include "../config/macros.hpp"
 
@@ -53,11 +50,13 @@ namespace rill
             : environment_base( std::move( pp ) )
             , base_name_( base_name )
             , metatype_( class_metatype::none )
-        {}
+        {
+            BOOST_LOG_TRIVIAL(debug) << kind::debug_string( get_symbol_kind() ) << std::endl;
+        }
 
     public:
         auto get_symbol_kind() const
-            -> kind::type_value RILL_CXX11_OVERRIDE
+            -> kind::type_value override
         {
             return KindValue;
         }
