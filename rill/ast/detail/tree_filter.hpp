@@ -29,7 +29,7 @@ namespace rill
                 >
             {
             public:
-                typedef node_filter         self_type;
+                using self_type = node_filter;
 
             public:
                 node_filter( F const& f )
@@ -37,9 +37,11 @@ namespace rill
                 {}
 
             public:
+                RILL_VISITOR_OP_DEFAULT
+
                 RILL_VISITOR_OP_DECL_INNER( ast::statements, s, _ ) const
                 {
-                    for( auto const& ss : s->statement_list_ )
+                    for( auto const& ss : s->statements_ )
                         this->dispatch( ss, _ );
                 }
 
@@ -58,8 +60,6 @@ namespace rill
                 auto failed_to_dispatch() const
                     -> void
                 {}
-
-                RILL_VISITOR_OP_FAIL
 
             private:
                 F const& f_;
@@ -83,9 +83,11 @@ namespace rill
                 {}
 
             public:
+                RILL_VISITOR_OP_DEFAULT
+
                 RILL_VISITOR_READONLY_OP_DECL_INNER( ast::statements, s, _ ) const
                 {
-                    for( auto const& ss : s->statement_list_ )
+                    for( auto const& ss : s->statements_ )
                         this->dispatch( ss, _ );
                 }
 
@@ -105,8 +107,6 @@ namespace rill
                 auto failed_to_dispatch() const
                     -> void
                 {}
-
-                RILL_VISITOR_OP_FAIL
 
             private:
                 F const& f_;

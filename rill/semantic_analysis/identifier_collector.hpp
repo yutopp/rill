@@ -28,6 +28,10 @@ namespace rill
             : public ast::ast_visitor_const<identifier_collector, environment_base_ptr>
         {
         public:
+            using self_type = identifier_collector;
+            RILL_VISITOR_OP_DEFAULT
+
+        public:
             identifier_collector(
                 collection_type const& ct = collection_type::e_normal
                 )
@@ -49,8 +53,6 @@ namespace rill
             RILL_VISITOR_OP_DECL( ast::class_variable_declaration_statement ) const;
 
             RILL_VISITOR_OP_DECL( ast::template_statement ) const;
-
-            RILL_VISITOR_OP_FAIL
 
         public:
             inline auto is_builtin() const

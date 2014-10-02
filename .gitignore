@@ -9,3 +9,5 @@ memo
 Gemfile.lock
 .bundle
 vendor
+
+s.sh

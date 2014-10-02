@@ -30,6 +30,10 @@ namespace rill
             : public ast::readonly_ast_visitor<llvm_ir_generator, llvm::Value*>
         {
         public:
+            using self_type = llvm_ir_generator;
+            RILL_VISITOR_OP_DEFAULT
+
+        public:
             llvm_ir_generator(
                 const_environment_base_ptr const&,
                 intrinsic_function_action_holder_ptr const&,
@@ -79,8 +83,6 @@ namespace rill
             RILL_VISITOR_READONLY_OP_DECL( ast::intrinsic::boolean_value );
             RILL_VISITOR_READONLY_OP_DECL( ast::intrinsic::string_value );
             RILL_VISITOR_READONLY_OP_DECL( ast::intrinsic::array_value );
-
-            RILL_VISITOR_OP_FAIL
 
         public:
             // TEST

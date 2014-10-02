@@ -7,11 +7,10 @@
 //
 
 #include "../environment/environment_fwd.hpp"
-#include "../environment/type_registry_fwd.hpp"
-#include "../ast/value_fwd.hpp"
-#include "../semantic_analysis/type_detail.hpp"
-#include <memory>
-#include <llvm/IR/Value.h>
+//#include "../environment/type_registry_fwd.hpp"
+//#include "../ast/value_fwd.hpp"
+//#include "../semantic_analysis/type_detail.hpp"
+//#include <llvm/IR/Value.h>
 
 
 // * IMPORTANT *
@@ -20,7 +19,10 @@
 #define RILL_DISPATCH_TYPES_SEQ                                         \
     (( dispatch_as_environment_tag,         environment_base_ptr ))     \
     (( dispatch_as_value_tag,               ast::value_ptr ))           \
+/*
     (( dispatch_as_type_detail_ptr_tag,     semantic_analysis::type_detail_ptr )) \
     (( dispatch_as_llvm_ir_value_tag,       llvm::Value* ))             \
     (( dispatch_as_void_ptr,                void* ))                    \
     (( dispatch_as_void_tag,                void ))
+
+*/

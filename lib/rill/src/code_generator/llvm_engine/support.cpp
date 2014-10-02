@@ -19,7 +19,6 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/DataLayout.h>
 #include <llvm/IR/Module.h>
-#include <llvm/Assembly/PrintModulePass.h> // will be changed #if ( LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR >= 5 )
 
 #include <llvm/IRReader/IRReader.h>
 

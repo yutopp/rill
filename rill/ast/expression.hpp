@@ -11,6 +11,7 @@
 #include <vector>
 #include <string>
 #include <functional>
+#include <boost/optional.hpp>
 
 #include "../environment/environment_fwd.hpp"
 #include "../behavior/intrinsic_function_holder_fwd.hpp"
@@ -27,19 +28,19 @@ namespace rill
     {
         // ----------------------------------------------------------------------
         // ----------------------------------------------------------------------
-        //
         // expressions
-        //
         // ----------------------------------------------------------------------
         // ----------------------------------------------------------------------
-        RILL_AST_CORE_BEGIN( expression )
-        RILL_AST_CORE_END
+        RILL_AST_GROUP_BEGIN( expression )
+        RILL_AST_GROUP_END
 
 
-
-        struct binary_operator_expression RILL_CXX11_FINAL
-            : public expression
-        {
+        RILL_AST_BEGIN(
+            binary_operator_expression, expression,
+            (( expression_ptr, lhs_ ))
+            (( identifier_value_ptr, op_ ))
+            (( expression_ptr, rhs_ ))
+            )
         public:
             binary_operator_expression(
                 expression_ptr const& lhs,
@@ -50,22 +51,15 @@ namespace rill
                 , op_( op )
                 , rhs_( rhs )
             {}
-
-
-            //////////////////////////////////////////////////
-            RILL_MAKE_AST(
-                binary_operator_expression,
-                (( expression_ptr, lhs_ ))
-                (( identifier_value_ptr, op_ ))
-                (( expression_ptr, rhs_ ))
-                )
-        };
+        RILL_AST_END
 
 
         // will be used by Array, Range, Slice...
-        struct subscrpting_expression RILL_CXX11_FINAL
-            : public expression
-        {
+        RILL_AST_BEGIN(
+            subscrpting_expression, expression,
+            (( expression_ptr, lhs_ ))
+            (( boost::optional<expression_ptr>, rhs_ ))
+            )
         public:
             subscrpting_expression(
                 expression_ptr const& lhs,
@@ -74,24 +68,15 @@ namespace rill
                 : lhs_( lhs )
                 , rhs_( rhs )
             {}
-
-
-            //////////////////////////////////////////////////
-            RILL_MAKE_AST(
-                subscrpting_expression,
-                (( expression_ptr, lhs_ ))
-                (( boost::optional<expression_ptr>, rhs_,
-                   if ( rhs_ )
-                       cloned->rhs_ = clone_ast( *rhs_ );
-                    ))
-                )
-        };
+        RILL_AST_END
 
 
         //
-        struct element_selector_expression RILL_CXX11_FINAL
-            : public expression
-        {
+        RILL_AST_BEGIN(
+            element_selector_expression, expression,
+            (( expression_ptr, reciever_ ))
+            (( identifier_value_base_ptr, selector_id_ ))
+            )
         public:
             element_selector_expression(
                 expression_ptr const& reciever,
@@ -100,22 +85,16 @@ namespace rill
                 : reciever_( reciever )
                 , selector_id_( selector_id )
             {}
-
-
-            //////////////////////////////////////////////////
-            RILL_MAKE_AST(
-                element_selector_expression,
-                (( expression_ptr, reciever_ ))
-                (( identifier_value_base_ptr, selector_id_ ))
-                )
-        };
+        RILL_AST_END
 
 
 
 
-        struct call_expression RILL_CXX11_FINAL
-            : public expression
-        {
+        RILL_AST_BEGIN(
+            call_expression, expression,
+            (( expression_ptr, reciever_ ))
+            (( expression_list, arguments_ ))
+            )
         public:
             call_expression(
                 expression_ptr const& reciever,
@@ -124,18 +103,8 @@ namespace rill
                 : reciever_( reciever )
                 , arguments_( arguments )
             {}
+        RILL_AST_END
 
-
-            //////////////////////////////////////////////////
-            RILL_MAKE_AST(
-                call_expression,
-                (( expression_ptr, reciever_ ))
-                (( expression_list, arguments_,
-                   for( auto const& e : arguments_ )
-                       cloned->arguments_.push_back( clone_ast( e ) );
-                    ))
-                )
-        };
 
 
 
@@ -144,61 +113,98 @@ namespace rill
 
 
         //
-        struct intrinsic_function_call_expression RILL_CXX11_FINAL
-            : public expression
-        {
+        RILL_AST_BEGIN(
+            intrinsic_function_call_expression, expression,
+            (( intrinsic_function_action_id_t, action_id_ ))
+            )
         public:
             intrinsic_function_call_expression( intrinsic_function_action_id_t const& action_id )
                 : action_id_( action_id )
             {}
-
-
-            //////////////////////////////////////////////////
-            RILL_MAKE_AST(
-                intrinsic_function_call_expression,
-                (( intrinsic_function_action_id_t, action_id_,
-                   cloned->action_id_ = action_id_;
-                    ))
-                )
-        };
+        RILL_AST_END
 
 
 
         //
         //
         //
-        struct type_expression RILL_CXX11_FINAL
-            : public expression
-        {
+        RILL_AST_BEGIN(
+            type_expression, expression,
+            (( expression_ptr, type_ ))
+            )
         public:
             type_expression( expression_ptr const& type )
                 : type_( type )
             {}
-
-            //////////////////////////////////////////////////
-            RILL_MAKE_AST(
-                type_expression,
-                (( expression_ptr, type_ ))
-                )
-        };
+        RILL_AST_END
 
 
 
-        struct term_expression RILL_CXX11_FINAL
-            : public expression
-        {
+        RILL_AST_BEGIN(
+            term_expression, expression,
+            (( value_ptr, value_ ))
+            )
         public:
             term_expression( value_ptr const& v )
                 : value_( v )
             {}
+        RILL_AST_END
 
 
-            //////////////////////////////////////////////////
-            RILL_MAKE_AST(
-                term_expression,
-                (( value_ptr, value_ ))
+        RILL_AST_BEGIN(
+            id_expression, expression,
+            (( identifier_value_base_ptr, identifier_ ))
+            (( expression_ptr, expression_ ))
+            (( bool, is_evaluatable_ ))
+            )
+        public:
+            id_expression( identifier_value_base_ptr const& id )
+                : identifier_( id )
+                , is_evaluatable_( false )
+            {}
+
+            id_expression( expression_ptr const& expr )
+                : expression_( expr )
+                , is_evaluatable_( true )
+            {}
+        RILL_AST_END
+
+        /*
+        RILL_AST_BEGIN(
+            test_while_statement, statement,
+            (( expression_ptr, conditional_ ))
+            (( block_statement_ptr, body_statement_ ))
+            )
+        public:
+            test_while_statement(
+                expression_ptr const& cond,
+                block_statement_ptr const& body_statement
                 )
-        };
+                : conditional_( cond )
+                , body_statement_( body_statement )
+            {}
+        RILL_AST_END
+
+
+
+        RILL_AST_BEGIN(
+            test_if_statement, statement,
+            (( expression_ptr, conditional_ ))
+            (( block_statement_ptr, then_statement_ ))
+            (( boost::optional<block_statement_ptr>, else_statement_ ))
+            )
+        public:
+            test_if_statement(
+                expression_ptr const& cond,
+                block_statement_ptr const& then_statement,
+                boost::optional<block_statement_ptr> const& else_statement
+                )
+                : conditional_( cond )
+                , then_statement_( then_statement )
+                , else_statement_( else_statement )
+            {}
+        RILL_AST_END
+        */
 
     } // namespace ast
 } // namespace rill

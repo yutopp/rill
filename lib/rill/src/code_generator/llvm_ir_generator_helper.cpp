@@ -15,7 +15,7 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/DerivedTypes.h>
-#include <llvm/Analysis/Verifier.h> // will be changed #if ( LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR >= 5 )
+#include <llvm/IR/Verifier.h>
 
 
 namespace rill
@@ -131,7 +131,7 @@ namespace rill
 
             case attribute::flatten_attribute::from_val_mutable_to_val_immutable:
                 // struct is always represented as pointer
-                if ( target_c_env->has( class_attribute::structed ) ) {
+                if ( target_c_env->has_metatype( class_metatype::structured ) ) {
                     // TODO: impl copy constructor
                     return source_value;
 
@@ -148,7 +148,7 @@ namespace rill
             case attribute::flatten_attribute::from_val_mutable_to_val_mutable:
                 source_value->dump();
                 // struct is always represented as pointer
-                if ( target_c_env->has( class_attribute::structed ) ) {
+                if ( target_c_env->has_metatype( class_metatype::structured ) ) {
                     return source_value;
 
                     return context_->ir_builder.CreateLoad( source_value );
@@ -175,7 +175,7 @@ namespace rill
             case attribute::flatten_attribute::from_ref_immutable_to_val_const:
             case attribute::flatten_attribute::from_ref_immutable_to_val_mutable:
                 // struct is always represented as pointer
-                if ( target_c_env->has( class_attribute::structed ) ) {
+                if ( target_c_env->has_metatype( class_metatype::structured ) ) {
                     return source_value;
 
                     return context_->ir_builder.CreateLoad( source_value );

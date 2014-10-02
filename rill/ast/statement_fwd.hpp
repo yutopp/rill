@@ -6,10 +6,12 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#pragma once
+#ifndef RILL_AST_STATEMENT_FWD_HPP
+#define RILL_AST_STATEMENT_FWD_HPP
 
 #include <vector>
 
+#include "detail/base_type.hpp"
 #include "statement_def.ipp"
 
 
@@ -17,8 +19,12 @@ namespace rill
 {
     namespace ast
     {
-        // etc...
-        typedef std::vector<statement_ptr>  statement_list;
+        namespace element
+        {
+            using statement_list = std::vector<statement_ptr>;
+        }
 
     } // namespace ast
 } // namespace rill
+
+#endif /*RILL_AST_STATEMENT_FWD_HPP*/

@@ -16,7 +16,7 @@
 
 #include <rill/rill.hpp>
 #include <rill/environment/environment.hpp>
-#include <rill/syntax_analysis/make_syntax_tree.hpp>
+#include <rill/syntax_analysis/parse.hpp>
 #include <rill/semantic_analysis/semantic_analysis.hpp>
 #include <rill/code_generator/code_generator.hpp>
 
@@ -52,11 +52,11 @@ void sample( boost::program_options::variables_map const& vm )
 
     //
     auto const program
-        = rill::syntax_analysis::make_syntax_tree( input_source_code );
+        = rill::syntax_analysis::parse( input_source_code );
 
     // debug
     std::cout
-        << "Top statements size: " << program->statement_list_.size() << std::endl;
+        << "Top statements size: " << program->statements_.size() << std::endl;
 
 
     rill::debug::print_ast( program );

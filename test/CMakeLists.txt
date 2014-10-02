@@ -14,7 +14,7 @@ enable_testing()
 set( Boost_USE_STATIC_LIBS ON )
 find_package(
   Boost
-  1.55.0
+  1.56.0
   COMPONENTS
     unit_test_framework
   REQUIRED
@@ -56,4 +56,5 @@ endmacro()
 # Add test suites
 #
 run_test( parser "syntax/syntax_test.cpp" "rill" ${REQ_LLVM_LIBRARIES} )
+run_test( ast "ast/ast_test.cpp" "rill" ${REQ_LLVM_LIBRARIES} )
 #run_test( tst "main.cc" "rill" ${REQ_LLVM_LIBRARIES} )

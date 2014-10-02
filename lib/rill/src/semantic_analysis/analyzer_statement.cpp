@@ -24,7 +24,7 @@ namespace rill
         RILL_VISITOR_OP( analyzer, ast::statements, s, parent_env )
         {
             // build environment
-            for( auto const& ss : s->statement_list_ )
+            for( auto const& ss : s->statements_ )
                 dispatch( ss, parent_env );
         }
 
@@ -69,32 +69,6 @@ namespace rill
 
             callee_f_env->decide_return_type( return_type_detail->type_id );
         }
-
-
-        // TODO: change to ctfe_expression
-        RILL_VISITOR_OP( analyzer, ast::jit_statement, s, parent_env )
-        {
-            // Return Statement is valid only in Function Envirionment...
-            auto const& a_env = parent_env->lookup_layer( kind::type_value::e_function );
-            assert( a_env != nullptr ); // TODO: change to error_handler
-
-            auto const t_detail
-                = dispatch( s->expression_, parent_env );
-
-            assert( !is_nontype_id( t_detail->type_id ) && "[[CE]] this object couldn't be returned" );
-
-
-            std::cout << "!!! jit eval" << std::endl;
-            ctfe_engine_->execute_as_raw_storage( s->expression_, parent_env );
-            std::cout << "~~~~~~~~~~~~" << std::endl;
-//            run_on_compile_time( parent_env, s->expression_ );
-
-
-            auto const& f_env = std::static_pointer_cast<function_symbol_environment>( a_env );
-            f_env->add_return_type_candidate( t_detail->type_id );
-        }
-
-
 
 
 
@@ -560,9 +534,11 @@ namespace rill
                 // complete class data
                 c_env->complete(
                     base_name,
-                    qualified_name,
-                    class_attribute::structed
+                    qualified_name
                     );
+
+                // expect as structured class(not a strong typedef)
+                c_env->set_metatype( class_metatype::structured );
 
             } else {
                 std::cout << "builtin class!" << std::endl;
@@ -570,8 +546,7 @@ namespace rill
                 // complete class data
                 c_env->complete(
                     base_name,
-                    qualified_name,
-                    class_attribute::none
+                    qualified_name
                     );
 
                 // TODO: change...;(;(;(

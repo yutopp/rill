@@ -14,9 +14,9 @@ include_directories( "${PROJECT_SOURCE_DIR}" )
 
 #
 if( CMAKE_CXX_COMPILER_ID STREQUAL "Clang" )
-  message( STATUS "config for clang." )
+  message( STATUS "config for Clang." )
   add_definitions(
-    -std=c++11
+    -std=c++1y
     -Wall
     -pedantic
     -DBOOST_PP_VARIADICS=1
@@ -24,9 +24,9 @@ if( CMAKE_CXX_COMPILER_ID STREQUAL "Clang" )
     )
 
 elseif( CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  message( STATUS "config for gnu." )
+  message( STATUS "config for GNU." )
   add_definitions(
-    -std=c++11
+    -std=c++1y
     -Wall
     -pedantic
     -fdiagnostics-color=always
@@ -46,7 +46,7 @@ endif()
 set( Boost_USE_STATIC_LIBS ON )
 find_package(
   Boost
-  1.55.0
+  1.56.0
   COMPONENTS
     system
   REQUIRED
@@ -63,7 +63,7 @@ include_directories( ${Boost_INCLUDE_DIRS} )
 # LLVM
 #  workaround code for LLVM that has no valid cmake files...
 #  You must set 'LLVM_CONFIG_PATH' variable.
-#    Ex. cmake ~~ -DLLVM_CONFIG_PATH=/usr/bin/llvm-config-3.4
+#    Ex. cmake -DLLVM_CONFIG_PATH=/usr/bin/llvm-config-3.5
 if( NOT DEFINED LLVM_CONFIG_PATH )
   message( STATUS "LLVM_CONFIG_PATH will be /usr/bin/llvm-config as default value." )
   set( LLVM_CONFIG_PATH "/usr/bin/llvm-config" )
@@ -151,7 +151,7 @@ set( LLVM_COMPONENTS_RILL_REQUIRES
   core
   object
   jit
-  interpreter
+#  interpreter
   nativecodegen
   selectiondag
   asmparser
@@ -203,6 +203,15 @@ foreach( l ${LLVM_LIBS} ${LLVM_SYS_LIBS} )
   string( REGEX REPLACE "-l([^ ]+)" "\\1" lib_name ${l} )
   list( APPEND REQ_LLVM_LIBRARIES ${lib_name} )
 endforeach(l)
+
+
+# adhoc:
+# ADD SYSTEM LIBRARYS
+if ( CMAKE_SYSTEM_NAME STREQUAL "Linux" )
+  list( APPEND REQ_LLVM_LIBRARIES "z" "pthread" "dl" "curses" )     # zlib, pthread, dl, curses
+else()
+  message( FATAL_ERROR "Currently, your platform ${CMAKE_SYSTEM_NAME} is not supported..." )
+endif()
 
 # the LLVM's "target_link_libraries" is specified at lib/rill/CMakeLists.txt
 

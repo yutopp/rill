@@ -39,7 +39,9 @@ namespace rill
 
             // function body
             auto const& intrinsic_call_expr = std::make_shared<rill::ast::intrinsic_function_call_expression>( action_id );
-            rill::ast::statement_list const sl = { std::make_shared<rill::ast::return_statement>( intrinsic_call_expr ) };
+            ast::element::statement_list const sl = {
+                std::make_shared<rill::ast::return_statement>( intrinsic_call_expr )
+            };
             auto f_ast = std::make_shared<rill::ast::intrinsic_function_definition_statement>(
                 function_name,
                 std::make_shared<ast::statements>( sl )
@@ -132,7 +134,9 @@ namespace rill
 
 
                 auto const array_class
-                    = std::make_shared<rill::ast::class_definition_statement>( array_type );
+                    = std::make_shared<rill::ast::class_definition_statement>(
+                        array_type
+                        );
 
                 auto const template_array
                     = std::make_shared<rill::ast::template_statement>( template_params, array_class );

@@ -39,6 +39,7 @@ namespace rill
                 : public ast::readonly_ast_visitor<ir_executor, void*>
             {
                 friend code_generator::llvm_ir_generator;
+                using self_type = ir_executor;
 
             public:
                 ir_executor(
@@ -49,6 +50,8 @@ namespace rill
                     );
 
             public:
+                RILL_VISITOR_OP_DEFAULT
+
                 RILL_VISITOR_READONLY_OP_DECL( ast::call_expression );
                 RILL_VISITOR_READONLY_OP_DECL( ast::binary_operator_expression );
                 RILL_VISITOR_READONLY_OP_DECL( ast::type_expression );
@@ -61,8 +64,6 @@ namespace rill
                 RILL_VISITOR_READONLY_OP_DECL( ast::intrinsic::boolean_value );
                 RILL_VISITOR_READONLY_OP_DECL( ast::intrinsic::string_value );
                 RILL_VISITOR_READONLY_OP_DECL( ast::intrinsic::array_value );
-
-                RILL_VISITOR_OP_FAIL
 
             public:
                 // TODO: fix this...

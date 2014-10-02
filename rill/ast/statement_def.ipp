@@ -13,56 +13,49 @@
 # endif
 
 
-#include "detail/on.hpp"
+#include "detail/def_switch_begin.hpp"
+#ifdef RILL_AST_REQ_NS
 namespace rill
 {
     namespace ast
     {
-        // ----------------------------------------------------------------------
-        // ----------------------------------------------------------------------
-        //
+#endif
+        // ========================================
         // statements
-        //
-        // ----------------------------------------------------------------------
-        // ----------------------------------------------------------------------
+        // ========================================
         RILL_AST_DEF_GROUP( statement )
 
-
         RILL_AST_DEF( statements, statement )
-        
+
+        RILL_AST_DEF( expression_statement, statement )
         RILL_AST_DEF( block_statement, statement )
+        RILL_AST_DEF( empty_statement, statement )
 
         RILL_AST_DEF( can_be_template_statement, statement )
         RILL_AST_DEF( template_statement, statement )
 
-
-        RILL_AST_DEF( empty_statement, statement )
-        RILL_AST_DEF( expression_statement, statement )
-
-
         RILL_AST_DEF( function_definition_statement_base, statement )
         RILL_AST_DEF( function_definition_statement, statement )
         RILL_AST_DEF( intrinsic_function_definition_statement, statement )
-        RILL_AST_DEF( class_function_definition_statement, statement )
+
+        RILL_AST_DEF( variable_declaration_statement, statement )
 
         RILL_AST_DEF( class_definition_statement, statement )
-
+        RILL_AST_DEF( class_function_definition_statement, statement )
+        RILL_AST_DEF( class_variable_declaration_statement, statement )
 
         RILL_AST_DEF( return_statement, statement )
-        RILL_AST_DEF( jit_statement, statement )
-
 
         RILL_AST_DEF( extern_statement_base, statement )
         RILL_AST_DEF( extern_function_declaration_statement, statement )
 
-        RILL_AST_DEF( variable_declaration_statement, statement )
-        RILL_AST_DEF( class_variable_declaration_statement, statement )
-
         //// TEST
         RILL_AST_DEF( test_while_statement, statement )
         RILL_AST_DEF( test_if_statement, statement )
-    }
-}
-#include "detail/off.hpp"
+#ifdef RILL_AST_REQ_NS
+    } // namespace ast
+} // namespace rill
+#endif
+#include "detail/def_switch_end.hpp"
 
 #endif /*RILL_AST_STATEMENT_DEF_IPP*/

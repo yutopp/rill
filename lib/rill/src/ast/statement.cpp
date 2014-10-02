@@ -1,5 +1,5 @@
 //
-// Copyright yutopp 2013 - .
+// Copyright yutopp 2014 - .
 //
 // Distributed under the Boost Software License, Version 1.0.
 // (See accompanying file LICENSE_1_0.txt or copy at
@@ -12,7 +12,7 @@
 
 #define RILL_AST_MAKE_DEFINITION
 #define RILL_AST_FILE_RELOAD
-# include <rill/ast/value_def.ipp>
+# include <rill/ast/statement_def.ipp>
 #undef RILL_AST_FILE_RELOAD
 #undef RILL_AST_MAKE_DEFINITION
 

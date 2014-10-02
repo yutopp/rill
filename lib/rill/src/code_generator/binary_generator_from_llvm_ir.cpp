@@ -20,7 +20,6 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/DataLayout.h>
 #include <llvm/IR/Module.h>
-#include <llvm/Assembly/PrintModulePass.h> // will be changed #if ( LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR >= 5 )
 
 #include <llvm/IRReader/IRReader.h>
 
@@ -154,17 +153,18 @@ namespace rill
 
             // Add the target data from the target machine, if it exists, or the module.
             if ( const llvm::DataLayout *TD = target_machine->getDataLayout() ) {
-                PM.add( new llvm::DataLayout( *TD ) );
+                PM.add( new llvm::DataLayoutPass( llvm::DataLayout( *TD ) ) );
                 std::cout << "const llvm::DataLayout *TD = target_machine->getDataLayout()" << std::endl;
             } else {
-                PM.add( new llvm::DataLayout( context_->llvm_module.get() ) );
+                // FIXME: check smart pointer
+                PM.add( new llvm::DataLayoutPass( llvm::DataLayout( context_->llvm_module.get() ) ) );
             }
 
 
             {
                 // Open the file.
                 std::string error;
-                llvm::sys::fs::OpenFlags const OpenFlags = llvm::sys::fs::F_None | llvm::sys::fs::F_Binary;
+                llvm::sys::fs::OpenFlags const OpenFlags = llvm::sys::fs::F_None;
                 llvm::tool_output_file FDOut( "out.obj", error, OpenFlags );
 
                 llvm::TargetMachine::CodeGenFileType FileType = llvm::TargetMachine::CGFT_ObjectFile;

@@ -10,6 +10,7 @@
 
 #include <vector>
 
+#include "detail/base_type.hpp"
 #include "expression_def.ipp"
 
 

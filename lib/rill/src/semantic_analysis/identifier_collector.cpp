@@ -13,6 +13,8 @@
 #include <rill/ast/expression.hpp>
 #include <rill/ast/value.hpp>
 
+#include <rill/utility/tie.hpp>
+
 
 namespace rill
 {
@@ -21,7 +23,7 @@ namespace rill
         // Root Scope
         RILL_VISITOR_OP( identifier_collector, ast::statements, s, env ) const
         {
-            for( auto const& ss : s->statement_list_ )
+            for( auto const& ss : s->statements_ )
                 dispatch( ss, env );
         }
 

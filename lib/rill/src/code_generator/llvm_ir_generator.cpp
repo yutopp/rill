@@ -29,7 +29,7 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/DerivedTypes.h>
-#include <llvm/Analysis/Verifier.h> // will be changed #if ( LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR >= 5 )
+#include <llvm/IR/Verifier.h>
 
 #include <rill/ast/ast.hpp>
 #include <rill/ast/detail/tree_filter.hpp>
@@ -80,7 +80,7 @@ namespace rill
 
                 return [&]() -> result_type
                 {
-                    if ( c_env->has( class_attribute::structed ) ) {
+                    if ( c_env->has_metatype( class_metatype::structured ) ) {
                         // if type is "structed", argument is always passed by pointer
                         return llvm_ty->getPointerTo();
 
@@ -184,7 +184,7 @@ namespace rill
         RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::statements, s, parent_env )
         {
             //
-            for( auto const& ss : s->statement_list_ )
+            for( auto const& ss : s->statements_ )
                 dispatch( ss, parent_env );
         }
 
@@ -304,7 +304,7 @@ namespace rill
                 context_->ir_builder.CreateRetVoid();
 
             //
-            llvm::verifyFunction( *func, llvm::PrintMessageAction );
+            llvm::verifyFunction( *func );
         }
 
 
@@ -411,7 +411,7 @@ namespace rill
                         );
                     auto const& variable_attr = value_ty.attributes;
 
-                    if ( c_env->has( class_attribute::structed ) || c_env->is_array() ) {
+                    if ( c_env->has_metatype( class_metatype::structured ) || c_env->is_array() ) {
                         // always passed by pointer
 
                         // TODO: copy ctor
@@ -527,7 +527,7 @@ namespace rill
                 context_->ir_builder.CreateRetVoid();
 
             //
-            llvm::verifyFunction( *func, llvm::PrintMessageAction );
+            llvm::verifyFunction( *func );
         }
 
 
@@ -708,7 +708,7 @@ namespace rill
             dispatch( s->inner_, f_env );
 
             //
-            llvm::verifyFunction( *func, llvm::PrintMessageAction );
+            llvm::verifyFunction( *func );
         }
 
 

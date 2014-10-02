@@ -13,18 +13,16 @@
 # endif
 
 
-#include "detail/on.hpp"
+#include "detail/def_switch_begin.hpp"
+#ifdef RILL_AST_REQ_NS
 namespace rill
 {
     namespace ast
     {
-        // ----------------------------------------------------------------------
-        // ----------------------------------------------------------------------
-        //
+#endif
+        // ========================================
         // expressions
-        //
-        // ----------------------------------------------------------------------
-        // ----------------------------------------------------------------------
+        // ========================================
         RILL_AST_DEF_GROUP( expression )
 
         RILL_AST_DEF( binary_operator_expression, expression )
@@ -36,8 +34,16 @@ namespace rill
 
         RILL_AST_DEF( type_expression, expression )
         RILL_AST_DEF( term_expression, expression )
-    }
-}
-#include "detail/off.hpp"
+
+        RILL_AST_DEF( id_expression, expression )
+
+        // RILL_AST_DEF( while_expression, expression )
+        // RILL_AST_DEF( if_expression, expression )
+
+#ifdef RILL_AST_REQ_NS
+    } // namespace ast
+} // namespace rill
+#endif
+#include "detail/def_switch_end.hpp"
 
 #endif /*RILL_AST_EXPRESSION_DEF_IPP*/

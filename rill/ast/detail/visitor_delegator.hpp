@@ -6,8 +6,16 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#ifndef RILL_AST_DETAIL_TREE_VISITOR_BASE_HPP
-#define RILL_AST_DETAIL_TREE_VISITOR_BASE_HPP
+#ifndef RILL_AST_DETAIL_VISITOR_DELEGATOR_HPP
+#define RILL_AST_DETAIL_VISITOR_DELEGATOR_HPP
+
+#include <memory>
+#include <type_traits>
+
+#include "../value_fwd.hpp"
+#include "../expression_fwd.hpp"
+#include "../statement_fwd.hpp"
+#include "tree_visitor_result_t.hpp"
 
 
 namespace rill
@@ -16,6 +24,10 @@ namespace rill
     {
         namespace detail
         {
+            //
+            template<typename Derived, typename ReturnT>
+            struct tree_visitor_base;
+
             // ========================================
             //
             // ========================================
@@ -23,7 +35,11 @@ namespace rill
             {
             public:
 #define RILL_AST_ENUM_DELEGETOR_SIGNATURE
-
+#define RILL_AST_FILE_RELOAD
+# include "../value_def.ipp"
+# include "../expression_def.ipp"
+# include "../statement_def.ipp"
+#undef RILL_AST_FILE_RELOAD
 #undef RILL_AST_ENUM_DELEGETOR_SIGNATURE
             };
 
@@ -33,14 +49,53 @@ namespace rill
             // ========================================
             template<typename Visitor, typename ReturnT>
             class visitor_delegator
-                : public visitor_invoker_base
+                : public visitor_delegator_base
             {
             public:
-                template<typename NodeT>
-                using result = visitor_result_traits<ReturnT, NodeT>;
+                visitor_delegator( Visitor* v )
+                    : v_( v )
+                {}
 
             public:
-                BOOST_PP_SEQ_FOR_EACH( RILL_VISITOR_INVOKER_OP_GEN, _, RILL_AST_NODE_TYPE_SEQ )
+#define RILL_AST_ENUM_DELEGETOR_FUNCTION
+#define RILL_AST_FILE_RELOAD
+# include "../value_def.ipp"
+# include "../expression_def.ipp"
+# include "../statement_def.ipp"
+#undef RILL_AST_FILE_RELOAD
+#undef RILL_AST_ENUM_DELEGETOR_FUNCTION
+
+            private:
+                template<typename ResultT, typename Node, typename Env>
+                auto call_visitor(
+                    std::shared_ptr<Node> const node,
+                    std::shared_ptr<Env> const env,
+                    void* const storage,
+                    void*
+                    ) const
+                    -> void
+                {
+                    std::cout << "!!!!!!! void" << std::endl;
+                    ( *v_ ).operator()( node, env );
+                }
+
+                template<typename ResultT, typename Node, typename Env>
+                auto call_visitor(
+                    std::shared_ptr<Node> const node,
+                    std::shared_ptr<Env> const env,
+                    void* const storage,
+                    ResultT*
+                    ) const
+                    -> void
+                {
+                    std::cout << "!!!!!!! not void" << std::endl;
+                    new( storage ) ReturnT(
+                        std::move( ( *v_ ).operator()( node, env ) )
+                        );
+                }
+
+            private:
+                Visitor* v_;
             };
 
         } // namespace detail
@@ -48,4 +103,4 @@ namespace rill
 } // namespace rill
 
 
-#endif /*RILL_AST_DETAIL_TREE_VISITOR_BASE_HPP*/
+#endif /*RILL_AST_DETAIL_VISITOR_DELEGATOR_HPP*/

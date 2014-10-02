@@ -25,7 +25,7 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/DerivedTypes.h>
-#include <llvm/Analysis/Verifier.h> // will be changed #if ( LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR >= 5 )
+#include <llvm/IR/Verifier.h>
 
 #include <rill/ast/statement.hpp>
 #include <rill/ast/expression.hpp>
@@ -91,7 +91,7 @@ namespace rill
                     );
             auto const& variable_attr = value_ty.attributes;
 
-            if ( c_env->has( class_attribute::structed ) || c_env->is_array() ) {
+            if ( c_env->has_metatype( class_metatype::structured ) || c_env->is_array() ) {
                 llvm::AllocaInst* const allca_inst
                     = context_->ir_builder.CreateAlloca(
                         variable_llvm_type

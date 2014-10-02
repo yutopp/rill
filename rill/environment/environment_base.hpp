@@ -24,7 +24,6 @@
 //#include <boost/optional.hpp>
 
 #include "../config/macros.hpp"
-#include "../utility/tie.hpp"
 
 #include "environment_fwd.hpp"
 #include "environment_kind.hpp"
@@ -185,63 +184,6 @@ namespace rill
             -> env_base_pointer { return find_on_env( std::make_shared<ast::identifier_value>( name ) ); }
         auto find_on_env( ast::native_string_t const& name ) const
             -> const_env_base_pointer { return find_on_env( std::make_shared<ast::identifier_value>( name ) ); }
-
-
-
-
-
-        // this function will be deleted in the future...
-        template<typename F>
-        auto nest_lookup( ast::const_nested_identifier_value_ptr const& ids, F const& failed_callback )
-            -> env_base_pointer
-        {
-            // current environment
-            env_base_pointer env = shared_from_this();
-
-            for( auto const& id : ids->get_nest_ids() ) {
-                auto const temp_env = env;
-                if ( env.get() == this ) {
-                    env = env->lookup( id );
-                } else {
-                    env = env->find_on_env( id );
-                }
-
-                if ( env == nullptr ) {
-                    // if failed to lookup, call recovery function
-                    env = failed_callback( temp_env, id );
-                    if ( env == nullptr )
-                        break;
-                }
-            }
-            return env;
-        }
-
-        auto nest_lookup( ast::const_nested_identifier_value_ptr const& ids )
-            -> env_base_pointer
-        {
-            return nest_lookup( ids, []( env_base_pointer const&, ast::const_identifier_value_base_ptr const& ){ return nullptr; } );
-        }
-
-        template<typename F>
-        auto nest_lookup( ast::const_nested_identifier_value_ptr const& ids ) const
-            -> const_env_base_pointer
-        {
-            const_env_base_pointer env = shared_from_this();
-
-            for( auto const& id : ids->get_nest_ids() ) {
-                if ( env == shared_from_this() ) {
-                    env = env->lookup( id );
-                } else {
-                    env = env->find_on_env( id );
-                }
-
-                if ( env == nullptr )
-                    break;
-            }
-            return env;
-        }
-
-
 
 
 

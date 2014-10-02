@@ -15,6 +15,7 @@
 #endif
 
 #include "detail/tree_visitor_base.hpp"
+#include "detail/visitor_delegator.hpp"
 #include "detail/ast_def_macro.hpp"
 
 
@@ -30,14 +31,15 @@ namespace rill
             class ast_id_generator
             {
             public:
-#ifdef RILL_DEBUG
+
                 ast_id_generator()
+#ifdef RILL_DEBUG
                     : generated_counter_( 0 )
                 {
                     std::cout << "AST ID GENERATOR" << std::endl;
                 }
 #else
-                ast_id_generator() = default;
+                = default;
 #endif
 
             public:
@@ -51,16 +53,16 @@ namespace rill
             private:
                 ast_id_t generated_counter_ = 0;
             };
-
         } // namespace detail
 
 
+        // base class for all AST
         class ast_base
         {
         public:
             ast_base()
             {
-                id_ = igen_();
+                //id_ = igen_();
 #ifdef RILL_DEBUG
                 std::cout << "NEW AST( " << typeid( this ).name() << " )@ ID: " << id_ << std::endl;
 #endif

@@ -23,20 +23,17 @@
 //#include <boost/optional.hpp>
 
 #include "../config/macros.hpp"
-#include "../utility/make_bitflag.hpp"
 
 #include "environment_base.hpp"
 
 
 namespace rill
 {
-    enum class class_attribute
+    enum class class_metatype
     {
-        none        = 0,
-        structed    = 1 << 0,
+        none,
+        structured
     };
-    RILL_MAKE_ENUM_TO_BITFLAG( class_attribute );
-
 
     //
     // class
@@ -55,7 +52,7 @@ namespace rill
             )
             : environment_base( std::move( pp ) )
             , base_name_( base_name )
-            //, kind_( kind )
+            , metatype_( class_metatype::none )
         {}
 
     public:
@@ -67,14 +64,12 @@ namespace rill
 
         auto complete(
             native_string_type const& base_name,
-            native_string_type const& qualified_name,
-            class_attribute const& attr = class_attribute::none
+            native_string_type const& qualified_name
             )
             -> void
         {
             base_name_ = base_name;
             qualified_name_ = qualified_name;
-            attribute_ = attr;
 
             change_progress_to_completed();
         }
@@ -91,23 +86,22 @@ namespace rill
             return qualified_name_;
         }
 
+        auto set_metatype( class_metatype const& metatype )
+        {
+            metatype_ = metatype;
+        }
+
+        auto has_metatype( class_metatype const& metatype ) const
+            -> bool
+        {
+            return metatype_ == metatype;
+        }
+
         // TODO: fix it
         auto get_mangled_name() const
             -> native_string_type const&
         {
             return base_name_;
-        }
-
-        auto attribute() const
-            -> class_attribute const&
-        {
-            return attribute_;
-        }
-
-        auto has( class_attribute const& attr ) const
-            -> bool
-        {
-            return ( attribute_ & attr ) != static_cast<class_attribute>( 0 );
         }
 
         auto dump( std::ostream& os, std::string const& indent ) const
@@ -116,7 +110,6 @@ namespace rill
             os  << indent << "class_symbol_environment" << std::endl;
             return dump_include_env( os, indent );
         }
-
 
     public:
         auto make_type_id_from(
@@ -130,7 +123,6 @@ namespace rill
                 type_attr
                 );
         }
-
 
         auto make_as_array(
             type_id_t const& inner_type_id,
@@ -173,7 +165,7 @@ namespace rill
 
     private:
         native_string_type base_name_, qualified_name_;
-        class_attribute attribute_;
+        class_metatype metatype_;
 
         std::shared_ptr<array_detail> array_detail_;
     };

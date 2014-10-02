@@ -21,7 +21,7 @@
 
 namespace rill
 {
-    BOOST_STRONG_TYPEDEF( std::size_t, environment_id_t );
+    BOOST_STRONG_TYPEDEF( std::size_t, environment_id_t )
     environment_id_t const environment_id_limit = environment_id_t( std::numeric_limits<std::size_t>::max() - 1 );
     environment_id_t const environment_id_undefined = environment_id_t( std::numeric_limits<std::size_t>::max() );
 

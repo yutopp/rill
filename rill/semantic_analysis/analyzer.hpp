@@ -27,6 +27,8 @@ namespace rill
         class analyzer final
             : public ast::ast_visitor<analyzer, type_detail_ptr>
         {
+            using self_type = analyzer;
+
         public:
             analyzer(
                 environment_base_ptr const&,
@@ -34,13 +36,14 @@ namespace rill
                 );
 
         public:
+            RILL_VISITOR_OP_DEFAULT
+
             // statement
             RILL_VISITOR_OP_DECL( ast::statements );
             RILL_VISITOR_OP_DECL( ast::block_statement );
           // RILL_VISITOR_OP_DECL( ast::template_statement );
             RILL_VISITOR_OP_DECL( ast::expression_statement );
             RILL_VISITOR_OP_DECL( ast::return_statement );
-            RILL_VISITOR_OP_DECL( ast::jit_statement );
             RILL_VISITOR_OP_DECL( ast::function_definition_statement );
             RILL_VISITOR_OP_DECL( ast::variable_declaration_statement );
           //RILL_VISITOR_OP_DECL( ast::intrinsic_function_definition_statement );
@@ -69,8 +72,6 @@ namespace rill
             RILL_VISITOR_OP_DECL( ast::intrinsic::boolean_value );
             RILL_VISITOR_OP_DECL( ast::intrinsic::string_value );
             RILL_VISITOR_OP_DECL( ast::intrinsic::array_value );
-
-            RILL_VISITOR_OP_FAIL
 
         public:
             //

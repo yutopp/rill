@@ -1,4 +1,3 @@
-
 //
 // Copyright yutopp 2013 - .
 //
@@ -10,10 +9,6 @@
 #ifndef RILL_SYNTAX_ANALYSIS_POSITION_HPP
 #define RILL_SYNTAX_ANALYSIS_POSITION_HPP
 
-#ifndef BOOST_SPIRIT_USE_PHOENIX_V3
-# define BOOST_SPIRIT_USE_PHOENIX_V3
-#endif
-
 #include <boost/spirit/include/support_line_pos_iterator.hpp>
 
 
@@ -22,7 +17,6 @@ namespace rill
     namespace syntax_analysis
     {
         namespace spirit = boost::spirit;
-        namespace qi = spirit::qi;
 
         namespace detail
         {
@@ -30,7 +24,8 @@ namespace rill
             auto inline get_line_end(
                 Iterator current,
                 Iterator const& upper_bound
-                ) -> Iterator
+                )
+                -> Iterator
             {
                 for( ; current != upper_bound; ++current ) {
                     switch( *current ) {
@@ -59,9 +54,9 @@ namespace rill
 
                 return boost::iterator_range<Iterator>( first, last );
             }
-        } // namespace detail
 
+        } // namespace detail
     } // namespace syntax_analysis
-} // rill
+} // namespace rill
 
 #endif /*RILL_SYNTAX_ANALYSIS_POSITION_HPP*/

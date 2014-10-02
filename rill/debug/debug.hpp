@@ -9,7 +9,7 @@
 #ifndef RILL_DEBUG_HPP
 #define RILL_DEBUG_HPP
 
-#include "ast_printer.hpp"
+#include <iostream>
 
 
 namespace rill
@@ -20,9 +20,7 @@ namespace rill
         template<typename T>
         void print_ast( T const& node )
         {
-            ast_printer visitor;
-
-            return visitor.dispatch( node );
+            node->dump( std::cout );
         }
 
         void dump_backtrace();

@@ -13,6 +13,7 @@
 // for helper
 #include <iostream>
 
+#include "detail/base_type.hpp"
 #include "value_def.ipp"
 
 

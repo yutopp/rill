@@ -29,57 +29,34 @@ namespace rill
     {
         // ----------------------------------------------------------------------
         // ----------------------------------------------------------------------
-        //
         // statements
-        //
         // ----------------------------------------------------------------------
         // ----------------------------------------------------------------------
+        RILL_AST_GROUP_BEGIN( statement )
+        RILL_AST_GROUP_END
+
 
         //
-        struct statement
-            : public ast_base
-        {
+        RILL_AST_BEGIN(
+            statements, statement,
+            (( element::statement_list, statements_ ))
+            )
         public:
-            RILL_MAKE_AST_BASE( statement )
-
-        public:
-            virtual ~statement()
-            {};
-        };
-
-
-        struct statements RILL_CXX11_FINAL
-            : public statement
-        {
-        public:
-            statements( statement_list const& s )
-                : statement_list_( s )
+            statements( element::statement_list const& s )
+                : statements_( s )
             {}
 
             statements( statement_ptr const& s )
-                : statement_list_( 1, s ) // initialize with one element
+                : statements_( 1, s ) // initialize with one element
             {}
-/*
-            statements( statement_list&& s )
-                : s_( s )
-            {}
-*/
-
-            //////////////////////////////////////////////////
-            RILL_MAKE_AST(
-                statements,
-                (( statement_list, statement_list_,
-                   for( auto const& s : statement_list_ )
-                       cloned->statement_list_.push_back( clone_ast( s ) );
-                    ))
-                )
-        };
+        RILL_AST_END
 
 
 
-        struct block_statement RILL_CXX11_FINAL
-            : public statement
-        {
+        RILL_AST_BEGIN(
+            block_statement, statement,
+            (( statements_ptr, statements_ ))
+            )
         public:
             block_statement( statements_ptr const& ss )
                 : statements_( ss )
@@ -88,13 +65,7 @@ namespace rill
             explicit block_statement( statement_ptr const& s )
                 : statements_( std::make_shared<statements>( s ) )
             {}
-
-            //////////////////////////////////////////////////
-            RILL_MAKE_AST(
-                block_statement,
-                (( statements_ptr, statements_ ))
-                )
-        };
+        RILL_AST_END
 
 
 
@@ -112,8 +83,8 @@ namespace rill
             {}
 
             value_initializer_unit( value_initializer_unit const& rhs )
-                : initializer( clone_ast( rhs.initializer ) )
-                , type( clone_ast( rhs.type ) )
+                : initializer( detail::clone_ast_element( rhs.initializer ) )
+                , type( detail::clone_ast_element( rhs.type ) )
             {}
 
             expression_ptr initializer;
@@ -134,7 +105,7 @@ namespace rill
             {}
 
             variable_declaration_unit( variable_declaration_unit const& rhs )
-                : name( clone_ast( rhs.name ) )
+                : name( detail::clone_ast_element( rhs.name ) )
                 , init_unit( rhs.init_unit )
             {}
 
@@ -161,48 +132,38 @@ namespace rill
 
 
 
-        struct expression_statement RILL_CXX11_FINAL
-            : public statement
-        {
+        RILL_AST_BEGIN(
+            expression_statement, statement,
+            (( expression_ptr, expression_ ))
+            )
         public:
             expression_statement( expression_ptr const& expr )
                 : expression_( expr )
             {}
-
-            //////////////////////////////////////////////////
-            RILL_MAKE_AST(
-                expression_statement,
-                (( expression_ptr, expression_ ))
-                )
-        };
+        RILL_AST_END
 
 
-        struct empty_statement RILL_CXX11_FINAL
-            : public statement
-        {
-            //////////////////////////////////////////////////
-            RILL_MAKE_AST(
-                empty_statement
-                )
-        };
+        RILL_AST_BEGIN(
+            empty_statement, statement
+            )
+        RILL_AST_END
 
 
 
-        struct can_be_template_statement
-            : public statement
-        {
+        RILL_AST_BEGIN(
+            can_be_template_statement, statement,
+            (( identifier_value_ptr, identifier_ ))
+            (( bool, is_templated_ ))
+            )
         public:
-            can_be_template_statement( identifier_value_ptr const& symbol_name )
-                : identifier_( symbol_name )
+            can_be_template_statement( identifier_value_ptr const& id )
+                : identifier_( id )
                 , is_templated_( false )
-            {}
-
-            virtual ~can_be_template_statement()
             {}
 
         public:
             auto get_identifier() const
-                -> identifier_value_base_ptr
+                -> identifier_value_ptr
             {
                 return identifier_;
             }
@@ -222,23 +183,17 @@ namespace rill
             {
                 return is_templated_;
             }
-
-
-            //////////////////////////////////////////////////
-            RILL_MAKE_AST_INTERFACE(
-                can_be_template_statement,
-                (( identifier_value_ptr, identifier_ ))
-                (( bool, is_templated_, cloned->is_templated_ = is_templated_; ))
-                )
-        };
+        RILL_AST_END
 
 
 
 
         // inner statement will be templated
-        struct template_statement RILL_CXX11_FINAL
-            : public statement
-        {
+        RILL_AST_BEGIN(
+            template_statement, statement,
+            (( parameter_list, parameter_list_ ))
+            (( can_be_template_statement_ptr, inner_ ))
+            )
         public:
             template_statement(
                 parameter_list const& parameter_list,
@@ -250,7 +205,7 @@ namespace rill
 
         public:
             auto get_identifier() const
-                -> identifier_value_base_ptr
+                -> identifier_value_ptr
             {
                 return get_inner_statement()->get_identifier();
             }
@@ -271,60 +226,45 @@ namespace rill
             auto clone_inner_node()
                 -> can_be_template_statement_ptr
             {
-                auto const& cloned
-                    = clone_ast<can_be_template_statement_ptr>( inner_ );
+                auto const& cloned = detail::clone_ast_element( inner_ );
 
                 cloned_inners_.push_back( cloned );
 
                 return cloned;
             }
 
-
-            //////////////////////////////////////////////////
-            RILL_MAKE_AST(
-                template_statement,
-                (( parameter_list, parameter_list_, cloned->parameter_list_ = parameter_list_; ))
-                (( can_be_template_statement_ptr, inner_ ))
-                )
-
         private:
             std::vector<can_be_template_statement_ptr> cloned_inners_;
-        };
+        RILL_AST_END
 
 
 
 
 
-        struct extern_statement_base
-            : public can_be_template_statement
-        {
+        RILL_AST_BEGIN(
+            extern_statement_base, can_be_template_statement
+            )
         public:
-            extern_statement_base( identifier_value_ptr const& symbol_name )
-                : can_be_template_statement( symbol_name )
+            extern_statement_base( identifier_value_ptr const& id )
+                : can_be_template_statement( id )
             {}
-
-            virtual ~extern_statement_base()
-            {}
+        RILL_AST_END
 
 
-            //////////////////////////////////////////////////
-            RILL_MAKE_AST_DERIVED_INTERFACE(
-                extern_statement_base, can_be_template_statement
-                )
-        };
-
-
-        struct extern_function_declaration_statement RILL_CXX11_FINAL
-            : public extern_statement_base
-        {
+        RILL_AST_BEGIN(
+            extern_function_declaration_statement, extern_statement_base,
+            (( parameter_list, parameter_list_ ))
+            (( type_expression_ptr, return_type_ ))
+            (( native_string_t, extern_symbol_name_ ))
+            )
         public:
             extern_function_declaration_statement(
-                identifier_value_ptr const& symbol_name,
+                identifier_value_ptr const& id,
                 parameter_list const& parameter_list,
                 type_expression_ptr const& return_type,
                 native_string_t const& extern_symbol_name
                 )
-                : extern_statement_base( symbol_name )
+                : extern_statement_base( id )
                 , parameter_list_( parameter_list )
                 , return_type_( return_type )
                 , extern_symbol_name_( extern_symbol_name )
@@ -342,58 +282,42 @@ namespace rill
             {
                 return extern_symbol_name_;
             }
-
-
-            //////////////////////////////////////////////////
-            RILL_MAKE_AST_DERIVED(
-                extern_function_declaration_statement, extern_statement_base,
-                (( parameter_list, parameter_list_, cloned->parameter_list_ = parameter_list_; ))
-                (( type_expression_ptr, return_type_ ))
-                (( native_string_t, extern_symbol_name_, cloned->extern_symbol_name_ = extern_symbol_name_; ))
-                )
-        };
+        RILL_AST_END
 
 
 
 
 
 
-        struct function_definition_statement_base
-            : public can_be_template_statement
-        {
+        RILL_AST_BEGIN(
+            function_definition_statement_base, can_be_template_statement,
+            (( statement_ptr, inner_ ))
+            )
         public:
             function_definition_statement_base(
-                identifier_value_ptr const& symbol_name,
+                identifier_value_ptr const& id,
                 statement_ptr const& inner
                 )
-                : can_be_template_statement( symbol_name )
+                : can_be_template_statement( id )
                 , inner_( inner )
             {}
-
-            virtual ~function_definition_statement_base()
-            {}
-
-        public:
-            //////////////////////////////////////////////////
-            RILL_MAKE_AST_DERIVED_INTERFACE(
-                function_definition_statement_base, can_be_template_statement,
-                (( statement_ptr, inner_ ))
-                )
-        };
+        RILL_AST_END
 
 
 
-        struct function_definition_statement RILL_CXX11_FINAL
-            : public function_definition_statement_base
-        {
+        RILL_AST_BEGIN(
+            function_definition_statement, function_definition_statement_base,
+            (( parameter_list, parameter_list_ ))
+            (( boost::optional<type_expression_ptr>, return_type_ ))
+            )
         public:
             function_definition_statement(
-                identifier_value_ptr const& symbol_name,
+                identifier_value_ptr const& id,
                 parameter_list const& parameter_list,
                 boost::optional<type_expression_ptr> const& return_type,
                 statement_ptr const& inner
                 )
-                : function_definition_statement_base( symbol_name, inner )
+                : function_definition_statement_base( id, inner )
                 , parameter_list_( parameter_list )
                 , return_type_( return_type )
             {}
@@ -404,54 +328,37 @@ namespace rill
             {
                 return parameter_list_;
             }
+        RILL_AST_END
 
 
-
-            //////////////////////////////////////////////////
-            RILL_MAKE_AST_DERIVED(
-                function_definition_statement, function_definition_statement_base,
-                (( parameter_list, parameter_list_, cloned->parameter_list_ = parameter_list_; ))
-                (( boost::optional<type_expression_ptr>, return_type_,
-                   if ( return_type_ )
-                       cloned->return_type_
-                           = clone_ast<type_expression_ptr>( *return_type_ );
-                    ))
-                )
-        };
-
-
-        struct intrinsic_function_definition_statement RILL_CXX11_FINAL
-            : public function_definition_statement_base
-        {
+        RILL_AST_BEGIN(
+            intrinsic_function_definition_statement, function_definition_statement_base
+            )
         public:
             intrinsic_function_definition_statement(
-                identifier_value_ptr const& function_name,
+                identifier_value_ptr const& id,
                 statement_ptr const& inner
                 )
-                : function_definition_statement_base( function_name, inner )
+                : function_definition_statement_base( id, inner )
             {}
-
-
-            //////////////////////////////////////////////////
-            RILL_MAKE_AST_DERIVED(
-                intrinsic_function_definition_statement, function_definition_statement_base
-                )
-        };
+        RILL_AST_END
 
 
 
 
-        struct class_function_definition_statement RILL_CXX11_FINAL
-            : public function_definition_statement_base
-        {
+        RILL_AST_BEGIN(
+            class_function_definition_statement, function_definition_statement_base,
+            (( parameter_list, parameter_list_ ))
+            (( boost::optional<type_expression_ptr>, return_type_ ))
+            )
         public:
             class_function_definition_statement(
-                identifier_value_ptr const& function_name,
+                identifier_value_ptr const& id,
                 parameter_list const& parameter_list,
                 boost::optional<type_expression_ptr> const& return_type,
                 statement_ptr const& inner
                 )
-                : function_definition_statement_base( function_name, inner )
+                : function_definition_statement_base( id, inner )
                 , parameter_list_( parameter_list )
                 , return_type_( return_type )
             {}
@@ -462,42 +369,30 @@ namespace rill
             {
                 return parameter_list_;
             }
-
-
-            //////////////////////////////////////////////////
-            RILL_MAKE_AST_DERIVED(
-                class_function_definition_statement, can_be_template_statement,
-                (( parameter_list, parameter_list_, cloned->parameter_list_ = parameter_list_; ))
-                (( boost::optional<type_expression_ptr>, return_type_,
-                   if ( return_type_ )
-                       cloned->return_type_
-                           = clone_ast(
-                               std::static_pointer_cast<type_expression_ptr::element_type>( *return_type_ )
-                               );
-                    ))
-                )
-        };
+        RILL_AST_END
 
 
 
 
 
-        struct class_definition_statement RILL_CXX11_FINAL
-            : public can_be_template_statement
-        {
+        RILL_AST_BEGIN(
+            class_definition_statement, can_be_template_statement,
+            (( parameter_list, constructor_parameter_list_ ))
+            (( statement_ptr, inner_ ))
+            )
         public:
             class_definition_statement(
-                identifier_value_ptr const& identifier
+                identifier_value_ptr const& id
                 )
-                : can_be_template_statement( identifier )
+                : can_be_template_statement( id )
             {}
 
             class_definition_statement(
-                identifier_value_ptr const& identifier,
+                identifier_value_ptr const& id,
                 boost::optional<parameter_list> const& constructor_parameter_list,
                 statement_ptr const& inner
                 )
-                : can_be_template_statement( identifier )
+                : can_be_template_statement( id )
                 , constructor_parameter_list_( constructor_parameter_list ? *constructor_parameter_list : parameter_list() )
                 , inner_( inner )
             {}
@@ -508,72 +403,7 @@ namespace rill
             {
                 return constructor_parameter_list_;
             }
-
-
-            //////////////////////////////////////////////////
-            RILL_MAKE_AST_DERIVED(
-                class_definition_statement, can_be_template_statement,
-                (( parameter_list, constructor_parameter_list_,
-                   cloned->constructor_parameter_list_ = constructor_parameter_list_; ))
-                (( statement_ptr, inner_ ))
-                )
-        };
-
-
-
-
-        struct test_while_statement RILL_CXX11_FINAL
-            : public statement
-        {
-        public:
-            test_while_statement(
-                expression_ptr const& cond,
-                block_statement_ptr const& body_statement
-                )
-                : conditional_( cond )
-                , body_statement_( body_statement )
-            {}
-
-
-            //////////////////////////////////////////////////
-            RILL_MAKE_AST(
-                test_while_statement,
-                (( expression_ptr, conditional_ ))
-                (( block_statement_ptr, body_statement_ ))
-                )
-        };
-
-
-
-        struct test_if_statement RILL_CXX11_FINAL
-            : public statement
-        {
-        public:
-            test_if_statement(
-                expression_ptr const& cond,
-                block_statement_ptr const& then_statement,
-                boost::optional<block_statement_ptr> const& else_statement
-                )
-                : conditional_( cond )
-                , then_statement_( then_statement )
-                , else_statement_( else_statement )
-            {}
-
-
-            //////////////////////////////////////////////////
-            RILL_MAKE_AST(
-                test_if_statement,
-                (( expression_ptr, conditional_ ))
-                (( block_statement_ptr, then_statement_ ))
-                (( boost::optional<block_statement_ptr>, else_statement_,
-                   if ( else_statement_ )
-                       cloned->else_statement_
-                           = clone_ast(
-                               std::static_pointer_cast<block_statement_ptr::element_type>( *else_statement_ )
-                               );
-                    ))
-                )
-        };
+        RILL_AST_END
 
 
 
@@ -581,9 +411,12 @@ namespace rill
 
 
 
-        struct variable_declaration_statement RILL_CXX11_FINAL
-            : public statement
-        {
+
+
+        RILL_AST_BEGIN(
+            variable_declaration_statement, statement,
+            (( variable_declaration, declaration_ ))
+            )
         public:
             variable_declaration_statement( variable_declaration const& decl )
                 : declaration_( decl )
@@ -595,20 +428,14 @@ namespace rill
             {
                 return declaration_.decl_unit.name;
             }
-
-
-            //////////////////////////////////////////////////
-            RILL_MAKE_AST(
-                variable_declaration_statement,
-                (( variable_declaration, declaration_, cloned->declaration_ = declaration_; ))
-                )
-        };
+        RILL_AST_END
 
 
 
-        struct class_variable_declaration_statement RILL_CXX11_FINAL
-            : public statement
-        {
+        RILL_AST_BEGIN(
+            class_variable_declaration_statement, statement,
+            (( variable_declaration, declaration_ ))
+            )
         public:
             class_variable_declaration_statement( variable_declaration const& decl )
                 : declaration_( decl )
@@ -620,63 +447,70 @@ namespace rill
             {
                 return declaration_.decl_unit.name;
             }
-
-
-            //////////////////////////////////////////////////
-            RILL_MAKE_AST(
-                class_variable_declaration_statement,
-                (( variable_declaration, declaration_, cloned->declaration_ = declaration_; ))
-                )
-        };
+        RILL_AST_END
 
 
 
 
 
-        struct return_statement RILL_CXX11_FINAL
-            : public statement
-        {
+        RILL_AST_BEGIN(
+            return_statement, statement,
+            (( expression_ptr, expression_ ))
+            )
         public:
             return_statement( expression_ptr const& expr )
                 : expression_( expr )
             {}
+        RILL_AST_END
 
 
-            //////////////////////////////////////////////////
-            RILL_MAKE_AST(
-                return_statement,
-                (( expression_ptr, expression_ ))
-                )
-        };
 
-
-        // pre
-        struct jit_statement RILL_CXX11_FINAL
-            : public statement
-        {
+        RILL_AST_BEGIN(
+            test_while_statement, statement,
+            (( expression_ptr, conditional_ ))
+            (( block_statement_ptr, body_statement_ ))
+            )
         public:
-            jit_statement( expression_ptr const& expr )
-                : expression_( expr )
-            {}
-
-
-            //////////////////////////////////////////////////
-            RILL_MAKE_AST(
-                jit_statement,
-                (( expression_ptr, expression_ ))
+            test_while_statement(
+                expression_ptr const& cond,
+                block_statement_ptr const& body_statement
                 )
-        };
+                : conditional_( cond )
+                , body_statement_( body_statement )
+            {}
+        RILL_AST_END
 
 
 
+        RILL_AST_BEGIN(
+            test_if_statement, statement,
+            (( expression_ptr, conditional_ ))
+            (( block_statement_ptr, then_statement_ ))
+            (( boost::optional<block_statement_ptr>, else_statement_ ))
+            )
+        public:
+            test_if_statement(
+                expression_ptr const& cond,
+                block_statement_ptr const& then_statement,
+                boost::optional<block_statement_ptr> const& else_statement
+                )
+                : conditional_( cond )
+                , then_statement_( then_statement )
+                , else_statement_( else_statement )
+            {}
+        RILL_AST_END
 
 
 
         // make native
-        inline auto make_native_class( identifier_value_ptr const& class_identifier )
+        inline auto make_native_class(
+            identifier_value_ptr const& class_identifier
+            )
             -> class_definition_statement_ptr
         {
-            return std::make_shared<class_definition_statement>( class_identifier );
+            return std::make_shared<class_definition_statement>(
+                class_identifier
+                );
         }
 
 
