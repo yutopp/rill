@@ -69,8 +69,6 @@ BOOST_AUTO_TEST_CASE( visitor_1 )
 
     test_visitor_1 v;
     v.dispatch( stmt );
-
-    std::cout << "BO" << std::endl;
 }
 
 class test_visitor_1_c
@@ -106,8 +104,6 @@ BOOST_AUTO_TEST_CASE( visitor_1_c )
 
     test_visitor_1_c const v;
     v.dispatch( stmt );
-
-    std::cout << "BO" << std::endl;
 }
 
 class test_visitor_1_r
@@ -140,8 +136,6 @@ BOOST_AUTO_TEST_CASE( visitor_1_r )
 
     test_visitor_1_r v;
     v.dispatch( stmt );
-
-    std::cout << "BO" << std::endl;
 }
 
 
@@ -178,12 +172,7 @@ BOOST_AUTO_TEST_CASE( visitor_1_rc )
 
     test_visitor_1_rc const v;
     v.dispatch( stmt );
-
-    std::cout << "BO" << std::endl;
 }
-
-
-
 
 
 BOOST_AUTO_TEST_SUITE_END()

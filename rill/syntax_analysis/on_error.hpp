@@ -13,6 +13,7 @@
 #include <boost/spirit/home/x3.hpp>
 
 #include "position.hpp"
+#include "error.hpp"
 
 
 namespace rill
@@ -54,12 +55,20 @@ namespace rill
                     << ": \n"
                     << detail::get_current_line_range( first, what.where(), last )
                     << "\n"
-                    << std::string( get_column( first, what.where() ) - 1, ' ' )
+                    << std::string( get_column( first, what.where() ), ' ' )
                     << "^ here"
                     << std::endl
                     ;
 
+                //
                 detail::skip_error_token( first, last );
+
+                // report error
+                auto& error_holder
+                    = x3::get<error_container_tag>( context ).get();
+
+                // TODO: fix
+                error_holder.push_back( 0/*dummy*/ );
 
                 return x3::error_handler_result::retry;
             }

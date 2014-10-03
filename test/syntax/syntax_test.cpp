@@ -3,37 +3,42 @@
 
 #include <rill/syntax_analysis/parse.hpp>
 
+#define AST_PASS( ast ) \
+    BOOST_CHECK( ( ast ) != nullptr );
+
 
 BOOST_AUTO_TEST_SUITE( Syntax )
 
-
-BOOST_AUTO_TEST_CASE( empty_string )
+BOOST_AUTO_TEST_CASE( pass_test_0 )
 {
     std::string const s = R"s(; ; /**/;)s";
-    rill::syntax_analysis::parse( s );
 
-    {
-        std::string const s = R"s(def fg; /**/; ;/**/)s";
-        rill::syntax_analysis::parse( s );
-    }
-
-    {
-        std::string const s = R"s(a+a;)s";
-        rill::syntax_analysis::parse( s );
-    }
+    auto const& ast = rill::syntax_analysis::parse( s );
+    AST_PASS( ast );
 }
 
-
-BOOST_AUTO_TEST_CASE( function_statment )
+BOOST_AUTO_TEST_CASE( pass_test_1 )
 {
+    std::string const s = R"s(def fg; /**/; ;/**/)s";
+
+    auto const& ast = rill::syntax_analysis::parse( s );
+    AST_PASS( ast );
 }
 
-
-
-BOOST_AUTO_TEST_CASE( semantic )
+BOOST_AUTO_TEST_CASE( pass_test_2 )
 {
+    std::string const s = R"s(a+a;)s";
 
+    auto const& ast = rill::syntax_analysis::parse( s );
+    AST_PASS( ast );
 }
 
+BOOST_AUTO_TEST_CASE( pass_test_3 )
+{
+    std::string const s = R"s(a+a1;)s";
+
+    auto const& ast = rill::syntax_analysis::parse( s );
+    AST_PASS( ast );
+}
 
 BOOST_AUTO_TEST_SUITE_END()

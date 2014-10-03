@@ -1,6 +1,7 @@
 #include <rill/syntax_analysis/parse.hpp>
 #include <rill/syntax_analysis/code_grammar.hpp>
 #include <rill/syntax_analysis/skip_grammar.hpp>
+#include <rill/syntax_analysis/error.hpp>
 
 
 namespace rill
@@ -21,25 +22,36 @@ namespace rill
             iterator_t const& end
             ) -> ast::statements_ptr
         {
-            rill::ast::statements_ptr stmts;
+            namespace x3 = boost::spirit::x3;
 
-            auto const code_g = code_grammar::rules::entrypoint();
+            rill::ast::statements_ptr stmts;
+            error_container error_holder;
+
+            auto const code_g = x3::with<error_container_tag>(
+                std::ref( error_holder )
+                )[code_grammar::rules::entrypoint()];
             auto const skip_g = skip_grammer::rules::entrypoint();
 
             bool const success
                 = boost::spirit::x3::phrase_parse( it, end, code_g, skip_g, stmts );
 
+            std::cout << "finish parsing: " << success << std::endl;
+
             if ( success ) {
-                std::cout << "succ! " << std::endl;
-                std::cout << std::string( it, end ) << stmts << std::endl;
-                if ( stmts == nullptr ) {
-                    std::cout << "stmts is null" << std::endl;
+                // reaches if *parsing* is succeeded with skipping
+                if ( error_holder.size() != 0 ) {
+                    // there are some syntax error
+                    return nullptr;
+
                 } else {
-                    stmts->dump( std::cout );
+                    if ( it != end ) {
+                        // not reached to eof -> error
+                        return nullptr;
+                    }
                 }
 
             } else {
-                std::cout << "failed" << std::endl;
+                return nullptr;
             }
 
             return stmts;

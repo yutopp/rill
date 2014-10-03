@@ -228,8 +228,6 @@ namespace rill
                     );
             }
 
-
-
         } // namespace helper
     } // namespace syntax_analysis
 } // namespace rill
