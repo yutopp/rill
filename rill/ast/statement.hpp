@@ -384,7 +384,6 @@ namespace rill
 
         RILL_AST_BEGIN(
             class_definition_statement, can_be_template_statement,
-            (( parameter_list, constructor_parameter_list_ ))
             (( statement_ptr, inner_ ))
             )
         public:
@@ -396,20 +395,11 @@ namespace rill
 
             class_definition_statement(
                 identifier_value_ptr const& id,
-                boost::optional<parameter_list> const& constructor_parameter_list,
                 statement_ptr const& inner
                 )
                 : can_be_template_statement( id )
-                , constructor_parameter_list_( constructor_parameter_list ? *constructor_parameter_list : parameter_list() )
                 , inner_( inner )
             {}
-
-        public:
-            auto get_constructor_parameter_list() const
-                -> parameter_list const&
-            {
-                return constructor_parameter_list_;
-            }
         RILL_AST_END
 
 

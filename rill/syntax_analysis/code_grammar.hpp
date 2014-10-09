@@ -38,9 +38,10 @@ namespace rill
                 auto make_keyword( L&& literal )
                 {
                     return x3::lexeme[
-                        x3::lit( std::forward<L>( literal ) )
+                        x3::lit( std::forward<L>( literal ) ) >> +skip_grammer::rules::entrypoint()
                         ];
                 }
+
             } // namespace detail
 
             //
@@ -57,6 +58,7 @@ namespace rill
 
             R( top_level_statement, ast::statement_ptr,
                   t.function_definition_statement
+                | t.class_definition_statement
                 | t.empty_statement
                 | t.expression_statement    // this rule must be located at last
             )
@@ -66,7 +68,7 @@ namespace rill
             // ========================================
             //
             R( function_definition_statement, ast::function_definition_statement_ptr,
-                ( detail::make_keyword( "def " )
+                ( detail::make_keyword( "def" )
                 > t.identifier
                 > t.parameter_variable_declaration_list
                 > -t.type_specifier
@@ -115,6 +117,88 @@ namespace rill
                     helper::make_node_ptr<ast::statements>( ph::_1 )
                     ]
             )
+
+
+            R( holder_kind_specifier, attribute::quality_kind,
+                ( x3::lit( "val" )[([]( auto& ctx ){ x3::_val( ctx ) = attribute::quality_kind::k_val; })]
+                | x3::lit( "ref" )[([]( auto& ctx ){ x3::_val( ctx ) = attribute::quality_kind::k_ref; })]
+                )
+            )
+
+            R( parameter_variable_declaration, ast::variable_declaration,
+                t.holder_kind_specifier > t.parameter_variable_initializer_unit
+            )
+
+            R( parameter_variable_initializer_unit, ast::variable_declaration_unit,
+               -t.identifier > t.value_initializer_unit
+            )
+
+            // value initializer unit
+            // Ex.
+            /// = 5
+            /// = 5 :int
+            /// :int
+            R( value_initializer_unit, ast::value_initializer_unit,
+                ( ( x3::lit( '=' ) > t.expression ) >> -t.type_specifier )[
+                    helper::construct<ast::value_initializer_unit>( ph::_1, ph::_2 )
+                    ]
+                | t.type_specifier[
+                    helper::construct<ast::value_initializer_unit>( ph::_1 )
+                    ]
+            )
+
+            R( type_specifier, ast::type_expression_ptr,
+                ( x3::lit( ':' ) > t.type_expression )
+            )
+
+            R( type_expression, ast::type_expression_ptr,
+                t.id_expression[
+                    helper::make_node_ptr<ast::type_expression>( ph::_1 )
+                    ]
+            )
+
+            R( parameter_variable_declaration_list, ast::parameter_list,
+                ( ( x3::lit( '(' ) >> x3::lit( ')' ) )
+                | ( x3::lit( '(' ) >> ( t.parameter_variable_declaration % x3::lit( ',' ) ) >> x3::lit( ')' ) )
+                )
+            )
+
+
+
+            //
+            R( class_definition_statement, ast::class_definition_statement_ptr,
+                ( detail::make_keyword( "class" )
+                > t.identifier
+                > t.class_body_block
+                )[
+                    helper::make_node_ptr<ast::class_definition_statement>(
+                        ph::_1,
+                        ph::_2
+                        )
+                    ]
+            )
+
+
+            R( class_body_block, ast::statements_ptr,
+                ( x3::lit( "{" ) >> t.class_body_statements >> x3::lit( "}" ) )[
+                    helper::assign()
+                    ]
+            )
+
+
+            // executable scope, such as function, block, lambda, ...
+            R( class_body_statement, ast::statement_ptr,
+                ( t.empty_statement
+                )
+            )
+
+            R( class_body_statements, ast::statements_ptr,
+                ( *t.class_body_statement )[
+                    helper::make_node_ptr<ast::statements>( ph::_1 )
+                    ]
+            )
+
+
 
 
             //
@@ -292,50 +376,6 @@ namespace rill
             R( identifier_value_set, ast:: identifier_value_base_ptr,
                 ( t.identifier_with_root
                 | t.identifier
-                )
-            )
-
-            R( holder_kind_specifier, attribute::quality_kind,
-                ( x3::lit( "val" )[([]( auto& ctx ){ x3::_val( ctx ) = attribute::quality_kind::k_val; })]
-                | x3::lit( "ref" )[([]( auto& ctx ){ x3::_val( ctx ) = attribute::quality_kind::k_ref; })]
-                )
-            )
-
-            R( parameter_variable_declaration, ast::variable_declaration,
-                t.holder_kind_specifier > t.parameter_variable_initializer_unit
-            )
-
-            R( parameter_variable_initializer_unit, ast::variable_declaration_unit,
-               -t.identifier > t.value_initializer_unit
-            )
-
-            // value initializer unit
-            // Ex.
-            /// = 5
-            /// = 5 :int
-            /// :int
-            R( value_initializer_unit, ast::value_initializer_unit,
-                ( ( x3::lit( '=' ) > t.expression ) >> -t.type_specifier )[
-                    helper::construct<ast::value_initializer_unit>( ph::_1, ph::_2 )
-                    ]
-                | t.type_specifier[
-                    helper::construct<ast::value_initializer_unit>( ph::_1 )
-                    ]
-            )
-
-            R( type_specifier, ast::type_expression_ptr,
-                ( x3::lit( ':' ) > t.type_expression )
-            )
-
-            R( type_expression, ast::type_expression_ptr,
-                t.id_expression[
-                    helper::make_node_ptr<ast::type_expression>( ph::_1 )
-                    ]
-            )
-
-            R( parameter_variable_declaration_list, ast::parameter_list,
-                ( ( x3::lit( '(' ) >> x3::lit( ')' ) )
-                | ( x3::lit( '(' ) >> ( t.parameter_variable_declaration % x3::lit( ',' ) ) >> x3::lit( ')' ) )
                 )
             )
 
