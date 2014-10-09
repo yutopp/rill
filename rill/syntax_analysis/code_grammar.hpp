@@ -44,14 +44,18 @@ namespace rill
 
             } // namespace detail
 
-            //
+            // ====================================================================================================
+            // code grammar
+            // ====================================================================================================
             RILL_RULES_BEGIN( rules, program )
-            // ========================================
+
+            // ====================================================================================================
             RC( program, ast::statements_ptr, ( on_error_annotator_base ),
                 ( t.top_level_statements > ( x3::eol | x3::eoi ) )
                 )
 
-            // ========================================
+
+            // ====================================================================================================
             R( top_level_statements, ast::statements_ptr,
                 ( *t.top_level_statement )[helper::make_node_ptr<ast::statements>( ph::_1 )]
                 )
@@ -59,13 +63,13 @@ namespace rill
             R( top_level_statement, ast::statement_ptr,
                   t.function_definition_statement
                 | t.class_definition_statement
+                | t.extern_statement
                 | t.empty_statement
                 | t.expression_statement    // this rule must be located at last
             )
 
 
-
-            // ========================================
+            // ====================================================================================================
             //
             R( function_definition_statement, ast::function_definition_statement_ptr,
                 ( detail::make_keyword( "def" )
@@ -81,8 +85,7 @@ namespace rill
                         ph::_4
                         )
                     ]
-                )
-
+            )
 
             R( function_body_block, ast::statements_ptr,
                 ( x3::lit( "{" ) >> t.program_body_statements >> x3::lit( "}" ) )[
@@ -105,6 +108,7 @@ namespace rill
             )
 
 
+            // ====================================================================================================
             // executable scope, such as function, block, lambda, ...
             R( program_body_statement, ast::statement_ptr,
                 ( t.empty_statement
@@ -119,6 +123,7 @@ namespace rill
             )
 
 
+            // ====================================================================================================
             R( holder_kind_specifier, attribute::quality_kind,
                 ( x3::lit( "val" )[([]( auto& ctx ){ x3::_val( ctx ) = attribute::quality_kind::k_val; })]
                 | x3::lit( "ref" )[([]( auto& ctx ){ x3::_val( ctx ) = attribute::quality_kind::k_ref; })]
@@ -131,6 +136,12 @@ namespace rill
 
             R( parameter_variable_initializer_unit, ast::variable_declaration_unit,
                -t.identifier > t.value_initializer_unit
+            )
+
+            R( parameter_variable_declaration_list, ast::parameter_list,
+                ( ( x3::lit( '(' ) >> x3::lit( ')' ) )
+                | ( x3::lit( '(' ) >> ( t.parameter_variable_declaration % x3::lit( ',' ) ) >> x3::lit( ')' ) )
+                )
             )
 
             // value initializer unit
@@ -147,6 +158,8 @@ namespace rill
                     ]
             )
 
+
+            // ====================================================================================================
             R( type_specifier, ast::type_expression_ptr,
                 ( x3::lit( ':' ) > t.type_expression )
             )
@@ -157,15 +170,8 @@ namespace rill
                     ]
             )
 
-            R( parameter_variable_declaration_list, ast::parameter_list,
-                ( ( x3::lit( '(' ) >> x3::lit( ')' ) )
-                | ( x3::lit( '(' ) >> ( t.parameter_variable_declaration % x3::lit( ',' ) ) >> x3::lit( ')' ) )
-                )
-            )
 
-
-
-            //
+            // ====================================================================================================
             R( class_definition_statement, ast::class_definition_statement_ptr,
                 ( detail::make_keyword( "class" )
                 > t.identifier
@@ -178,7 +184,6 @@ namespace rill
                     ]
             )
 
-
             R( class_body_block, ast::statements_ptr,
                 ( x3::lit( "{" ) >> t.class_body_statements >> x3::lit( "}" ) )[
                     helper::assign()
@@ -186,6 +191,7 @@ namespace rill
             )
 
 
+            // ====================================================================================================
             // executable scope, such as function, block, lambda, ...
             R( class_body_statement, ast::statement_ptr,
                 ( t.empty_statement
@@ -199,48 +205,65 @@ namespace rill
             )
 
 
-
-
+            // ====================================================================================================
             //
+            R( extern_statement, ast::extern_statement_base_ptr,
+                ( detail::make_keyword( "extern" )
+                > ( t.extern_function_declaration_statement
+                  )
+                > t.statement_termination
+                )
+            )
+
+            R( extern_function_declaration_statement, ast::extern_function_declaration_statement_ptr,
+                ( detail::make_keyword( "def" )
+                > t.identifier
+                > t.parameter_variable_declaration_list
+                > t.type_specifier
+                > t.string_literal_sequenece
+                )[
+                    helper::make_node_ptr<ast::extern_function_declaration_statement>(
+                        ph::_1,
+                        ph::_2,
+                        ph::_3,
+                        ph::_4
+                        )
+                    ]
+            )
+
+
+            // ====================================================================================================
             R( expression_statement, ast::expression_statement_ptr,
                 ( t.expression > t.statement_termination )[
                     helper::make_node_ptr<ast::expression_statement>( ph::_1 )
                     ]
             )
 
-            //
+
+            // ====================================================================================================
             R( empty_statement, ast::empty_statement_ptr,
                 t.statement_termination[
                     helper::make_node_ptr<ast::empty_statement>()
                     ]
                 )
 
-            // ========================================
+
+            // ====================================================================================================
             //
             R( statement_termination, x3::unused_type,
                 x3::lit( ';' )
                 )
 
-            // ========================================
+
+            // ====================================================================================================
             // TODO: make id_expression
             R( id_expression, ast::id_expression_ptr,
                 ( t.identifier_value_set
                 )[helper::make_node_ptr<ast::id_expression>( ph::_1 )]
             )
 
-#if 0
-            R( type_specifier, ast::element::type_spec,
-                x3::lit( ':' )
-                >> ( ( x3::lit( '.' ) >> t.qualifier_list )
-                   | t.type_expression
-                   )
-                )
 
-            R( type_expression, ast::type_expression_ptr,
-                t.assign_expression
-                )
-#endif
-
+            // ====================================================================================================
             R( expression, ast::expression_ptr,
                 t.assign_expression // NOT commma_expression
                 )
@@ -367,6 +390,8 @@ namespace rill
                 | ( x3::lit( '(' ) >> t.expression >> x3::lit( ')' ) )[helper::assign()]
             )
 
+
+            // ====================================================================================================
             R( primary_value, ast::value_ptr,
                 ( t.identifier_with_root
                 | t.identifier
@@ -397,6 +422,16 @@ namespace rill
 
 
 
+            R( string_literal_sequenece, std::string,
+                x3::lexeme[
+                    x3::lit( '"' ) >> *( ( t.escape_sequence | x3::char_ ) - x3::lit( '"' ) ) >> x3::lit( '"' )
+                    ]
+            )
+
+            // TODO: support some escape sequences
+            R( escape_sequence, char,
+                x3::lit( "\\n" )[helper::construct<char>( '\n' )]
+            )
 
 
 #if 0

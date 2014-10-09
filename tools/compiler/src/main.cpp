@@ -54,6 +54,11 @@ void sample( boost::program_options::variables_map const& vm )
     auto const program
         = rill::syntax_analysis::parse( input_source_code );
 
+    if ( program == nullptr ) {
+        std::cerr << "Failed to parse." << std::endl;
+        exit( -200 );
+    }
+
     // debug
     std::cout
         << "Top statements size: " << program->statements_.size() << std::endl;
