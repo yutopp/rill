@@ -335,7 +335,7 @@ namespace rill
                 // if return type was specified, decide type to it.
                 solve_type(
                     this,
-                    *s->return_type_,
+                    s->return_type_,
                     parent_env,
                     [&]( type_detail_ptr const& return_ty_d,
                          type const& ty,

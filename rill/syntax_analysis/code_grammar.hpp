@@ -16,7 +16,7 @@
 #include "range_workaround.hpp"
 #include "helper.hpp"
 
-
+// R: ( rule_name, ast type, rule )
 #define R   RILL_RULE
 #define RC  RILL_RULE_WITH_ANNOTATOR
 
@@ -37,10 +37,9 @@ namespace rill
                 template<typename L>
                 auto make_keyword( L&& literal )
                 {
-                    return x3::no_skip[
+                    return x3::lexeme[
                         x3::lit( std::forward<L>( literal ) )
-                        >> +skip_grammer::rules::entrypoint()
-                    ];
+                        ];
                 }
             } // namespace detail
 
@@ -57,27 +56,66 @@ namespace rill
                 )
 
             R( top_level_statement, ast::statement_ptr,
-                t.function_definition_statement
+                  t.function_definition_statement
                 | t.empty_statement
-                | t.expression_statement /*this rule must be located at last*/
-                )
+                | t.expression_statement    // this rule must be located at last
+            )
 
 
 
             // ========================================
             //
             R( function_definition_statement, ast::function_definition_statement_ptr,
-                ( detail::make_keyword( "def" )
-                > t.id_expression
+                ( detail::make_keyword( "def " )
+                > t.identifier
+                > t.parameter_variable_declaration_list
+                > -t.type_specifier
+                > t.function_body_block
                 )[
                     helper::make_node_ptr<ast::function_definition_statement>(
-                        nullptr,
-                        ast::parameter_list{},
-                        boost::none,
-                        nullptr
+                        ph::_1,
+                        ph::_2,
+                        ph::_3,
+                        ph::_4
                         )
                     ]
                 )
+
+
+            R( function_body_block, ast::statements_ptr,
+                ( x3::lit( "{" ) >> t.program_body_statements >> x3::lit( "}" ) )[
+                    helper::assign()
+                    ]
+                | ( x3::lit( "=>" ) >> t.expression >> t.statement_termination )[
+                    helper::fun(
+                        []( auto&&... args ) {
+                            return std::make_shared<ast::statements>(
+                                std::make_shared<ast::block_statement>(
+                                    std::make_shared<ast::return_statement>(
+                                        std::forward<decltype(args)>( args )...
+                                        )
+                                    )
+                                );
+                        },
+                        ph::_1
+                        )
+                    ]
+            )
+
+
+            // executable scope, such as function, block, lambda, ...
+            R( program_body_statement, ast::statement_ptr,
+                ( t.empty_statement
+                | t.expression_statement    // NOTE: this statement must be set at last
+                )
+            )
+
+            R( program_body_statements, ast::statements_ptr,
+                ( *t.program_body_statement )[
+                    helper::make_node_ptr<ast::statements>( ph::_1 )
+                    ]
+            )
+
 
             //
             R( expression_statement, ast::expression_statement_ptr,
@@ -257,19 +295,69 @@ namespace rill
                 )
             )
 
+            R( holder_kind_specifier, attribute::quality_kind,
+                ( x3::lit( "val" )[([]( auto& ctx ){ x3::_val( ctx ) = attribute::quality_kind::k_val; })]
+                | x3::lit( "ref" )[([]( auto& ctx ){ x3::_val( ctx ) = attribute::quality_kind::k_ref; })]
+                )
+            )
+
+            R( parameter_variable_declaration, ast::variable_declaration,
+                t.holder_kind_specifier > t.parameter_variable_initializer_unit
+            )
+
+            R( parameter_variable_initializer_unit, ast::variable_declaration_unit,
+               -t.identifier > t.value_initializer_unit
+            )
+
+            // value initializer unit
+            // Ex.
+            /// = 5
+            /// = 5 :int
+            /// :int
+            R( value_initializer_unit, ast::value_initializer_unit,
+                ( ( x3::lit( '=' ) > t.expression ) >> -t.type_specifier )[
+                    helper::construct<ast::value_initializer_unit>( ph::_1, ph::_2 )
+                    ]
+                | t.type_specifier[
+                    helper::construct<ast::value_initializer_unit>( ph::_1 )
+                    ]
+            )
+
+            R( type_specifier, ast::type_expression_ptr,
+                ( x3::lit( ':' ) > t.type_expression )
+            )
+
+            R( type_expression, ast::type_expression_ptr,
+                t.id_expression[
+                    helper::make_node_ptr<ast::type_expression>( ph::_1 )
+                    ]
+            )
+
+            R( parameter_variable_declaration_list, ast::parameter_list,
+                ( ( x3::lit( '(' ) >> x3::lit( ')' ) )
+                | ( x3::lit( '(' ) >> ( t.parameter_variable_declaration % x3::lit( ',' ) ) >> x3::lit( ')' ) )
+                )
+            )
+
             R( identifier, ast::identifier_value_ptr,
+                t.identifier_normal | t.identifier_with_root
+                )
+
+            R( identifier_normal, ast::identifier_value_ptr,
                 t.identifier_sequence[
                     helper::make_node_ptr<ast::identifier_value>( ph::_1, false )
                     ]
                 )
 
             R( identifier_with_root, ast::identifier_value_ptr,
-                ( x3::lit( '.' )
-                >> t.identifier_sequence
-                )[
+                ( x3::lit( '.' ) >> t.identifier_sequence )[
                     helper::make_node_ptr<ast::identifier_value>( ph::_1, true )
                     ]
                 )
+
+
+
+
 
 #if 0
 template_instance_value
@@ -294,11 +382,11 @@ template_instance_value
                     >> *( t.nondigit_charset
                         | t.digit_charset
                         )
-                ]
-                )
+                    ]
+            )
 
             R( nondigit_charset, char,
-                range( 'A', 'Z' )
+                  range( 'A', 'Z' )
                 | range( 'a', 'z' )
                 | '_'
                 )

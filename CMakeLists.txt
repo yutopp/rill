@@ -19,6 +19,7 @@ if( CMAKE_CXX_COMPILER_ID STREQUAL "Clang" )
     -std=c++1y
     -Wall
     -pedantic
+    -ftemplate-depth=512
     -DBOOST_PP_VARIADICS=1
     -fdiagnostics-color=always
     )

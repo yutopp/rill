@@ -153,7 +153,6 @@ namespace rill
                 using boost::fusion::at_c;
 
                 constexpr auto index = is_placeholder<std::decay_t<T>>::value - 1;
-                std::cout << "!!!place = " << index << std::endl;
 
                 return extract<index>( x3::_attr( ctx ) );
             }
@@ -168,7 +167,6 @@ namespace rill
                 >
             auto action_value( Context&, T&& v )
             {
-                std::cout << "!!!value" << std::endl;
                 return std::forward<T>( v );
             }
 
@@ -189,11 +187,46 @@ namespace rill
                     );
             }
 
+            template<typename F, typename... Args>
+            auto fun( F&& f, Args&&... args )
+            {
+                return std::bind(
+                    []( auto& ctx, auto const& f, auto&&... args ) {
+                        x3::_val( ctx ) = f(
+                            action_value<decltype(ctx)>(
+                                ctx,
+                                std::forward<decltype(args)>( args )
+                                )...
+                            );
+                    },
+                    std::placeholders::_1,  // ctx
+                    std::forward<F>( f ),
+                    std::forward<Args>( args )...
+                    );
+            }
+
             inline auto assign()
             {
                 return []( auto& ctx ) {
                     x3::_val( ctx ) = x3::_attr( ctx );
                 };
+            }
+
+            template<typename T, typename... Args>
+            auto construct( Args&&... args )
+            {
+                return std::bind(
+                    []( auto& ctx, auto&&... args ) {
+                        x3::_val( ctx ) = T{
+                            action_value<decltype(ctx)>(
+                                ctx,
+                                std::forward<decltype(args)>( args )
+                                )...
+                            };
+                    },
+                    std::placeholders::_1,  // ctx
+                    std::forward<Args>( args )...
+                    );
             }
 
             template<typename T, typename... Args>

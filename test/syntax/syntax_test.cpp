@@ -35,10 +35,45 @@ BOOST_AUTO_TEST_CASE( pass_test_2 )
 
 BOOST_AUTO_TEST_CASE( pass_test_3 )
 {
-    std::string const s = R"s(a+a1;)s";
+    std::string const s = R"s(
+def test() {
+}
+)s";
 
     auto const& ast = rill::syntax_analysis::parse( s );
     AST_PASS( ast );
 }
+
+BOOST_AUTO_TEST_CASE( pass_test_4 )
+{
+    std::string const s = R"s(
+def test( val a: int ) {
+}
+)s";
+
+    auto const& ast = rill::syntax_analysis::parse( s );
+    AST_PASS( ast );
+}
+
+BOOST_AUTO_TEST_CASE( pass_test_5 )
+{
+    std::string const s = R"s(
+def test( ref a: int ) => a;
+)s";
+
+    auto const& ast = rill::syntax_analysis::parse( s );
+    AST_PASS( ast );
+}
+
+BOOST_AUTO_TEST_CASE( pass_test_6 )
+{
+    std::string const s = R"s(
+deftest( ref a: int ) => a;
+)s";
+
+    auto const& ast = rill::syntax_analysis::parse( s );
+    AST_PASS( ast );
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()
