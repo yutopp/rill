@@ -395,8 +395,12 @@ namespace rill
             R( primary_value, ast::value_ptr,
                 ( t.identifier_with_root
                 | t.identifier
+                | t.numeric_literal
+                | t.boolean_literal
+                | t.string_literal
                 )
             )
+
 
             R( identifier_value_set, ast:: identifier_value_base_ptr,
                 ( t.identifier_with_root
@@ -420,7 +424,26 @@ namespace rill
                     ]
                 )
 
+            R( numeric_literal, ast::intrinsic::int32_value_ptr/*TODO: change*/,
+                t.integer_literal
+            )
 
+            R( integer_literal, ast::intrinsic::int32_value_ptr,
+                x3::int_[
+                    helper::make_node_ptr<ast::intrinsic::int32_value>( ph::_1 )
+                    ]
+            )
+
+            R( boolean_literal, ast::intrinsic::boolean_value_ptr,
+                  x3::lit( "true" )[helper::make_node_ptr<ast::intrinsic::boolean_value>( true )]
+                | x3::lit( "false" )[helper::make_node_ptr<ast::intrinsic::boolean_value>( false )]
+            )
+
+            R( string_literal, ast::intrinsic::string_value_ptr,
+                t.string_literal_sequenece[
+                    helper::make_node_ptr<ast::intrinsic::string_value>( ph::_1 )
+                    ]
+            )
 
             R( string_literal_sequenece, std::string,
                 x3::lexeme[
