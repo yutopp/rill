@@ -28,6 +28,10 @@ include_directories( ${Boost_INCLUDE_DIRS} )
 #
 #
 #
+if( POLICY CMP0037 )
+  cmake_policy( SET CMP0037 OLD )
+endif()
+
 add_custom_target( test )
 
 #
