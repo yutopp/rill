@@ -220,7 +220,7 @@ namespace rill
                 > t.identifier
                 > t.parameter_variable_declaration_list
                 > t.type_specifier
-                > t.string_literal_sequenece
+                > t.string_literal_sequence
                 )[
                     helper::make_node_ptr<ast::extern_function_declaration_statement>(
                         ph::_1,
@@ -440,12 +440,12 @@ namespace rill
             )
 
             R( string_literal, ast::intrinsic::string_value_ptr,
-                t.string_literal_sequenece[
+                t.string_literal_sequence[
                     helper::make_node_ptr<ast::intrinsic::string_value>( ph::_1 )
                     ]
             )
 
-            R( string_literal_sequenece, std::string,
+            R( string_literal_sequence, std::string,
                 x3::lexeme[
                     x3::lit( '"' ) >> *( ( t.escape_sequence | x3::char_ ) - x3::lit( '"' ) ) >> x3::lit( '"' )
                     ]
