@@ -13,6 +13,7 @@
 #include <memory>
 
 #include <boost/preprocessor.hpp>
+#include <boost/preprocessor/tuple/elem.hpp>
 
 #include "ast_adapt_visitor_macro.hpp"
 
@@ -88,7 +89,7 @@ namespace rill
                 }
                 return xs;
             }
-            // for nodes are defined in def_switch_begin
+            // functions "clone_ast_element" for nodes are defined in def_switch_begin
             // TODO: support optional, shared_ptr
 
 
@@ -128,35 +129,43 @@ namespace rill
 // ========================================
 // elem( 0: type, 1: variable name )
 // clone_ast_element is defined in def_switch_begin.hpp
-#define RILL_AST_CLONE_EACH( _unused, class_name, elem )                \
-    cloned->BOOST_PP_TUPLE_ELEM( 1, elem )                              \
-        = detail::clone_ast_element<BOOST_PP_TUPLE_ELEM( 0, elem )>(    \
-            this->BOOST_PP_TUPLE_ELEM( 1, elem )                        \
+#define RILL_AST_CLONE_EACH_( member, type )           \
+    cloned->member                                     \
+        = detail::clone_ast_element<type>(             \
+            this->member                               \
             );
+
+#define RILL_AST_CLONE_EACH( _unused, class_name, elem )                \
+    RILL_AST_CLONE_EACH_(                                               \
+        BOOST_PP_TUPLE_ELEM( 1, elem ),                                 \
+        BOOST_PP_TUPLE_ELEM( 0, elem )                                  \
+        )
 
 //
 #define RILL_AST_DEFINE_CLONE_ELEMENTS_FUNCITON( class_name, elem )     \
-    private:                                                            \
+    public:                                                             \
     template<typename ClonedPtr>                                        \
     auto clone_elements_to( ClonedPtr const& cloned ) const -> void     \
     {                                                                   \
-        this->try_to_call_base_clone_elements_to<decltype(*this)>( cloned ); \
+        this->try_to_call_base_clone_elements_to<std::decay_t<decltype(*this)>>( cloned ); \
         BOOST_PP_SEQ_FOR_EACH( RILL_AST_CLONE_EACH, class_name, elem )  \
     }                                                                   \
                                                                         \
+    private:                                                            \
     template<typename Ast, typename ClonedPtr>                          \
     auto try_to_call_base_clone_elements_to( ClonedPtr const& cloned ) const \
         -> std::enable_if_t<detail::has_ast_base_type<Ast>()>           \
     {                                                                   \
-        ClonedPtr::element_type::ast_base_type::clone_elements_to( cloned ); \
+        Ast::ast_base_type::clone_elements_to( cloned );                \
     }                                                                   \
                                                                         \
     template<typename Ast, typename ClonedPtr>                          \
     auto try_to_call_base_clone_elements_to( ClonedPtr const& cloned ) const \
         -> std::enable_if_t<! detail::has_ast_base_type<Ast>()>         \
     {                                                                   \
-        /* no thing to do */                                            \
+        /* TODO: copy line number and columns */                        \
     }                                                                   \
+                                                                        \
     public:                                                             \
     template<typename Ast>                                              \
     friend auto clone( Ast const& ast )                                 \

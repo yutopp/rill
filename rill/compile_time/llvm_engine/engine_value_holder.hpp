@@ -66,7 +66,7 @@ namespace rill
 
 
                 //
-                auto ref_value( environment_id_t const& env_id ) const
+                auto ref_value( environment_id_t const& env_id )
                     -> void*
                 {
                     return is_defined_in_type_detail( env_id )
@@ -76,6 +76,16 @@ namespace rill
                                 : nullptr/*TODO: throw exception*/;
                 }
 
+                //
+                auto ref_value( environment_id_t const& env_id ) const
+                    -> void const*
+                {
+                    return is_defined_in_type_detail( env_id )
+                            ? static_cast<void const*>( type_detail_table_.at( env_id ) )
+                            : is_defined_in_storage( env_id )
+                                ? static_cast<void const*>( storage_table_.at( env_id ).get() )
+                                : nullptr/*TODO: throw exception*/;
+                }
 
                 //
                 auto bind_as_temporary( std::shared_ptr<char> const& value )

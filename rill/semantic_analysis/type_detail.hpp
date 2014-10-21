@@ -32,6 +32,7 @@ namespace rill
 
         using type_detail_pool_t = boost::object_pool_workarounded<type_detail>;
         using type_detail_ptr = type_detail*;
+        using const_type_detail_ptr = type_detail const*;
 
         // TODO: move to any where
         enum class dependent_value_kind

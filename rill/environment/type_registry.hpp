@@ -49,20 +49,31 @@ namespace rill
             attribute::type_attributes const& type_attr
             )
             -> type_id_t
-        try {
-            assert( class_env != nullptr );
-            auto const& class_env_id = class_env->get_id();
+        {
+            auto const& class_env_id
+                = ( class_env != nullptr )
+                ? class_env->get_id()
+                : environment_id_undefined;
 
+            return add( class_env_id, type_attr );
+        }
+
+        auto add(
+            environment_id_t const& class_env_id,
+            attribute::type_attributes const& type_attr
+            )
+            -> type_id_t
+        try {
             if ( auto const& o = is_exist( class_env_id, type_attr ) ) {
                 return *o;
             }
 
+            // make a type
             type t = { class_env_id, type_attr };
             data_holder_.emplace( current_index_, std::move( t ) );
 
             std::cout << ">>> type registered." << std::endl
-                      << "id : " << class_env_id << " -> " << class_env->get_base_name() << std::endl
-                /*          << (const_environment_base_ptr)class_env << std::endl*/;
+                      << ">>>  id  : " << class_env_id << std::endl;
 
             dereference_data_holder_[class_env_id][attribute::detail::make_type_attributes_bit( type_attr )] = current_index_;
 
@@ -73,6 +84,17 @@ namespace rill
             assert( false && "[ice]" );
         }
 
+
+        auto at( type_id_t const& type_id )
+            -> type_type&
+        {
+            if ( type_id >= type_id_limit ) {
+                rill::debug::dump_backtrace();
+                assert( false && "[[ICE]]" );
+            }
+
+            return data_holder_.at( type_id );
+        }
 
         auto at( type_id_t const& type_id ) const
             -> type_type const&

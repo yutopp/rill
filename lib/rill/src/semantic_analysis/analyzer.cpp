@@ -12,13 +12,40 @@
 
 #include <rill/environment/environment.hpp>
 
+#include <rill/utility/colorize.hpp>
+
 #include <unordered_map>
+#include <cmath>
 
 
 namespace rill
 {
     namespace semantic_analysis
     {
+        static auto worse( analyzer::function_match_level const& a, analyzer::function_match_level const& b )
+        {
+            return static_cast<analyzer::function_match_level>(
+                std::max( static_cast<int>( a ), static_cast<int>( b ) )
+                );
+        }
+
+        static auto better( analyzer::function_match_level const& a, analyzer::function_match_level const& b )
+        {
+            return static_cast<analyzer::function_match_level>(
+                std::min( static_cast<int>( a ), static_cast<int>( b ) )
+                );
+        }
+
+        static auto is_better_than( analyzer::function_match_level const& a, analyzer::function_match_level const& b )
+        {
+            return static_cast<int>( a ) < static_cast<int>( b );
+        }
+
+        static auto is_better_than_or_equals( analyzer::function_match_level const& a, analyzer::function_match_level const& b )
+        {
+            return static_cast<int>( a ) <= static_cast<int>( b );
+        }
+
         class analyzer::builtin_class_envs_cache
         {
             friend analyzer;
@@ -26,12 +53,14 @@ namespace rill
         public:
             builtin_class_envs_cache( environment_base_ptr const& root_env )
             {
-                auto install_primitive_class = [&]( std::string const& type_name ) mutable {
-                    primitive_cache_[type_name]
-                        = to_unique_class_env(
-                            root_env->lookup( type_name )
-                            );
-                };
+                auto install_primitive_class
+                    = [&]( std::string const& type_name ) mutable
+                    {
+                        primitive_cache_[type_name]
+                            = to_unique_class_env(
+                                root_env->lookup( type_name )
+                                );
+                    };
 
                 install_primitive_class( "type" );
                 install_primitive_class( "int" );
@@ -173,14 +202,14 @@ namespace rill
 
         auto analyzer::declare_template_parameter_variables(
             ast::parameter_list const& template_parameters,
-            type_detail::template_arg_pointer const& template_args,
             environment_base_ptr const& inner_env,
-            environment_base_ptr const& parent_env,
-            std::vector<environment_base_ptr>& declared_envs
+            environment_base_ptr const& parent_env
             )
-            -> void
+            -> std::vector<variable_symbol_environment_ptr>
         {
-            assert( declared_envs.size() == template_parameters.size() );
+            std::vector<variable_symbol_environment_ptr> declared_envs(
+                template_parameters.size()
+                );
 
             std::cout << "TEMPLATE param size is " << template_parameters.size() << std::endl;
 
@@ -196,17 +225,16 @@ namespace rill
                     );
 
                 if ( template_parameter.decl_unit.init_unit.type ) {
-                    std::cout << "template parameter decl " << i << std::endl;
-                    solve_type(
-                        this,
+                    resolve_type(
                         template_parameter.decl_unit.init_unit.type,
+                        template_parameter.quality,
                         parent_env,
                         [&]( type_detail_ptr const& ty_d,
                              type const& ty,
-                             class_symbol_environment_ptr const& class_env
-                            ) {
-                            auto attr = ty.attributes;
-                            attr <<= template_parameter.quality;
+                             const_class_symbol_environment_ptr const& class_env
+                            )
+                        {
+                            std::cout << "Construct template parameter val / index : " << i << std::endl;
 
                             // declare the template parameter into function env as variable
                             auto const& v_env
@@ -215,7 +243,7 @@ namespace rill
                                     template_parameter.decl_unit.name,
                                     nullptr/*TODO: change to valid ptr to ast*/,
                                     class_env,
-                                    attr
+                                    ty.attributes
                                     );
 
                             declared_envs[i] = v_env;
@@ -226,6 +254,8 @@ namespace rill
                     assert( false && "TODO: it will be type" );
                 }
             }
+
+            return declared_envs;
         }
 
 
@@ -241,17 +271,15 @@ namespace rill
             // template parameters
             // import template parameter's variables with instantiation!
 
-            std::vector<environment_base_ptr> decl_arg_holder( template_parameter_list.size() );
             std::cout << "TEMPLATE param size is " << template_parameter_list.size() << std::endl;
 
             // 1. declare template parameters
-            declare_template_parameter_variables(
-                template_parameter_list,
-                template_args,
-                inner_env,
-                parent_env,
-                decl_arg_holder
-                );
+            auto decl_arg_holder
+                = declare_template_parameter_variables(
+                    template_parameter_list,
+                    inner_env,
+                    parent_env
+                    );
 
 
             for( std::size_t i=0; i<template_parameter_list.size(); ++i ) {
@@ -311,18 +339,6 @@ namespace rill
                 }
             } // for
         }
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -626,41 +642,88 @@ namespace rill
         }
 
 
+        auto analyzer::infer_param_type_from_arg_type(
+            type_detail_ptr const param_type_detail,
+            const_type_detail_ptr const arg_type_detail
+            )
+            -> type_detail_ptr
+        {
+            auto const& arg_type = root_env_->get_type_at( arg_type_detail->type_id );
 
+            if ( param_type_detail->template_args == nullptr ) {
+                // simple type match
+                std::cout << " ? simple type match" << std::endl;
+                auto const& param_type = root_env_->get_type_at( param_type_detail->type_id );
 
-        auto analyzer::solve_function_overload(
-            multiple_set_environment_ptr const& set_env,
+                if ( param_type.is_incomplete() ) {
+                    // determine this type_detail has a pointer to the template param env
+                    std::cout << " ? : template param" << std::endl;
+
+                    auto const& r_tv_env = param_type_detail->target_env;
+                    assert( r_tv_env != nullptr );
+                    assert( r_tv_env->get_symbol_kind() == kind::type_value::e_variable );
+                    auto const& template_var_env = std::static_pointer_cast<variable_symbol_environment>( r_tv_env );
+
+                    auto ty_d = reinterpret_cast<type_detail*>(
+                        ctfe_engine_->value_holder()->ref_value( template_var_env->get_id() )
+                        );
+                    assert( ty_d != nullptr );
+
+                    std::cout << ty_d << std::endl;
+
+                    auto const new_parameter_val_type_attr = arg_type.attributes - param_type.attributes;
+                    auto const new_paramater_val_type_id
+                        = root_env_->make_type_id( arg_type.class_env_id, new_parameter_val_type_attr );
+
+                    // update value
+                    ty_d->type_id = new_paramater_val_type_id;
+
+                    // make "parameter"'s type
+                    auto const new_parameter_type_attr = new_parameter_val_type_attr + param_type.attributes;
+                    auto const new_paramater_type_id
+                        = root_env_->make_type_id( arg_type.class_env_id, new_parameter_type_attr );
+
+                    return type_detail_pool_->construct(
+                        new_paramater_type_id,
+                        nullptr                 // unused
+                        );
+
+                } else {
+                    // type is defined, so skip and pass to solve phase
+                    return param_type_detail;
+                }
+
+            } else {
+                // needs type pattern match
+                assert( false && "currentry, type pattern match was not supported." );
+            }
+
+            return nullptr;
+        }
+
+        // if return value is nullptr, failed to select the function
+        auto analyzer::select_suitable_function(
+            std::vector<environment_base_ptr> const& enviroments,
             std::vector<type_detail_ptr> const& arg_types,
-            type_detail::template_arg_pointer const& template_args,
             environment_base_ptr const& parent_env
             )
-            -> function_symbol_environment_ptr
+            -> std::tuple<
+                analyzer::function_match_level,
+                boost::optional<std::vector<function_symbol_environment_ptr>>
+            >
         {
-            //
             //
             type_id_list_t holder( arg_types.size() );
             std::vector<function_symbol_environment_ptr> f_candidate_envs;
-
-            std::cout << "!!!! overload solving: " << set_env->get_name() << std::endl
-                      << "!!!! function candidate num: " << set_env->get_normal_environments().size() << std::endl;
-            //
-            assert( set_env->get_representation_kind() == kind::type_value::e_function );
 
             std::multimap<int, function_symbol_environment_ptr> solved_function_envs;
 
             // TODO: add hit cache
 
-            // TODO: skip normal function search, if template_args is NOT nullptr
-
-            // 0: exact match
-            // 1: qualifier conversion match
-            // 2: implicit conversion match
-            // 3: no match
-            int best_matched_level = 3;
-            int worst_matched_level = 0;
+            auto best_matched_level = function_match_level::k_no_match;
 
             // first, see normal envs
-            for( auto&& env : set_env->get_normal_environments() ) {
+            for( auto&& env : enviroments ) {
                 auto const& f_env = cast_to<function_symbol_environment>( env );
                 assert( f_env != nullptr );
 
@@ -672,21 +735,26 @@ namespace rill
                 // DEBUG
                 std::cout << "[overloads] " << f_env->get_mangled_name() << " ... is_checked ? " << f_env->is_checked() << std::endl
                           << (const_environment_base_ptr)f_env << std::endl;
-
                 assert( f_env->is_checked() );
 
                 auto const& f_env_parameter_type_ids = f_env->get_parameter_type_ids();
 
                 // not matched: argument size is different
-                if ( f_env_parameter_type_ids.size() != arg_types.size() ) continue;
+                // TODO: support variadic params
+                if ( f_env_parameter_type_ids.size() != arg_types.size() ) {
+                    continue;
+                }
 
-                int function_match_level = 0;   // assume the function is "exact match".
+                // assume the function is "exact match"
+                auto function_match_level = function_match_level::k_exact_match;
                 // type_id_list_t type_id_holder( arg_types.size() );
 
                 // check each arguments/parameters
                 for( std::size_t i=0; i<arg_types.size(); ++i ) {
-                    auto const& param_type_id = f_env->get_parameter_type_ids()[i];
+                    auto const& param_type_id = f_env_parameter_type_ids[i];
                     auto const& arg_type_id = arg_types[i]->type_id;
+
+                    std::cout << "Param Type Conv (" << i << "): ";
 
                     if ( param_type_id == arg_type_id ) {
                         // exact match
@@ -694,7 +762,8 @@ namespace rill
                         // holder[i] = arg_type_id;
 
                         // update level
-                        function_match_level = std::max( function_match_level, 0 );
+                        function_match_level = worse( function_match_level, function_match_level::k_exact_match );
+                        std::cout << "Exact" << std::endl;
 
                     } else {
                         // try to type conversion
@@ -702,7 +771,7 @@ namespace rill
                         auto const& arg_type = f_env->get_type_at( arg_type_id );
 
                         if ( param_type.class_env_id == arg_type.class_env_id ) {
-                            // check quarity conversion
+                            // same class, so check quarity conversion
                             if ( auto&& attribute_opt = qualifier_conversion( param_type.attributes, arg_type.attributes ) ) {
                                 // qualifier conversion match
 /*
@@ -715,55 +784,360 @@ namespace rill
                                 // holder[i] = converted_type_id;
 
                                 // update level
-                                function_match_level = std::max( function_match_level, 1 );
+                                function_match_level = worse( function_match_level, function_match_level::k_qualifier_conv_match );
+                                std::cout << "Qual" << std::endl;
 
                             } else {
                                 // unmatched
+                                function_match_level = worse( function_match_level, function_match_level::k_no_match );
+                                std::cout << "No match" << std::endl;
                             }
 
                         } else {
-                            // TODO: implement implicit conversion match
+                            // TODO: implement implicit conversion match(k_implicit_conv_match)
                             // currentry failed immediately
 
-                            function_match_level = std::max( function_match_level, 3 );
+                            function_match_level = worse( function_match_level, function_match_level::k_no_match );
+                            std::cout << "Implicit" << std::endl;
                         }
 
                     }
 
-                    // this function will be never matched
-                    if ( function_match_level == 3 ) break;
-                } // for
+                    // this function will be never matched, so stop to try matching
+                    if ( function_match_level == function_match_level::k_no_match ) {
+                        break;
+                    }
+                } // for( match per args )
 
                 // not matched: failed
-                if ( function_match_level == 3 ) continue;
+                if ( function_match_level == function_match_level::k_no_match ) {
+                    continue;
+                }
 
-
-                f_candidate_envs.push_back( f_env );
-                solved_function_envs.emplace( function_match_level, f_env );
-
-                //
-                best_matched_level = std::min( function_match_level, best_matched_level );
-                worst_matched_level = std::max( function_match_level, worst_matched_level );
+                if ( is_better_than( function_match_level, best_matched_level ) ) {
+                    // reset candidate set
+                    f_candidate_envs.clear();
+                }
+                best_matched_level = better( best_matched_level, function_match_level );
+                if ( function_match_level == best_matched_level ) {
+                    f_candidate_envs.push_back( f_env );
+                }
             } // for [normal environment]
 
-
             std::cout << " !== overload ======================================================" << std::endl
-                      << "best match: " << best_matched_level << std::endl
-                      << "worst match: " << worst_matched_level << std::endl;
-            for( auto&& e : f_candidate_envs ) {
+                      << "best match: " << static_cast<int>( best_matched_level ) << std::endl;
+
+            for( auto&& env : f_candidate_envs ) {
                 std::cout << std::endl
                           << "  !!!!! condidate found >>> " << std::endl
                           << std::endl;
             }
 
 
+
+
+
             // check overloaded set
 
+            //
+            if ( f_candidate_envs.size() > 0 ) {
+                // return best match function
+                return std::make_tuple(
+                    best_matched_level,
+                    std::move( f_candidate_envs )
+                    );
 
-            assert( f_candidate_envs.size() > 0 );
-            auto&& selected_function = f_candidate_envs.at( 0 );
+            } else {
+                return std::make_tuple(
+                    function_match_level::k_no_match,
+                    boost::none
+                    );
+            }
+        }
 
-            return selected_function;
+        auto analyzer::instantiate_function_templates(
+            multiple_set_environment_ptr const& set_env,
+            std::vector<type_detail_ptr> const& arg_types,
+            type_detail::template_arg_pointer const& template_args,
+            environment_base_ptr const& parent_env
+            )
+            -> void
+        {
+            // solve FUNCTION template
+            for( auto&& env : set_env->get_template_environments() ) {
+                std::cout << colorize::standard::fg::red
+                      << "!!!! template: " << std::endl
+                      << colorize::standard::reset
+                      << std::endl;
+
+                //
+                auto const& template_ast
+                    = std::static_pointer_cast<ast::template_statement>(
+                        env->get_related_ast()
+                        );
+                assert( template_ast != nullptr );
+
+                //
+                auto const& function_def_ast
+                    = std::static_pointer_cast<ast::function_definition_statement>(
+                        template_ast->clone_inner_node()
+                        );
+                assert( function_def_ast != nullptr );
+                assert( function_def_ast->get_identifier() != nullptr );
+
+                // construct incomplete function emvironment frame
+                auto instanting_f_env
+                    = set_env->allocate_inner_env<function_symbol_environment>(
+                        function_def_ast->get_identifier()->get_inner_symbol()->to_native_string()
+                        );
+
+                //
+                std::vector<int> solved_template_params_flag( template_ast->parameter_list_.size() );
+
+                // declare template parameters as variables
+                auto const decl_template_var_envs
+                    = declare_template_parameter_variables(
+                        template_ast->parameter_list_,
+                        instanting_f_env,
+                        env
+                        );
+
+                if ( template_args != nullptr ) {
+                    // template args are provided
+
+                    // compare template's arguments and parameters
+                    // TODO: add error process
+                    assert( template_args->size() <= decl_template_var_envs.size() );
+
+                    for( std::size_t i=0; i<template_args->size(); ++i ) {
+                        auto const& template_parameter = template_ast->parameter_list_.at( i );
+
+                        // substitute template arguments
+                        // save template argument value to the template variables env
+                        std::cout << "TEMPLATE ARGS index: " << i << std::endl;
+                        auto const& template_var_env = decl_template_var_envs.at( i );
+                        auto const& template_arg = template_args->at( i );
+
+                        // DEBUG
+                        {
+                            if ( template_arg.is_type() ) {
+                                auto const& t_detail
+                                    = static_cast<type_detail_ptr>( template_arg.element );
+                                assert( t_detail != nullptr );
+
+                                // get environment of arguments
+                                auto const& tt
+                                    = root_env_->get_type_at( t_detail->type_id );
+
+                                auto const& c_e
+                                    = std::static_pointer_cast<class_symbol_environment const>(
+                                        root_env_->get_env_strong_at(
+                                            tt.class_env_id
+                                            )
+                                        );
+
+                                std::cout << "** typeid << " << t_detail->type_id << std::endl
+                                          << "** " << tt.class_env_id << std::endl;
+
+                                std::cout << "BINDED " << template_var_env->get_id()
+                                          << " -> " << c_e->get_qualified_name() << std::endl;
+                            } else {
+                                std::cout << "value" << std::endl;
+                            }
+                        }
+
+                        // TODO: fix...
+                        //ctfe_engine_->value_holder()->bind_value(
+                        //    template_var_env->get_id(),
+                        //    template_arg
+                        //    );
+                    } // for
+                } // if
+
+                auto const arg_index_until_provided
+                    = template_args != nullptr
+                    ? template_args->size()
+                    : 0;
+                for( std::size_t i=arg_index_until_provided; i<decl_template_var_envs.size(); ++i ) {
+                    // assign empty type value
+                    std::cout << "= Assign empty type value / index : " << i << std::endl;
+
+                    auto const& template_var_env = decl_template_var_envs.at( i );
+
+                    ctfe_engine_->value_holder()->bind_value(
+                        template_var_env->get_id(),
+                        type_detail_pool_->construct(
+                            root_env_->make_type_id(),  // empty type
+                            template_var_env            // link to template env
+                            )
+                        );
+                }
+
+                std::vector<type_detail_ptr> presetted_param_types;
+
+                // resolve types of parameters
+                // make function parameter variable decl
+                for( auto const& e : function_def_ast->get_parameter_list() ) {
+                    assert( e.decl_unit.init_unit.type != nullptr || e.decl_unit.init_unit.initializer != nullptr );
+
+                    if ( e.decl_unit.init_unit.type ) { // is parameter variavle type specified ?
+                        resolve_type(
+                            e.decl_unit.init_unit.type,
+                            e.quality,
+                            instanting_f_env,
+                            [&]( type_detail_ptr const& ty_d,
+                                 type const& ty,
+                                 const_class_symbol_environment_ptr const& class_env
+                                )
+                            {
+                                presetted_param_types.push_back( ty_d );
+                            });
+
+                    } else {
+                        // type inferenced by result of evaluated [[default initializer expression]]
+
+                        // TODO: implement type inference
+                        assert( false );
+                    }
+                }
+
+                // type decuce!
+                assert( presetted_param_types.size() == arg_types.size() );
+                for( std::size_t i=0; i<presetted_param_types.size(); ++i ) {
+                    std::cout << "Template arg/param type inference... / index : " << i << std::endl;
+                    auto& param_type = presetted_param_types[i];
+                    auto const& arg_type = arg_types[i];
+
+                    auto new_ty_d = infer_param_type_from_arg_type( param_type, arg_type );
+                    std::cout << " == is_succeeded : " << ( new_ty_d != nullptr ) << std::endl;
+                    if ( new_ty_d == nullptr ) {
+                        // TODO: fail! skip this function instatiation
+                        assert( false && "" );
+                    }
+
+                    // update
+                    param_type = new_ty_d;
+                }
+
+                // TODO: check existance of incomplete template vaiables
+
+                //
+                for( std::size_t i=0; i<presetted_param_types.size(); ++i ) {
+                    auto const& e = function_def_ast->get_parameter_list()[i];
+                    auto const& ty_id = presetted_param_types[i]->type_id;
+
+                    instanting_f_env->parameter_variable_construct( e.decl_unit.name, ty_id );
+                }
+
+                //
+                instanting_f_env->change_progress_to_checked();
+
+                // return type
+                if ( function_def_ast->return_type_ ) {
+                    // if return type was specified, decide type to it.
+                    resolve_type(
+                        function_def_ast->return_type_,
+                        attribute::quality_kind::k_val, // TODO: fix
+                        parent_env,
+                        [&]( type_detail_ptr const& return_ty_d,
+                             type const& ty,
+                             const_class_symbol_environment_ptr const& class_env
+                            )
+                        {
+                            std::cout << "return type is >>" << function_def_ast->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
+
+                            instanting_f_env->decide_return_type( return_ty_d->type_id );
+                        });
+                }
+
+                // semantic analyze all statements in this function body
+                dispatch( function_def_ast->inner_, instanting_f_env );
+
+                // Return type
+                if ( !instanting_f_env->is_return_type_decided() ) {
+                    assert( false && "[Error] return type was not determined..." );
+                }
+
+                //
+                instanting_f_env->complete( make_mangled_name( instanting_f_env ) );
+                instanting_f_env->link_with_ast( function_def_ast );
+
+                //
+                set_env->add_to_instanced_environments( instanting_f_env );
+
+                std::cout << colorize::standard::fg::red
+                          << "!!!! END: template: " << std::endl
+                          << colorize::standard::reset
+                          << std::endl;
+            }
+        }
+
+
+        // solve the function from overload set and returns one function environment
+        auto analyzer::solve_function_overload(
+            multiple_set_environment_ptr const& set_env,
+            std::vector<type_detail_ptr> const& arg_types,
+            type_detail::template_arg_pointer const& template_args,
+            environment_base_ptr const& parent_env
+            )
+            -> function_symbol_environment_ptr
+        {
+            //
+            assert( set_env->get_representation_kind() == kind::type_value::e_function );
+
+            std::cout << colorize::standard::fg::red
+                      << "!!!! overload solving: " << set_env->get_name() << std::endl
+                      << "!!!! function candidate num: " << set_env->get_normal_environments().size()
+                      << colorize::standard::reset
+                      << std::endl;
+
+            if ( template_args == nullptr ) {
+                // solve [normal/templated] functions
+                // 1. find from normal functions
+                auto const n_match_n_f_env = select_suitable_function(
+                    set_env->get_normal_environments(),
+                    arg_types,
+                    parent_env
+                    );
+                auto const& n_match = std::get<0>( n_match_n_f_env );
+                auto const& o_n_f_envs = std::get<1>( n_match_n_f_env );
+
+                // 2. instantiate function templates
+                instantiate_function_templates( set_env, arg_types, template_args, parent_env );
+
+                // 3. find from templated functions
+                auto const t_match_t_f_env = select_suitable_function(
+                    set_env->get_instanced_environments(),
+                    arg_types,
+                    parent_env
+                    );
+                auto const& t_match = std::get<0>( t_match_t_f_env );
+                auto const& o_t_f_envs = std::get<1>( t_match_t_f_env );
+
+                auto const& res_match = better( n_match, t_match );
+                auto const& o_res_f_envs
+                    = is_better_than_or_equals( n_match, t_match )
+                    ? o_n_f_envs
+                    : o_t_f_envs;
+
+                if ( res_match == function_match_level::k_no_match ) {
+                    assert( false && "Error: Suitable function was not found" );
+                    return nullptr;
+                }
+
+                if ( o_res_f_envs->size() != 1 ) {
+                    assert( false && "Error: Callable functions were anbigous" );
+                    return nullptr;
+                }
+
+                return o_res_f_envs->at( 0 );
+
+            } else {
+                // solve only templated functions
+            }
+
+
+            return nullptr;
         }
 
 

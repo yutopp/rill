@@ -269,9 +269,9 @@ namespace rill
             }
 
 
-            RILL_VISITOR_READONLY_OP( ir_executor, ast::type_expression, e, parent_env )
+            RILL_VISITOR_READONLY_OP( ir_executor, ast::id_expression, e, parent_env )
             {
-                return dispatch( e->type_, parent_env );
+                return dispatch( e->expression_, parent_env );
             }
 
 

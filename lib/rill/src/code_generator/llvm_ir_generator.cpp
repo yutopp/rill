@@ -1319,9 +1319,9 @@ namespace rill
         }
 
 
-        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::type_expression, e, parent_env )
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::id_expression, e, parent_env )
         {
-            return dispatch( e->type_, parent_env );
+            return dispatch( e->expression_, parent_env );
         }
 
 

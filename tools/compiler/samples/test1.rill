@@ -1,0 +1,9 @@
+def rill_main(): void
+{
+    f( 42 );
+}
+
+template(T: type)
+def f(val a: T): void
+{
+}

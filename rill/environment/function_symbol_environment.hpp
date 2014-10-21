@@ -156,6 +156,12 @@ namespace rill
             )
             -> variable_symbol_environment_ptr;
 
+        auto parameter_variable_construct(
+            ast::identifier_value_base_ptr const& name,
+            type_id_t const& type_id
+            )
+            -> variable_symbol_environment_ptr;
+
         auto get_base_name() const
             -> native_string_type const&
         {

@@ -76,14 +76,14 @@ namespace rill
 
             value_initializer_unit(
                 expression_ptr const& ep,
-                boost::optional<type_expression_ptr> const& tp
+                boost::optional<id_expression_ptr> const& tp
                 )
                 : initializer( ep )
                 , type( tp != boost::none ? *tp : nullptr )
             {}
 
             value_initializer_unit(
-                type_expression_ptr const& tp
+                id_expression_ptr const& tp
                 )
                 : initializer( nullptr )
                 , type( tp )
@@ -95,7 +95,7 @@ namespace rill
             {}
 
             expression_ptr initializer;
-            type_expression_ptr type;
+            id_expression_ptr type;
         };
 
 
@@ -261,14 +261,14 @@ namespace rill
         RILL_AST_BEGIN(
             extern_function_declaration_statement, extern_statement_base,
             (( parameter_list, parameter_list_ ))
-            (( type_expression_ptr, return_type_ ))
+            (( id_expression_ptr, return_type_ ))
             (( native_string_t, extern_symbol_name_ ))
             )
         public:
             extern_function_declaration_statement(
                 identifier_value_ptr const& id,
                 parameter_list const& parameter_list,
-                type_expression_ptr const& return_type,
+                id_expression_ptr const& return_type,
                 native_string_t const& extern_symbol_name
                 )
                 : extern_statement_base( id )
@@ -315,13 +315,13 @@ namespace rill
         RILL_AST_BEGIN(
             function_definition_statement, function_definition_statement_base,
             (( parameter_list, parameter_list_ ))
-            (( type_expression_ptr, return_type_ ))
+            (( id_expression_ptr, return_type_ ))
             )
         public:
             function_definition_statement(
                 identifier_value_ptr const& id,
                 parameter_list const& parameter_list,
-                boost::optional<type_expression_ptr> const& return_type,
+                boost::optional<id_expression_ptr> const& return_type,
                 statement_ptr const& inner
                 )
                 : function_definition_statement_base( id, inner )
@@ -356,13 +356,13 @@ namespace rill
         RILL_AST_BEGIN(
             class_function_definition_statement, function_definition_statement_base,
             (( parameter_list, parameter_list_ ))
-            (( boost::optional<type_expression_ptr>, return_type_ ))
+            (( boost::optional<id_expression_ptr>, return_type_ ))
             )
         public:
             class_function_definition_statement(
                 identifier_value_ptr const& id,
                 parameter_list const& parameter_list,
-                boost::optional<type_expression_ptr> const& return_type,
+                boost::optional<id_expression_ptr> const& return_type,
                 statement_ptr const& inner
                 )
                 : function_definition_statement_base( id, inner )
@@ -523,7 +523,7 @@ namespace rill
 BOOST_FUSION_ADAPT_STRUCT(
     rill::ast::value_initializer_unit,
     (rill::ast::expression_ptr,             initializer)
-    (rill::ast::type_expression_ptr,        type)
+    (rill::ast::id_expression_ptr,          type)
     )
 
 BOOST_FUSION_ADAPT_STRUCT(

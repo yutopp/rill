@@ -103,9 +103,15 @@ namespace rill
         }
 
         auto get_template_environments() const
-            -> std::vector<environment_base_ptr> const&
+            -> std::vector<template_environment_ptr> const&
         {
             return template_envs_;
+        }
+
+        auto get_instanced_environments() const
+            -> std::vector<environment_base_ptr> const&
+        {
+            return instanced_envs_;
         }
 
     public:
@@ -115,12 +121,17 @@ namespace rill
             return normal_envs_.push_back( env );
         }
 
-        auto add_to_template_environments( environment_base_ptr const& env )
+        auto add_to_template_environments( template_environment_ptr const& env )
             -> void
         {
             return template_envs_.push_back( env );
         }
 
+        auto add_to_instanced_environments( environment_base_ptr const& env )
+            -> void
+        {
+            return instanced_envs_.push_back( env );
+        }
 
     public:
 
@@ -141,7 +152,7 @@ namespace rill
         kind::type_value inner_env_symbol_kind_;
 
         std::vector<environment_base_ptr> normal_envs_;
-        std::vector<environment_base_ptr> template_envs_;
+        std::vector<template_environment_ptr> template_envs_;
         std::vector<environment_base_ptr> instanced_envs_;
     };
 

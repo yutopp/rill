@@ -98,11 +98,7 @@ namespace rill
                 rill::ast::parameter_list template_params;
 
                 auto const type_type_expression
-                    = std::make_shared<rill::ast::type_expression>(
-                        std::make_shared<rill::ast::term_expression>(
-                            type_class_name
-                            )
-                        );
+                    = rill::ast::helper::make_id_expression( type_class_name );
 
                 // val T: type
                 rill::ast::variable_declaration ty = {
@@ -124,10 +120,8 @@ namespace rill
                         rill::ast::make_single_identifier( "N" ),
                         rill::ast::value_initializer_unit{
                             nullptr,
-                            std::make_shared<rill::ast::type_expression>(
-                                std::make_shared<rill::ast::term_expression>(
-                                    int_class_name
-                                    )
+                            rill::ast::helper::make_id_expression(
+                                int_class_name
                                 )
                         }
                     }

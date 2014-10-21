@@ -25,6 +25,8 @@ namespace rill
             // this class holds llvm_ir_generator and llvm_ir_execute_engine
             class ctfe_engine
             {
+                friend semantic_analysis::analyzer;
+
             public:
                 ctfe_engine(
                     const_environment_base_ptr const& root_env,
@@ -66,6 +68,13 @@ namespace rill
                 // TODO: fix this...
                 auto value_holder() const
                     -> std::shared_ptr<engine_value_holder const>
+                {
+                    return executor_.value_holder();
+                }
+
+            private:
+                auto value_holder()
+                    -> std::shared_ptr<engine_value_holder>
                 {
                     return executor_.value_holder();
                 }

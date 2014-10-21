@@ -26,14 +26,14 @@ namespace rill
         template<typename AnalyzerPtr, typename F>
         auto solve_type(
             AnalyzerPtr const& a,
-            ast::type_expression_ptr const& type_expression,
+            ast::id_expression_ptr const& id_expression,
             environment_base_ptr const& parent_env,
             F&& callback
             ) -> type_detail_ptr
         {
             std::cout << "ABA" << std::endl;
 
-            auto const ty_detail = a->eval_type_expression_as_ctfe( type_expression, parent_env );
+            auto const ty_detail = a->eval_type_expression_as_ctfe( id_expression, parent_env );
             auto const& ty_id = ty_detail->type_id;
             std::cout << "ABABA" << std::endl;
 

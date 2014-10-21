@@ -62,4 +62,14 @@ namespace rill
             );
     }
 
+    auto function_symbol_environment::parameter_variable_construct(
+        ast::identifier_value_base_ptr const& name,
+        type_id_t const& type_id
+        )
+        -> variable_symbol_environment_ptr
+    {
+        auto const& t = get_type_at( type_id );
+        return parameter_variable_construct( name, t.class_env_id, t.attributes );
+    }
+
 } // namespace rill

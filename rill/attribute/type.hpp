@@ -28,51 +28,6 @@ namespace rill
         };
 
 
-        struct type_attributes
-        {
-            attribute::quality_kind quality;
-            attribute::modifiability_kind modifiability;
-        };
-
-        namespace detail
-        {
-            void inline set_type_attribute(
-                type_attributes& attr,
-                attribute::quality_kind const k
-                )
-            {
-                attr.quality = k;
-            }
-
-            void inline set_type_attribute(
-               type_attributes& attr,
-                attribute::modifiability_kind const k
-                )
-            {
-                attr.modifiability = k;
-            }
-
-            template<typename T>
-            void inline set(
-                type_attributes& attr,
-                T const& arg
-                )
-            {
-                set_type_attribute( attr, arg );
-            }
-
-            template<typename T, typename... Args>
-            void inline set(
-                type_attributes& attr,
-                T const& arg,
-                Args const&... args
-                )
-            {
-                set_type_attribute( attr, arg );
-                set( attr, args... );
-            }
-        }
-
         template<typename T>
         auto operator<<=( type_attributes& attr, T const& t )
             -> type_attributes&
@@ -80,6 +35,10 @@ namespace rill
             detail::set( attr, t );
             return attr;
         }
+
+
+
+
 
         auto inline make_default_type_attributes()
             -> type_attributes

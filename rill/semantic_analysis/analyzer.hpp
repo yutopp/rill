@@ -11,6 +11,8 @@
 
 #include <memory>
 
+#include <boost/optional.hpp>
+
 #include "../ast/visitor.hpp"
 #include "../environment/environment_base.hpp"
 #include "../behavior/intrinsic_function_holder_fwd.hpp"
@@ -60,7 +62,7 @@ namespace rill
             RILL_VISITOR_OP_DECL( ast::call_expression );
             //RILL_VISITOR_OP_DECL( ast::intrinsic_function_call_expression );
             RILL_VISITOR_OP_DECL( ast::binary_operator_expression );
-            RILL_VISITOR_OP_DECL( ast::type_expression );
+            RILL_VISITOR_OP_DECL( ast::id_expression );
             RILL_VISITOR_OP_DECL( ast::term_expression );
 
             // value
@@ -72,6 +74,15 @@ namespace rill
             RILL_VISITOR_OP_DECL( ast::intrinsic::boolean_value );
             RILL_VISITOR_OP_DECL( ast::intrinsic::string_value );
             RILL_VISITOR_OP_DECL( ast::intrinsic::array_value );
+
+        public:
+            enum class function_match_level : int
+            {
+                k_exact_match = 0,
+                k_qualifier_conv_match,
+                k_implicit_conv_match,
+                k_no_match
+            };
 
         public:
             //
@@ -88,15 +99,20 @@ namespace rill
                 >;
 
             auto eval_type_expression_as_ctfe(
-                ast::type_expression_ptr const& type_expression,
+                ast::id_expression_ptr const& id_expression,
                 environment_base_ptr const& parent_env
                 ) -> type_detail_ptr;
 
+            auto eval_type_expression_as_ctfe(
+                ast::id_expression_ptr const& id_expression,
+                attribute::quality_kind const& holder_kind,
+                environment_base_ptr const& parent_env
+                ) -> type_detail_ptr;
 
             template<typename AnalyzerPtr, typename F>
             friend auto solve_type(
                 AnalyzerPtr const& a,
-                ast::type_expression_ptr const& type_expression,
+                ast::id_expression_ptr const& id_expression,
                 environment_base_ptr const& parent_env,
                 F&& callback
                 ) -> type_detail_ptr;
@@ -162,6 +178,66 @@ namespace rill
             }
 
         private:
+            template<typename F>
+            auto resolve_type(
+                ast::id_expression_ptr const& id_expression,
+                attribute::quality_kind const& holder_kind,
+                environment_base_ptr const& parent_env,
+                F const& callback
+                ) -> type_detail_ptr
+            {
+                std::cout << "solve_type :before_eval" << std::endl;
+                auto const ty_detail
+                    = eval_type_expression_as_ctfe( id_expression, holder_kind, parent_env );
+                auto const& ty_id = ty_detail->type_id;
+                std::cout << "solve_type :after_eval" << std::endl;
+
+                auto const ty = parent_env->get_type_at( ty_id );  // copy Ty...
+
+                auto const& class_env = [&]() {
+                    if ( ty.is_incomplete() ) {
+                        return const_class_symbol_environment_ptr();
+
+                    } else {
+                        auto const p = std::static_pointer_cast<class_symbol_environment const>(
+                            parent_env->get_env_strong_at( ty.class_env_id )
+                            );
+                        assert( p != nullptr );
+                        assert( p->get_symbol_kind() == kind::type_value::e_class );
+                        return p;
+                    }
+                }();
+                std::cout << "solve_type :finished" << std::endl;
+
+                callback( ty_detail, ty, class_env );
+
+                return ty_detail;
+            }
+
+            auto infer_param_type_from_arg_type(
+                type_detail_ptr,
+                const_type_detail_ptr
+                )
+                -> type_detail_ptr;
+
+            auto select_suitable_function(
+                std::vector<environment_base_ptr> const& enviroments,
+                std::vector<type_detail_ptr> const& arg_types,
+                environment_base_ptr const& parent_env
+                )
+                -> std::tuple<
+                    analyzer::function_match_level,
+                    boost::optional<std::vector<function_symbol_environment_ptr>>
+                >;
+
+            auto instantiate_function_templates(
+                multiple_set_environment_ptr const& set_env,
+                std::vector<type_detail_ptr> const& arg_types,
+                type_detail::template_arg_pointer const& template_args,
+                environment_base_ptr const& parent_env
+                )
+                -> void;
+
             auto solve_function_overload(
                 multiple_set_environment_ptr const& set_env,
                 std::vector<type_detail_ptr> const& arg_types,
@@ -200,12 +276,10 @@ namespace rill
 
             auto declare_template_parameter_variables(
                 ast::parameter_list const& template_parameters,
-                type_detail::template_arg_pointer const& template_args,
                 environment_base_ptr const& inner_env,
-                environment_base_ptr const& parent_env,
-                std::vector<environment_base_ptr>& declared_envs
+                environment_base_ptr const& parent_env
                 )
-                -> void;
+                -> std::vector<variable_symbol_environment_ptr>;
 
             auto tp(
                 ast::parameter_list const& template_parameter_list,

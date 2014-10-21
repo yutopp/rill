@@ -573,6 +573,14 @@ namespace rill
         //
         //
         auto make_type_id(
+            attribute::type_attributes const& type_attr = attribute::make_default_type_attributes()
+            ) const
+            -> shared_resource_type::type_registry_type::type_id_type
+        {
+            return make_type_id( nullptr, type_attr );
+        }
+
+        auto make_type_id(
             const_class_symbol_environment_ptr const& e,
             attribute::type_attributes const& type_attr = attribute::make_default_type_attributes()
             ) const
@@ -580,6 +588,16 @@ namespace rill
         {
             // TODO: DUPLICATE CHECK!!!
             return root_shared_resource_->types_container.add( e, type_attr );
+        }
+
+        auto make_type_id(
+            environment_id_t const& id,
+            attribute::type_attributes const& type_attr = attribute::make_default_type_attributes()
+            ) const
+            -> shared_resource_type::type_registry_type::type_id_type
+        {
+            // TODO: DUPLICATE CHECK!!!
+            return root_shared_resource_->types_container.add( id, type_attr );
         }
 
         auto get_type_at(

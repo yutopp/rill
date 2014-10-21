@@ -474,6 +474,7 @@ namespace rill
 
                     std::cout << "-> " << debug_string( reciever_type_detail->target_env->get_symbol_kind() ) << std::endl;
 
+                    // set_env has multiple environments that have same name to solve overload
                     auto const& set_env = cast_to<multiple_set_environment>( reciever_type_detail->target_env );
                     assert( set_env != nullptr );
 
@@ -484,15 +485,14 @@ namespace rill
 
                     auto const& function_env
                         = solve_function_overload(
-                            set_env,
-                            argument_type_details,                  /* type detailes of arguments */
-                            reciever_type_detail->template_args,    /* template arguments */
+                            set_env,                                // overload set
+                            argument_type_details,                  // type detailes of arguments
+                            reciever_type_detail->template_args,    // template arguments
                             env
                             );
                     assert( function_env != nullptr );
 
                     // memoize called function env
-                    std::cout << "memoed template" << std::endl;
                     function_env->connect_from_ast( e );
                     //function_env->connect_to_ast( e );
 
@@ -524,11 +524,11 @@ namespace rill
         //
         //
         //
-        RILL_VISITOR_OP( analyzer, ast::type_expression, e, env )
+        RILL_VISITOR_OP( analyzer, ast::id_expression, e, env )
         {
             return bind_type(
                 e,
-                dispatch( e->type_, env )
+                dispatch( e->expression_, env )
                 );
         }
 

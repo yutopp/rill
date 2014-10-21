@@ -124,22 +124,6 @@ namespace rill
         RILL_AST_END
 
 
-
-        //
-        //
-        //
-        RILL_AST_BEGIN(
-            type_expression, expression,
-            (( expression_ptr, type_ ))
-            )
-        public:
-            type_expression( expression_ptr const& type )
-                : type_( type )
-            {}
-        RILL_AST_END
-
-
-
         RILL_AST_BEGIN(
             term_expression, expression,
             (( value_ptr, value_ ))
@@ -153,21 +137,33 @@ namespace rill
 
         RILL_AST_BEGIN(
             id_expression, expression,
-            (( identifier_value_base_ptr, identifier_ ))
             (( expression_ptr, expression_ ))
-            (( bool, is_evaluatable_ ))
             )
         public:
-            id_expression( identifier_value_base_ptr const& id )
-                : identifier_( id )
-                , is_evaluatable_( false )
-            {}
-
             id_expression( expression_ptr const& expr )
                 : expression_( expr )
-                , is_evaluatable_( true )
             {}
+
         RILL_AST_END
+
+        namespace helper
+        {
+            inline auto make_id_expression( identifier_value_base_ptr const& id )
+                -> std::shared_ptr<id_expression>
+            {
+                return std::make_shared<id_expression>(
+                    std::make_shared<term_expression>(
+                        id
+                        )
+                    );
+            }
+
+            inline auto make_id_expression( expression_ptr const& expr )
+                -> std::shared_ptr<id_expression>
+            {
+                return std::make_shared<id_expression>( expr );
+            }
+        } // namespace helper
 
         /*
         RILL_AST_BEGIN(

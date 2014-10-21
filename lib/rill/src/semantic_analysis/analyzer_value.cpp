@@ -113,10 +113,8 @@ namespace rill
 
             // abyaaa
             ast::expression_list args = {
-                std::make_shared<ast::type_expression>(
-                    std::make_shared<ast::term_expression>(
-                        ast::make_identifier( "int" )
-                        )
+                ast::helper::make_id_expression(
+                    ast::make_identifier( "int" )
                     ),
                 std::make_shared<ast::term_expression>(
                     std::make_shared<ast::intrinsic::int32_value>(
@@ -126,12 +124,12 @@ namespace rill
             };
 
             auto const& i
-                = std::make_shared<ast::type_expression>(
+                = ast::helper::make_id_expression(
                     std::make_shared<ast::term_expression>(
                         std::make_shared<ast::template_instance_value>(
                             "array",
                             args/*, true*/
-                                )
+                            )
                         )
                     );
 

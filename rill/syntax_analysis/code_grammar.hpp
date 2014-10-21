@@ -64,6 +64,7 @@ namespace rill
                   t.function_definition_statement
                 | t.class_definition_statement
                 | t.extern_statement
+                | t.template_statement
                 | t.empty_statement
                 | t.expression_statement    // this rule must be located at last
             )
@@ -125,9 +126,13 @@ namespace rill
 
             // ====================================================================================================
             R( holder_kind_specifier, attribute::quality_kind,
-                ( x3::lit( "val" )[([]( auto& ctx ){ x3::_val( ctx ) = attribute::quality_kind::k_val; })]
-                | x3::lit( "ref" )[([]( auto& ctx ){ x3::_val( ctx ) = attribute::quality_kind::k_ref; })]
+                ( x3::lit( "val" )[helper::assign(attribute::quality_kind::k_val)]
+                | x3::lit( "ref" )[helper::assign(attribute::quality_kind::k_ref)]
                 )
+            )
+
+            R( empty_holder_kind_specifier, attribute::quality_kind,
+               x3::eps[helper::assign(attribute::quality_kind::k_ref)]
             )
 
             R( parameter_variable_declaration, ast::variable_declaration,
@@ -135,7 +140,7 @@ namespace rill
             )
 
             R( parameter_variable_initializer_unit, ast::variable_declaration_unit,
-               -t.identifier > t.value_initializer_unit
+               ( -t.identifier ) > t.value_initializer_unit
             )
 
             R( parameter_variable_declaration_list, ast::parameter_list,
@@ -160,14 +165,8 @@ namespace rill
 
 
             // ====================================================================================================
-            R( type_specifier, ast::type_expression_ptr,
-                ( x3::lit( ':' ) > t.type_expression )
-            )
-
-            R( type_expression, ast::type_expression_ptr,
-                t.id_expression[
-                    helper::make_node_ptr<ast::type_expression>( ph::_1 )
-                    ]
+            R( type_specifier, ast::id_expression_ptr,
+                ( x3::lit( ':' ) > t.id_expression )
             )
 
 
@@ -233,6 +232,36 @@ namespace rill
 
 
             // ====================================================================================================
+            //
+            R( templatable_statement, ast::can_be_template_statement_ptr,
+                ( t.function_definition_statement
+                | t.class_definition_statement
+                )
+            )
+
+            R( template_statement, ast::template_statement_ptr,
+                ( x3::lit( "template" )
+                > t.template_parameter_variable_declaration_list
+                > t.templatable_statement
+                )[
+                    helper::make_node_ptr<ast::template_statement>(
+                        ph::_1,
+                        ph::_2
+                        )
+                    ]
+            )
+
+            R( template_parameter_variable_declaration, ast::variable_declaration,
+                t.empty_holder_kind_specifier > t.parameter_variable_initializer_unit
+            )
+
+            R( template_parameter_variable_declaration_list, ast::parameter_list,
+                ( ( x3::lit( '(' ) >> x3::lit( ')' ) )
+                | ( x3::lit( '(' ) >> ( t.template_parameter_variable_declaration % x3::lit( ',' ) ) >> x3::lit( ')' ) )
+                )
+            )
+
+            // ====================================================================================================
             R( expression_statement, ast::expression_statement_ptr,
                 ( t.expression > t.statement_termination )[
                     helper::make_node_ptr<ast::expression_statement>( ph::_1 )
@@ -259,7 +288,14 @@ namespace rill
             // TODO: make id_expression
             R( id_expression, ast::id_expression_ptr,
                 ( t.identifier_value_set
-                )[helper::make_node_ptr<ast::id_expression>( ph::_1 )]
+                )[
+                    helper::fun(
+                        []( auto&&... args ) {
+                            return ast::helper::make_id_expression( std::forward<decltype(args)>( args )... );
+                        },
+                        ph::_1
+                        )
+                    ]
             )
 
 
@@ -376,18 +412,28 @@ namespace rill
             //
             R( postfix_expression, ast::expression_ptr,
                 t.primary_expression[helper::assign()]
-                >> *( ( x3::lit( '.' ) >> t.identifier_value_set )[
-                          helper::make_assoc_node_ptr<ast::element_selector_expression>( ph::_1 )
-                          ]
-                    | ( x3::lit( '[' ) > -t.expression > x3::lit( ']' ) )[
-                        helper::make_assoc_node_ptr<ast::subscrpting_expression>( ph::_1 )
-                        ]
+                >> *(
+                        ( x3::lit( '.' ) >> t.identifier_value_set )[
+                            helper::make_assoc_node_ptr<ast::element_selector_expression>( ph::_1 )
+                            ]
+                        | ( x3::lit( '[' ) > -t.expression > x3::lit( ']' ) )[
+                            helper::make_assoc_node_ptr<ast::subscrpting_expression>( ph::_1 )
+                            ]
+                        | ( t.argument_list )[
+                            helper::make_assoc_node_ptr<ast::call_expression>( ph::_1 )
+                            ]
                     )
             )
 
             R( primary_expression, ast::expression_ptr,
                 t.primary_value[helper::make_node_ptr<ast::term_expression>( ph::_1 )]
                 | ( x3::lit( '(' ) >> t.expression >> x3::lit( ')' ) )[helper::assign()]
+            )
+
+
+            R( argument_list, ast::expression_list,
+                ( x3::lit( '(' ) >> x3::lit( ')' ) )
+                | ( x3::lit( '(' ) >> ( t.assign_expression % ',' ) >> x3::lit( ')' ) )
             )
 
 
@@ -486,7 +532,7 @@ template_instance_value
             R( nondigit_charset, char,
                   range( 'A', 'Z' )
                 | range( 'a', 'z' )
-                | '_'
+                | x3::char_( '_' )
                 )
 
             R( digit_charset, char,

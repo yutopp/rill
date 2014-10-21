@@ -212,6 +212,18 @@ namespace rill
                 };
             }
 
+            template<typename T>
+            auto assign( T&& t )
+            {
+                return std::bind(
+                    []( auto& ctx, auto&& arg ) {
+                        x3::_val( ctx ) = std::forward<decltype(arg)>( arg );
+                    },
+                    std::placeholders::_1,  // ctx
+                    std::forward<T>( t )
+                    );
+            }
+
             template<typename T, typename... Args>
             auto construct( Args&&... args )
             {

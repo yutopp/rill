@@ -46,31 +46,35 @@ namespace rill
             // DO NOT COLLECT IDENTIFIERS
         }
 
-
-
         //
         RILL_VISITOR_OP( identifier_collector, ast::function_definition_statement, s, env ) const
         {
             // Function symbol that on (global | namespace)
 
-            std::cout << "collected    : " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
-                      << "param_num    : " << s->get_parameter_list().size() << std::endl
-                      << "is_templated : " << s->is_templated() << std::endl;
+            std::cout << "IdentifierCollector::Function" << std::endl
+                      << " collected    : " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
+                      << " param_num    : " << s->get_parameter_list().size() << std::endl
+                      << " is_templated : " << s->is_templated() << std::endl;
 
             if ( s->is_templated() ) {
-                // TODO: add symbol type duplicate check
-                auto&& set_env = cast_to<multiple_set_environment>( env );
-                assert( set_env != nullptr );
+                auto&& multiset_env = cast_to<multiple_set_environment>( env );
+                assert( multiset_env != nullptr );
 
-                set_env->set_inner_env_symbol_kind( kind::type_value::e_function );
+                if ( multiset_env->get_representation_kind() != kind::type_value::e_none
+                     && multiset_env->get_representation_kind() != kind::type_value::e_function
+                    ) {
+                    assert( false && "Some symbols that are not function_type are already defined in this scope" );
+                }
+
+                multiset_env->set_inner_env_symbol_kind( kind::type_value::e_function );
 
             } else {
                 // add function symbol to current environment
                 RILL_PP_TIE(
-                    set_environment, f_env,
+                    multiset_env, f_env,
                     env->mark_as( kind::k_function, s->get_identifier(), s )
                     );
-                set_environment->add_to_normal_environments( f_env );
+                multiset_env->add_to_normal_environments( f_env );
             }
         }
 
@@ -182,13 +186,14 @@ namespace rill
             s->get_inner_statement()->mark_as_template();
 
             // make template envitonment with linking to this AST node
-            RILL_PP_TIE( set_env, template_env, parent_env->mark_as( kind::k_template, s->get_identifier(), s ) );
+            RILL_PP_TIE( multiset_env, template_env, parent_env->mark_as( kind::k_template, s->get_identifier(), s ) );
 
             //
-            set_env->add_to_template_environments( template_env );
+            multiset_env->add_to_template_environments( template_env );
 
             // delegate inner statement...
-            dispatch( s->get_inner_statement(), set_env );
+            // checking weather the inner statement is templated is done in per collector
+            dispatch( s->get_inner_statement(), multiset_env );
         }
 
     } // namespace semantic_analysis

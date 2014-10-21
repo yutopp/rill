@@ -65,8 +65,8 @@ namespace rill
                 }
 
                 template<>
-                auto put<1>( std::ostream& os, sgr_list<1> const& sgrl )
-                -> std::ostream&
+                inline auto put<1>( std::ostream& os, sgr_list<1> const& sgrl )
+                    -> std::ostream&
                 {
                     os << static_cast<int>( sgrl.param_ );
                     return os;
@@ -111,7 +111,7 @@ namespace rill
 
 
             // gen
-            auto operator|( forground_color const& f, status const& s )
+            inline auto operator|( forground_color const& f, status const& s )
                 -> detail::sgr_list<2>
             {
                 return detail::sgr_list<2>(
@@ -119,7 +119,7 @@ namespace rill
                     static_cast<std::uint8_t>( s )
                     );
             }
-            auto operator|( status const& s, forground_color const& f )
+            inline auto operator|( status const& s, forground_color const& f )
                 -> detail::sgr_list<2>
             {
                 return f | s;

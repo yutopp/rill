@@ -65,14 +65,14 @@ namespace rill
         // for Template Instance Identifier
         // guarantees the return type is TYPE
         auto analyzer::eval_type_expression_as_ctfe(
-            ast::type_expression_ptr const& type_expression,
+            ast::id_expression_ptr const& id_expression,
             environment_base_ptr const& parent_env
             ) -> type_detail_ptr
         {
             std::cout << "TYPE expresison!!!!!!" << std::endl;
             RILL_PP_TIE(
                 c_env, evaled_value,
-                eval_expression_as_ctfe( type_expression, parent_env )
+                eval_expression_as_ctfe( id_expression, parent_env )
                 );
             assert( c_env != nullptr );
 
@@ -87,6 +87,31 @@ namespace rill
             }
 
             return static_cast<type_detail_ptr>( evaled_value );
+        }
+
+        // for Template Instance Identifier
+        // guarantees the return type is TYPE
+        auto analyzer::eval_type_expression_as_ctfe(
+            ast::id_expression_ptr const& id_expression,
+            attribute::quality_kind const& holder_kind,
+            environment_base_ptr const& parent_env
+            ) -> type_detail_ptr
+        {
+            auto ty_d = eval_type_expression_as_ctfe(
+                id_expression,
+                parent_env
+                );
+
+            auto ty = root_env_->get_type_at( ty_d->type_id );
+            ty.attributes <<= holder_kind;
+
+            // update type id
+            ty_d->type_id = root_env_->make_type_id(
+                ty.class_env_id,
+                ty.attributes
+                );
+
+            return ty_d;
         }
 
     } // namespace semantic_analysis
