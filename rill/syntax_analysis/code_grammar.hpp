@@ -113,6 +113,7 @@ namespace rill
             // executable scope, such as function, block, lambda, ...
             R( program_body_statement, ast::statement_ptr,
                 ( t.empty_statement
+                | t.return_statement
                 | t.expression_statement    // NOTE: this statement must be set at last
                 )
             )
@@ -275,6 +276,16 @@ namespace rill
                     helper::make_node_ptr<ast::empty_statement>()
                     ]
                 )
+
+
+            // ====================================================================================================
+            R( return_statement, ast::return_statement_ptr,
+                ( detail::make_keyword( "return" )
+                > t.expression > t.statement_termination
+                )[
+                    helper::make_node_ptr<ast::return_statement>( ph::_1 )
+                    ]
+            )
 
 
             // ====================================================================================================

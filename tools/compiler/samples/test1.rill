@@ -6,4 +6,5 @@ def rill_main(): void
 template(T: type)
 def f(val a: T): void
 {
+    return a;
 }
