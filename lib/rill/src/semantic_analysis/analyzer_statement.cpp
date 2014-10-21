@@ -52,18 +52,17 @@ namespace rill
             auto const& a_env = parent_env->lookup_layer( kind::type_value::e_function );
             assert( a_env != nullptr ); // TODO: change to error_handler
 
-            std::cout << "------>> " << std::endl
-                      << a_env << std::endl;
-            std::cout << "->>> " << debug_string( a_env->get_symbol_kind() ) << std::endl;
+            std::cout << "Return Statement [target: f_env] ------>> " << std::endl
+                      << " type: " << debug_string( a_env->get_symbol_kind() ) << std::endl
+                      << " env : " << a_env << std::endl;
 
+            auto const& callee_f_env = cast_to<function_symbol_environment>( a_env );
+            assert( callee_f_env != nullptr );
 
             auto const& return_type_detail
                 = dispatch( s->expression_, parent_env );
 
             assert( !is_nontype_id( return_type_detail->type_id ) && "[[CE]] this object couldn't be returned" );
-
-            auto const& callee_f_env = cast_to<function_symbol_environment>( a_env );
-            assert( callee_f_env != nullptr );
 
             callee_f_env->add_return_type_candidate( return_type_detail->type_id );
 

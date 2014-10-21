@@ -75,7 +75,6 @@ namespace rill
                     ) const
                     -> void
                 {
-                    std::cout << "!!!!!!! void" << std::endl;
                     ( *v_ ).operator()( node, env );
                 }
 
@@ -88,7 +87,6 @@ namespace rill
                     ) const
                     -> void
                 {
-                    std::cout << "!!!!!!! not void" << std::endl;
                     new( storage ) ReturnT(
                         std::move( ( *v_ ).operator()( node, env ) )
                         );
