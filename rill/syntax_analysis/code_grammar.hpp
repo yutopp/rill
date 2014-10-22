@@ -328,7 +328,7 @@ namespace rill
             // ====================================================================================================
             // TODO: make id_expression
             R( id_expression, ast::id_expression_ptr,
-                ( t.identifier_value_set
+                ( t.conditional_expression
                 )[
                     helper::fun(
                         []( auto&&... args ) {

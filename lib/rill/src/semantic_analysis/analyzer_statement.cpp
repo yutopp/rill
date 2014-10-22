@@ -13,6 +13,7 @@
 #include <rill/environment/environment.hpp>
 
 #include <rill/ast/ast.hpp>
+#include <rill/utility/tie.hpp>
 
 
 namespace rill
@@ -86,17 +87,10 @@ namespace rill
             auto const& unit = val_decl.decl_unit;
 
             // initial value
-            auto const& iv_type_id_and_env
+            auto const& iv_type_d
                 = unit.init_unit.initializer
                 ? dispatch( unit.init_unit.initializer, parent_env )
-                : [this]() -> type_detail_ptr
-                {
-                    //assert( false && "[[]] Currently, uninitialized value was not supported..." );
-                    return type_detail_pool_->construct(
-                        type_id_undefined,
-                        nullptr
-                    );
-                }();
+                : nullptr;
 
             // TODO: make method to determine "type"
 
@@ -107,9 +101,9 @@ namespace rill
             //       default( int )
 
             if ( unit.init_unit.type ) { // is parameter variable type specified ?
-                solve_type(
-                    this,
+                resolve_type(
                     unit.init_unit.type,
+                    val_decl.quality,
                     parent_env,
                     [&]( type_detail_ptr const& ty_d,
                          type const& ty,
@@ -130,42 +124,8 @@ namespace rill
                         }
 
                         auto attr = ty.attributes;
-                        attr <<= val_decl.quality;
 
-                        std::cout << "Attr:! " << std::endl;
-                        switch( attr.quality ) {
-                        case attribute::quality_kind::k_suggest:
-                            std::cout << "k_suggest" << std::endl;
-                            break;
-
-                        case attribute::quality_kind::k_val:
-                            std::cout << "k_val" << std::endl;
-                            break;
-
-                        case attribute::quality_kind::k_ref:
-                            std::cout << "k_ref" << std::endl;
-                            break;
-                        }
-
-                        switch( attr.modifiability ) {
-                        case attribute::modifiability_kind::k_mutable:
-                            std::cout << "k_mutable" << std::endl;
-                            break;
-
-                        case attribute::modifiability_kind::k_const:
-                            std::cout << "k_const" << std::endl;
-                            break;
-
-                        case attribute::modifiability_kind::k_immutable:
-                            std::cout << "k_immutable" << std::endl;
-                            break;
-                        }
-
-
-
-                        // TODO: type check with "iv_type_id_and_env"
-
-                        // definition...
+                        // define variable
                         auto variable_env
                             = parent_env->construct(
                                 kind::k_variable,
@@ -174,13 +134,35 @@ namespace rill
                                 class_env,
                                 attr
                                 );
+
+                        if ( iv_type_d != nullptr ) {
+                            // type check
+                            RILL_PP_TIE( level, conv_function_env,
+                                         try_type_conversion(
+                                             ty_d->type_id,
+                                             iv_type_d->type_id,
+                                             parent_env
+                                             )
+                                )
+                        }
                     });
 
             } else {
                 // type inferenced by result of evaluated "iv_type_id_and_env"
+                assert( iv_type_d != nullptr );
+                auto const& ty = root_env_->get_type_at( iv_type_d->type_id );
+                auto const& c_env = std::static_pointer_cast<class_symbol_environment const>(
+                    root_env_->get_env_strong_at( ty.class_env_id )
+                    );
 
-                // TODO: implement type inference
-                assert( false && "[[ICE]] not implemented");
+                //
+                parent_env->construct(
+                                kind::k_variable,
+                                unit.name,
+                                s,
+                                c_env,
+                                ty.attributes
+                                );
             }
         }
 

@@ -196,10 +196,10 @@ namespace rill
 
                 auto const& class_env = [&]() {
                     if ( ty.is_incomplete() ) {
-                        return const_class_symbol_environment_ptr();
+                        return class_symbol_environment_ptr();
 
                     } else {
-                        auto const p = std::static_pointer_cast<class_symbol_environment const>(
+                        auto const p = std::static_pointer_cast<class_symbol_environment>(
                             parent_env->get_env_strong_at( ty.class_env_id )
                             );
                         assert( p != nullptr );
@@ -221,8 +221,8 @@ namespace rill
                 -> type_detail_ptr;
 
             auto try_type_conversion(
-                type_id_t const& param_type_id,
-                type_id_t const& arg_type_id,
+                type_id_t const& target_type_id,
+                type_id_t const& current_type_id,
                 environment_base_ptr const& parent_env
                 )
                 -> std::tuple<
