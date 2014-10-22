@@ -659,14 +659,45 @@ namespace rill
             case attribute::quality_kind::k_ref:
             {
                 // val to ref
+                switch( argument_attributes.modifiability ) {
+                case attribute::modifiability_kind::k_immutable:
+                    switch( parameter_attributes.modifiability ) {
+                    case attribute::modifiability_kind::k_immutable:
+                    case attribute::modifiability_kind::k_const:
+                        break;
+                    case attribute::modifiability_kind::k_mutable:
+                        return boost::none;
+                    } // switch( parameter_attributes.attributes.modifiability )
+                    break;
+
+                case attribute::modifiability_kind::k_const:
+                    switch( parameter_attributes.modifiability ) {
+                    case attribute::modifiability_kind::k_immutable:
+                    case attribute::modifiability_kind::k_const:
+                        break;
+                    case attribute::modifiability_kind::k_mutable:
+                        return boost::none;
+                    } // switch( parameter_attributes.attributes.modifiability )
+                    break;
+
+                case attribute::modifiability_kind::k_mutable:
+                    switch( parameter_attributes.modifiability ) {
+                    case attribute::modifiability_kind::k_immutable:
+                        return boost::none;
+                    case attribute::modifiability_kind::k_const:
+                    case attribute::modifiability_kind::k_mutable:
+                        break;
+                    } // switch( target_type.attributes.modifiability )
+                    break;
+                } // switch( parameter_attributes.modifiability )
+
                 result_attr <<= attribute::quality_kind::k_ref;
                 break;
             }
 
             case attribute::quality_kind::k_val:
             {
-                // ref to val
-                result_attr <<= attribute::quality_kind::k_val;
+                // val to val
                 break;
             }
 
