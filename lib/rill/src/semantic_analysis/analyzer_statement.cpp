@@ -65,8 +65,6 @@ namespace rill
             assert( !is_nontype_id( return_type_detail->type_id ) && "[[CE]] this object couldn't be returned" );
 
             callee_f_env->add_return_type_candidate( return_type_detail->type_id );
-
-            callee_f_env->decide_return_type( return_type_detail->type_id );
         }
 
 
@@ -335,7 +333,7 @@ namespace rill
                 solve_type(
                     this,
                     s->return_type_,
-                    parent_env,
+                    f_env,
                     [&]( type_detail_ptr const& return_ty_d,
                          type const& ty,
                          class_symbol_environment_ptr const& class_env
@@ -351,14 +349,10 @@ namespace rill
             dispatch( s->inner_, f_env );
             std::cout << "<<<<" << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
 
-            // ?: TODO: use block expression
-
             std::cout << "returned: " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
 
             // Return type
-            if ( !f_env->is_return_type_decided() ) {
-                assert( false && "[Error] return type was not determined..." );
-            }
+            solve_function_return_type_semantics( f_env );
 
             //
             f_env->complete( make_mangled_name( f_env ) );

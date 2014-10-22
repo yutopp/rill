@@ -46,6 +46,12 @@ namespace rill
             return { quality_kind::k_val, modifiability_kind::k_immutable };
         }
 
+        auto inline make_empty_type_attributes()
+            -> type_attributes
+        {
+            return { quality_kind::k_suggest, modifiability_kind::k_none };
+        }
+
         template<typename... Args>
         auto inline make_type_attributes( Args const&... args )
             -> type_attributes
@@ -58,13 +64,13 @@ namespace rill
         namespace detail
         {
             auto inline make_type_attributes_bit( type_attributes const& attr )
-                -> attributes_bit_t
+                -> attributes_bit_ta
             {
                 attributes_bit_t bits;
 
-                std::cout << "$$$$$$$$$$$$$$$" << std::endl
-                          << static_cast<std::size_t>( attr.quality ) << std::endl
-                          << static_cast<std::size_t>( attr.modifiability ) << std::endl;
+                std::cout << "Make_type_attributes_bit" << std::endl
+                          << " q: " << attr.quality << std::endl
+                          << " m: " << attr.modifiability << std::endl;
 
                 bits.set( static_cast<std::size_t>( attr.quality ) );
                 bits.set( static_cast<std::size_t>( attr.modifiability ) );

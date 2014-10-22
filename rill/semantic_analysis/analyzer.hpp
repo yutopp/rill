@@ -220,6 +220,16 @@ namespace rill
                 )
                 -> type_detail_ptr;
 
+            auto try_type_conversion(
+                type_id_t const& param_type_id,
+                type_id_t const& arg_type_id,
+                environment_base_ptr const& parent_env
+                )
+                -> std::tuple<
+                    analyzer::function_match_level,
+                    function_symbol_environment_ptr
+                >;
+
             auto select_suitable_function(
                 std::vector<environment_base_ptr> const& enviroments,
                 std::vector<type_detail_ptr> const& arg_types,
@@ -235,6 +245,11 @@ namespace rill
                 std::vector<type_detail_ptr> const& arg_types,
                 type_detail::template_arg_pointer const& template_args,
                 environment_base_ptr const& parent_env
+                )
+                -> void;
+
+            auto solve_function_return_type_semantics(
+                function_symbol_environment_ptr const& f_env
                 )
                 -> void;
 

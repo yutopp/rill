@@ -13,6 +13,7 @@
 #include <rill/environment/environment.hpp>
 
 #include <rill/utility/colorize.hpp>
+#include <rill/utility/tie.hpp>
 
 #include <unordered_map>
 #include <cmath>
@@ -45,6 +46,64 @@ namespace rill
         {
             return static_cast<int>( a ) <= static_cast<int>( b );
         }
+
+
+        namespace detail
+        {
+            inline void mask_type_attribute_by(
+                attribute::type_attributes& attr,
+                attribute::quality_kind const& k
+                )
+            {
+                attr.quality = k;
+            }
+
+            inline void mask_type_attribute_by(
+                attribute::type_attributes& attr,
+                attribute::modifiability_kind const& k
+                )
+            {
+                if ( k != attribute::modifiability_kind::k_none ) {
+                    attr.modifiability = k;
+                }
+            }
+
+            template<typename T>
+            void set_mask_by(
+                attribute::type_attributes& attr,
+                T const& arg
+                )
+            {
+                mask_type_attribute_by( attr, arg );
+            }
+
+            template<typename T, typename... Args>
+            void set_mask_by(
+                attribute::type_attributes& attr,
+                T const& arg,
+                Args const&... args
+                )
+            {
+                mask_type_attribute_by( attr, arg );
+                set_mask_by( attr, args... );
+            }
+        } // namespace detail
+
+        inline auto mask_by(
+            attribute::type_attributes a,  // copy
+            attribute::type_attributes const& b
+            )
+            -> attribute::type_attributes
+        {
+            detail::set_mask_by(
+                a,
+                b.quality,
+                b.modifiability
+                );
+
+            return a;
+        }
+
 
         class analyzer::builtin_class_envs_cache
         {
@@ -669,19 +728,20 @@ namespace rill
                         );
                     assert( ty_d != nullptr );
 
-                    std::cout << ty_d << std::endl;
-
                     auto const new_parameter_val_type_attr = arg_type.attributes - param_type.attributes;
                     auto const new_paramater_val_type_id
                         = root_env_->make_type_id( arg_type.class_env_id, new_parameter_val_type_attr );
+                    std::cout << "new_parameter_val_type_attr: " << new_parameter_val_type_attr << std::endl;
 
                     // update value
                     ty_d->type_id = new_paramater_val_type_id;
 
                     // make "parameter"'s type
-                    auto const new_parameter_type_attr = new_parameter_val_type_attr + param_type.attributes;
+                    auto const new_parameter_type_attr
+                        = mask_by( new_parameter_val_type_attr, param_type.attributes );
                     auto const new_paramater_type_id
                         = root_env_->make_type_id( arg_type.class_env_id, new_parameter_type_attr );
+                    std::cout << "new_parameter_type_attr: " << new_parameter_type_attr << std::endl;
 
                     return type_detail_pool_->construct(
                         new_paramater_type_id,
@@ -699,6 +759,57 @@ namespace rill
             }
 
             return nullptr;
+        }
+
+        // returns (conv_level, conv_function_env)
+        auto analyzer::try_type_conversion(
+            type_id_t const& param_type_id,
+            type_id_t const& arg_type_id,
+            environment_base_ptr const& parent_env
+            )
+            -> std::tuple<
+                analyzer::function_match_level,
+                function_symbol_environment_ptr
+            >
+        {
+            if ( param_type_id == arg_type_id ) {
+                // exact match
+                return std::make_tuple(
+                    function_match_level::k_exact_match,
+                    nullptr
+                    );
+
+            } else {
+                // try to type conversion
+                auto const& param_type = root_env_->get_type_at( param_type_id );
+                auto const& arg_type = root_env_->get_type_at( arg_type_id );
+
+                if ( param_type.class_env_id == arg_type.class_env_id ) {
+                    // same class, so check quarity conversion
+                    if ( auto&& attribute_opt = qualifier_conversion( param_type.attributes, arg_type.attributes ) ) {
+                        // qualifier conversion match
+                        return std::make_tuple(
+                            function_match_level::k_qualifier_conv_match,
+                            nullptr
+                            );
+
+                    } else {
+                        // unmatched
+                        return std::make_tuple(
+                            function_match_level::k_no_match,
+                            nullptr
+                            );
+                    }
+
+                } else {
+                    // TODO: implement implicit conversion match(k_implicit_conv_match)
+                    // currentry failed immediately
+                    return std::make_tuple(
+                        function_match_level::k_no_match,
+                        nullptr
+                        );
+                }
+            }
         }
 
         // if return value is nullptr, failed to select the function
@@ -756,52 +867,31 @@ namespace rill
 
                     std::cout << "Param Type Conv (" << i << "): ";
 
-                    if ( param_type_id == arg_type_id ) {
-                        // exact match
+                    RILL_PP_TIE( level, conv_function_env,
+                                 try_type_conversion(
+                                     param_type_id,
+                                     arg_type_id,
+                                     parent_env
+                                     )
+                        );
 
-                        // holder[i] = arg_type_id;
-
-                        // update level
-                        function_match_level = worse( function_match_level, function_match_level::k_exact_match );
+                    switch( level ) {
+                    case function_match_level::k_exact_match:
                         std::cout << "Exact" << std::endl;
-
-                    } else {
-                        // try to type conversion
-                        auto const& param_type = f_env->get_type_at( param_type_id );
-                        auto const& arg_type = f_env->get_type_at( arg_type_id );
-
-                        if ( param_type.class_env_id == arg_type.class_env_id ) {
-                            // same class, so check quarity conversion
-                            if ( auto&& attribute_opt = qualifier_conversion( param_type.attributes, arg_type.attributes ) ) {
-                                // qualifier conversion match
-/*
-                                auto const& c_env
-                                    = root_env_->get_env_at_as_strong_ref<class_symbol_environment const>( param_type.class_env_id );
-                                assert( c_env != nullptr );
-                                auto const& converted_type_id
-                                    = root_env_->make_type_id( c_env, *attribute_opt );
-*/
-                                // holder[i] = converted_type_id;
-
-                                // update level
-                                function_match_level = worse( function_match_level, function_match_level::k_qualifier_conv_match );
-                                std::cout << "Qual" << std::endl;
-
-                            } else {
-                                // unmatched
-                                function_match_level = worse( function_match_level, function_match_level::k_no_match );
-                                std::cout << "No match" << std::endl;
-                            }
-
-                        } else {
-                            // TODO: implement implicit conversion match(k_implicit_conv_match)
-                            // currentry failed immediately
-
-                            function_match_level = worse( function_match_level, function_match_level::k_no_match );
-                            std::cout << "Implicit" << std::endl;
-                        }
-
+                        break;
+                    case function_match_level::k_qualifier_conv_match:
+                        std::cout << "Qual" << std::endl;
+                        break;
+                    case function_match_level::k_implicit_conv_match:
+                        std::cout << "Implicit" << std::endl;
+                        break;
+                    case function_match_level::k_no_match:
+                        std::cout << "NoMatch" << std::endl;
+                        break;
                     }
+
+                    // update level
+                    function_match_level = worse( function_match_level, level );
 
                     // this function will be never matched, so stop to try matching
                     if ( function_match_level == function_match_level::k_no_match ) {
@@ -1038,14 +1128,12 @@ namespace rill
                     resolve_type(
                         function_def_ast->return_type_,
                         attribute::quality_kind::k_val, // TODO: fix
-                        parent_env,
+                        instanting_f_env,
                         [&]( type_detail_ptr const& return_ty_d,
                              type const& ty,
                              const_class_symbol_environment_ptr const& class_env
                             )
                         {
-                            std::cout << "return type is >>" << function_def_ast->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
-
                             instanting_f_env->decide_return_type( return_ty_d->type_id );
                         });
                 }
@@ -1054,9 +1142,7 @@ namespace rill
                 dispatch( function_def_ast->inner_, instanting_f_env );
 
                 // Return type
-                if ( !instanting_f_env->is_return_type_decided() ) {
-                    assert( false && "[Error] return type was not determined..." );
-                }
+                solve_function_return_type_semantics( instanting_f_env );
 
                 //
                 instanting_f_env->complete( make_mangled_name( instanting_f_env ) );
@@ -1072,6 +1158,53 @@ namespace rill
             }
         }
 
+        auto analyzer::solve_function_return_type_semantics(
+            function_symbol_environment_ptr const& f_env
+            )
+            -> void
+        {
+            // return type check
+            type_id_t current_ret_type_id
+                = f_env->is_return_type_decided()
+                ? f_env->get_return_type_id()
+                : type_id_undefined;
+
+            // DEBUG
+            if ( f_env->is_return_type_decided() ) {
+                auto const ty = root_env_->get_type_at( current_ret_type_id );
+                auto const& c_env = root_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
+                    ty.class_env_id
+                    );
+                std::cout << "RETURN TYPE => "
+                          << make_mangled_name( c_env, ty.attributes )
+                          << std::endl;
+            }
+
+            for( auto&& r_type_id : f_env->get_return_type_candidates() ) {
+                auto const ty = root_env_->get_type_at( r_type_id );
+                auto const& c_env = root_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
+                    ty.class_env_id
+                    );
+                std::cout << "CANDIDATE: RETURN TYPE => "
+                          << ty.attributes
+                          << std::endl;
+
+                if ( current_ret_type_id != type_id_undefined ) {
+                    if ( r_type_id != current_ret_type_id ) {
+                        assert( false && "[Error] return type is different from function signature" );
+                    }
+
+                } else {
+                    current_ret_type_id = r_type_id;
+                }
+            }
+            f_env->decide_return_type( current_ret_type_id );
+
+            // Return type
+            if ( !f_env->is_return_type_decided() ) {
+                assert( false && "[Error] return type was not determined..." );
+            }
+        }
 
         // solve the function from overload set and returns one function environment
         auto analyzer::solve_function_overload(

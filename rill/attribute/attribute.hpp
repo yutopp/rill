@@ -10,6 +10,7 @@
 #define RILL_ATTRIBUTE_HPP
 
 #include <bitset>
+#include <iostream>
 
 
 namespace rill
@@ -24,6 +25,24 @@ namespace rill
             k_ref
         };
 
+        inline auto operator<<( std::ostream& os, quality_kind const& k )
+            -> std::ostream&
+        {
+            switch( k ) {
+            case quality_kind::k_suggest:
+                os << "suggest";
+                break;
+            case quality_kind::k_val:
+                os << "val";
+                break;
+            case quality_kind::k_ref:
+                os << "ref";
+                break;
+            }
+
+            return os;
+        }
+
         enum class modifiability_kind
         {
             k_none = 4,
@@ -32,14 +51,45 @@ namespace rill
             k_immutable,
         };
 
-        auto const attributes_width_max = 8;
-        typedef std::bitset<attributes_width_max> attributes_bit_t;
+        inline auto operator<<( std::ostream& os, modifiability_kind const& k )
+            -> std::ostream&
+        {
+            switch( k ) {
+            case modifiability_kind::k_none:
+                os << "none";
+                break;
+            case modifiability_kind::k_mutable:
+                os << "mutable";
+                break;
+            case modifiability_kind::k_const:
+                os << "const";
+                break;
+            case modifiability_kind::k_immutable:
+                os << "immutable";
+                break;
+            }
+
+            return os;
+        }
 
         struct type_attributes
         {
             attribute::quality_kind quality;
             attribute::modifiability_kind modifiability;
         };
+
+        inline auto operator<<( std::ostream& os, type_attributes const& attr )
+            -> std::ostream&
+        {
+            os << "type_attributes_bit" << std::endl
+               << " q: " << attr.quality << std::endl
+               << " m: " << attr.modifiability << std::endl;
+
+            return os;
+        }
+
+        auto const attributes_width_max = 8;
+        typedef std::bitset<attributes_width_max> attributes_bit_t;
 
 
         namespace detail
@@ -125,8 +175,9 @@ namespace rill
                 modifiability_kind const& k
                 )
             {
+                // modifiability can NOT be none
                 if ( k != modifiability_kind::k_none ) {
-                    attr.modifiability = modifiability_kind::k_none;
+                    attr.modifiability = k;
                 }
             }
 

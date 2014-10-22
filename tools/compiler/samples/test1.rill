@@ -1,10 +1,10 @@
-def rill_main(): void
+def rill_main(): int
 {
-    f( 42 );
+    return f( 42 );
 }
 
 template(T: type)
-def f(val a: T): void
+def f(val a: T): T
 {
-    return a;
+    return a * a;
 }

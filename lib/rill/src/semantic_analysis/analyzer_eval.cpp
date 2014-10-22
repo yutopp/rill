@@ -102,7 +102,8 @@ namespace rill
                 parent_env
                 );
 
-            auto ty = root_env_->get_type_at( ty_d->type_id );
+            std::cout << "APPENDAPPENDAPPEND" << std::endl;
+            auto ty = root_env_->get_type_at( ty_d->type_id ); // make copy
             ty.attributes <<= holder_kind;
 
             // update type id
