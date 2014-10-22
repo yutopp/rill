@@ -1,5 +1,8 @@
 def main(): int
 {
+    val a: int = 72;
+    val b = 42;
+
     return f( 42 );
 }
 

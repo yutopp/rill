@@ -106,7 +106,6 @@ namespace rill
                     rill::ast::variable_declaration_unit{
                         rill::ast::make_single_identifier( "T" ),
                         rill::ast::value_initializer_unit{
-                            nullptr,
                             type_type_expression
                         }
                     }
@@ -119,7 +118,6 @@ namespace rill
                     rill::ast::variable_declaration_unit{
                         rill::ast::make_single_identifier( "N" ),
                         rill::ast::value_initializer_unit{
-                            nullptr,
                             rill::ast::helper::make_id_expression(
                                 int_class_name
                                 )

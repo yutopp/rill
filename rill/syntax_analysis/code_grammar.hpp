@@ -128,8 +128,8 @@ namespace rill
 
             // ====================================================================================================
             R( parameter_variable_holder_kind_specifier, attribute::quality_kind,
-                ( x3::lit( "val" )[helper::assign(attribute::quality_kind::k_val)]
-                | x3::lit( "ref" )[helper::assign(attribute::quality_kind::k_ref)]
+                ( detail::make_keyword( "val" )[helper::assign(attribute::quality_kind::k_val)]
+                | detail::make_keyword( "ref" )[helper::assign(attribute::quality_kind::k_ref)]
                 )
             )
 
@@ -153,15 +153,15 @@ namespace rill
 
             // value initializer unit
             // Ex.
+            /// :int = 5
             /// = 5
-            /// = 5 :int
             /// :int
             R( value_initializer_unit, ast::value_initializer_unit,
-                ( ( x3::lit( '=' ) > t.expression ) >> -t.type_specifier )[
-                    helper::construct<ast::value_initializer_unit>( ph::_1, ph::_2 )
-                    ]
-                | t.type_specifier[
+                ( x3::lit( '=' ) > t.expression )[
                     helper::construct<ast::value_initializer_unit>( ph::_1 )
+                    ]
+                | ( t.type_specifier >> -( x3::lit( '=' ) > t.expression ) )[
+                    helper::construct<ast::value_initializer_unit>( ph::_1, ph::_2 )
                     ]
             )
 
@@ -274,8 +274,8 @@ namespace rill
             )
 
             R( variable_holder_kind_specifier, attribute::quality_kind,
-                ( x3::lit( "val" )[helper::assign( attribute::quality_kind::k_val )]
-                | x3::lit( "ref" )[helper::assign( attribute::quality_kind::k_ref )]
+                ( detail::make_keyword( "val" )[helper::assign( attribute::quality_kind::k_val )]
+                | detail::make_keyword( "ref" )[helper::assign( attribute::quality_kind::k_ref )]
                 )
             )
 

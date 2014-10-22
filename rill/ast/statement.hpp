@@ -75,17 +75,17 @@ namespace rill
             value_initializer_unit() = default;
 
             value_initializer_unit(
-                expression_ptr const& ep,
-                boost::optional<id_expression_ptr> const& tp
+                expression_ptr const& ep
                 )
                 : initializer( ep )
-                , type( tp != boost::none ? *tp : nullptr )
+                , type( nullptr )
             {}
 
             value_initializer_unit(
-                id_expression_ptr const& tp
+                id_expression_ptr const& tp,
+                boost::optional<expression_ptr> const& ep
                 )
-                : initializer( nullptr )
+                : initializer( ep != boost::none ? *ep : nullptr )
                 , type( tp )
             {}
 
