@@ -196,11 +196,14 @@ namespace rill
 #endif
 
             {
+                // TODO: fix for command injection
                 std::string const command = "ld " \
                     "-e rill_main "\
-                    /*"/NOLOGO /MACHINE:X86 /SUBSYSTEM:CONSOLE "*/      \
                     /*"-nodefaultlibs"*/" -dynamic-linker /lib64/ld-linux-x86-64.so.2 -lc " \
                     "-o " + output_name + " out.obj " + runtime_library_path;
+
+                std::cout << "EXEC: " << std::endl
+                          << " " << command << std::endl;
                 std::system( command.c_str() );
             }
 

@@ -64,7 +64,7 @@ namespace rill
         namespace detail
         {
             auto inline make_type_attributes_bit( type_attributes const& attr )
-                -> attributes_bit_ta
+                -> attributes_bit_t
             {
                 attributes_bit_t bits;
 

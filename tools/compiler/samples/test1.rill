@@ -1,4 +1,4 @@
-def rill_main(): int
+def main(): int
 {
     return f( 42 );
 }
