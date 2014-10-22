@@ -112,8 +112,9 @@ namespace rill
             // ====================================================================================================
             // executable scope, such as function, block, lambda, ...
             R( program_body_statement, ast::statement_ptr,
-                ( t.empty_statement
+                ( t.variable_declaration_statement
                 | t.return_statement
+                | t.empty_statement
                 | t.expression_statement    // NOTE: this statement must be set at last
                 )
             )
@@ -126,22 +127,22 @@ namespace rill
 
 
             // ====================================================================================================
-            R( holder_kind_specifier, attribute::quality_kind,
+            R( parameter_variable_holder_kind_specifier, attribute::quality_kind,
                 ( x3::lit( "val" )[helper::assign(attribute::quality_kind::k_val)]
                 | x3::lit( "ref" )[helper::assign(attribute::quality_kind::k_ref)]
                 )
             )
 
-            R( empty_holder_kind_specifier, attribute::quality_kind,
-               x3::eps[helper::assign(attribute::quality_kind::k_ref)]
-            )
-
             R( parameter_variable_declaration, ast::variable_declaration,
-                t.holder_kind_specifier > t.parameter_variable_initializer_unit
+                ( t.parameter_variable_holder_kind_specifier > t.parameter_variable_initializer_unit )[
+                    helper::construct<ast::variable_declaration>( ph::_1, ph::_2 )
+                    ]
             )
 
             R( parameter_variable_initializer_unit, ast::variable_declaration_unit,
-               ( -t.identifier ) > t.value_initializer_unit
+                ( -t.identifier > t.value_initializer_unit )[
+                    helper::construct<ast::variable_declaration_unit>( ph::_1, ph::_2 )
+                    ]
             )
 
             R( parameter_variable_declaration_list, ast::parameter_list,
@@ -253,7 +254,9 @@ namespace rill
             )
 
             R( template_parameter_variable_declaration, ast::variable_declaration,
-                t.empty_holder_kind_specifier > t.parameter_variable_initializer_unit
+                ( t.parameter_variable_initializer_unit )[
+                    helper::construct<ast::variable_declaration>( attribute::quality_kind::k_ref, ph::_2 )
+                    ]
             )
 
             R( template_parameter_variable_declaration_list, ast::parameter_list,
@@ -261,6 +264,33 @@ namespace rill
                 | ( x3::lit( '(' ) >> ( t.template_parameter_variable_declaration % x3::lit( ',' ) ) >> x3::lit( ')' ) )
                 )
             )
+
+
+            // ====================================================================================================
+            R( variable_declaration_statement, ast::variable_declaration_statement_ptr,
+                ( t.variable_declaration > t.statement_termination )[
+                    helper::make_node_ptr<ast::variable_declaration_statement>( ph::_1 )
+                    ]
+            )
+
+            R( variable_holder_kind_specifier, attribute::quality_kind,
+                ( x3::lit( "val" )[helper::assign( attribute::quality_kind::k_val )]
+                | x3::lit( "ref" )[helper::assign( attribute::quality_kind::k_ref )]
+                )
+            )
+
+            R( variable_declaration, ast::variable_declaration,
+                ( t.variable_holder_kind_specifier > t.variable_initializer_unit )[
+                    helper::construct<ast::variable_declaration>( ph::_1, ph::_2 )
+                   ]
+            )
+
+            R( variable_initializer_unit, ast::variable_declaration_unit,
+                ( t.identifier > t.value_initializer_unit )[
+                    helper::construct<ast::variable_declaration_unit>( ph::_1, ph::_2 )
+                    ]
+            )
+
 
             // ====================================================================================================
             R( expression_statement, ast::expression_statement_ptr,

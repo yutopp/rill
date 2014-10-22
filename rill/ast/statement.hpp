@@ -93,6 +93,13 @@ namespace rill
                 : initializer( clone( rhs.initializer ) )
                 , type( clone( rhs.type ) )
             {}
+            value_initializer_unit& operator=( value_initializer_unit const& ) =default;
+
+            value_initializer_unit( value_initializer_unit&& rhs )
+                : initializer( std::move( rhs.initializer ) )
+                , type( std::move( rhs.type ) )
+            {}
+            value_initializer_unit& operator=( value_initializer_unit&& ) =default;
 
             expression_ptr initializer;
             id_expression_ptr type;
@@ -111,10 +118,28 @@ namespace rill
                 , init_unit( i )
             {}
 
+            template<typename T>
+            variable_declaration_unit(
+                boost::optional<T> const& n,
+                value_initializer_unit const& i
+                )
+                : variable_declaration_unit(
+                    n != boost::none ? *n : nullptr,
+                    i
+                    )
+            {}
+
             variable_declaration_unit( variable_declaration_unit const& rhs )
                 : name( clone( rhs.name ) )
                 , init_unit( rhs.init_unit )
             {}
+            variable_declaration_unit& operator=( variable_declaration_unit const& ) =default;
+
+            variable_declaration_unit( variable_declaration_unit&& rhs )
+                : name( std::move( rhs.name ) )
+                , init_unit( std::move( rhs.init_unit ) )
+            {}
+            variable_declaration_unit& operator=( variable_declaration_unit&& ) =default;
 
             identifier_value_base_ptr name;
             value_initializer_unit init_unit;
@@ -415,8 +440,8 @@ namespace rill
             (( variable_declaration, declaration_ ))
             )
         public:
-            variable_declaration_statement( variable_declaration&& decl )
-                : declaration_( std::move( decl ) )
+            variable_declaration_statement( variable_declaration const& decl )
+                : declaration_( decl )
             {}
 
         public:
@@ -518,22 +543,10 @@ namespace rill
 
     } // namespace ast
 } // namespace rill
-
-
-BOOST_FUSION_ADAPT_STRUCT(
-    rill::ast::value_initializer_unit,
-    (rill::ast::expression_ptr,             initializer)
-    (rill::ast::id_expression_ptr,          type)
-    )
-
+/*
 BOOST_FUSION_ADAPT_STRUCT(
     rill::ast::variable_declaration_unit,
     (rill::ast::identifier_value_base_ptr,  name)
     (rill::ast::value_initializer_unit,     init_unit)
     )
-
-BOOST_FUSION_ADAPT_STRUCT(
-    rill::ast::variable_declaration,
-    (rill::attribute::quality_kind,         quality)
-    (rill::ast::variable_declaration_unit,  decl_unit)
-    )
+*/

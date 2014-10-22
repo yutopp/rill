@@ -150,10 +150,7 @@ namespace rill
                 >
             auto action_value( Context& ctx, T&& )
             {
-                using boost::fusion::at_c;
-
                 constexpr auto index = is_placeholder<std::decay_t<T>>::value - 1;
-
                 return extract<index>( x3::_attr( ctx ) );
             }
 
