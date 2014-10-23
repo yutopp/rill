@@ -86,6 +86,9 @@ namespace rill
             nest_pointer nest;
             template_arg_pointer template_args;
 
+            bool is_xvalue;
+            bool is_constant;
+
         public:
             inline auto has_template_args() const
                 -> bool

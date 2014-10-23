@@ -58,7 +58,7 @@ namespace rill
             auto operator()( type_id_t const& type_id ) const
                 -> result_type
             {
-                auto const& generator = gen_.get();
+                auto& generator = gen_.get();
 
                 std::cout << "T ID: "  << type_id << std::endl;
                 auto const& ty = generator.root_env_->get_type_at( type_id );
@@ -71,7 +71,7 @@ namespace rill
                         );
                 assert( c_env != nullptr );
                 if ( !generator.context_->env_conversion_table.is_defined( type_class_env_id ) ) {
-                    //generator.dispatch( c_env->get_related_ast(), c_env );
+                    generator.dispatch( c_env->get_related_ast(), c_env );
                 }
 
                 std::cout << "class env id: " << type_class_env_id<< " / " << c_env->get_base_name() << std::endl;
@@ -328,7 +328,7 @@ namespace rill
             assert( f_env != nullptr );
             if ( context_->env_conversion_table.is_defined( f_env->get_id() ) )
                 return;
-
+            context_->env_conversion_table.bind_function_type( f_env->get_id(), nullptr ); // guard
 
             // ========================================
             // information about paramaters
@@ -505,7 +505,8 @@ namespace rill
                     );
 
                 ++i;
-                //context_->env_conversion_table.bind_value( v_env->get_id(), ait );
+
+                // context_->env_conversion_table.bind_value( v_env->get_id(), ait );
             }
 
 //            func->setGC( "shadow-stack" );
@@ -542,6 +543,8 @@ namespace rill
             auto const& c_env
                 = cast_to<class_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( s ) );
             assert( c_env != nullptr );
+            if ( context_->env_conversion_table.is_defined( c_env->get_id() ) )
+                return;
 
             if ( s->inner_ ) {
                 // if inner statements, it will be USER DEFINED NORMAL class
@@ -644,6 +647,7 @@ namespace rill
             assert( f_env != nullptr );
             if ( context_->env_conversion_table.is_defined( f_env->get_id() ) )
                 return;
+            context_->env_conversion_table.bind_function_type( f_env->get_id(), nullptr ); // guard
 
             // ========================================
             // information about paramaters
@@ -734,6 +738,8 @@ namespace rill
                 dispatch( c_env->get_related_ast(), c_env );
             }
 
+            auto const& variable_llvm_type
+                = context_->env_conversion_table.ref_type( variable_type.class_env_id );
 
             // initial value
             if ( s->declaration_.decl_unit.init_unit.initializer ) {
@@ -741,11 +747,11 @@ namespace rill
 
                 auto const& initial_llvm_value
                     = dispatch( s->declaration_.decl_unit.init_unit.initializer, v_env );
-                assert( initial_llvm_value != nullptr && "[ice]" );
+                //assert( initial_llvm_value != nullptr && "[ice]" );
 
                 store_value(
                     variable_type,
-                    initial_llvm_value->getType(),
+                    variable_llvm_type,
                     initial_llvm_value,
                     v_env
                     );
@@ -754,8 +760,7 @@ namespace rill
                 // has NO initial value...
                 // TODO: call constructor
 
-                auto const& variable_llvm_type
-                    = context_->env_conversion_table.ref_type( variable_type.class_env_id );
+
 
 #if 0
 
@@ -1250,14 +1255,41 @@ namespace rill
                 }
             }();
 
-
-
             // evaluate lhs(reciever)
             // if reciever is exist, valid value and type will be stacked
             dispatch( e->reciever_, parent_env );
+
             // save the reciever object to the temprary space
             if ( f_env->is_in_class() ) {
                 //
+                if ( f_env->is_initializer() ) {
+                    // constructor
+                    // the first argument will be this
+                    std::cout << "     () DEBUGDEBUG 1 " << std::endl;
+
+                    auto const this_var_type_id = f_env->get_parameter_type_ids()[0];
+                    auto const& this_var_type = root_env_->get_type_at( this_var_type_id );
+                    if ( !context_->env_conversion_table.is_defined( this_var_type.class_env_id ) ) {
+                        auto const& c_env = root_env_->get_env_strong_at( this_var_type.class_env_id );
+                        dispatch( c_env->get_related_ast(), c_env );
+                    }
+
+                    auto const& variable_llvm_type
+                        = context_->env_conversion_table.ref_type( this_var_type.class_env_id );
+                    assert( variable_llvm_type != nullptr );
+
+                    auto this_var = (llvm::Value*)llvm::ConstantStruct::get(
+                        (llvm::StructType*)variable_llvm_type,
+                        llvm::ArrayRef<llvm::Constant*>()
+                        );
+                    assert( this_var != nullptr );
+
+                    std::cout << "     () DEBUGDEBUG 2 " << std::endl;
+
+                    context_->temporary_reciever_stack_.push(
+                        std::make_tuple( this_var_type_id, this_var )
+                        );
+                }
                 assert( context_->temporary_reciever_stack_.size() > 0 );
 
                 auto const& reciever_obj_value
@@ -1330,6 +1362,22 @@ namespace rill
             return dispatch( e->value_, parent_env );
         }
 
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::evaluated_type_expression, e, parent_env )
+        {
+            // return id of type!
+            llvm::Value* type_id_ptr
+                = llvm::ConstantInt::get(
+                    context_->llvm_context,
+                    llvm::APInt( sizeof( e->type_id ), e->type_id )
+                    );
+
+            // !important!
+            // set '1' to LSB to recognize this value is TYPE!
+            llvm::Value* flaged_type_id_ptr
+                = reinterpret_cast<llvm::Value*>( reinterpret_cast<std::uintptr_t>( type_id_ptr ) | 0x1 );
+
+            return flaged_type_id_ptr;
+        }
 
         // identifier node returns Variable
         RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::identifier_value, v, parent_env )

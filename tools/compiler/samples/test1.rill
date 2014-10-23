@@ -3,6 +3,13 @@ def main(): int
     val a: mutable(int) = 10;
     val b = 20;
 
+    mutable(TestClass)();
+
+
+    val kla: mutable(TestClass);
+    val klass1 = mutable(TestClass)();
+//    val klass1 = TestClass();
+
     val c = f( a * b );
     p( c );
     return 0;
@@ -12,10 +19,20 @@ template(T: type)
 def f(val a: T): T
 {
     val v: mutable(T) = 150;
-    // val v: T = 150;
     v = 10;
     return a * v;
 }
 
 extern def mutable( val a :type ): type "rill_abababa";
 extern def p( val i :int ): void "put_string2";
+
+class TestClass
+{
+    def ctor(): void
+    {
+    }
+}
+
+class HogeHuga
+{
+}

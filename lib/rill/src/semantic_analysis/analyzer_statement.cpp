@@ -338,8 +338,6 @@ namespace rill
 
             //
             f_env->complete( make_mangled_name( f_env ) );
-
-            std::cout << (environment_base_ptr const)f_env << std::endl;
         }
 
 
@@ -349,25 +347,23 @@ namespace rill
         RILL_VISITOR_OP( analyzer, ast::class_function_definition_statement, s, parent_env )
         {
             std::cout
-                << "function_definition_statement: ast_ptr -> "
-                << (environment_base_ptr const&)parent_env << std::endl
-                << "name -- " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
-                << "Args num -- " << s->get_parameter_list().size() << std::endl;
-
-            assert( parent_env->get_symbol_kind() == kind::type_value::e_class );
+                << " != Semantic" << std::endl
+                << "    CLASS function_definition_statement: " << std::endl
+                << "     name -- " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
+                << "     Args num -- " << s->get_parameter_list().size() << std::endl;
 
             auto const related_env = parent_env->get_related_env_by_ast_ptr( s );
             assert( related_env != nullptr );
             assert( related_env->get_symbol_kind() == kind::type_value::e_function );
 
-            auto const& f_env = std::static_pointer_cast<function_symbol_environment>( related_env );
+            auto const& f_env = cast_to<function_symbol_environment>( related_env );
             assert( f_env != nullptr );
 
+            std::cout << "$" << std::endl;
             // guard double check
-            if ( f_env->is_checked() )
-                return;
+            if ( f_env->is_checked() ) return;
             f_env->change_progress_to_checked();
-
+            std::cout << "$ uncheckd" << std::endl;
 
             // declare "this" at first
             auto const& c_env
@@ -377,11 +373,11 @@ namespace rill
             assert( c_env != nullptr );
 
             // TODO: see attribute of function and decide this type
-            // currentry immutable, ref
+            // currentry mutable, ref
             attribute::type_attributes const& this_object_attr
                 = attribute::make_type_attributes(
                     attribute::quality_kind::k_ref,
-                    attribute::modifiability_kind::k_immutable
+                    attribute::modifiability_kind::k_mutable
                     );
 
             // declare
@@ -395,17 +391,16 @@ namespace rill
             for( auto const& e : s->get_parameter_list() ) {
                 assert( e.decl_unit.init_unit.type != nullptr || e.decl_unit.init_unit.initializer != nullptr );
 
-                if ( e.decl_unit.init_unit.type ) { // is parameter variable type specified ?
-                    solve_type(
-                        this,
+                if ( e.decl_unit.init_unit.type ) { // is parameter variavle type specified ?
+                    resolve_type(
                         e.decl_unit.init_unit.type,
+                        e.quality,
                         parent_env,
                         [&]( type_detail_ptr const& ty_d,
                              type const& ty,
                              class_symbol_environment_ptr const& class_env
                             ) {
                             auto attr = ty.attributes;
-                            attr <<= e.quality;
 
                             // declare
                             f_env->parameter_variable_construct(
@@ -413,7 +408,7 @@ namespace rill
                                 class_env,
                                 attr
                                 );
-                        } );
+                        });
 
                 } else {
                     // type inferenced by result of evaluated [[default initializer expression]]
@@ -423,38 +418,35 @@ namespace rill
                 }
             }
 
-            // scan all statements in this function body
-            dispatch( s->inner_, f_env );
-
-            // ?: TODO: use block expression
-
-
-            // Return type
+            // return type
             if ( s->return_type_ ) {
-                solve_type(
-                    this,
-                    *s->return_type_,
-                    parent_env,
+                // if return type was specified, decide type to it.
+                resolve_type(
+                    s->return_type_,
+                    attribute::quality_kind::k_val,     // TODO: fix
+                    f_env,
                     [&]( type_detail_ptr const& return_ty_d,
                          type const& ty,
                          class_symbol_environment_ptr const& class_env
                         ) {
-                        // TODO: check return statement types...
-                        // f_env->get_return_type_candidates()
+                        std::cout << "return type is >>" << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
 
                         f_env->decide_return_type( return_ty_d->type_id );
-                        f_env->complete( make_mangled_name( f_env ) );
                     });
-
-            } else {
-                // TODO: implement return type inference
-                assert( false && "function return type inference was not supported yet" );
             }
 
-            //
-            //f_env->get_parameter_wrapper_env()->add_overload( f_env );
+            // scan all statements in this function body
+            std::cout << ">>>>" << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
+            dispatch( s->inner_, f_env );
+            std::cout << "<<<<" << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
 
-            std::cout << (environment_base_ptr const)f_env << std::endl;
+            std::cout << "returned: " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
+
+            // Return type
+            solve_function_return_type_semantics( f_env );
+
+            //
+            f_env->complete( make_mangled_name( f_env ) );
         }
 
 

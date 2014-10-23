@@ -14,6 +14,7 @@
 
 #include "environment_fwd.hpp"
 #include "../attribute/type.hpp"
+#include "type_id.hpp"
 
 
 namespace rill
@@ -30,9 +31,6 @@ namespace rill
             return class_env_id == environment_id_undefined;
         }
     };
-
-    // TODO: change to strong typedef
-    typedef std::size_t type_id_t;
 
     //
     auto const type_id_limit = type_id_t( std::numeric_limits<std::size_t>::max() - 20 );

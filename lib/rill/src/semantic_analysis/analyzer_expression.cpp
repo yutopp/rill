@@ -510,14 +510,68 @@ namespace rill
                 }
 
             } else {
-                //
-                assert( false && "[[ICE]] operator() is not supported");
+                auto const& ty = root_env_->get_type_at( reciever_type_detail->type_id );
+                auto const& c_env = std::static_pointer_cast<class_symbol_environment const>(
+                    root_env_->get_env_strong_at( ty.class_env_id)
+                    );
+
+                // TODO: fix
+                if ( c_env->get_base_name() == "type" ) {
+                    // constructor
+                    type_detail_ptr b_ty_d = nullptr;
+
+                    resolve_type(
+                        ast::helper::make_id_expression( e->reciever_ ),
+                        attribute::quality_kind::k_val,     // TODO: fix
+                        env,
+                        [&]( type_detail_ptr const& return_ty_d,
+                             type const& ty,
+                             class_symbol_environment_ptr const& class_env
+                            ) {
+                            std::cout << "CONSTRUCTING type >> " << class_env->get_base_name() << std::endl;
+
+                            // find constructor
+                            auto const& multiset_env = cast_to<multiple_set_environment>( class_env->find_on_env( "ctor" ) );
+                            assert( multiset_env->get_representation_kind() == kind::type_value::e_function );
+
+                            argument_type_details.push_back(
+                                return_ty_d
+                                );
+
+                            auto const& function_env
+                                = solve_function_overload(
+                                    multiset_env,                           // overload set
+                                    argument_type_details,                  // type detailes of arguments
+                                    nullptr,                                // template arguments
+                                    class_env
+                                    );
+                            assert( function_env != nullptr );
+                            function_env->connect_from_ast( e );
+
+                            // TODO: fix
+                            function_env->mark_as_initialize_function();
+
+                            b_ty_d = type_detail_pool_->construct(
+                                return_ty_d->type_id,
+                                function_env,
+                                nullptr
+                                );
+
+                            // substitute expression
+                            auto substituted_ast = std::static_pointer_cast<ast::expression>(
+                                std::make_shared<ast::evaluated_type_expression>( return_ty_d->type_id )
+                                );
+                            e->reciever_.swap( substituted_ast );
+                        });
+
+                    assert( b_ty_d != nullptr );
+                    return bind_type( e, b_ty_d );
+
+                } else {
+                    // operator() invocation
+                    assert( false && "[[ICE]] operator() is not supported");
+                }
             }
-
-            assert( false );
-
-            // return retult type env of function
-            //return function_env->get_return_type_environment();
         }
 
 

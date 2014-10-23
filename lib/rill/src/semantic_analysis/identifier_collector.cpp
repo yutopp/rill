@@ -158,8 +158,13 @@ namespace rill
 
             } else {
                 // add function symbol to current environment
-                auto const& f_env_pair = parent_env->mark_as( kind::k_function, s->get_identifier(), s );
-                f_env_pair.second->set_parent_class_env_id( parent_env->get_id() );
+                RILL_PP_TIE(
+                    multiset_env, f_env,
+                    parent_env->mark_as( kind::k_function, s->get_identifier(), s )
+                    );
+                f_env->set_parent_class_env_id( parent_env->get_id() );
+
+                multiset_env->add_to_normal_environments( f_env );
             }
         }
 

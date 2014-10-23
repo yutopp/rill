@@ -206,6 +206,16 @@ namespace rill
             return parent_class_env_id_ != environment_id_undefined;
         }
 
+        void mark_as_initialize_function()
+        {
+            is_initializer_function = true;
+        }
+
+        bool is_initializer() const
+        {
+            return is_initializer_function;
+        }
+
     private:
         environment_id_t parameter_wrapper_env_id_;
         environment_id_t parent_class_env_id_;
@@ -221,6 +231,8 @@ namespace rill
 
         native_string_type base_name_, mangled_name_;
         attributes_t attributes_;
+
+        bool is_initializer_function;
     };
 
 } // namespace rill

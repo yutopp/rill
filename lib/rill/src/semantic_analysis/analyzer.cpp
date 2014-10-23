@@ -174,7 +174,7 @@ namespace rill
             -> std::string
         {
             assert( c_env != nullptr );
-            assert( c_env->is_complete() );
+            //assert( c_env->is_checked() );
 
             std::string s;
             s += std::to_string( c_env->get_mangled_name().size() );
@@ -1251,7 +1251,7 @@ namespace rill
 
             std::cout << colorize::standard::fg::red
                       << "!!!! overload solving: " << set_env->get_name() << std::endl
-                      << "!!!! function candidate num: " << set_env->get_normal_environments().size()
+                      << "!!!! normal function candidate num: " << set_env->get_normal_environments().size()
                       << colorize::standard::reset
                       << std::endl;
 

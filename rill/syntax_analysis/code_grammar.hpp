@@ -71,6 +71,7 @@ namespace rill
 
 
             // ====================================================================================================
+            // ====================================================================================================
             //
             R( function_definition_statement, ast::function_definition_statement_ptr,
                 ( detail::make_keyword( "def" )
@@ -173,6 +174,7 @@ namespace rill
 
 
             // ====================================================================================================
+            // ====================================================================================================
             R( class_definition_statement, ast::class_definition_statement_ptr,
                 ( detail::make_keyword( "class" )
                 > t.identifier
@@ -195,7 +197,9 @@ namespace rill
             // ====================================================================================================
             // executable scope, such as function, block, lambda, ...
             R( class_body_statement, ast::statement_ptr,
-                ( t.empty_statement
+                ( t.class_function_definition_statement
+                | t.class_variable_declaration_statement
+                | t.empty_statement
                 )
             )
 
@@ -205,7 +209,30 @@ namespace rill
                     ]
             )
 
+            R( class_function_definition_statement, ast::class_function_definition_statement_ptr,
+                ( detail::make_keyword( "def" )
+                > t.identifier
+                > t.parameter_variable_declaration_list
+                > -t.type_specifier
+                > t.function_body_block
+                )[
+                    helper::make_node_ptr<ast::class_function_definition_statement>(
+                        ph::_1,
+                        ph::_2,
+                        ph::_3,
+                        ph::_4
+                        )
+                    ]
+            )
 
+            R( class_variable_declaration_statement, ast::class_variable_declaration_statement_ptr,
+                ( t.variable_declaration > t.statement_termination )[
+                    helper::make_node_ptr<ast::class_variable_declaration_statement>( ph::_1 )
+                    ]
+            )
+
+
+            // ====================================================================================================
             // ====================================================================================================
             //
             R( extern_statement, ast::extern_statement_base_ptr,
@@ -233,6 +260,7 @@ namespace rill
             )
 
 
+            // ====================================================================================================
             // ====================================================================================================
             //
             R( templatable_statement, ast::can_be_template_statement_ptr,
@@ -267,6 +295,7 @@ namespace rill
 
 
             // ====================================================================================================
+            // ====================================================================================================
             R( variable_declaration_statement, ast::variable_declaration_statement_ptr,
                 ( t.variable_declaration > t.statement_termination )[
                     helper::make_node_ptr<ast::variable_declaration_statement>( ph::_1 )
@@ -293,6 +322,7 @@ namespace rill
 
 
             // ====================================================================================================
+            // ====================================================================================================
             R( expression_statement, ast::expression_statement_ptr,
                 ( t.expression > t.statement_termination )[
                     helper::make_node_ptr<ast::expression_statement>( ph::_1 )
@@ -301,6 +331,7 @@ namespace rill
 
 
             // ====================================================================================================
+            // ====================================================================================================
             R( empty_statement, ast::empty_statement_ptr,
                 t.statement_termination[
                     helper::make_node_ptr<ast::empty_statement>()
@@ -308,6 +339,7 @@ namespace rill
                 )
 
 
+            // ====================================================================================================
             // ====================================================================================================
             R( return_statement, ast::return_statement_ptr,
                 ( detail::make_keyword( "return" )

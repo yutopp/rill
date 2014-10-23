@@ -73,6 +73,7 @@ namespace rill
             RILL_VISITOR_READONLY_OP_DECL( ast::intrinsic_function_call_expression );
             RILL_VISITOR_READONLY_OP_DECL( ast::id_expression );
             RILL_VISITOR_READONLY_OP_DECL( ast::term_expression );
+            RILL_VISITOR_READONLY_OP_DECL( ast::evaluated_type_expression );
 
             // value
             //RILL_VISITOR_READONLY_OP_DECL( ast::nested_identifier_value );

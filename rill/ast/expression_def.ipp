@@ -39,6 +39,9 @@ namespace rill
         // RILL_AST_DEF( while_expression, expression )
         // RILL_AST_DEF( if_expression, expression )
 
+        //
+        RILL_AST_DEF( evaluated_type_expression, expression )
+
 #ifdef RILL_AST_REQ_NS
     } // namespace ast
 } // namespace rill

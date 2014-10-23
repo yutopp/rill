@@ -14,6 +14,7 @@
 #include <boost/optional.hpp>
 
 #include "../environment/environment_fwd.hpp"
+#include "../environment/type_id.hpp"
 #include "../behavior/intrinsic_function_holder_fwd.hpp"
 
 #include "ast_base.hpp"
@@ -164,6 +165,20 @@ namespace rill
                 return std::make_shared<id_expression>( expr );
             }
         } // namespace helper
+
+
+        //
+        RILL_AST_BEGIN(
+            evaluated_type_expression, expression,
+            (( type_id_t, type_id ))
+            )
+        public:
+            evaluated_type_expression( type_id_t const& tid )
+                : type_id( tid )
+            {}
+
+        RILL_AST_END
+
 
         /*
         RILL_AST_BEGIN(

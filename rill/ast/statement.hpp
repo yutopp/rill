@@ -381,7 +381,7 @@ namespace rill
         RILL_AST_BEGIN(
             class_function_definition_statement, function_definition_statement_base,
             (( parameter_list, parameter_list_ ))
-            (( boost::optional<id_expression_ptr>, return_type_ ))
+            (( id_expression_ptr, return_type_ ))
             )
         public:
             class_function_definition_statement(
@@ -392,7 +392,7 @@ namespace rill
                 )
                 : function_definition_statement_base( id, inner )
                 , parameter_list_( parameter_list )
-                , return_type_( return_type )
+                , return_type_( return_type != boost::none ? *return_type : nullptr )
             {}
 
         public:
