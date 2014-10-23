@@ -747,7 +747,7 @@ namespace rill
 
                 auto const& initial_llvm_value
                     = dispatch( s->declaration_.decl_unit.init_unit.initializer, v_env );
-                //assert( initial_llvm_value != nullptr && "[ice]" );
+                assert( initial_llvm_value != nullptr && "[ice]" );
 
                 store_value(
                     variable_type,
@@ -1286,8 +1286,18 @@ namespace rill
 
                     std::cout << "     () DEBUGDEBUG 2 " << std::endl;
 
+                    llvm::AllocaInst* const allca_inst
+                        = context_->ir_builder.CreateAlloca(
+                            variable_llvm_type
+                            );
+
+                    context_->ir_builder.CreateStore(
+                        this_var,
+                        allca_inst /*, is_volatile */
+                        );
+
                     context_->temporary_reciever_stack_.push(
-                        std::make_tuple( this_var_type_id, this_var )
+                        std::make_tuple( this_var_type_id, allca_inst )
                         );
                 }
                 assert( context_->temporary_reciever_stack_.size() > 0 );

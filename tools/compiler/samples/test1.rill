@@ -5,9 +5,8 @@ def main(): int
 
     mutable(TestClass)();
 
-
-    val kla: mutable(TestClass);
-    val klass1 = mutable(TestClass)();
+    // val kla: mutable(TestClass);
+    //val klass1 = mutable(TestClass)();
 //    val klass1 = TestClass();
 
     val c = f( a * b );
@@ -30,6 +29,7 @@ class TestClass
 {
     def ctor(): void
     {
+        p( 10 );
     }
 }
 
