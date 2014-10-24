@@ -61,23 +61,7 @@ namespace rill
             return attr;
         }
 
-        namespace detail
-        {
-            auto inline make_type_attributes_bit( type_attributes const& attr )
-                -> attributes_bit_t
-            {
-                attributes_bit_t bits;
 
-                std::cout << "Make_type_attributes_bit" << std::endl
-                          << " q: " << attr.quality << std::endl
-                          << " m: " << attr.modifiability << std::endl;
-
-                bits.set( static_cast<std::size_t>( attr.quality ) );
-                bits.set( static_cast<std::size_t>( attr.modifiability ) );
-
-                return bits;
-            }
-        } // namespace detail
 
 
 

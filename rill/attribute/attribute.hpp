@@ -19,10 +19,37 @@ namespace rill
     {
         enum class holder_kind
         {
-            k_suggest = 0,
+            k_suggest,
             k_val,
-            k_ref
+            k_ref,
+            last
         };
+
+        enum class modifiability_kind
+        {
+            k_none,
+            k_mutable,
+            k_const,
+            k_immutable,
+            last
+        };
+
+        enum class lifetime_kind
+        {
+            k_scoped,
+            k_managed,
+            k_unmanaged,
+            k_static,
+            last
+        };
+
+        struct type_attributes
+        {
+            attribute::holder_kind quality;
+            attribute::modifiability_kind modifiability;
+            attribute::lifetime_kind lifetime;
+        };
+
 
         inline auto operator<<( std::ostream& os, holder_kind const& k )
             -> std::ostream&
@@ -41,14 +68,6 @@ namespace rill
 
             return os;
         }
-
-        enum class modifiability_kind
-        {
-            k_none = 4,
-            k_mutable,
-            k_const,
-            k_immutable,
-        };
 
         inline auto operator<<( std::ostream& os, modifiability_kind const& k )
             -> std::ostream&
@@ -71,12 +90,6 @@ namespace rill
             return os;
         }
 
-        struct type_attributes
-        {
-            attribute::holder_kind quality;
-            attribute::modifiability_kind modifiability;
-        };
-
         inline auto operator<<( std::ostream& os, type_attributes const& attr )
             -> std::ostream&
         {
@@ -87,8 +100,62 @@ namespace rill
             return os;
         }
 
-        auto const attributes_width_max = 8;
+
+        namespace detail
+        {
+            template<typename E>
+            constexpr std::size_t min_bitwidth( E const& e )
+            {
+                std::size_t i = 1, t = 1;
+                std::size_t n = static_cast<std::size_t>( e );
+
+                while( n > i ) {
+                    i *= 2;
+                    ++t;
+                }
+
+                return t;
+            }
+        }
+
+        constexpr auto attributes_width_max
+            = detail::min_bitwidth( holder_kind::last )
+            + detail::min_bitwidth( modifiability_kind::last )
+            + detail::min_bitwidth( lifetime_kind::last );
         typedef std::bitset<attributes_width_max> attributes_bit_t;
+
+        namespace detail
+        {
+            auto inline make_type_attributes_bit( type_attributes const& attr )
+                -> attributes_bit_t
+            {
+                using ull = unsigned long long;
+
+                ull bits = 0;
+                std::size_t offset = 0;
+
+                bits |= static_cast<ull>( attr.quality ) << offset;
+                offset += detail::min_bitwidth( holder_kind::last );
+
+                bits |= static_cast<ull>( attr.modifiability ) << offset;
+                offset += detail::min_bitwidth( modifiability_kind::last );
+
+                bits |= static_cast<ull>( attr.lifetime ) << offset;
+                offset += detail::min_bitwidth( lifetime_kind::last );
+
+                std::cout << "Make_type_attributes_bit" << std::endl
+                          << " h: " << attr.quality << std::endl
+                          << " m: " << attr.modifiability << std::endl
+                          << " bits: " << attributes_bit_t( bits ).to_string() << std::endl;;
+
+                return attributes_bit_t( bits );
+            }
+        } // namespace detail
+
+
+
+
+
 
 
         namespace detail
