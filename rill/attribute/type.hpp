@@ -23,7 +23,7 @@ namespace rill
     {
         struct type_attributes_optional
         {
-            boost::optional<attribute::quality_kind> quality;
+            boost::optional<attribute::holder_kind> quality;
             boost::optional<attribute::modifiability_kind> modifiability;
         };
 
@@ -43,13 +43,13 @@ namespace rill
         auto inline make_default_type_attributes()
             -> type_attributes
         {
-            return { quality_kind::k_val, modifiability_kind::k_immutable };
+            return { holder_kind::k_val, modifiability_kind::k_immutable };
         }
 
         auto inline make_empty_type_attributes()
             -> type_attributes
         {
-            return { quality_kind::k_suggest, modifiability_kind::k_none };
+            return { holder_kind::k_suggest, modifiability_kind::k_none };
         }
 
         template<typename... Args>
@@ -141,11 +141,11 @@ namespace rill
             -> flatten_attribute
         {
             switch( source.quality ) {
-            case attribute::quality_kind::k_val:
+            case attribute::holder_kind::k_val:
                 switch( source.modifiability ) {
                 case attribute::modifiability_kind::k_immutable:
                     switch( target.quality ) {
-                    case attribute::quality_kind::k_val:
+                    case attribute::holder_kind::k_val:
                         switch( target.modifiability ) {
                         case attribute::modifiability_kind::k_immutable:
                             return flatten_attribute::from_val_immutable_to_val_immutable;
@@ -155,7 +155,7 @@ namespace rill
                             return flatten_attribute::from_val_immutable_to_val_mutable;
                         } // switch( target_type.attributes.modifiability )
 
-                    case attribute::quality_kind::k_ref:
+                    case attribute::holder_kind::k_ref:
                         switch( target.modifiability ) {
                         case attribute::modifiability_kind::k_immutable:
                             return flatten_attribute::from_val_immutable_to_ref_immutable;
@@ -169,7 +169,7 @@ namespace rill
 
                 case attribute::modifiability_kind::k_const:
                     switch( target.quality ) {
-                    case attribute::quality_kind::k_val:
+                    case attribute::holder_kind::k_val:
                         switch( target.modifiability ) {
                         case attribute::modifiability_kind::k_immutable:
                             return flatten_attribute::from_val_const_to_val_immutable;
@@ -179,7 +179,7 @@ namespace rill
                             return flatten_attribute::from_val_const_to_val_mutable;
                         } // switch( target_type.attributes.modifiability )
 
-                    case attribute::quality_kind::k_ref:
+                    case attribute::holder_kind::k_ref:
                         switch( target.modifiability ) {
                         case attribute::modifiability_kind::k_immutable:
                             return flatten_attribute::from_val_const_to_ref_immutable;
@@ -193,7 +193,7 @@ namespace rill
 
                 case attribute::modifiability_kind::k_mutable:
                     switch( target.quality ) {
-                    case attribute::quality_kind::k_val:
+                    case attribute::holder_kind::k_val:
                         switch( target.modifiability ) {
                         case attribute::modifiability_kind::k_immutable:
                             return flatten_attribute::from_val_mutable_to_val_immutable;
@@ -203,7 +203,7 @@ namespace rill
                             return flatten_attribute::from_val_mutable_to_val_mutable;
                         } // switch( target_type.attributes.modifiability )
 
-                    case attribute::quality_kind::k_ref:
+                    case attribute::holder_kind::k_ref:
                         switch( target.modifiability ) {
                         case attribute::modifiability_kind::k_immutable:
                             return flatten_attribute::from_val_mutable_to_ref_immutable;
@@ -216,12 +216,12 @@ namespace rill
                 } // switch( source_type.attributes.modifiability )
 
 
-            case attribute::quality_kind::k_ref:
+            case attribute::holder_kind::k_ref:
                 switch( source.modifiability ) {
 
                 case attribute::modifiability_kind::k_immutable:
                     switch( target.quality ) {
-                    case attribute::quality_kind::k_val:
+                    case attribute::holder_kind::k_val:
                         switch( target.modifiability ) {
                         case attribute::modifiability_kind::k_immutable:
                             return flatten_attribute::from_ref_immutable_to_val_immutable;
@@ -231,7 +231,7 @@ namespace rill
                             return flatten_attribute::from_ref_immutable_to_val_mutable;
                         } // switch( target_type.attributes.modifiability )
 
-                    case attribute::quality_kind::k_ref:
+                    case attribute::holder_kind::k_ref:
                         switch( target.modifiability ) {
                         case attribute::modifiability_kind::k_immutable:
                             return flatten_attribute::from_ref_immutable_to_ref_immutable;
@@ -245,7 +245,7 @@ namespace rill
 
                 case attribute::modifiability_kind::k_const:
                     switch( target.quality ) {
-                    case attribute::quality_kind::k_val:
+                    case attribute::holder_kind::k_val:
                         switch( target.modifiability ) {
                         case attribute::modifiability_kind::k_immutable:
                             return flatten_attribute::from_ref_const_to_val_immutable;
@@ -255,7 +255,7 @@ namespace rill
                             return flatten_attribute::from_ref_const_to_val_mutable;
                         } // switch( target_type.attributes.modifiability )
 
-                    case attribute::quality_kind::k_ref:
+                    case attribute::holder_kind::k_ref:
                         switch( target.modifiability ) {
                         case attribute::modifiability_kind::k_immutable:
                             return flatten_attribute::from_ref_const_to_ref_immutable;
@@ -269,7 +269,7 @@ namespace rill
 
                 case attribute::modifiability_kind::k_mutable:
                     switch( target.quality ) {
-                    case attribute::quality_kind::k_val:
+                    case attribute::holder_kind::k_val:
                         switch( target.modifiability ) {
                         case attribute::modifiability_kind::k_immutable:
                             return flatten_attribute::from_ref_mutable_to_val_immutable;
@@ -279,7 +279,7 @@ namespace rill
                             return flatten_attribute::from_ref_mutable_to_val_mutable;
                         } // switch( target_type.attributes.modifiability )
 
-                    case attribute::quality_kind::k_ref:
+                    case attribute::holder_kind::k_ref:
                         switch( target.modifiability ) {
                         case attribute::modifiability_kind::k_immutable:
                             return flatten_attribute::from_ref_mutable_to_ref_immutable;
@@ -315,7 +315,7 @@ namespace rill
 
 BOOST_FUSION_ADAPT_STRUCT(
     rill::attribute::type_attributes_optional,
-    (boost::optional<rill::attribute::quality_kind>,        quality)
+    (boost::optional<rill::attribute::holder_kind>,        quality)
     (boost::optional<rill::attribute::modifiability_kind>,  modifiability)
     )
 

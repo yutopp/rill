@@ -30,7 +30,7 @@ namespace rill
             return attribute::make_type_attributes(
                 attr.quality
                 ? *attr.quality
-                : attribute::quality_kind::k_val,                   // default value
+                : attribute::holder_kind::k_val,                   // default value
                 attr.modifiability
                 ? *attr.modifiability
                 : attribute::modifiability_kind::k_immutable        // defaut value

@@ -376,7 +376,7 @@ namespace rill
             // currentry mutable, ref
             attribute::type_attributes const& this_object_attr
                 = attribute::make_type_attributes(
-                    attribute::quality_kind::k_ref,
+                    attribute::holder_kind::k_ref,
                     attribute::modifiability_kind::k_mutable
                     );
 
@@ -423,7 +423,7 @@ namespace rill
                 // if return type was specified, decide type to it.
                 resolve_type(
                     s->return_type_,
-                    attribute::quality_kind::k_val,     // TODO: fix
+                    attribute::holder_kind::k_val,     // TODO: fix
                     f_env,
                     [&]( type_detail_ptr const& return_ty_d,
                          type const& ty,

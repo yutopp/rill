@@ -524,7 +524,7 @@ namespace rill
 
                     resolve_type(
                         ast::helper::make_id_expression( e->reciever_ ),
-                        attribute::quality_kind::k_val,     // TODO: fix
+                        attribute::holder_kind::k_val,     // TODO: fix
                         env,
                         [&]( type_detail_ptr const& return_ty_d,
                              type const& ty,

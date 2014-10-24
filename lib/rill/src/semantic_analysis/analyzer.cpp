@@ -52,7 +52,7 @@ namespace rill
         {
             inline void mask_type_attribute_by(
                 attribute::type_attributes& attr,
-                attribute::quality_kind const& k
+                attribute::holder_kind const& k
                 )
             {
                 attr.quality = k;
@@ -183,9 +183,9 @@ namespace rill
             s += [&]() {
                 switch( attr.quality )
                 {
-                case attribute::quality_kind::k_val:
+                case attribute::holder_kind::k_val:
                     return "VAL";
-                case attribute::quality_kind::k_ref:
+                case attribute::holder_kind::k_ref:
                     return "REF";
                 default:
                     assert( false );
@@ -624,17 +624,17 @@ namespace rill
 
             switch( parameter_attributes.quality )  // to
             {
-            case attribute::quality_kind::k_ref:
+            case attribute::holder_kind::k_ref:
             {
                 // ref to ref
-                result_attr <<= attribute::quality_kind::k_ref;
+                result_attr <<= attribute::holder_kind::k_ref;
                 break;
             }
 
-            case attribute::quality_kind::k_val:
+            case attribute::holder_kind::k_val:
             {
                 // ref to val
-                result_attr <<= attribute::quality_kind::k_val;
+                result_attr <<= attribute::holder_kind::k_val;
                 break;
             }
 
@@ -656,7 +656,7 @@ namespace rill
 
             switch( parameter_attributes.quality )  // to
             {
-            case attribute::quality_kind::k_ref:
+            case attribute::holder_kind::k_ref:
             {
                 // val to ref
                 switch( argument_attributes.modifiability ) {
@@ -691,11 +691,11 @@ namespace rill
                     break;
                 } // switch( parameter_attributes.modifiability )
 
-                result_attr <<= attribute::quality_kind::k_ref;
+                result_attr <<= attribute::holder_kind::k_ref;
                 break;
             }
 
-            case attribute::quality_kind::k_val:
+            case attribute::holder_kind::k_val:
             {
                 // val to val
                 break;
@@ -718,10 +718,10 @@ namespace rill
             //
             switch( argument_attributes.quality ) // from
             {
-            case attribute::quality_kind::k_ref:
+            case attribute::holder_kind::k_ref:
                 return qualifier_conversion_from_ref( parameter_attributes, argument_attributes );
 
-            case attribute::quality_kind::k_val:
+            case attribute::holder_kind::k_val:
                 return qualifier_conversion_from_val( parameter_attributes, argument_attributes );
 
             default:
@@ -1158,7 +1158,7 @@ namespace rill
                     // if return type was specified, decide type to it.
                     resolve_type(
                         function_def_ast->return_type_,
-                        attribute::quality_kind::k_val, // TODO: fix
+                        attribute::holder_kind::k_val, // TODO: fix
                         instanting_f_env,
                         [&]( type_detail_ptr const& return_ty_d,
                              type const& ty,

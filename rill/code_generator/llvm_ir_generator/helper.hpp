@@ -103,7 +103,7 @@ namespace rill
                 switch( variable_attr.quality )
                 {
                     // VAL
-                case attribute::quality_kind::k_val:
+                case attribute::holder_kind::k_val:
                     switch( variable_attr.modifiability )
                     {
                     case attribute::modifiability_kind::k_immutable:
@@ -146,7 +146,7 @@ namespace rill
                     break;
 
                     // REF
-                case attribute::quality_kind::k_ref:
+                case attribute::holder_kind::k_ref:
                     assert( false && "not implemented..." );
                     break;
 

@@ -30,7 +30,7 @@ class TestClass
 {
     def ctor(): void
     {
-        this.a = 10;
+//        this.a = 10;
         p( this.a );
         p( 10 );
     }

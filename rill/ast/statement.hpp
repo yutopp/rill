@@ -151,7 +151,7 @@ namespace rill
 
         struct variable_declaration
         {
-            attribute::quality_kind quality;        // Ex. val | ref | ...
+            attribute::holder_kind quality;        // Ex. val | ref | ...
             variable_declaration_unit decl_unit;
         };
 

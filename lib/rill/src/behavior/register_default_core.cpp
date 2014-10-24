@@ -29,7 +29,7 @@ namespace rill
             Env const& return_class_env,
             attribute::type_attributes const& return_type_attr
                 = attribute::make_type_attributes(
-                    attribute::quality_kind::k_val,
+                    attribute::holder_kind::k_val,
                     attribute::modifiability_kind::k_immutable
                     )
             )
@@ -102,7 +102,7 @@ namespace rill
 
                 // val T: type
                 rill::ast::variable_declaration ty = {
-                    rill::attribute::quality_kind::k_val,
+                    rill::attribute::holder_kind::k_val,
                     rill::ast::variable_declaration_unit{
                         rill::ast::make_single_identifier( "T" ),
                         rill::ast::value_initializer_unit{
@@ -114,7 +114,7 @@ namespace rill
 
                 // val N: int
                 rill::ast::variable_declaration in = {
-                    rill::attribute::quality_kind::k_val,
+                    rill::attribute::holder_kind::k_val,
                     rill::ast::variable_declaration_unit{
                         rill::ast::make_single_identifier( "N" ),
                         rill::ast::value_initializer_unit{
@@ -285,7 +285,7 @@ namespace rill
                             rill::ast::make_single_identifier( "__a" ),
                             int_class_env_pointer,
                             attribute::make_type_attributes(
-                                attribute::quality_kind::k_val,
+                                attribute::holder_kind::k_val,
                                 attribute::modifiability_kind::k_immutable
                                 )
                             );    // :int
@@ -293,7 +293,7 @@ namespace rill
                             rill::ast::make_single_identifier( "__b" ),
                             int_class_env_pointer,
                             attribute::make_type_attributes(
-                                attribute::quality_kind::k_val,
+                                attribute::holder_kind::k_val,
                                 attribute::modifiability_kind::k_immutable
                                 )
                             );    // :int
@@ -348,7 +348,7 @@ namespace rill
                             rill::ast::make_single_identifier( "__a" ),
                             int_class_env_pointer,
                             attribute::make_type_attributes(
-                                attribute::quality_kind::k_val,
+                                attribute::holder_kind::k_val,
                                 attribute::modifiability_kind::k_immutable
                                 )
                             );    // :int
@@ -356,7 +356,7 @@ namespace rill
                             rill::ast::make_single_identifier( "__b" ),
                             int_class_env_pointer,
                             attribute::make_type_attributes(
-                                attribute::quality_kind::k_val,
+                                attribute::holder_kind::k_val,
                                 attribute::modifiability_kind::k_immutable
                                 )
                             );    // :int
@@ -409,7 +409,7 @@ namespace rill
                             rill::ast::make_single_identifier( "__a" ),
                             int_class_env_pointer,
                             attribute::make_type_attributes(
-                                attribute::quality_kind::k_val,
+                                attribute::holder_kind::k_val,
                                 attribute::modifiability_kind::k_immutable
                                 )
                             );    // :int
@@ -417,7 +417,7 @@ namespace rill
                             rill::ast::make_single_identifier( "__b" ),
                             int_class_env_pointer,
                             attribute::make_type_attributes(
-                                attribute::quality_kind::k_val,
+                                attribute::holder_kind::k_val,
                                 attribute::modifiability_kind::k_immutable
                                 )
                             );    // :int
@@ -472,7 +472,7 @@ namespace rill
                             rill::ast::make_single_identifier( "__a" ),
                             int_class_env_pointer,
                             attribute::make_type_attributes(
-                                attribute::quality_kind::k_val,
+                                attribute::holder_kind::k_val,
                                 attribute::modifiability_kind::k_immutable
                                 )
                             );    // :int
@@ -480,7 +480,7 @@ namespace rill
                             rill::ast::make_single_identifier( "__b" ),
                             int_class_env_pointer,
                             attribute::make_type_attributes(
-                                attribute::quality_kind::k_val,
+                                attribute::holder_kind::k_val,
                                 attribute::modifiability_kind::k_immutable
                                 )
                             );    // :int
@@ -533,7 +533,7 @@ namespace rill
                             rill::ast::make_single_identifier( "__a" ),
                             int_class_env_pointer,
                             attribute::make_type_attributes(
-                                attribute::quality_kind::k_val,
+                                attribute::holder_kind::k_val,
                                 attribute::modifiability_kind::k_immutable
                                 )
                             );    // :int
@@ -541,7 +541,7 @@ namespace rill
                             rill::ast::make_single_identifier( "__b" ),
                             int_class_env_pointer,
                             attribute::make_type_attributes(
-                                attribute::quality_kind::k_val,
+                                attribute::holder_kind::k_val,
                                 attribute::modifiability_kind::k_immutable
                                 )
                             );    // :int
@@ -593,7 +593,7 @@ namespace rill
                             rill::ast::make_single_identifier( "__a" ),
                             int_class_env_pointer,
                             attribute::make_type_attributes(
-                                attribute::quality_kind::k_val,
+                                attribute::holder_kind::k_val,
                                 attribute::modifiability_kind::k_immutable
                                 )
                             );    // :int
@@ -601,7 +601,7 @@ namespace rill
                             rill::ast::make_single_identifier( "__b" ),
                             int_class_env_pointer,
                             attribute::make_type_attributes(
-                                attribute::quality_kind::k_val,
+                                attribute::holder_kind::k_val,
                                 attribute::modifiability_kind::k_immutable
                                 )
                             );    // :int
@@ -659,7 +659,7 @@ namespace rill
                             rill::ast::make_single_identifier( "__a" ),
                             int_class_env_pointer,
                             attribute::make_type_attributes(
-                                attribute::quality_kind::k_ref,
+                                attribute::holder_kind::k_ref,
                                 attribute::modifiability_kind::k_mutable
                                 )
                             );    // ref :mutable!int
@@ -668,7 +668,7 @@ namespace rill
                             rill::ast::make_single_identifier( "__b" ),
                             int_class_env_pointer,
                             attribute::make_type_attributes(
-                                attribute::quality_kind::k_val,
+                                attribute::holder_kind::k_val,
                                 attribute::modifiability_kind::k_immutable
                                 )
                             );    // :int
@@ -677,7 +677,7 @@ namespace rill
                     },
                     int_class_env_pointer,
                     attribute::make_type_attributes(
-                        attribute::quality_kind::k_ref,
+                        attribute::holder_kind::k_ref,
                         attribute::modifiability_kind::k_mutable
                         )
                     );
@@ -728,7 +728,7 @@ namespace rill
                             rill::ast::make_single_identifier( "__a" ),
                             int_class_env_pointer,
                             attribute::make_type_attributes(
-                                attribute::quality_kind::k_val,
+                                attribute::holder_kind::k_val,
                                 attribute::modifiability_kind::k_immutable
                                 )
                             );    // :int
@@ -736,7 +736,7 @@ namespace rill
                             rill::ast::make_single_identifier( "__b" ),
                             int_class_env_pointer,
                             attribute::make_type_attributes(
-                                attribute::quality_kind::k_val,
+                                attribute::holder_kind::k_val,
                                 attribute::modifiability_kind::k_immutable
                                 )
                             );    // :int
@@ -800,7 +800,7 @@ namespace rill
                         fenv->parameter_variable_construct(
                             rill::ast::make_single_identifier( "__a" ),
                             string_class_env_pointer,attribute::make_type_attributes(
-                                attribute::quality_kind::k_val,
+                                attribute::holder_kind::k_val,
                                 attribute::modifiability_kind::k_immutable
                                 )
                             );    // :string

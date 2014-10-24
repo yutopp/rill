@@ -17,25 +17,24 @@ namespace rill
 {
     namespace attribute
     {
-        // TODO: rename -> holder_kind
-        enum class quality_kind
+        enum class holder_kind
         {
             k_suggest = 0,
             k_val,
             k_ref
         };
 
-        inline auto operator<<( std::ostream& os, quality_kind const& k )
+        inline auto operator<<( std::ostream& os, holder_kind const& k )
             -> std::ostream&
         {
             switch( k ) {
-            case quality_kind::k_suggest:
+            case holder_kind::k_suggest:
                 os << "suggest";
                 break;
-            case quality_kind::k_val:
+            case holder_kind::k_val:
                 os << "val";
                 break;
-            case quality_kind::k_ref:
+            case holder_kind::k_ref:
                 os << "ref";
                 break;
             }
@@ -74,7 +73,7 @@ namespace rill
 
         struct type_attributes
         {
-            attribute::quality_kind quality;
+            attribute::holder_kind quality;
             attribute::modifiability_kind modifiability;
         };
 
@@ -96,7 +95,7 @@ namespace rill
         {
             inline void set_type_attribute(
                 type_attributes& attr,
-                quality_kind const& k
+                holder_kind const& k
                 )
             {
                 attr.quality = k;
@@ -162,11 +161,11 @@ namespace rill
         {
             inline void unset_type_attribute(
                 type_attributes& attr,
-                quality_kind const& k
+                holder_kind const& k
                 )
             {
-                if ( k != quality_kind::k_suggest ) {
-                    attr.quality = quality_kind::k_suggest;
+                if ( k != holder_kind::k_suggest ) {
+                    attr.quality = holder_kind::k_suggest;
                 }
             }
 

@@ -128,9 +128,9 @@ namespace rill
 
 
             // ====================================================================================================
-            R( parameter_variable_holder_kind_specifier, attribute::quality_kind,
-                ( detail::make_keyword( "val" )[helper::assign(attribute::quality_kind::k_val)]
-                | detail::make_keyword( "ref" )[helper::assign(attribute::quality_kind::k_ref)]
+            R( parameter_variable_holder_kind_specifier, attribute::holder_kind,
+                ( detail::make_keyword( "val" )[helper::assign(attribute::holder_kind::k_val)]
+                | detail::make_keyword( "ref" )[helper::assign(attribute::holder_kind::k_ref)]
                 )
             )
 
@@ -283,7 +283,7 @@ namespace rill
 
             R( template_parameter_variable_declaration, ast::variable_declaration,
                 ( t.parameter_variable_initializer_unit )[
-                    helper::construct<ast::variable_declaration>( attribute::quality_kind::k_ref, ph::_2 )
+                    helper::construct<ast::variable_declaration>( attribute::holder_kind::k_ref, ph::_2 )
                     ]
             )
 
@@ -302,9 +302,9 @@ namespace rill
                     ]
             )
 
-            R( variable_holder_kind_specifier, attribute::quality_kind,
-                ( detail::make_keyword( "val" )[helper::assign( attribute::quality_kind::k_val )]
-                | detail::make_keyword( "ref" )[helper::assign( attribute::quality_kind::k_ref )]
+            R( variable_holder_kind_specifier, attribute::holder_kind,
+                ( detail::make_keyword( "val" )[helper::assign( attribute::holder_kind::k_val )]
+                | detail::make_keyword( "ref" )[helper::assign( attribute::holder_kind::k_ref )]
                 )
             )
 

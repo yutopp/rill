@@ -88,10 +88,10 @@ namespace rill
                         //
                         switch( type_attr.quality )
                         {
-                        case attribute::quality_kind::k_val:
+                        case attribute::holder_kind::k_val:
                             return llvm_ty;
 
-                        case attribute::quality_kind::k_ref:
+                        case attribute::holder_kind::k_ref:
                             return llvm_ty->getPointerTo();
 
                         default:
@@ -442,7 +442,7 @@ namespace rill
                         switch( variable_attr.quality )
                         {
                             // VAL
-                        case attribute::quality_kind::k_val:
+                        case attribute::holder_kind::k_val:
                         switch( variable_attr.modifiability )
                         {
                         case attribute::modifiability_kind::k_immutable:
@@ -485,7 +485,7 @@ namespace rill
                         break;
 
                         // REF
-                        case attribute::quality_kind::k_ref:
+                        case attribute::holder_kind::k_ref:
                         assert( false && "not implemented..." );
                         break;
 
@@ -833,7 +833,7 @@ namespace rill
             //
             switch( variable_attr.quality )
             {
-            case attribute::quality_kind::k_val:
+            case attribute::holder_kind::k_val:
 
                 switch( variable_attr.modifiability )
                 {
@@ -857,7 +857,7 @@ namespace rill
 
                 break;
 
-            case attribute::quality_kind::k_ref:
+            case attribute::holder_kind::k_ref:
                 assert( false && "not implemented..." );
                 break;
 

@@ -105,7 +105,7 @@ namespace rill
 
             auto eval_type_expression_as_ctfe(
                 ast::id_expression_ptr const& id_expression,
-                attribute::quality_kind const& holder_kind,
+                attribute::holder_kind const& holder_kind,
                 environment_base_ptr const& parent_env
                 ) -> type_detail_ptr;
 
@@ -181,7 +181,7 @@ namespace rill
             template<typename F>
             auto resolve_type(
                 ast::id_expression_ptr const& id_expression,
-                attribute::quality_kind const& holder_kind,
+                attribute::holder_kind const& holder_kind,
                 environment_base_ptr const& parent_env,
                 F const& callback
                 ) -> type_detail_ptr
