@@ -8,7 +8,6 @@
 
 #include <rill/semantic_analysis/semantic_analysis.hpp>
 #include <rill/semantic_analysis/analyzer/identifier_solver.hpp>
-#include <rill/semantic_analysis/analyzer/function_solver.hpp>
 
 #include <rill/environment/environment.hpp>
 
@@ -542,7 +541,7 @@ namespace rill
             assert( type_class_env != nullptr );  // literal type must exist
 
             target_ty_detail->type_id
-                = type_class_env->make_type_id( type_class_env, determine_type_attributes() );
+                = type_class_env->make_type_id( type_class_env, attribute::make_default_type_attributes() );
 
             target_ty_detail->target_env = nullptr; // unused
 
@@ -1449,7 +1448,7 @@ namespace rill
                     assert( type_class_env != nullptr );
 
                     auto const& type_type_id
-                        = type_class_env->make_type_id( type_class_env, determine_type_attributes() );
+                        = type_class_env->make_type_id( type_class_env, attribute::make_default_type_attributes() );
 
                     return type_detail_pool_->construct(
                         type_type_id,

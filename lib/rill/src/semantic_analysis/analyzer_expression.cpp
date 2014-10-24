@@ -8,7 +8,6 @@
 
 #include <rill/semantic_analysis/semantic_analysis.hpp>
 #include <rill/semantic_analysis/analyzer/identifier_solver.hpp>
-#include <rill/semantic_analysis/analyzer/function_solver.hpp>
 
 #include <rill/environment/environment.hpp>
 
@@ -118,102 +117,6 @@ namespace rill
                 assert( false && "[Error]" );
             }
 
-
-            assert(false);
-#if 0
-            using namespace boost::adaptors;
-
-            // check type environment
-            auto const& rhs_t_detail
-                = dispatch( e->rhs_, env );
-            auto const& lhs_t_detail
-                = dispatch( e->lhs_, env );
-
-
-            // make argument types id list
-            std::vector<type_detail_ptr> const& argument_type_details
-                = { lhs_t_detail, rhs_t_detail };
-
-            // TODO: check type_id_special
-            assert(
-                std::count_if(
-                    argument_type_details.cbegin(),
-                    argument_type_details.cend(), []( type_detail_ptr const& t ) {
-                        return t->type_id == type_id_undefined
-                            || is_nontype_id( t->type_id );
-                    }
-                    ) == 0
-                );
-
-            // DEBUG
-            std::cout << "...resolving function : " << e->op_->get_inner_symbol()->to_native_string() << std::endl;
-
-
-            // TODO: 1. call lhs.operator( rhs );
-            // 2. call operator( lhs, rhs );
-
-            // find a function environment that has same name
-            auto const& target_env = env->lookup( e->op_ );
-            // compilation errors
-            if ( target_env == nullptr ) {
-                // symbol not found;
-                assert( false && "symbol not found" );
-            }
-            if ( target_env->get_symbol_kind() != kind::type_value::e_parameter_wrapper ) {
-                // symbol type was not matched
-                assert( false && "[ice]");
-            }
-
-            auto has_parameter_env = std::dynamic_pointer_cast<has_parameter_environment_base>( target_env );
-            if ( has_parameter_env->get_inner_symbol_kind() != kind::type_value::e_function ) {
-                // symbol type was not matched
-                assert( false && "[ice]" );
-            }
-            // this environment has all functions that have same identifier
-            auto generic_function_env
-                = std::static_pointer_cast<has_parameter_environment<function_symbol_environment>>( has_parameter_env );
-
-
-            // TODO: make this section to loop
-            //       generic_function_env has only one scope. should check parent environment.
-            auto const& function_env = [&](){
-                std::cout << (const_environment_base_ptr)env << std::endl;
-
-                /// *************
-                auto const& f = overload_solver(
-                    argument_type_details | transformed( to_type_id_t() ),
-                    generic_function_env,
-                    env
-                    );
-                // TODO: null check and do loop
-
-                return f;
-            }();
-/*
-            std::cout << "...call expression : " << e->op_->get_inner_symbol()->to_native_string() << std::endl;
-            assert( false && "Overload failed..." );
-
-
-            auto const& function_env = generic_function_env->solve_overload( arg_type_ids );
-            if ( function_env == nullptr ) {
-                // overload failed
-                std::cout << "...call expression : " << e->op_->get_inner_symbol()->to_native_string() << std::endl;
-                assert( false && "Overload failed..." );
-            }
-*/
-
-            // memoize called function env
-            function_env->connect_from_ast( e );
-
-            // return retult type env of function
-            return bind_type(
-                e,
-                type_detail_pool_->construct(
-                    function_env->get_return_type_id(),
-                    function_env
-                    )
-            );
-#endif
             return nullptr;
         }
 

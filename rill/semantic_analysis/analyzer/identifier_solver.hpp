@@ -15,9 +15,6 @@
 #include "../../ast/value.hpp"
 
 
-#include "function_solver.hpp"
-
-
 namespace rill
 {
     namespace semantic_analysis

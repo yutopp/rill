@@ -119,19 +119,6 @@ namespace rill
                 F&& callback
                 ) -> type_detail_ptr;
 
-            template<typename Visitor,
-                     typename TemplateArgs,
-                     typename TypeIds,
-                     typename ResultCallbackT
-                     >
-            friend auto overload_solver_with_template(
-                Visitor visitor,
-                TemplateArgs const& template_args,
-                TypeIds const& arg_type_ids2,
-                std::shared_ptr<template_set_environment> const& template_set_env,
-                environment_base_ptr const& env,
-                ResultCallbackT const& f
-                ) -> function_symbol_environment_ptr;
 
 
         public:

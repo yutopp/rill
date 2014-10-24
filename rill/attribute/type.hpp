@@ -61,11 +61,6 @@ namespace rill
             return attr;
         }
 
-
-
-
-
-
     } // namespace attributes
 } // namespace rill
 

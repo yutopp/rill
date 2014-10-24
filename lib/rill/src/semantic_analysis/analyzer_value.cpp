@@ -8,7 +8,6 @@
 
 #include <rill/semantic_analysis/semantic_analysis.hpp>
 #include <rill/semantic_analysis/analyzer/identifier_solver.hpp>
-#include <rill/semantic_analysis/analyzer/function_solver.hpp>
 
 #include <rill/environment/environment.hpp>
 
@@ -70,7 +69,7 @@ namespace rill
             return bind_type(
                 v,
                 type_detail_pool_->construct(
-                    class_env->make_type_id( class_env, determine_type_attributes() ),
+                    class_env->make_type_id( class_env, attribute::make_default_type_attributes() ),
                     nullptr /*unused*/
                     )
                 );
@@ -85,7 +84,7 @@ namespace rill
             return bind_type(
                 v,
                 type_detail_pool_->construct(
-                    class_env->make_type_id( class_env, determine_type_attributes() ),
+                    class_env->make_type_id( class_env, attribute::make_default_type_attributes() ),
                     nullptr /*unused*/
                     )
                 );
@@ -100,7 +99,7 @@ namespace rill
             return bind_type(
                 v,
                 type_detail_pool_->construct(
-                    class_env->make_type_id( class_env, determine_type_attributes() ),
+                    class_env->make_type_id( class_env, attribute::make_default_type_attributes() ),
                     nullptr /*unused*/
                     )
                 );

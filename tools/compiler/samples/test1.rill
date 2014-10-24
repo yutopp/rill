@@ -13,7 +13,7 @@ def main(): int
     klass2.f();
 
     val c = f( a * b );
-//    p( c );
+    p( c );
     return 0;
 }
 
@@ -33,15 +33,12 @@ class TestClass
     def ctor()
     {
         this.a = 10;
-
-//        p( this.a );
-//        p( 10 );
+        p( 10 );
     }
 
     def ctor( val i: int )
     {
-//        p( this.a );
-//        p( i );
+        p( i );
     }
 
     def f(): void

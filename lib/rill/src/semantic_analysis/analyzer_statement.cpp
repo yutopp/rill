@@ -8,7 +8,6 @@
 
 #include <rill/semantic_analysis/semantic_analysis.hpp>
 #include <rill/semantic_analysis/analyzer/identifier_solver.hpp>
-#include <rill/semantic_analysis/analyzer/function_solver.hpp>
 
 #include <rill/environment/environment.hpp>
 
@@ -208,16 +207,15 @@ namespace rill
             // TODO: evaluate type || type inference || type check
             //       default( int )
             if ( unit.init_unit.type ) { // is parameter variable type specified ?
-                solve_type(
-                    this,
+                resolve_type(
                     unit.init_unit.type,
+                    val_decl.quality,
                     parent_env,
                     [&]( type_detail_ptr const& ty_d,
                          type const& ty,
                          class_symbol_environment_ptr const& class_env
                         ) {
                         auto attr = ty.attributes;
-                        attr <<= val_decl.quality;
 
                         //
                         std::cout << "class variable: " << unit.name->get_inner_symbol()->to_native_string() << std::endl;
@@ -281,16 +279,15 @@ namespace rill
                 assert( e.decl_unit.init_unit.type != nullptr || e.decl_unit.init_unit.initializer != nullptr );
 
                 if ( e.decl_unit.init_unit.type ) { // is parameter variavle type specified ?
-                    solve_type(
-                        this,
+                    resolve_type(
                         e.decl_unit.init_unit.type,
+                        e.quality,
                         parent_env,
                         [&]( type_detail_ptr const& ty_d,
                              type const& ty,
                              class_symbol_environment_ptr const& class_env
                             ) {
                             auto attr = ty.attributes;
-                            attr <<= e.quality;
 
                             // declare
                             f_env->parameter_variable_construct(
@@ -311,9 +308,9 @@ namespace rill
             // return type
             if ( s->return_type_ ) {
                 // if return type was specified, decide type to it.
-                solve_type(
-                    this,
+                resolve_type(
                     s->return_type_,
+                    attribute::holder_kind::k_val,     // TODO: fix
                     f_env,
                     [&]( type_detail_ptr const& return_ty_d,
                          type const& ty,
@@ -433,7 +430,7 @@ namespace rill
                 assert( s->return_type_ == nullptr && "constructor can not have a return type" );
 
                 auto const& void_class_env = root_env_->lookup_buildin_class( "void" );
-                auto ret_ty_id = root_env_->make_type_id( void_class_env, determine_type_attributes() );
+                auto ret_ty_id = root_env_->make_type_id( void_class_env, attribute::make_default_type_attributes() );
 
                 f_env->decide_return_type( ret_ty_id );
 
@@ -633,16 +630,15 @@ namespace rill
                 assert( e.decl_unit.init_unit.type != nullptr || e.decl_unit.init_unit.initializer != nullptr );
 
                 if ( e.decl_unit.init_unit.type ) { // is parameter variavle type specified ?
-                    solve_type(
-                        this,
+                    resolve_type(
                         e.decl_unit.init_unit.type,
+                        e.quality,
                         parent_env,
                         [&]( type_detail_ptr const& ty_d,
                              type const& ty,
                              class_symbol_environment_ptr const& class_env
                             ) {
                             auto attr = ty.attributes;
-                            attr <<= e.quality;
 
                             // declare
                             f_env->parameter_variable_construct(
@@ -665,9 +661,9 @@ namespace rill
             //
             // Return type
             if ( s->return_type_ ) {
-                solve_type(
-                    this,
+                resolve_type(
                     s->return_type_,
+                    attribute::holder_kind::k_val,     // TODO: fix
                     parent_env,
                     [&]( type_detail_ptr const& return_ty_d,
                          type const& ty,
