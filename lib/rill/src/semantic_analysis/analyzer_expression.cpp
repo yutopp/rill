@@ -380,7 +380,9 @@ namespace rill
                 // memoize
                 new_selector_id_type_detail->target_env->connect_from_ast( e );
 
-                std::cout << "element delection" << debug_string( new_selector_id_type_detail->target_env->get_symbol_kind() ) << std::endl;
+                std::cout
+                    << "element selection: " << debug_string( new_selector_id_type_detail->target_env->get_symbol_kind() ) << std::endl
+                    << "type_id: " << new_selector_id_type_detail->type_id << std::endl;
 
                 return bind_type( e, new_selector_id_type_detail );
 
@@ -416,7 +418,7 @@ namespace rill
 
             if ( reciever_type_detail->nest ) {
                 // 2014/5/14, selected call has no specification...
-                assert( false && "..." );
+//                assert( false && "..." );
 
                 // if lhs was nested && variable, add argument as "this"
                 // TODO: change kind check to Callable check. Ex (1+3).operator+(6) should be callable, but can not call it now.
@@ -534,14 +536,19 @@ namespace rill
                             auto const& multiset_env = cast_to<multiple_set_environment>( class_env->find_on_env( "ctor" ) );
                             assert( multiset_env->get_representation_kind() == kind::type_value::e_function );
 
-                            argument_type_details.push_back(
-                                return_ty_d
+                            // add implicit this parameter
+                            std::vector<type_detail_ptr> argument_type_details_with_this( argument_type_details.size() + 1 );
+                            argument_type_details_with_this[0] = return_ty_d;
+                            std::copy(
+                                argument_type_details.cbegin(),
+                                argument_type_details.cend(),
+                                argument_type_details_with_this.begin() + 1
                                 );
 
                             auto const& function_env
                                 = solve_function_overload(
                                     multiset_env,                           // overload set
-                                    argument_type_details,                  // type detailes of arguments
+                                    argument_type_details_with_this,        // type detailes of arguments
                                     nullptr,                                // template arguments
                                     class_env
                                     );

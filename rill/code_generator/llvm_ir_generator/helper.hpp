@@ -92,20 +92,9 @@ namespace rill
             auto const& variable_attr = value_ty.attributes;
 
             if ( c_env->has_metatype( class_metatype::structured ) || c_env->is_array() ) {
-                llvm::AllocaInst* const allca_inst
-                    = context_->ir_builder.CreateAlloca(
-                        variable_llvm_type
-                        );
-                if ( value ) {
-                    context_->ir_builder.CreateStore(
-                        value,
-                        allca_inst /*, is_volatile */
-                        );
-                }
-
                 context_->env_conversion_table.bind_value(
                     v_env->get_id(),
-                    allca_inst
+                    value
                     );
 
             } else {

@@ -3,11 +3,12 @@ def main(): int
     val a: mutable(int) = 10;
     val b = 20;
 
-    mutable(TestClass)();
+//    mutable(TestClass)();
 
-    // val kla: mutable(TestClass);
-    //val klass1 = mutable(TestClass)();
+//    val kla: mutable(TestClass);
+    val klass1 = mutable(TestClass)( 42 );
 //    val klass1 = TestClass();
+klass1.f();
 
     val c = f( a * b );
     p( c );
@@ -29,8 +30,22 @@ class TestClass
 {
     def ctor(): void
     {
+        this.a = 10;
+        p( this.a );
         p( 10 );
     }
+
+    def ctor( val i: int ): void
+    {
+        p( i );
+    }
+
+    def f(): void
+    {
+        p( 50 );
+    }
+
+    val a: int;
 }
 
 class HogeHuga

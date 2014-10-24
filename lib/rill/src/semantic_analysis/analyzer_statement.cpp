@@ -495,7 +495,7 @@ namespace rill
                 = s->get_identifier()->get_inner_symbol()->to_native_string();
 
             if ( s->inner_ != nullptr ) {
-                // analyse class body
+                // analyze class body
                 dispatch( s->inner_, c_env );
 
                 // complete class data

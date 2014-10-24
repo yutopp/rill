@@ -1467,19 +1467,24 @@ namespace rill
 
             case kind::type_value::e_variable:
             {
-                auto const& variable_env
+                auto const& v_env
                     = std::static_pointer_cast<variable_symbol_environment>( found_env );
 
                 // memoize
-                std::cout << "()memoed.variable" << std::endl;
-                variable_env->connect_from_ast( identifier );
+                std::cout << "() memoed.variable" << std::endl;
+                v_env->connect_from_ast( identifier );
 
-                // class
-                // variable_env->get_type_id();
+                // in class variable is forward referenceable
+                if ( v_env->is_in_class() ) {
+                    if ( v_env->is_incomplete() ) {
+                        dispatch( v_env->get_related_ast(), v_env->get_parent_env() );
+                    }
+                }
+                assert( v_env->get_type_id() != type_id_undefined );
 
                 return type_detail_pool_->construct(
-                    variable_env->get_type_id(),
-                    variable_env
+                    v_env->get_type_id(),
+                    v_env
                     );
             }
 

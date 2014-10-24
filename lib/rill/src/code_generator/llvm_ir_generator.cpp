@@ -1085,8 +1085,10 @@ namespace rill
 
                     return value;
 
-                } else if ( element_env->get_symbol_kind() == kind::type_value::e_parameter_wrapper ) {
-                    // class funcion invocation
+                } else if ( element_env->get_symbol_kind() == kind::type_value::e_multi_set ) {
+                    // TODO: see representation kind
+
+                    // class function invocation
                     std::cout << "class functio invocation" << std::endl;
 
                     // eval reciever
@@ -1265,8 +1267,6 @@ namespace rill
                 if ( f_env->is_initializer() ) {
                     // constructor
                     // the first argument will be this
-                    std::cout << "     () DEBUGDEBUG 1 " << std::endl;
-
                     auto const this_var_type_id = f_env->get_parameter_type_ids()[0];
                     auto const& this_var_type = root_env_->get_type_at( this_var_type_id );
                     if ( !context_->env_conversion_table.is_defined( this_var_type.class_env_id ) ) {
@@ -1284,7 +1284,6 @@ namespace rill
                         );
                     assert( this_var != nullptr );
 
-                    std::cout << "     () DEBUGDEBUG 2 " << std::endl;
 
                     llvm::AllocaInst* const allca_inst
                         = context_->ir_builder.CreateAlloca(
@@ -1323,10 +1322,24 @@ namespace rill
                     );
                 assert( total_args[0] != nullptr );
                 context_->temporary_reciever_stack_.pop();
+
+                auto const ret
+                    = context_->ir_builder.CreateCall( callee_function, total_args/*, "calltmp"*/ );
+
+                if ( f_env->is_initializer() ) {
+                    // ret call will be ctor call, so return a reciever value
+                    return val;
+
+                } else {
+                    return ret;
+                }
+
+            } else {
+                // normal call
+                // invocation
+                return context_->ir_builder.CreateCall( callee_function, total_args/*, "calltmp"*/ );
             }
 
-            // invocation
-            return context_->ir_builder.CreateCall( callee_function, total_args/*, "calltmp"*/ );
         }
 
 
