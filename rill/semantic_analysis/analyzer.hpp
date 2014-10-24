@@ -20,6 +20,8 @@
 #include "../compile_time/llvm_engine/ctfe_engine.hpp"
 
 #include "type_detail.hpp"
+#include "type_detail_pool_t.hpp"
+#include "type_detail_factory.hpp"
 
 
 namespace rill
@@ -327,6 +329,7 @@ namespace rill
             environment_base_ptr root_env_;
 
             std::shared_ptr<type_detail_pool_t> type_detail_pool_;
+            std::shared_ptr<type_detail_factory> type_detail_factory_;
             std::shared_ptr<compile_time::llvm_engine::ctfe_engine> ctfe_engine_;
 
         private:

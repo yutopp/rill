@@ -7,11 +7,13 @@ def main(): int
 
 //    val kla: mutable(TestClass);
     val klass1 = mutable(TestClass)( 42 );
-//    val klass1 = TestClass();
-klass1.f();
+    val klass2 = TestClass();
+
+    klass1.f();
+    klass2.f();
 
     val c = f( a * b );
-    p( c );
+//    p( c );
     return 0;
 }
 
@@ -28,24 +30,26 @@ extern def p( val i :int ): void "put_string2";
 
 class TestClass
 {
-    def ctor(): void
+    def ctor()
     {
-//        this.a = 10;
-        p( this.a );
-        p( 10 );
+        this.a = 10;
+
+//        p( this.a );
+//        p( 10 );
     }
 
-    def ctor( val i: int ): void
+    def ctor( val i: int )
     {
-        p( i );
+//        p( this.a );
+//        p( i );
     }
 
     def f(): void
     {
-        p( 50 );
+        p( this.a );
     }
 
-    val a: int;
+    val a: mutable(int);
 }
 
 class HogeHuga

@@ -538,7 +538,8 @@ namespace rill
 
                             // add implicit this parameter
                             std::vector<type_detail_ptr> argument_type_details_with_this( argument_type_details.size() + 1 );
-                            argument_type_details_with_this[0] = return_ty_d;
+                            argument_type_details_with_this[0]
+                                = type_detail_factory_->change_attributes( return_ty_d, attribute::modifiability_kind::k_mutable );
                             std::copy(
                                 argument_type_details.cbegin(),
                                 argument_type_details.cend(),

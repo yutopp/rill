@@ -179,11 +179,6 @@ namespace rill
         } // namespace detail
 
 
-
-
-
-
-
         namespace detail
         {
             inline void set_type_attribute(

@@ -207,7 +207,6 @@ namespace rill
 
             // TODO: evaluate type || type inference || type check
             //       default( int )
-
             if ( unit.init_unit.type ) { // is parameter variable type specified ?
                 solve_type(
                     this,
@@ -363,7 +362,7 @@ namespace rill
             // guard double check
             if ( f_env->is_checked() ) return;
             f_env->change_progress_to_checked();
-            std::cout << "$ uncheckd" << std::endl;
+            std::cout << "$ unchecked" << std::endl;
 
             // declare "this" at first
             auto const& c_env
@@ -372,12 +371,23 @@ namespace rill
                     );
             assert( c_env != nullptr );
 
+            // TODO: fix
+            bool const is_constructor
+                = s->get_identifier()->get_inner_symbol()->to_native_string() == "ctor";
+
             // TODO: see attribute of function and decide this type
             // currentry mutable, ref
             attribute::type_attributes const& this_object_attr
                 = attribute::make_type_attributes(
                     attribute::holder_kind::k_ref,
-                    attribute::modifiability_kind::k_mutable
+                    [&]() {
+                        if ( is_constructor ) {
+                            return attribute::modifiability_kind::k_mutable;
+                        } else {
+                            // TODO: see member function modifier
+                            return attribute::modifiability_kind::k_const;
+                        }
+                    }()
                     );
 
             // declare
@@ -418,21 +428,33 @@ namespace rill
                 }
             }
 
-            // return type
-            if ( s->return_type_ ) {
-                // if return type was specified, decide type to it.
-                resolve_type(
-                    s->return_type_,
-                    attribute::holder_kind::k_val,     // TODO: fix
-                    f_env,
-                    [&]( type_detail_ptr const& return_ty_d,
-                         type const& ty,
-                         class_symbol_environment_ptr const& class_env
-                        ) {
-                        std::cout << "return type is >>" << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
+            if ( is_constructor ) {
+                // constructor
+                assert( s->return_type_ == nullptr && "constructor can not have a return type" );
 
-                        f_env->decide_return_type( return_ty_d->type_id );
-                    });
+                auto const& void_class_env = root_env_->lookup_buildin_class( "void" );
+                auto ret_ty_id = root_env_->make_type_id( void_class_env, determine_type_attributes() );
+
+                f_env->decide_return_type( ret_ty_id );
+
+            } else {
+                // normal function
+                // return type
+                if ( s->return_type_ ) {
+                    // if return type was specified, decide type to it.
+                    resolve_type(
+                        s->return_type_,
+                        attribute::holder_kind::k_val,     // TODO: fix
+                        f_env,
+                        [&]( type_detail_ptr const& return_ty_d,
+                             type const& ty,
+                             class_symbol_environment_ptr const& class_env
+                            ) {
+                            std::cout << "return type is >>" << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
+
+                            f_env->decide_return_type( return_ty_d->type_id );
+                        });
+                }
             }
 
             // scan all statements in this function body

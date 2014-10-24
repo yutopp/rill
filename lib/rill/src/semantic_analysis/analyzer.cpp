@@ -150,7 +150,10 @@ namespace rill
             , type_detail_pool_( std::make_shared<type_detail_pool_t>() )
             , ctfe_engine_( compile_time::llvm_engine::make_ctfe_engine( this, root_env, holder, type_detail_pool_ ) )
             , builtin_class_envs_cache_( std::make_shared<builtin_class_envs_cache>( root_env ) )
-        {}
+        {
+            type_detail_factory_
+                = std::make_shared<type_detail_factory>( root_env_, type_detail_pool_ );
+        }
 
         //
         auto analyzer::get_primitive_class_env( std::string const& type_name ) const

@@ -8,14 +8,13 @@
 
 #pragma once
 
-#ifndef RILL_SEMANTIC_ANALYSIS_TYPE_INFO_HPP
-#define RILL_SEMANTIC_ANALYSIS_TYPE_INFO_HPP
+#ifndef RILL_SEMANTIC_ANALYSIS_TYPE_DETAIL_HPP
+#define RILL_SEMANTIC_ANALYSIS_TYPE_DETAIL_HPP
 
 #include <memory>
 #include <vector>
 
-//#include <boost/pool/object_pool.hpp>
-#include "work_around_object_pool.hpp"
+#include "type_detail_pool_t.hpp"
 
 #include "../environment/type_registry_fwd.hpp"
 
@@ -30,7 +29,6 @@ namespace rill
     {
         struct type_detail;
 
-        using type_detail_pool_t = boost::object_pool_workarounded<type_detail>;
         using type_detail_ptr = type_detail*;
         using const_type_detail_ptr = type_detail const*;
 
@@ -100,4 +98,4 @@ namespace rill
     } // namespace semantic_analysis
 } // namespace rill
 
-#endif /*RILL_SEMANTIC_ANALYSIS_TYPE_INFO_HPP*/
+#endif /*RILL_SEMANTIC_ANALYSIS_TYPE_DETAIL_HPP*/
