@@ -7,7 +7,6 @@
 //
 
 #include <rill/semantic_analysis/semantic_analysis.hpp>
-#include <rill/semantic_analysis/analyzer/identifier_solver.hpp>
 
 #include <rill/environment/environment.hpp>
 
@@ -135,9 +134,9 @@ namespace rill
 
             // solve array type...
             auto const& ty_d
-                = solve_type(
-                    this,
+                = resolve_type(
                     i,
+                    attribute::holder_kind::k_val,
                     root_env_,
                     [&]( type_detail_ptr const& ty_d,
                          type const& ty,

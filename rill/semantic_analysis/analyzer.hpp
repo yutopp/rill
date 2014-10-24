@@ -111,16 +111,6 @@ namespace rill
                 environment_base_ptr const& parent_env
                 ) -> type_detail_ptr;
 
-            template<typename AnalyzerPtr, typename F>
-            friend auto solve_type(
-                AnalyzerPtr const& a,
-                ast::id_expression_ptr const& id_expression,
-                environment_base_ptr const& parent_env,
-                F&& callback
-                ) -> type_detail_ptr;
-
-
-
         public:
             // for Identifier
             auto solve_identifier(
