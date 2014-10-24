@@ -64,6 +64,8 @@ namespace rill
             case holder_kind::k_ref:
                 os << "ref";
                 break;
+            default:
+                assert( false );
             }
 
             return os;
@@ -85,6 +87,31 @@ namespace rill
             case modifiability_kind::k_immutable:
                 os << "immutable";
                 break;
+            default:
+                assert( false );
+            }
+
+            return os;
+        }
+
+        inline auto operator<<( std::ostream& os, lifetime_kind const& k )
+            -> std::ostream&
+        {
+            switch( k ) {
+            case lifetime_kind::k_scoped:
+                os << "scoped";
+                break;
+            case lifetime_kind::k_managed:
+                os << "managed";
+                break;
+            case lifetime_kind::k_unmanaged:
+                os << "unmagaged";
+                break;
+            case lifetime_kind::k_static:
+                os << "static";
+                break;
+            default:
+                assert( false );
             }
 
             return os;
@@ -95,7 +122,8 @@ namespace rill
         {
             os << "type_attributes_bit" << std::endl
                << " q: " << attr.quality << std::endl
-               << " m: " << attr.modifiability << std::endl;
+               << " m: " << attr.modifiability << std::endl
+               << " l: " << attr.lifetime << std::endl;
 
             return os;
         }
@@ -143,9 +171,7 @@ namespace rill
                 bits |= static_cast<ull>( attr.lifetime ) << offset;
                 offset += detail::min_bitwidth( lifetime_kind::last );
 
-                std::cout << "Make_type_attributes_bit" << std::endl
-                          << " h: " << attr.quality << std::endl
-                          << " m: " << attr.modifiability << std::endl
+                std::cout << attr
                           << " bits: " << attributes_bit_t( bits ).to_string() << std::endl;;
 
                 return attributes_bit_t( bits );
