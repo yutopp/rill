@@ -119,14 +119,15 @@ namespace rill
                                 );
                     };
 
+                install_primitive_class( "void" );
                 install_primitive_class( "type" );
                 install_primitive_class( "int" );
                 install_primitive_class( "string" );
             }
 
         private:
-            inline auto find_primitive( std::string const& type_name ) const
-                -> const_class_symbol_environment_ptr
+            inline auto find_primitive( std::string const& type_name )
+                -> class_symbol_environment_ptr
             {
                 auto const it = primitive_cache_.find( type_name );
                 assert( it != primitive_cache_.cend() );
@@ -135,7 +136,7 @@ namespace rill
             }
 
         private:
-            std::unordered_map<std::string, const_class_symbol_environment_ptr> primitive_cache_;
+            std::unordered_map<std::string, class_symbol_environment_ptr> primitive_cache_;
         };
 
 
@@ -155,7 +156,7 @@ namespace rill
 
         //
         auto analyzer::get_primitive_class_env( std::string const& type_name ) const
-            -> const_class_symbol_environment_ptr
+            -> class_symbol_environment_ptr
         {
             return builtin_class_envs_cache_->find_primitive( type_name );
         }
@@ -1333,7 +1334,10 @@ namespace rill
 
             // v. template_argument()
 
-            std::cout << "eval template arguments!!!" << std::endl;
+            std::cout << "  ==" << std::endl
+                      << "eval template arguments!!!" << std::endl
+                      << "  ==" << std::endl
+                      << std::endl;
 
             // evaluate template arguments
             type_detail::template_arg_type template_args
@@ -1396,67 +1400,56 @@ namespace rill
             switch( found_env->get_symbol_kind() ) {
             case kind::type_value::e_multi_set:
             {
-                auto const& set_env
-                    = std::static_pointer_cast<multiple_set_environment>( found_env );
+                auto const& multiset_env = cast_to<multiple_set_environment>( found_env );
 
                 //
-                switch( set_env->get_representation_kind() ) {
+                switch( multiset_env->get_representation_kind() ) {
                 case kind::type_value::e_function:
                 {
-                    // funcion can be oveloaded, so do not link with identifier
+                    // funcion can be overloaded, so do not link with identifier
                     return type_detail_pool_->construct(
                         (type_id_t)type_id_nontype::e_function,
-                        set_env
+                        multiset_env
                         );
                 }
 
                 case kind::type_value::e_class:
                 {
-                    // Class identifier should be "type" type
+                    // class can NOT be overloaded, but can be specialized
+                    auto const& ne = multiset_env->get_normal_environments();
+                    if ( ne.size() == 1 ) {
+                        // class defined normally
+                        // class can not be overloaded, so only one symbol will exists in "multiset environment".
+                        auto const& class_env
+                            = cast_to<class_symbol_environment>( ne.at( 0 ) );
 
-                    // TODO: completion the incomplete class
+                        std::cout << "()memoed.class " << class_env->get_qualified_name() << std::endl;
+                        // link with given identifier!
+                        class_env->connect_from_ast( identifier );
 
-                    // class can not be overloaded, so only one symbol will exist in "set environment".
-                    auto const& ne = set_env->get_normal_environments();
-                    assert( ne.size() == 1 );
+                        auto const& type_class_env = get_primitive_class_env( "type" );
+                        auto const& type_type_id
+                            = type_class_env->make_type_id( type_class_env, attribute::make_default_type_attributes() );
 
-                    auto const& class_env
-                        = cast_to<class_symbol_environment>( ne.at( 0 ) );
-                    assert( class_env != nullptr );
+                        return type_detail_pool_->construct(
+                            type_type_id,
+                            type_class_env
+                            );
 
-                    std::cout << "()memoed.class " << class_env->get_qualified_name() << std::endl;
-                    // link with given identifier!
-                    class_env->connect_from_ast( identifier );
+                    } else {
+                        // defined as class template
+                        auto const& te = multiset_env->get_template_environments();
+                        assert( te.size() != 0 );
 
-                    // TODO: cache this values
-                    auto const& type_class_env = [&](){
-                        auto const& generic_type_class_set_env
-                        = root_env_->lookup( ast::make_identifier( "type" ) );
-                        assert( generic_type_class_set_env != nullptr );  // literal type must exist
-                        auto const& type_class_set_env
-                        = cast_to<multiple_set_environment>( generic_type_class_set_env );
-
-                        assert( type_class_set_env != nullptr );
-
-                        auto const& ne
-                        = type_class_set_env->get_normal_environments();
-                        assert( ne.size() == 1 );
-
-                        return cast_to<class_symbol_environment>( ne.at( 0 ) );
-                    }();
-                    assert( type_class_env != nullptr );
-
-                    auto const& type_type_id
-                        = type_class_env->make_type_id( type_class_env, attribute::make_default_type_attributes() );
-
-                    return type_detail_pool_->construct(
-                        type_type_id,
-                        type_class_env
-                        );
+                        return type_detail_pool_->construct(
+                            (type_id_t)type_id_nontype::e_template_class,
+                            multiset_env
+                            );
+                    }
                 }
 
                 default:
-                    std::cerr << "kind: " << debug_string( set_env->get_representation_kind() ) << std::endl;
+                    std::cerr << "inner kind: " << debug_string( multiset_env->get_representation_kind() ) << std::endl;
                     assert( false && "[[CE]] invalid..." );
                     break;
                 }

@@ -511,16 +511,19 @@ namespace rill
 
 
             // ====================================================================================================
+            // ====================================================================================================
             R( primary_value, ast::value_ptr,
                 ( t.identifier_with_root
                 | t.identifier
                 | t.numeric_literal
                 | t.boolean_literal
                 | t.string_literal
+                | t.array_literal
                 )
             )
 
 
+            // ====================================================================================================
             R( identifier_value_set, ast:: identifier_value_base_ptr,
                 ( t.identifier_with_root
                 | t.identifier
@@ -543,6 +546,7 @@ namespace rill
                     ]
                 )
 
+            // ====================================================================================================
             R( numeric_literal, ast::intrinsic::int32_value_ptr/*TODO: change*/,
                 t.integer_literal
             )
@@ -553,11 +557,23 @@ namespace rill
                     ]
             )
 
+            // ====================================================================================================
             R( boolean_literal, ast::intrinsic::boolean_value_ptr,
                   x3::lit( "true" )[helper::make_node_ptr<ast::intrinsic::boolean_value>( true )]
                 | x3::lit( "false" )[helper::make_node_ptr<ast::intrinsic::boolean_value>( false )]
             )
 
+            // ====================================================================================================
+            R( array_literal, ast::intrinsic::array_value_ptr,
+                ( ( x3::lit( '[' ) >> x3::lit( ']' ) )[
+                    helper::make_node_ptr<ast::intrinsic::array_value>()
+                    ] )
+                | ( ( x3::lit( '[' ) >> ( t.assign_expression % ',' ) >> x3::lit( ']' ) )[
+                        helper::make_node_ptr<ast::intrinsic::array_value>( ph::_1 )
+                        ] )
+            )
+
+            // ====================================================================================================
             R( string_literal, ast::intrinsic::string_value_ptr,
                 t.string_literal_sequence[
                     helper::make_node_ptr<ast::intrinsic::string_value>( ph::_1 )
@@ -593,6 +609,8 @@ template_instance_value
                 ;
 #endif
 
+            // ====================================================================================================
+            // ====================================================================================================
             R( identifier_sequence, std::string,
                 x3::lexeme[
                     ( t.nondigit_charset )

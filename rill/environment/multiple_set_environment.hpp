@@ -86,6 +86,16 @@ namespace rill
 
     public:
         template<typename To>
+        auto get_unique_environment()
+            -> std::shared_ptr<To>
+        {
+            auto const& normal_envs = get_normal_environments();
+            if ( normal_envs.size() != 1 ) return nullptr;
+
+            return cast_to<To>( normal_envs.at( 0 ) );
+        }
+
+        template<typename To>
         auto get_unique_environment() const
             -> std::shared_ptr<To const>
         {

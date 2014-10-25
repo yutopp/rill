@@ -229,9 +229,6 @@ namespace rill
             return nullptr;
         }
 
-        auto lookup_buildin_class( std::string const& name )
-            -> class_symbol_environment_ptr;
-
         // returns environment kind
         virtual auto get_symbol_kind() const
             -> kind::type_value =0;

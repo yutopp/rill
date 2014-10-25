@@ -43,7 +43,8 @@ namespace rill
     {
         e_function = type_id_t( std::numeric_limits<std::size_t>::max() - 18 ),
         e_template_class = type_id_t( std::numeric_limits<std::size_t>::max() - 17 ),
-        e_namespace = type_id_t( std::numeric_limits<std::size_t>::max() - 16 )
+        e_namespace = type_id_t( std::numeric_limits<std::size_t>::max() - 16 ),
+        last = type_id_special_limit
     };
 
     inline auto is_nontype_id( type_id_t const& tid )

@@ -117,10 +117,16 @@ namespace rill
             // Class symbol that on (global | namespace)
 
             if ( s->is_templated() ) {
-                // TODO: add symbol type duplicate check
-                /*std::static_pointer_cast<template_set_environment>( env )->set_inner_env_symbol_kind(
-                    kind::type_value::e_class
-                    );*/
+                auto&& multiset_env = cast_to<multiple_set_environment>( env );
+                assert( multiset_env != nullptr );
+
+                if ( multiset_env->get_representation_kind() != kind::type_value::e_none
+                     && multiset_env->get_representation_kind() != kind::type_value::e_class
+                    ) {
+                    assert( false && "Some symbols that are not class_type are already defined in this scope" );
+                }
+
+                multiset_env->set_inner_env_symbol_kind( kind::type_value::e_class );
 
             } else {
                 if ( is_builtin() ) {

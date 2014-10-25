@@ -175,6 +175,7 @@ namespace rill
 
                 auto const& class_env = [&]() {
                     if ( ty.is_incomplete() ) {
+                        assert( false );
                         return class_symbol_environment_ptr();
 
                     } else {
@@ -300,7 +301,7 @@ namespace rill
 
         private:
             auto get_primitive_class_env( std::string const& type_name ) const
-                -> const_class_symbol_environment_ptr;
+                -> class_symbol_environment_ptr;
 
         private:
             environment_base_ptr root_env_;
@@ -318,7 +319,7 @@ namespace rill
         //
         template<typename EnvPtr>
         inline auto to_unique_class_env( EnvPtr const& env )
-            -> const_class_symbol_environment_ptr
+            -> class_symbol_environment_ptr
         {
             if ( env == nullptr ) {
                 return nullptr;
@@ -335,7 +336,7 @@ namespace rill
                 return nullptr;
             }
 
-            auto const class_env = multi_set_env->template get_unique_environment<class_symbol_environment>();
+            auto class_env = multi_set_env->template get_unique_environment<class_symbol_environment>();
             if ( class_env == nullptr ) {
                 return nullptr;
             }
