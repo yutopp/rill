@@ -345,6 +345,69 @@ namespace rill
             }
 
 
+            // identifier node returns Variable
+            RILL_VISITOR_READONLY_OP( ir_executor, ast::template_instance_value, v, parent_env )
+            {
+                //
+                std::cout << "ir sym solving: "
+                          << v->get_inner_symbol()->to_native_string() << std::endl
+                          << "ast ptr: " << v.get() << std::endl
+                          << (const_environment_base_ptr)parent_env << std::endl;
+
+                //
+                //
+                auto const& id_env = root_env_->get_related_env_by_ast_ptr( v );
+                if ( id_env == nullptr ) {
+                    std::cout << "skipped" << std::endl;
+                    return nullptr;
+                }
+
+
+                switch( id_env->get_symbol_kind() )
+                {
+                case kind::type_value::e_variable:
+                {
+                    std::cout << "llvm_ir_generator -> case Variable!" << std::endl;
+                    auto const& v_env
+                        = std::static_pointer_cast<variable_symbol_environment const>( id_env );
+                    assert( v_env != nullptr );
+
+                    // TODO: check the type of variable !
+                    // if type is "type", ...(should return id of type...?)
+
+                    // reference the holder of variable...
+                    if ( value_holder_->is_defined( v_env->get_id() ) ) {
+                        return value_holder_->ref_value( v_env->get_id() );
+
+                    } else {
+                        assert( false && "[[ice]] llvm-jit -> value was not found..." );
+                    }
+                }
+
+                case kind::type_value::e_class:
+                {
+                    auto const& c_env
+                        = std::static_pointer_cast<class_symbol_environment const>( id_env );
+                    assert( c_env != nullptr );
+
+                    auto const& type_id
+                        = c_env->make_type_id_from();
+
+                    RILL_DEBUG_LOG( "in llvm.class_name " << c_env->get_qualified_name() << " (" << type_id << ")" );
+
+                    return type_detail_pool_->construct(
+                        type_id,
+                        nullptr //variable_env
+                        );
+                }
+
+                default:
+                    std::cout << "skipped " << debug_string( id_env->get_symbol_kind() ) << std::endl;
+                    assert( false && "" );
+                    return nullptr;
+                }
+            }
+
 
             RILL_VISITOR_READONLY_OP( ir_executor, ast::intrinsic::int32_value, v, parent_env )
             {

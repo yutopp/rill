@@ -9,10 +9,12 @@ def main(): int
     val klass1 = mutable(TestClass)( 42 );
     val klass2 = TestClass();
 
+    val arr = [1, 2, 3, 4, 5];
+    val ppp = arr[1] * arr[2];
+    p( ppp );
+
     klass1.f();
     klass2.f();
-
-    [1, 2, 3, 4, 5];
 
     val c = f( a * b );
     p( c );

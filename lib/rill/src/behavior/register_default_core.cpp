@@ -88,7 +88,7 @@ namespace rill
             //RILL_DEFINE_BUILTIN_CLASS( double );
 
             {
-                // template( val T: type )
+                // template( T: type, N: int )
                 // class array
 
                 auto const array_type
@@ -100,27 +100,29 @@ namespace rill
                 auto const type_type_expression
                     = rill::ast::helper::make_id_expression( type_class_name );
 
-                // val T: type
+                // T: type
                 rill::ast::variable_declaration ty = {
-                    rill::attribute::holder_kind::k_val,
+                    rill::attribute::holder_kind::k_ref,
                     rill::ast::variable_declaration_unit{
                         rill::ast::make_single_identifier( "T" ),
                         rill::ast::value_initializer_unit{
-                            type_type_expression
+                            type_type_expression,
+                            boost::none
                         }
                     }
                 };
                 template_params.push_back( std::move( ty ) );
 
-                // val N: int
+                // N: int
                 rill::ast::variable_declaration in = {
-                    rill::attribute::holder_kind::k_val,
+                    rill::attribute::holder_kind::k_ref,
                     rill::ast::variable_declaration_unit{
                         rill::ast::make_single_identifier( "N" ),
                         rill::ast::value_initializer_unit{
                             rill::ast::helper::make_id_expression(
                                 int_class_name
-                                )
+                                ),
+                            boost::none
                         }
                     }
                 };

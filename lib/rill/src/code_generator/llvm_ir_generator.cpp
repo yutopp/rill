@@ -1150,12 +1150,12 @@ namespace rill
                         );
                 lhs_value->dump();
 
-                assert( rhs_c_env->is_array() );
+                assert( rhs_c_env->is_array() );    // TODO: remove
 
                 // TODO: fix...
                 // load array address
                 auto const& pp = [&]() -> llvm::Value* {
-                    if ( context_->represented_as_pointer_set.count( lhs_value ) == 1 ) {
+                    if ( rhs_c_env->is_array() ) {
                         return lhs_value;
                     } else {
                         return context_->ir_builder.CreateLoad( lhs_value );
@@ -1178,7 +1178,7 @@ namespace rill
                         idx_value
                         );
 
-                //context_->represented_as_pointer_set.emplace( elem_v );
+                context_->represented_as_pointer_set.emplace( elem_v );
 
                 return elem_v;
 

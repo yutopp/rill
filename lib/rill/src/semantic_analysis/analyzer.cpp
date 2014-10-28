@@ -311,8 +311,22 @@ namespace rill
                         });
 
                 } else {
-                    // TODO: set as TYPE
-                    assert( false && "TODO: it will be type" );
+                    // deduce this template variable is "type" type.
+                    std::cout << "Construct template parameter[type] val / index : " << i << std::endl;
+                    assert( false );
+/*
+                    // declare the template parameter into function env as variable
+                    auto const& v_env
+                        = inner_env->construct(
+                            kind::k_variable,
+                            template_parameter.decl_unit.name,
+                            nullptr/*TODO: change to valid ptr to ast*,
+                            class_env,
+                            ty.attributes
+                            );
+
+                    declared_envs[i] = v_env;
+*/
                 }
             }
 
@@ -321,172 +335,127 @@ namespace rill
 
 
         // declare template parameter variable, and substitute explicit argument
-        auto analyzer::tp(
-            ast::parameter_list const& template_parameter_list,
-            type_detail::template_arg_pointer const& template_args,
-            environment_base_ptr const& inner_env,
-            environment_base_ptr const& parent_env
+        auto analyzer::assign_explicit_template_parameters(
+            ast::parameter_list const& template_parameters,
+            std::vector<variable_symbol_environment_ptr> const& decl_template_var_envs,
+            type_detail::template_arg_pointer const& template_args
             )
-            -> void
+            -> bool
         {
-            // template parameters
-            // import template parameter's variables with instantiation!
+            assert( template_args != nullptr );
 
-            std::cout << "TEMPLATE param size is " << template_parameter_list.size() << std::endl;
+            // compare template's arguments and parameters
+            // TODO: add error process
+            assert( template_args->size() <= decl_template_var_envs.size() );
 
-            // 1. declare template parameters
-            auto decl_arg_holder
-                = declare_template_parameter_variables(
-                    template_parameter_list,
-                    inner_env,
-                    parent_env
-                    );
+            for( std::size_t i=0; i<template_args->size(); ++i ) {
+                auto const& template_parameter = template_parameters.at( i );
 
+                // substitute template arguments
+                // save template argument value to the template variables env
+                std::cout << "TEMPLATE ARGS index: " << i << std::endl;
+                auto const& template_var_env = decl_template_var_envs.at( i );
+                auto const& template_arg = template_args->at( i );
 
-            for( std::size_t i=0; i<template_parameter_list.size(); ++i ) {
-                auto const& template_parameter = template_parameter_list.at( i );
+                // DEBUG
+                {
+                    if ( template_arg.is_type() ) {
+                        auto const& t_detail
+                            = static_cast<type_detail_ptr>( template_arg.element );
+                        assert( t_detail != nullptr );
 
+                        // get environment of arguments
+                        auto const& tt
+                            = root_env_->get_type_at( t_detail->type_id );
 
+                        auto const& c_e
+                            = std::static_pointer_cast<class_symbol_environment const>(
+                                root_env_->get_env_strong_at(
+                                    tt.class_env_id
+                                    )
+                                );
 
-                // TODO: add error check to varidate param and arg size...
+                        std::cout << "** typeid << " << t_detail->type_id << std::endl
+                                  << "** " << tt.class_env_id << std::endl;
 
-                std::cout << "pp i = " << i << " / " << template_args->size() << std::endl;
-
-                //
-                // 2. substitute template arguments
-                // save argument value, if the template argument was passed explicitly,
-                // if NOT, it will be deduced after that...
-                if ( i < template_args->size() ) {
-                    // do process, if argument was given
-
-                    std::cout << "TEMPLATE ARGS!! " << i << std::endl;
-                    auto const& template_var_env = decl_arg_holder[i];
-                    auto const& template_arg = template_args->at( i );
-
-                    // DEBUG
-                    {
-                        if ( template_arg.is_type() ) {
-                            auto const& t_detail
-                                = static_cast<type_detail_ptr>( template_arg.element );
-                            assert( t_detail != nullptr );
-
-                            // get environment of arguments
-                            auto const& tt
-                                = root_env_->get_type_at( t_detail->type_id );
-
-                            auto const& c_e
-                                = std::static_pointer_cast<class_symbol_environment const>(
-                                    root_env_->get_env_strong_at(
-                                        tt.class_env_id
-                                        )
-                                    );
-
-                            std::cout << "** typeid << " << t_detail->type_id << std::endl
-                                      << "** " << tt.class_env_id << std::endl;
-
-                            std::cout << "BINDED " << template_var_env->get_id()
-                                      << " -> " << c_e->get_qualified_name() << std::endl;
-                        } else {
-                            std::cout << "value" << std::endl;
-                        }
+                        std::cout << "BINDED " << template_var_env->get_id()
+                                  << " -> " << c_e->get_qualified_name() << std::endl;
+                    } else {
+                        std::cout << "value" << std::endl;
                     }
-
-                    // TODO: fix...
-                    //ctfe_engine_->value_holder()->bind_value(
-                    //    template_var_env->get_id(),
-                    //    template_arg
-                    //    );
-
                 }
-            } // for
+
+                // TODO: fix...
+                //ctfe_engine_->value_holder()->bind_value(
+                //    template_var_env->get_id(),
+                //    template_arg
+                //    );
+            }
+
+            return true;
         }
 
 
-
-        auto analyzer::instanciate_class_candidate(
-            type_detail_ptr const& target_ty_detail,
+        //
+        auto analyzer::instantiate_class_templates(
+            multiple_set_environment_ptr const& multiset_env,
+            type_detail::template_arg_pointer const& template_args,
             environment_base_ptr const& parent_env
             )
             -> std::vector<class_symbol_environment_ptr>
         {
-            assert( target_ty_detail->type_id == (type_id_t)type_id_nontype::e_template_class );
+            std::vector<class_symbol_environment_ptr> xc; // TODO: remove
 
-            //
-            std::vector<class_symbol_environment_ptr> candidates;
-#if 0
-            std::cout << "template class! : Arg num~ "
-                      << target_ty_detail->template_args->size()
+            // solve CLASS template
+            for( auto&& env : multiset_env->get_template_environments() ) {
+                std::cout << colorize::standard::fg::red
+                      << "!!!! template: " << std::endl
+                      << colorize::standard::reset
                       << std::endl;
-
-            // take a template set
-            auto const& template_set_env
-                = target_ty_detail->target_env->cast_to<multiple_set_environment>();
-            assert( template_set_env != nullptr );
-
-
-            auto const& template_args
-                = target_ty_detail->template_args;
-
-            //
-            for( auto const& template_env : template_set_env->get_candidates() ) {
-                // TODO: add template length check...
-                // TODO: remove environment when instantiation is failed.
-
-                std::cout << "hogehoge !" << std::endl;
-
-                // if number of template arguments is over, skip
-                if ( template_args->size() > template_env->get_parameter_num() )
-                    continue;
-
-                // TODO: type check(even if template contains "class")
 
                 //
                 auto const& template_ast
                     = std::static_pointer_cast<ast::template_statement>(
-                        template_env->get_related_ast()
+                        env->get_related_ast()
                         );
                 assert( template_ast != nullptr );
 
-                std::cout << "class !" << std::endl;
-
-                // ==================================================
-                // INNER class
-                // ==================================================
-
-                // make new ast(cloned)
-                auto const& class_ast
+                //
+                auto const& class_def_ast
                     = std::static_pointer_cast<ast::class_definition_statement>(
                         template_ast->clone_inner_node()
                         );
-                assert( class_ast != nullptr );
+                assert( class_def_ast != nullptr );
+                assert( class_def_ast->get_identifier() != nullptr );
 
-                std::cout << "class !" << std::endl;
+                // construct incomplete function emvironment frame
+                auto instanting_c_env
+                    = multiset_env->allocate_inner_env<class_symbol_environment>(
+                        class_def_ast->get_identifier()->get_inner_symbol()->to_native_string()
+                        );
 
-                // create class env
-                auto c_env
-                    = template_set_env->allocate_env<class_symbol_environment>( template_set_env->get_id() );
+                // declare template parameters as variables
+                auto const decl_template_var_envs
+                    = declare_template_parameter_variables(
+                        template_ast->parameter_list_,
+                        instanting_c_env,
+                        env
+                        );
 
-                std::cout << "fugafuga" << std::endl;
-
-                std::cout << "TEMPLATE bef" << std::endl;
-
-
-                // ***********
-                tp(
-                    template_ast->get_parameter_list(),
-                    template_args,
-                    c_env,
-                    parent_env
-                    );
-
-
-                std::cout << "TEMPLATE aftre" << std::endl;
+                assert( template_args != nullptr );
+                auto const is_succeeded
+                    = assign_explicit_template_parameters(
+                        template_ast->parameter_list_,
+                        decl_template_var_envs,
+                        template_args
+                        );
+                assert( is_succeeded && "" );
 
                 //
                 // class instanciation
                 if ( !complete_class(
-                         class_ast,
-                         c_env,
+                         class_def_ast,
+                         instanting_c_env,
                          template_args
                          )
                     ) {
@@ -497,56 +466,121 @@ namespace rill
                 }
 
                 // link
-                c_env->link_with_ast( class_ast );
-                std::cout << "TEMPLATE finished" << std::endl;
+                instanting_c_env->link_with_ast( class_def_ast );
+                multiset_env->add_to_instanced_environments( instanting_c_env );
 
-                // register this class environment to the parent environment
-                std::static_pointer_cast<
-                    single_identifier_environment_base
-                    >( template_set_env->get_parent_env() )->insert( c_env );
+                xc.push_back( instanting_c_env );
 
-                //
-                candidates.push_back( c_env );
+                std::cout << colorize::standard::fg::red
+                          << "!!!! END: template: " << std::endl
+                          << colorize::standard::reset
+                          << std::endl;
             }
 
-#endif
-            return candidates;
+            return xc;
         }
 
 
-        //
-        // returns "type" type
-        //
-        // TODO: rename instantiate
-        auto analyzer::instanciate_class(
-            type_detail_ptr const& target_ty_detail,
+        auto analyzer::complete_class(
+            ast::class_definition_statement_ptr const& s,
+            class_symbol_environment_ptr const& c_env,
+            type_detail::template_arg_pointer const& template_args
+            )
+            -> bool
+        {
+            // guard double check
+            if ( c_env->is_checked() ) {
+                std::cout << "Already, checked" << std::endl;
+                // assert( false );
+                return false;
+            }
+            c_env->change_progress_to_checked();
+
+            //
+            auto const& base_name
+                = s->get_identifier()->get_inner_symbol()->to_native_string();
+            auto const& qualified_name
+                = s->get_identifier()->get_inner_symbol()->to_native_string();
+
+            if ( s->inner_ != nullptr ) {
+                // analyze class body
+                dispatch( s->inner_, c_env );
+
+                // complete class data
+                c_env->complete(
+                    base_name,
+                    qualified_name
+                    );
+
+                // expect as structured class(not a strong typedef)
+                c_env->set_metatype( class_metatype::structured );
+
+            } else {
+                std::cout << "builtin class!" << std::endl;
+
+                // complete class data
+                c_env->complete(
+                    base_name,
+                    qualified_name
+                    );
+
+                // TODO: change...;(;(;(
+                if ( s->get_identifier()->get_inner_symbol()->to_native_string() == "array" ) {
+                    // set special flag as Array
+                    // array template args are
+                    // [0]: type
+                    // [1]: number of elements
+                    assert( template_args->at( 0 ).is_type() );
+
+                    auto const& array_element_ty_detail
+                        = static_cast<type_detail_ptr>( template_args->at( 0 ).element );
+
+                    auto const& array_element_num
+                        = static_cast<std::int32_t const* const>( template_args->at( 1 ).element );
+
+                    std::cout << "Array num is " << *array_element_num << std::endl;
+                    c_env->make_as_array(
+                        array_element_ty_detail->type_id,
+                        *array_element_num
+                        );
+                }
+            }
+
+            return true;
+        }
+
+
+        auto analyzer::solve_class_candidate(
+            multiple_set_environment_ptr const& multiset_env,
+            type_detail::template_arg_pointer const& template_args,
             environment_base_ptr const& parent_env
             )
             -> class_symbol_environment_ptr
         {
-            //
-            auto const& c_env
-                = instanciate_class(
-                    target_ty_detail,
-                    parent_env,
-                    []( std::vector<class_symbol_environment_ptr> const & c_candidate_envs ) {
-                        assert( c_candidate_envs.size() == 1 && "[ice]" );
-                        // TODO: add duplication check
-                        return c_candidate_envs[0];
-                    } );
+            assert( multiset_env->get_representation_kind() == kind::type_value::e_class );
 
-            // return type should be "type"
+            std::cout << colorize::standard::fg::red
+                      << "!!!! class solving: " << multiset_env->get_name() << std::endl
+                      << "!!!! templated class candidate num: " << multiset_env->get_template_environments().size()
+                      << colorize::standard::reset
+                      << std::endl;
+
+            assert( template_args != nullptr );
+
+            // TODO: change selectiong logic
+            auto const& xc
+                = instantiate_class_templates( multiset_env, template_args, parent_env );
+
+            std::cout << "class candidate: " << xc.size() << std::endl;
+            assert( xc.size() != 0 && "no candidate" );
+            assert( xc.size() == 1 && "ambigous" );
+
             // TODO: fix
-            auto const& type_class_env = get_primitive_class_env( "type" );
-            assert( type_class_env != nullptr );  // literal type must exist
-
-            target_ty_detail->type_id
-                = type_class_env->make_type_id( type_class_env, attribute::make_default_type_attributes() );
-
-            target_ty_detail->target_env = nullptr; // unused
-
-            return c_env;
+            return xc[0];
         }
+
+
+
 
 
 
@@ -1000,7 +1034,7 @@ namespace rill
                         );
                 assert( template_ast != nullptr );
 
-                //
+                // TODO: support "member function" and "extern function"
                 auto const& function_def_ast
                     = std::static_pointer_cast<ast::function_definition_statement>(
                         template_ast->clone_inner_node()
@@ -1027,55 +1061,14 @@ namespace rill
 
                 if ( template_args != nullptr ) {
                     // template args are provided
-
-                    // compare template's arguments and parameters
-                    // TODO: add error process
-                    assert( template_args->size() <= decl_template_var_envs.size() );
-
-                    for( std::size_t i=0; i<template_args->size(); ++i ) {
-                        auto const& template_parameter = template_ast->parameter_list_.at( i );
-
-                        // substitute template arguments
-                        // save template argument value to the template variables env
-                        std::cout << "TEMPLATE ARGS index: " << i << std::endl;
-                        auto const& template_var_env = decl_template_var_envs.at( i );
-                        auto const& template_arg = template_args->at( i );
-
-                        // DEBUG
-                        {
-                            if ( template_arg.is_type() ) {
-                                auto const& t_detail
-                                    = static_cast<type_detail_ptr>( template_arg.element );
-                                assert( t_detail != nullptr );
-
-                                // get environment of arguments
-                                auto const& tt
-                                    = root_env_->get_type_at( t_detail->type_id );
-
-                                auto const& c_e
-                                    = std::static_pointer_cast<class_symbol_environment const>(
-                                        root_env_->get_env_strong_at(
-                                            tt.class_env_id
-                                            )
-                                        );
-
-                                std::cout << "** typeid << " << t_detail->type_id << std::endl
-                                          << "** " << tt.class_env_id << std::endl;
-
-                                std::cout << "BINDED " << template_var_env->get_id()
-                                          << " -> " << c_e->get_qualified_name() << std::endl;
-                            } else {
-                                std::cout << "value" << std::endl;
-                            }
-                        }
-
-                        // TODO: fix...
-                        //ctfe_engine_->value_holder()->bind_value(
-                        //    template_var_env->get_id(),
-                        //    template_arg
-                        //    );
-                    } // for
-                } // if
+                    auto const is_succeeded
+                        = assign_explicit_template_parameters(
+                            template_ast->parameter_list_,
+                            decl_template_var_envs,
+                            template_args
+                            );
+                    assert( is_succeeded && "" );
+                }
 
                 auto const arg_index_until_provided
                     = template_args != nullptr
@@ -1300,6 +1293,7 @@ namespace rill
 
             } else {
                 // solve only templated functions
+                assert( false );
             }
 
 
@@ -1354,10 +1348,20 @@ namespace rill
             if ( is_nontype_id( ty_detail->type_id ) ) {
                 if ( ty_detail->type_id == (type_id_t)type_id_nontype::e_template_class ) {
                     // returns instances class symbol environment
-                    auto const i_c_env
-                        = instanciate_class(
-                            ty_detail,
-                            parent_env
+                    auto const i_c_env = solve_class_candidate(
+                        cast_to<multiple_set_environment>( ty_detail->target_env ),
+                        ty_detail->template_args,
+                        parent_env
+                        );
+
+                    // return type should be "type"
+                    auto const& type_class_env = get_primitive_class_env( "type" );
+                    assert( type_class_env != nullptr );  // literal type must exist
+
+                    ty_detail->type_id
+                        = type_class_env->make_type_id(
+                            type_class_env,
+                            attribute::make_default_type_attributes()
                             );
 
                     // !! important
@@ -1443,7 +1447,9 @@ namespace rill
 
                         return type_detail_pool_->construct(
                             (type_id_t)type_id_nontype::e_template_class,
-                            multiset_env
+                            multiset_env,
+                            nullptr/*not nested*/,
+                            std::make_shared<type_detail::template_arg_type>()
                             );
                     }
                 }

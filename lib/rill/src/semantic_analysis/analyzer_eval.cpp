@@ -41,7 +41,6 @@ namespace rill
             auto const& ty
                 = root_env_->get_type_at( ty_detail->type_id );
 
-
             std::cout << "KKKKK : " << debug_string( root_env_->get_env_strong_at( ty.class_env_id )->get_symbol_kind() ) << std::endl;
 
             auto c_env

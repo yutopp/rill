@@ -175,8 +175,7 @@ namespace rill
 
                 auto const& class_env = [&]() {
                     if ( ty.is_incomplete() ) {
-                        assert( false );
-                        return class_symbol_environment_ptr();
+                        return static_cast<class_symbol_environment_ptr>( nullptr );
 
                     } else {
                         auto const p = std::static_pointer_cast<class_symbol_environment>(
@@ -241,30 +240,17 @@ namespace rill
                 )
                 -> function_symbol_environment_ptr;
 
-            auto instanciate_class_candidate(
-                type_detail_ptr const& target_ty_detail,
+
+            auto instantiate_class_templates(
+                multiple_set_environment_ptr const& set_env,
+                type_detail::template_arg_pointer const& template_args,
                 environment_base_ptr const& parent_env
                 )
                 -> std::vector<class_symbol_environment_ptr>;
 
-            template<typename F>
-            auto instanciate_class(
-                type_detail_ptr const& target_ty_detail,
-                environment_base_ptr const& parent_env,
-                F&& f
-                )
-                -> class_symbol_environment_ptr
-            {
-                return f(
-                    instanciate_class_candidate(
-                        target_ty_detail,
-                        parent_env
-                        )
-                    );
-            }
-
-            auto instanciate_class(
-                type_detail_ptr const& target_ty_detail,
+            auto solve_class_candidate(
+                multiple_set_environment_ptr const& set_env,
+                type_detail::template_arg_pointer const& template_args,
                 environment_base_ptr const& parent_env
                 )
                 -> class_symbol_environment_ptr;
@@ -276,13 +262,12 @@ namespace rill
                 )
                 -> std::vector<variable_symbol_environment_ptr>;
 
-            auto tp(
-                ast::parameter_list const& template_parameter_list,
-                type_detail::template_arg_pointer const& template_args,
-                environment_base_ptr const& inner_env,
-                environment_base_ptr const& parent_env
+            auto assign_explicit_template_parameters(
+                ast::parameter_list const& template_parameters,
+                std::vector<variable_symbol_environment_ptr> const& decl_template_var_envs,
+                type_detail::template_arg_pointer const& template_args
                 )
-                -> void;
+                -> bool;
 
 
             auto evaluate_template_args(

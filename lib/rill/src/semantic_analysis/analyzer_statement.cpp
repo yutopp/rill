@@ -490,76 +490,7 @@ namespace rill
 
 
 
-        auto analyzer::complete_class(
-            ast::class_definition_statement_ptr const& s,
-            class_symbol_environment_ptr const& c_env,
-            type_detail::template_arg_pointer const& template_args
-            )
-            -> bool
-        {
-            // guard double check
-            if ( c_env->is_checked() ) {
-                std::cout << "Already, checked" << std::endl;
-                // assert( false );
-                return false;
-            }
-            c_env->change_progress_to_checked();
 
-
-            //
-            auto const& base_name
-                = s->get_identifier()->get_inner_symbol()->to_native_string();
-            auto const& qualified_name
-                = s->get_identifier()->get_inner_symbol()->to_native_string();
-
-            if ( s->inner_ != nullptr ) {
-                // analyze class body
-                dispatch( s->inner_, c_env );
-
-                // complete class data
-                c_env->complete(
-                    base_name,
-                    qualified_name
-                    );
-
-                // expect as structured class(not a strong typedef)
-                c_env->set_metatype( class_metatype::structured );
-
-            } else {
-                std::cout << "builtin class!" << std::endl;
-
-                // complete class data
-                c_env->complete(
-                    base_name,
-                    qualified_name
-                    );
-
-                // TODO: change...;(;(;(
-                if ( s->get_identifier()->get_inner_symbol()->to_native_string() == "array" ) {
-                    // set special flag as Array
-                    // array template args are
-                    // [0]: type
-                    // [1]: number of elements
-                    assert( template_args->at( 0 ).is_type() );
-
-                    auto const& array_element_ty_detail
-                        = static_cast<type_detail_ptr>( template_args->at( 0 ).element );
-
-                    llvm::ConstantInt const* const llvm_array_element_num
-                        = static_cast<llvm::ConstantInt const* const>( template_args->at( 1 ).element );
-
-                    std::size_t const array_element_num
-                        = type_id_t( llvm_array_element_num->getZExtValue() );
-
-                    c_env->make_as_array(
-                        array_element_ty_detail->type_id,
-                        array_element_num
-                        );
-                }
-            }
-
-            return true;
-        }
 
 
 
