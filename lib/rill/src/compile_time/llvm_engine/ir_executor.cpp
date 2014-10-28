@@ -98,61 +98,29 @@ namespace rill
 
             auto ir_executor::normalize_generic_value(
                 llvm::GenericValue const& gv,
+                type_id_t const& semantic_type_id,
                 llvm::Function const* const target_function
                 ) -> void*
             {
-                auto const& function_type = target_function->getFunctionType();
+                auto const& ty = root_env_->get_type_at( semantic_type_id );
+                auto const& c_env = root_env_->get_env_at_as_strong_ref<
+                    class_symbol_environment const
+                    >( ty.class_env_id );
 
-                switch( function_type->getReturnType()->getTypeID() ) {
-//                case llvm::Type::VoidTyID:
-//                    break;
-//
-//                case llvm::Type::HalfTyID:
-//                    break;
-//
-//                case llvm::Type::FloatTyID:
-//                    break;
-//
-//                case llvm::Type::DoubleTyID:
-//                    break;
-//
-//                case llvm::Type::X86_FP80TyID:
-//                    break;
-//
-//                case llvm::Type::FP128TyID:
-//                    break;
-//
-//                case llvm::Type::PPC_FP128TyID:
-//                    break;
-//
-//                case llvm::Type::LabelTyID:
-//                    break;
-//
-//                case llvm::Type::MetadataTyID:
-//                    break;
-//
-//                case llvm::Type::X86_MMXTyID:
-//                    break;
-//
-//                case llvm::Type::IntegerTyID:
-//                    break;
-//
-//                case llvm::Type::FunctionTyID:
-//                    break;
-//
-//                case llvm::Type::StructTyID:
-//                    break;
-//
-//                case llvm::Type::ArrayTyID:
-//                    break;
-//
-                case llvm::Type::PointerTyID:
+                auto const& function_type = target_function->getFunctionType();
+                auto const llvm_type_id = function_type->getReturnType()->getTypeID();
+
+                // TODO: fix cond
+                if ( c_env->get_base_name() == "type" ) {
+                    assert( llvm_type_id == llvm::Type::PointerTyID );
                     return gv.PointerVal;
-//
-//                case llvm::Type::VectorTyID:
-//                    break;
-                default:
-                    assert( false && "[ice] type" );
+
+                } if ( c_env->get_base_name() == "int" ) {
+                    assert( llvm_type_id == llvm::Type::IntegerTyID );
+                    return make_object<std::int32_t>( *(gv.IntVal.getRawData() ) );
+
+                } else {
+                    assert( false && "[[ice, JIT]] value parameter was not supported yet" );
                     return nullptr;
                 }
             }
@@ -208,8 +176,6 @@ namespace rill
                     }
                 }();
 
-
-
                 // evaluate lhs(reciever)
                 // if reciever is exist, valid value and type will be stacked
                 dispatch( e->reciever_, parent_env );
@@ -227,7 +193,11 @@ namespace rill
                 auto const& raw_result
                     = execution_engine_->runFunction( callee_function, total_args );
 
-                return normalize_generic_value( raw_result, callee_function );
+                return normalize_generic_value(
+                    raw_result,
+                    f_env->get_return_type_id(),
+                    callee_function
+                    );
             }
 
 
@@ -237,8 +207,7 @@ namespace rill
             {
                 // Look up Function
                 auto const f_env
-                    = std::static_pointer_cast<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( e ) );
-                assert( f_env != nullptr );
+                    = cast_to<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( e ) );
 
                 std::cout << "current : " << f_env->get_mangled_name() << std::endl;
                 llvm::Function* const callee_function
@@ -260,12 +229,11 @@ namespace rill
 
                 auto raw_result = execution_engine_->runFunction( callee_function, args );
 
-                std::cout << "ANs: "
-                          << *(raw_result.IntVal.getRawData()) << std::endl;
-
-
-                assert(false);
-                return nullptr;
+                return normalize_generic_value(
+                    raw_result,
+                    f_env->get_return_type_id(),
+                    callee_function
+                    );
             }
 
 

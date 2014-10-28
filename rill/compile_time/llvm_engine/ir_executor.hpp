@@ -95,6 +95,7 @@ namespace rill
 
                 auto normalize_generic_value(
                     llvm::GenericValue const& arguments,
+                    type_id_t const& semantic_type_id,
                     llvm::Function const* const target_function
                     ) -> void*;
 

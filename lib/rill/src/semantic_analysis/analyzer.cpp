@@ -385,6 +385,8 @@ namespace rill
                     }
                 }
 
+                // TODO: type check
+
                 // TODO: fix...
                 //ctfe_engine_->value_holder()->bind_value(
                 //    template_var_env->get_id(),
