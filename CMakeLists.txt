@@ -4,13 +4,10 @@ CMAKE_MINIMUM_REQUIRED( VERSION 2.8 )
 
 set( RILL_VERSION_MAJOR 0 )
 set( RILL_VERSION_MINOR 1 )
-
 set( PACKAGE_VERSION "${RILL_VERSION_MAJOR}.${RILL_VERSION_MINOR}" )
-
 
 #
 include_directories( "${PROJECT_SOURCE_DIR}" )
-
 
 #
 if( CMAKE_CXX_COMPILER_ID STREQUAL "Clang" )
@@ -34,7 +31,7 @@ elseif( CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     )
 
 else()
-  message( WARNING "This compile is not supported..." )
+  message( WARNING "This compiler is not supported..." )
 
 endif()
 
