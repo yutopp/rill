@@ -15,20 +15,15 @@ This repository contains the implementation of Rill language.
 ## How to build
 ### Requirement
 #### Compiler
-- GCC >= 4.8.0
-- Clang >= 3.3
+- Clang >= 3.5.0(C++14)
 
 #### Libraries
-- Boost 1.55.0
-- LLVM 3.4
+- Boost 1.56.0
+- LLVM 3.5.0
 
-If you are Ubuntu/Mint user, these links will be useful...
-- [boost-latest](https://launchpad.net/~boost-latest/+archive/ppa "boost-latest")
-- [LLVM Debian/Ubuntu nightly packages](http://llvm.org/apt/ "LLVM Debian/Ubuntu nightly packages")
-
-IF you are Arch/Antergos user, install these packages like below
+If you are Arch/Antergos user, install these packages like below
 ```
-sudo pacman -S boost llvm
+sudo pacman -S clang boost llvm
 ```
 
 ### Build and install
@@ -38,9 +33,8 @@ git clone git@github.com:yutopp/rill.git
 cd rill
 mkdir build
 cd build
-cmake ../.
+cmake ../. -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
 make
-# make test
 sudo make install
 ```
 Rill specific variables for CMake
@@ -81,7 +75,7 @@ cmake ../. -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
 ## Test
 ```
 cd build
-cmake test
+make test
 ```
 
 ### Auto testing
@@ -114,38 +108,8 @@ To see detail, execute `rillc --help`.
 under construction
 
 
-## Sample Code of Rill
-
-```
-def main(): int
-{
-    print( "hello, bunchou lang!!!" );
-    test();
-
-    return 0;
-}
-
-def test(): void
-{
-    extern_print_string( foo( ( 10*2 )*(1+2*2   ), 10 ) + 2 * 5 );
-}
-
-extern def extern_print_string( :int ): void "put_string2";
-
-
-def foo( fuga: int, hoge: int ): int
-{
-    return foo(fuga) * hoge;
-}
-
-def foo( a: int ): int
-{
-    return a;
-}
-
-// comment
-;/*empty statment*/;;;
-```
+## Sample Codes of Rill
+[Please see this dir](tools/compiler/samples)
 
 
 ## License

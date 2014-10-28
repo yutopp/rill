@@ -16,6 +16,9 @@ def main(): int
     klass1.f();
     klass2.f();
 
+    klass1.a = 1192;
+    klass1.f();
+
     val c = f( a * b );
     p( c );
     return 0;
