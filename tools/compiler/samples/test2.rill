@@ -2,4 +2,6 @@ def main(): int
 {
     val a = [1, 2, 3, 4, 5];
     a[0];
+
+    val b: array!(int, 10);
 }

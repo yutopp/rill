@@ -513,8 +513,7 @@ namespace rill
             // ====================================================================================================
             // ====================================================================================================
             R( primary_value, ast::value_ptr,
-                ( t.identifier_with_root
-                | t.identifier
+                ( t.identifier_value_set
                 | t.numeric_literal
                 | t.boolean_literal
                 | t.string_literal
@@ -525,26 +524,42 @@ namespace rill
 
             // ====================================================================================================
             R( identifier_value_set, ast:: identifier_value_base_ptr,
-                ( t.identifier_with_root
-                | t.identifier
-                )
+                t.template_instance_identifier | t.identifier
             )
 
-            R( identifier, ast::identifier_value_ptr,
-                t.identifier_normal | t.identifier_with_root
-                )
 
-            R( identifier_normal, ast::identifier_value_ptr,
+            R( identifier, ast::identifier_value_ptr,
+                t.identifier_from_root | t.identifier_relative
+            )
+
+            R( identifier_relative, ast::identifier_value_ptr,
                 t.identifier_sequence[
                     helper::make_node_ptr<ast::identifier_value>( ph::_1, false )
                     ]
-                )
+            )
 
-            R( identifier_with_root, ast::identifier_value_ptr,
+            R( identifier_from_root, ast::identifier_value_ptr,
                 ( x3::lit( '.' ) >> t.identifier_sequence )[
                     helper::make_node_ptr<ast::identifier_value>( ph::_1, true )
                     ]
-                )
+            )
+
+
+            R( template_instance_identifier, ast::template_instance_value_ptr,
+                t.template_instance_identifier_from_root | t.template_instance_identifier_relative
+            )
+
+            R( template_instance_identifier_relative, ast::template_instance_value_ptr,
+                ( t.identifier_sequence >> x3::lit( '!' ) >> t.argument_list )[
+                    helper::make_node_ptr<ast::template_instance_value>( ph::_1, ph::_2, false )
+                    ]
+            )
+
+            R( template_instance_identifier_from_root, ast::template_instance_value_ptr,
+                ( x3::lit( '.' ) >> t.identifier_sequence >> x3::lit( '!' ) >> t.argument_list )[
+                    helper::make_node_ptr<ast::template_instance_value>( ph::_1, ph::_2, true )
+                    ]
+            )
 
             // ====================================================================================================
             R( numeric_literal, ast::intrinsic::int32_value_ptr/*TODO: change*/,
@@ -591,23 +606,6 @@ namespace rill
                 x3::lit( "\\n" )[helper::construct<char>( '\n' )]
             )
 
-
-#if 0
-template_instance_value
-            auto const template_instance_def
-                = ( identifier_sequence >> x3::lit( '!' ) /*>> argument_list_*/ )/*[
-                                                                                   qi::_val = helper::make_node_ptr<ast::template_instance_value>( qi::_1, qi::_2 )
-                                                                                   ]*/
-                ;
-
-
-            auto template_instance_with_root_
-                = ( x3::lit( '.' )
-                >> identifier_sequence >> x3::lit( '!' ) /*>> argument_list_*/ )/*[
-                       qi::_val = helper::make_node_ptr<ast::template_instance_value>( qi::_1, qi::_2, phx::val( true ) )
-                       ]*/
-                ;
-#endif
 
             // ====================================================================================================
             // ====================================================================================================
