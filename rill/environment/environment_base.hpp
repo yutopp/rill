@@ -27,7 +27,8 @@
 #include "detail/mapper.hpp"
 
 #include "environment_registry.hpp"
-#include "type_registry.hpp"
+
+#include "../type/type_registry.hpp"
 
 #include "../ast/value.hpp"
 #include "../ast/expression.hpp"
@@ -43,9 +44,6 @@ namespace rill
         checked,        // id is collected
         completed       // constructed perfectly
     };
-
-
-
 
     struct debug_allocate_counter
     {
@@ -94,7 +92,6 @@ namespace rill
 
     //
     struct root_initialize_tag {};
-
 
 
     //

@@ -14,7 +14,7 @@
 #include <boost/optional.hpp>
 
 #include "../environment/environment_fwd.hpp"
-#include "../environment/type_id.hpp"
+#include "../type/type_id.hpp"
 #include "../behavior/intrinsic_function_holder_fwd.hpp"
 
 #include "ast_base.hpp"

@@ -6,33 +6,22 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#ifndef RILL_ENVIRONMENT_TYPE_REGISTRY_HPP
-#define RILL_ENVIRONMENT_TYPE_REGISTRY_HPP
+#ifndef RILL_TYPE_TYPE_REGISTRY_HPP
+#define RILL_TYPE_TYPE_REGISTRY_HPP
 
 #include <unordered_map>
 
 #include <boost/optional.hpp>
 
 #include "type_registry_fwd.hpp"
-#include "environment_fwd.hpp"
+#include "type.hpp"
+#include "../environment/environment_fwd.hpp"
 
 #include "../debug/debug.hpp"
 
 
 namespace rill
 {
-
-
-/*
-    template<typename ClassEnvPtr>
-    auto make_mangled_name(
-        ClassEnvPtr const& class_env,
-        attribute::type_attributes const& type_attr
-        )
-*/
-
-    // type_id is reference id to type that attributed!
-
     //
     class type_registry
     {
@@ -107,14 +96,6 @@ namespace rill
             return data_holder_.at( type_id );
         }
 
-
-        auto get_has_same_class_types( environment_id_t const& class_env_id ) const
-            -> std::unordered_map<attribute::attributes_bit_t, type_id_t> const&
-        {
-            return dereference_data_holder_.at( class_env_id );
-        }
-
-
         auto is_class_exist( environment_id_t const& class_env_id ) const
             -> bool
         {
@@ -164,4 +145,4 @@ namespace rill
 
 } // namespace rill
 
-#endif /*RILL_ENVIRONMENT_TYPE_REGISTRY_HPP*/
+#endif /*RILL_TYPE_TYPE_REGISTRY_HPP*/

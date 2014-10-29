@@ -15,7 +15,7 @@
 #include "../environment_fwd.hpp"
 
 #include "../../ast/statement.hpp"
-#include "../type_registry_fwd.hpp"
+#include "../../type/type_registry_fwd.hpp"
 
 
 namespace rill

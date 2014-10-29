@@ -6,8 +6,8 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#ifndef RILL_ATTRIBUTE_HPP
-#define RILL_ATTRIBUTE_HPP
+#ifndef RILL_TYPE_ATTRIBUTE_HPP
+#define RILL_TYPE_ATTRIBUTE_HPP
 
 #include <bitset>
 #include <iostream>
@@ -315,7 +315,37 @@ namespace rill
             return a;
         }
 
+
+        template<typename T>
+        auto operator<<=( type_attributes& attr, T const& t )
+            -> type_attributes&
+        {
+            detail::set( attr, t );
+            return attr;
+        }
+
+        auto inline make_default_type_attributes()
+            -> type_attributes
+        {
+            return { holder_kind::k_val, modifiability_kind::k_immutable };
+        }
+
+        auto inline make_empty_type_attributes()
+            -> type_attributes
+        {
+            return { holder_kind::k_suggest, modifiability_kind::k_none };
+        }
+
+        template<typename... Args>
+        auto inline make_type_attributes( Args const&... args )
+            -> type_attributes
+        {
+            type_attributes attr = make_default_type_attributes();
+            detail::set( attr, args... );
+            return attr;
+        }
+
     } // namespace attribute
 } // namespace rill
 
-#endif /*RILL_ATTRIBUTE_HPP*/
+#endif /*RILL_TYPE_ATTRIBUTE_HPP*/

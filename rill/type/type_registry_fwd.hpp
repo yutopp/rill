@@ -6,32 +6,17 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#ifndef RILL_ENVIRONMENT_TYPE_REGISTRY_FWD_HPP
-#define RILL_ENVIRONMENT_TYPE_REGISTRY_FWD_HPP
+#ifndef RILL_TYPE_TYPE_REGISTRY_FWD_HPP
+#define RILL_TYPE_TYPE_REGISTRY_FWD_HPP
 
 #include <vector>
 #include <limits>
 
-#include "environment_fwd.hpp"
-#include "../attribute/type.hpp"
 #include "type_id.hpp"
 
 
 namespace rill
 {
-    // type is composed to Class and Attributes
-    struct type
-    {
-        environment_id_t class_env_id;
-        attribute::type_attributes attributes;
-
-        auto is_incomplete() const
-            -> bool
-        {
-            return class_env_id == environment_id_undefined;
-        }
-    };
-
     //
     auto const type_id_limit = type_id_t( std::numeric_limits<std::size_t>::max() - 20 );
     auto const type_id_special = type_id_t( std::numeric_limits<std::size_t>::max() - 19 );
@@ -75,12 +60,9 @@ namespace rill
 
     typedef std::vector<type_id_t> type_id_list_t;
 
-
-    // type is composed to Class and Attributs
-
     //
     class type_registry;
 
 } // namespace rill
 
-#endif /*RILL_ENVIRONMENT_TYPE_REGISTRY_FWD_HPP*/
+#endif /*RILL_TYPE_TYPE_REGISTRY_FWD_HPP*/

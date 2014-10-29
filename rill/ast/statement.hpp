@@ -14,7 +14,7 @@
 #include <boost/optional.hpp>
 
 #include "../environment/environment_fwd.hpp"
-#include "../attribute/attribute.hpp"
+#include "../type/attribute.hpp"
 
 #include "ast_base.hpp"
 #include "statement_fwd.hpp"

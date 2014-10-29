@@ -16,11 +16,10 @@
 
 #include "type_detail_pool_t.hpp"
 
-#include "../environment/type_registry_fwd.hpp"
-
 #include "../ast/value_fwd.hpp"
 #include "../ast/expression_fwd.hpp"
-#include "../attribute/type.hpp"
+#include "../type/type.hpp"
+#include "../type/type_registry_fwd.hpp"
 
 
 namespace rill
