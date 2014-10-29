@@ -60,5 +60,5 @@ endmacro()
 # Add test suites
 #
 run_test( parser "syntax/syntax_test.cpp" "rill" ${REQ_LLVM_LIBRARIES} )
+run_test( semantic "semantic/semantic_test.cpp" "rill" ${REQ_LLVM_LIBRARIES} )
 run_test( ast "ast/ast_test.cpp" "rill" ${REQ_LLVM_LIBRARIES} )
-#run_test( tst "main.cc" "rill" ${REQ_LLVM_LIBRARIES} )

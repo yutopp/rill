@@ -38,15 +38,14 @@
 
 
 // for debug
-//#ifdef RILL_DEBUG
+#ifdef RILL_DEBUG
 # define RILL_DEBUG_S(...) __VA_ARGS__
-
 # define RILL_DEBUG_LOG( stream ) \
-    std::cout << "LOG : " << __FILE__ << " / " << __LINE__ << " : " << stream << std::endl;
-//#else
-//
-//# define RILL_DEBUG_S(...)
-//# define RILL_DEBUG_LOG( stream )
-//#endif
+    std::cout << "--- LOG : " << __FILE__ << " / " << __LINE__ << " ----" << std::endl \
+              << stream;
+#else
+# define RILL_DEBUG_S(...)
+# define RILL_DEBUG_LOG( stream )
+#endif
 
 #endif /*RILL_CONFIG_MACROS_HPP*/

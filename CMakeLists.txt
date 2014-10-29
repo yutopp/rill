@@ -10,6 +10,9 @@ set( PACKAGE_VERSION "${RILL_VERSION_MAJOR}.${RILL_VERSION_MINOR}" )
 include_directories( "${PROJECT_SOURCE_DIR}" )
 
 #
+set(CMAKE_C_FLAGS_DEBUG "-DRILL_DEBUG")
+
+#
 if( CMAKE_CXX_COMPILER_ID STREQUAL "Clang" )
   message( STATUS "config for Clang." )
   add_definitions(
