@@ -20,14 +20,18 @@ namespace rill
     {
         namespace spirit = boost::spirit;
 
+        using string_iterator_t
+            = ast::native_string_t::const_iterator;
+
         using iterator_t
-            = spirit::line_pos_iterator<ast::native_string_t::const_iterator>;
+            = spirit::line_pos_iterator<string_iterator_t>;
 
         auto parse( ast::native_string_t const& source )
             -> ast::statements_ptr;
 
         auto parse(
             iterator_t& it,
+            string_iterator_t const& orig_begin,
             iterator_t const& end
             )
             -> ast::statements_ptr;

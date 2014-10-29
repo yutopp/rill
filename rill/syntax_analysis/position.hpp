@@ -21,6 +21,29 @@ namespace rill
         namespace detail
         {
             template<typename Iterator>
+            inline auto get_line_start(
+                Iterator const& lower_bound,
+                Iterator const& current
+                )
+                -> Iterator
+            {
+                Iterator i = current;
+                Iterator latest = current;
+
+                do {
+                    switch( *i ) {
+                    case '\r':
+                    case '\n':
+                        return latest;
+                    }
+                    latest = i;
+                    --i;
+                } while( latest != lower_bound );
+
+                return lower_bound;
+            }
+
+            template<typename Iterator>
             auto inline get_line_end(
                 Iterator current,
                 Iterator const& upper_bound
@@ -40,17 +63,13 @@ namespace rill
 
             template<typename Iterator>
             auto inline get_current_line_range(
-                Iterator const& lower_bound,
+                Iterator const& first,
                 Iterator const& current,
                 Iterator const& upper_bound
                 )
                 -> boost::iterator_range<Iterator>
             {
-                Iterator first = spirit::get_line_start( lower_bound, current );
                 Iterator last = get_line_end( current, upper_bound );
-
-                // to skip last blank...
-                //++first;
 
                 return boost::iterator_range<Iterator>( first, last );
             }

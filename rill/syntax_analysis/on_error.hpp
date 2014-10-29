@@ -10,6 +10,7 @@
 #define RILL_SYNTAX_ANALYSIS_ON_ERROR_HPP
 
 #include <iostream>
+#include <cctype>
 #include <boost/spirit/home/x3.hpp>
 
 #include "position.hpp"
@@ -27,9 +28,10 @@ namespace rill
             template<typename Iterator>
             auto skip_error_token( Iterator& first, Iterator const& last )
             {
-                x3::parse( first, last, *( x3::char_ - x3::space ) );
+                x3::parse( first, last, *( x3::char_ - ';' ) );
                 x3::parse( first, last, *x3::space );
             }
+
         } // namespace detail
 
 
@@ -38,30 +40,39 @@ namespace rill
         public:
             template<typename Iterator, typename Exception, typename Context>
             auto on_error(
-                Iterator& first,
+                Iterator& it,
                 Iterator const& last,
                 Exception const& what,
                 Context const& context
                 )
                 -> x3::error_handler_result
             {
+                auto const& orig_begin
+                    = x3::get<error_iterator_orig_begin_tag>( context );
+                auto const first
+                    = Iterator( detail::get_line_start( orig_begin, what.where().base() ) );
+
+                auto const column = spirit::get_column( first, what.where() );
+                assert( column > 0 );
+                auto const errors_space_num = column - 1;
+
                 std::cerr
                     << "Error: expecting "
                     << what.which()
                     << " in line "
                     << spirit::get_line( what.where() )
                     << " position "
-                    << spirit::get_column( first, what.where() )
+                    << column
                     << ": \n"
                     << detail::get_current_line_range( first, what.where(), last )
                     << "\n"
-                    << std::string( get_column( first, what.where() ), ' ' )
+                    << std::string( errors_space_num, ' ' )
                     << "^ here"
                     << std::endl
                     ;
 
                 //
-                detail::skip_error_token( first, last );
+                detail::skip_error_token( it, last );
 
                 // report error
                 auto& error_holder

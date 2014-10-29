@@ -1,3 +1,11 @@
+//
+// Copyright yutopp 2014 - .
+//
+// Distributed under the Boost Software License, Version 1.0.
+// (See accompanying file LICENSE_1_0.txt or copy at
+// http://www.boost.org/LICENSE_1_0.txt)
+//
+
 #include <rill/syntax_analysis/parse.hpp>
 #include <rill/syntax_analysis/code_grammar.hpp>
 #include <rill/syntax_analysis/skip_grammar.hpp>
@@ -12,13 +20,15 @@ namespace rill
             -> ast::statements_ptr
         {
             iterator_t it = iterator_t( source.cbegin() );
+            string_iterator_t const orig_begin = source.cbegin();
             iterator_t const end = iterator_t( source.cend() );
 
-            return parse( it, end );
+            return parse( it, orig_begin, end );
         }
 
         auto parse(
             iterator_t& it,
+            string_iterator_t const& orig_begin,
             iterator_t const& end
             ) -> ast::statements_ptr
         {
@@ -29,13 +39,14 @@ namespace rill
 
             auto const code_g = x3::with<error_container_tag>(
                 std::ref( error_holder )
-                )[code_grammar::rules::entrypoint()];
+                )[x3::with<error_iterator_orig_begin_tag>(
+                    orig_begin
+                    )[code_grammar::rules::entrypoint()]
+                    ];
             auto const skip_g = skip_grammer::rules::entrypoint();
 
             bool const success
                 = boost::spirit::x3::phrase_parse( it, end, code_g, skip_g, stmts );
-
-            std::cout << "finish parsing: " << success << std::endl;
 
             if ( success ) {
                 // reaches if *parsing* is succeeded with skipping

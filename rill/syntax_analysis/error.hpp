@@ -16,6 +16,7 @@ namespace rill
 {
     namespace syntax_analysis
     {
+        struct error_iterator_orig_begin_tag;
         struct error_container_tag;
 
         // TODO: fix me
