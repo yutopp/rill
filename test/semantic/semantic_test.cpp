@@ -12,4 +12,9 @@
 
 BOOST_AUTO_TEST_SUITE( Semantic )
 
+BOOST_AUTO_TEST_CASE( pass_test_0 )
+{
+    // dummy
+}
+
 BOOST_AUTO_TEST_SUITE_END()

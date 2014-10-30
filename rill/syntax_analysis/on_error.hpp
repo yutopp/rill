@@ -11,6 +11,8 @@
 
 #include <iostream>
 #include <cctype>
+#include <iterator>
+
 #include <boost/spirit/home/x3.hpp>
 
 #include "position.hpp"
@@ -26,10 +28,13 @@ namespace rill
         namespace detail
         {
             template<typename Iterator>
-            auto skip_error_token( Iterator& first, Iterator const& last )
+            auto skip_error_token( Iterator& it, Iterator const& last )
             {
-                x3::parse( first, last, *( x3::char_ - ';' ) );
-                x3::parse( first, last, *x3::space );
+                if ( it != last ) {
+                    std::advance( it, 1 );
+                }
+                x3::parse( it, last, *( x3::char_ - ';' - '{' - '}' ) );
+                x3::parse( it, last, *x3::space );
             }
 
         } // namespace detail
@@ -82,6 +87,7 @@ namespace rill
                 error_holder.push_back( 0/*dummy*/ );
 
                 return x3::error_handler_result::retry;
+                //return x3::error_handler_result::accept;
             }
         };
 

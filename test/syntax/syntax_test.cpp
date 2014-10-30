@@ -20,14 +20,6 @@ BOOST_AUTO_TEST_CASE( pass_test_0 )
     PARSE_PASS( ast );
 }
 
-BOOST_AUTO_TEST_CASE( pass_test_1 )
-{
-    std::string const s = R"s(def fg; /**/; ;/**/)s";
-
-    auto const& ast = rill::syntax_analysis::parse( s );
-    PARSE_FAIL( ast );
-}
-
 BOOST_AUTO_TEST_CASE( pass_test_2 )
 {
     std::string const s = R"s(a+a;)s";
@@ -68,26 +60,6 @@ def test( ref a: int ) => a;
     PARSE_PASS( ast );
 }
 
-BOOST_AUTO_TEST_CASE( pass_test_6 )
-{
-    std::string const s = R"s(
-deftest( ref a: int ) => a;
-)s";
-
-    auto const& ast = rill::syntax_analysis::parse( s );
-    PARSE_FAIL( ast );
-}
-
-BOOST_AUTO_TEST_CASE( pass_test_7 )
-{
-    std::string const s = R"s(
-classtest{}
-)s";
-
-    auto const& ast = rill::syntax_analysis::parse( s );
-    PARSE_FAIL( ast );
-}
-
 BOOST_AUTO_TEST_CASE( pass_test_8 )
 {
     std::string const s = R"s(
@@ -97,6 +69,47 @@ class test {
 
     auto const& ast = rill::syntax_analysis::parse( s );
     PARSE_PASS( ast );
+}
+
+
+BOOST_AUTO_TEST_CASE( fail_test_1 )
+{
+    std::string const s = R"s(def fg; /**/; ;/**/)s";
+
+    auto const& ast = rill::syntax_analysis::parse( s );
+    PARSE_FAIL( ast );
+}
+
+BOOST_AUTO_TEST_CASE( fail_test_6 )
+{
+    std::string const s = R"s(
+deftest( ref a: int ) => a;
+)s";
+
+    auto const& ast = rill::syntax_analysis::parse( s );
+    PARSE_FAIL( ast );
+}
+
+BOOST_AUTO_TEST_CASE( fail_test_7 )
+{
+    std::string const s = R"s(
+classtest{}
+)s";
+
+    auto const& ast = rill::syntax_analysis::parse( s );
+    PARSE_FAIL( ast );
+}
+
+BOOST_AUTO_TEST_CASE( fail_test_8 )
+{
+    std::string const s = R"s(
+deftest( ref a: int ) => a;
+deftest( ref a: int ) => a;
+deftest( ref a: int ) => a;
+)s";
+
+    auto const& ast = rill::syntax_analysis::parse( s );
+    PARSE_FAIL( ast );
 }
 
 BOOST_AUTO_TEST_SUITE_END()

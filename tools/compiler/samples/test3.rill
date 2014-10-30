@@ -1,7 +1,8 @@
 def main(): int
 {
     val a = HogeHuga!(int, int)();
-    val b: HogeHuga!(int, string) = HogeHuga!(int, int)();
+    val b: HogeHuga!(int, string) = HogeHuga!(int, string)();
+    val c: HogeHuga!(void, string) = HogeHuga!(void, string)();
 
     return 0;
 }
@@ -11,6 +12,11 @@ class HogeHuga
 {
     def ctor()
     {
+    }
+
+    def f(): void
+    {
+        this.a;
     }
 
     val a: T;

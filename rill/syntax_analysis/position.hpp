@@ -27,8 +27,12 @@ namespace rill
                 )
                 -> Iterator
             {
-                Iterator i = current;
-                Iterator latest = current;
+                if ( current == lower_bound ) {
+                    return lower_bound;
+                }
+
+                Iterator i = current - 1;
+                Iterator latest = i;
 
                 do {
                     switch( *i ) {

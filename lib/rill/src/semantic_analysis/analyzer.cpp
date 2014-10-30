@@ -312,6 +312,10 @@ namespace rill
                     || template_parameter.decl_unit.init_unit.initializer != nullptr
                     );
 
+                if ( auto const& v = inner_env->find_on_env( template_parameter.decl_unit.name ) ) {
+                    assert( false && "[[error]] variable is already defined" );
+                }
+
                 if ( template_parameter.decl_unit.init_unit.type ) {
                     resolve_type(
                         template_parameter.decl_unit.init_unit.type,
