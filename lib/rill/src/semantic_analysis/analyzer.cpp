@@ -171,7 +171,7 @@ namespace rill
 
         auto make_mangled_name(
             const_class_symbol_environment_ptr const& c_env,
-            attribute::type_attributes const& attr
+            boost::optional<std::reference_wrapper<std::string const>> const& template_signature
             )
             -> std::string
         {
@@ -179,8 +179,30 @@ namespace rill
             //assert( c_env->is_checked() );
 
             std::string s;
-            s += std::to_string( c_env->get_mangled_name().size() );
-            s += c_env->get_mangled_name();
+            s += std::to_string( c_env->get_base_name().size() );
+            s += c_env->get_base_name();
+
+            if ( template_signature ) {
+                s += "TA[";
+                s += std::to_string( template_signature->get().size() );
+                s += "]";
+                s += template_signature->get();
+            }
+
+            return s;
+        }
+
+        auto make_mangled_name(
+            const_class_symbol_environment_ptr const& c_env,
+            attribute::type_attributes const& attr,
+            boost::optional<std::reference_wrapper<std::string const>> const& template_signature
+            )
+            -> std::string
+        {
+            assert( c_env != nullptr );
+            //assert( c_env->is_checked() );
+
+            std::string s = c_env->get_mangled_name();
 
             s += [&]() {
                 switch( attr.quality )
@@ -214,7 +236,10 @@ namespace rill
         }
 
 
-        auto make_mangled_name( const_function_symbol_environment_ptr const& f_env )
+        auto make_mangled_name(
+            const_function_symbol_environment_ptr const& f_env,
+            boost::optional<std::reference_wrapper<std::string const>> const& template_signature
+            )
             -> std::string
         {
             assert( f_env != nullptr );
@@ -372,7 +397,7 @@ namespace rill
                                 )
                             );
 
-                    std::cout << "[parameter type]: " << c_e->get_qualified_name() << std::endl;
+                    std::cout << "[parameter type]: " << c_e->get_mangled_name() << std::endl;
 
                     if ( template_arg.is_type() ) {
                         std::cout << "type: inner value is " << std::endl;
@@ -395,7 +420,7 @@ namespace rill
                                   << "** " << tt.class_env_id << std::endl;
 
                         std::cout << "BINDED " << template_var_env->get_id()
-                                  << " -> " << c_e->get_qualified_name() << std::endl;
+                                  << " -> " << c_e->get_mangled_name() << std::endl;
                     } else {
                         std::cout << "value: " << std::endl;
                     }
@@ -447,7 +472,7 @@ namespace rill
         }
 
         // FIXME: logic
-        auto analyzer::make_template_cache_string(
+        auto analyzer::make_template_signature_string(
             std::vector<variable_symbol_environment_ptr> const& decl_template_var_envs
             )
             -> std::string
@@ -552,11 +577,11 @@ namespace rill
                 assert( is_succeeded && "" );
 
                 // TODO: relocate cache evaluation
-                auto const cache_string
-                    = make_template_cache_string( decl_template_var_envs );
+                auto const signature_string
+                    = make_template_signature_string( decl_template_var_envs );
 
-                std::cout << "========================================== !!!!! => " << cache_string << std::endl;
-                if ( auto const& cache = multiset_env->find_instanced_environments( cache_string ) ) {
+                std::cout << "========================================== !!!!! => " << signature_string << std::endl;
+                if ( auto const& cache = multiset_env->find_instanced_environments( signature_string ) ) {
                     //
                     auto const& cached_c_env = cast_to<class_symbol_environment>( cache );
                     xc.push_back( cached_c_env );
@@ -571,7 +596,7 @@ namespace rill
 
                     //
                     // class instanciation
-                    if ( !complete_class( class_def_ast, instanting_c_env, template_args ) ) {
+                    if ( !complete_class( class_def_ast, instanting_c_env, template_args, std::cref( signature_string ) ) ) {
                         // Already completed...
                         // maybe, error...
                         assert( false );
@@ -580,7 +605,7 @@ namespace rill
 
                     // link
                     instanting_c_env->link_with_ast( class_def_ast );
-                    multiset_env->add_to_instanced_environments( instanting_c_env, cache_string );
+                    multiset_env->add_to_instanced_environments( instanting_c_env, signature_string );
 
                     //
                     xc.push_back( instanting_c_env );
@@ -599,7 +624,8 @@ namespace rill
         auto analyzer::complete_class(
             ast::class_definition_statement_ptr const& s,
             class_symbol_environment_ptr const& c_env,
-            type_detail::template_arg_pointer const& template_args
+            type_detail::template_arg_pointer const& template_args,
+            boost::optional<std::reference_wrapper<std::string const>> const& template_signature
             )
             -> bool
         {
@@ -611,21 +637,15 @@ namespace rill
             }
             c_env->change_progress_to_checked();
 
-            //
-            auto const& base_name
-                = s->get_identifier()->get_inner_symbol()->to_native_string();
-            auto const& qualified_name
-                = s->get_identifier()->get_inner_symbol()->to_native_string();
+            auto const& mangled_name
+                = make_mangled_name( c_env, template_signature );
 
             if ( s->inner_ != nullptr ) {
                 // analyze class body
                 dispatch( s->inner_, c_env );
 
                 // complete class data
-                c_env->complete(
-                    base_name,
-                    qualified_name
-                    );
+                c_env->complete( mangled_name );
 
                 // expect as structured class(not a strong typedef)
                 c_env->set_metatype( class_metatype::structured );
@@ -634,10 +654,7 @@ namespace rill
                 std::cout << "builtin class!" << std::endl;
 
                 // complete class data
-                c_env->complete(
-                    base_name,
-                    qualified_name
-                    );
+                c_env->complete( mangled_name );
 
                 // TODO: change...;(;(;(
                 if ( s->get_identifier()->get_inner_symbol()->to_native_string() == "array" ) {
@@ -768,7 +785,7 @@ namespace rill
                         return { nullptr, nullptr, dependent_value_kind::k_none };
                     }
                 }();
-                std::cout << "argt: " << c_env->get_qualified_name() << std::endl;
+                std::cout << "argt: " << c_env->get_mangled_name() << std::endl;
 
                 template_args.push_back( ta );
             }
@@ -1270,11 +1287,11 @@ namespace rill
                 // TODO: check existance of incomplete template vaiables
 
                 // TODO: relocate cache evaluation
-                auto const cache_string
-                    = make_template_cache_string( decl_template_var_envs );
+                auto const signature_string
+                    = make_template_signature_string( decl_template_var_envs );
 
-                std::cout << "========================================== !!!!! => " << cache_string << std::endl;
-                if ( auto const& cache = multiset_env->find_instanced_environments( cache_string ) ) {
+                std::cout << "========================================== !!!!! => " << signature_string << std::endl;
+                if ( auto const& cache = multiset_env->find_instanced_environments( signature_string ) ) {
                     ;
                 } else {
                     ;
@@ -1314,11 +1331,16 @@ namespace rill
                 solve_function_return_type_semantics( instanting_f_env );
 
                 //
-                instanting_f_env->complete( make_mangled_name( instanting_f_env ) );
+                instanting_f_env->complete(
+                    make_mangled_name(
+                        instanting_f_env,
+                        std::cref( signature_string )
+                        )
+                    );
                 instanting_f_env->link_with_ast( function_def_ast );
 
                 //
-                multiset_env->add_to_instanced_environments( instanting_f_env, cache_string );
+                multiset_env->add_to_instanced_environments( instanting_f_env, signature_string );
 
                 std::cout << colorize::standard::fg::red
                           << "!!!! END: template: " << std::endl
@@ -1570,7 +1592,7 @@ namespace rill
                         auto const& class_env
                             = cast_to<class_symbol_environment>( ne.at( 0 ) );
 
-                        std::cout << "()memoed.class " << class_env->get_qualified_name() << std::endl;
+                        std::cout << "()memoed.class " << class_env->get_mangled_name() << std::endl;
                         // link with given identifier!
                         class_env->connect_from_ast( identifier );
 

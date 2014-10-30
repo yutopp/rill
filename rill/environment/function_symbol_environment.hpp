@@ -68,8 +68,6 @@ namespace rill
             return KindValue;
         }
 
-
-
         auto get_parameter_wrapper_env()
             -> multiple_set_environment_ptr
         {

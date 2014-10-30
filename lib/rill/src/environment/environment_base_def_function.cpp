@@ -14,6 +14,7 @@
 #include <rill/ast/expression.hpp>
 #include <rill/ast/statement.hpp>
 
+#include <rill/semantic_analysis/analyzer.hpp>
 #include <rill/utility/tie.hpp>
 
 
@@ -93,8 +94,6 @@ namespace rill
         auto const& set_environment = p_i_pair.first;
         auto const& incomplete_function_env = p_i_pair.second;
 
-        auto const& symbol_name = function_name->get_inner_symbol()->to_native_string();
-
         // complete parameter decl
         auto const& parameter_completed_function_env_pointer = parameter_decl_initializer( incomplete_function_env );
 
@@ -103,7 +102,11 @@ namespace rill
         parameter_completed_function_env_pointer->decide_return_type( return_type_id );
 
         //
-        parameter_completed_function_env_pointer->complete( symbol_name );
+        parameter_completed_function_env_pointer->change_progress_to_checked();
+
+        //
+        auto const& mangled_name = semantic_analysis::make_mangled_name( parameter_completed_function_env_pointer );
+        parameter_completed_function_env_pointer->complete( mangled_name );
 
         //
         set_environment->add_to_normal_environments( parameter_completed_function_env_pointer );

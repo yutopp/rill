@@ -558,7 +558,7 @@ namespace rill
                 llvm::StructType* const llvm_struct_type
                     = llvm::StructType::create(
                         context_->llvm_context,
-                        c_env->get_qualified_name()/*, add is_packed*/
+                        c_env->get_mangled_name()/*, add is_packed*/
                         );
                 context_->env_conversion_table.bind_type( c_env, llvm_struct_type );
 
@@ -1470,7 +1470,7 @@ namespace rill
                 auto const& type_id_c
                     = c_env->make_type_id_from();
 
-                std::cout << "in llvm.class_name " << c_env->get_qualified_name() << " (" << type_id_c << ")" << std::endl;
+                std::cout << "in llvm.class_name " << c_env->get_mangled_name() << " (" << type_id_c << ")" << std::endl;
 
 
 
@@ -1565,9 +1565,7 @@ namespace rill
                 auto const& type_id_c
                     = c_env->make_type_id_from();
 
-                std::cout << "in llvm.class_name " << c_env->get_qualified_name() << " (" << type_id_c << ")" << std::endl;
-
-
+                std::cout << "in llvm.class_name " << c_env->get_mangled_name() << " (" << type_id_c << ")" << std::endl;
 
                 // return id of type!
                 llvm::Value* type_id_ptr

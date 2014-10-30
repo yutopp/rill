@@ -14,6 +14,7 @@
 #include <rill/ast/expression.hpp>
 #include <rill/ast/statement.hpp>
 
+#include <rill/semantic_analysis/analyzer.hpp>
 #include <rill/utility/tie.hpp>
 
 
@@ -94,9 +95,8 @@ namespace rill
             mark_as( kind::k_class, class_name, ast )
             );
 
-        auto const& symbol_name = class_name->get_inner_symbol()->to_native_string();
-
-        c_env->complete( symbol_name, symbol_name/*qualified name*//*, attribute*/ );
+        auto const& mangled_name = semantic_analysis::make_mangled_name( c_env );
+        c_env->complete( mangled_name );
 
         set_environment->add_to_normal_environments( c_env );
 

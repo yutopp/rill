@@ -483,7 +483,6 @@ namespace rill
                 = std::static_pointer_cast<class_symbol_environment>( related_env );
             assert( c_env != nullptr );
 
-
             //
             complete_class( s, c_env );
         }

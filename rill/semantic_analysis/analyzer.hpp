@@ -10,6 +10,7 @@
 #define RILL_SEMANTIC_ANALYSIS_ANALYZER_HPP
 
 #include <memory>
+#include <functional>
 
 #include <boost/optional.hpp>
 
@@ -262,7 +263,7 @@ namespace rill
                 )
                 -> std::vector<variable_symbol_environment_ptr>;
 
-            auto make_template_cache_string(
+            auto make_template_signature_string(
                 std::vector<variable_symbol_environment_ptr> const& decl_template_var_envs
                 )
                 -> std::string;
@@ -293,7 +294,8 @@ namespace rill
             auto complete_class(
                 ast::class_definition_statement_ptr const& s,
                 class_symbol_environment_ptr const& c_env,
-                type_detail::template_arg_pointer const& template_args = nullptr
+                type_detail::template_arg_pointer const& template_args = nullptr,
+                boost::optional<std::reference_wrapper<std::string const>> const& template_signature = boost::none
                 )
                 -> bool;
 
@@ -342,15 +344,24 @@ namespace rill
             return class_env;
         }
 
-
         //
         auto make_mangled_name(
             const_class_symbol_environment_ptr const& c_env,
-            attribute::type_attributes const& attr
+            boost::optional<std::reference_wrapper<std::string const>> const& template_signature = boost::none
             )
             -> std::string;
         //
-        auto make_mangled_name( const_function_symbol_environment_ptr const& f_env )
+        auto make_mangled_name(
+            const_class_symbol_environment_ptr const& c_env,
+            attribute::type_attributes const& attr,
+            boost::optional<std::reference_wrapper<std::string const>> const& template_signature = boost::none
+            )
+            -> std::string;
+
+        auto make_mangled_name(
+            const_function_symbol_environment_ptr const& f_env,
+            boost::optional<std::reference_wrapper<std::string const>> const& template_signature = boost::none
+            )
             -> std::string;
 
     } // namespace semantic_analysis

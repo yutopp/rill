@@ -62,13 +62,11 @@ namespace rill
         }
 
         auto complete(
-            native_string_type const& base_name,
-            native_string_type const& qualified_name
+            native_string_type const& mangled_name
             )
             -> void
         {
-            base_name_ = base_name;
-            qualified_name_ = qualified_name;
+            mangled_name_ = mangled_name;
 
             change_progress_to_completed();
         }
@@ -79,10 +77,10 @@ namespace rill
             return base_name_;
         }
 
-        auto get_qualified_name() const
+        auto get_mangled_name() const
             -> native_string_type const&
         {
-            return qualified_name_;
+            return mangled_name_;
         }
 
         auto set_metatype( class_metatype const& metatype )
@@ -94,13 +92,6 @@ namespace rill
             -> bool
         {
             return metatype_ == metatype;
-        }
-
-        // TODO: fix it
-        auto get_mangled_name() const
-            -> native_string_type const&
-        {
-            return base_name_;
         }
 
         auto dump( std::ostream& os, std::string const& indent ) const
@@ -139,7 +130,6 @@ namespace rill
             return array_detail_ != nullptr;
         }
 
-
     public:
         struct array_detail
         {
@@ -163,7 +153,7 @@ namespace rill
 
 
     private:
-        native_string_type base_name_, qualified_name_;
+        native_string_type base_name_, mangled_name_;
         class_metatype metatype_;
 
         std::shared_ptr<array_detail> array_detail_;
