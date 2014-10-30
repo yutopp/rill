@@ -1632,58 +1632,6 @@ namespace rill
             }
 
 
-#if 0
-            case kind::type_value::e_template_set:
-            {
-                std::cout << "TEMPLATE SET" << std::endl;
-                auto const& template_set_env
-                    = std::static_pointer_cast<template_set_environment>( found_env );
-
-                switch( template_set_env->get_inner_env_symbol_kind() ) {
-                case kind::type_value::e_class:
-                {
-                    // DO NOT FORGET TO CONNECT to the instances type from ast
-
-
-                    // Class identifier should be "type" type...?
-                    // COUTION: type_class_env will be multiple_set
-                    auto const& type_class_env = root_env_->lookup( ast::make_identifier( "type" ) );
-                    assert( type_class_env != nullptr );  // literal type must exist
-
-                    auto const& ty_id = type_class_env->make_type_id(
-                        type_class_env,
-                        determine_type_attributes()
-                        );
-
-                    return type_detail_pool_->construct(
-                        (type_id_t)type_id_nontype::e_template_class,
-                        found_env,
-                        nullptr/*not nested*/,
-                        std::make_shared<type_detail::template_arg_type>()
-                        );
-                }
-
-                case kind::type_value::e_function:
-                {
-                    return type_detail_pool_->construct(
-                        (type_id_t)type_id_nontype::e_function,
-                        found_env,
-                        nullptr/*not nested*/,
-                        std::make_shared<type_detail::template_arg_type>()
-                        );
-                }
-
-                default:
-                    std::cerr << "kind: " << debug_string( template_set_env->get_inner_env_symbol_kind() ) << std::endl;
-                    assert( false && "[[error]] this template set was not supported yet..." );
-                    break;
-                }
-                break;
-            }
-#endif
-
-
-
             default:
                 std::cerr << "kind: " << debug_string( found_env->get_symbol_kind() ) << std::endl;
                 assert( false && "[[CE]] invalid..." );
