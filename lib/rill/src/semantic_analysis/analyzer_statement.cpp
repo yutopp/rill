@@ -142,7 +142,22 @@ namespace rill
                                              iv_type_d->type_id,
                                              parent_env
                                              )
-                                )
+                                );
+
+                            switch( level ) {
+                            case function_match_level::k_exact_match:
+                                std::cout << "Exact" << std::endl;
+                                break;
+                            case function_match_level::k_qualifier_conv_match:
+                                std::cout << "Qual" << std::endl;
+                                break;
+                            case function_match_level::k_implicit_conv_match:
+                                std::cout << "Implicit" << std::endl;
+                                break;
+                            case function_match_level::k_no_match:
+                                std::cout << "NoMatch" << std::endl;
+                                assert( false && "[[error]] This value can not be assigned(type conversion)" );
+                            }
                         }
                     });
 
