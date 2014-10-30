@@ -1,0 +1,23 @@
+machine:
+  services:
+    - docker
+
+dependencies:
+  override:
+    - docker info
+    - docker images
+    - docker build -t yutopp/testing-env-for-rill ./circleci
+
+test:
+  override:
+    - ls -la
+    - >
+      docker run -v $(pwd):/rill_root -v $CIRCLE_ARTIFACTS:/artifacts yutopp/testing-env-for-rill /usr/bin/bash -c
+      "
+      cd /rill_root;
+      mkdir build;
+      cd build;
+      cmake ../. -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -DRUN_TEST=ON &&
+      make -j8 &&
+      make test;
+      "

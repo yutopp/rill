@@ -1,7 +1,7 @@
 # Rill Programming Language
 **experimental...**
 ![chi-](http://yutopp.net/image/chi-.png "Bun")
-[![Build Status](https://travis-ci.org/yutopp/rill.svg?branch=m@ster)](https://travis-ci.org/yutopp/rill)
+[![Circle CI](https://circleci.com/gh/yutopp/rill.png?style=badge)](https://circleci.com/gh/yutopp/rill)
 
 Rill is a programming language for java sparrow.
 
