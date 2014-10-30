@@ -74,15 +74,16 @@ namespace rill
         RILL_VISITOR_OP( analyzer, ast::variable_declaration_statement, s, parent_env )
         {
             auto const related_env = parent_env->get_related_env_by_ast_ptr( s );
-
-            if ( related_env != nullptr ) {
-                assert( false && "[ice] duplicate..." );
-            }
+            assert( related_env == nullptr && "[[ice]]" ); // ??
 
             auto const& val_decl = s->declaration_;
             // TODO: decl_unit will be unit_list
             // for( auto const& unit : val_decl.decl_unit_list ) {
             auto const& unit = val_decl.decl_unit;
+
+            if ( auto const& v = parent_env->find_on_env( unit.name ) ) {
+                assert( false && "[[error]] variable is already defined" );
+            }
 
             // initial value
             auto const& iv_type_d
@@ -155,12 +156,12 @@ namespace rill
 
                 //
                 parent_env->construct(
-                                kind::k_variable,
-                                unit.name,
-                                s,
-                                c_env,
-                                ty.attributes
-                                );
+                    kind::k_variable,
+                    unit.name,
+                    s,
+                    c_env,
+                    ty.attributes
+                    );
             }
         }
 
