@@ -185,12 +185,14 @@ namespace rill
         RILL_AST_BEGIN(
             can_be_template_statement, statement,
             (( identifier_value_ptr, identifier_ ))
-            (( bool, is_templated_ ))
+            (( bool, is_template_layout_ ))
+            (( bool, is_templated_clone_ ))
             )
         public:
             can_be_template_statement( identifier_value_ptr const& id )
                 : identifier_( id )
-                , is_templated_( false )
+                , is_template_layout_( false )
+                , is_templated_clone_( false )
             {}
 
         public:
@@ -200,20 +202,36 @@ namespace rill
                 return identifier_;
             }
 
-            void mark_as_template()
+            void mark_as_template_layout()
             {
-                is_templated_ = true;
+                is_template_layout_ = true;
             }
 
-            void mark_as_nontemplate()
+            void mark_as_nontemplate_layout()
             {
-                is_templated_ = false;
+                is_template_layout_ = false;
             }
 
-            auto is_templated() const
+            auto is_template_layout() const
                 -> bool
             {
-                return is_templated_;
+                return is_template_layout_;
+            }
+
+            void mark_as_templated_clone()
+            {
+                is_templated_clone_ = true;
+            }
+
+            void mark_as_nontemplated_clone()
+            {
+                is_templated_clone_ = false;
+            }
+
+            auto is_templated_clone() const
+                -> bool
+            {
+                return is_templated_clone_;
             }
         RILL_AST_END
 
@@ -259,6 +277,8 @@ namespace rill
                 -> can_be_template_statement_ptr
             {
                 auto const& cloned = clone( inner_ );
+                cloned->mark_as_nontemplate_layout();
+                cloned->mark_as_templated_clone();
 
                 cloned_inners_.push_back( cloned );
 

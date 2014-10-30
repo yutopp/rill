@@ -52,11 +52,11 @@ namespace rill
             // Function symbol that on (global | namespace)
 
             std::cout << "IdentifierCollector::Function" << std::endl
-                      << " collected    : " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
-                      << " param_num    : " << s->get_parameter_list().size() << std::endl
-                      << " is_templated : " << s->is_templated() << std::endl;
+                      << " collected          : " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
+                      << " param_num          : " << s->get_parameter_list().size() << std::endl
+                      << " is_template_layout : " << s->is_template_layout() << std::endl;
 
-            if ( s->is_templated() ) {
+            if ( s->is_template_layout() ) {
                 auto&& multiset_env = cast_to<multiple_set_environment>( env );
                 assert( multiset_env != nullptr );
 
@@ -96,7 +96,7 @@ namespace rill
             std::cout << "collected : " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
                       << "param_num : " << s->get_parameter_list().size() << std::endl;
 
-            if ( s->is_templated() ) {
+            if ( s->is_template_layout() ) {
                 assert( false && "[ice] not implemented" );
 
             } else {
@@ -116,7 +116,7 @@ namespace rill
         {
             // Class symbol that on (global | namespace)
 
-            if ( s->is_templated() ) {
+            if ( s->is_template_layout() ) {
                 auto&& multiset_env = cast_to<multiple_set_environment>( env );
                 assert( multiset_env != nullptr );
 
@@ -159,7 +159,7 @@ namespace rill
             std::cout << "collected : " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
                       << "param_num : " << s->get_parameter_list().size() << std::endl;
 
-            if ( s->is_templated() ) {
+            if ( s->is_template_layout() ) {
                 assert( false && "[ice] not implemented" );
 
             } else {
@@ -194,7 +194,7 @@ namespace rill
         RILL_VISITOR_OP( identifier_collector, ast::template_statement, s, parent_env ) const
         {
             // mark inner AST node as templated
-            s->get_inner_statement()->mark_as_template();
+            s->get_inner_statement()->mark_as_template_layout();
 
             // make template envitonment with linking to this AST node
             RILL_PP_TIE( multiset_env, template_env, parent_env->mark_as( kind::k_template, s->get_identifier(), s ) );

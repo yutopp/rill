@@ -63,13 +63,6 @@ namespace rill
         {
             return kind::type_value::e_multi_set;
         }
-#if 0
-        auto get_inner_symbol_kind() const
-            -> kind::type_value RILL_CXX11_OVERRIDE
-        {
-            return kind::type_value::inner_env_symbol_kind_;
-        }
-#endif
 
         //
         auto get_representation_kind() const
@@ -137,10 +130,27 @@ namespace rill
             return template_envs_.push_back( env );
         }
 
-        auto add_to_instanced_environments( environment_base_ptr const& env )
+        auto add_to_instanced_environments(
+            environment_base_ptr const& env,
+            std::string const& cache_signature
+            )
             -> void
         {
+            instanced_cache_[cache_signature] = env;
             return instanced_envs_.push_back( env );
+        }
+
+        auto find_instanced_environments(
+            std::string const& cache_signature
+            ) const
+            -> environment_base_ptr
+        {
+            auto it = instanced_cache_.find( cache_signature );
+            if ( it == instanced_cache_.cend() ) {
+                return nullptr;
+            }
+
+            return it->second;
         }
 
     public:
@@ -163,7 +173,9 @@ namespace rill
 
         std::vector<environment_base_ptr> normal_envs_;
         std::vector<template_environment_ptr> template_envs_;
+
         std::vector<environment_base_ptr> instanced_envs_;
+        std::unordered_map<std::string, environment_base_ptr> instanced_cache_;
     };
 
 } // namespace rill

@@ -21,6 +21,7 @@ def main(): int
 
     val c = f( a * b );
     p( c );
+
     return 0;
 }
 
@@ -54,8 +55,4 @@ class TestClass
     }
 
     val a: mutable(int);
-}
-
-class HogeHuga
-{
 }

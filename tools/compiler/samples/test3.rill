@@ -1,0 +1,16 @@
+def main(): int
+{
+    val a: HogeHuga!(int, int) = HogeHuga!(int, int)();
+
+    return 0;
+}
+
+template(T: type, U: type)
+class HogeHuga
+{
+    def ctor()
+    {
+    }
+
+    val a: T;
+}

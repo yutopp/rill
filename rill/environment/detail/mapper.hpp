@@ -36,8 +36,7 @@ namespace rill
             assert( ast_ptr != nullptr );
 
             if ( map_.find( ast_ptr->get_id() ) != map_.cend() ) {
-                std::cout << "Already mapped..." << std::endl;
-                std::cout << "env id -> " << map_.at( ast_ptr->get_id() )->get_id() << std::endl;
+                std::cout << "Already mapped... :: env id -> " << map_.at( ast_ptr->get_id() )->get_id() << std::endl;
             }
 
             map_.emplace( ast_ptr->get_id(), env_ptr );

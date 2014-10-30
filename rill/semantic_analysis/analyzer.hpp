@@ -262,10 +262,23 @@ namespace rill
                 )
                 -> std::vector<variable_symbol_environment_ptr>;
 
+            auto make_template_cache_string(
+                std::vector<variable_symbol_environment_ptr> const& decl_template_var_envs
+                )
+                -> std::string;
+
+            auto make_template_cache_string(
+                ast::parameter_list const& template_parameters,
+                environment_base_ptr const& inner_env,
+                environment_base_ptr const& parent_env
+                )
+                -> std::vector<variable_symbol_environment_ptr>;
+
             auto assign_explicit_template_parameters(
                 ast::parameter_list const& template_parameters,
                 std::vector<variable_symbol_environment_ptr> const& decl_template_var_envs,
-                type_detail::template_arg_pointer const& template_args
+                type_detail::template_arg_pointer const& template_args,
+                environment_base_ptr const& parent_env
                 )
                 -> bool;
 

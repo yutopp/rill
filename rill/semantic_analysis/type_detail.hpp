@@ -37,11 +37,11 @@ namespace rill
             k_type = 0,
             k_alias = 1,/*unused*/
 
-                k_int32 = 10,
-                k_string = 11,
-                k_array = 12,
+            k_int32 = 10,
+            k_string = 11,
+            k_array = 12,
 
-                k_none = 404
+            k_none = 404
         };
         // TODO: move to any where
 
@@ -56,6 +56,7 @@ namespace rill
                 type_detail_ptr         element_type_detail;
                 void*                   element;
                 dependent_value_kind    kind;
+                type_id_t               type_id;
 
                 inline auto is_type() const
                    -> bool

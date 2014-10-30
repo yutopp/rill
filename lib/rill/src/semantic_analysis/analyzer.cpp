@@ -185,6 +185,8 @@ namespace rill
             s += [&]() {
                 switch( attr.quality )
                 {
+                case attribute::holder_kind::k_suggest:
+                    return "LET";
                 case attribute::holder_kind::k_val:
                     return "VAL";
                 case attribute::holder_kind::k_ref:
@@ -338,7 +340,8 @@ namespace rill
         auto analyzer::assign_explicit_template_parameters(
             ast::parameter_list const& template_parameters,
             std::vector<variable_symbol_environment_ptr> const& decl_template_var_envs,
-            type_detail::template_arg_pointer const& template_args
+            type_detail::template_arg_pointer const& template_args,
+            environment_base_ptr const& parent_env
             )
             -> bool
         {
@@ -359,7 +362,20 @@ namespace rill
 
                 // DEBUG
                 {
+                    auto const& tt
+                        = root_env_->get_type_at( template_arg.type_id );
+
+                    auto const& c_e
+                        = std::static_pointer_cast<class_symbol_environment const>(
+                            root_env_->get_env_strong_at(
+                                tt.class_env_id
+                                )
+                            );
+
+                    std::cout << "[parameter type]: " << c_e->get_qualified_name() << std::endl;
+
                     if ( template_arg.is_type() ) {
+                        std::cout << "type: inner value is " << std::endl;
                         auto const& t_detail
                             = static_cast<type_detail_ptr>( template_arg.element );
                         assert( t_detail != nullptr );
@@ -381,22 +397,103 @@ namespace rill
                         std::cout << "BINDED " << template_var_env->get_id()
                                   << " -> " << c_e->get_qualified_name() << std::endl;
                     } else {
-                        std::cout << "value" << std::endl;
+                        std::cout << "value: " << std::endl;
                     }
+                } // debug
+
+                // type check
+                RILL_PP_TIE( level, conv_function_env,
+                             try_type_conversion(
+                                 template_var_env->get_type_id(),
+                                 template_arg.type_id,
+                                 parent_env
+                                 )
+                    );
+
+                // TODO: fix
+                switch( level ) {
+                case function_match_level::k_exact_match:
+                    std::cout << "Exact" << std::endl;
+                    break;
+                case function_match_level::k_qualifier_conv_match:
+                    std::cout << "Qual" << std::endl;
+                    break;
+                case function_match_level::k_implicit_conv_match:
+                    std::cout << "Implicit" << std::endl;
+                    return false;
+                case function_match_level::k_no_match:
+                    std::cout << "NoMatch" << std::endl;
+                    return false;
                 }
 
-                // TODO: type check
+                // save
+                if ( template_arg.is_type() ) {
+                    auto const& t_detail
+                        = static_cast<type_detail_ptr>( template_arg.element );
+                    ctfe_engine_->value_holder()->bind_value(
+                        template_var_env->get_id(),
+                        t_detail
+                        );
 
-                // TODO: fix...
-                //ctfe_engine_->value_holder()->bind_value(
-                //    template_var_env->get_id(),
-                //    template_arg
-                //    );
+                } else {
+                    ctfe_engine_->value_holder()->bind_value(
+                        template_var_env->get_id(),
+                        template_arg.element
+                        );
+                }
             }
 
             return true;
         }
 
+        // FIXME: logic
+        auto analyzer::make_template_cache_string(
+            std::vector<variable_symbol_environment_ptr> const& decl_template_var_envs
+            )
+            -> std::string
+        {
+            std::string s;
+
+            for( auto const& var_env : decl_template_var_envs ) {
+                auto const& ty
+                    = root_env_->get_type_at( var_env->get_type_id() );
+                auto const& c_env
+                    = root_env_->get_env_at_as_strong_ref<class_symbol_environment const>( ty.class_env_id );
+                assert( c_env != nullptr );
+
+                // value bound to this env
+                auto const& evaled_value
+                    = ctfe_engine_->value_holder()->ref_value( var_env->get_id() );
+                assert( evaled_value != nullptr );
+
+                // TODO: fix cond
+                if ( c_env->get_base_name() == "type" ) {
+                    auto const& ty_detail
+                        = static_cast<type_detail_ptr>( evaled_value );
+                    auto const& val_ty
+                        = root_env_->get_type_at( ty_detail->type_id );
+                    auto const& val_c_env
+                        = root_env_->get_env_at_as_strong_ref<class_symbol_environment const>( val_ty.class_env_id );
+                    assert( val_c_env != nullptr );
+                    s += "T/";
+                    s += make_mangled_name( val_c_env, val_ty.attributes );
+
+                } else if ( c_env->get_base_name() == "int" ) {
+                    auto const& num
+                        = static_cast<std::int32_t const* const>( evaled_value );
+                    s += "I32/";
+                    s += std::to_string( *num );
+
+                } else {
+                    std::cout << c_env->get_base_name() << std::endl;
+                    assert( false && "[[ice]] value parameter was not supported yet" );
+                }
+
+                s += ":";
+            }
+
+            return s;
+        }
 
         //
         auto analyzer::instantiate_class_templates(
@@ -430,7 +527,7 @@ namespace rill
                 assert( class_def_ast != nullptr );
                 assert( class_def_ast->get_identifier() != nullptr );
 
-                // construct incomplete function emvironment frame
+                // construct incomplete function environment frame
                 auto instanting_c_env
                     = multiset_env->allocate_inner_env<class_symbol_environment>(
                         class_def_ast->get_identifier()->get_inner_symbol()->to_native_string()
@@ -449,29 +546,45 @@ namespace rill
                     = assign_explicit_template_parameters(
                         template_ast->parameter_list_,
                         decl_template_var_envs,
-                        template_args
+                        template_args,
+                        parent_env
                         );
                 assert( is_succeeded && "" );
 
-                //
-                // class instanciation
-                if ( !complete_class(
-                         class_def_ast,
-                         instanting_c_env,
-                         template_args
-                         )
-                    ) {
-                    // Already completed...
-                    // maybe, error...
-                    assert( false );
-                    continue;
+                // TODO: relocate cache evaluation
+                auto const cache_string
+                    = make_template_cache_string( decl_template_var_envs );
+
+                std::cout << "========================================== !!!!! => " << cache_string << std::endl;
+                if ( auto const& cache = multiset_env->find_instanced_environments( cache_string ) ) {
+                    //
+                    auto const& cached_c_env = cast_to<class_symbol_environment>( cache );
+                    xc.push_back( cached_c_env );
+
+                    // TODO: remove instanting_c_env
+
+                } else {
+                    // collect identifiers
+                    if ( class_def_ast->inner_ != nullptr ) {
+                        collect_identifier( instanting_c_env, class_def_ast->inner_ );
+                    }
+
+                    //
+                    // class instanciation
+                    if ( !complete_class( class_def_ast, instanting_c_env, template_args ) ) {
+                        // Already completed...
+                        // maybe, error...
+                        assert( false );
+                        continue;
+                    }
+
+                    // link
+                    instanting_c_env->link_with_ast( class_def_ast );
+                    multiset_env->add_to_instanced_environments( instanting_c_env, cache_string );
+
+                    //
+                    xc.push_back( instanting_c_env );
                 }
-
-                // link
-                instanting_c_env->link_with_ast( class_def_ast );
-                multiset_env->add_to_instanced_environments( instanting_c_env );
-
-                xc.push_back( instanting_c_env );
 
                 std::cout << colorize::standard::fg::red
                           << "!!!! END: template: " << std::endl
@@ -622,16 +735,32 @@ namespace rill
                 auto ta = [&]() -> type_detail::dependent_type {
                     // TODO: fix cond
                     if ( c_env->get_base_name() == "type" ) {
+                        auto const& c_env = get_primitive_class_env( "type" );
                         return {
                             argument_ty_detail,
                             static_cast<type_detail_ptr>( argument_evaled_value ),
-                            dependent_value_kind::k_type
+                            dependent_value_kind::k_type,
+                            root_env_->make_type_id(
+                                c_env,
+                                attribute::make_type_attributes(
+                                    attribute::holder_kind::k_val,
+                                    attribute::modifiability_kind::k_immutable
+                                    )
+                                )
                         };
-                    } if ( c_env->get_base_name() == "int" ) {
+                    } else if ( c_env->get_base_name() == "int" ) {
+                        auto const& c_env = get_primitive_class_env( "int" );
                         return {
                             argument_ty_detail,
                             argument_evaled_value,
-                            dependent_value_kind::k_int32
+                            dependent_value_kind::k_int32,
+                            root_env_->make_type_id(
+                                c_env,
+                                attribute::make_type_attributes(
+                                    attribute::holder_kind::k_val,
+                                    attribute::modifiability_kind::k_immutable
+                                    )
+                                )
                         };
 
                     } else {
@@ -1015,7 +1144,7 @@ namespace rill
         }
 
         auto analyzer::instantiate_function_templates(
-            multiple_set_environment_ptr const& set_env,
+            multiple_set_environment_ptr const& multiset_env,
             std::vector<type_detail_ptr> const& arg_types,
             type_detail::template_arg_pointer const& template_args,
             environment_base_ptr const& parent_env
@@ -1023,7 +1152,7 @@ namespace rill
             -> void
         {
             // solve FUNCTION template
-            for( auto&& env : set_env->get_template_environments() ) {
+            for( auto&& env : multiset_env->get_template_environments() ) {
                 std::cout << colorize::standard::fg::red
                       << "!!!! template: " << std::endl
                       << colorize::standard::reset
@@ -1046,7 +1175,7 @@ namespace rill
 
                 // construct incomplete function emvironment frame
                 auto instanting_f_env
-                    = set_env->allocate_inner_env<function_symbol_environment>(
+                    = multiset_env->allocate_inner_env<function_symbol_environment>(
                         function_def_ast->get_identifier()->get_inner_symbol()->to_native_string()
                         );
 
@@ -1067,7 +1196,8 @@ namespace rill
                         = assign_explicit_template_parameters(
                             template_ast->parameter_list_,
                             decl_template_var_envs,
-                            template_args
+                            template_args,
+                            parent_env
                             );
                     assert( is_succeeded && "" );
                 }
@@ -1139,7 +1269,18 @@ namespace rill
 
                 // TODO: check existance of incomplete template vaiables
 
-                //
+                // TODO: relocate cache evaluation
+                auto const cache_string
+                    = make_template_cache_string( decl_template_var_envs );
+
+                std::cout << "========================================== !!!!! => " << cache_string << std::endl;
+                if ( auto const& cache = multiset_env->find_instanced_environments( cache_string ) ) {
+                    ;
+                } else {
+                    ;
+                }
+
+                // declare parameter variable(NOT template)
                 for( std::size_t i=0; i<presetted_param_types.size(); ++i ) {
                     auto const& e = function_def_ast->get_parameter_list()[i];
                     auto const& ty_id = presetted_param_types[i]->type_id;
@@ -1177,7 +1318,7 @@ namespace rill
                 instanting_f_env->link_with_ast( function_def_ast );
 
                 //
-                set_env->add_to_instanced_environments( instanting_f_env );
+                multiset_env->add_to_instanced_environments( instanting_f_env, cache_string );
 
                 std::cout << colorize::standard::fg::red
                           << "!!!! END: template: " << std::endl

@@ -11,10 +11,6 @@
 
 #include <memory>
 #include <unordered_map>
-#include <unordered_set>
-#include <vector>
-
-#include <llvm/IR/DerivedTypes.h>
 
 #include "../../semantic_analysis/type_detail.hpp"
 
@@ -43,6 +39,19 @@ namespace rill
                 {
                     //
                     storage_table_[env_id] = value;
+                }
+
+                auto bind_value( environment_id_t const& env_id, void* const value )
+                    -> void
+                {
+                    //
+                    auto it = temporary_storages_.find( value );
+                    if ( it == temporary_storages_.cend() ) {
+                        assert( false && "[ice]" );
+                    }
+
+                    storage_table_[env_id] = it->second;
+                    temporary_storages_.erase( it );
                 }
 
 
@@ -91,14 +100,14 @@ namespace rill
                 auto bind_as_temporary( std::shared_ptr<char> const& value )
                     -> void
                 {
-                    temporary_storages_.insert( value );
+                    temporary_storages_[value.get()] = value;
                 }
 
             private:
                 std::unordered_map<environment_id_t, semantic_analysis::type_detail_ptr> type_detail_table_;
                 std::unordered_map<environment_id_t, std::shared_ptr<char>> storage_table_;
 
-                std::unordered_set<std::shared_ptr<char>> temporary_storages_;
+                std::unordered_map<void*, std::shared_ptr<char>> temporary_storages_;
             };
 
         } // namespace llvm_engine
