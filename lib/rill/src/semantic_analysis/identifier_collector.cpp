@@ -181,6 +181,13 @@ namespace rill
         {
             assert( parent_env->get_symbol_kind() == kind::type_value::e_class );
 
+            // prevent redefinition
+            auto const& val_decl = s->declaration_;
+            auto const& unit = val_decl.decl_unit;
+            if ( auto const& v = parent_env->find_on_env( unit.name ) ) {
+                assert( false && "[[error]] variable is already defined" );
+            }
+
             // variable declared in class scope should be forward referencable
 
             // add variable symbol to current environment

@@ -213,7 +213,6 @@ namespace rill
             // for( auto const& unit : val_decl.decl_unit_list ) {
             auto const& unit = val_decl.decl_unit;
 
-
             // TODO: make method to determine "type"
 
             // unit.kind -> val or ref
