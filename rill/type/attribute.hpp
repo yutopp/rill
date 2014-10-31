@@ -27,10 +27,10 @@ namespace rill
 
         enum class modifiability_kind
         {
-            k_none,
             k_mutable,
             k_const,
             k_immutable,
+            k_none,
             last
         };
 

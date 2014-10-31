@@ -345,6 +345,7 @@ namespace rill
             return class_env;
         }
 
+
         //
         auto make_mangled_name(
             const_class_symbol_environment_ptr const& c_env,
@@ -364,6 +365,14 @@ namespace rill
             boost::optional<std::reference_wrapper<std::string const>> const& template_signature = boost::none
             )
             -> std::string;
+
+
+        //
+        auto delegate_parent_attributes(
+            attribute::type_attributes const& parent_attributes,
+            attribute::type_attributes const& child_attributes
+            )
+            -> attribute::type_attributes;
 
     } // namespace semantic_analysis
 } // namespace rill

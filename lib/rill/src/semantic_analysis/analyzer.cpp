@@ -270,6 +270,25 @@ namespace rill
 
 
         //
+        auto delegate_parent_attributes(
+            attribute::type_attributes const& parent_attributes,
+            attribute::type_attributes const& child_attributes
+            )
+            -> attribute::type_attributes
+        {
+            attribute::type_attributes new_attr = child_attributes;
+
+            // delegate modifiability
+            // if parent has strong modifiability than that of child
+            if ( parent_attributes.modifiability > child_attributes.modifiability ) {
+                new_attr.modifiability = parent_attributes.modifiability;
+            }
+
+            return new_attr;
+        }
+
+
+        //
         auto analyzer::qualify_type(
             type_detail_ptr const& ty_detail,
             attribute::type_attributes const& type_attr
@@ -338,7 +357,7 @@ namespace rill
                                 = inner_env->construct(
                                     kind::k_variable,
                                     template_parameter.decl_unit.name,
-                                    nullptr/*TODO: change to valid ptr to ast*/,
+                                    nullptr,    // TODO: change to valid ptr to ast
                                     class_env,
                                     ty.attributes
                                     );
@@ -886,6 +905,8 @@ namespace rill
                         break;
                     case attribute::modifiability_kind::k_mutable:
                         return boost::none;
+                    default:
+                        assert( false );
                     } // switch( parameter_attributes.attributes.modifiability )
                     break;
 
@@ -897,6 +918,8 @@ namespace rill
                         break;
                     case attribute::modifiability_kind::k_mutable:
                         return boost::none;
+                    default:
+                        assert( false );
                     } // switch( parameter_attributes.attributes.modifiability )
                     break;
 
@@ -908,8 +931,13 @@ namespace rill
                     case attribute::modifiability_kind::k_const:
                     case attribute::modifiability_kind::k_mutable:
                         break;
+                    default:
+                        assert( false );
                     } // switch( target_type.attributes.modifiability )
                     break;
+
+                default:
+                    assert( false );
                 } // switch( parameter_attributes.modifiability )
 
                 result_attr <<= attribute::holder_kind::k_ref;
@@ -1039,7 +1067,7 @@ namespace rill
 
                 if ( param_type.class_env_id == arg_type.class_env_id ) {
                     // same class, so check quarity conversion
-                    if ( auto&& attribute_opt = qualifier_conversion( param_type.attributes, arg_type.attributes ) ) {
+                    if ( qualifier_conversion( param_type.attributes, arg_type.attributes ) ) {
                         // qualifier conversion match
                         return std::make_tuple(
                             function_match_level::k_qualifier_conv_match,

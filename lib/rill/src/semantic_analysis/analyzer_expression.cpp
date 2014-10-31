@@ -215,6 +215,7 @@ namespace rill
             // TODO: support function, class, namespace...
             // "Expr.B" will be passed when the value "Expr" is type_id symbol(currently, only variable type has type_id)
             if ( is_type_id( reciever_type_detail->type_id ) ) {
+                // reciever has type, so this is member access flow
                 auto const& reciever_type
                     = parent_env->get_type_at( reciever_type_detail->type_id );
                 assert( reciever_type.class_env_id != environment_id_undefined );
@@ -236,11 +237,7 @@ namespace rill
                 // <- old [first evaled reciever type, second evaled..., ..., last evaled reciever type] -> new
                 nested->push_back( reciever_type_detail );
 
-                // ========================================
-                // use solve_identifier directly instead of doing dispatch
-                // FIXME:
-
-
+                //
                 auto const& new_selector_id_type_detail = [&]() {
                     auto const& selector_id_type_detail
                         = e->selector_id_->is_template()
@@ -257,12 +254,42 @@ namespace rill
                         ;
 
                     if ( selector_id_type_detail != nullptr ) {
-                        return type_detail_pool_->construct(
-                            selector_id_type_detail->type_id,
-                            selector_id_type_detail->target_env,
-                            nested,
-                            selector_id_type_detail->template_args
-                            );
+                        if ( is_type_id( selector_id_type_detail->type_id )
+                             && selector_id_type_detail->type_id != reciever_type_detail->type_id )
+                        {
+                            // a selected item has type too, so this is variable flow
+                            // at least, parent's attributes are different from child. delegate it from parent
+                            auto const& selector_type
+                                = root_env_->get_type_at( selector_id_type_detail->type_id );
+                            assert( selector_type.class_env_id != environment_id_undefined );
+
+                            auto const new_attr
+                                = delegate_parent_attributes(
+                                    reciever_type.attributes,
+                                    selector_type.attributes
+                                    );
+                            auto const new_type_id
+                                = root_env_->make_type_id(
+                                    selector_type.class_env_id,
+                                    new_attr
+                                    );
+
+                            return type_detail_pool_->construct(
+                                new_type_id,
+                                selector_id_type_detail->target_env,
+                                nested,
+                                selector_id_type_detail->template_args
+                                );
+
+                        } else {
+                            // delegate as it is
+                            return type_detail_pool_->construct(
+                                selector_id_type_detail->type_id,
+                                selector_id_type_detail->target_env,
+                                nested,
+                                selector_id_type_detail->template_args
+                                );
+                        }
 
                     } else {
                         // identifier was not found, but it will be reused by UFCS, so make temporary type data
