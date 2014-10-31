@@ -73,7 +73,7 @@ namespace rill
             }
 
         public:
-            std::size_t line, column, length;
+            std::size_t line, column;
 
         private:
             static detail::ast_id_generator igen_;

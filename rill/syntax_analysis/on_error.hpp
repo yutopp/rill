@@ -39,7 +39,6 @@ namespace rill
 
         } // namespace detail
 
-
         class on_error_annotator_base
         {
         public:

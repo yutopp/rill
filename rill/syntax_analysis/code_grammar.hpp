@@ -20,6 +20,7 @@
 #define R   RILL_RULE
 #define RC  RILL_RULE_WITH_ANNOTATOR
 
+
 namespace rill
 {
     namespace syntax_analysis
