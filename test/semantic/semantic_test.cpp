@@ -25,6 +25,21 @@
 
 BOOST_AUTO_TEST_SUITE( Semantic )
 
+BOOST_AUTO_TEST_CASE( pass_test_0a )
+{
+    auto a = rill::attribute::make(
+        rill::attribute::modifiability_kind::k_immutable
+        );
+
+    auto b = rill::attribute::type_attributes{
+        rill::attribute::holder_kind::k_suggest,
+        rill::attribute::modifiability_kind::k_immutable,
+        rill::attribute::lifetime_kind::k_scoped,
+    };
+
+    BOOST_CHECK( a == b );
+}
+
 BOOST_AUTO_TEST_CASE( pass_test_0 )
 {
     PASS( R"s(

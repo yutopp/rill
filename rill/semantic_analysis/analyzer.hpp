@@ -103,6 +103,7 @@ namespace rill
 
             auto eval_type_expression_as_ctfe(
                 ast::id_expression_ptr const& id_expression,
+                attribute::type_attributes const& rap_attr,
                 environment_base_ptr const& parent_env
                 ) -> type_detail_ptr;
 
@@ -158,17 +159,17 @@ namespace rill
             }
 
         private:
-            template<typename F>
+            template<typename Attr, typename F>
             auto resolve_type(
                 ast::id_expression_ptr const& id_expression,
-                attribute::holder_kind const& holder_kind,
+                Attr const& attr,
                 environment_base_ptr const& parent_env,
                 F const& callback
                 ) -> type_detail_ptr
             {
                 std::cout << "solve_type :before_eval" << std::endl;
                 auto const ty_detail
-                    = eval_type_expression_as_ctfe( id_expression, holder_kind, parent_env );
+                    = eval_type_expression_as_ctfe( id_expression, attr, parent_env );
                 auto const& ty_id = ty_detail->type_id;
                 std::cout << "solve_type :after_eval" << std::endl;
 

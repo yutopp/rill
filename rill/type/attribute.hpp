@@ -45,11 +45,18 @@ namespace rill
 
         struct type_attributes
         {
-            attribute::holder_kind quality;
+            attribute::holder_kind quality; // TODO: rename
             attribute::modifiability_kind modifiability;
             attribute::lifetime_kind lifetime;
         };
 
+        inline auto operator==( type_attributes const& lhs, type_attributes const& rhs )
+            -> bool
+        {
+            return lhs.quality == rhs.quality
+                && lhs.modifiability == rhs.modifiability
+                && lhs.lifetime == rhs.lifetime;
+        }
 
         inline auto operator<<( std::ostream& os, holder_kind const& k )
             -> std::ostream&
@@ -316,6 +323,68 @@ namespace rill
         }
 
 
+        namespace detail
+        {
+            inline void overlap_empty(
+                attribute::type_attributes& attr,
+                attribute::holder_kind const& k
+                )
+            {
+                if ( attr.quality == holder_kind::k_suggest ) {
+                    attr.quality = k;
+                }
+            }
+
+            inline void overlap_empty(
+                attribute::type_attributes& attr,
+                attribute::modifiability_kind const& k
+                )
+            {
+                if ( attr.modifiability == attribute::modifiability_kind::k_none ) {
+                    attr.modifiability = k;
+                }
+            }
+
+            template<typename T>
+            void set_overlap_empty_by(
+                attribute::type_attributes& attr,
+                T const& arg
+                )
+            {
+                overlap_empty( attr, arg );
+            }
+
+            template<typename T, typename... Args>
+            void set_overlap_empty_by(
+                attribute::type_attributes& attr,
+                T const& arg,
+                Args const&... args
+                )
+            {
+                overlap_empty( attr, arg );
+                set_overlap_empty_by( attr, args... );
+            }
+        } // namespace detail
+
+        inline auto overlap_empty_attr(
+            attribute::type_attributes a,  // copy
+            attribute::type_attributes const& b
+            )
+            -> attribute::type_attributes
+        {
+            detail::set_overlap_empty_by(
+                a,
+                b.quality,
+                b.modifiability
+                );
+
+            return a;
+        }
+
+
+
+
+
         template<typename T>
         auto operator<<=( type_attributes& attr, T const& t )
             -> type_attributes&
@@ -341,6 +410,21 @@ namespace rill
             -> type_attributes
         {
             type_attributes attr = make_default_type_attributes();
+            detail::set( attr, args... );
+            return attr;
+        }
+
+        auto inline make_default()
+            -> type_attributes
+        {
+            return { holder_kind::k_val, modifiability_kind::k_immutable };
+        }
+
+        template<typename... Args>
+        auto inline make( Args const&... args )
+            -> type_attributes
+        {
+            type_attributes attr = make_empty_type_attributes();
             detail::set( attr, args... );
             return attr;
         }

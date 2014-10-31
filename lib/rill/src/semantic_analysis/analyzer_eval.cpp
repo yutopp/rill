@@ -60,11 +60,11 @@ namespace rill
                 );
         }
 
-
         // for Template Instance Identifier
         // guarantees the return type is TYPE
         auto analyzer::eval_type_expression_as_ctfe(
             ast::id_expression_ptr const& id_expression,
+            attribute::type_attributes const& rap_attr,
             environment_base_ptr const& parent_env
             ) -> type_detail_ptr
         {
@@ -82,28 +82,14 @@ namespace rill
 
             //
             if ( c_env->get_base_name() != "type" ) {
-                assert( false && "[[ice]] value parameter was not supported yet" );
+                assert( false && "[[ice]] not 'type' type" );
             }
 
-            return static_cast<type_detail_ptr>( evaled_value );
-        }
+            auto ty_d = static_cast<type_detail_ptr>( evaled_value );
 
-        // for Template Instance Identifier
-        // guarantees the return type is TYPE
-        auto analyzer::eval_type_expression_as_ctfe(
-            ast::id_expression_ptr const& id_expression,
-            attribute::holder_kind const& holder_kind,
-            environment_base_ptr const& parent_env
-            ) -> type_detail_ptr
-        {
-            auto ty_d = eval_type_expression_as_ctfe(
-                id_expression,
-                parent_env
-                );
-
-            std::cout << "APPENDAPPENDAPPEND" << std::endl;
+            std::cout << "APPEND attributes" << std::endl;
             auto ty = root_env_->get_type_at( ty_d->type_id ); // make copy
-            ty.attributes <<= holder_kind;
+            ty.attributes = overlap_empty_attr( ty.attributes, rap_attr );
 
             // update type id
             ty_d->type_id = root_env_->make_type_id(
@@ -112,6 +98,19 @@ namespace rill
                 );
 
             return ty_d;
+        }
+
+        auto analyzer::eval_type_expression_as_ctfe(
+            ast::id_expression_ptr const& id_expression,
+            attribute::holder_kind const& holder_kind,
+            environment_base_ptr const& parent_env
+            ) -> type_detail_ptr
+        {
+            return eval_type_expression_as_ctfe(
+                id_expression,
+                attribute::make( holder_kind, attribute::modifiability_kind::k_immutable ),
+                parent_env
+                );
         }
 
     } // namespace semantic_analysis

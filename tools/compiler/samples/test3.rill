@@ -2,8 +2,9 @@ def main(): int
 {
     val a = HogeHuga!(int, int)();
     val b: HogeHuga!(int, string) = HogeHuga!(int, string)();
-    val c: HogeHuga!(void, string) = HogeHuga!(void, string)();
+//    val c: HogeHuga!(void, string) = HogeHuga!(void, string)();
 
+b.b = 72;
     return 0;
 }
 
@@ -19,6 +20,8 @@ class HogeHuga
         this.a;
     }
 
-    val b: U;
-    val a: T;
+    val b: T;
+    val a: U;
 }
+
+extern def mutable( val a :type ): type "rill_abababa";

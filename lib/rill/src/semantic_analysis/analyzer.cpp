@@ -202,6 +202,10 @@ namespace rill
             assert( c_env != nullptr );
             //assert( c_env->is_checked() );
 
+            std::cout << "mangling:: " << c_env->get_mangled_name() << std::endl
+                      << attr << std::endl
+                      << "==========" << std::endl;
+
             std::string s = c_env->get_mangled_name();
 
             s += [&]() {
@@ -226,6 +230,7 @@ namespace rill
                 case attribute::modifiability_kind::k_const:
                     return "CST";
                 case attribute::modifiability_kind::k_immutable:
+                case attribute::modifiability_kind::k_none: // none == immutable
                     return "IMM";
                 default:
                     assert( false );
@@ -674,19 +679,25 @@ namespace rill
                 if ( s->get_identifier()->get_inner_symbol()->to_native_string() == "array" ) {
                     // set special flag as Array
                     // array template args are
-                    // [0]: type
+                    // [0]: type(no attributes by default)
                     // [1]: number of elements
                     assert( template_args->at( 0 ).is_type() );
 
                     auto const& array_element_ty_detail
                         = static_cast<type_detail_ptr>( template_args->at( 0 ).element );
+                    auto ty = root_env_->get_type_at( array_element_ty_detail->type_id ); // make copy
+                    ty.attributes = overlap_empty_attr( ty.attributes, attribute::make_default() );
+                    auto const& array_element_type_id = root_env_->make_type_id(
+                        ty.class_env_id,
+                        ty.attributes
+                        );
 
                     auto const& array_element_num
                         = static_cast<std::int32_t const* const>( template_args->at( 1 ).element );
 
                     std::cout << "Array num is " << *array_element_num << std::endl;
                     c_env->make_as_array(
-                        array_element_ty_detail->type_id,
+                        array_element_type_id,
                         *array_element_num
                         );
                 }
@@ -867,8 +878,10 @@ namespace rill
                 // val to ref
                 switch( argument_attributes.modifiability ) {
                 case attribute::modifiability_kind::k_immutable:
+                case attribute::modifiability_kind::k_none: // none == immutable
                     switch( parameter_attributes.modifiability ) {
                     case attribute::modifiability_kind::k_immutable:
+                    case attribute::modifiability_kind::k_none: // none == immutable
                     case attribute::modifiability_kind::k_const:
                         break;
                     case attribute::modifiability_kind::k_mutable:
@@ -879,6 +892,7 @@ namespace rill
                 case attribute::modifiability_kind::k_const:
                     switch( parameter_attributes.modifiability ) {
                     case attribute::modifiability_kind::k_immutable:
+                    case attribute::modifiability_kind::k_none: // none == immutable
                     case attribute::modifiability_kind::k_const:
                         break;
                     case attribute::modifiability_kind::k_mutable:
@@ -889,6 +903,7 @@ namespace rill
                 case attribute::modifiability_kind::k_mutable:
                     switch( parameter_attributes.modifiability ) {
                     case attribute::modifiability_kind::k_immutable:
+                    case attribute::modifiability_kind::k_none: // none == immutable
                         return boost::none;
                     case attribute::modifiability_kind::k_const:
                     case attribute::modifiability_kind::k_mutable:
@@ -925,6 +940,7 @@ namespace rill
             switch( argument_attributes.quality ) // from
             {
             case attribute::holder_kind::k_ref:
+            case attribute::holder_kind::k_suggest:
                 return qualifier_conversion_from_ref( parameter_attributes, argument_attributes );
 
             case attribute::holder_kind::k_val:

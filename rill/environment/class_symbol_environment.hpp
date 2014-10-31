@@ -126,7 +126,7 @@ namespace rill
     public:
         auto make_type_id_from(
             attribute::type_attributes const& type_attr
-                = attribute::make_default_type_attributes()
+                = attribute::make_empty_type_attributes()
             ) const
             -> shared_resource_type::type_registry_type::type_id_type
         {

@@ -221,9 +221,10 @@ namespace rill
             // TODO: evaluate type || type inference || type check
             //       default( int )
             if ( unit.init_unit.type ) { // is parameter variable type specified ?
+                // in class, 'mutable' is DEFAULT!
                 resolve_type(
                     unit.init_unit.type,
-                    val_decl.quality,
+                    attribute::make( val_decl.quality, attribute::modifiability_kind::k_mutable ),
                     parent_env,
                     [&]( type_detail_ptr const& ty_d,
                          type const& ty,
