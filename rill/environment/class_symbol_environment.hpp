@@ -32,6 +32,16 @@ namespace rill
         structured
     };
 
+    enum class class_builtin_kind
+    {
+        k_none,
+        k_void,
+        k_int32,
+        k_type,
+        k_bool,
+        k_string,
+    };
+
     //
     // class
     //
@@ -50,6 +60,7 @@ namespace rill
             : environment_base( std::move( pp ) )
             , base_name_( base_name )
             , metatype_( class_metatype::none )
+            , builtin_kind_( class_builtin_kind::k_none )
         {
             BOOST_LOG_TRIVIAL(debug) << kind::debug_string( get_symbol_kind() ) << std::endl;
         }
@@ -92,6 +103,17 @@ namespace rill
             -> bool
         {
             return metatype_ == metatype;
+        }
+
+        auto set_builtin_kind( class_builtin_kind const& kind )
+        {
+            builtin_kind_ = kind;
+        }
+
+        auto get_builtin_kind() const
+            -> class_builtin_kind const&
+        {
+            return builtin_kind_;
         }
 
         auto dump( std::ostream& os, std::string const& indent ) const
@@ -155,6 +177,7 @@ namespace rill
     private:
         native_string_type base_name_, mangled_name_;
         class_metatype metatype_;
+        class_builtin_kind builtin_kind_;
 
         std::shared_ptr<array_detail> array_detail_;
     };

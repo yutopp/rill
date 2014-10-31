@@ -72,19 +72,20 @@ namespace rill
                 );
 
 //
-#define RILL_DEFINE_BUILTIN_CLASS( name )                               \
+#define RILL_DEFINE_BUILTIN_CLASS( name, kind )                         \
             auto const name ## _class_name = rill::ast::make_single_identifier( #name ); \
             auto const name ## _class = std::make_shared<rill::ast::class_definition_statement>( name ## _class_name ); \
             id_c.dispatch( name ## _class, root_env );                  \
             auto const name ## _class_env_pointer = std::static_pointer_cast<class_symbol_environment>( \
                 root_env->get_related_env_by_ast_ptr( name ## _class )  \
-                );
+                );                                                      \
+            name ## _class_env_pointer->set_builtin_kind( rill::class_builtin_kind:: kind );
 
-            RILL_DEFINE_BUILTIN_CLASS( type );
-            RILL_DEFINE_BUILTIN_CLASS( int );
-            RILL_DEFINE_BUILTIN_CLASS( string );
-            RILL_DEFINE_BUILTIN_CLASS( void );
-            RILL_DEFINE_BUILTIN_CLASS( bool );
+            RILL_DEFINE_BUILTIN_CLASS( type, k_type );
+            RILL_DEFINE_BUILTIN_CLASS( int, k_int32 );
+            RILL_DEFINE_BUILTIN_CLASS( string, k_string );
+            RILL_DEFINE_BUILTIN_CLASS( void, k_void );
+            RILL_DEFINE_BUILTIN_CLASS( bool, k_bool );
             //RILL_DEFINE_BUILTIN_CLASS( double );
 
             {

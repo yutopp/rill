@@ -495,8 +495,9 @@ namespace rill
                     = ctfe_engine_->value_holder()->ref_value( var_env->get_id() );
                 assert( evaled_value != nullptr );
 
-                // TODO: fix cond
-                if ( c_env->get_base_name() == "type" ) {
+                switch( c_env->get_builtin_kind() ) {
+                case class_builtin_kind::k_type:
+                {
                     auto const& ty_detail
                         = static_cast<type_detail_ptr>( evaled_value );
                     auto const& val_ty
@@ -507,16 +508,25 @@ namespace rill
                     s += "T/";
                     s += make_mangled_name( val_c_env, val_ty.attributes );
 
-                } else if ( c_env->get_base_name() == "int" ) {
+                    break;
+                }
+
+                case class_builtin_kind::k_int32:
+                {
                     auto const& num
                         = static_cast<std::int32_t const* const>( evaled_value );
                     s += "I32/";
                     s += std::to_string( *num );
 
-                } else {
+                    break;
+                }
+
+                default:
+                {
                     std::cout << c_env->get_base_name() << std::endl;
                     assert( false && "[[ice]] value parameter was not supported yet" );
                 }
+                } // switch
 
                 s += ":";
             }
@@ -754,8 +764,9 @@ namespace rill
 
                 //
                 auto ta = [&]() -> type_detail::dependent_type {
-                    // TODO: fix cond
-                    if ( c_env->get_base_name() == "type" ) {
+                    switch( c_env->get_builtin_kind() ) {
+                    case class_builtin_kind::k_type:
+                    {
                         auto const& c_env = get_primitive_class_env( "type" );
                         return {
                             argument_ty_detail,
@@ -769,7 +780,10 @@ namespace rill
                                     )
                                 )
                         };
-                    } else if ( c_env->get_base_name() == "int" ) {
+                    }
+
+                    case class_builtin_kind::k_int32:
+                    {
                         auto const& c_env = get_primitive_class_env( "int" );
                         return {
                             argument_ty_detail,
@@ -783,11 +797,15 @@ namespace rill
                                     )
                                 )
                         };
+                    }
 
-                    } else {
+                    default:
+                    {
+                        std::cout << c_env->get_base_name() << std::endl;
                         assert( false && "[[ice]] value parameter was not supported yet" );
                         return { nullptr, nullptr, dependent_value_kind::k_none };
                     }
+                    } // switch
                 }();
                 std::cout << "argt: " << c_env->get_mangled_name() << std::endl;
 
@@ -1296,55 +1314,57 @@ namespace rill
 
                 std::cout << "========================================== !!!!! => " << signature_string << std::endl;
                 if ( auto const& cache = multiset_env->find_instanced_environments( signature_string ) ) {
-                    ;
+                    // this function is already instanced, so do nothing
+                    // TODO: remove 'instanting_f_env' and function_def_ast
+
                 } else {
-                    ;
-                }
+                    // new instanced function
 
-                // declare parameter variable(NOT template)
-                for( std::size_t i=0; i<presetted_param_types.size(); ++i ) {
-                    auto const& e = function_def_ast->get_parameter_list()[i];
-                    auto const& ty_id = presetted_param_types[i]->type_id;
+                    // declare parameter variable(NOT template)
+                    for( std::size_t i=0; i<presetted_param_types.size(); ++i ) {
+                        auto const& e = function_def_ast->get_parameter_list()[i];
+                        auto const& ty_id = presetted_param_types[i]->type_id;
 
-                    instanting_f_env->parameter_variable_construct( e.decl_unit.name, ty_id );
-                }
+                        instanting_f_env->parameter_variable_construct( e.decl_unit.name, ty_id );
+                    }
 
-                //
-                instanting_f_env->change_progress_to_checked();
+                    //
+                    instanting_f_env->change_progress_to_checked();
 
-                // return type
-                if ( function_def_ast->return_type_ ) {
-                    // if return type was specified, decide type to it.
-                    resolve_type(
-                        function_def_ast->return_type_,
-                        attribute::holder_kind::k_val, // TODO: fix
-                        instanting_f_env,
-                        [&]( type_detail_ptr const& return_ty_d,
-                             type const& ty,
-                             const_class_symbol_environment_ptr const& class_env
+                    // return type
+                    if ( function_def_ast->return_type_ ) {
+                        // if return type was specified, decide type to it.
+                        resolve_type(
+                            function_def_ast->return_type_,
+                            attribute::holder_kind::k_val, // TODO: fix
+                            instanting_f_env,
+                            [&]( type_detail_ptr const& return_ty_d,
+                                 type const& ty,
+                                 const_class_symbol_environment_ptr const& class_env
+                                )
+                            {
+                                instanting_f_env->decide_return_type( return_ty_d->type_id );
+                            });
+                    }
+
+                    // semantic analyze all statements in this function body
+                    dispatch( function_def_ast->inner_, instanting_f_env );
+
+                    // Return type
+                    solve_function_return_type_semantics( instanting_f_env );
+
+                    //
+                    instanting_f_env->complete(
+                        make_mangled_name(
+                            instanting_f_env,
+                            std::cref( signature_string )
                             )
-                        {
-                            instanting_f_env->decide_return_type( return_ty_d->type_id );
-                        });
+                        );
+                    instanting_f_env->link_with_ast( function_def_ast );
+
+                    //
+                    multiset_env->add_to_instanced_environments( instanting_f_env, signature_string );
                 }
-
-                // semantic analyze all statements in this function body
-                dispatch( function_def_ast->inner_, instanting_f_env );
-
-                // Return type
-                solve_function_return_type_semantics( instanting_f_env );
-
-                //
-                instanting_f_env->complete(
-                    make_mangled_name(
-                        instanting_f_env,
-                        std::cref( signature_string )
-                        )
-                    );
-                instanting_f_env->link_with_ast( function_def_ast );
-
-                //
-                multiset_env->add_to_instanced_environments( instanting_f_env, signature_string );
 
                 std::cout << colorize::standard::fg::red
                           << "!!!! END: template: " << std::endl

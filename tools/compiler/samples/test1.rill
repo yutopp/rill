@@ -22,6 +22,9 @@ def main(): int
     val c = f( a * b );
     p( c );
 
+    val d = f( ( a * b ) ) + 100000;
+    p( d );
+
     return 0;
 }
 

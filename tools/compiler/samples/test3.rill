@@ -19,6 +19,6 @@ class HogeHuga
         this.a;
     }
 
-    val b: 32;
+    val b: U;
     val a: T;
 }
