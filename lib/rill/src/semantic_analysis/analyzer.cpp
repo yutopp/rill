@@ -1527,7 +1527,29 @@ namespace rill
 
             } else {
                 // solve only templated functions
-                assert( false );
+                // 1. instantiate function templates
+                instantiate_function_templates( set_env, arg_types, template_args, parent_env );
+
+                // 2. find from templated functions
+                auto const t_match_t_f_env = select_suitable_function(
+                    set_env->get_instanced_environments(),
+                    arg_types,
+                    parent_env
+                    );
+                auto const& res_match = std::get<0>( t_match_t_f_env );
+                auto const& o_res_f_envs = std::get<1>( t_match_t_f_env );
+
+                if ( res_match == function_match_level::k_no_match ) {
+                    assert( false && "Error: Suitable function was not found" );
+                    return nullptr;
+                }
+
+                if ( o_res_f_envs->size() != 1 ) {
+                    assert( false && "Error: Callable functions were anbigous" );
+                    return nullptr;
+                }
+
+                return o_res_f_envs->at( 0 );
             }
 
 
@@ -1575,7 +1597,9 @@ namespace rill
                     );
 
             // set evaluated template args
-            assert( ty_detail->template_args != nullptr );
+            if ( ty_detail->template_args == nullptr ) {
+                ty_detail->template_args = std::make_shared<type_detail::template_arg_type>();
+            }
             (*ty_detail->template_args) = std::move( template_args );
 
             // class template instantiation!!!
