@@ -10,6 +10,7 @@
 #define RILL_MESSAGE_MESSAGE_HPP
 
 #include <exception>
+#include <string>
 
 
 namespace rill
@@ -24,29 +25,14 @@ namespace rill
         };
 
         //
-        class message_object
+        struct message_object
         {
-        public:
-            message_object( message_level const& e_level )
-            {}
-
-        private:
-            message_level level_;
+            message_level level;
+            std::string message;
         };
 
-        //
-        template<typename... Args>
-        auto raise_compilation_error()
-            -> void
-        {
-        }
-
-        //
-        template<typename... Args>
-        auto raise_compilation_warning()
-            -> void
-        {
-        }
+        auto print( message_object const& )
+            -> void;
 
     } // namespace message
 } // namespace rill

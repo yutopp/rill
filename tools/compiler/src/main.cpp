@@ -81,7 +81,13 @@ void sample( boost::program_options::variables_map const& vm )
     //   check identifiers type and template instantiation
     std::cout << " = Semantic Analysis ====== " << std::endl;
 
-    rill::semantic_analysis::analyse_and_complement( root_env, intrinsic_function_action, program );
+    auto const& report
+        = rill::semantic_analysis::analyse_and_complement( root_env, intrinsic_function_action, program );
+    if ( report->is_errored() ) {
+        std::cerr << "Failed to semantic analysis." << std::endl;
+        exit( -230 );
+    }
+
 
 
 

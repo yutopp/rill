@@ -18,11 +18,6 @@ namespace rill
 {
     namespace semantic_analysis
     {
-        // TODO: add import collector
-
-
-        //
-        //
         //
         template<typename EnvironmentPtr, typename T>
         auto collect_identifier( EnvironmentPtr const& env, T const& node )
@@ -33,12 +28,9 @@ namespace rill
             return visitor.dispatch( node, env );
         }
 
-
-        //
-        //
         //
         template<typename EnvironmentPtr, typename ActionHolderPtr, typename Node>
-        void analyse_and_complement(
+        auto analyse_and_complement(
             EnvironmentPtr const& env,
             ActionHolderPtr const& action_holder,
             Node const& node
@@ -47,7 +39,9 @@ namespace rill
             collect_identifier( env, node );
 
             analyzer visitor( env, action_holder );
-            return visitor.dispatch( node, env );
+            visitor.dispatch( node, env );
+
+            return visitor.get_report();
         }
 
     } // namespace semantic_analysis

@@ -13,6 +13,7 @@
 #include <iostream>
 #include <cassert>  // for assert
 #include <typeinfo>
+#include <type_traits>
 
 #include <boost/core/demangle.hpp>
 
@@ -25,6 +26,8 @@
 #include "visitor_delegator.hpp"
 #include "tree_visitor_result_t.hpp"
 #include "tree_visitor_default_value.hpp"
+#include "visitor_report.hpp"
+#include "../statement_fwd.hpp"
 
 
 namespace rill
@@ -49,6 +52,8 @@ namespace rill
             public:
                 tree_visitor_base()
                     : delegator_( static_cast<Derived*>( this ) )
+                    , is_error_state_( false )
+                    , report_( std::make_shared<visitor_report>() )
                 {}
 
                 virtual ~tree_visitor_base() {};
@@ -58,26 +63,24 @@ namespace rill
                 auto send_error( Args&&... args ) const
                     -> void
                 {
-                    assert( false );
+                    is_error_state_ = true;
 
-                    throw message::message_object(
+                    throw message::message_object{
                         message::message_level::e_error,
                         std::forward<Args>( args )...
-                        );
+                        };
                 }
 
                 template<typename... Args>
                 auto send_warning( Args&&... args ) const
                     -> void
                 {
-                    assert( false );
-
                     // TODO: see compile switch
                     save_message(
-                        message::message_object(
+                        message::message_object{
                             message::message_level::e_warning,
                             std::forward<Args>( args )...
-                            )
+                            }
                         );
                 }
 
@@ -85,26 +88,12 @@ namespace rill
                 auto send_message( Args&&... args ) const
                     -> void
                 {
-                    assert( false );
-
                     save_message(
-                        message::message_object(
+                        message::message_object{
                             message::message_level::e_normal,
                             std::forward<Args>( args )...
-                            )
+                            }
                         );
-                }
-
-                auto has_message() const
-                    -> bool
-                {
-                    return !messages_.empty();
-                }
-
-                auto has_error() const
-                    -> bool
-                {
-                    return false;       // TODO: implement
                 }
 
             protected:
@@ -125,8 +114,14 @@ namespace rill
                     return make_return_value<result_type<Node>>{}( storage );
 
                 } catch( message::message_object const& e ) {
-                    save_message( e );
-                    return make_default_return_value<result_type<Node>>{}();       // implies failed...
+                    if ( std::is_base_of<statement, Node>::value ) {
+                        auto cp = e;
+                        save_message( std::move( cp ) );
+                        is_error_state_ = false;
+                        return make_default_return_value<result_type<Node>>{}();       // implies failed...
+                    } else {
+                        throw;
+                    }
                 }
 
                 template<typename Node, typename Env>
@@ -144,8 +139,14 @@ namespace rill
                     return make_return_value<result_type<Node>>{}( storage );
 
                 } catch( message::message_object const& e ) {
-                    save_message( e );
-                    return make_default_return_value<result_type<Node>>{}();       // implies failed...
+                    if ( std::is_base_of<statement, Node>::value ) {
+                        auto cp = e;
+                        save_message( std::move( cp ) );
+                        is_error_state_ = false;
+                        return make_default_return_value<result_type<Node>>{}();       // implies failed...
+                    } else {
+                        throw;
+                    }
                 }
 
                 template<typename Node>
@@ -172,16 +173,25 @@ namespace rill
                     return make_default_return_value<result_type<Node>>{}();
                 }
 
+            public:
+                inline auto get_report() const
+                    -> std::shared_ptr<visitor_report const>
+                {
+                    return report_;
+                }
+
             private:
                 template<typename T>
                 auto save_message( T&& m ) const
                     -> void
                 {
-                    messages_.push_back( std::forward<T>( m ) );
+                    print( m );
+                    report_->append_message( std::forward<T>( m ) );
                 }
 
             private:
-                mutable std::vector<message::message_object> messages_;
+                mutable bool is_error_state_;
+                mutable std::shared_ptr<visitor_report> report_;
             };
 
         } // namespace detail

@@ -1450,6 +1450,7 @@ namespace rill
 
                 if ( current_ret_type_id != type_id_undefined ) {
                     if ( r_type_id != current_ret_type_id ) {
+                        send_error( "fuck" );
                         assert( false && "[Error] return type is different from function signature" );
                     }
 
