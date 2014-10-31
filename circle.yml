@@ -3,10 +3,14 @@ machine:
     - docker
 
 dependencies:
+  cache_directories:
+    - "~/docker"
   override:
     - docker info
     - docker images
+    - if [[ -e ~/docker/image.tar ]]; then docker load -i ~/docker/image.tar; fi
     - docker build -t yutopp/testing-env-for-rill ./circleci
+    - mkdir -p ~/docker; docker save yutopp/testing-env-for-rill > ~/docker/image.tar
 
 test:
   override:
