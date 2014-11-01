@@ -425,7 +425,7 @@ namespace rill
                                 )
                             );
 
-                    std::cout << "[parameter type]: " << c_e->get_mangled_name() << std::endl;
+                    std::cout << "#### [parameter type]: " << c_e->get_mangled_name() << std::endl;
 
                     if ( template_arg.is_type() ) {
                         std::cout << "type: inner value is " << std::endl;
@@ -1009,7 +1009,11 @@ namespace rill
                         );
                     assert( ty_d != nullptr );
 
-                    auto const new_parameter_val_type_attr = arg_type.attributes - param_type.attributes;
+                    auto const new_parameter_val_type_attr
+                        = overlap_empty_attr(
+                            arg_type.attributes - param_type.attributes,
+                            attribute::make_default()
+                            );
                     auto const new_paramater_val_type_id
                         = root_env_->make_type_id( arg_type.class_env_id, new_parameter_val_type_attr );
                     std::cout << "new_parameter_val_type_attr: " << new_parameter_val_type_attr << std::endl;
@@ -1204,10 +1208,6 @@ namespace rill
                           << std::endl;
             }
 
-
-
-
-
             // check overloaded set
 
             //
@@ -1230,7 +1230,8 @@ namespace rill
             multiple_set_environment_ptr const& multiset_env,
             std::vector<type_detail_ptr> const& arg_types,
             type_detail::template_arg_pointer const& template_args,
-            environment_base_ptr const& parent_env
+            environment_base_ptr const& parent_env,
+            boost::optional<std::reference_wrapper<std::vector<environment_base_ptr>>> const& instanced_envs
             )
             -> void
         {
@@ -1361,6 +1362,10 @@ namespace rill
                     // this function is already instanced, so do nothing
                     // TODO: remove 'instanting_f_env' and function_def_ast
 
+                    if ( auto& o = instanced_envs ) {
+                        o->get().push_back( cache );
+                    }
+
                 } else {
                     // new instanced function
 
@@ -1408,6 +1413,11 @@ namespace rill
 
                     //
                     multiset_env->add_to_instanced_environments( instanting_f_env, signature_string );
+
+                    //
+                    if ( auto& o = instanced_envs ) {
+                        o->get().push_back( instanting_f_env );
+                    }
                 }
 
                 std::cout << colorize::standard::fg::red
@@ -1528,11 +1538,12 @@ namespace rill
             } else {
                 // solve only templated functions
                 // 1. instantiate function templates
-                instantiate_function_templates( set_env, arg_types, template_args, parent_env );
+                std::vector<environment_base_ptr> instanced;
+                instantiate_function_templates( set_env, arg_types, template_args, parent_env, std::ref( instanced ) );
 
                 // 2. find from templated functions
                 auto const t_match_t_f_env = select_suitable_function(
-                    set_env->get_instanced_environments(),
+                    instanced,
                     arg_types,
                     parent_env
                     );

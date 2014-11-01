@@ -1,16 +1,16 @@
 def main(): int
 {
+//    f( 72 );
     f!(int)( 72 );
+    f!(mutable(int))( 72 );
 
     return 0;
 }
 
 template(T: type)
-def f(val a: T): T
+def f(val a: T): void
 {
-    val v: mutable(T) = 150;
-    v = 10;
-    return a * v;
+    p( 0 );
 }
 
 extern def mutable( val a :type ): type "rill_abababa";

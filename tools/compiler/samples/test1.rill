@@ -25,7 +25,7 @@ def main(): int
     val d = f( ( a * b ) ) + 100000;
     p( d );
 
-    f!(bool)( 72 );
+    f!(int)( 72 );
 
     return 0;
 }

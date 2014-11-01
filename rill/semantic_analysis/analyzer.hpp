@@ -10,6 +10,7 @@
 #define RILL_SEMANTIC_ANALYSIS_ANALYZER_HPP
 
 #include <memory>
+#include <vector>
 #include <functional>
 
 #include <boost/optional.hpp>
@@ -225,7 +226,8 @@ namespace rill
                 multiple_set_environment_ptr const& set_env,
                 std::vector<type_detail_ptr> const& arg_types,
                 type_detail::template_arg_pointer const& template_args,
-                environment_base_ptr const& parent_env
+                environment_base_ptr const& parent_env,
+                boost::optional<std::reference_wrapper<std::vector<environment_base_ptr>>> const& instanced_envs = boost::none
                 )
                 -> void;
 
