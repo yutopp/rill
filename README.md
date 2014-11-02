@@ -18,12 +18,15 @@ This repository contains the implementation of Rill language.
 - Clang >= 3.5.0(C++14)
 
 #### Libraries
-- Boost 1.56.0
-- LLVM 3.5.0
+- Boost >= 1.56.0
+- LLVM == 3.5.0
+
+#### Tools
+- CMake >= 2.8.8
 
 If you are Arch/Antergos user, install these packages like below
 ```
-sudo pacman -S clang boost llvm
+sudo pacman -S clang boost llvm cmake
 ```
 
 ### Build and install
