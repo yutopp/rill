@@ -36,7 +36,7 @@ namespace rill
         : public environment_base
     {
     public:
-        static kind::type_value const KindValue = kind::type_value::e_variable;
+        static kind::type_value const KindValue;
 
     public:
         variable_symbol_environment(

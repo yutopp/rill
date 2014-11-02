@@ -27,6 +27,8 @@ def main(): int
 
     f!(int)( 72 );
 
+    ret_struct();
+
     return 0;
 }
 
@@ -40,6 +42,12 @@ def f(val a: T): T
 
 extern def mutable( val a :type ): type "rill_abababa";
 extern def p( val i :int ): void "print_int32";
+
+def ret_struct(): TestClass
+{
+    val a = TestClass();
+    return a;
+}
 
 class TestClass
 {

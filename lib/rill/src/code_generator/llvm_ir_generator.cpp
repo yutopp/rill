@@ -34,85 +34,18 @@
 #include <rill/ast/ast.hpp>
 #include <rill/ast/detail/tree_filter.hpp>
 
+#define RILL_TID_TO_LLVM_TYPE_TRANSFORMAER                              \
+    boost::adaptors::transformed( [this]( auto&&... args ) {            \
+        return this->type_id_to_llvm_type_ptr(                          \
+            std::forward<decltype(args)>( args )...                     \
+            );                                                          \
+        } )
+
 
 namespace rill
 {
     namespace code_generator
     {
-        // ========================================
-        //
-        // ========================================
-        class type_id_to_llvm_type_ptr
-        {
-        public:
-            typedef llvm::Type*    result_type;
-
-        public:
-            type_id_to_llvm_type_ptr(
-                std::reference_wrapper<llvm_ir_generator> const& gen
-                )
-                : gen_( gen )
-            {}
-
-        public:
-            auto operator()( type_id_t const& type_id ) const
-                -> result_type
-            {
-                auto& generator = gen_.get();
-
-                std::cout << "T ID: "  << type_id << std::endl;
-                auto const& ty = generator.root_env_->get_type_at( type_id );
-                auto const& type_class_env_id = ty.class_env_id;
-                auto const& type_attr = ty.attributes;
-
-                auto const& c_env
-                    = cast_to<class_symbol_environment const>(
-                        generator.root_env_->get_env_at_as_strong_ref( type_class_env_id )
-                        );
-                assert( c_env != nullptr );
-                if ( !generator.context_->env_conversion_table.is_defined( type_class_env_id ) ) {
-                    generator.dispatch( c_env->get_related_ast(), c_env );
-                }
-
-                std::cout << "class env id: " << type_class_env_id<< " / " << c_env->get_base_name() << std::endl;
-                llvm::Type* llvm_ty
-                    = generator.context_->env_conversion_table.ref_type( type_class_env_id );
-
-                return [&]() -> result_type
-                {
-                    if ( c_env->has_metatype( class_metatype::structured ) ) {
-                        // if type is "structed", argument is always passed by pointer
-                        return llvm_ty->getPointerTo();
-
-                    } else {
-                        //
-                        switch( type_attr.quality )
-                        {
-                        case attribute::holder_kind::k_val:
-                            return llvm_ty;
-
-                        case attribute::holder_kind::k_ref:
-                            return llvm_ty->getPointerTo();
-
-                        default:
-                            assert( false && "[ice]" );
-                            break;
-                        }
-                    }
-                }();
-            }
-
-        private:
-            std::reference_wrapper<llvm_ir_generator> gen_;
-        };
-
-
-
-
-
-
-
-
         // ========================================
         // ========================================
 
@@ -210,7 +143,27 @@ namespace rill
         //
         RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::return_statement, s, parent_env )
         {
-            context_->ir_builder.CreateRet( dispatch( s->expression_, parent_env ) );
+            // Return Statement is valid only in Function Envirionment...
+            auto const& a_env = parent_env->lookup_layer( kind::type_value::e_function );
+            assert( a_env != nullptr ); // TODO: change to error_handler
+
+            auto const& callee_f_env = cast_to<function_symbol_environment>( a_env );
+            assert( callee_f_env != nullptr );
+
+            auto const& ret_type_id = callee_f_env->get_return_type_id();
+            auto const& ret_type
+                = root_env_->get_type_at( callee_f_env->get_return_type_id() );
+            bool const returns_heavy_object = is_heavy_object( ret_type );
+
+            llvm::Value* v = dispatch( s->expression_, parent_env );
+
+            if ( returns_heavy_object ) {
+                // TODO: implement invokacion of move ctor
+                context_->ir_builder.CreateRetVoid();
+
+            } else {
+                context_->ir_builder.CreateRet( v );
+            }
         }
 
 
@@ -226,21 +179,22 @@ namespace rill
                 << " Args num -- " << s->get_parameter_list().size() << std::endl
                 << " Parent env -- " << (const_environment_base_ptr)parent_env << std::endl;
 
-            //
-            //std::cout << "!!!!!!ast::function_definition_statem" << self_env << " / " << root_env_->get_id() << std::endl;
-
+            // ========================================
             //
             auto const& f_env
-                = std::static_pointer_cast<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( s ) );
+                = cast_to<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( s ) );
             assert( f_env != nullptr );
             if ( context_->env_conversion_table.is_defined( f_env->get_id() ) )
                 return;
 
+            // ========================================
             // information about paramaters
             auto const& parameter_variable_type_ids = f_env->get_parameter_type_ids();
             auto const& parameter_variable_decl_env_ids = f_env->get_parameter_decl_ids();
             std::cout << "()()=> :" << f_env->get_mangled_name() << std::endl;
 
+
+            // ========================================
             //
             auto const current_insert_point = context_->ir_builder.saveIP();
             BOOST_SCOPE_EXIT((&context_)(&current_insert_point)) {
@@ -248,7 +202,8 @@ namespace rill
                 context_->ir_builder.restoreIP( current_insert_point );
             } BOOST_SCOPE_EXIT_END
 
-            //
+
+            // ========================================
             // TODO: use current_insert_point.isSet(), if it is false, this function needs external linkage( currently, all functions are exported as external linkage )
             auto const linkage = llvm::Function::ExternalLinkage;
             if ( current_insert_point.isSet() ) {
@@ -256,10 +211,24 @@ namespace rill
                 std::cout << "not external." << std::endl;
             }
 
+
+            // ========================================
+            auto const& ret_type_id = f_env->get_return_type_id();
+            auto const& ret_type
+                = root_env_->get_type_at( f_env->get_return_type_id() );
+            bool const returns_heavy_object = is_heavy_object( ret_type );
+
+
+            // ========================================
             // signature
             std::vector<llvm::Type*> parameter_types;
+            if ( returns_heavy_object ) {
+                parameter_types.push_back(
+                    type_id_to_llvm_type_ptr( ret_type_id )
+                    );
+            }
             boost::copy(
-                parameter_variable_type_ids | boost::adaptors::transformed( type_id_to_llvm_type_ptr( std::ref( *this ) ) ),
+                parameter_variable_type_ids | RILL_TID_TO_LLVM_TYPE_TRANSFORMAER,
                 std::back_inserter( parameter_types )
                 );
 
@@ -267,7 +236,9 @@ namespace rill
             // ========================================
             // return type
             llvm::Type* const return_type
-                = type_id_to_llvm_type_ptr( std::ref( *this ) )( f_env->get_return_type_id() );
+                = returns_heavy_object
+                ? llvm::Type::getVoidTy( context_->llvm_context )
+                : type_id_to_llvm_type_ptr( ret_type_id );
 
             // ========================================
             // function type signature
@@ -279,25 +250,34 @@ namespace rill
             llvm::Function* const func = llvm::Function::Create( func_type, linkage, f_env->get_mangled_name(), context_->llvm_module.get() );
 
             // ========================================
+            std::size_t i = 0;
             for( llvm::Function::arg_iterator ait = func->arg_begin(); ait != func->arg_end(); ++ait ) {
                 std::cout << "Argument No: " << ait->getArgNo() << std::endl;
-                auto const& var = std::static_pointer_cast<variable_symbol_environment const>( f_env->get_env_at( parameter_variable_decl_env_ids[ait->getArgNo()] ).lock() );
-                ait->setName( var->get_mangled_name() );
 
-                context_->env_conversion_table.bind_value( var->get_id(), ait );
+                if ( ait == func->arg_begin() && returns_heavy_object ) {
+                    ait->setName( "__ret_target" );
+
+                } else {
+                    auto const& var =
+                        f_env->get_env_at_as_strong_ref<variable_symbol_environment const>( parameter_variable_decl_env_ids[i] );
+                    ait->setName( var->get_mangled_name() );
+
+                    context_->env_conversion_table.bind_value( var->get_id(), ait );
+                    ++i;
+                }
             }
 
 //            func->setGC( "shadow-stack" );
 
             // ========================================
             // create a new basic block to start insertion into.
-            llvm::BasicBlock* const basic_brock
+            llvm::BasicBlock* const basic_block
                 = llvm::BasicBlock::Create( llvm::getGlobalContext(), "entry", func );
-            context_->ir_builder.SetInsertPoint( basic_brock );
+            context_->ir_builder.SetInsertPoint( basic_block );
 
+            // ========================================
             // generate statements
             dispatch( s->inner_, f_env );
-
 
             // Only the function that returns void is allowed to has no return statement
             if ( f_env->get_return_type_candidates().size() == 0 )
@@ -356,17 +336,32 @@ namespace rill
 
 
             // ========================================
+            auto const& ret_type_id = f_env->get_return_type_id();
+            auto const& ret_type
+                = root_env_->get_type_at( f_env->get_return_type_id() );
+            bool const returns_heavy_object = is_heavy_object( ret_type );
+
+
+            // ========================================
             // parameter signature
             std::vector<llvm::Type*> parameter_types;
+            if ( returns_heavy_object ) {
+                parameter_types.push_back(
+                    type_id_to_llvm_type_ptr( ret_type_id )
+                    );
+            }
             boost::copy(
-                parameter_variable_type_ids | boost::adaptors::transformed( type_id_to_llvm_type_ptr( std::ref( *this ) ) ),
+                parameter_variable_type_ids | RILL_TID_TO_LLVM_TYPE_TRANSFORMAER,
                 std::back_inserter( parameter_types )
                 );
+
 
             // ========================================
             // return type
             llvm::Type* const return_type
-                = type_id_to_llvm_type_ptr( std::ref( *this ) )( f_env->get_return_type_id() );
+                = returns_heavy_object
+                ? llvm::Type::getVoidTy( context_->llvm_context )
+                : type_id_to_llvm_type_ptr( ret_type_id );
 
             // ========================================
             // function type signature
@@ -379,144 +374,31 @@ namespace rill
                 = llvm::Function::Create( func_type, linkage, f_env->get_mangled_name(), context_->llvm_module.get() );
 
             // ========================================
-            // create a new basic block to start insertion into.
-            llvm::BasicBlock* const basic_brock
-                = llvm::BasicBlock::Create( llvm::getGlobalContext(), "entry", func );
-            context_->ir_builder.SetInsertPoint( basic_brock );
-
-
-            // ========================================
             // function parameter variables
             // and, make local variable creation
             std::size_t i = 0;
             for( llvm::Function::arg_iterator ait = func->arg_begin(); ait != func->arg_end(); ++ait ) {
                 std::cout << "Argument No: " << ait->getArgNo() << std::endl;
-                auto const& v_env
-                    = std::static_pointer_cast<variable_symbol_environment const>(
-                        f_env->get_env_strong_at( parameter_variable_decl_env_ids[ait->getArgNo()] )
-                        );
-                ait->setName( v_env->get_mangled_name() );
+                if ( ait == func->arg_begin() && returns_heavy_object ) {
+                    ait->setName( "__ret_target" );
 
-                auto const& ty = root_env_->get_type_at( parameter_variable_type_ids[i] );
+                } else {
+                    auto const& var =
+                        f_env->get_env_at_as_strong_ref<variable_symbol_environment const>( parameter_variable_decl_env_ids[i] );
+                    ait->setName( var->get_mangled_name() );
 
-                auto const& f = [&](
-                    type const& value_ty,
-                    llvm::Type* const variable_llvm_type,
-                    llvm::Value* const value,
-                    const_variable_symbol_environment_ptr const& v_env
-                    ){
-                    auto const& c_env
-                    = std::static_pointer_cast<class_symbol_environment const>(
-                        root_env_->get_env_strong_at( value_ty.class_env_id )
-                        );
-                    auto const& variable_attr = value_ty.attributes;
-
-                    if ( c_env->has_metatype( class_metatype::structured ) || c_env->is_array() ) {
-                        // always passed by pointer
-
-                        // TODO: copy ctor
-#if 0
-                        llvm::AllocaInst* const allca_inst
-                            = context_->ir_builder.CreateAlloca(
-                                variable_llvm_type
-                                );
-                        if ( value ) {
-                            context_->ir_builder.CreateStore(
-                                value,
-                                allca_inst /*, is_volatile */
-                                );
-                        }
-
-                        context_->env_conversion_table.bind_value(
-                            v_env->get_id(),
-                            allca_inst
-                            );
-#endif
-                        context_->env_conversion_table.bind_value(
-                            v_env->get_id(),
-                            value
-                            );
-
-                    } else {
-
-                        switch( variable_attr.quality )
-                        {
-                            // VAL
-                        case attribute::holder_kind::k_val:
-                        switch( variable_attr.modifiability )
-                        {
-                        case attribute::modifiability_kind::k_immutable:
-                        {
-                            assert( value != nullptr );
-                            context_->env_conversion_table.bind_value(
-                                v_env->get_id(),
-                                value
-                                );
-                        }
-                        break;
-
-                        case attribute::modifiability_kind::k_const:
-                        assert( false && "[ice] notsuported" );
-                        break;
-
-                        case attribute::modifiability_kind::k_mutable:
-                        {
-                            // FIXME:
-                            llvm::AllocaInst* const allca_inst
-                                = context_->ir_builder.CreateAlloca(
-                                    variable_llvm_type,
-                                    0/*length*/
-                                    );
-                            if ( value ) {
-                                context_->ir_builder.CreateStore(
-                                    value,
-                                    allca_inst /*, is_volatile */
-                                    );
-                            }
-
-                            context_->env_conversion_table.bind_value(
-                                v_env->get_id(),
-                                allca_inst
-                                );
-                        }
-                        break;
-                        }
-
-                        break;
-
-                        // REF
-                        case attribute::holder_kind::k_ref:
-                        assert( false && "not implemented..." );
-                        break;
-
-                        default:
-                        assert( false && "[ice]" );
-                        break;
-                        }
-                    }
-                };
-
-                // val to
-                f(
-                    ty,
-                    ait->getType(),
-                    ait,
-                    v_env
-                    );
-
-                ++i;
-
-                // context_->env_conversion_table.bind_value( v_env->get_id(), ait );
+                    context_->env_conversion_table.bind_value( var->get_id(), ait );
+                    ++i;
+                }
             }
 
 //            func->setGC( "shadow-stack" );
 
             // ========================================
             // create a new basic block to start insertion into.
-            //llvm::BasicBlock* const function_body_block
-            //    = llvm::BasicBlock::Create( llvm::getGlobalContext(), "function_body", func );
-            //context_->ir_builder.SetInsertPoint( function_body_block );
-
+            llvm::BasicBlock* const basic_block
+                = llvm::BasicBlock::Create( llvm::getGlobalContext(), "entry", func );
+            context_->ir_builder.SetInsertPoint( basic_block );
 
             // ========================================
             // generate statements
@@ -597,9 +479,7 @@ namespace rill
                     auto const& array_detail = c_env->get_array_detail();
 
                     llvm::Type* const inner_type
-                        = type_id_to_llvm_type_ptr( std::ref( *this ) )(
-                            array_detail->inner_type_id
-                            );
+                        = type_id_to_llvm_type_ptr( array_detail->inner_type_id );
 
                     std::cout << "NUM: " << array_detail->elements_num << std::endl;
 
@@ -674,8 +554,7 @@ namespace rill
             // define paramter and return types
             std::vector<llvm::Type*> parameter_types;
             boost::copy(
-                parameter_variable_type_ids
-                    | boost::adaptors::transformed( type_id_to_llvm_type_ptr( std::ref( *this ) ) ),
+                parameter_variable_type_ids | RILL_TID_TO_LLVM_TYPE_TRANSFORMAER,
                 std::back_inserter( parameter_types )
                 );
 
@@ -684,7 +563,7 @@ namespace rill
 
 
             auto const& return_type
-                = type_id_to_llvm_type_ptr( std::ref( *this ) )( f_env->get_return_type_id() );
+                = type_id_to_llvm_type_ptr( f_env->get_return_type_id() );
 
             //context_->env_conversion_table.ref_type( v.class_env_id );
 
@@ -1222,12 +1101,22 @@ namespace rill
                 assert( false && "unexpected... callee_function was not found" );
             }
 
+            auto const& ret_type_id = f_env->get_return_type_id();
+            auto const& ret_type = root_env_->get_type_at( ret_type_id );
+            bool const returns_heavy_object = is_heavy_object( ret_type );
 
+            // arguments
+            // TODO: reduce coping
             std::vector<llvm::Value*> total_args = [&]() -> std::vector<llvm::Value*> {
+                std::vector<llvm::Value*> args;
+
+                if ( returns_heavy_object ) {
+                    args.push_back( nullptr );
+                }
+
                 if ( f_env->is_in_class() ) {
-                    // need reviever
-                    // make temporary space at [0] for "this" pointer
-                    std::vector<llvm::Value*> args = { nullptr };
+                    // if member function, take temporary space for "this" pointer
+                    args.push_back( nullptr );
 
                     auto const& parameter_type_ids
                         = f_env->get_parameter_type_ids();
@@ -1246,25 +1135,49 @@ namespace rill
                         std::back_inserter( args )
                         );
 
-                    return args;
-
                 } else {
-                    return eval_args(
-                        f_env->get_parameter_type_ids(),
-                        e->arguments_,
-                        parent_env
+                    std::vector<llvm::Value*> const args_normal
+                        = eval_args(
+                            f_env->get_parameter_type_ids(),
+                            e->arguments_,
+                            parent_env
+                            );
+
+                    std::copy(
+                        args_normal.cbegin(),
+                        args_normal.cend(),
+                        std::back_inserter( args )
                         );
                 }
+
+                return args;
             }();
 
             // evaluate lhs(reciever)
             // if reciever is exist, valid value and type will be stacked
             dispatch( e->reciever_, parent_env );
 
+            if ( returns_heavy_object ) {
+                // create storage
+                llvm::Type* llvm_ty
+                    = context_->env_conversion_table.ref_type( ret_type.class_env_id );
+                llvm::AllocaInst* const allca_inst
+                    = context_->ir_builder.CreateAlloca( llvm_ty );
+
+                //
+                total_args[0] = allca_inst;
+            }
+
             // save the reciever object to the temprary space
             if ( f_env->is_in_class() ) {
+                auto const this_index
+                    = returns_heavy_object
+                    ? 1
+                    : 0;
                 //
                 if ( f_env->is_initializer() ) {
+                    assert( returns_heavy_object == false );
+
                     // constructor
                     // the first argument will be this
                     auto const this_var_type_id = f_env->get_parameter_type_ids()[0];
@@ -1278,22 +1191,10 @@ namespace rill
                         = context_->env_conversion_table.ref_type( this_var_type.class_env_id );
                     assert( variable_llvm_type != nullptr );
 
-                    auto this_var = (llvm::Value*)llvm::ConstantStruct::get(
-                        (llvm::StructType*)variable_llvm_type,
-                        llvm::ArrayRef<llvm::Constant*>()
-                        );
-                    assert( this_var != nullptr );
-
-
                     llvm::AllocaInst* const allca_inst
                         = context_->ir_builder.CreateAlloca(
                             variable_llvm_type
                             );
-
-                    context_->ir_builder.CreateStore(
-                        this_var,
-                        allca_inst /*, is_volatile */
-                        );
 
                     context_->temporary_reciever_stack_.push(
                         std::make_tuple( this_var_type_id, allca_inst )
@@ -1315,31 +1216,42 @@ namespace rill
                     = std::get<1>( reciever_obj_value );
                 assert( val != nullptr );
 
-                total_args[0] = convert_value_by_attr(
+                // set "this"
+                total_args[this_index] = convert_value_by_attr(
                     parameter_type,
                     ty,
                     val
                     );
-                assert( total_args[0] != nullptr );
+                assert( total_args[this_index] != nullptr );
                 context_->temporary_reciever_stack_.pop();
 
                 auto const ret
-                    = context_->ir_builder.CreateCall( callee_function, total_args/*, "calltmp"*/ );
+                    = context_->ir_builder.CreateCall( callee_function, total_args );
 
                 if ( f_env->is_initializer() ) {
                     // ret call will be ctor call, so return a reciever value
                     return val;
 
                 } else {
-                    return ret;
+                    if ( returns_heavy_object ) {
+                        return total_args[0];
+                    } else {
+                        return ret;
+                    }
                 }
 
             } else {
                 // normal call
                 // invocation
-                return context_->ir_builder.CreateCall( callee_function, total_args/*, "calltmp"*/ );
-            }
+                auto const ret
+                    = context_->ir_builder.CreateCall( callee_function, total_args );
 
+                if ( returns_heavy_object ) {
+                    return total_args[0];
+                } else {
+                    return ret;
+                }
+            }
         }
 
 
@@ -1597,9 +1509,7 @@ namespace rill
             auto const& array_detail = c_env->get_array_detail();
 
             llvm::Type* const inner_type
-                = type_id_to_llvm_type_ptr( std::ref( *this ) )(
-                    array_detail->inner_type_id
-                    );
+                = type_id_to_llvm_type_ptr( array_detail->inner_type_id );
 
             std::cout << "NUM: " << array_detail->elements_num << std::endl;
 

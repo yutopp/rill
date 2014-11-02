@@ -9,7 +9,6 @@ find_package(
   1.56.0
   COMPONENTS
     system
-    log log_setup thread date_time filesystem
   REQUIRED
   )
 

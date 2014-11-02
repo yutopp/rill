@@ -122,6 +122,13 @@ namespace rill
                 ) -> void;
 
         private:
+            auto is_heavy_object( type const& ) const
+                -> bool;
+
+            auto type_id_to_llvm_type_ptr( type_id_t const& type_id )
+                -> llvm::Type*;
+
+        private:
             const_environment_base_ptr root_env_;
             intrinsic_function_action_holder_ptr action_holder_;
 

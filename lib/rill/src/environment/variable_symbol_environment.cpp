@@ -11,7 +11,7 @@
 
 namespace rill
 {
-    kind::type_value const class_symbol_environment::KindValue
-        = kind::type_value::e_class;
+    kind::type_value const variable_symbol_environment::KindValue
+        = kind::type_value::e_variable;
 
 } // namespace rill

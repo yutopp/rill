@@ -15,10 +15,6 @@
 #include <vector>
 #include <utility>
 
-#include <boost/range/adaptor/transformed.hpp>
-#include <boost/algorithm/string/join.hpp>
-#include <boost/log/trivial.hpp>
-
 #include "../config/macros.hpp"
 
 #include "environment_base.hpp"
@@ -61,9 +57,7 @@ namespace rill
             , base_name_( base_name )
             , metatype_( class_metatype::none )
             , builtin_kind_( class_builtin_kind::k_none )
-        {
-            BOOST_LOG_TRIVIAL(debug) << kind::debug_string( get_symbol_kind() ) << std::endl;
-        }
+        {}
 
     public:
         auto get_symbol_kind() const
