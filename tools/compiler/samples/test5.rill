@@ -1,10 +1,10 @@
 def main(): int
 {
-    f!(int)( 72, 30 );
-    f!(mutable(int))( 72, 30 );
-    f!(mutable(int))( 72, 30 );
-    f!(mutable(int))( 72, 30 );
-    f!(int)( 72, 30 );
+    f!(int)( 72, 1 );
+    f!(mutable(int))( 72, 2 );
+    f!(mutable(int))( 72, 3 );
+    f!(mutable(int))( 72, 4 );
+    f!(int)( 72, 5 );
 
     //is_mutable( int );
     p( true );
@@ -22,7 +22,7 @@ template(T: type, U: type)
 def f(val a: T, val b: U): void
 {
     p( is_mutable( T ) );
-    p( 0 );
+    p( b );
 }
 
 extern def mutable( val a :type ) onlymeta: type "rill_abababa";
