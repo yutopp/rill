@@ -37,6 +37,7 @@ namespace rill
             k_type = 0,
             k_alias = 1,/*unused*/
 
+            k_int8 = 4,
             k_int32 = 10,
             k_string = 11,
             k_array = 12,

@@ -32,10 +32,14 @@ namespace rill
     {
         k_none,
         k_void,
+        k_int8,
+        k_int16,
         k_int32,
         k_type,
         k_bool,
         k_string,
+        k_array,
+        k_ptr,
     };
 
     //
@@ -136,7 +140,7 @@ namespace rill
             )
             -> void
         {
-            std::cout << "???" << std::endl;
+            assert( pointer_detail_ == nullptr );
             array_detail_ = std::make_shared<array_detail>( inner_type_id, elements_num );
         }
 
@@ -144,6 +148,21 @@ namespace rill
             -> bool
         {
             return array_detail_ != nullptr;
+        }
+
+        auto make_as_pointer(
+            type_id_t const& inner_type_id
+            )
+            -> void
+        {
+            assert( array_detail_ == nullptr );
+            pointer_detail_ = std::make_shared<pointer_detail>( inner_type_id );
+        }
+
+        auto is_pointer() const
+            -> bool
+        {
+            return pointer_detail_ != nullptr;
         }
 
     public:
@@ -167,6 +186,23 @@ namespace rill
             return array_detail_;
         }
 
+    public:
+        struct pointer_detail
+        {
+            pointer_detail(
+                type_id_t const& i
+                )
+                : inner_type_id( i )
+            {}
+
+            type_id_t inner_type_id;
+        };
+
+        auto get_pointer_detail() const
+            -> std::shared_ptr<pointer_detail const>
+        {
+            return pointer_detail_;
+        }
 
     private:
         native_string_type base_name_, mangled_name_;
@@ -174,6 +210,7 @@ namespace rill
         class_builtin_kind builtin_kind_;
 
         std::shared_ptr<array_detail> array_detail_;
+        std::shared_ptr<pointer_detail> pointer_detail_;
     };
 
 } // namespace rill

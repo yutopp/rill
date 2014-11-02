@@ -68,6 +68,7 @@ namespace rill
             RILL_VISITOR_OP_DECL( ast::binary_operator_expression );
             RILL_VISITOR_OP_DECL( ast::id_expression );
             RILL_VISITOR_OP_DECL( ast::term_expression );
+            RILL_VISITOR_OP_DECL( ast::evaluated_type_expression );
 
             // value
             RILL_VISITOR_OP_DECL( ast::nested_identifier_value );

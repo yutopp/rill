@@ -493,6 +493,20 @@ namespace rill
                         array_ty
                         );
 
+                } else if ( c_env->is_pointer() ) {
+                    std::cout << "pointer" << std::endl;
+                    auto const& ptr_detail = c_env->get_pointer_detail();
+                    auto const& ptr_inner_type
+                        = root_env_->get_type_at( ptr_detail->inner_type_id );
+                    llvm::Type* ptr_inner_ty
+                        = context_->env_conversion_table.ref_type( ptr_inner_type.class_env_id );
+                    llvm::Type* ptr_ty = ptr_inner_ty->getPointerTo();
+
+                    context_->env_conversion_table.bind_type(
+                        c_env,
+                        ptr_ty
+                        );
+
                 } else {
                     // another builtin types are defined at beheviour/register_default_core.cpp ...
                     std::cout << (const_environment_base_ptr)root_env_ << std::endl;

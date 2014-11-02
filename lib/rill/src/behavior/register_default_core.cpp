@@ -82,6 +82,7 @@ namespace rill
             name ## _class_env_pointer->set_builtin_kind( rill::class_builtin_kind:: kind );
 
             RILL_DEFINE_BUILTIN_CLASS( type, k_type );
+            RILL_DEFINE_BUILTIN_CLASS( int8, k_int8 );
             RILL_DEFINE_BUILTIN_CLASS( int, k_int32 );
             RILL_DEFINE_BUILTIN_CLASS( string, k_string );
             RILL_DEFINE_BUILTIN_CLASS( void, k_void );
@@ -141,10 +142,47 @@ namespace rill
                         );
 
                 id_c.dispatch( template_array, root_env );
-                /*auto const template_array_env_pointer = std::static_pointer_cast<template_set_environment>(
-                    root_env->get_related_env_by_ast_ptr( template_array )
-                    );*/
+            }
 
+
+            {
+                // template( T: type )
+                // class ptr
+
+                auto const ptr_type
+                    = rill::ast::make_single_identifier( "ptr" );
+
+                // template
+                rill::ast::parameter_list template_params;
+
+                auto const type_type_expression
+                    = rill::ast::helper::make_id_expression( type_class_name );
+
+                // T: type
+                rill::ast::variable_declaration ty = {
+                    rill::attribute::holder_kind::k_ref,
+                    rill::ast::variable_declaration_unit{
+                        rill::ast::make_single_identifier( "T" ),
+                        rill::ast::value_initializer_unit{
+                            type_type_expression,
+                            boost::none
+                        }
+                    }
+                };
+                template_params.push_back( std::move( ty ) );
+
+                auto const ptr_class
+                    = std::make_shared<rill::ast::class_definition_statement>(
+                        ptr_type
+                        );
+
+                auto const template_ptr
+                    = std::make_shared<rill::ast::template_statement>(
+                        template_params,
+                        ptr_class
+                        );
+
+                id_c.dispatch( template_ptr, root_env );
             }
 
 
@@ -174,6 +212,19 @@ namespace rill
                                 context->env_conversion_table.bind_type( class_env, ty );
                             };
 
+
+                            // bind [ bool -> i1 ]
+                            install_type(
+                                "bool",
+                                llvm::Type::getInt1Ty( context->llvm_context )
+                                );
+
+                            // bind [ int8 -> i8 ]
+                            install_type(
+                                "int8",
+                                llvm::Type::getInt8Ty( context->llvm_context )
+                                );
+
                             // bind [ int -> i32 ]
                             install_type(
                                 "int",
@@ -190,12 +241,6 @@ namespace rill
                             install_type(
                                 "void",
                                 llvm::Type::getVoidTy( context->llvm_context )
-                                );
-
-                            // bind [ bool -> bool ]
-                            install_type(
-                                "bool",
-                                llvm::Type::getInt1Ty( context->llvm_context )
                                 );
 
                             // bind [ type -> i8*(pointer to type_detail) ]

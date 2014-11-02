@@ -124,6 +124,7 @@ namespace rill
                 install_primitive_class( "int" );
                 install_primitive_class( "bool" );
                 install_primitive_class( "string" );
+                install_primitive_class( "int8" );
             }
 
         private:
@@ -484,6 +485,18 @@ namespace rill
                 if ( template_arg.is_type() ) {
                     auto const& t_detail
                         = static_cast<type_detail_ptr>( template_arg.element );
+
+                    auto ty = root_env_->get_type_at( t_detail->type_id ); // make copy
+                    ty.attributes
+                        = overlap_empty_attr( ty.attributes, attribute::make_default() );
+                    auto const& new_type_id = root_env_->make_type_id(
+                        ty.class_env_id,
+                        ty.attributes
+                        );
+
+                    // update
+                    t_detail->type_id = new_type_id;
+
                     ctfe_engine_->value_holder()->bind_value(
                         template_var_env->get_id(),
                         t_detail
@@ -701,6 +714,7 @@ namespace rill
                     // array template args are
                     // [0]: type(no attributes by default)
                     // [1]: number of elements
+                    assert( template_args->size() == 2 );
                     assert( template_args->at( 0 ).is_type() );
 
                     auto const& array_element_ty_detail
@@ -720,6 +734,25 @@ namespace rill
                         array_element_type_id,
                         *array_element_num
                         );
+
+                } else if ( s->get_identifier()->get_inner_symbol()->to_native_string() == "ptr" ) {
+                    // set special flag as Pointer
+                    // ptr template args are
+                    // [0]: type(no attributes by default)
+                    assert( template_args->size() == 1 );
+                    assert( template_args->at( 0 ).is_type() );
+
+                    auto const& ptr_element_ty_detail
+                        = static_cast<type_detail_ptr>( template_args->at( 0 ).element );
+                    auto ty = root_env_->get_type_at( ptr_element_ty_detail->type_id ); // make copy
+                    ty.attributes = overlap_empty_attr( ty.attributes, attribute::make_default() );
+                    auto const& ptr_element_type_id = root_env_->make_type_id(
+                        ty.class_env_id,
+                        ty.attributes
+                        );
+
+                    std::cout << "This is ptr!" << std::endl;
+                    c_env->make_as_pointer( ptr_element_type_id );
                 }
             }
 
@@ -805,7 +838,24 @@ namespace rill
                             dependent_value_kind::k_type,
                             root_env_->make_type_id(
                                 c_env,
-                                attribute::make_type_attributes(
+                                attribute::make(
+                                    attribute::holder_kind::k_val,
+                                    attribute::modifiability_kind::k_immutable
+                                    )
+                                )
+                        };
+                    }
+
+                    case class_builtin_kind::k_int8:
+                    {
+                        auto const& c_env = get_primitive_class_env( "int8" );
+                        return {
+                            argument_ty_detail,
+                            argument_evaled_value,
+                            dependent_value_kind::k_int8,
+                            root_env_->make_type_id(
+                                c_env,
+                                attribute::make(
                                     attribute::holder_kind::k_val,
                                     attribute::modifiability_kind::k_immutable
                                     )
@@ -822,7 +872,7 @@ namespace rill
                             dependent_value_kind::k_int32,
                             root_env_->make_type_id(
                                 c_env,
-                                attribute::make_type_attributes(
+                                attribute::make(
                                     attribute::holder_kind::k_val,
                                     attribute::modifiability_kind::k_immutable
                                     )

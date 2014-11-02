@@ -99,21 +99,48 @@ namespace rill
 
         RILL_VISITOR_OP( analyzer, ast::intrinsic::string_value, v, parent_env )
         {
-            auto const& class_env = get_primitive_class_env( v->get_native_typename_string() );
-            assert( class_env != nullptr );  // literal type must exist
+            // first, create pointer to static area
+            auto const& int8_c_env = get_primitive_class_env( "int8" );
+            auto const& ty_id = root_env_->make_type_id(
+                    int8_c_env,
+                    attribute::make(
+                        attribute::holder_kind::k_val,
+                        attribute::modifiability_kind::k_immutable,
+                        attribute::lifetime_kind::k_static
+                        )
+                    );
+            ast::expression_list args = {
+                std::make_shared<ast::evaluated_type_expression>( ty_id )
+            };
+
+            auto const& instance
+                = ast::helper::make_id_expression(
+                    std::make_shared<ast::term_expression>(
+                        std::make_shared<ast::template_instance_value>(
+                            "ptr", args, true
+                            )
+                        )
+                    );
+
+            auto const& ty_d
+                = resolve_type(
+                    instance,
+                    attribute::holder_kind::k_val,
+                    root_env_,
+                    [&]( type_detail_ptr const& ty_d,
+                         type const& ty,
+                         class_symbol_environment_ptr const& class_env
+                        ) {
+                        assert( class_env->is_pointer() );
+
+                        // connect fron LITARAL VALUE
+                        class_env->connect_from_ast( v );
+                    } );
+
+            // TODO: wrap pointer by string class
 
             //
-            return bind_type(
-                v,
-                type_detail_pool_->construct(
-                    class_env->make_type_id( class_env, attribute::make_default_type_attributes() ),
-                    nullptr,    // unused
-                    nullptr,    // unused
-                    nullptr,    // unused
-                    true,       // xvalue
-                    type_detail::evaluate_mode::k_everytime
-                    )
-                );
+            return bind_type( v, ty_d );
         }
 
         RILL_VISITOR_OP( analyzer, ast::intrinsic::array_value, v, parent_env )
@@ -122,6 +149,7 @@ namespace rill
                 = std::static_pointer_cast<ast::intrinsic::array_value>( v );
 
             // abyaaa
+            // TODO: support various types
             ast::expression_list args = {
                 ast::helper::make_id_expression(
                     ast::make_identifier( "int" )

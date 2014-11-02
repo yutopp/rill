@@ -584,6 +584,22 @@ namespace rill
         }
 
 
+        //
+        RILL_VISITOR_OP( analyzer, ast::evaluated_type_expression, e, env )
+        {
+            // this value contains "type_id", so the type of this expression is "type"
+            auto const& type_class_env = get_primitive_class_env( "type" );
+            auto const& type_type_id
+                = type_class_env->make_type_id( type_class_env, attribute::make_default_type_attributes() );
+
+            return bind_type(
+                e,
+                type_detail_pool_->construct(
+                    type_type_id,
+                    type_class_env
+                    )
+                );
+        }
 
 
 

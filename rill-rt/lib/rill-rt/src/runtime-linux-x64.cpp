@@ -23,6 +23,11 @@ extern "C"
         return;
     }
 
+    void print_bytes( char const* const bytes )
+    {
+        std::printf( "bytes => %s\n", bytes );
+    }
+
     int rill_main()
     {
         int const value = main();

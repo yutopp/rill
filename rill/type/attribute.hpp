@@ -40,6 +40,7 @@ namespace rill
             k_managed,
             k_unmanaged,
             k_static,
+            k_none,
             last
         };
 
@@ -204,6 +205,14 @@ namespace rill
                 attr.modifiability = k;
             }
 
+            inline void set_type_attribute(
+                type_attributes& attr,
+                lifetime_kind const& k
+                )
+            {
+                attr.lifetime = k;
+            }
+
             template<typename T>
             void set(
                 type_attributes& attr,
@@ -342,6 +351,16 @@ namespace rill
             {
                 if ( attr.modifiability == attribute::modifiability_kind::k_none ) {
                     attr.modifiability = k;
+                }
+            }
+
+            inline void overlap_empty(
+                attribute::type_attributes& attr,
+                attribute::lifetime_kind const& k
+                )
+            {
+                if ( attr.lifetime == attribute::lifetime_kind::k_none ) {
+                    attr.lifetime = k;
                 }
             }
 
