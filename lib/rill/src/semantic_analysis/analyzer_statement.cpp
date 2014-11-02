@@ -41,7 +41,10 @@ namespace rill
         // statement
         RILL_VISITOR_OP( analyzer, ast::expression_statement, s, parent_env )
         {
-            dispatch( s->expression_, parent_env );
+            auto const& ty_d = dispatch( s->expression_, parent_env );
+            if ( ty_d->eval_mode == type_detail::evaluate_mode::k_only_compiletime ) {
+                substitute_by_ctfed_node( s->expression_, ty_d, parent_env );
+            }
         }
 
         //
@@ -348,7 +351,7 @@ namespace rill
             solve_function_return_type_semantics( f_env );
 
             //
-            f_env->complete( make_mangled_name( f_env ) );
+            f_env->complete( make_mangled_name( f_env ), s->decl_attr_ );
         }
 
 
@@ -480,7 +483,7 @@ namespace rill
             solve_function_return_type_semantics( f_env );
 
             //
-            f_env->complete( make_mangled_name( f_env ) );
+            f_env->complete( make_mangled_name( f_env ), s->decl_attr_ );
         }
 
 
@@ -617,7 +620,7 @@ namespace rill
                         f_env->decide_return_type( return_ty_d->type_id );
                         f_env->complete(
                             make_mangled_name( f_env ),
-                            function_symbol_environment::attr::e_extern
+                            attribute::decl::k_extern | s->decl_attr_
                             );
                     });
 

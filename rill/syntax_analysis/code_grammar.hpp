@@ -78,6 +78,7 @@ namespace rill
                 ( detail::make_keyword( "def" )
                 > t.identifier
                 > t.parameter_variable_declaration_list
+                > t.decl_attribute_list
                 > -t.type_specifier
                 > t.function_body_block
                 )[
@@ -85,7 +86,8 @@ namespace rill
                         ph::_1,
                         ph::_2,
                         ph::_3,
-                        ph::_4
+                        ph::_4,
+                        ph::_5
                         )
                     ]
             )
@@ -173,6 +175,16 @@ namespace rill
                 ( x3::lit( ':' ) > t.id_expression )
             )
 
+            R( decl_attribute, attribute::decl::type,
+                x3::lit( "onlymeta" )[helper::assign( attribute::decl::k_onlymeta )]
+            )
+
+            R( decl_attribute_list, attribute::decl::type,
+                x3::attr( attribute::decl::k_default )
+                >> ( ( t.decl_attribute[helper::make_merged_bitflag( ph::_1 )] % x3::lit( ',' ) )
+                   | x3::eps
+                   )
+            )
 
             // ====================================================================================================
             // ====================================================================================================
@@ -214,6 +226,7 @@ namespace rill
                 ( detail::make_keyword( "def" )
                 > t.identifier
                 > t.parameter_variable_declaration_list
+                > t.decl_attribute_list
                 > -t.type_specifier
                 > t.function_body_block
                 )[
@@ -221,7 +234,8 @@ namespace rill
                         ph::_1,
                         ph::_2,
                         ph::_3,
-                        ph::_4
+                        ph::_4,
+                        ph::_5
                         )
                     ]
             )
@@ -248,6 +262,7 @@ namespace rill
                 ( detail::make_keyword( "def" )
                 > t.identifier
                 > t.parameter_variable_declaration_list
+                > t.decl_attribute_list
                 > t.type_specifier
                 > t.string_literal_sequence
                 )[
@@ -255,7 +270,8 @@ namespace rill
                         ph::_1,
                         ph::_2,
                         ph::_3,
-                        ph::_4
+                        ph::_4,
+                        ph::_5
                         )
                     ]
             )
@@ -514,9 +530,9 @@ namespace rill
             // ====================================================================================================
             // ====================================================================================================
             R( primary_value, ast::value_ptr,
-                ( t.identifier_value_set
+                ( t.boolean_literal
+                | t.identifier_value_set
                 | t.numeric_literal
-                | t.boolean_literal
                 | t.string_literal
                 | t.array_literal
                 )
@@ -575,8 +591,9 @@ namespace rill
 
             // ====================================================================================================
             R( boolean_literal, ast::intrinsic::boolean_value_ptr,
-                  x3::lit( "true" )[helper::make_node_ptr<ast::intrinsic::boolean_value>( true )]
-                | x3::lit( "false" )[helper::make_node_ptr<ast::intrinsic::boolean_value>( false )]
+                x3::bool_[
+                    helper::make_node_ptr<ast::intrinsic::boolean_value>( ph::_1 )
+                    ]
             )
 
             // ====================================================================================================

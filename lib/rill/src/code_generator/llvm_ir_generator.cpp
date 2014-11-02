@@ -151,7 +151,7 @@ namespace rill
 
             return [&]() -> llvm::Constant*
             {
-                if ( f_env->has_attribute( function_symbol_environment::attr::e_extern ) ) {
+                if ( f_env->has_attribute( attribute::decl::k_extern ) ) {
                     // external function
                     llvm::FunctionType* const func_type
                         = context_->env_conversion_table.ref_function_type( f_env->get_id() );
@@ -1210,7 +1210,7 @@ namespace rill
             // ========================================
             // look up self function
             auto const f_env
-                = std::static_pointer_cast<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( e ) );
+                = cast_to<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( e ) );
             assert( f_env != nullptr );
 
 
@@ -1394,12 +1394,7 @@ namespace rill
                     llvm::APInt( sizeof( e->type_id ), e->type_id )
                     );
 
-            // !important!
-            // set '1' to LSB to recognize this value is TYPE!
-            llvm::Value* flaged_type_id_ptr
-                = reinterpret_cast<llvm::Value*>( reinterpret_cast<std::uintptr_t>( type_id_ptr ) | 0x1 );
-
-            return flaged_type_id_ptr;
+            return type_id_ptr;
         }
 
         // identifier node returns Variable
@@ -1472,18 +1467,11 @@ namespace rill
 
                 std::cout << "in llvm.class_name " << c_env->get_mangled_name() << " (" << type_id_c << ")" << std::endl;
 
-
-
                 // return id of type!
                 llvm::Value* type_id_ptr
                     = llvm::ConstantInt::get( context_->llvm_context, llvm::APInt( sizeof( type_id_c ), type_id_c ) );
 
-                // !important!
-                // set '1' to LSB to recognize this value is TYPE!
-                llvm::Value* flaged_type_id_ptr
-                    = reinterpret_cast<llvm::Value*>( reinterpret_cast<std::uintptr_t>( type_id_ptr ) | 0x1 );
-
-                return flaged_type_id_ptr;
+                return type_id_ptr;
             }
 
             default:
@@ -1571,12 +1559,7 @@ namespace rill
                 llvm::Value* type_id_ptr
                     = llvm::ConstantInt::get( context_->llvm_context, llvm::APInt( sizeof( type_id_c ), type_id_c ) );
 
-                // !important!
-                // set '1' to LSB to recognize this value is TYPE!
-                llvm::Value* flaged_type_id_ptr
-                    = reinterpret_cast<llvm::Value*>( reinterpret_cast<std::uintptr_t>( type_id_ptr ) | 0x1 );
-
-                return flaged_type_id_ptr;
+                return type_id_ptr;
             }
 
             default:

@@ -67,16 +67,27 @@ namespace rill
             typedef std::vector<dependent_type>         template_arg_type;
             typedef std::shared_ptr<template_arg_type>  template_arg_pointer;
 
+            enum class evaluate_mode
+            {
+                k_everytime,
+                k_only_compiletime,
+                k_only_runtime
+            };
+
             explicit type_detail(
                 type_id_t const& w,
                 environment_base_ptr const& e,
                 nest_pointer const& st = nullptr,
-                template_arg_pointer const& sd = nullptr
+                template_arg_pointer const& sd = nullptr,
+                bool const ix = false,
+                evaluate_mode const& em = evaluate_mode::k_everytime
                 )
                 : type_id( w )
                 , target_env( e )
                 , nest( st )
                 , template_args( sd )
+                , is_xvalue( ix )
+                , eval_mode( em )
             {}
 
             type_id_t type_id;
@@ -85,7 +96,7 @@ namespace rill
             template_arg_pointer template_args;
 
             bool is_xvalue;
-            bool is_constant;
+            evaluate_mode eval_mode;
 
         public:
             inline auto has_template_args() const

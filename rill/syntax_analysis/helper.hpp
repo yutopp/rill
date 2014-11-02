@@ -96,6 +96,8 @@ namespace rill
             constexpr auto _3 = detail::placeholder_t<3>();
             constexpr auto _4 = detail::placeholder_t<4>();
             constexpr auto _5 = detail::placeholder_t<5>();
+            constexpr auto _6 = detail::placeholder_t<6>();
+            constexpr auto _7 = detail::placeholder_t<7>();
         } // namespace placeholder
 
 
@@ -266,6 +268,22 @@ namespace rill
             {
                 return make_assoc_node_ptr<ast::binary_operator_expression>(
                     ast::make_binary_operator_identifier( op ), // op
+                    std::forward<T1>( rhs )
+                    );
+            }
+
+            template<typename T1>
+            auto make_merged_bitflag( T1&& rhs )
+            {
+                return std::bind(
+                    []( auto& ctx, auto&& args ) {
+                        x3::_val( ctx )
+                            = x3::_val( ctx ) | action_value<decltype(ctx)>(
+                                ctx,
+                                std::forward<decltype(args)>( args )
+                                );
+                    },
+                    std::placeholders::_1,  // ctx
                     std::forward<T1>( rhs )
                     );
             }

@@ -11,9 +11,15 @@ extern "C"
         std::printf( "%s", str );
     }
 
-    void put_string2( int const num )
+    void print_int32( int const num )
     {
         std::printf( "num => %d\n", num );
+        return;
+    }
+
+    void print_bool( bool const b )
+    {
+        std::printf( "bool => %s\n", b ? "true" : "false" );
         return;
     }
 

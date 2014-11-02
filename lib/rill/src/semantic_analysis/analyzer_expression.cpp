@@ -99,12 +99,28 @@ namespace rill
                     function_env->connect_from_ast( e );
                     //function_env->connect_to_ast( e );
 
+                    bool const is_xvalue = [&]() {
+                        auto const& tid = function_env->get_return_type_id();
+                        auto const& ty = root_env_->get_type_at( tid );
+                        return ty.attributes.quality == attribute::holder_kind::k_val;
+                    }();
+                    auto const eval_mode = [&]() {
+                        if ( function_env->has_attribute( attribute::decl::k_onlymeta ) ) {
+                            return type_detail::evaluate_mode::k_only_compiletime;
+                        } else {
+                            return type_detail::evaluate_mode::k_everytime;
+                        }
+                    }();
+
                     return bind_type(
                         e,
                         type_detail_pool_->construct(
                             function_env->get_return_type_id(),
                             function_env,
-                            nullptr
+                            nullptr,    // nullptr
+                            nullptr,    // nullptr
+                            is_xvalue,
+                            eval_mode
                             )
                         );
 
@@ -278,7 +294,9 @@ namespace rill
                                 new_type_id,
                                 selector_id_type_detail->target_env,
                                 nested,
-                                selector_id_type_detail->template_args
+                                selector_id_type_detail->template_args,
+                                false,  // not xvalue
+                                reciever_type_detail->eval_mode
                                 );
 
                         } else {
@@ -287,21 +305,17 @@ namespace rill
                                 selector_id_type_detail->type_id,
                                 selector_id_type_detail->target_env,
                                 nested,
-                                selector_id_type_detail->template_args
+                                selector_id_type_detail->template_args,
+                                false,  // not xvalue
+                                reciever_type_detail->eval_mode
                                 );
                         }
 
                     } else {
                         // identifier was not found, but it will be reused by UFCS, so make temporary type data
 
-                        assert( false );
-
-                        return type_detail_pool_->construct(
-                            selector_id_type_detail->type_id,
-                            parent_env,
-                            nested,
-                            selector_id_type_detail->template_args
-                            );
+                        assert( false && "[] not supported" );
+                        return static_cast<type_detail*>( nullptr );
                     }
                 } ();
 
@@ -359,8 +373,14 @@ namespace rill
 
 
             // make argument type list
-            for( auto const& val : e->arguments_ )
-                argument_type_details.push_back( dispatch( val, env ) );
+            for( auto& val_expr : e->arguments_ ) {
+                auto const& val_ty_d = dispatch( val_expr, env );
+
+                argument_type_details.push_back( val_ty_d );
+                if ( val_ty_d->eval_mode == type_detail::evaluate_mode::k_only_compiletime ) {
+                    substitute_by_ctfed_node( val_expr, val_ty_d, env );
+                }
+            }
 
             // TODO: check type_id_special
             assert(
@@ -427,12 +447,28 @@ namespace rill
                     function_env->connect_from_ast( e );
                     //function_env->connect_to_ast( e );
 
+                    bool const is_xvalue = [&]() {
+                        auto const& tid = function_env->get_return_type_id();
+                        auto const& ty = root_env_->get_type_at( tid );
+                        return ty.attributes.quality == attribute::holder_kind::k_val;
+                    }();
+                    auto const eval_mode = [&]() {
+                        if ( function_env->has_attribute( attribute::decl::k_onlymeta ) ) {
+                            return type_detail::evaluate_mode::k_only_compiletime;
+                        } else {
+                            return type_detail::evaluate_mode::k_everytime;
+                        }
+                    }();
+
                     return bind_type(
                         e,
                         type_detail_pool_->construct(
                             function_env->get_return_type_id(),
                             function_env,
-                            nullptr
+                            nullptr,    // unused
+                            nullptr,    // unused
+                            is_xvalue,
+                            eval_mode
                             )
                         );
 
@@ -488,10 +524,21 @@ namespace rill
                             // TODO: fix
                             function_env->mark_as_initialize_function();
 
+                            auto const eval_mode = [&]() {
+                                if ( function_env->has_attribute( attribute::decl::k_onlymeta ) ) {
+                                    return type_detail::evaluate_mode::k_only_compiletime;
+                                } else {
+                                    return type_detail::evaluate_mode::k_everytime;
+                                }
+                            }();
+
                             b_ty_d = type_detail_pool_->construct(
                                 return_ty_d->type_id,
                                 function_env,
-                                nullptr
+                                nullptr,    // nullptr
+                                nullptr,    // nullptr
+                                true,
+                                eval_mode
                                 );
 
                             // substitute expression

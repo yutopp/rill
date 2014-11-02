@@ -122,6 +122,7 @@ namespace rill
                 install_primitive_class( "void" );
                 install_primitive_class( "type" );
                 install_primitive_class( "int" );
+                install_primitive_class( "bool" );
                 install_primitive_class( "string" );
             }
 

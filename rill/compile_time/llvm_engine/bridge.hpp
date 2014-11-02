@@ -47,6 +47,9 @@ namespace rill
 extern "C" {
     auto rill_abababa( rill::semantic_analysis::type_detail_ptr ty_detail )
         -> rill::semantic_analysis::type_detail_ptr;
+
+    auto rill_core_typesystem_is_mutable( rill::semantic_analysis::type_detail_ptr ty_detail )
+        -> bool;
 }
 
 #endif /*RILL_COMPILE_TIME_LLVM_ENGINE_BRIDGE_HPP*/

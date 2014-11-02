@@ -114,6 +114,12 @@ namespace rill
                 environment_base_ptr const& parent_env
                 ) -> type_detail_ptr;
 
+            auto substitute_by_ctfed_node(
+                ast::expression_ptr& expression,
+                type_detail_ptr const& ty_d,
+                environment_base_ptr const& parent_env
+                ) -> void;
+
         public:
             // for Identifier
             auto solve_identifier(
@@ -136,7 +142,6 @@ namespace rill
                 environment_base_ptr const& parent_env,
                 bool const do_not_lookup
                 ) -> type_detail_ptr;
-
 
         public:
             auto ref_type(

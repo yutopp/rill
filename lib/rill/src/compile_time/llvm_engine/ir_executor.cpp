@@ -103,26 +103,37 @@ namespace rill
                 ) -> void*
             {
                 auto const& ty = root_env_->get_type_at( semantic_type_id );
-                auto const& c_env = root_env_->get_env_at_as_strong_ref<
-                    class_symbol_environment const
-                    >( ty.class_env_id );
+                auto const& c_env = root_env_->get_env_at_as_strong_ref<class_symbol_environment const>( ty.class_env_id );
 
                 auto const& function_type = target_function->getFunctionType();
                 auto const llvm_type_id = function_type->getReturnType()->getTypeID();
 
-                // TODO: fix cond
-                if ( c_env->get_base_name() == "type" ) {
+                switch( c_env->get_builtin_kind() ) {
+                case class_builtin_kind::k_type:
+                {
                     assert( llvm_type_id == llvm::Type::PointerTyID );
                     return gv.PointerVal;
+                }
 
-                } if ( c_env->get_base_name() == "int" ) {
+                case class_builtin_kind::k_bool:
+                {
                     assert( llvm_type_id == llvm::Type::IntegerTyID );
-                    return make_object<std::int32_t>( *(gv.IntVal.getRawData() ) );
+                    return make_object<bool>( *gv.IntVal.getRawData() );
+                }
 
-                } else {
-                    assert( false && "[[ice, JIT]] value parameter was not supported yet" );
+                case class_builtin_kind::k_int32:
+                {
+                    assert( llvm_type_id == llvm::Type::IntegerTyID );
+                    return make_object<std::int32_t>( *gv.IntVal.getRawData() );
+                }
+
+                default:
+                {
+                    std::cout << c_env->get_base_name() << std::endl;
+                    assert( false && "[[ice, JIT]] this value type was not supported currently." );
                     return nullptr;
                 }
+                } // switch
             }
 
 
@@ -148,7 +159,7 @@ namespace rill
 
 
             RILL_VISITOR_READONLY_OP( ir_executor, ast::call_expression, e, parent_env )
-{
+            {
                 std::cout << "CALL expr" << std::endl;
 
                 // ========================================
@@ -246,6 +257,15 @@ namespace rill
             RILL_VISITOR_READONLY_OP( ir_executor, ast::term_expression, e, parent_env )
             {
                 return dispatch( e->value_, parent_env );
+            }
+
+
+            RILL_VISITOR_READONLY_OP( ir_executor, ast::evaluated_type_expression, e, parent_env )
+            {
+                return type_detail_pool_->construct(
+                    e->type_id,
+                    nullptr //variable_env
+                    );
             }
 
 

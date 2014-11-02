@@ -68,8 +68,12 @@ namespace rill
             return bind_type(
                 v,
                 type_detail_pool_->construct(
-                    class_env->make_type_id( class_env, attribute::make_default_type_attributes() ),
-                    nullptr /*unused*/
+                    class_env->make_type_id( class_env, attribute::make_default() ),
+                    nullptr,    // unused
+                    nullptr,    // unused
+                    nullptr,    // unused
+                    true,       // xvalue
+                    type_detail::evaluate_mode::k_everytime
                     )
                 );
         }
@@ -84,7 +88,11 @@ namespace rill
                 v,
                 type_detail_pool_->construct(
                     class_env->make_type_id( class_env, attribute::make_default_type_attributes() ),
-                    nullptr /*unused*/
+                    nullptr,    // unused
+                    nullptr,    // unused
+                    nullptr,    // unused
+                    true,       // xvalue
+                    type_detail::evaluate_mode::k_everytime
                     )
                 );
         }
@@ -99,7 +107,11 @@ namespace rill
                 v,
                 type_detail_pool_->construct(
                     class_env->make_type_id( class_env, attribute::make_default_type_attributes() ),
-                    nullptr /*unused*/
+                    nullptr,    // unused
+                    nullptr,    // unused
+                    nullptr,    // unused
+                    true,       // xvalue
+                    type_detail::evaluate_mode::k_everytime
                     )
                 );
         }
@@ -125,12 +137,10 @@ namespace rill
                 = ast::helper::make_id_expression(
                     std::make_shared<ast::term_expression>(
                         std::make_shared<ast::template_instance_value>(
-                            "array",
-                            args/*, true*/
+                            "array", args/*, true*/
                             )
                         )
                     );
-
 
             // solve array type...
             auto const& ty_d

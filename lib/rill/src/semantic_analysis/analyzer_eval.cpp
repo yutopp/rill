@@ -113,5 +113,65 @@ namespace rill
                 );
         }
 
+        auto analyzer::substitute_by_ctfed_node(
+            ast::expression_ptr& expression,
+            type_detail_ptr const& orig_ty_d,
+            environment_base_ptr const& parent_env
+            ) -> void
+        {
+            // regared: expression is already checked that semantics is valid
+
+            auto const& orig_ty
+                = root_env_->get_type_at( orig_ty_d->type_id );
+            auto const& orig_c_env
+                = root_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
+                    orig_ty.class_env_id
+                    );
+            assert( orig_c_env != nullptr );
+
+            // eval expression of arguments
+            auto evaled_value
+                = ctfe_engine_->execute_as_raw_storage( expression, parent_env );
+            assert( evaled_value != nullptr );
+
+            auto substituted_ast = [&orig_c_env, &evaled_value]() -> ast::expression_ptr {
+                switch( orig_c_env->get_builtin_kind() ) {
+                case class_builtin_kind::k_type:
+                {
+                    auto const& ty_detail
+                        = static_cast<type_detail_ptr>( evaled_value );
+                    return std::make_shared<ast::evaluated_type_expression>(
+                        ty_detail->type_id
+                        );
+                }
+
+                case class_builtin_kind::k_bool:
+                {
+                    auto const& inner
+                        = static_cast<bool const*>( evaled_value );
+
+                    return std::make_shared<ast::term_expression>(
+                        std::make_shared<ast::intrinsic::boolean_value>(
+                            *inner
+                            )
+                        );
+                }
+
+                default:
+                {
+                    std::cout << orig_c_env->get_base_name() << std::endl;
+                    assert( false && "[[ice]] this value type was not supported currently." );
+                    return nullptr;
+                }
+                } // switch
+            }();
+
+            // substitute expression
+            expression.swap( substituted_ast );
+
+            // rebind
+            bind_type( expression, orig_ty_d );
+        }
+
     } // namespace semantic_analysis
 } // namespace rill

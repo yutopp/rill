@@ -39,13 +39,6 @@ namespace rill
     public:
         static kind::type_value const KindValue;
 
-        // TODO: rename
-        enum attr : int {
-            e_normal = 0,
-            e_extern = 1 << 0
-        };
-        typedef int attributes_t;
-
     public:
         // pre construct
         function_symbol_environment(
@@ -58,7 +51,7 @@ namespace rill
             , parent_class_env_id_( environment_id_undefined )
             , return_type_id_( type_id_undefined )
             , base_name_( base_name )
-            , attributes_( e_normal )
+            , decl_attr_( attribute::decl::k_default )
         {}
 
     public:
@@ -102,13 +95,13 @@ namespace rill
 
         auto complete(
             native_string_type const& mangled_name,
-            attributes_t const& attrbute = attr::e_normal
+            attribute::decl::type const& decl_attr = attribute::decl::k_default
             )
             -> void
         {
             assert( is_return_type_decided() );
             mangled_name_ = mangled_name;
-            attributes_ = attrbute;
+            set_attribute( decl_attr );
 
             change_progress_to_completed();
         }
@@ -183,9 +176,19 @@ namespace rill
             return return_type_id_ != type_id_undefined;
         }
 
-        bool has_attribute( attr const& attribute ) const
+        bool has_attribute( attribute::decl::type const& attribute ) const
         {
-            return ( attributes_ & attribute  ) != 0;
+            return ( decl_attr_ & attribute  ) != 0;
+        }
+
+        void set_attribute( attribute::decl::type const& attribute )
+        {
+            decl_attr_ |= attribute;
+        }
+
+        void unset_attribute( attribute::decl::type const& attribute )
+        {
+            decl_attr_ ^= attribute;
         }
 
         void set_parent_class_env_id( environment_id_t const& parent_class_env_id )
@@ -228,7 +231,7 @@ namespace rill
         type_id_list_t return_type_candidates_;
 
         native_string_type base_name_, mangled_name_;
-        attributes_t attributes_;
+        attribute::decl::type decl_attr_;
 
         bool is_initializer_function;
     };

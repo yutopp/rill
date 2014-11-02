@@ -19,7 +19,8 @@ namespace rill
         namespace llvm_engine
         {
             std::unordered_map<std::string, void*> const ctfe_intrinsic_function_table = {
-                { "rill_abababa", reinterpret_cast<void*>( &rill_abababa ) }
+                { "rill_abababa", reinterpret_cast<void*>( &rill_abababa ) },
+                { "rill_core_typesystem_is_mutable", reinterpret_cast<void*>( rill_core_typesystem_is_mutable) }
             };
 
             static jit_execution_environmant gje;
@@ -62,5 +63,16 @@ extern "C" {
             ty_detail,
             t.attributes
             );
+    }
+
+    auto rill_core_typesystem_is_mutable( rill::semantic_analysis::type_detail_ptr ty_detail )
+        -> bool
+    {
+        std::cout << "POINTER:" << ty_detail << std::endl;
+
+        rill::type const& t = le::gje.semantic_analyzer->ref_type( ty_detail );
+        bool const is_mutable = t.attributes.modifiability == rill::attribute::modifiability_kind::k_mutable;
+
+        return is_mutable;
     }
 }

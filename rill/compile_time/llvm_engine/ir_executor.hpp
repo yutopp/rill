@@ -57,6 +57,8 @@ namespace rill
                 RILL_VISITOR_READONLY_OP_DECL( ast::id_expression );
                 RILL_VISITOR_READONLY_OP_DECL( ast::term_expression );
 
+                RILL_VISITOR_READONLY_OP_DECL( ast::evaluated_type_expression );
+
                 RILL_VISITOR_READONLY_OP_DECL( ast::identifier_value );
                 RILL_VISITOR_READONLY_OP_DECL( ast::template_instance_value );
 
