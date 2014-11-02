@@ -1448,28 +1448,29 @@ namespace rill
                 std::cout << "RETURN TYPE => "
                           << make_mangled_name( c_env, ty.attributes )
                           << std::endl;
-            }
+            } else {
+                for( auto&& r_type_id : f_env->get_return_type_candidates() ) {
+                    auto const ty = root_env_->get_type_at( r_type_id );
+                    auto const& c_env = root_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
+                        ty.class_env_id
+                        );
+                    std::cout << "CANDIDATE: RETURN TYPE => "
+                              << ty.attributes
+                              << std::endl;
 
-            for( auto&& r_type_id : f_env->get_return_type_candidates() ) {
-                auto const ty = root_env_->get_type_at( r_type_id );
-                auto const& c_env = root_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
-                    ty.class_env_id
-                    );
-                std::cout << "CANDIDATE: RETURN TYPE => "
-                          << ty.attributes
-                          << std::endl;
+                    if ( current_ret_type_id != type_id_undefined ) {
+                        if ( r_type_id != current_ret_type_id ) {
+                            //send_error( "[Error] return type is different from function signature" );
+                            assert( false && "[Error] return type is different from function signature" );
+                        }
 
-                if ( current_ret_type_id != type_id_undefined ) {
-                    if ( r_type_id != current_ret_type_id ) {
-                        send_error( "fuck" );
-                        assert( false && "[Error] return type is different from function signature" );
+                    } else {
+                        current_ret_type_id = r_type_id;
                     }
-
-                } else {
-                    current_ret_type_id = r_type_id;
                 }
+
+                f_env->decide_return_type( current_ret_type_id );
             }
-            f_env->decide_return_type( current_ret_type_id );
 
             // Return type
             if ( !f_env->is_return_type_decided() ) {

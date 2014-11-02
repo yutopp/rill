@@ -18,7 +18,11 @@ namespace rill
         auto print( message_object const& msg )
             -> void
         {
-            std::cout << "ABYAAA" << std::endl;
+            std::cout << "=======================================================" << std::endl
+                      << "=======================================================" << std::endl
+                      << "ABYAAA: " << msg.message << std::endl
+                      << "=======================================================" << std::endl
+                      << "=======================================================" << std::endl;
         }
 
     } // namespace message

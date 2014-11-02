@@ -41,7 +41,7 @@ class TestClass2
     def ctor()
     {}
 
-    def f(): TestClass
+    def f(): mutable(TestClass)
     {
         val a = TestClass();
         return a;
