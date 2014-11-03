@@ -52,7 +52,6 @@ namespace rill
             RILL_VISITOR_OP_DECL( ast::return_statement );
             RILL_VISITOR_OP_DECL( ast::function_definition_statement );
             RILL_VISITOR_OP_DECL( ast::variable_declaration_statement );
-          //RILL_VISITOR_OP_DECL( ast::intrinsic_function_definition_statement );
             RILL_VISITOR_OP_DECL( ast::extern_function_declaration_statement );
             RILL_VISITOR_OP_DECL( ast::class_definition_statement );
             RILL_VISITOR_OP_DECL( ast::class_function_definition_statement );
@@ -64,7 +63,6 @@ namespace rill
             RILL_VISITOR_OP_DECL( ast::element_selector_expression );
             RILL_VISITOR_OP_DECL( ast::subscrpting_expression );
             RILL_VISITOR_OP_DECL( ast::call_expression );
-            //RILL_VISITOR_OP_DECL( ast::intrinsic_function_call_expression );
             RILL_VISITOR_OP_DECL( ast::binary_operator_expression );
             RILL_VISITOR_OP_DECL( ast::id_expression );
             RILL_VISITOR_OP_DECL( ast::term_expression );
@@ -314,6 +312,7 @@ namespace rill
 
         private:
             environment_base_ptr root_env_;
+            intrinsic_function_action_holder_ptr action_holder_;
 
             std::shared_ptr<type_detail_pool_t> type_detail_pool_;
             std::shared_ptr<type_detail_factory> type_detail_factory_;

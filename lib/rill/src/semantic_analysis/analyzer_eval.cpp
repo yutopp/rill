@@ -89,7 +89,15 @@ namespace rill
 
             std::cout << "APPEND attributes" << std::endl;
             auto ty = root_env_->get_type_at( ty_d->type_id ); // make copy
-            ty.attributes = overlap_empty_attr( ty.attributes, rap_attr );
+            // force overwrite holder type(if specified)
+            // other attributes are filled
+            ty.attributes = overlap_empty_attr(
+                attribute::detail::overwrite_by_nonempty(
+                    ty.attributes,
+                    rap_attr.quality
+                    ),
+                rap_attr
+                );
 
             // update type id
             ty_d->type_id = root_env_->make_type_id(

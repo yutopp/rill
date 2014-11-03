@@ -217,6 +217,18 @@ namespace rill
             return is_initializer_function;
         }
 
+        void mark_as_intrinsic_function( intrinsic_function_action_id_t const& id )
+        {
+            intrinsic_action_id_ = id;
+        }
+
+        auto get_action_id() const
+            -> intrinsic_function_action_id_t const&
+        {
+            assert( intrinsic_action_id_ != boost::none );
+            return *intrinsic_action_id_;
+        }
+
     private:
         environment_id_t parameter_wrapper_env_id_;
         environment_id_t parent_class_env_id_;
@@ -234,6 +246,8 @@ namespace rill
         attribute::decl::type decl_attr_;
 
         bool is_initializer_function;
+
+        boost::optional<intrinsic_function_action_id_t> intrinsic_action_id_;
     };
 
 } // namespace rill

@@ -176,7 +176,9 @@ namespace rill
             )
 
             R( decl_attribute, attribute::decl::type,
-                x3::lit( "onlymeta" )[helper::assign( attribute::decl::k_onlymeta )]
+                ( x3::lit( "onlymeta" )[helper::assign( attribute::decl::k_onlymeta )]
+                | x3::lit( "intrinsic" )[helper::assign( attribute::decl::k_intrinsic )]
+                )
             )
 
             R( decl_attribute_list, attribute::decl::type,
@@ -628,6 +630,25 @@ namespace rill
             // ====================================================================================================
             // ====================================================================================================
             R( identifier_sequence, std::string,
+                ( t.operator_identifier_sequence
+                | t.normal_identifier_sequence
+                )
+            )
+
+            R( operator_identifier_sequence, std::string,
+               x3::raw[
+                     x3::lit( "%binary%operator_==" )
+                   | x3::lit( "%binary%operator_+" )
+                   | x3::lit( "%binary%operator_-" )
+                   | x3::lit( "%binary%operator_*" )
+                   | x3::lit( "%binary%operator_/" )
+                   | x3::lit( "%binary%operator_%" )
+                   | x3::lit( "%binary%operator_<" )
+                   | x3::lit( "%binary%operator_=" )
+                   ]
+            )
+
+            R( normal_identifier_sequence, std::string,
                 x3::lexeme[
                     ( t.nondigit_charset )
                     >> *( t.nondigit_charset

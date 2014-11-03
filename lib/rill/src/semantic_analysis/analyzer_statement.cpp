@@ -563,7 +563,7 @@ namespace rill
             assert( related_env != nullptr );
             assert( related_env->get_symbol_kind() == kind::type_value::e_function );
 
-            auto const& f_env = std::static_pointer_cast<function_symbol_environment>( related_env );
+            auto const& f_env = cast_to<function_symbol_environment>( related_env );
             assert( f_env != nullptr );
 
             // guard double check
@@ -590,7 +590,6 @@ namespace rill
 
                             // declare
                             f_env->parameter_variable_construct(
-                                /*TODO: add attributes, */
                                 e.decl_unit.name,
                                 class_env,
                                 attr
@@ -629,10 +628,16 @@ namespace rill
                 assert( false && "" );
             }
 
-            // TODO: add duplicate check
-            //f_env->get_parameter_wrapper_env()->add_overload( f_env );
 
-            std::cout << (environment_base_ptr const)f_env << std::endl;
+            //
+            if ( f_env->has_attribute( attribute::decl::k_intrinsic ) ) {
+                if ( auto&& id = action_holder_->is_registered( s->extern_symbol_name_ ) ) {
+                    f_env->mark_as_intrinsic_function( *id );
+
+                } else {
+                    assert( false && "[error] this intrinsic function is not registered" );
+                }
+            }
         }
 
     } // namespace semantic_analysis

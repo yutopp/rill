@@ -54,6 +54,10 @@ extern "C" {
     auto rill_core_typesystem_immutable( rill::semantic_analysis::type_detail_ptr ty_detail )
         -> rill::semantic_analysis::type_detail_ptr;
 
+    auto rill_core_typesystem_ref( rill::semantic_analysis::type_detail_ptr ty_detail )
+        -> rill::semantic_analysis::type_detail_ptr;
+
+
     auto rill_core_typesystem_is_mutable( rill::semantic_analysis::type_detail_ptr ty_detail )
         -> bool;
 }

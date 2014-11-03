@@ -401,6 +401,78 @@ namespace rill
         }
 
 
+        namespace detail
+        {
+            inline auto overwrite_by_nonempty(
+                type_attributes& attr,
+                holder_kind const& k
+                ) -> type_attributes&
+            {
+                if ( k != holder_kind::k_suggest ) {
+                    attr.quality = k;
+                }
+                return attr;
+            }
+
+            inline auto overwrite_by_nonempty(
+                type_attributes& attr,
+                modifiability_kind const& k
+                ) -> type_attributes&
+            {
+                if ( k != modifiability_kind::k_none ) {
+                    attr.modifiability = k;
+                }
+                return attr;
+            }
+
+            inline auto overwrite_by_nonempty(
+                type_attributes& attr,
+                lifetime_kind const& k
+                ) -> type_attributes&
+            {
+                if ( k != lifetime_kind::k_none ) {
+                    attr.lifetime = k;
+                }
+                return attr;
+            }
+
+            template<typename T>
+            void set_overwrite_by_nonempty(
+                attribute::type_attributes& attr,
+                T const& arg
+                )
+            {
+                overwrite_by_nonempty( attr, arg );
+            }
+
+            template<typename T, typename... Args>
+            void set_overwrite_by_nonempty(
+                attribute::type_attributes& attr,
+                T const& arg,
+                Args const&... args
+                )
+            {
+                overwrite_by_nonempty( attr, arg );
+                set_overwrite_by_nonempty( attr, args... );
+            }
+        } // namespace detail
+
+        inline auto overwrite_by_nonempty_attr(
+            attribute::type_attributes a,  // copy
+            attribute::type_attributes const& b
+            )
+            -> attribute::type_attributes
+        {
+            detail::set_overwrite_by_nonempty(
+                a,
+                b.quality,
+                b.modifiability
+                );
+
+            return a;
+        }
+
+
 
 
 

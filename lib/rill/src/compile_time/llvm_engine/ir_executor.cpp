@@ -221,6 +221,13 @@ namespace rill
                     = cast_to<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( e ) );
 
                 std::cout << "current : " << f_env->get_mangled_name() << std::endl;
+
+                if ( f_env->has_attribute( attribute::decl::k_intrinsic ) ) {
+                    // define llvm function(adhoc)
+                    // TODO: cache by f_env->get_action_id()
+                    ir_generator_->define_intrinsic_function_frame( f_env );
+                }
+
                 llvm::Function* const callee_function
                     = static_cast<llvm::Function*>(
                         ir_generator_->function_env_to_llvm_constatnt_ptr( f_env )
@@ -231,6 +238,7 @@ namespace rill
                 }
 
                 //
+                std::cout << "callee function" << std::endl;
                 callee_function->dump();
 
                 // call function that defined in rill modules
@@ -419,8 +427,6 @@ namespace rill
                 assert( false && "not supported" );
                 return nullptr;
             }
-
-
 
         } // namespace llvm_engine
     } // namespace compile_time

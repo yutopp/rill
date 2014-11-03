@@ -32,6 +32,10 @@ namespace rill
                     reinterpret_cast<void*>( &rill_core_typesystem_immutable )
                 },
                 {
+                    "rill_core_typesystem_ref",
+                    reinterpret_cast<void*>( &rill_core_typesystem_ref )
+                },
+                {
                     "rill_core_typesystem_is_mutable",
                     reinterpret_cast<void*>( rill_core_typesystem_is_mutable )
                 }
@@ -92,6 +96,18 @@ extern "C" {
     {
         rill::type t = le::gje.semantic_analyzer->ref_type( ty_detail );
         t.attributes <<= rill::attribute::modifiability_kind::k_immutable;
+
+        return le::gje.semantic_analyzer->qualify_type(
+            ty_detail,
+            t.attributes
+            );
+    }
+
+    auto rill_core_typesystem_ref( rill::semantic_analysis::type_detail_ptr ty_detail )
+        -> rill::semantic_analysis::type_detail_ptr
+    {
+        rill::type t = le::gje.semantic_analyzer->ref_type( ty_detail );
+        t.attributes <<= rill::attribute::holder_kind::k_ref;
 
         return le::gje.semantic_analyzer->qualify_type(
             ty_detail,

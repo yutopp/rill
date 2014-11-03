@@ -21,6 +21,7 @@ namespace rill
 
         class llvm_ir_generator_tag {};
         auto const k_llvm_ir_generator = llvm_ir_generator_tag();
+
     } // namespace processing_context
 
     class intrinsic_function_action_base;
@@ -37,4 +38,3 @@ namespace rill
 } // namespace rill
 
 #endif /*RILL_BEHAVIOR_INTRINSIC_FUNCTION_HOLDER_FWD_HPP*/
-

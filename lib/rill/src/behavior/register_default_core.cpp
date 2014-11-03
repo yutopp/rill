@@ -20,44 +20,19 @@ namespace rill
 {
     namespace behavior
     {
-        template<typename Action, typename ActionHolder, typename RootEnv, typename Identifier, typename ParameterConstructor, typename Env>
-        void inline construct_predefined_function(
+        template<typename Action, typename ActionHolder>
+        auto inline construct_predefined_function(
             ActionHolder& action_holder,
-            RootEnv& root_env,
-            Identifier const& function_name,
-            ParameterConstructor const& tpc_func,
-            Env const& return_class_env,
-            attribute::type_attributes const& return_type_attr
-                = attribute::make_type_attributes(
-                    attribute::holder_kind::k_val,
-                    attribute::modifiability_kind::k_immutable
-                    )
+            std::string const& tag_name
             )
+            -> void
         {
-            // allocate the new action holder
-            auto const action_id = action_holder->template append<Action>();
-
-            // function body
-            auto const& intrinsic_call_expr = std::make_shared<rill::ast::intrinsic_function_call_expression>( action_id );
-            ast::element::statement_list const sl = {
-                std::make_shared<rill::ast::return_statement>( intrinsic_call_expr )
-            };
-            auto f_ast = std::make_shared<rill::ast::intrinsic_function_definition_statement>(
-                function_name,
-                std::make_shared<ast::statements>( sl )
-                );
-
-            // function definition
-            auto f = root_env->construct( rill::kind::k_function, function_name, f_ast, tpc_func, return_class_env, return_type_attr );
-
-            // memoize called function env
-            f->connect_from_ast( intrinsic_call_expr );
+            action_holder->template append<Action>( tag_name );
         }
+
         // It defined a function that contains native machine code.
         // machine code of function entry(brigde of parameters...) and function exit(cleanup) will be generated normally, but
         // function body will be replaced this machine code.
-
-
 
         //
         //
@@ -194,7 +169,7 @@ namespace rill
                         rill::processing_context::llvm_ir_generator_tag, // Tag for Rill's LLVM IR Generator
                         code_generator::llvm_ir_generator_context_ptr const& context,
                         const_environment_base_ptr const& root_env,
-                        environment_id_list_t const& argument_var_env_ids
+                        std::vector<llvm::Value*> const&
                         ) const
                         -> llvm::Value*
                         {
@@ -296,8 +271,6 @@ namespace rill
                 = rill::ast::make_single_identifier( "print" );
 
 
-
-
             // ============================================================
             // ============================================================
             //
@@ -307,58 +280,30 @@ namespace rill
                 //
                 // def +( :int, :int ): int => native
                 //
-
                 struct action
                     : rill::intrinsic_function_action_base
                 {
-                    //
                     auto invoke(
-                        rill::processing_context::llvm_ir_generator_tag, // Tag for Rill's LLVM IR Generator
+                        rill::processing_context::llvm_ir_generator_tag,
                         code_generator::llvm_ir_generator_context_ptr const& context,
-                        const_environment_base_ptr const& root_env,
-                        environment_id_list_t const& argument_var_env_ids
+                        const_environment_base_ptr const& f_env,
+                        std::vector<llvm::Value*> const& argument_vars
                         ) const
                         -> llvm::Value*
                         {
+                            assert( argument_vars.size() == 2 );
+
                             return context->ir_builder.CreateAdd(
-                                context->env_conversion_table.ref_value( argument_var_env_ids[0] ),
-                                context->env_conversion_table.ref_value( argument_var_env_ids[1] )
+                                argument_vars[0],
+                                argument_vars[1]
                                 );
                         }
                 };
-
-                construct_predefined_function<action>( intrinsic_function_action, root_env, operator_add, [&]( rill::function_symbol_environment_ptr const& fenv ) {
-                        // ( :int, :int )
-                        fenv->parameter_variable_construct(
-                            rill::ast::make_single_identifier( "__a" ),
-                            int_class_env_pointer,
-                            attribute::make_type_attributes(
-                                attribute::holder_kind::k_val,
-                                attribute::modifiability_kind::k_immutable
-                                )
-                            );    // :int
-                        fenv->parameter_variable_construct(
-                            rill::ast::make_single_identifier( "__b" ),
-                            int_class_env_pointer,
-                            attribute::make_type_attributes(
-                                attribute::holder_kind::k_val,
-                                attribute::modifiability_kind::k_immutable
-                                )
-                            );    // :int
-
-                        return fenv;
-                    }, int_class_env_pointer );
+                construct_predefined_function<action>(
+                    intrinsic_function_action,
+                    "int_add"
+                    );
             }
-
-
-
-
-
-
-
-
-
-
 
 
             // ============================================================
@@ -370,56 +315,30 @@ namespace rill
                 //
                 // def -( :int, :int ): int => native
                 //
-
                 struct action
                     : rill::intrinsic_function_action_base
                 {
-                    //
                     auto invoke(
-                        rill::processing_context::llvm_ir_generator_tag, // Tag for Rill's LLVM IR Generator
+                        rill::processing_context::llvm_ir_generator_tag,
                         code_generator::llvm_ir_generator_context_ptr const& context,
-                        const_environment_base_ptr const& root_env,
-                        environment_id_list_t const& argument_var_env_ids
+                        const_environment_base_ptr const& f_env,
+                        std::vector<llvm::Value*> const& argument_vars
                         ) const
                         -> llvm::Value*
                         {
+                            assert( argument_vars.size() == 2 );
+
                             return context->ir_builder.CreateSub(
-                                context->env_conversion_table.ref_value( argument_var_env_ids[0] ),
-                                context->env_conversion_table.ref_value( argument_var_env_ids[1] )
+                                argument_vars[0],
+                                argument_vars[1]
                                 );
                         }
                 };
-
-                construct_predefined_function<action>( intrinsic_function_action, root_env, operator_sub, [&]( rill::function_symbol_environment_ptr const& fenv ) {
-                        // ( :int, :int )
-                        fenv->parameter_variable_construct(
-                            rill::ast::make_single_identifier( "__a" ),
-                            int_class_env_pointer,
-                            attribute::make_type_attributes(
-                                attribute::holder_kind::k_val,
-                                attribute::modifiability_kind::k_immutable
-                                )
-                            );    // :int
-                        fenv->parameter_variable_construct(
-                            rill::ast::make_single_identifier( "__b" ),
-                            int_class_env_pointer,
-                            attribute::make_type_attributes(
-                                attribute::holder_kind::k_val,
-                                attribute::modifiability_kind::k_immutable
-                                )
-                            );    // :int
-
-                        return fenv;
-                    }, int_class_env_pointer );
+                construct_predefined_function<action>(
+                    intrinsic_function_action,
+                    "int_sub"
+                    );
             }
-
-
-
-
-
-
-
-
 
 
             // ============================================================
@@ -431,57 +350,30 @@ namespace rill
                 //
                 // def *( :int, :int ): int => native
                 //
-
                 struct action
                     : rill::intrinsic_function_action_base
                 {
-                    //
                     auto invoke(
-                        rill::processing_context::llvm_ir_generator_tag, // Tag for Rill's LLVM IR Generator
+                        rill::processing_context::llvm_ir_generator_tag,
                         code_generator::llvm_ir_generator_context_ptr const& context,
-                        const_environment_base_ptr const& root_env,
-                        environment_id_list_t const& argument_var_env_ids
+                        const_environment_base_ptr const& f_env,
+                        std::vector<llvm::Value*> const& argument_vars
                         ) const
                         -> llvm::Value*
                         {
+                            assert( argument_vars.size() == 2 );
+
                             return context->ir_builder.CreateMul(
-                                context->env_conversion_table.ref_value( argument_var_env_ids[0] ),
-                                context->env_conversion_table.ref_value( argument_var_env_ids[1] )
+                                argument_vars[0],
+                                argument_vars[1]
                                 );
                         }
                 };
-
-                construct_predefined_function<action>( intrinsic_function_action, root_env, operator_multiply, [&]( rill::function_symbol_environment_ptr const& fenv ) {
-                        // ( :int, :int )
-                        fenv->parameter_variable_construct(
-                            rill::ast::make_single_identifier( "__a" ),
-                            int_class_env_pointer,
-                            attribute::make_type_attributes(
-                                attribute::holder_kind::k_val,
-                                attribute::modifiability_kind::k_immutable
-                                )
-                            );    // :int
-                        fenv->parameter_variable_construct(
-                            rill::ast::make_single_identifier( "__b" ),
-                            int_class_env_pointer,
-                            attribute::make_type_attributes(
-                                attribute::holder_kind::k_val,
-                                attribute::modifiability_kind::k_immutable
-                                )
-                            );    // :int
-
-                        return fenv;
-                    }, int_class_env_pointer );
+                construct_predefined_function<action>(
+                    intrinsic_function_action,
+                    "int_mul"
+                    );
             }
-
-
-
-
-
-
-
-
-
 
 
             // ============================================================
@@ -493,56 +385,31 @@ namespace rill
                 //
                 // def /( :int, :int ): int => native
                 //
-
                 struct action
                     : rill::intrinsic_function_action_base
                 {
-                    //
                     auto invoke(
-                        rill::processing_context::llvm_ir_generator_tag, // Tag for Rill's LLVM IR Generator
+                        rill::processing_context::llvm_ir_generator_tag,
                         code_generator::llvm_ir_generator_context_ptr const& context,
-                        const_environment_base_ptr const& root_env,
-                        environment_id_list_t const& argument_var_env_ids
+                        const_environment_base_ptr const& f_env,
+                        std::vector<llvm::Value*> const& argument_vars
                         ) const
                         -> llvm::Value*
                         {
+                            assert( argument_vars.size() == 2 );
+
                             // Signed div
                             return context->ir_builder.CreateSDiv(
-                                context->env_conversion_table.ref_value( argument_var_env_ids[0] ),
-                                context->env_conversion_table.ref_value( argument_var_env_ids[1] )
+                                argument_vars[0],
+                                argument_vars[1]
                                 );
                         }
                 };
-
-                construct_predefined_function<action>( intrinsic_function_action, root_env, operator_div, [&]( rill::function_symbol_environment_ptr const& fenv ) {
-                        // ( :int, :int )
-                        fenv->parameter_variable_construct(
-                            rill::ast::make_single_identifier( "__a" ),
-                            int_class_env_pointer,
-                            attribute::make_type_attributes(
-                                attribute::holder_kind::k_val,
-                                attribute::modifiability_kind::k_immutable
-                                )
-                            );    // :int
-                        fenv->parameter_variable_construct(
-                            rill::ast::make_single_identifier( "__b" ),
-                            int_class_env_pointer,
-                            attribute::make_type_attributes(
-                                attribute::holder_kind::k_val,
-                                attribute::modifiability_kind::k_immutable
-                                )
-                            );    // :int
-
-                        return fenv;
-                    }, int_class_env_pointer );
+                construct_predefined_function<action>(
+                    intrinsic_function_action,
+                    "signed_int_div"
+                    );
             }
-
-
-
-
-
-
-
 
 
             // ============================================================
@@ -554,192 +421,33 @@ namespace rill
                 //
                 // def %( :int, :int ): int => native
                 //
-
                 struct action
                     : rill::intrinsic_function_action_base
                 {
-                    //
                     auto invoke(
-                        rill::processing_context::llvm_ir_generator_tag, // Tag for Rill's LLVM IR Generator
+                        rill::processing_context::llvm_ir_generator_tag,
                         code_generator::llvm_ir_generator_context_ptr const& context,
-                        const_environment_base_ptr const& root_env,
-                        environment_id_list_t const& argument_var_env_ids
+                        const_environment_base_ptr const& f_env,
+                        std::vector<llvm::Value*> const& argument_vars
                         ) const
                         -> llvm::Value*
                         {
+                            assert( argument_vars.size() == 2 );
+
                             // Signed remider
                             return context->ir_builder.CreateSRem(
-                                context->env_conversion_table.ref_value( argument_var_env_ids[0] ),
-                                context->env_conversion_table.ref_value( argument_var_env_ids[1] )
+                                argument_vars[0],
+                                argument_vars[1]
                                 );
                         }
                 };
-
-                construct_predefined_function<action>( intrinsic_function_action, root_env, operator_modulo, [&]( rill::function_symbol_environment_ptr const& fenv ) {
-                        // ( :int, :int )
-                        fenv->parameter_variable_construct(
-                            rill::ast::make_single_identifier( "__a" ),
-                            int_class_env_pointer,
-                            attribute::make_type_attributes(
-                                attribute::holder_kind::k_val,
-                                attribute::modifiability_kind::k_immutable
-                                )
-                            );    // :int
-                        fenv->parameter_variable_construct(
-                            rill::ast::make_single_identifier( "__b" ),
-                            int_class_env_pointer,
-                            attribute::make_type_attributes(
-                                attribute::holder_kind::k_val,
-                                attribute::modifiability_kind::k_immutable
-                                )
-                            );    // :int
-
-                        return fenv;
-                    }, int_class_env_pointer );
-            }
-
-
-
-
-
-
-
-
-            // ============================================================
-            // ============================================================
-            //
-            //
-            // ============================================================
-            {
-                //
-                // def <( :int, :int ): int => native
-                //
-
-                struct action
-                    : rill::intrinsic_function_action_base
-                {
-                    //
-                    auto invoke(
-                        rill::processing_context::llvm_ir_generator_tag, // Tag for Rill's LLVM IR Generator
-                        code_generator::llvm_ir_generator_context_ptr const& context,
-                        const_environment_base_ptr const& root_env,
-                        environment_id_list_t const& argument_var_env_ids
-                        ) const
-                        -> llvm::Value*
-                        {
-                            // Signed less than
-                            return context->ir_builder.CreateICmpSLT(
-                                context->env_conversion_table.ref_value( argument_var_env_ids[0] ),
-                                context->env_conversion_table.ref_value( argument_var_env_ids[1] )
-                                );
-                        }
-                };
-
-                construct_predefined_function<action>( intrinsic_function_action, root_env, operator_less_than, [&]( rill::function_symbol_environment_ptr const& fenv ) {
-                        // ( :int, :int )
-                        fenv->parameter_variable_construct(
-                            rill::ast::make_single_identifier( "__a" ),
-                            int_class_env_pointer,
-                            attribute::make_type_attributes(
-                                attribute::holder_kind::k_val,
-                                attribute::modifiability_kind::k_immutable
-                                )
-                            );    // :int
-                        fenv->parameter_variable_construct(
-                            rill::ast::make_single_identifier( "__b" ),
-                            int_class_env_pointer,
-                            attribute::make_type_attributes(
-                                attribute::holder_kind::k_val,
-                                attribute::modifiability_kind::k_immutable
-                                )
-                            );    // :int
-
-                        return fenv;
-                    }, bool_class_env_pointer );
-            }
-
-
-
-
-
-
-
-
-
-
-
-
-            // ============================================================
-            // ============================================================
-            //
-            //
-            // ============================================================
-            {
-                //
-                // def =( ref :int mutable, :int ): int// ref mutable
-                //
-
-                struct action
-                    : rill::intrinsic_function_action_base
-                {
-                    //
-                    auto invoke(
-                        rill::processing_context::llvm_ir_generator_tag, // Tag for Rill's LLVM IR Generator
-                        code_generator::llvm_ir_generator_context_ptr const& context,
-                        const_environment_base_ptr const& root_env,
-                        environment_id_list_t const& argument_var_env_ids
-                        ) const
-                        -> llvm::Value*
-                        {
-                            // Signed less than
-                            context->ir_builder.CreateStore(
-                                context->env_conversion_table.ref_value( argument_var_env_ids[1] ),
-                                context->env_conversion_table.ref_value( argument_var_env_ids[0] )
-                                );
-
-                            return context->env_conversion_table.ref_value( argument_var_env_ids[0] );
-                        }
-                };
-
-                construct_predefined_function<action>( intrinsic_function_action, root_env, operator_assign, [&]( rill::function_symbol_environment_ptr const& fenv ) {
-                        // ( :int, :int )
-                        fenv->parameter_variable_construct(
-                            rill::ast::make_single_identifier( "__a" ),
-                            int_class_env_pointer,
-                            attribute::make_type_attributes(
-                                attribute::holder_kind::k_ref,
-                                attribute::modifiability_kind::k_mutable
-                                )
-                            );    // ref :mutable!int
-
-                        fenv->parameter_variable_construct(
-                            rill::ast::make_single_identifier( "__b" ),
-                            int_class_env_pointer,
-                            attribute::make_type_attributes(
-                                attribute::holder_kind::k_val,
-                                attribute::modifiability_kind::k_immutable
-                                )
-                            );    // :int
-
-                        return fenv;
-                    },
-                    int_class_env_pointer,
-                    attribute::make_type_attributes(
-                        attribute::holder_kind::k_ref,
-                        attribute::modifiability_kind::k_mutable
-                        )
+                construct_predefined_function<action>(
+                    intrinsic_function_action,
+                    "signed_int_mod"
                     );
             }
 
 
-
-
-
-
-
-
-
-
             // ============================================================
             // ============================================================
             //
@@ -747,58 +455,33 @@ namespace rill
             // ============================================================
             {
                 //
-                // def ==( :int, :int ): bool => native
+                // def <( :int, :int ): bool => native
                 //
-
                 struct action
                     : rill::intrinsic_function_action_base
                 {
-                    //
                     auto invoke(
-                        rill::processing_context::llvm_ir_generator_tag, // Tag for Rill's LLVM IR Generator
+                        rill::processing_context::llvm_ir_generator_tag,
                         code_generator::llvm_ir_generator_context_ptr const& context,
-                        const_environment_base_ptr const& root_env,
-                        environment_id_list_t const& argument_var_env_ids
+                        const_environment_base_ptr const& f_env,
+                        std::vector<llvm::Value*> const& argument_vars
                         ) const
                         -> llvm::Value*
                         {
-                            //
-                            return context->ir_builder.CreateICmpEQ(
-                                context->env_conversion_table.ref_value( argument_var_env_ids[0] ),
-                                context->env_conversion_table.ref_value( argument_var_env_ids[1] )
+                            assert( argument_vars.size() == 2 );
+
+                            // Signed less than
+                            return context->ir_builder.CreateICmpSLT(
+                                argument_vars[0],
+                                argument_vars[1]
                                 );
                         }
                 };
-
-                construct_predefined_function<action>( intrinsic_function_action, root_env, operator_equal, [&]( rill::function_symbol_environment_ptr const& fenv ) {
-                        // ( :int, :int )
-                        fenv->parameter_variable_construct(
-                            rill::ast::make_single_identifier( "__a" ),
-                            int_class_env_pointer,
-                            attribute::make_type_attributes(
-                                attribute::holder_kind::k_val,
-                                attribute::modifiability_kind::k_immutable
-                                )
-                            );    // :int
-                        fenv->parameter_variable_construct(
-                            rill::ast::make_single_identifier( "__b" ),
-                            int_class_env_pointer,
-                            attribute::make_type_attributes(
-                                attribute::holder_kind::k_val,
-                                attribute::modifiability_kind::k_immutable
-                                )
-                            );    // :int
-
-                        return fenv;
-                    }, bool_class_env_pointer );
+                construct_predefined_function<action>(
+                    intrinsic_function_action,
+                    "signed_int_less_than"
+                    );
             }
-
-
-
-
-
-
-
 
 
             // ============================================================
@@ -808,56 +491,72 @@ namespace rill
             // ============================================================
             {
                 //
-                // def print( val :string ): void => native
+                // def ==( val :int, val :int ): bool
                 //
-
                 struct action
                     : rill::intrinsic_function_action_base
                 {
-                    //
                     auto invoke(
-                        rill::processing_context::llvm_ir_generator_tag, // Tag for Rill's LLVM IR Generator
+                        rill::processing_context::llvm_ir_generator_tag,
                         code_generator::llvm_ir_generator_context_ptr const& context,
-                        const_environment_base_ptr const& root_env,
-                        environment_id_list_t const& argument_var_env_ids
+                        const_environment_base_ptr const& f_env,
+                        std::vector<llvm::Value*> const& argument_vars
                         ) const
                         -> llvm::Value*
                         {
-                            // define paramter and return types
-                            // TODO: use defined type form env_conversion_table
-                            std::vector<llvm::Type*> const parmeter_types
-                                = { llvm::Type::getInt8Ty( context->llvm_context )->getPointerTo() };
-                            auto const& return_type = llvm::Type::getVoidTy( context->llvm_context );
+                            assert( argument_vars.size() == 2 );
 
-                            // get function type
-                            llvm::FunctionType* const func_type
-                                = llvm::FunctionType::get( return_type, parmeter_types, false/*is not variadic*/ );
+                            return context->ir_builder.CreateICmpEQ(
+                                argument_vars[0],
+                                argument_vars[1]
+                                );
 
-                            //
-                            llvm::Constant* const puts_func
-                                = context->llvm_module->getOrInsertFunction( "put_string", func_type );
-
-                            context->ir_builder.CreateCall( puts_func, context->env_conversion_table.ref_value( argument_var_env_ids[0] ) );
-
-                            return 0;  // IRBuilder will recoginize 0 as Void...
                         }
                 };
-
-                construct_predefined_function<action>( intrinsic_function_action, root_env, print, [&]( rill::function_symbol_environment_ptr const& fenv ) {
-                        // ( ref :string )
-                        fenv->parameter_variable_construct(
-                            rill::ast::make_single_identifier( "__a" ),
-                            string_class_env_pointer,attribute::make_type_attributes(
-                                attribute::holder_kind::k_val,
-                                attribute::modifiability_kind::k_immutable
-                                )
-                            );    // :string
-
-                        return fenv;
-                    }, void_class_env_pointer );
+                construct_predefined_function<action>(
+                    intrinsic_function_action,
+                    "int_equals"
+                    );
             }
 
-        }
+
+            // ============================================================
+            // ============================================================
+            //
+            //
+            // ============================================================
+            {
+                //
+                // def =( ref :mutable(int), :int ): ref(mutable(int))
+                //
+                struct action
+                    : rill::intrinsic_function_action_base
+                {
+                    auto invoke(
+                        rill::processing_context::llvm_ir_generator_tag,
+                        code_generator::llvm_ir_generator_context_ptr const& context,
+                        const_environment_base_ptr const& f_env,
+                        std::vector<llvm::Value*> const& argument_vars
+                        ) const
+                        -> llvm::Value*
+                        {
+                            assert( argument_vars.size() == 2 );
+
+                            // store
+                            return context->ir_builder.CreateStore(
+                                argument_vars[1],
+                                argument_vars[0]
+                                );
+
+                        }
+                };
+                construct_predefined_function<action>(
+                    intrinsic_function_action,
+                    "int_assign"
+                    );
+            }
+
+        } // register_default_core
 
     } // namespace behavior
 } // namespace rill

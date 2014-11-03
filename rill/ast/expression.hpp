@@ -107,24 +107,6 @@ namespace rill
         RILL_AST_END
 
 
-
-
-
-
-
-
-        //
-        RILL_AST_BEGIN(
-            intrinsic_function_call_expression, expression,
-            (( intrinsic_function_action_id_t, action_id_ ))
-            )
-        public:
-            intrinsic_function_call_expression( intrinsic_function_action_id_t const& action_id )
-                : action_id_( action_id )
-            {}
-        RILL_AST_END
-
-
         RILL_AST_BEGIN(
             term_expression, expression,
             (( value_ptr, value_ ))

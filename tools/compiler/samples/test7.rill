@@ -1,21 +1,47 @@
 def main(): int
 {
-val a1 = "aaa?";
-//    val a: mutable(ptr!(int8)) = "string!!!";
+    val a1 = "aaa?";
     p( a1 );
-    //f( a );
+
+    val a: mutable(ptr!(int8)) = "string!!!";
+    f( a );
+
+    val aa: mutable(int) = 1;
+    val b = aa + 1 * 2 / 2 % 3;
+    p( b );
+    p( b == 1 );
+
+//    val c: mutable(int)= 92;
+//    g( c );
+//    c = b;
+//    p( c );
+
     return 0;
 }
-/*
+
+def g( ref a: const(int) ): void
+{
+}
+
 def f( ref a :const(ptr!(int8)) ): void
 {
     p(a);
 }
-*/
+
 extern def mutable( val a :type ) onlymeta: type "rill_core_typesystem_mutable";
 extern def const( val a :type ) onlymeta: type "rill_core_typesystem_const";
 extern def immutable( val a :type ) onlymeta: type "rill_core_typesystem_immutable";
+extern def ref( val a :type ) onlymeta: type "rill_core_typesystem_ref";
 extern def is_mutable( val a :type ) onlymeta: bool "rill_core_typesystem_is_mutable";
 extern def p( val i :int ): void "print_int32";
 extern def p( val i :bool ): void "print_bool";
 extern def p( val i :ptr!(int8) ): void "print_bytes";
+
+extern def %binary%operator_+( val __a: int, val __a: int ) intrinsic: int "int_add";
+extern def %binary%operator_-( val __a: int, val __a: int ) intrinsic: int "int_sub";
+extern def %binary%operator_*( val __a: int, val __a: int ) intrinsic: int "int_mul";
+extern def %binary%operator_/( val __a: int, val __a: int ) intrinsic: int "signed_int_div";
+extern def %binary%operator_%( val __a: int, val __a: int ) intrinsic: int "signed_int_mod";
+extern def %binary%operator_<( val __a: int, val __a: int ) intrinsic: int "signed_int_less_than";
+extern def %binary%operator_==( val __a: int, val __a: int ) intrinsic: bool "int_equals";
+extern def %binary%operator_=( ref __a: mutable(int), val __b: int ) intrinsic: ref(mutable(int)) "int_assign";

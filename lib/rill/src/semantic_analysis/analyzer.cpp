@@ -148,6 +148,7 @@ namespace rill
             intrinsic_function_action_holder_ptr const& holder
             )
             : root_env_( root_env )
+            , action_holder_( holder )
             , type_detail_pool_( std::make_shared<type_detail_pool_t>() )
             , ctfe_engine_( compile_time::llvm_engine::make_ctfe_engine( this, root_env, holder, type_detail_pool_ ) )
             , builtin_class_envs_cache_( std::make_shared<builtin_class_envs_cache>( root_env ) )
@@ -903,6 +904,52 @@ namespace rill
             case attribute::holder_kind::k_ref:
             {
                 // ref to ref
+                switch( argument_attributes.modifiability ) {
+                case attribute::modifiability_kind::k_immutable:
+                case attribute::modifiability_kind::k_none: // none == immutable
+                    switch( parameter_attributes.modifiability ) {
+                    case attribute::modifiability_kind::k_immutable:
+                    case attribute::modifiability_kind::k_none: // none == immutable
+                    case attribute::modifiability_kind::k_const:
+                        break;
+                    case attribute::modifiability_kind::k_mutable:
+                        return boost::none;
+                    default:
+                        assert( false );
+                    } // switch( parameter_attributes.attributes.modifiability )
+                    break;
+
+                case attribute::modifiability_kind::k_const:
+                    switch( parameter_attributes.modifiability ) {
+                    case attribute::modifiability_kind::k_immutable:
+                    case attribute::modifiability_kind::k_none: // none == immutable
+                        return boost::none;
+                    case attribute::modifiability_kind::k_const:
+                        break;
+                    case attribute::modifiability_kind::k_mutable:
+                        return boost::none;
+                    default:
+                        assert( false );
+                    } // switch( parameter_attributes.attributes.modifiability )
+                    break;
+
+                case attribute::modifiability_kind::k_mutable:
+                    switch( parameter_attributes.modifiability ) {
+                    case attribute::modifiability_kind::k_immutable:
+                    case attribute::modifiability_kind::k_none: // none == immutable
+                        return boost::none;
+                    case attribute::modifiability_kind::k_const:
+                    case attribute::modifiability_kind::k_mutable:
+                        break;
+                    default:
+                        assert( false );
+                    } // switch( target_type.attributes.modifiability )
+                    break;
+
+                default:
+                    assert( false );
+                } // switch( parameter_attributes.modifiability )
+
                 result_attr <<= attribute::holder_kind::k_ref;
                 break;
             }
@@ -910,6 +957,7 @@ namespace rill
             case attribute::holder_kind::k_val:
             {
                 // ref to val
+                // pass all
                 result_attr <<= attribute::holder_kind::k_val;
                 break;
             }
@@ -987,6 +1035,7 @@ namespace rill
             case attribute::holder_kind::k_val:
             {
                 // val to val
+                // pass all
                 break;
             }
 

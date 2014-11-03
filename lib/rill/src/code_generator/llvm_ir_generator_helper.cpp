@@ -26,10 +26,13 @@ namespace rill
             -> bool
         {
             auto const& c_env
-                = root_env_->get_env_at_as_strong_ref<class_symbol_environment const>( ty.class_env_id );
+                = root_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
+                    ty.class_env_id
+                    );
 
-            return c_env->has_metatype( class_metatype::structured )
-                && ty.attributes.lifetime == attribute::lifetime_kind::k_scoped;
+            return ( c_env->has_metatype( class_metatype::structured ) || c_env->is_array() )
+                && ty.attributes.lifetime == attribute::lifetime_kind::k_scoped
+                ;
         }
 
         auto llvm_ir_generator::type_id_to_llvm_type_ptr( type_id_t const& type_id )
@@ -49,23 +52,34 @@ namespace rill
                 dispatch( c_env->get_related_ast(), c_env );
             }
 
-            std::cout << "class env id: " << type_class_env_id<< " / " << c_env->get_base_name() << std::endl;
+            std::cout << "class env id: " << type_class_env_id<< " / " << c_env->get_base_name() << std::endl
+                      << "is_heavy" << is_heavy_object( ty ) << std::endl;;
             llvm::Type* llvm_ty
                 = context_->env_conversion_table.ref_type( type_class_env_id );
 
-            if ( c_env->has_metatype( class_metatype::structured ) ) {
-                // if type is "structed", argument is always passed by pointer
+            if ( is_heavy_object( ty ) ) {
+                // if heavy type, argument is always passed by pointer
                 return llvm_ty->getPointerTo();
 
             } else {
-                //
-                switch( type_attr.quality )
+                switch( type_attr.modifiability )
                 {
-                case attribute::holder_kind::k_val:
-                    return llvm_ty;
+                case attribute::modifiability_kind::k_mutable:
+                    switch( type_attr.quality ) {
+                    case attribute::holder_kind::k_val:
+                        return llvm_ty;
 
-                case attribute::holder_kind::k_ref:
-                    return llvm_ty->getPointerTo();
+                    case attribute::holder_kind::k_ref:
+                        return llvm_ty->getPointerTo();
+
+                    default:
+                        assert( false && "[ice]" );
+                        return nullptr;
+                    }
+
+                case attribute::modifiability_kind::k_const:
+                case attribute::modifiability_kind::k_immutable:
+                    return llvm_ty;
 
                 default:
                     assert( false && "[ice]" );
@@ -76,6 +90,7 @@ namespace rill
 
         // convert llvm::Value type to
         // in LLVM, the structure type is treated as pointer type
+        // conversion for pass value to function
         auto llvm_ir_generator::convert_value_by_attr(
             type const& target_type,
             type const& source_type,
@@ -96,17 +111,40 @@ namespace rill
                 dispatch( target_c_env->get_related_ast(), target_c_env );
             }
 
-            //
-            auto const is_loadable
-                = source_c_env->has_metatype( class_metatype::structured )
+            bool const is_heavy_object_source = is_heavy_object( source_type );
+
+            // represented as pointer
+            bool const is_loadable
+                = is_heavy_object_source
                 || ( context_->represented_as_pointer_set.count( source_value ) == 1 )
-                || ( source_type.attributes.quality == attribute::holder_kind::k_ref )
+                || ( source_type.attributes.quality == attribute::holder_kind::k_ref && is_heavy_object_source )
                 || ( source_type.attributes.modifiability == attribute::modifiability_kind::k_mutable )
                 ;
 
-            auto const load_required
-                = ( target_type.attributes.quality == attribute::holder_kind::k_val && !target_c_env->has_metatype( class_metatype::structured ) )
+            bool const is_heavy_object_target = is_heavy_object( target_type );
+
+            // represented as pointer
+            bool const arg_is_pointer
+                = is_heavy_object_target
+                || ( target_type.attributes.quality == attribute::holder_kind::k_ref
+                     && target_type.attributes.modifiability == attribute::modifiability_kind::k_mutable )
                 ;
+
+            // param pointer is represented by value
+            bool const load_required
+                = !arg_is_pointer;
+
+            std::cout << "===="
+                      << "from: " << source_c_env->get_base_name() << std::endl
+                      << source_type.attributes
+                      << "  h?: " << is_heavy_object_source << std::endl
+                      << "to  : " << target_c_env->get_base_name() << std::endl
+                      << target_type.attributes
+                      << "  h?: " << is_heavy_object_target << std::endl
+                      << "arg?: " << arg_is_pointer << std::endl;
+
+            std::cout << "is_loadable   : " << is_loadable << std::endl
+                      << "load_required : " << load_required << std::endl;
 
             if ( load_required && is_loadable ) {
                 return context_->ir_builder.CreateLoad( source_value );

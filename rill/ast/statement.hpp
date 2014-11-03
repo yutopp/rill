@@ -385,21 +385,6 @@ namespace rill
 
 
         RILL_AST_BEGIN(
-            intrinsic_function_definition_statement, function_definition_statement_base
-            )
-        public:
-            intrinsic_function_definition_statement(
-                identifier_value_ptr const& id,
-                statement_ptr const& inner
-                )
-                : function_definition_statement_base( id, inner )
-            {}
-        RILL_AST_END
-
-
-
-
-        RILL_AST_BEGIN(
             class_function_definition_statement, function_definition_statement_base,
             (( parameter_list, parameter_list_ ))
             (( attribute::decl::type, decl_attr_ ))

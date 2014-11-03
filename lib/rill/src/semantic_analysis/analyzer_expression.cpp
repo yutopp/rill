@@ -70,6 +70,11 @@ namespace rill
             // 2
             auto const& callee_function_type_detail
                 = solve_identifier( e->op_, parent_env );
+            if ( callee_function_type_detail == nullptr ) {
+                // compilation error...
+                std::cout << "% name : " << e->op_->get_inner_symbol()->to_native_string() << std::endl;
+                assert( false && "[Error] identifier was not found." );
+            }
 
             //
             if ( is_nontype_id( callee_function_type_detail->type_id ) ) {

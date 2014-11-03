@@ -16,6 +16,7 @@
 #include "../ast/visitor.hpp"
 #include "../behavior/intrinsic_function_holder_fwd.hpp"
 #include "../semantic_analysis/analyzer_fwd.hpp"
+#include "../compile_time/llvm_engine/ir_executor_fwd.hpp"
 
 #include "llvm_ir_generator_fwd.hpp"
 #include "llvm_ir_generator_context.hpp"
@@ -43,6 +44,7 @@ namespace rill
 
         public:
             friend class type_id_to_llvm_type_ptr;
+            friend class compile_time::llvm_engine::ir_executor;
 
             auto function_env_to_llvm_constatnt_ptr(
                 const_function_symbol_environment_ptr const& f_env
@@ -60,7 +62,6 @@ namespace rill
             RILL_VISITOR_READONLY_OP_DECL( ast::function_definition_statement );
             RILL_VISITOR_READONLY_OP_DECL( ast::variable_declaration_statement );
             RILL_VISITOR_READONLY_OP_DECL( ast::extern_function_declaration_statement );
-            RILL_VISITOR_READONLY_OP_DECL( ast::intrinsic_function_definition_statement );
             RILL_VISITOR_READONLY_OP_DECL( ast::class_definition_statement );
             RILL_VISITOR_READONLY_OP_DECL( ast::class_function_definition_statement );
             RILL_VISITOR_READONLY_OP_DECL( ast::class_variable_declaration_statement );
@@ -70,13 +71,11 @@ namespace rill
             RILL_VISITOR_READONLY_OP_DECL( ast::subscrpting_expression );
             RILL_VISITOR_READONLY_OP_DECL( ast::call_expression );
             RILL_VISITOR_READONLY_OP_DECL( ast::binary_operator_expression );
-            RILL_VISITOR_READONLY_OP_DECL( ast::intrinsic_function_call_expression );
             RILL_VISITOR_READONLY_OP_DECL( ast::id_expression );
             RILL_VISITOR_READONLY_OP_DECL( ast::term_expression );
             RILL_VISITOR_READONLY_OP_DECL( ast::evaluated_type_expression );
 
             // value
-            //RILL_VISITOR_READONLY_OP_DECL( ast::nested_identifier_value );
             RILL_VISITOR_READONLY_OP_DECL( ast::identifier_value );
             RILL_VISITOR_READONLY_OP_DECL( ast::template_instance_value );
 
@@ -113,13 +112,11 @@ namespace rill
                 EnvPtr const& parent_env
                 ) -> std::vector<llvm::Value*>;
 
-            template<typename EnvPtr>
             auto store_value(
-                type const& arg_type,
-                llvm::Type* const variable_llvm_type,
                 llvm::Value* const arg_value,
-                EnvPtr const& v_env
-                ) -> void;
+                const_variable_symbol_environment_ptr const& v_env
+                )
+                -> void;
 
         private:
             auto is_heavy_object( type const& ) const
@@ -127,6 +124,11 @@ namespace rill
 
             auto type_id_to_llvm_type_ptr( type_id_t const& type_id )
                 -> llvm::Type*;
+
+            auto define_intrinsic_function_frame(
+                const_function_symbol_environment_ptr const& f_env
+                )
+                -> void;
 
         private:
             const_environment_base_ptr root_env_;

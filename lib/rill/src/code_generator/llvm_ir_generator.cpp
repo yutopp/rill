@@ -84,7 +84,10 @@ namespace rill
 
             return [&]() -> llvm::Constant*
             {
-                if ( f_env->has_attribute( attribute::decl::k_extern ) ) {
+                if ( f_env->has_attribute( attribute::decl::k_extern )
+                     && !f_env->has_attribute( attribute::decl::k_intrinsic )
+                    )
+                {
                     // external function
                     llvm::FunctionType* const func_type
                         = context_->env_conversion_table.ref_function_type( f_env->get_id() );
@@ -137,7 +140,6 @@ namespace rill
         }
 
 
-
         //
         //
         //
@@ -165,7 +167,6 @@ namespace rill
                 context_->ir_builder.CreateRet( v );
             }
         }
-
 
 
         //
@@ -249,6 +250,14 @@ namespace rill
             // function body
             llvm::Function* const func = llvm::Function::Create( func_type, linkage, f_env->get_mangled_name(), context_->llvm_module.get() );
 
+
+            // ========================================
+            // create a new basic block to start insertion into.
+            llvm::BasicBlock* const basic_block
+                = llvm::BasicBlock::Create( llvm::getGlobalContext(), "entry", func );
+            context_->ir_builder.SetInsertPoint( basic_block );
+
+
             // ========================================
             std::size_t i = 0;
             for( llvm::Function::arg_iterator ait = func->arg_begin(); ait != func->arg_end(); ++ait ) {
@@ -262,18 +271,15 @@ namespace rill
                         f_env->get_env_at_as_strong_ref<variable_symbol_environment const>( parameter_variable_decl_env_ids[i] );
                     ait->setName( var->get_mangled_name() );
 
-                    context_->env_conversion_table.bind_value( var->get_id(), ait );
+                    store_value( ait, var );
                     ++i;
                 }
             }
 
-//            func->setGC( "shadow-stack" );
 
             // ========================================
-            // create a new basic block to start insertion into.
-            llvm::BasicBlock* const basic_block
-                = llvm::BasicBlock::Create( llvm::getGlobalContext(), "entry", func );
-            context_->ir_builder.SetInsertPoint( basic_block );
+            // func->setGC( "shadow-stack" );
+
 
             // ========================================
             // generate statements
@@ -286,8 +292,6 @@ namespace rill
             //
             llvm::verifyFunction( *func );
         }
-
-
 
 
         //
@@ -374,6 +378,12 @@ namespace rill
                 = llvm::Function::Create( func_type, linkage, f_env->get_mangled_name(), context_->llvm_module.get() );
 
             // ========================================
+            // create a new basic block to start insertion into.
+            llvm::BasicBlock* const basic_block
+                = llvm::BasicBlock::Create( llvm::getGlobalContext(), "entry", func );
+            context_->ir_builder.SetInsertPoint( basic_block );
+
+            // ========================================
             // function parameter variables
             // and, make local variable creation
             std::size_t i = 0;
@@ -387,18 +397,13 @@ namespace rill
                         f_env->get_env_at_as_strong_ref<variable_symbol_environment const>( parameter_variable_decl_env_ids[i] );
                     ait->setName( var->get_mangled_name() );
 
-                    context_->env_conversion_table.bind_value( var->get_id(), ait );
+                    store_value( ait, var );
                     ++i;
                 }
             }
 
-//            func->setGC( "shadow-stack" );
-
             // ========================================
-            // create a new basic block to start insertion into.
-            llvm::BasicBlock* const basic_block
-                = llvm::BasicBlock::Create( llvm::getGlobalContext(), "entry", func );
-            context_->ir_builder.SetInsertPoint( basic_block );
+            // func->setGC( "shadow-stack" );
 
             // ========================================
             // generate statements
@@ -411,10 +416,11 @@ namespace rill
 
             //
             llvm::verifyFunction( *func );
+
+            //
+            std::cout << "class function" << std::endl;
+            func->dump();
         }
-
-
-
 
 
         RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::class_definition_statement, s, parent_env )
@@ -516,99 +522,6 @@ namespace rill
         }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::intrinsic_function_definition_statement, s, parent_env )
-        {
-            std::cout
-                << "= intrinsic_function_definition_statement:" << std::endl
-                << " Name -- " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
-                << " Parent env -- " << (const_environment_base_ptr)parent_env << std::endl;
-
-            // cast to function symbol env
-            auto const& f_env
-                = cast_to<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( s ) );
-            assert( f_env != nullptr );
-            if ( context_->env_conversion_table.is_defined( f_env->get_id() ) )
-                return;
-            context_->env_conversion_table.bind_function_type( f_env->get_id(), nullptr ); // guard
-
-            // ========================================
-            // information about paramaters
-            auto const& parameter_variable_type_ids = f_env->get_parameter_type_ids();
-            auto const& parameter_variable_decl_env_ids = f_env->get_parameter_decl_ids();
-            std::cout << "()()=> :" << f_env->get_mangled_name() << std::endl;
-
-            //
-            auto const current_insert_point = context_->ir_builder.saveIP();
-            BOOST_SCOPE_EXIT((&context_)(&current_insert_point)) {
-                // restore insert point
-                context_->ir_builder.restoreIP( current_insert_point );
-            } BOOST_SCOPE_EXIT_END
-
-
-            //
-            // TODO: use current_insert_point.isSet(), if it is false, this function needs external linkage( currently, all functions are exported as external linkage )
-            auto const linkage = llvm::Function::ExternalLinkage;
-            if ( current_insert_point.isSet() ) {
-                //
-                std::cout << "not external." << std::endl;
-            }
-
-            // define paramter and return types
-            std::vector<llvm::Type*> parameter_types;
-            boost::copy(
-                parameter_variable_type_ids | RILL_TID_TO_LLVM_TYPE_TRANSFORMAER,
-                std::back_inserter( parameter_types )
-                );
-
-
-
-
-
-            auto const& return_type
-                = type_id_to_llvm_type_ptr( f_env->get_return_type_id() );
-
-            //context_->env_conversion_table.ref_type( v.class_env_id );
-
-            // get function type
-            llvm::FunctionType* const func_type = llvm::FunctionType::get( return_type, parameter_types, false/*is not variadic*/ );
-
-            //
-            context_->env_conversion_table.bind_function_type( f_env->get_id(), func_type );
-
-            // construct function and paramter variables
-            llvm::Function* const func = llvm::Function::Create( func_type, llvm::Function::ExternalLinkage, f_env->get_mangled_name(), context_->llvm_module.get() );
-            for( llvm::Function::arg_iterator ait=func->arg_begin(); ait!=func->arg_end(); ++ait ) {
-                auto const& var = std::static_pointer_cast<variable_symbol_environment const>( f_env->get_env_at( parameter_variable_decl_env_ids[ait->getArgNo()] ).lock() );
-                ait->setName( var->get_mangled_name() );
-
-                context_->env_conversion_table.bind_value( var->get_id(), ait );
-            }
-            func->addFnAttr( llvm::Attribute::AlwaysInline );
-
-            // set initial insert point to entry
-            llvm::BasicBlock* const function_entry_block = llvm::BasicBlock::Create( llvm::getGlobalContext(), "entry", func );
-            context_->ir_builder.SetInsertPoint( function_entry_block );
-
-            // build inner statements(that contain intrinsic_function_call)
-            dispatch( s->inner_, f_env );
-
-            //
-            llvm::verifyFunction( *func );
-        }
-
-
         //
         //
         //
@@ -622,64 +535,24 @@ namespace rill
                 = std::static_pointer_cast<variable_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( s ) );
             assert( v_env != nullptr );
 
-
-
-            // ???:
-            auto const& variable_type = v_env->get_type_at( v_env->get_type_id() );
-            if ( !context_->env_conversion_table.is_defined( variable_type.class_env_id ) ) {
-                auto const& c_env = root_env_->get_env_strong_at( variable_type.class_env_id );
-                dispatch( c_env->get_related_ast(), c_env );
-            }
-
-            auto const& variable_llvm_type
-                = context_->env_conversion_table.ref_type( variable_type.class_env_id );
-
             // initial value
             if ( s->declaration_.decl_unit.init_unit.initializer ) {
                 // has default value
-
                 auto const& initial_llvm_value
                     = dispatch( s->declaration_.decl_unit.init_unit.initializer, v_env );
                 assert( initial_llvm_value != nullptr && "[ice]" );
 
-                store_value(
-                    variable_type,
-                    variable_llvm_type,
-                    initial_llvm_value,
-                    v_env
-                    );
+                store_value( initial_llvm_value, v_env );
 
             } else {
                 // has NO initial value...
-                // TODO: call constructor
+                // TODO: implement default call constructor call by semantics analizer
 
-
-
-#if 0
-
-                // TEST:
-                auto const& initial_llvm_value
-                    = (llvm::Value*)llvm::ConstantStruct::get(
-                        (llvm::StructType*)variable_llvm_type,
-                        llvm::ConstantInt::get(
-                            context_->llvm_context,
-                            llvm::APInt( 32, 42 )
-                            ),
-                        nullptr
-                        );
-#endif
                 auto const& initial_llvm_value = nullptr;
 
-                store_value(
-                    variable_type,
-                    variable_llvm_type,
-                    initial_llvm_value,
-                    v_env
-                    );
+                store_value( initial_llvm_value, v_env );
             }
         }
-
-
 
 
         //
@@ -762,15 +635,18 @@ namespace rill
         }
 
 
-
-
         RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::extern_function_declaration_statement, s, parent_env )
         {
             // cast to function symbol env
-            auto const& f_env = std::static_pointer_cast<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( s ) );
+            auto const& f_env
+                = cast_to<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( s ) );
             assert( f_env != nullptr );
-            if ( context_->env_conversion_table.is_defined( f_env->get_id() ) )
+            if ( context_->env_conversion_table.is_defined( f_env->get_id() ) ) {
                 return;
+            }
+            if ( f_env->has_attribute( attribute::decl::k_intrinsic ) ) {
+                return;
+            }
 
             //
             auto const current_insert_point = context_->ir_builder.saveIP();
@@ -801,15 +677,17 @@ namespace rill
             auto const& return_type = context_->env_conversion_table.ref_type( v.class_env_id );
 
             // get function type
-            llvm::FunctionType* const func_type = llvm::FunctionType::get( return_type, parmeter_types, false/*is not variadic*/ );
+            llvm::FunctionType* const func_type
+                = llvm::FunctionType::get( return_type, parmeter_types, false/*is not variadic*/ );
 
             //
             context_->env_conversion_table.bind_function_type( f_env->get_id(), func_type );
 
+            //
+            std::cout << "extern" << std::endl;
             func_type->dump();
             //assert( false );
         }
-
 
 
         RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::test_while_statement, s, parent_env )
@@ -837,10 +715,6 @@ namespace rill
             //
             context_->ir_builder.SetInsertPoint( final_block );
         }
-
-
-
-
 
 
         RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::test_if_statement, s, parent_env )
@@ -889,10 +763,6 @@ namespace rill
         }
 
 
-
-
-
-
         RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::binary_operator_expression, e, parent_env )
         {
             // Look up Function
@@ -900,12 +770,6 @@ namespace rill
             assert( f_env != nullptr );
 
             std::cout << "current : " << f_env->get_mangled_name() << std::endl;
-            auto const& callee_function = function_env_to_llvm_constatnt_ptr( f_env );
-            if ( !callee_function ) {
-                // unexpected error...
-                assert( false && "unexpected... callee_function was not found" );
-            }
-
 
             // call function that defined in rill modules
             // evaluate argument from last to front(but ordering of vector is from front to last)
@@ -918,20 +782,41 @@ namespace rill
 
             std::cout << "CALL!!!!!" << std::endl;
 
+            // if intrinsic function
+            if ( f_env->has_attribute( attribute::decl::k_intrinsic ) ) {
+                // look up the action
+                auto const& action = action_holder_->at( f_env->get_action_id() );
+                assert( action != nullptr );
 
-            if ( is_jit() ) {
-                std::cout << "yaaaaaann" << std::endl;
-//                analyzer_->ctfe_engine_->execution_engine_;//();
-                return nullptr;
+                // generate codes into this context
+                auto const value = action->invoke(
+                    processing_context::k_llvm_ir_generator,
+                    context_,
+                    f_env,
+                    args
+                    );
+                assert( value != nullptr );
+                return value;
+
             } else {
-                // invocation
-                return context_->ir_builder.CreateCall( callee_function, args, "calltmp" );
+                auto const& callee_function = function_env_to_llvm_constatnt_ptr( f_env );
+                if ( !callee_function ) {
+                    // unexpected error...
+                    assert( false && "unexpected... callee_function was not found" );
+                }
+
+                if ( is_jit() ) {
+                    assert( false && "pyaaaaaaaaa" );
+//                analyzer_->ctfe_engine_->execution_engine_;//();
+                    return nullptr;
+                } else {
+                    // invocation
+                    return context_->ir_builder.CreateCall( callee_function, args, "calltmp" );
+                }
             }
+
+
         }
-
-
-
-
 
 
         //
@@ -972,9 +857,9 @@ namespace rill
                             );
                     std::cout << "index: " << index << std::endl;
 
-                    auto const& value
+                    auto value
                         = context_->ir_builder.CreateStructGEP( lhs, index );
-                    context_->represented_as_pointer_set.insert( value ); //.emplace( value );
+                    context_->represented_as_pointer_set.emplace( value );
 
                     return value;
 
@@ -1016,7 +901,6 @@ namespace rill
                 //return lhs;
             }
         }
-
 
 
         //
@@ -1085,12 +969,6 @@ namespace rill
 
             return nullptr;
         }
-
-
-
-
-
-
 
 
         //
@@ -1266,37 +1144,6 @@ namespace rill
                     return ret;
                 }
             }
-        }
-
-
-        // TODO: change name to native code injection expression
-        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::intrinsic_function_call_expression, e, parent_env )
-        {
-            // look up the function
-            auto const f_env = std::static_pointer_cast<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( e ) );
-            assert( f_env != nullptr );
-
-            // look up the action
-            auto const& action = action_holder_->at( e->action_id_ );
-            assert( action != nullptr );
-
-            // generate codes into this context
-
-            auto const& v = f_env->get_type_at( f_env->get_return_type_id() );
-            if ( !context_->env_conversion_table.is_defined( v.class_env_id ) ) {
-                auto const& c_env = root_env_->get_env_strong_at( v.class_env_id );
-                dispatch( c_env->get_related_ast(), c_env );
-            }
-
-            auto const value = action->invoke(
-                processing_context::k_llvm_ir_generator,
-                context_,
-                f_env,
-                f_env->get_parameter_decl_ids()
-                );
-            //assert( value != nullptr );
-
-            return value;
         }
 
 
@@ -1556,6 +1403,223 @@ namespace rill
             }
 
             return alloca_inst;
+        }
+
+
+        // store and bind suitable value to holder
+        auto llvm_ir_generator::store_value(
+            llvm::Value* const value,
+            const_variable_symbol_environment_ptr const& v_env
+            )
+            -> void
+        {
+            auto const& v_type = v_env->get_type_at( v_env->get_type_id() );
+            if ( !context_->env_conversion_table.is_defined( v_type.class_env_id ) ) {
+                auto const& c_env = root_env_->get_env_strong_at( v_type.class_env_id );
+                dispatch( c_env->get_related_ast(), c_env );
+            }
+            auto const& variable_attr = v_type.attributes;
+
+            auto const& variable_llvm_type
+                = context_->env_conversion_table.ref_type( v_type.class_env_id );
+
+            auto const& c_env
+                = cast_to<class_symbol_environment const>(
+                    root_env_->get_env_strong_at( v_type.class_env_id )
+                    );
+
+            std::cout << "Store value" << std::endl;
+            value->dump();
+
+            if ( is_heavy_object( v_type ) ) {
+                //
+                context_->env_conversion_table.bind_value(
+                    v_env->get_id(),
+                    value
+                    );
+
+            } else {
+                //
+
+                switch( variable_attr.quality )
+                {
+                case attribute::holder_kind::k_val:
+                {
+                    switch( variable_attr.modifiability )
+                    {
+                    case attribute::modifiability_kind::k_immutable:
+                    case attribute::modifiability_kind::k_const:
+                    {
+                        assert( value != nullptr );
+                        context_->env_conversion_table.bind_value(
+                            v_env->get_id(),
+                            value
+                            );
+
+                        break;
+                    }
+
+                    case attribute::modifiability_kind::k_mutable:
+                    {
+                        // FIXME:
+                        llvm::AllocaInst* const allca_inst
+                            = context_->ir_builder.CreateAlloca(
+                                variable_llvm_type,
+                                0/*length*/
+                                );
+                        if ( value ) {
+                            context_->ir_builder.CreateStore(
+                                value,
+                                allca_inst /*, is_volatile */
+                                );
+                        }
+
+                        context_->env_conversion_table.bind_value(
+                            v_env->get_id(),
+                            allca_inst
+                            );
+
+                        break;
+                    }
+                    } // switch
+
+                    break;
+                }
+
+                case attribute::holder_kind::k_ref:
+                {
+                    context_->env_conversion_table.bind_value(
+                            v_env->get_id(),
+                            value
+                            );
+                    break;
+                }
+
+                default:
+                {
+                    assert( false && "[ice]" );
+                    break;
+                }
+                } // switch
+            }
+        }
+
+
+        auto llvm_ir_generator::define_intrinsic_function_frame(
+            const_function_symbol_environment_ptr const& f_env
+            )
+            -> void
+        {
+            assert( f_env != nullptr );
+            if ( context_->env_conversion_table.is_defined( f_env->get_id() ) )
+                return;
+
+            // ========================================
+            // information about paramaters
+            auto const& parameter_variable_type_ids = f_env->get_parameter_type_ids();
+            auto const& parameter_variable_decl_env_ids = f_env->get_parameter_decl_ids();
+            std::cout << "()()=> :" << f_env->get_base_name() << std::endl;
+            // assert(false);
+
+            // ========================================
+            //
+            auto const current_insert_point = context_->ir_builder.saveIP();
+            BOOST_SCOPE_EXIT((&context_)(&current_insert_point)) {
+                // restore insert point
+                context_->ir_builder.restoreIP( current_insert_point );
+            } BOOST_SCOPE_EXIT_END
+
+
+            // ========================================
+            auto const linkage = llvm::Function::InternalLinkage;
+
+
+            // ========================================
+            auto const& ret_type_id = f_env->get_return_type_id();
+            auto const& ret_type
+                = root_env_->get_type_at( f_env->get_return_type_id() );
+            bool const returns_heavy_object = is_heavy_object( ret_type );
+
+
+            // ========================================
+            // signature
+            std::vector<llvm::Type*> parameter_types;
+            if ( returns_heavy_object ) {
+                parameter_types.push_back(
+                    type_id_to_llvm_type_ptr( ret_type_id )
+                    );
+            }
+            boost::copy(
+                parameter_variable_type_ids | RILL_TID_TO_LLVM_TYPE_TRANSFORMAER,
+                std::back_inserter( parameter_types )
+                );
+
+
+            // ========================================
+            // return type
+            llvm::Type* const return_type
+                = returns_heavy_object
+                ? llvm::Type::getVoidTy( context_->llvm_context )
+                : type_id_to_llvm_type_ptr( ret_type_id );
+
+            // ========================================
+            // function type signature
+            llvm::FunctionType* const func_type = llvm::FunctionType::get( return_type, parameter_types, false/*not variable*/ );
+            context_->env_conversion_table.bind_function_type( f_env->get_id(), func_type );
+
+            // ========================================
+            // function body
+            llvm::Function* const func = llvm::Function::Create( func_type, linkage, f_env->get_mangled_name(), context_->llvm_module.get() );
+
+            // ========================================
+            // create a new basic block to start insertion into.
+            llvm::BasicBlock* const basic_block
+                = llvm::BasicBlock::Create( llvm::getGlobalContext(), "entry", func );
+            context_->ir_builder.SetInsertPoint( basic_block );
+
+            // ========================================
+            std::size_t i = 0;
+            std::vector<llvm::Value*> args;
+            for( llvm::Function::arg_iterator ait = func->arg_begin(); ait != func->arg_end(); ++ait ) {
+                std::cout << "Argument No: " << ait->getArgNo() << std::endl;
+
+                if ( ait == func->arg_begin() && returns_heavy_object ) {
+                    ait->setName( "__ret_target" );
+
+                } else {
+                    auto const& var =
+                        f_env->get_env_at_as_strong_ref<variable_symbol_environment const>( parameter_variable_decl_env_ids[i] );
+                    ait->setName( var->get_mangled_name() );
+
+                    store_value( ait, var );
+                    ++i;
+                }
+
+                args.push_back( ait );
+            }
+
+            // ========================================
+            // generate statements
+            // look up the action
+            auto const& action = action_holder_->at( f_env->get_action_id() );
+            assert( action != nullptr );
+
+            // generate codes into this context
+            auto const value = action->invoke(
+                processing_context::k_llvm_ir_generator,
+                context_,
+                f_env,
+                args
+                );
+            assert( value != nullptr );
+
+            context_->ir_builder.CreateRet( value );
+
+            std::cout << "created!" << std::endl;
+            func->dump();
+
+            //
+            llvm::verifyFunction( *func );
         }
 
     } // namespace code_generator
