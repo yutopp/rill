@@ -439,6 +439,15 @@ namespace rill
             return { holder_kind::k_val, modifiability_kind::k_immutable };
         }
 
+        auto inline make_value_default()
+            -> type_attributes
+        {
+            return {
+                holder_kind::k_val,
+                modifiability_kind::k_none
+            };
+        }
+
         template<typename... Args>
         auto inline make( Args const&... args )
             -> type_attributes

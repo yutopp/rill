@@ -123,13 +123,12 @@ namespace rill
 
     public:
         auto make_type_id_from(
-            attribute::type_attributes const& type_attr
-                = attribute::make_empty_type_attributes()
+            attribute::type_attributes const& type_attr = attribute::make_value_default()
             ) const
             -> shared_resource_type::type_registry_type::type_id_type
         {
             return make_type_id(
-                std::static_pointer_cast<class_symbol_environment const>( shared_from_this() ),
+                cast_to<class_symbol_environment const>( shared_from_this() ),
                 type_attr
                 );
         }

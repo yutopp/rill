@@ -1,16 +1,17 @@
 def main(): int
 {
-    val a: mutable(ptr!(int8)) = "string!!!";
-    p( a );
-    f( a );
+val a1 = "aaa?";
+//    val a: mutable(ptr!(int8)) = "string!!!";
+    p( a1 );
+    //f( a );
     return 0;
 }
-
+/*
 def f( ref a :const(ptr!(int8)) ): void
 {
     p(a);
 }
-
+*/
 extern def mutable( val a :type ) onlymeta: type "rill_core_typesystem_mutable";
 extern def const( val a :type ) onlymeta: type "rill_core_typesystem_const";
 extern def immutable( val a :type ) onlymeta: type "rill_core_typesystem_immutable";
