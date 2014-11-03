@@ -307,6 +307,10 @@ namespace rill
                             ) {
                             auto attr = ty.attributes;
 
+                            if ( auto const& v = f_env->find_on_env( e.decl_unit.name ) ) {
+                                assert( false && "[[error]] variable is already defined" );
+                            }
+
                             // declare
                             f_env->parameter_variable_construct(
                                 e.decl_unit.name,
@@ -426,6 +430,10 @@ namespace rill
                              class_symbol_environment_ptr const& class_env
                             ) {
                             auto attr = ty.attributes;
+
+                            if ( auto const& v = f_env->find_on_env( e.decl_unit.name ) ) {
+                                assert( false && "[[error]] variable is already defined" );
+                            }
 
                             // declare
                             f_env->parameter_variable_construct(
@@ -587,6 +595,10 @@ namespace rill
                              class_symbol_environment_ptr const& class_env
                             ) {
                             auto attr = ty.attributes;
+
+                            if ( auto const& v = f_env->find_on_env( e.decl_unit.name ) ) {
+                                assert( false && "[[error]] variable is already defined" );
+                            }
 
                             // declare
                             f_env->parameter_variable_construct(

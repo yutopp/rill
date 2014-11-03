@@ -1463,6 +1463,10 @@ namespace rill
                         auto const& e = function_def_ast->get_parameter_list()[i];
                         auto const& ty_id = presetted_param_types[i]->type_id;
 
+                        if ( auto const& v = instanting_f_env->find_on_env( e.decl_unit.name ) ) {
+                            assert( false && "[[error]] variable is already defined" );
+                        }
+
                         instanting_f_env->parameter_variable_construct( e.decl_unit.name, ty_id );
                     }
 

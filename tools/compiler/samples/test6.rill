@@ -20,13 +20,13 @@ extern def p( val i :int ): void "print_int32";
 extern def p( val i :bool ): void "print_bool";
 extern def p( val i :ptr!(int8) ): void "print_bytes";
 
-extern def %binary%operator_+( val __a: int, val __a: int ) intrinsic: int "int_add";
-extern def %binary%operator_-( val __a: int, val __a: int ) intrinsic: int "int_sub";
-extern def %binary%operator_*( val __a: int, val __a: int ) intrinsic: int "int_mul";
-extern def %binary%operator_/( val __a: int, val __a: int ) intrinsic: int "signed_int_div";
-extern def %binary%operator_%( val __a: int, val __a: int ) intrinsic: int "signed_int_mod";
-extern def %binary%operator_<( val __a: int, val __a: int ) intrinsic: int "signed_int_less_than";
-extern def %binary%operator_==( val __a: int, val __a: int ) intrinsic: bool "int_equals";
+extern def %binary%operator_+( val __a: int, val __b: int ) intrinsic: int "int_add";
+extern def %binary%operator_-( val __a: int, val __b: int ) intrinsic: int "int_sub";
+extern def %binary%operator_*( val __a: int, val __b: int ) intrinsic: int "int_mul";
+extern def %binary%operator_/( val __a: int, val __b: int ) intrinsic: int "signed_int_div";
+extern def %binary%operator_%( val __a: int, val __b: int ) intrinsic: int "signed_int_mod";
+extern def %binary%operator_<( val __a: int, val __b: int ) intrinsic: int "signed_int_less_than";
+extern def %binary%operator_==( val __a: int, val __b: int ) intrinsic: bool "int_equals";
 extern def %binary%operator_=( ref __a: mutable(int), val __b: int ) intrinsic: ref(mutable(int)) "int_assign";
 
 def ret_struct(): TestClass
