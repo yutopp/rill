@@ -19,8 +19,22 @@ namespace rill
         namespace llvm_engine
         {
             std::unordered_map<std::string, void*> const ctfe_intrinsic_function_table = {
-                { "rill_abababa", reinterpret_cast<void*>( &rill_abababa ) },
-                { "rill_core_typesystem_is_mutable", reinterpret_cast<void*>( rill_core_typesystem_is_mutable) }
+                {
+                    "rill_core_typesystem_mutable",
+                    reinterpret_cast<void*>( &rill_core_typesystem_mutable )
+                },
+                {
+                    "rill_core_typesystem_const",
+                    reinterpret_cast<void*>( &rill_core_typesystem_const )
+                },
+                {
+                    "rill_core_typesystem_immutable",
+                    reinterpret_cast<void*>( &rill_core_typesystem_immutable )
+                },
+                {
+                    "rill_core_typesystem_is_mutable",
+                    reinterpret_cast<void*>( rill_core_typesystem_is_mutable )
+                }
             };
 
             static jit_execution_environmant gje;
@@ -49,15 +63,35 @@ namespace rill
 extern "C" {
     namespace le = rill::compile_time::llvm_engine;
 
-    auto rill_abababa( rill::semantic_analysis::type_detail_ptr ty_detail )
+    auto rill_core_typesystem_mutable( rill::semantic_analysis::type_detail_ptr ty_detail )
         -> rill::semantic_analysis::type_detail_ptr
     {
-        std::cout << "oioio ~~~ i" << std::endl;
-        std::cout << "jit function call!" << std::endl;
-
-        //
         rill::type t = le::gje.semantic_analyzer->ref_type( ty_detail );
         t.attributes <<= rill::attribute::modifiability_kind::k_mutable;
+
+        return le::gje.semantic_analyzer->qualify_type(
+            ty_detail,
+            t.attributes
+            );
+    }
+
+    auto rill_core_typesystem_const( rill::semantic_analysis::type_detail_ptr ty_detail )
+        -> rill::semantic_analysis::type_detail_ptr
+    {
+        rill::type t = le::gje.semantic_analyzer->ref_type( ty_detail );
+        t.attributes <<= rill::attribute::modifiability_kind::k_const;
+
+        return le::gje.semantic_analyzer->qualify_type(
+            ty_detail,
+            t.attributes
+            );
+    }
+
+    auto rill_core_typesystem_immutable( rill::semantic_analysis::type_detail_ptr ty_detail )
+        -> rill::semantic_analysis::type_detail_ptr
+    {
+        rill::type t = le::gje.semantic_analyzer->ref_type( ty_detail );
+        t.attributes <<= rill::attribute::modifiability_kind::k_immutable;
 
         return le::gje.semantic_analyzer->qualify_type(
             ty_detail,

@@ -486,17 +486,6 @@ namespace rill
                     auto const& t_detail
                         = static_cast<type_detail_ptr>( template_arg.element );
 
-                    auto ty = root_env_->get_type_at( t_detail->type_id ); // make copy
-                    ty.attributes
-                        = overlap_empty_attr( ty.attributes, attribute::make_default() );
-                    auto const& new_type_id = root_env_->make_type_id(
-                        ty.class_env_id,
-                        ty.attributes
-                        );
-
-                    // update
-                    t_detail->type_id = new_type_id;
-
                     ctfe_engine_->value_holder()->bind_value(
                         template_var_env->get_id(),
                         t_detail
