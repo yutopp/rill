@@ -117,12 +117,6 @@ namespace rill
                 auto const& context
                     = std::make_shared<code_generator::llvm_ir_generator_context>( module );
 
-                action_holder->invoke_initialize_action(
-                    processing_context::k_llvm_ir_generator,
-                    context,
-                    env
-                    );
-
                 auto const& ir_generator
                     = std::make_shared<code_generator::llvm_ir_generator>(
                         env,

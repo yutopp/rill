@@ -17,7 +17,7 @@
 
 #include "../ast/visitor.hpp"
 #include "../environment/environment_base.hpp"
-#include "../behavior/intrinsic_function_holder_fwd.hpp"
+#include "../behavior/intrinsic_action_holder_fwd.hpp"
 
 #include "../compile_time/llvm_engine/ctfe_engine.hpp"
 
@@ -38,7 +38,7 @@ namespace rill
         public:
             analyzer(
                 environment_base_ptr const&,
-                intrinsic_function_action_holder_ptr const&
+                intrinsic_action_holder_ptr const&
                 );
 
         public:
@@ -53,6 +53,7 @@ namespace rill
             RILL_VISITOR_OP_DECL( ast::function_definition_statement );
             RILL_VISITOR_OP_DECL( ast::variable_declaration_statement );
             RILL_VISITOR_OP_DECL( ast::extern_function_declaration_statement );
+            RILL_VISITOR_OP_DECL( ast::extern_class_declaration_statement );
             RILL_VISITOR_OP_DECL( ast::class_definition_statement );
             RILL_VISITOR_OP_DECL( ast::class_function_definition_statement );
             RILL_VISITOR_OP_DECL( ast::class_variable_declaration_statement );
@@ -312,7 +313,7 @@ namespace rill
 
         private:
             environment_base_ptr root_env_;
-            intrinsic_function_action_holder_ptr action_holder_;
+            intrinsic_action_holder_ptr action_holder_;
 
             std::shared_ptr<type_detail_pool_t> type_detail_pool_;
             std::shared_ptr<type_detail_factory> type_detail_factory_;

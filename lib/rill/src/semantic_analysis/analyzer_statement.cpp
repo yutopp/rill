@@ -9,6 +9,7 @@
 #include <rill/semantic_analysis/semantic_analysis.hpp>
 
 #include <rill/environment/environment.hpp>
+#include <rill/behavior/intrinsic_action_holder.hpp>
 
 #include <rill/ast/ast.hpp>
 #include <rill/utility/tie.hpp>
@@ -632,7 +633,52 @@ namespace rill
                     f_env->mark_as_intrinsic_function( *id );
 
                 } else {
+                    std::cout << s->extern_symbol_name_ << std::endl;
                     assert( false && "[error] this intrinsic function is not registered" );
+                }
+            }
+        }
+
+        RILL_VISITOR_OP( analyzer, ast::extern_class_declaration_statement, s, parent_env )
+        {
+            // TODO: dup check...
+            // enverinment is already pre constructed by identifier_collector
+            auto const related_env = parent_env->get_related_env_by_ast_ptr( s );
+            assert( related_env != nullptr );
+            assert( related_env->get_symbol_kind() == kind::type_value::e_class );
+
+            auto const& c_env
+                = std::static_pointer_cast<class_symbol_environment>( related_env );
+            assert( c_env != nullptr );
+
+            // guard double check
+            if ( c_env->is_checked() ) {
+                std::cout << "Already, checked" << std::endl;
+                // assert( false );
+                return;
+            }
+            c_env->change_progress_to_checked();
+
+            // complete(do NOT mangle)
+            c_env->complete(
+                s->get_identifier()->get_inner_symbol()->to_native_string(),
+                attribute::decl::k_extern | s->decl_attr_
+                );
+
+            //
+            if ( c_env->has_attribute( attribute::decl::k_intrinsic ) ) {
+                if ( auto&& id = action_holder_->is_registered( s->extern_symbol_name_ ) ) {
+                    auto const& action = action_holder_->at( *id );
+                    assert( action != nullptr );
+
+                    action->invoke(
+                        processing_context::k_semantics_typing,
+                        c_env
+                        );
+
+                } else {
+                    std::cout << s->extern_symbol_name_ << std::endl;
+                    assert( false && "[error] this intrinsic class is not registered" );
                 }
             }
         }

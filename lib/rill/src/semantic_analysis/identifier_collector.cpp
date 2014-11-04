@@ -110,6 +110,24 @@ namespace rill
         }
 
 
+        //
+        RILL_VISITOR_OP( identifier_collector, ast::extern_class_declaration_statement, s, env ) const
+        {
+            // Class symbol that on (global | namespace)
+
+            if ( s->is_template_layout() ) {
+                assert( false && "" );
+
+            } else {
+                RILL_PP_TIE(
+                    set_environment, c_env,
+                    env->mark_as( kind::k_class, s->get_identifier(), s )
+                    );
+                set_environment->add_to_normal_environments( c_env );
+            }
+        }
+
+
 
         //
         RILL_VISITOR_OP( identifier_collector, ast::class_definition_statement, s, env ) const
@@ -129,21 +147,15 @@ namespace rill
                 multiset_env->set_inner_env_symbol_kind( kind::type_value::e_class );
 
             } else {
-                if ( is_builtin() ) {
-                    // for builtin symbol
-                    env->construct( kind::k_class, s->get_identifier(), s );
+                // add class symbol to current environment
+                RILL_PP_TIE(
+                    set_environment, c_env,
+                    env->mark_as( kind::k_class, s->get_identifier(), s )
+                    );
+                set_environment->add_to_normal_environments( c_env );
 
-                } else {
-                    // add class symbol to current environment
-                    RILL_PP_TIE(
-                        set_environment, c_env,
-                        env->mark_as( kind::k_class, s->get_identifier(), s )
-                        );
-                    set_environment->add_to_normal_environments( c_env );
-
-                    // build inner environment
-                    dispatch( s->inner_, c_env );
-                }
+                // build inner environment
+                dispatch( s->inner_, c_env );
             }
         }
 

@@ -22,12 +22,6 @@
 
 namespace rill
 {
-    enum class class_metatype
-    {
-        none,
-        structured
-    };
-
     enum class class_builtin_kind
     {
         k_none,
@@ -59,7 +53,7 @@ namespace rill
             )
             : environment_base( std::move( pp ) )
             , base_name_( base_name )
-            , metatype_( class_metatype::none )
+            , decl_attr_( attribute::decl::k_default )
             , builtin_kind_( class_builtin_kind::k_none )
         {}
 
@@ -71,11 +65,13 @@ namespace rill
         }
 
         auto complete(
-            native_string_type const& mangled_name
+            native_string_type const& mangled_name,
+            attribute::decl::type const& decl_attr = attribute::decl::k_default
             )
             -> void
         {
             mangled_name_ = mangled_name;
+            set_attribute( decl_attr );
 
             change_progress_to_completed();
         }
@@ -92,15 +88,19 @@ namespace rill
             return mangled_name_;
         }
 
-        auto set_metatype( class_metatype const& metatype )
+        bool has_attribute( attribute::decl::type const& attribute ) const
         {
-            metatype_ = metatype;
+            return ( decl_attr_ & attribute  ) != 0;
         }
 
-        auto has_metatype( class_metatype const& metatype ) const
-            -> bool
+        void set_attribute( attribute::decl::type const& attribute )
         {
-            return metatype_ == metatype;
+            decl_attr_ |= attribute;
+        }
+
+        void unset_attribute( attribute::decl::type const& attribute )
+        {
+            decl_attr_ ^= attribute;
         }
 
         auto set_builtin_kind( class_builtin_kind const& kind )
@@ -205,7 +205,7 @@ namespace rill
 
     private:
         native_string_type base_name_, mangled_name_;
-        class_metatype metatype_;
+        attribute::decl::type decl_attr_;
         class_builtin_kind builtin_kind_;
 
         std::shared_ptr<array_detail> array_detail_;

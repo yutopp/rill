@@ -13,7 +13,7 @@
 #include <cassert>
 
 #include "../environment/environment_fwd.hpp"
-#include "intrinsic_function_holder_fwd.hpp"
+#include "intrinsic_action_holder_fwd.hpp"
 
 
 namespace rill
@@ -22,20 +22,18 @@ namespace rill
     {
         void register_default_core(
             std::shared_ptr<root_environment> const&,
-            std::shared_ptr<intrinsic_function_action_holder> const&
+            std::shared_ptr<intrinsic_action_holder> const&
             );
-
 
         class default_generator
         {
         public:
             void operator()(
                 std::shared_ptr<root_environment> const& root_env,
-                std::shared_ptr<intrinsic_function_action_holder> const& intrinsic_function_action_holder
+                std::shared_ptr<intrinsic_action_holder> const& intrinsic_action_holder
                 ) const
             {
-                // TODO: add core classes... functions...
-                register_default_core( root_env, intrinsic_function_action_holder );
+                register_default_core( root_env, intrinsic_action_holder );
             }
         };
     } // namespace behavior

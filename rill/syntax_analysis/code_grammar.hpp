@@ -264,6 +264,7 @@ namespace rill
             R( extern_statement, ast::extern_statement_base_ptr,
                 ( detail::make_keyword( "extern" )
                 > ( t.extern_function_declaration_statement
+                  | t.extern_class_declaration_statement
                   )
                 > t.statement_termination
                 )
@@ -283,6 +284,20 @@ namespace rill
                         ph::_3,
                         ph::_4,
                         ph::_5
+                        )
+                    ]
+            )
+
+            R( extern_class_declaration_statement, ast::extern_class_declaration_statement_ptr,
+                ( detail::make_keyword( "class" )
+                > t.identifier
+                > t.decl_attribute_list
+                > t.string_literal_sequence
+                )[
+                    helper::make_node_ptr<ast::extern_class_declaration_statement>(
+                        ph::_1,
+                        ph::_2,
+                        ph::_3
                         )
                     ]
             )

@@ -78,6 +78,7 @@ void sample( boost::program_options::variables_map const& vm )
     //   list all of identifiers
     // second(2nd pass. )
     //   check identifiers type and template instantiation
+    std::cout << " ========================== " << std::endl;
     std::cout << " = Semantic Analysis ====== " << std::endl;
 
     auto const& report
@@ -98,14 +99,6 @@ void sample( boost::program_options::variables_map const& vm )
     // compile or interpret
     // last( debug )
     std::cout << " ========================== " << std::endl;
-
-//    rill::interpreter::run( root_env, intrinsic_function_action, parse_tree );
-
-    //
-    //assert( vm.count( "output,o" ) != 0 );
-
-
-    //
     std::cout << " = LLVM =================== " << std::endl;
     auto const& code_context
         = rill::code_generator::generate_llvm_ir(

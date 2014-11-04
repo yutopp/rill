@@ -7,7 +7,7 @@
 //
 
 #include <rill/code_generator/llvm_ir_generator.hpp>
-#include <rill/behavior/intrinsic_function_holder.hpp>
+#include <rill/behavior/intrinsic_action_holder.hpp>
 
 #include <rill/environment/environment.hpp>
 
@@ -30,7 +30,7 @@ namespace rill
                     ty.class_env_id
                     );
 
-            return ( c_env->has_metatype( class_metatype::structured ) || c_env->is_array() )
+            return ( c_env->has_attribute( attribute::decl::k_structured ) || c_env->is_array() )
                 && ty.attributes.lifetime == attribute::lifetime_kind::k_scoped
                 ;
         }

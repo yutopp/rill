@@ -23,8 +23,6 @@
 #include "../../code_generator/llvm_engine/support.hpp"
 #include "../../semantic_analysis/type_detail.hpp"
 
-#include "../../behavior/intrinsic_function_holder.hpp"
-
 #include "engine_value_holder.hpp"
 
 

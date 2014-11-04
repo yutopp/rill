@@ -9,7 +9,7 @@
 #include <rill/code_generator/llvm_ir_generator.hpp>
 #include <rill/code_generator/llvm_ir_support.hpp>
 #include <rill/code_generator/llvm_ir_generator/helper.hpp>
-#include <rill/behavior/intrinsic_function_holder.hpp>
+#include <rill/behavior/intrinsic_action_holder.hpp>
 #include <rill/semantic_analysis/analyzer.hpp>
 
 #include <rill/environment/environment.hpp>
@@ -52,7 +52,7 @@ namespace rill
 
         llvm_ir_generator::llvm_ir_generator(
             const_environment_base_ptr const& root_env,
-            intrinsic_function_action_holder_ptr const& action_holder,
+            intrinsic_action_holder_ptr const& action_holder,
             llvm_ir_generator_context_ptr const& context,
             semantic_analysis::analyzer* const analyzer
             )
@@ -687,6 +687,36 @@ namespace rill
             std::cout << "extern" << std::endl;
             func_type->dump();
             //assert( false );
+        }
+
+
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::extern_class_declaration_statement, s, parent_env )
+        {
+            auto const& c_env
+                = cast_to<class_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( s ) );
+            assert( c_env != nullptr );
+            if ( context_->env_conversion_table.is_defined( c_env->get_id() ) ) {
+                return;
+            }
+
+            if ( c_env->has_attribute( attribute::decl::k_intrinsic ) ) {
+                if ( auto&& id = action_holder_->is_registered( s->extern_symbol_name_ ) ) {
+                    auto const& action = action_holder_->at( *id );
+                    assert( action != nullptr );
+
+                    action->invoke(
+                        processing_context::k_llvm_ir_generator_typing,
+                        context_,
+                        c_env
+                        );
+
+                } else {
+                    assert( false );
+                }
+
+            } else {
+                assert( false );
+            }
         }
 
 

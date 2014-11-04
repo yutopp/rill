@@ -7,7 +7,6 @@
 //
 
 #include <rill/code_generator/llvm_ir_generator.hpp>
-#include <rill/behavior/intrinsic_function_holder.hpp>
 #include <rill/semantic_analysis/analyzer.hpp>
 
 #include <rill/environment/environment.hpp>

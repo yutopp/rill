@@ -14,7 +14,7 @@
 #include <llvm/IR/IRBuilder.h>
 
 #include "../ast/visitor.hpp"
-#include "../behavior/intrinsic_function_holder_fwd.hpp"
+#include "../behavior/intrinsic_action_holder_fwd.hpp"
 #include "../semantic_analysis/analyzer_fwd.hpp"
 #include "../compile_time/llvm_engine/ir_executor_fwd.hpp"
 
@@ -37,7 +37,7 @@ namespace rill
         public:
             llvm_ir_generator(
                 const_environment_base_ptr const&,
-                intrinsic_function_action_holder_ptr const&,
+                intrinsic_action_holder_ptr const&,
                 llvm_ir_generator_context_ptr const&,
                 semantic_analysis::analyzer* const = nullptr
                 );
@@ -62,6 +62,7 @@ namespace rill
             RILL_VISITOR_READONLY_OP_DECL( ast::function_definition_statement );
             RILL_VISITOR_READONLY_OP_DECL( ast::variable_declaration_statement );
             RILL_VISITOR_READONLY_OP_DECL( ast::extern_function_declaration_statement );
+            RILL_VISITOR_READONLY_OP_DECL( ast::extern_class_declaration_statement );
             RILL_VISITOR_READONLY_OP_DECL( ast::class_definition_statement );
             RILL_VISITOR_READONLY_OP_DECL( ast::class_function_definition_statement );
             RILL_VISITOR_READONLY_OP_DECL( ast::class_variable_declaration_statement );
@@ -132,7 +133,7 @@ namespace rill
 
         private:
             const_environment_base_ptr root_env_;
-            intrinsic_function_action_holder_ptr action_holder_;
+            intrinsic_action_holder_ptr action_holder_;
 
             llvm_ir_generator_context_ptr context_;
             semantic_analysis::analyzer* analyzer_;

@@ -355,6 +355,29 @@ namespace rill
         RILL_AST_END
 
 
+        RILL_AST_BEGIN(
+            extern_class_declaration_statement, extern_statement_base,
+            (( attribute::decl::type, decl_attr_ ))
+            (( native_string_t, extern_symbol_name_ ))
+            )
+        public:
+            extern_class_declaration_statement(
+                identifier_value_ptr const& id,
+                attribute::decl::type const& decl_attr,
+                native_string_t const& extern_symbol_name
+                )
+                : extern_statement_base( id )
+                , decl_attr_( decl_attr )
+                , extern_symbol_name_( extern_symbol_name )
+            {}
+
+        public:
+            auto get_extern_symbol_name() const
+                -> native_string_t const&
+            {
+                return extern_symbol_name_;
+            }
+        RILL_AST_END
 
 
 

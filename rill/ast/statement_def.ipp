@@ -48,6 +48,7 @@ namespace rill
 
         RILL_AST_DEF( extern_statement_base, statement )
         RILL_AST_DEF( extern_function_declaration_statement, statement )
+        RILL_AST_DEF( extern_class_declaration_statement, statement )
 
         RILL_AST_DEF( import_statement, statement )
 

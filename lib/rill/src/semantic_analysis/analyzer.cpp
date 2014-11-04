@@ -145,7 +145,7 @@ namespace rill
         //
         analyzer::analyzer(
             environment_base_ptr const& root_env,
-            intrinsic_function_action_holder_ptr const& holder
+            intrinsic_action_holder_ptr const& holder
             )
             : root_env_( root_env )
             , action_holder_( holder )
@@ -690,7 +690,7 @@ namespace rill
                 c_env->complete( mangled_name );
 
                 // expect as structured class(not a strong typedef)
-                c_env->set_metatype( class_metatype::structured );
+                c_env->set_attribute( attribute::decl::k_structured );
 
             } else {
                 std::cout << "builtin class!" << std::endl;
@@ -1540,6 +1540,7 @@ namespace rill
                 std::cout << "RETURN TYPE => "
                           << make_mangled_name( c_env, ty.attributes )
                           << std::endl;
+
             } else {
                 for( auto&& r_type_id : f_env->get_return_type_candidates() ) {
                     auto const ty = root_env_->get_type_at( r_type_id );
@@ -1787,14 +1788,25 @@ namespace rill
                     if ( ne.size() == 1 ) {
                         // class defined normally
                         // class can not be overloaded, so only one symbol will exists in "multiset environment".
-                        auto const& class_env
+                        auto const& c_env
                             = cast_to<class_symbol_environment>( ne.at( 0 ) );
 
-                        std::cout << "()memoed.class " << class_env->get_mangled_name() << std::endl;
-                        // link with given identifier!
-                        class_env->connect_from_ast( identifier );
+                        std::cout << "()memoed.class " << c_env->get_mangled_name() << std::endl;
+
+                        if ( c_env->is_incomplete() ) {
+                            dispatch( c_env->get_related_ast(), c_env->get_parent_env() );
+                        }
+
+                        // link from given identifier!
+                        c_env->connect_from_ast( identifier );
 
                         auto const& type_class_env = get_primitive_class_env( "type" );
+                        if ( type_class_env->is_incomplete() ) {
+                            dispatch(
+                                type_class_env->get_related_ast(),
+                                type_class_env->get_parent_env()
+                                );
+                        }
                         auto const& type_type_id
                             = type_class_env->make_type_id( type_class_env, attribute::make_default_type_attributes() );
 

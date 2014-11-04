@@ -18,6 +18,7 @@
 #include "semantic_analysis/semantic_analysis.hpp"
 #include "code_generator/code_generator.hpp"
 
+#include "behavior/intrinsic_action_holder.hpp"
 #include "behavior/default_generator.hpp"
 
 
@@ -25,18 +26,23 @@ namespace rill
 {
     template<typename BehaviorGenarator = behavior::default_generator>
     auto create_world()
-        -> std::tuple<std::shared_ptr<root_environment>, std::shared_ptr<intrinsic_function_action_holder>>
+        -> std::tuple<
+            std::shared_ptr<root_environment>,
+            std::shared_ptr<intrinsic_action_holder>
+        >
     {
         //
         // prepareation for semantic analysis
         // it makes core.lang
         //
-        auto const root_env = std::make_shared<rill::root_environment>();
-        auto const intrinsic_function_action = std::make_shared<rill::intrinsic_function_action_holder>();
+        auto root_env
+            = std::make_shared<rill::root_environment>();
+        auto intrinsic_action
+            = std::make_shared<rill::intrinsic_action_holder>();
 
-        BehaviorGenarator()( root_env, intrinsic_function_action );
+        BehaviorGenarator()( root_env, intrinsic_action );
 
-        return std::make_tuple( root_env, intrinsic_function_action );
+        return std::make_tuple( std::move( root_env ), std::move( intrinsic_action ) );
     }
 } // namespace rill
 

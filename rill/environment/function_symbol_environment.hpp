@@ -25,6 +25,7 @@
 #include "../config/macros.hpp"
 
 #include "environment_base.hpp"
+#include "../behavior/intrinsic_action_holder_fwd.hpp"
 
 
 namespace rill
@@ -217,13 +218,13 @@ namespace rill
             return is_initializer_function;
         }
 
-        void mark_as_intrinsic_function( intrinsic_function_action_id_t const& id )
+        void mark_as_intrinsic_function( intrinsic_action_id_t const& id )
         {
             intrinsic_action_id_ = id;
         }
 
         auto get_action_id() const
-            -> intrinsic_function_action_id_t const&
+            -> intrinsic_action_id_t const&
         {
             assert( intrinsic_action_id_ != boost::none );
             return *intrinsic_action_id_;
@@ -247,7 +248,7 @@ namespace rill
 
         bool is_initializer_function;
 
-        boost::optional<intrinsic_function_action_id_t> intrinsic_action_id_;
+        boost::optional<intrinsic_action_id_t> intrinsic_action_id_;
     };
 
 } // namespace rill
