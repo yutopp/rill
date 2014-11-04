@@ -52,6 +52,26 @@ namespace rill
             {}
         RILL_AST_END
 
+        //
+        RILL_AST_BEGIN(
+            module, statement,
+            (( std::shared_ptr<native_string_t>, name ))
+            (( statements_ptr, program ))
+            )
+        public:
+            module(
+                std::shared_ptr<native_string_t> const& module_name,
+                statements_ptr const& p
+                )
+                : name( module_name )
+                , program( p )
+            {}
+
+            module( statements_ptr const& p )
+                : name( nullptr )
+                , program( p )
+            {}
+        RILL_AST_END
 
 
         RILL_AST_BEGIN(
@@ -545,10 +565,24 @@ namespace rill
         }
 
 
+        struct import_decl_unit
+        {
+            std::string name;
+        };
+        using import_decl_unit_list = std::vector<import_decl_unit>;
 
 
-
-
+        RILL_AST_BEGIN(
+            import_statement, statement,
+            (( import_decl_unit_list, decls_ ))
+            )
+        public:
+            import_statement(
+                import_decl_unit_list const& decls
+                )
+                : decls_( decls )
+            {}
+        RILL_AST_END
 
     } // namespace ast
 } // namespace rill

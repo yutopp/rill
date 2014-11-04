@@ -51,20 +51,19 @@ void sample( boost::program_options::variables_map const& vm )
         << input_source_code << std::endl;
 
     //
-    auto const program
+    auto const module
         = rill::syntax_analysis::parse( input_source_code );
-
-    if ( program == nullptr ) {
+    if ( module == nullptr ) {
         std::cerr << "Failed to parse." << std::endl;
         exit( -200 );
     }
 
     // debug
     std::cout
-        << "Top statements size: " << program->statements_.size() << std::endl;
+        << "Top statements size: " << module->program->statements_.size() << std::endl;
 
 
-    rill::debug::print_ast( program );
+    rill::debug::print_ast( module );
 
 
 
@@ -82,7 +81,11 @@ void sample( boost::program_options::variables_map const& vm )
     std::cout << " = Semantic Analysis ====== " << std::endl;
 
     auto const& report
-        = rill::semantic_analysis::analyse_and_complement( root_env, intrinsic_function_action, program );
+        = rill::semantic_analysis::analyse_and_complement(
+            root_env,
+            intrinsic_function_action,
+            module->program
+            );
     if ( report->is_errored() ) {
         std::cerr << "Failed to semantic analysis." << std::endl;
         exit( -230 );
@@ -108,7 +111,7 @@ void sample( boost::program_options::variables_map const& vm )
         = rill::code_generator::generate_llvm_ir(
             root_env,
             intrinsic_function_action,
-            program
+            module->program
             );
 
 

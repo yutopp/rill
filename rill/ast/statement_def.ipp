@@ -25,6 +25,7 @@ namespace rill
         // ========================================
         RILL_AST_DEF_GROUP( statement )
 
+        RILL_AST_DEF( module, statement )
         RILL_AST_DEF( statements, statement )
 
         RILL_AST_DEF( expression_statement, statement )
@@ -47,6 +48,8 @@ namespace rill
 
         RILL_AST_DEF( extern_statement_base, statement )
         RILL_AST_DEF( extern_function_declaration_statement, statement )
+
+        RILL_AST_DEF( import_statement, statement )
 
         //// TEST
         RILL_AST_DEF( test_while_statement, statement )

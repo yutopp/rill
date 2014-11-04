@@ -17,7 +17,7 @@ namespace rill
     namespace syntax_analysis
     {
         auto parse( ast::native_string_t const& source )
-            -> ast::statements_ptr
+            -> ast::module_ptr
         {
             iterator_t it = iterator_t( source.cbegin() );
             string_iterator_t const orig_begin = source.cbegin();
@@ -30,11 +30,11 @@ namespace rill
             iterator_t& it,
             string_iterator_t const& orig_begin,
             iterator_t const& end
-            ) -> ast::statements_ptr
+            ) -> ast::module_ptr
         {
             namespace x3 = boost::spirit::x3;
 
-            rill::ast::statements_ptr stmts;
+            rill::ast::module_ptr mod;
             error_container error_holder;
 
             auto const code_g = x3::with<error_container_tag>(
@@ -46,7 +46,7 @@ namespace rill
             auto const skip_g = skip_grammer::rules::entrypoint();
 
             bool const success
-                = boost::spirit::x3::phrase_parse( it, end, code_g, skip_g, stmts );
+                = boost::spirit::x3::phrase_parse( it, end, code_g, skip_g, mod );
 
             if ( success ) {
                 // reaches if *parsing* is succeeded with skipping
@@ -65,7 +65,7 @@ namespace rill
                 return nullptr;
             }
 
-            return stmts;
+            return mod;
         }
 
     } // namespace syntax_analysis

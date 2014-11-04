@@ -67,9 +67,9 @@ namespace rill
 
             template<typename Iterator, typename T, typename Context>
             inline auto tagging(
-                Iterator const& first,
-                Iterator const& last,
-                T const&,
+                Iterator const&,
+                Iterator const&,
+                std::shared_ptr<T> const&,
                 Context const&
                 ) const
                 -> std::enable_if_t<

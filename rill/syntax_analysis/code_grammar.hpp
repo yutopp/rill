@@ -10,6 +10,7 @@
 #define RILL_SYNTAX_ANALYSIS_CODE_GRAMMAR_HPP
 
 #include <boost/spirit/home/x3.hpp>
+// #include <boost/fusion/include/adapt_struct.hpp>
 
 #include "../ast.hpp"
 #include "skip_grammar.hpp"
@@ -51,21 +52,29 @@ namespace rill
             RILL_RULES_BEGIN( rules, program )
 
             // ====================================================================================================
-            RC( program, ast::statements_ptr, ( on_error_annotator_base ),
-                ( t.top_level_statements > ( x3::eol | x3::eoi ) )
-                )
+            RC( program, ast::module_ptr, ( on_error_annotator_base ),
+                t.module > ( x3::eol | x3::eoi )
+            )
 
+            R( module, ast::module_ptr,
+                t.top_level_statements[
+                    helper::make_node_ptr<ast::module>( nullptr, ph::_1 )
+                    ]
+            )
 
             // ====================================================================================================
             R( top_level_statements, ast::statements_ptr,
-                ( *t.top_level_statement )[helper::make_node_ptr<ast::statements>( ph::_1 )]
-                )
+                ( *t.top_level_statement )[
+                    helper::make_node_ptr<ast::statements>( ph::_1 )
+                    ]
+            )
 
             R( top_level_statement, ast::statement_ptr,
                   t.function_definition_statement
                 | t.class_definition_statement
                 | t.extern_statement
                 | t.template_statement
+                | t.import_statement
                 | t.empty_statement
                 | t.expression_statement    // this rule must be located at last
             )
@@ -302,7 +311,7 @@ namespace rill
 
             R( template_parameter_variable_declaration, ast::variable_declaration,
                 ( t.parameter_variable_initializer_unit )[
-                    helper::construct<ast::variable_declaration>( attribute::holder_kind::k_ref, ph::_2 )
+                    helper::construct<ast::variable_declaration>( attribute::holder_kind::k_ref, ph::_1 )
                     ]
             )
 
@@ -330,7 +339,7 @@ namespace rill
             R( variable_declaration, ast::variable_declaration,
                 ( t.variable_holder_kind_specifier > t.variable_initializer_unit )[
                     helper::construct<ast::variable_declaration>( ph::_1, ph::_2 )
-                   ]
+                    ]
             )
 
             R( variable_initializer_unit, ast::variable_declaration_unit,
@@ -342,12 +351,25 @@ namespace rill
 
             // ====================================================================================================
             // ====================================================================================================
-            R( expression_statement, ast::expression_statement_ptr,
-                ( t.expression > t.statement_termination )[
-                    helper::make_node_ptr<ast::expression_statement>( ph::_1 )
+            R( import_statement, ast::import_statement_ptr,
+                ( detail::make_keyword( "import" )
+                > x3::attr(nullptr) /* work around to avoid this rule to be adapted to vector(pass type at random) */
+                > t.import_decl_unit_list
+                > t.statement_termination
+                )[
+                    helper::make_node_ptr<ast::import_statement>( ph::_2 )
                     ]
             )
 
+            R( import_decl_unit, ast::import_decl_unit,
+                t.normal_identifier_sequence[
+                    helper::construct<ast::import_decl_unit>( ph::_1 )
+                    ]
+            )
+
+            R( import_decl_unit_list, ast::import_decl_unit_list,
+                t.import_decl_unit % x3::lit( ',' )
+            )
 
             // ====================================================================================================
             // ====================================================================================================
@@ -355,7 +377,7 @@ namespace rill
                 t.statement_termination[
                     helper::make_node_ptr<ast::empty_statement>()
                     ]
-                )
+            )
 
 
             // ====================================================================================================
@@ -370,10 +392,19 @@ namespace rill
 
 
             // ====================================================================================================
+            // ====================================================================================================
+            R( expression_statement, ast::expression_statement_ptr,
+                ( t.expression > t.statement_termination )[
+                    helper::make_node_ptr<ast::expression_statement>( ph::_1 )
+                    ]
+            )
+
+
+            // ====================================================================================================
             //
             R( statement_termination, x3::unused_type,
                 x3::lit( ';' )
-                )
+            )
 
 
             // ====================================================================================================

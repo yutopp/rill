@@ -50,14 +50,16 @@
     {};                                                                 \
     struct PP_ ## name {                                                \
         using rule_type = x3::rule<name, type>;                         \
-        static auto def( self_type const& t )  {                        \
+        static auto def( self_type const& t ) {                         \
             return __VA_ARGS__;                                         \
         }                                                               \
-        auto operator()() -> rule_type {                                \
+        auto operator()() const -> rule_type                            \
+        {                                                               \
             return rule_type( #name );                                  \
         }                                                               \
     };                                                                  \
-    decltype(( std::declval<PP_ ## name>()) ()) const name = PP_ ## name()(); \
+    decltype(( std::declval<PP_ ## name>()) ()) name                    \
+        = PP_ ## name()();                                              \
     template <typename Iterator, typename Context, typename Attribute>  \
     friend inline bool parse_rule(                                      \
         decltype(( std::declval<PP_ ## name>()) ()) rule_,              \

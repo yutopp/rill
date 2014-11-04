@@ -27,14 +27,14 @@ namespace rill
             = spirit::line_pos_iterator<string_iterator_t>;
 
         auto parse( ast::native_string_t const& source )
-            -> ast::statements_ptr;
+            -> ast::module_ptr;
 
         auto parse(
             iterator_t& it,
             string_iterator_t const& orig_begin,
             iterator_t const& end
             )
-            -> ast::statements_ptr;
+            -> ast::module_ptr;
 
     } // namespace syntax_analysis
 } // namespace rill
