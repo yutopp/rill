@@ -175,4 +175,35 @@ BOOST_AUTO_TEST_CASE( visitor_1_rc )
 }
 
 
+class test_visitor_val_1
+    : public rill::ast::readonly_ast_visitor_const<test_visitor_val_1, int>
+{
+public:
+    using self_type = test_visitor_val_1;
+    RILL_VISITOR_OP_DEFAULT
+
+public:
+    test_visitor_val_1() {};
+
+    RILL_VISITOR_READONLY_OP_DECL_INNER( rill::ast::subscrpting_expression, e, env ) const
+    {
+        return 42;
+    }
+};
+
+BOOST_AUTO_TEST_CASE( visitor_val_1 )
+{
+    using namespace rill::ast;
+    expression_ptr const expr
+        = std::make_shared<subscrpting_expression>(
+            nullptr, boost::none
+            );
+
+    test_visitor_val_1 const v;
+    auto const val = v.dispatch( expr );
+
+    BOOST_CHECK( val == 42 );
+}
+
+
 BOOST_AUTO_TEST_SUITE_END()

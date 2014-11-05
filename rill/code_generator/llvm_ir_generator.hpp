@@ -119,6 +119,9 @@ namespace rill
                 )
                 -> void;
 
+            auto regard_env_is_defined( environment_id_t const& env_id )
+                -> void;
+
         private:
             auto is_heavy_object( type const& ) const
                 -> bool;

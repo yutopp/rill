@@ -37,18 +37,16 @@ namespace rill
 
         RILL_AST_DEF( function_definition_statement_base, statement )
         RILL_AST_DEF( function_definition_statement, statement )
-
-        RILL_AST_DEF( variable_declaration_statement, statement )
+        RILL_AST_DEF( class_function_definition_statement, statement )
+        RILL_AST_DEF( extern_function_declaration_statement, statement )
 
         RILL_AST_DEF( class_definition_statement, statement )
-        RILL_AST_DEF( class_function_definition_statement, statement )
+        RILL_AST_DEF( extern_class_declaration_statement, statement )
+
+        RILL_AST_DEF( variable_declaration_statement, statement )
         RILL_AST_DEF( class_variable_declaration_statement, statement )
 
         RILL_AST_DEF( return_statement, statement )
-
-        RILL_AST_DEF( extern_statement_base, statement )
-        RILL_AST_DEF( extern_function_declaration_statement, statement )
-        RILL_AST_DEF( extern_class_declaration_statement, statement )
 
         RILL_AST_DEF( import_statement, statement )
 

@@ -85,8 +85,6 @@ namespace rill
         kind::class_tag,
         ast::identifier_value_base_ptr const& class_name,
         ast::statement_ptr const& ast
-/*        const_class_symbol_environment_ptr const& class_env,
-          attribute::type_attributes const& type_attr*/
         )
         -> class_symbol_environment_ptr
     {

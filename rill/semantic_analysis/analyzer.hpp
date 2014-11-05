@@ -308,7 +308,7 @@ namespace rill
                 -> bool;
 
         private:
-            auto get_primitive_class_env( std::string const& type_name ) const
+            auto get_primitive_class_env( std::string const& type_name )
                 -> class_symbol_environment_ptr;
 
         private:
@@ -323,36 +323,6 @@ namespace rill
             class builtin_class_envs_cache;
             std::shared_ptr<builtin_class_envs_cache> builtin_class_envs_cache_;
         };
-
-
-        //
-        template<typename EnvPtr>
-        inline auto to_unique_class_env( EnvPtr const& env )
-            -> class_symbol_environment_ptr
-        {
-            if ( env == nullptr ) {
-                return nullptr;
-            }
-            if ( env->get_symbol_kind() != kind::type_value::e_multi_set ) {
-                return nullptr;
-            }
-
-            auto const& multi_set_env = cast_to<multiple_set_environment>( env );
-            if ( multi_set_env == nullptr ) {
-                return nullptr;
-            }
-            if ( multi_set_env->get_representation_kind() != kind::type_value::e_class ) {
-                return nullptr;
-            }
-
-            auto class_env = multi_set_env->template get_unique_environment<class_symbol_environment>();
-            if ( class_env == nullptr ) {
-                return nullptr;
-            }
-
-            return class_env;
-        }
-
 
         //
         auto make_mangled_name(

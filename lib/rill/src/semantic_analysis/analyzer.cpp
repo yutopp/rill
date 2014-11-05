@@ -102,6 +102,34 @@ namespace rill
             return a;
         }
 
+        //
+        template<typename EnvPtr>
+        inline auto to_unique_class_env( EnvPtr const& env )
+            -> class_symbol_environment_ptr
+        {
+            if ( env == nullptr ) {
+                return nullptr;
+            }
+            if ( env->get_symbol_kind() != kind::type_value::e_multi_set ) {
+                return nullptr;
+            }
+
+            auto const& multi_set_env = cast_to<multiple_set_environment>( env );
+            if ( multi_set_env == nullptr ) {
+                return nullptr;
+            }
+            if ( multi_set_env->get_representation_kind() != kind::type_value::e_class ) {
+                return nullptr;
+            }
+
+            auto class_env = multi_set_env->template get_unique_environment<class_symbol_environment>();
+            if ( class_env == nullptr ) {
+                return nullptr;
+            }
+
+            return class_env;
+        }
+
 
         class analyzer::builtin_class_envs_cache
         {
@@ -110,25 +138,24 @@ namespace rill
         public:
             builtin_class_envs_cache( environment_base_ptr const& root_env )
             {
-                auto install_primitive_class
-                    = [&]( std::string const& type_name ) mutable
+                auto install_primitive_class = [&]( std::string const& type_name ) mutable
                     {
-                        primitive_cache_[type_name]
-                            = to_unique_class_env(
-                                root_env->lookup( type_name )
-                                );
+                        auto env
+                            = to_unique_class_env( root_env->lookup( type_name ) );
+                        assert( env != nullptr );
+
+                        primitive_cache_[type_name] = env;
                     };
 
                 install_primitive_class( "void" );
                 install_primitive_class( "type" );
                 install_primitive_class( "int" );
                 install_primitive_class( "bool" );
-                install_primitive_class( "string" );
                 install_primitive_class( "int8" );
             }
 
         private:
-            inline auto find_primitive( std::string const& type_name )
+            inline auto find_primitive( std::string const& type_name ) const
                 -> class_symbol_environment_ptr
             {
                 auto const it = primitive_cache_.find( type_name );
@@ -158,10 +185,17 @@ namespace rill
         }
 
         //
-        auto analyzer::get_primitive_class_env( std::string const& type_name ) const
+        auto analyzer::get_primitive_class_env( std::string const& type_name )
             -> class_symbol_environment_ptr
         {
-            return builtin_class_envs_cache_->find_primitive( type_name );
+            auto env
+                = builtin_class_envs_cache_->find_primitive( type_name );
+
+            if ( env->is_incomplete() ) {
+                dispatch( env->get_related_ast(), env->get_parent_env() );
+            }
+
+            return env;
         }
 
         //
@@ -586,7 +620,7 @@ namespace rill
                         );
                 assert( template_ast != nullptr );
 
-                //
+
                 auto const& class_def_ast
                     = std::static_pointer_cast<ast::class_definition_statement>(
                         template_ast->clone_inner_node()
@@ -687,7 +721,7 @@ namespace rill
                 dispatch( s->inner_, c_env );
 
                 // complete class data
-                c_env->complete( mangled_name );
+                c_env->complete( mangled_name, s->decl_attr_ );
 
                 // expect as structured class(not a strong typedef)
                 c_env->set_attribute( attribute::decl::k_structured );
@@ -696,7 +730,7 @@ namespace rill
                 std::cout << "builtin class!" << std::endl;
 
                 // complete class data
-                c_env->complete( mangled_name );
+                c_env->complete( mangled_name, s->decl_attr_ );
 
                 // TODO: change...;(;(;(
                 if ( s->get_identifier()->get_inner_symbol()->to_native_string() == "array" ) {
@@ -1340,7 +1374,7 @@ namespace rill
 
                 // TODO: support "member function" and "extern function"
                 auto const& function_def_ast
-                    = std::static_pointer_cast<ast::function_definition_statement>(
+                    = std::static_pointer_cast<ast::function_definition_statement_base>(
                         template_ast->clone_inner_node()
                         );
                 assert( function_def_ast != nullptr );

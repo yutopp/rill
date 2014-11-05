@@ -202,11 +202,13 @@ namespace rill
             R( class_definition_statement, ast::class_definition_statement_ptr,
                 ( detail::make_keyword( "class" )
                 > t.identifier
+                > t.decl_attribute_list
                 > t.class_body_block
                 )[
                     helper::make_node_ptr<ast::class_definition_statement>(
                         ph::_1,
-                        ph::_2
+                        ph::_2,
+                        ph::_3
                         )
                     ]
             )
@@ -261,7 +263,7 @@ namespace rill
             // ====================================================================================================
             // ====================================================================================================
             //
-            R( extern_statement, ast::extern_statement_base_ptr,
+            R( extern_statement, ast::can_be_template_statement_ptr,
                 ( detail::make_keyword( "extern" )
                 > ( t.extern_function_declaration_statement
                   | t.extern_class_declaration_statement
@@ -309,6 +311,7 @@ namespace rill
             R( templatable_statement, ast::can_be_template_statement_ptr,
                 ( t.function_definition_statement
                 | t.class_definition_statement
+                | t.extern_statement
                 )
             )
 

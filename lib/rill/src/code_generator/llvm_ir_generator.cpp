@@ -425,14 +425,14 @@ namespace rill
 
         RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::class_definition_statement, s, parent_env )
         {
-            // TODO: support structures contain self type. Ex, class T { ref T; val T; }
-
             //
             auto const& c_env
                 = cast_to<class_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( s ) );
             assert( c_env != nullptr );
             if ( context_->env_conversion_table.is_defined( c_env->get_id() ) )
                 return;
+
+            std::cout << "class! : " << c_env->get_base_name() << std::endl;
 
             if ( s->inner_ ) {
                 // if inner statements, it will be USER DEFINED NORMAL class
@@ -475,49 +475,7 @@ namespace rill
                 dispatch( s->inner_, c_env );
 
             } else {
-                // it will be BUILTIN class
-
-                std::cout << "builtin! : " << c_env->get_base_name() << std::endl;
-
-                // special treatment for Array...
-                if ( c_env->is_array() ) {
-                    std::cout << "array" << std::endl;
-                    auto const& array_detail = c_env->get_array_detail();
-
-                    llvm::Type* const inner_type
-                        = type_id_to_llvm_type_ptr( array_detail->inner_type_id );
-
-                    std::cout << "NUM: " << array_detail->elements_num << std::endl;
-
-                    auto const& array_ty = llvm::ArrayType::get(
-                        inner_type,
-                        array_detail->elements_num
-                        );
-
-                    context_->env_conversion_table.bind_type(
-                        c_env,
-                        array_ty
-                        );
-
-                } else if ( c_env->is_pointer() ) {
-                    std::cout << "pointer" << std::endl;
-                    auto const& ptr_detail = c_env->get_pointer_detail();
-                    auto const& ptr_inner_type
-                        = root_env_->get_type_at( ptr_detail->inner_type_id );
-                    llvm::Type* ptr_inner_ty
-                        = context_->env_conversion_table.ref_type( ptr_inner_type.class_env_id );
-                    llvm::Type* ptr_ty = ptr_inner_ty->getPointerTo();
-
-                    context_->env_conversion_table.bind_type(
-                        c_env,
-                        ptr_ty
-                        );
-
-                } else {
-                    // another builtin types are defined at beheviour/register_default_core.cpp ...
-                    std::cout << (const_environment_base_ptr)root_env_ << std::endl;
-                    assert( false && "[[ice]] reached..." );
-                }
+                assert( false && "[ice] invalid type" );
             }
         }
 
@@ -700,6 +658,9 @@ namespace rill
             }
 
             if ( c_env->has_attribute( attribute::decl::k_intrinsic ) ) {
+                // it will be BUILTIN class
+                std::cout << "builtin! : " << c_env->get_base_name() << std::endl;
+
                 if ( auto&& id = action_holder_->is_registered( s->extern_symbol_name_ ) ) {
                     auto const& action = action_holder_->at( *id );
                     assert( action != nullptr );
@@ -711,11 +672,57 @@ namespace rill
                         );
 
                 } else {
-                    assert( false );
+                    // special treatment for Array...
+                    if ( c_env->is_array() ) {
+                        std::cout << "array" << std::endl;
+                        auto const& array_detail = c_env->get_array_detail();
+                        assert( array_detail != nullptr );
+                        auto const& array_inner_type
+                            = root_env_->get_type_at( array_detail->inner_type_id );
+                        regard_env_is_defined( array_inner_type.class_env_id );
+
+                        llvm::Type* const inner_type
+                            = type_id_to_llvm_type_ptr( array_detail->inner_type_id );
+
+                        std::cout << "NUM: " << array_detail->elements_num << std::endl;
+
+                        auto const& array_ty = llvm::ArrayType::get(
+                            inner_type,
+                            array_detail->elements_num
+                            );
+
+                        context_->env_conversion_table.bind_type(
+                            c_env,
+                            array_ty
+                            );
+
+                    } else if ( c_env->is_pointer() ) {
+                        std::cout << "pointer" << std::endl;
+                        auto const& ptr_detail = c_env->get_pointer_detail();
+                        assert( ptr_detail != nullptr );
+                        auto const& ptr_inner_type
+                            = root_env_->get_type_at( ptr_detail->inner_type_id );
+                        regard_env_is_defined( ptr_inner_type.class_env_id );
+
+                        llvm::Type* ptr_inner_ty
+                            = context_->env_conversion_table.ref_type( ptr_inner_type.class_env_id );
+                        llvm::Type* ptr_ty = ptr_inner_ty->getPointerTo();
+
+                        context_->env_conversion_table.bind_type(
+                            c_env,
+                            ptr_ty
+                            );
+
+                    } else {
+                        // another builtin types are defined at beheviour/register_default_core.cpp ...
+                        std::cout << (const_environment_base_ptr)root_env_ << std::endl;
+                        assert( false && "[[ice]] reached..." );
+                    }
                 }
 
             } else {
-                assert( false );
+                std::cout << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
+                assert( false && "[ice] invalid type" );
             }
         }
 
@@ -1650,6 +1657,16 @@ namespace rill
 
             //
             llvm::verifyFunction( *func );
+        }
+
+
+        auto llvm_ir_generator::regard_env_is_defined( environment_id_t const& env_id )
+            -> void
+        {
+            if ( !context_->env_conversion_table.is_defined( env_id ) ) {
+                auto const& env = root_env_->get_env_strong_at( env_id );
+                dispatch( env->get_related_ast(), env );
+            }
         }
 
     } // namespace code_generator

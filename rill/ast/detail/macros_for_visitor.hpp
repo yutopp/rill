@@ -11,14 +11,14 @@
     typename result_scope result_type<node_type> \
     prefix operator()( \
         std::shared_ptr<node_type> const& node_name, \
-        environment_base_ptr const& env_name \
+        rill::environment_base_ptr const& env_name   \
         )
 
 #define RILL_VISITOR_READONLY_OP_INDIRECT( node_type, node_name, env_name, result_scope, prefix ) \
     typename result_scope result_type<node_type> \
     prefix operator()( \
         std::shared_ptr<node_type const> const& node_name, \
-        const_environment_base_ptr const& env_name \
+        rill::const_environment_base_ptr const& env_name   \
         )
 
 

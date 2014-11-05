@@ -14,11 +14,12 @@
     std::string const s = src;                                          \
     auto const& ast = rill::syntax_analysis::parse( s );                \
     BOOST_CHECK( ast != nullptr );                                      \
-    rill::semantic_analysis::analyse_and_complement(                    \
+    auto report = rill::semantic_analysis::analyse_and_complement(      \
         root_env,                                                       \
         intrinsic_function_action,                                      \
-        ast                                                             \
-        );
+        ast->program /*TODO: change*/                                   \
+        );                                                              \
+    BOOST_CHECK( report->is_errored() == false );
 
 #define FAIL( src )
 
@@ -46,8 +47,8 @@ BOOST_AUTO_TEST_CASE( pass_test_0 )
 def main(): int
 {
     val a = HogeHuga!(int, int)();
-    val b: HogeHuga!(int, string) = HogeHuga!(int, string)();
-    val c: HogeHuga!(void, string) = HogeHuga!(void, string)();
+    val b: HogeHuga!(int, int8) = HogeHuga!(int, int8)();
+    val c: HogeHuga!(void, int8) = HogeHuga!(void, int8)();
 
     return 0;
 }
@@ -67,6 +68,16 @@ class HogeHuga
     val b: U;
     val a: T;
 }
+
+extern class type intrinsic "type_type";
+extern class int8 intrinsic "type_int8";
+extern class int intrinsic "type_int32";
+extern class void intrinsic "type_void";
+extern class bool intrinsic "type_bool";
+template(T: type, N: int)
+extern class array intrinsic "type_array";
+template(T: type)
+extern class ptr intrinsic "type_ptr";
 )s" )
 }
 

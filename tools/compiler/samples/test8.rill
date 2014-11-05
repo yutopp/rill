@@ -42,6 +42,16 @@ def k(val a: immutable(int)): void
     p(a);
 }
 
+extern class type intrinsic "type_type";
+extern class int8 intrinsic "type_int8";
+extern class int intrinsic "type_int32";
+extern class void intrinsic "type_void";
+extern class bool intrinsic "type_bool";
+template(T: type, N: int)
+extern class array intrinsic "type_array";
+template(T: type)
+extern class ptr intrinsic "type_ptr";
+
 extern def mutable( val a :type ) onlymeta: type "rill_core_typesystem_mutable";
 extern def const( val a :type ) onlymeta: type "rill_core_typesystem_const";
 extern def immutable( val a :type ) onlymeta: type "rill_core_typesystem_immutable";

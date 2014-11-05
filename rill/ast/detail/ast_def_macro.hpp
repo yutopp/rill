@@ -284,6 +284,9 @@ namespace rill
     class_name() = default;                                 \
     class_name( class_name const& ) = delete;               \
 
+#define RILL_AST_DTOR( class_name )                         \
+    public:                                                 \
+    virtual ~class_name() {}                                \
 // ========================================
 
 
@@ -293,6 +296,7 @@ namespace rill
 // ========================================
 #define RILL_SETUP_GROUP_AST( class_name, decl_c )          \
     RILL_AST_CTOR( class_name )                             \
+    RILL_AST_DTOR( class_name )                             \
     RILL_AST_DECL_MEMBER_VARIABLES( class_name, decl_c )    \
     public:                                                 \
     using cloned_pointer_type = class_name ## _ptr;         \
@@ -326,7 +330,6 @@ namespace rill
         : public ast_base                               \
     {                                                   \
     public:                                             \
-        virtual ~class_name() {}                        \
         RILL_SETUP_GROUP_AST( class_name, elems )       \
 
 
@@ -351,7 +354,6 @@ namespace rill
     public:                                                 \
         using ast_base_type = base_class;                   \
     public:                                                 \
-        virtual ~class_name() {}                            \
         RILL_SETUP_AST( class_name, elems )                 \
 
 
