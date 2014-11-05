@@ -59,7 +59,11 @@ namespace rill
 
         // wrapper environment
         auto const& set_environment
-            = allocate_env_unless_exist<multiple_set_environment>( symbol_name, symbol_name );
+            = b_.lock()->allocate_env_unless_exist<multiple_set_environment>(
+                shared_from_this(),
+                symbol_name,
+                symbol_name
+                );
 
         // set kind
         assert( set_environment->get_representation_kind() == kind::type_value::e_none
@@ -90,6 +94,7 @@ namespace rill
             attribute::type_attributes const& return_type_attr
             ) -> function_symbol_environment_ptr
     {
+#if 0
         auto const& p_i_pair = mark_as( kind::k_function, function_name, ast );
         auto const& set_environment = p_i_pair.first;
         auto const& incomplete_function_env = p_i_pair.second;
@@ -98,7 +103,7 @@ namespace rill
         auto const& parameter_completed_function_env_pointer = parameter_decl_initializer( incomplete_function_env );
 
         // complete return type, name
-        auto const& return_type_id = parameter_completed_function_env_pointer->make_type_id( return_class_env, return_type_attr );
+        auto const& return_type_id = b_.lock()->make_type_id( return_class_env, return_type_attr );
         parameter_completed_function_env_pointer->decide_return_type( return_type_id );
 
         //
@@ -112,6 +117,9 @@ namespace rill
         set_environment->add_to_normal_environments( parameter_completed_function_env_pointer );
 
         return parameter_completed_function_env_pointer;
+#endif
+        assert( false );
+        return nullptr;
     }
 
 } // namespace rill

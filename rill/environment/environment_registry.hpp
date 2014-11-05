@@ -31,7 +31,27 @@ namespace rill
 
         //
         template<typename TargetEnv, typename... Args>
+        auto allocate_root(
+            Args&&... args
+            )
+            -> typename result<TargetEnv>::type
+        {
+            environment_id_t const next_id = environment_id_t( nodes_.size() );
+            if ( next_id == environment_id_limit )
+                assert( false );
+
+            auto const p = std::make_shared<TargetEnv>(
+                std::forward<Args>( args )...
+                );
+            nodes_.push_back( p );
+
+            return p;
+        }
+
+        //
+        template<typename TargetEnv, typename... Args>
         auto allocate(
+            weak_global_environment_ptr const& global_env,
             weak_environment_base_ptr const& parent,
             bool const forward_referenceable,
             std::size_t const& decl_order,
@@ -46,6 +66,7 @@ namespace rill
                 assert( false );
 
             environment_parameter_t params = {
+                global_env,
                 next_id,
                 parent,
                 forward_referenceable,

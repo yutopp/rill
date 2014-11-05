@@ -19,58 +19,27 @@ namespace rill
 {
     namespace code_generator
     {
-        template<typename EnvironmentPtr, typename ActionHolderPtr, typename Node>
+        template<
+            typename Node,
+            typename ActionHolderPtr,
+            typename EnvPtr = environment_base_ptr
+            >
         auto generate_llvm_ir(
-            EnvironmentPtr const& env,
+            global_environment_ptr const& g_env,
+            Node const& node,
             ActionHolderPtr const& action_holder,
-            std::shared_ptr<Node> const& node
+            EnvPtr const& env = nullptr
             )
-            -> std::shared_ptr<llvm_ir_generator_context>
         {
             auto const& context = std::make_shared<llvm_ir_generator_context>();
 
-            //
-            llvm_ir_generator ir_generator( env, action_holder, context );
+            llvm_ir_generator ir_generator( g_env, action_holder, context );
             ir_generator.dispatch( node, env );
 
-            //
             ir_generator.debug();
 
             return context;
         }
-
-
-#if 0
-        template<typename EnvironmentPtr, typename ActionHolderPtr, typename Node>
-        auto run_as_ctfe(
-            EnvironmentPtr const& env,
-            ActionHolderPtr const& action_holder,
-            std::shared_ptr<Node> const& node
-            )
-            -> void
-        {
-            auto const& context = std::make_shared<llvm_ir_generator_context>();
-
-            // call intrinsic action initializer
-            action_holder->invoke_initialize_action(
-                processing_context::k_llvm_ir_generator,
-                context,
-                env
-                );
-
-            //
-            llvm_ir_generator ir_generator( env, action_holder, context );
-            ir_generator.dispatch( node, env );
-
-            //
-            ir_generator.debug();
-
-            // FIXME
-            auto const binary_gen = binary_generator_from_llvm_ir( context );
-            binary_gen.test();
-        }
-#endif
-
 
     } // namespace code_generator
 } // namespace rill

@@ -21,7 +21,6 @@ namespace rill
     namespace behavior
     {
         void register_default_core(
-            std::shared_ptr<root_environment> const&,
             std::shared_ptr<intrinsic_action_holder> const&
             );
 
@@ -29,11 +28,10 @@ namespace rill
         {
         public:
             void operator()(
-                std::shared_ptr<root_environment> const& root_env,
                 std::shared_ptr<intrinsic_action_holder> const& intrinsic_action_holder
                 ) const
             {
-                register_default_core( root_env, intrinsic_action_holder );
+                register_default_core( intrinsic_action_holder );
             }
         };
     } // namespace behavior

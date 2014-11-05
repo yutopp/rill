@@ -25,6 +25,7 @@
 #include "../config/macros.hpp"
 
 #include "environment_base.hpp"
+#include "global_environment.hpp"
 #include "../behavior/intrinsic_action_holder_fwd.hpp"
 
 
@@ -66,7 +67,7 @@ namespace rill
             -> multiple_set_environment_ptr
         {
             return cast_to<multiple_set_environment>(
-                get_env_at_as_strong_ref( parameter_wrapper_env_id_ )
+                b_.lock()->get_env_at_as_strong_ref( parameter_wrapper_env_id_ )
                 );
         }
 

@@ -36,7 +36,7 @@ namespace rill
 
         public:
             llvm_ir_generator(
-                const_environment_base_ptr const&,
+                const_global_environment_ptr const&,
                 intrinsic_action_holder_ptr const&,
                 llvm_ir_generator_context_ptr const&,
                 semantic_analysis::analyzer* const = nullptr
@@ -52,6 +52,7 @@ namespace rill
 
         public:
             // statement_list
+            RILL_VISITOR_READONLY_OP_DECL( ast::module );
             RILL_VISITOR_READONLY_OP_DECL( ast::statements );
             RILL_VISITOR_READONLY_OP_DECL( ast::block_statement );
          // RILL_VISITOR_READONLY_OP_DECL( ast::template_statement );
@@ -135,7 +136,7 @@ namespace rill
                 -> void;
 
         private:
-            const_environment_base_ptr root_env_;
+            const_global_environment_ptr g_env_;
             intrinsic_action_holder_ptr action_holder_;
 
             llvm_ir_generator_context_ptr context_;

@@ -19,26 +19,37 @@ namespace rill
     namespace semantic_analysis
     {
         //
-        template<typename EnvironmentPtr, typename T>
-        auto collect_identifier( EnvironmentPtr const& env, T const& node )
-            -> void//decltype( node->dispatch_as_env( std::declval<identifier_collector>(), env ) )
+        template<
+            typename Node,
+            typename EnvPtr = environment_base_ptr
+            >
+        auto collect_identifier(
+            global_environment_ptr const& g_env,
+            Node const& node,
+            EnvPtr const& env = nullptr
+            )
+            -> void
         {
-            identifier_collector visitor;
-
-            return visitor.dispatch( node, env );
+            identifier_collector visitor( g_env );
+            visitor.dispatch( node, env );
         }
 
         //
-        template<typename EnvironmentPtr, typename ActionHolderPtr, typename Node>
+        template<
+            typename Node,
+            typename ActionHolderPtr,
+            typename EnvPtr = environment_base_ptr
+            >
         auto analyse_and_complement(
-            EnvironmentPtr const& env,
+            global_environment_ptr const& g_env,
+            Node const& node,
             ActionHolderPtr const& action_holder,
-            Node const& node
+            EnvPtr const& env = nullptr
             )
         {
-            collect_identifier( env, node );
+            collect_identifier( g_env, node, env );
 
-            analyzer visitor( env, action_holder );
+            analyzer visitor( g_env, action_holder );
             visitor.dispatch( node, env );
 
             return visitor.get_report();

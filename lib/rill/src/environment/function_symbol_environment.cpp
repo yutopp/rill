@@ -50,7 +50,7 @@ namespace rill
 
         auto const& c_env
             = cast_to<class_symbol_environment const>(
-                get_env_at_as_strong_ref( type_env_id )
+                b_.lock()->get_env_at_as_strong_ref( type_env_id )
                 );
         assert( c_env != nullptr );
 
@@ -68,7 +68,7 @@ namespace rill
         )
         -> variable_symbol_environment_ptr
     {
-        auto const& t = get_type_at( type_id );
+        auto const& t = b_.lock()->get_type_at( type_id );
         return parameter_variable_construct( name, t.class_env_id, t.attributes );
     }
 

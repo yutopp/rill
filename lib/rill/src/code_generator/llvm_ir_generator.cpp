@@ -51,12 +51,12 @@ namespace rill
 
 
         llvm_ir_generator::llvm_ir_generator(
-            const_environment_base_ptr const& root_env,
+            const_global_environment_ptr const& g_env,
             intrinsic_action_holder_ptr const& action_holder,
             llvm_ir_generator_context_ptr const& context,
             semantic_analysis::analyzer* const analyzer
             )
-            : root_env_( root_env )
+            : g_env_( g_env )
             , action_holder_( action_holder )
             , context_( context )
             , analyzer_( analyzer )
@@ -117,6 +117,15 @@ namespace rill
         //
         // Root Scope
         //
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::module, s, parent_env )
+        {
+            auto const& module_name = "";
+            auto module_env = g_env_->find_module( module_name );
+
+            //
+            dispatch( s->program, module_env );
+        }
+
         RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::statements, s, parent_env )
         {
             //
@@ -154,7 +163,7 @@ namespace rill
 
             auto const& ret_type_id = callee_f_env->get_return_type_id();
             auto const& ret_type
-                = root_env_->get_type_at( callee_f_env->get_return_type_id() );
+                = g_env_->get_type_at( callee_f_env->get_return_type_id() );
             bool const returns_heavy_object = is_heavy_object( ret_type );
 
             llvm::Value* v = dispatch( s->expression_, parent_env );
@@ -183,7 +192,7 @@ namespace rill
             // ========================================
             //
             auto const& f_env
-                = cast_to<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( s ) );
+                = cast_to<function_symbol_environment const>( g_env_->get_related_env_by_ast_ptr( s ) );
             assert( f_env != nullptr );
             if ( context_->env_conversion_table.is_defined( f_env->get_id() ) )
                 return;
@@ -216,7 +225,7 @@ namespace rill
             // ========================================
             auto const& ret_type_id = f_env->get_return_type_id();
             auto const& ret_type
-                = root_env_->get_type_at( f_env->get_return_type_id() );
+                = g_env_->get_type_at( f_env->get_return_type_id() );
             bool const returns_heavy_object = is_heavy_object( ret_type );
 
 
@@ -268,7 +277,7 @@ namespace rill
 
                 } else {
                     auto const& var =
-                        f_env->get_env_at_as_strong_ref<variable_symbol_environment const>( parameter_variable_decl_env_ids[i] );
+                        g_env_->get_env_at_as_strong_ref<variable_symbol_environment const>( parameter_variable_decl_env_ids[i] );
                     ait->setName( var->get_mangled_name() );
 
                     store_value( ait, var );
@@ -308,7 +317,7 @@ namespace rill
             // ========================================
             // get current function environment
             auto const& f_env
-                = cast_to<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( s ) );
+                = cast_to<function_symbol_environment const>( g_env_->get_related_env_by_ast_ptr( s ) );
             assert( f_env != nullptr );
             if ( context_->env_conversion_table.is_defined( f_env->get_id() ) )
                 return;
@@ -342,7 +351,7 @@ namespace rill
             // ========================================
             auto const& ret_type_id = f_env->get_return_type_id();
             auto const& ret_type
-                = root_env_->get_type_at( f_env->get_return_type_id() );
+                = g_env_->get_type_at( f_env->get_return_type_id() );
             bool const returns_heavy_object = is_heavy_object( ret_type );
 
 
@@ -394,7 +403,7 @@ namespace rill
 
                 } else {
                     auto const& var =
-                        f_env->get_env_at_as_strong_ref<variable_symbol_environment const>( parameter_variable_decl_env_ids[i] );
+                        g_env_->get_env_at_as_strong_ref<variable_symbol_environment const>( parameter_variable_decl_env_ids[i] );
                     ait->setName( var->get_mangled_name() );
 
                     store_value( ait, var );
@@ -427,7 +436,7 @@ namespace rill
         {
             //
             auto const& c_env
-                = cast_to<class_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( s ) );
+                = cast_to<class_symbol_environment const>( g_env_->get_related_env_by_ast_ptr( s ) );
             assert( c_env != nullptr );
             if ( context_->env_conversion_table.is_defined( c_env->get_id() ) )
                 return;
@@ -490,7 +499,7 @@ namespace rill
 
             // cast to variable symbol env
             auto const& v_env
-                = std::static_pointer_cast<variable_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( s ) );
+                = std::static_pointer_cast<variable_symbol_environment const>( g_env_->get_related_env_by_ast_ptr( s ) );
             assert( v_env != nullptr );
 
             // initial value
@@ -523,7 +532,7 @@ namespace rill
 
             // cast to variable symbol env
             auto const& v_env
-                = std::static_pointer_cast<variable_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( s ) );
+                = std::static_pointer_cast<variable_symbol_environment const>( g_env_->get_related_env_by_ast_ptr( s ) );
             assert( v_env != nullptr );
 
             // duplicate check
@@ -536,9 +545,9 @@ namespace rill
             std::cout << "v_env->get_type_id() = " << v_env->get_type_id() << std::endl;
 
 
-            auto const& variable_type = v_env->get_type_at( v_env->get_type_id() );
+            auto const& variable_type = g_env_->get_type_at( v_env->get_type_id() );
             if ( !context_->env_conversion_table.is_defined( variable_type.class_env_id ) ) {
-                auto const& c_env = root_env_->get_env_strong_at( variable_type.class_env_id );
+                auto const& c_env = g_env_->get_env_strong_at( variable_type.class_env_id );
                 dispatch( c_env->get_related_ast(), c_env );
             }
 
@@ -597,7 +606,7 @@ namespace rill
         {
             // cast to function symbol env
             auto const& f_env
-                = cast_to<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( s ) );
+                = cast_to<function_symbol_environment const>( g_env_->get_related_env_by_ast_ptr( s ) );
             assert( f_env != nullptr );
             if ( context_->env_conversion_table.is_defined( f_env->get_id() ) ) {
                 return;
@@ -620,16 +629,16 @@ namespace rill
             // define paramter and return types
             std::vector<llvm::Type*> parmeter_types;
             for( auto const& var_type_id : parameter_variable_type_ids ) {
-                auto const& v = f_env->get_type_at( var_type_id );
+                auto const& v = g_env_->get_type_at( var_type_id );
                 if ( !context_->env_conversion_table.is_defined( v.class_env_id ) ) {
-                    auto const& c_env = root_env_->get_env_strong_at( v.class_env_id );
+                    auto const& c_env = g_env_->get_env_strong_at( v.class_env_id );
                     dispatch( c_env->get_related_ast(), c_env );
                 }
                 parmeter_types.push_back( context_->env_conversion_table.ref_type( v.class_env_id ) );
             }
-            auto const& v = f_env->get_type_at( f_env->get_return_type_id() );
+            auto const& v = g_env_->get_type_at( f_env->get_return_type_id() );
             if ( !context_->env_conversion_table.is_defined( v.class_env_id ) ) {
-                auto const& c_env = root_env_->get_env_strong_at( v.class_env_id );
+                auto const& c_env = g_env_->get_env_strong_at( v.class_env_id );
                 dispatch( c_env->get_related_ast(), c_env );
             }
             auto const& return_type = context_->env_conversion_table.ref_type( v.class_env_id );
@@ -651,7 +660,7 @@ namespace rill
         RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::extern_class_declaration_statement, s, parent_env )
         {
             auto const& c_env
-                = cast_to<class_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( s ) );
+                = cast_to<class_symbol_environment const>( g_env_->get_related_env_by_ast_ptr( s ) );
             assert( c_env != nullptr );
             if ( context_->env_conversion_table.is_defined( c_env->get_id() ) ) {
                 return;
@@ -678,7 +687,7 @@ namespace rill
                         auto const& array_detail = c_env->get_array_detail();
                         assert( array_detail != nullptr );
                         auto const& array_inner_type
-                            = root_env_->get_type_at( array_detail->inner_type_id );
+                            = g_env_->get_type_at( array_detail->inner_type_id );
                         regard_env_is_defined( array_inner_type.class_env_id );
 
                         llvm::Type* const inner_type
@@ -701,7 +710,7 @@ namespace rill
                         auto const& ptr_detail = c_env->get_pointer_detail();
                         assert( ptr_detail != nullptr );
                         auto const& ptr_inner_type
-                            = root_env_->get_type_at( ptr_detail->inner_type_id );
+                            = g_env_->get_type_at( ptr_detail->inner_type_id );
                         regard_env_is_defined( ptr_inner_type.class_env_id );
 
                         llvm::Type* ptr_inner_ty
@@ -715,7 +724,6 @@ namespace rill
 
                     } else {
                         // another builtin types are defined at beheviour/register_default_core.cpp ...
-                        std::cout << (const_environment_base_ptr)root_env_ << std::endl;
                         assert( false && "[[ice]] reached..." );
                     }
                 }
@@ -739,13 +747,13 @@ namespace rill
             //
             context_->ir_builder.CreateBr( while_begin_block );
             context_->ir_builder.SetInsertPoint( while_begin_block );
-            auto const& scope_env = root_env_->get_related_env_by_ast_ptr( s ); assert( scope_env != nullptr );
+            auto const& scope_env = g_env_->get_related_env_by_ast_ptr( s ); assert( scope_env != nullptr );
             auto const& cond_llvm_value = dispatch( s->conditional_, scope_env );
             context_->ir_builder.CreateCondBr( cond_llvm_value, body_block, final_block );
 
             //
             context_->ir_builder.SetInsertPoint( body_block );
-//            auto const& body_scope_env = root_env_->get_related_env_by_ast_ptr( s->body_statement_ ); assert( scope_env != nullptr );
+//            auto const& body_scope_env = g_env_->get_related_env_by_ast_ptr( s->body_statement_ ); assert( scope_env != nullptr );
             dispatch( s->body_statement_, scope_env/*body_scope_env*/ );
             context_->ir_builder.CreateBr( while_begin_block );
 
@@ -772,7 +780,7 @@ namespace rill
             //
             context_->ir_builder.CreateBr( if_begin_block );
             context_->ir_builder.SetInsertPoint( if_begin_block );
-            auto const& scope_env = root_env_->get_related_env_by_ast_ptr( s ); assert( scope_env != nullptr );
+            auto const& scope_env = g_env_->get_related_env_by_ast_ptr( s ); assert( scope_env != nullptr );
             auto const& cond_llvm_value = dispatch( s->conditional_, scope_env );
             // else( optional )
             if ( s->else_statement_ ) {
@@ -783,14 +791,14 @@ namespace rill
 
             //
             context_->ir_builder.SetInsertPoint( then_block );
-            //auto const& then_scope_env = root_env_->get_related_env_by_ast_ptr( s->then_statement_ ); assert( then_scope_env != nullptr );
+            //auto const& then_scope_env = g_env_->get_related_env_by_ast_ptr( s->then_statement_ ); assert( then_scope_env != nullptr );
             dispatch( s->then_statement_, scope_env/*then_scope_env*/ );
             context_->ir_builder.CreateBr( final_block );
 
             //
             if ( s->else_statement_ ) {
                 context_->ir_builder.SetInsertPoint( else_block );
-                //auto const& else_scope_env = root_env_->get_related_env_by_ast_ptr( *s->else_statement_ ); assert( else_scope_env != nullptr );
+                //auto const& else_scope_env = g_env_->get_related_env_by_ast_ptr( *s->else_statement_ ); assert( else_scope_env != nullptr );
                 dispatch( *s->else_statement_, scope_env/*else_scope_env*/ );
                 context_->ir_builder.CreateBr( final_block );
             }
@@ -803,7 +811,7 @@ namespace rill
         RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::binary_operator_expression, e, parent_env )
         {
             // Look up Function
-            auto const f_env = std::static_pointer_cast<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( e ) );
+            auto const f_env = std::static_pointer_cast<function_symbol_environment const>( g_env_->get_related_env_by_ast_ptr( e ) );
             assert( f_env != nullptr );
 
             std::cout << "current : " << f_env->get_mangled_name() << std::endl;
@@ -864,7 +872,7 @@ namespace rill
             //
             std::cout << "element selection" << std::endl;
 
-            auto const& element_env = root_env_->get_related_env_by_ast_ptr( e );
+            auto const& element_env = g_env_->get_related_env_by_ast_ptr( e );
             if ( element_env != nullptr ) {
                 // this pass processes variables belongs the class
                 std::cout << "has element / kind " << debug_string( element_env->get_symbol_kind() ) << std::endl;
@@ -911,7 +919,7 @@ namespace rill
                     // push temporary value
                     context_->temporary_reciever_stack_.push(
                         std::make_tuple(
-                            root_env_->get_related_type_id_by_ast_ptr( e->reciever_ ),
+                            g_env_->get_related_type_id_by_ast_ptr( e->reciever_ ),
                             lhs
                             )
                         );
@@ -945,7 +953,7 @@ namespace rill
         {
             std::cout << "subscripting selection" << std::endl;
 
-            auto const& target_env = root_env_->get_related_env_by_ast_ptr( e );
+            auto const& target_env = g_env_->get_related_env_by_ast_ptr( e );
             assert( target_env != nullptr );
 
             // evaluate [rhs] first
@@ -1018,7 +1026,7 @@ namespace rill
             // ========================================
             // look up self function
             auto const f_env
-                = cast_to<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( e ) );
+                = cast_to<function_symbol_environment const>( g_env_->get_related_env_by_ast_ptr( e ) );
             assert( f_env != nullptr );
 
 
@@ -1031,7 +1039,7 @@ namespace rill
             }
 
             auto const& ret_type_id = f_env->get_return_type_id();
-            auto const& ret_type = root_env_->get_type_at( ret_type_id );
+            auto const& ret_type = g_env_->get_type_at( ret_type_id );
             bool const returns_heavy_object = is_heavy_object( ret_type );
 
             // arguments
@@ -1110,9 +1118,9 @@ namespace rill
                     // constructor
                     // the first argument will be this
                     auto const this_var_type_id = f_env->get_parameter_type_ids()[0];
-                    auto const& this_var_type = root_env_->get_type_at( this_var_type_id );
+                    auto const& this_var_type = g_env_->get_type_at( this_var_type_id );
                     if ( !context_->env_conversion_table.is_defined( this_var_type.class_env_id ) ) {
-                        auto const& c_env = root_env_->get_env_strong_at( this_var_type.class_env_id );
+                        auto const& c_env = g_env_->get_env_strong_at( this_var_type.class_env_id );
                         dispatch( c_env->get_related_ast(), c_env );
                     }
 
@@ -1135,10 +1143,10 @@ namespace rill
                     = context_->temporary_reciever_stack_.top();
 
                 auto const& parameter_type
-                    = root_env_->get_type_at( f_env->get_parameter_type_ids()[0] );
+                    = g_env_->get_type_at( f_env->get_parameter_type_ids()[0] );
 
                 auto const& ty
-                    = root_env_->get_type_at(
+                    = g_env_->get_type_at(
                         std::get<0>( reciever_obj_value )
                         );
                 auto const val
@@ -1217,7 +1225,7 @@ namespace rill
                       << (const_environment_base_ptr)parent_env << std::endl;
 
             //
-            auto const& id_env = root_env_->get_related_env_by_ast_ptr( v );
+            auto const& id_env = g_env_->get_related_env_by_ast_ptr( v );
             if ( id_env == nullptr ) {
                 std::cout << "skipped" << std::endl;
                 return nullptr;
@@ -1307,7 +1315,7 @@ namespace rill
 
             //
             //
-            auto const& id_env = root_env_->get_related_env_by_ast_ptr( v );
+            auto const& id_env = g_env_->get_related_env_by_ast_ptr( v );
             if ( id_env == nullptr ) {
                 std::cout << "skipped" << std::endl;
                 return nullptr;
@@ -1400,7 +1408,7 @@ namespace rill
         {
             auto const& c_env
                 = std::static_pointer_cast<class_symbol_environment const>(
-                    root_env_->get_related_env_by_ast_ptr( v )
+                    g_env_->get_related_env_by_ast_ptr( v )
                     );
             assert( c_env != nullptr );
             assert( c_env->is_array() );
@@ -1450,9 +1458,9 @@ namespace rill
             )
             -> void
         {
-            auto const& v_type = v_env->get_type_at( v_env->get_type_id() );
+            auto const& v_type = g_env_->get_type_at( v_env->get_type_id() );
             if ( !context_->env_conversion_table.is_defined( v_type.class_env_id ) ) {
-                auto const& c_env = root_env_->get_env_strong_at( v_type.class_env_id );
+                auto const& c_env = g_env_->get_env_strong_at( v_type.class_env_id );
                 dispatch( c_env->get_related_ast(), c_env );
             }
             auto const& variable_attr = v_type.attributes;
@@ -1462,7 +1470,7 @@ namespace rill
 
             auto const& c_env
                 = cast_to<class_symbol_environment const>(
-                    root_env_->get_env_strong_at( v_type.class_env_id )
+                    g_env_->get_env_strong_at( v_type.class_env_id )
                     );
 
             std::cout << "Store value" << std::endl;
@@ -1574,7 +1582,7 @@ namespace rill
             // ========================================
             auto const& ret_type_id = f_env->get_return_type_id();
             auto const& ret_type
-                = root_env_->get_type_at( f_env->get_return_type_id() );
+                = g_env_->get_type_at( f_env->get_return_type_id() );
             bool const returns_heavy_object = is_heavy_object( ret_type );
 
 
@@ -1625,7 +1633,7 @@ namespace rill
 
                 } else {
                     auto const& var =
-                        f_env->get_env_at_as_strong_ref<variable_symbol_environment const>( parameter_variable_decl_env_ids[i] );
+                        g_env_->get_env_at_as_strong_ref<variable_symbol_environment const>( parameter_variable_decl_env_ids[i] );
                     ait->setName( var->get_mangled_name() );
 
                     store_value( ait, var );
@@ -1664,7 +1672,7 @@ namespace rill
             -> void
         {
             if ( !context_->env_conversion_table.is_defined( env_id ) ) {
-                auto const& env = root_env_->get_env_strong_at( env_id );
+                auto const& env = g_env_->get_env_strong_at( env_id );
                 dispatch( env->get_related_ast(), env );
             }
         }

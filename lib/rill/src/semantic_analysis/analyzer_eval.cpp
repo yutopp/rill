@@ -39,13 +39,13 @@ namespace rill
 
             // get environment of the type expresison
             auto const& ty
-                = root_env_->get_type_at( ty_detail->type_id );
+                = g_env_->get_type_at( ty_detail->type_id );
 
-            std::cout << "KKKKK : " << debug_string( root_env_->get_env_strong_at( ty.class_env_id )->get_symbol_kind() ) << std::endl;
+            std::cout << "KKKKK : " << debug_string( g_env_->get_env_strong_at( ty.class_env_id )->get_symbol_kind() ) << std::endl;
 
             auto c_env
                 = std::static_pointer_cast<class_symbol_environment const>(
-                    root_env_->get_env_strong_at( ty.class_env_id )
+                    g_env_->get_env_strong_at( ty.class_env_id )
                     );
             assert( c_env != nullptr );
 
@@ -88,7 +88,7 @@ namespace rill
             auto ty_d = static_cast<type_detail_ptr>( evaled_value );
 
             std::cout << "APPEND attributes" << std::endl;
-            auto ty = root_env_->get_type_at( ty_d->type_id ); // make copy
+            auto ty = g_env_->get_type_at( ty_d->type_id ); // make copy
             // force overwrite holder type(if specified)
             // other attributes are filled
             ty.attributes = overlap_empty_attr(
@@ -100,7 +100,7 @@ namespace rill
                 );
 
             // update type id
-            ty_d->type_id = root_env_->make_type_id(
+            ty_d->type_id = g_env_->make_type_id(
                 ty.class_env_id,
                 ty.attributes
                 );
@@ -130,9 +130,9 @@ namespace rill
             // regared: expression is already checked that semantics is valid
 
             auto const& orig_ty
-                = root_env_->get_type_at( orig_ty_d->type_id );
+                = g_env_->get_type_at( orig_ty_d->type_id );
             auto const& orig_c_env
-                = root_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
+                = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
                     orig_ty.class_env_id
                     );
             assert( orig_c_env != nullptr );

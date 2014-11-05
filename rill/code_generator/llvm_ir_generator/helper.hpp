@@ -50,10 +50,10 @@ namespace rill
                 auto const reversed_i = arguments.size()-i-1;
 
                 auto const& parameter_type
-                    = root_env_->get_type_at( parameter_type_ids[reversed_i] );
+                    = g_env_->get_type_at( parameter_type_ids[reversed_i] );
                 auto const arg_type
-                    = root_env_->get_type_at(
-                        root_env_->get_related_type_id_by_ast_ptr(
+                    = g_env_->get_type_at(
+                        g_env_->get_related_type_id_by_ast_ptr(
                             arguments[reversed_i]
                             )
                         );

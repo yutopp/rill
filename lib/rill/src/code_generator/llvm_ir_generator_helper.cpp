@@ -26,7 +26,7 @@ namespace rill
             -> bool
         {
             auto const& c_env
-                = root_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
+                = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
                     ty.class_env_id
                     );
 
@@ -39,13 +39,13 @@ namespace rill
             -> llvm::Type*
         {
             std::cout << "T ID: "  << type_id << std::endl;
-            auto const& ty = root_env_->get_type_at( type_id );
+            auto const& ty = g_env_->get_type_at( type_id );
             auto const& type_class_env_id = ty.class_env_id;
             auto const& type_attr = ty.attributes;
 
             auto const& c_env
                 = cast_to<class_symbol_environment const>(
-                    root_env_->get_env_at_as_strong_ref( type_class_env_id )
+                    g_env_->get_env_at_as_strong_ref( type_class_env_id )
                     );
             assert( c_env != nullptr );
             if ( !context_->env_conversion_table.is_defined( type_class_env_id ) ) {
@@ -99,13 +99,13 @@ namespace rill
         {
             auto const& source_c_env
                 = cast_to<class_symbol_environment const>(
-                    root_env_->get_env_strong_at( source_type.class_env_id )
+                    g_env_->get_env_strong_at( source_type.class_env_id )
                     );
 
             // if the target type has not been instanced, do instantiation.
             auto const& target_c_env
                 = cast_to<class_symbol_environment const>(
-                    root_env_->get_env_strong_at( target_type.class_env_id )
+                    g_env_->get_env_strong_at( target_type.class_env_id )
                     );
             if ( !context_->env_conversion_table.is_defined( target_type.class_env_id ) ) {
                 dispatch( target_c_env->get_related_ast(), target_c_env );

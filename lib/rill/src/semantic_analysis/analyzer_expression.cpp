@@ -106,7 +106,7 @@ namespace rill
 
                     bool const is_xvalue = [&]() {
                         auto const& tid = function_env->get_return_type_id();
-                        auto const& ty = root_env_->get_type_at( tid );
+                        auto const& ty = g_env_->get_type_at( tid );
                         return ty.attributes.quality == attribute::holder_kind::k_val;
                     }();
                     auto const eval_mode = [&]() {
@@ -160,19 +160,19 @@ namespace rill
 
                 //
                 auto const& rhs_ty
-                    = root_env_->get_type_at( rhs_ty_d->type_id );
+                    = g_env_->get_type_at( rhs_ty_d->type_id );
                 auto const& rhs_c_env
                     = std::static_pointer_cast<class_symbol_environment>(
-                        root_env_->get_env_strong_at( rhs_ty.class_env_id )
+                        g_env_->get_env_strong_at( rhs_ty.class_env_id )
                         );
                 assert( rhs_c_env != nullptr );
 
                 //
                 auto const& lhs_ty
-                    = root_env_->get_type_at( lhs_ty_d->type_id );
+                    = g_env_->get_type_at( lhs_ty_d->type_id );
                 auto const& lhs_c_env
                     = std::static_pointer_cast<class_symbol_environment>(
-                        root_env_->get_env_strong_at( lhs_ty.class_env_id )
+                        g_env_->get_env_strong_at( lhs_ty.class_env_id )
                         );
                 assert( lhs_c_env != nullptr );
                 // if lhs is "array", treat as builtin array type...
@@ -185,9 +185,9 @@ namespace rill
                     auto const& inner_ty_id
                         = lhs_c_env->get_array_detail()->inner_type_id;
                     auto const& inner_ty
-                        = root_env_->get_type_at( inner_ty_id );
+                        = g_env_->get_type_at( inner_ty_id );
                     auto const& inner_c_env
-                        = root_env_->get_env_strong_at( inner_ty.class_env_id );
+                        = g_env_->get_env_strong_at( inner_ty.class_env_id );
 
                     //
                     return bind_type(
@@ -238,11 +238,11 @@ namespace rill
             if ( is_type_id( reciever_type_detail->type_id ) ) {
                 // reciever has type, so this is member access flow
                 auto const& reciever_type
-                    = parent_env->get_type_at( reciever_type_detail->type_id );
+                    = g_env_->get_type_at( reciever_type_detail->type_id );
                 assert( reciever_type.class_env_id != environment_id_undefined );
 
                 auto const& reciever_class_env
-                    = parent_env->get_env_at_as_strong_ref( reciever_type.class_env_id );
+                    = g_env_->get_env_at_as_strong_ref( reciever_type.class_env_id );
                 assert( reciever_class_env != nullptr );
 
                 // ========================================
@@ -281,7 +281,7 @@ namespace rill
                             // a selected item has type too, so this is variable flow
                             // at least, parent's attributes are different from child. delegate it from parent
                             auto const& selector_type
-                                = root_env_->get_type_at( selector_id_type_detail->type_id );
+                                = g_env_->get_type_at( selector_id_type_detail->type_id );
                             assert( selector_type.class_env_id != environment_id_undefined );
 
                             auto const new_attr
@@ -290,7 +290,7 @@ namespace rill
                                     selector_type.attributes
                                     );
                             auto const new_type_id
-                                = root_env_->make_type_id(
+                                = g_env_->make_type_id(
                                     selector_type.class_env_id,
                                     new_attr
                                     );
@@ -454,7 +454,7 @@ namespace rill
 
                     bool const is_xvalue = [&]() {
                         auto const& tid = function_env->get_return_type_id();
-                        auto const& ty = root_env_->get_type_at( tid );
+                        auto const& ty = g_env_->get_type_at( tid );
                         return ty.attributes.quality == attribute::holder_kind::k_val;
                     }();
                     auto const eval_mode = [&]() {
@@ -482,9 +482,9 @@ namespace rill
                 }
 
             } else {
-                auto const& ty = root_env_->get_type_at( reciever_type_detail->type_id );
+                auto const& ty = g_env_->get_type_at( reciever_type_detail->type_id );
                 auto const& c_env = std::static_pointer_cast<class_symbol_environment const>(
-                    root_env_->get_env_strong_at( ty.class_env_id)
+                    g_env_->get_env_strong_at( ty.class_env_id)
                     );
 
                 // TODO: fix
@@ -595,7 +595,7 @@ namespace rill
             // this value contains "type_id", so the type of this expression is "type"
             auto const& type_class_env = get_primitive_class_env( "type" );
             auto const& type_type_id
-                = type_class_env->make_type_id( type_class_env, attribute::make_default_type_attributes() );
+                = g_env_->make_type_id( type_class_env, attribute::make_default_type_attributes() );
 
             return bind_type(
                 e,

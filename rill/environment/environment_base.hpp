@@ -27,6 +27,7 @@
 #include "detail/mapper.hpp"
 
 #include "environment_registry.hpp"
+#include "global_environment_fwd.hpp"
 
 #include "../type/type_registry.hpp"
 
@@ -50,26 +51,6 @@ namespace rill
         unsigned int value = 0;
     };
 
-    template<typename BaseEnvT>
-    struct environment_shared_resource
-    {
-        typedef environment_registry<BaseEnvT>      environment_registry_type;
-        typedef ast_to_environment_id_mapper        ast_to_env_id_mapper_type;
-        typedef environment_id_to_ast_mapper        env_id_to_ast_mapper_type;
-
-        typedef type_registry                       type_registry_type;
-        typedef ast_to_type_id_mapper               ast_to_type_id_mapper_type;
-
-        environment_registry_type container;
-        ast_to_env_id_mapper_type ast_to_env_id_map;
-        env_id_to_ast_mapper_type env_id_to_ast_map;
-
-        type_registry_type types_container;
-        ast_to_type_id_mapper_type ast_to_type_id_map;
-
-        debug_allocate_counter debug_allocate_counter_;
-    };
-
 
     template<typename To, typename Env>
     inline auto cast_to( std::shared_ptr<Env> const& p )
@@ -90,14 +71,13 @@ namespace rill
     }
 
 
-    //
-    struct root_initialize_tag {};
 
-
-    //
+    // scoped_environment is base of module's environment(function, class, etc...)
     class environment_base
         : public std::enable_shared_from_this<environment_base>
     {
+        friend global_environment;
+
     public:
         typedef environment_base                        env_type;
 
@@ -107,35 +87,30 @@ namespace rill
         typedef std::weak_ptr<env_type const>           const_weak_env_base_pointer;
 
         typedef ast::native_string_t                    native_string_type;
-        typedef environment_shared_resource<env_type>   shared_resource_type;
+
+        weak_global_environment_ptr b_;
 
     public:
         // construct as a ROOT environment
-        environment_base( root_initialize_tag )
-            : id_( environment_id_undefined )
-            , root_shared_resource_( std::make_shared<environment_shared_resource<env_type>>() )
+        environment_base( root_initialize_tag, weak_global_environment_ptr const& b )
+            : b_( b )
+            , id_( environment_id_undefined )
             , progress_( environment_process_progress_t::constructed )
             , forward_referenceable_( true )
             , decl_order_( 0 )
             , do_mark_child_env_as_forward_referenceable_( true )
             , next_child_env_order_( nullptr )
         {
-            std::cout << ">> environment constructed"
-                      << " ( no: "
-                      << root_shared_resource_->debug_allocate_counter_.value
-                      <<" )"
-                      << std::endl;
-
-            ++root_shared_resource_->debug_allocate_counter_.value;
+            std::cout << ">> environment constructed" << std::endl;
         }
 
         // normal constructor
         environment_base(
             environment_parameter_t const& ep
             )
-            : id_( ep.id )
+            : b_( ep.global_env )
+            , id_( ep.id )
             , parent_( ep.parent )
-            , root_shared_resource_( ep.parent.lock()->root_shared_resource_ )
             , progress_( environment_process_progress_t::constructed )
             , forward_referenceable_( ep.forward_referenceable )
             , decl_order_( ep.decl_order )
@@ -143,20 +118,13 @@ namespace rill
             , next_child_env_order_( ep.next_child_env_order )
         {
             std::cout << ">> environment constructed(as a child)"
-                      << " / id: " << id_
-                      << " ( no: "
-                      << root_shared_resource_->debug_allocate_counter_.value
-                      <<" )"
-                      << std::endl;
-
-            ++root_shared_resource_->debug_allocate_counter_.value;
+                      << " / id: " << id_ << std::endl;
         }
 
         virtual ~environment_base()
         {
-            --root_shared_resource_->debug_allocate_counter_.value;
 
-            std::cout << "<< environment destructed / id: " << id_ << " ( no: " << root_shared_resource_->debug_allocate_counter_.value <<" ) " << typeid(*this).name() << std::endl;
+            std::cout << "<< environment destructed / id: " << id_ << " = " << typeid(*this).name() << std::endl;
         }
 
     public:
@@ -263,87 +231,6 @@ namespace rill
 
 
 
-
-        template<typename Env, typename... Args>
-        auto allocate_env( Args&&... args )
-            -> typename shared_resource_type::environment_registry_type::template result<Env>::type
-        {
-            weak_env_base_pointer const& base_env
-                = shared_from_this();
-#if 0
-            bool const forward_referenceable
-                = do_mark_child_env_as_forward_referenceable_;
-            std::size_t const decl_order
-                = forward_referenceable ? 0 : (*next_child_env_order_)++;
-            std::shared_ptr<std::size_t> const& next_child_env_order
-                = do_mark_child_env_as_forward_referenceable_ ? nullptr : next_child_env_order_;
-#else
-            bool const forward_referenceable = true;
-            std::size_t const decl_order = 0;
-            std::shared_ptr<std::size_t> const& next_child_env_order = nullptr;
-#endif
-
-
-            return root_shared_resource_->container.template allocate<Env>(
-                base_env,
-                forward_referenceable,
-                decl_order,
-                do_mark_child_env_as_forward_referenceable_,
-                next_child_env_order,
-                std::forward<Args>( args )...
-                );
-        }
-
-
-        auto get_env_at( environment_id_t const& id )
-            -> weak_env_base_pointer
-        {
-            return root_shared_resource_->container.at( id );
-        }
-
-        auto get_env_at( environment_id_t const& id ) const
-            -> const_weak_env_base_pointer
-        {
-            return root_shared_resource_->container.at( id );
-        }
-
-
-        inline auto get_env_at_as_strong_ref( environment_id_t const& id )
-            -> env_base_pointer
-        {
-            return get_env_at( id ).lock();
-        }
-        inline auto get_env_at_as_strong_ref( environment_id_t const& id ) const
-            -> const_env_base_pointer
-        {
-            return get_env_at( id ).lock();
-        }
-
-        template<typename T>
-        auto get_env_at_as_strong_ref( environment_id_t const& id )
-            -> std::shared_ptr<T>
-        {
-            return cast_to<T>( get_env_at_as_strong_ref( id ) );
-        }
-        template<typename T>
-        auto get_env_at_as_strong_ref( environment_id_t const& id ) const
-            -> std::shared_ptr<T const>
-        {
-            return cast_to<T const>( get_env_at_as_strong_ref( id ) );
-        }
-
-
-        auto get_env_strong_at( environment_id_t const& id )
-            -> env_base_pointer
-        {
-            return get_env_at( id ).lock();
-        }
-
-        auto get_env_strong_at( environment_id_t const& id ) const
-            -> const_env_base_pointer
-        {
-            return get_env_at( id ).lock();
-        }
 
 
         auto get_id() const
@@ -476,22 +363,11 @@ namespace rill
 
     public:
         //
-        //
-        template<typename AstPtr>
-        auto connect_from_ast( AstPtr const& ast )
-            -> void
-        {
-            std::cout << "connect_from ast_id: " << ast->get_id() << " -> env_id: " << get_id() << std::endl;
-            root_shared_resource_->ast_to_env_id_map.add( ast, shared_from_this() );
-        }
+        auto connect_from_ast( ast::const_ast_base_ptr const& ast )
+            -> void;
 
-        template<typename AstPtr>
-        auto connect_to_ast( AstPtr const& ast )
-            -> void
-        {
-            std::cout << "connect_to env_id: " << get_id() << " -> ast_id: " << ast->get_id() << std::endl;
-            root_shared_resource_->env_id_to_ast_map.add( get_id(), ast );
-        }
+        auto connect_to_ast( ast::statement_ptr const& ast )
+            -> void;
 
         template<typename AstPtr>
         auto link_with_ast( AstPtr const& ast )
@@ -502,35 +378,12 @@ namespace rill
         }
 
         auto get_related_ast()
-            -> shared_resource_type::env_id_to_ast_mapper_type::value_type
-        {
-            return root_shared_resource_->env_id_to_ast_map.get( get_id() );
-        }
+            -> ast::statement_ptr;
 
         auto get_related_ast() const
-            -> shared_resource_type::env_id_to_ast_mapper_type::const_value_type
-        {
-            // registered by connect_to_ast
-            return root_shared_resource_->env_id_to_ast_map.get( get_id() );
-        }
+            -> ast::const_statement_ptr;
 
-        template<typename AstPtr>
-        auto get_related_env_by_ast_ptr( AstPtr const& ast_ptr )
-            -> env_base_pointer
-        {
-            auto const id = root_shared_resource_->ast_to_env_id_map.get( ast_ptr );
 
-            return ( id != environment_id_undefined ) ? get_env_at( id ).lock() : env_base_pointer();
-        }
-
-        template<typename AstPtr>
-        auto get_related_env_by_ast_ptr( AstPtr const& ast_ptr ) const
-            -> const_env_base_pointer
-        {
-            auto const id = root_shared_resource_->ast_to_env_id_map.get( ast_ptr );
-            std::cout << "env_id: " << id << std::endl;
-            return ( id != environment_id_undefined ) ? get_env_at( id ).lock() : const_env_base_pointer();
-        }
 
 
 
@@ -566,61 +419,7 @@ namespace rill
 
 
 
-        //
-        //
-        //
-        auto make_type_id(
-            attribute::type_attributes const& type_attr = attribute::make_empty_type_attributes()
-            ) const
-            -> shared_resource_type::type_registry_type::type_id_type
-        {
-            return make_type_id( nullptr, type_attr );
-        }
 
-        auto make_type_id(
-            const_class_symbol_environment_ptr const& e,
-            attribute::type_attributes const& type_attr = attribute::make_default_type_attributes()
-            ) const
-            -> shared_resource_type::type_registry_type::type_id_type
-        {
-            // TODO: DUPLICATE CHECK!!!
-            return root_shared_resource_->types_container.add( e, type_attr );
-        }
-
-        auto make_type_id(
-            environment_id_t const& id,
-            attribute::type_attributes const& type_attr = attribute::make_default_type_attributes()
-            ) const
-            -> shared_resource_type::type_registry_type::type_id_type
-        {
-            // TODO: DUPLICATE CHECK!!!
-            return root_shared_resource_->types_container.add( id, type_attr );
-        }
-
-        auto get_type_at(
-            shared_resource_type::type_registry_type::type_id_type const& type_id
-            ) const
-            -> shared_resource_type::type_registry_type::type_type const&
-        {
-            return root_shared_resource_->types_container.at( type_id );
-        }
-
-
-        template<typename AstPtr>
-        auto bind_type_id_with_ast( AstPtr const& ast_ptr, type_id_t const& tid )
-            -> void
-        {
-            root_shared_resource_->ast_to_type_id_map.add( ast_ptr, tid );
-        }
-
-
-
-        template<typename AstPtr>
-        auto get_related_type_id_by_ast_ptr( AstPtr const& ast_ptr ) const
-            -> type_id_t
-        {
-            return root_shared_resource_->ast_to_type_id_map.get( ast_ptr );
-        }
 
 
     public:
@@ -665,28 +464,8 @@ namespace rill
         }
 
     private:
-        template<typename T, typename... Args>
-        auto allocate_env_unless_exist( native_string_type const& name, Args&&... args )
-            -> std::shared_ptr<T>
-        {
-            if ( !is_exist( name ) ) {
-                // make new incomplete env
-                auto const& w_env = allocate_env<T>( std::forward<Args>( args )... );
-                inner_envs_[name] = w_env;
-            }
-
-            auto const& env = inner_envs_[name];
-            assert( env != nullptr );
-
-            return std::dynamic_pointer_cast<T>( env );
-        }
-
-    private:
         environment_id_t id_;
         weak_env_base_pointer parent_;
-
-    private:
-        std::shared_ptr<shared_resource_type> root_shared_resource_;
 
     private:
         environment_process_progress_t progress_;

@@ -14,6 +14,7 @@
 #include <utility>
 
 #include "environment_base.hpp"
+#include "global_environment.hpp"
 
 
 namespace rill
@@ -45,9 +46,11 @@ namespace rill
 
             // pass this environment's is and args...
             // inline environment will recieve id of this multiple_set_environment
-            return get_parent_env()->template allocate_env<E>(
-                get_id(), std::forward<Args>( args )...
-                );;
+            return b_.lock()->template allocate_env<E>(
+                get_parent_env(),
+                get_id(),
+                std::forward<Args>( args )...
+                );
         }
 
     public:

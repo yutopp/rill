@@ -41,7 +41,7 @@ namespace rill
 
             public:
                 ir_executor(
-                    const_environment_base_ptr const&,
+                    const_global_environment_ptr const&,
                     std::shared_ptr<code_generator::llvm_ir_generator> const&,
                     std::shared_ptr<llvm::ExecutionEngine> const&,
                     std::shared_ptr<semantic_analysis::type_detail_pool_t> const&
@@ -104,7 +104,7 @@ namespace rill
                     ) -> void;
 
             private:
-                const_environment_base_ptr root_env_;
+                const_global_environment_ptr g_env_;
                 std::shared_ptr<code_generator::llvm_ir_generator> ir_generator_;
                 std::shared_ptr<llvm::ExecutionEngine> execution_engine_;
 

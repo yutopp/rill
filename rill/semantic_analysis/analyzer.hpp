@@ -37,7 +37,7 @@ namespace rill
 
         public:
             analyzer(
-                environment_base_ptr const&,
+                global_environment_ptr const&,
                 intrinsic_action_holder_ptr const&
                 );
 
@@ -45,9 +45,10 @@ namespace rill
             RILL_VISITOR_OP_DEFAULT
 
             // statement
+            RILL_VISITOR_OP_DECL( ast::module );
             RILL_VISITOR_OP_DECL( ast::statements );
             RILL_VISITOR_OP_DECL( ast::block_statement );
-          // RILL_VISITOR_OP_DECL( ast::template_statement );
+            RILL_VISITOR_OP_DECL( ast::template_statement );
             RILL_VISITOR_OP_DECL( ast::expression_statement );
             RILL_VISITOR_OP_DECL( ast::return_statement );
             RILL_VISITOR_OP_DECL( ast::function_definition_statement );
@@ -160,7 +161,7 @@ namespace rill
                 type_detail_ptr const& ty_p
                 ) -> type_detail_ptr
             {
-                root_env_->bind_type_id_with_ast( ast, ty_p->type_id );
+                g_env_->bind_type_id_with_ast( ast, ty_p->type_id );
                 return ty_p;
             }
 
@@ -179,7 +180,7 @@ namespace rill
                 auto const& ty_id = ty_detail->type_id;
                 std::cout << "solve_type :after_eval" << std::endl;
 
-                auto const ty = parent_env->get_type_at( ty_id );  // copy Ty...
+                auto const ty = g_env_->get_type_at( ty_id );  // copy Ty...
 
                 auto const& class_env = [&]() {
                     if ( ty.is_incomplete() ) {
@@ -187,7 +188,7 @@ namespace rill
 
                     } else {
                         auto const p = std::static_pointer_cast<class_symbol_environment>(
-                            parent_env->get_env_strong_at( ty.class_env_id )
+                            g_env_->get_env_strong_at( ty.class_env_id )
                             );
                         assert( p != nullptr );
                         assert( p->get_symbol_kind() == kind::type_value::e_class );
@@ -312,7 +313,7 @@ namespace rill
                 -> class_symbol_environment_ptr;
 
         private:
-            environment_base_ptr root_env_;
+            global_environment_ptr g_env_;
             intrinsic_action_holder_ptr action_holder_;
 
             std::shared_ptr<type_detail_pool_t> type_detail_pool_;
@@ -339,6 +340,7 @@ namespace rill
             -> std::string;
 
         auto make_mangled_name(
+            const_global_environment_ptr const& global_env,
             const_function_symbol_environment_ptr const& f_env,
             boost::optional<std::reference_wrapper<std::string const>> const& template_signature = boost::none
             )

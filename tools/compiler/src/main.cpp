@@ -28,7 +28,7 @@ void sample( boost::program_options::variables_map const& vm )
     // create default rill world
     auto const& t = rill::create_world<>();
 
-    auto const root_env = std::get<0>( t );
+    auto const g_env = std::get<0>( t );
     auto const intrinsic_function_action = std::get<1>( t );
 
 
@@ -83,18 +83,12 @@ void sample( boost::program_options::variables_map const& vm )
 
     auto const& report
         = rill::semantic_analysis::analyse_and_complement(
-            root_env,
-            intrinsic_function_action,
-            module->program
+            g_env, module, intrinsic_function_action
             );
     if ( report->is_errored() ) {
         std::cerr << "Failed to semantic analysis." << std::endl;
         exit( -230 );
     }
-
-
-
-
 
     // compile or interpret
     // last( debug )
@@ -102,9 +96,7 @@ void sample( boost::program_options::variables_map const& vm )
     std::cout << " = LLVM =================== " << std::endl;
     auto const& code_context
         = rill::code_generator::generate_llvm_ir(
-            root_env,
-            intrinsic_function_action,
-            module->program
+            g_env, module, intrinsic_function_action
             );
 
 
@@ -117,23 +109,6 @@ void sample( boost::program_options::variables_map const& vm )
     auto const binary_gen
         = rill::code_generator::binary_generator_from_llvm_ir( code_context );
     binary_gen.test( output_name, runtime_lib_path );
-
-
-#if 0
-    // Not implemented...
-    {
-        std::cout << "======================================" << std::endl;
-        auto env = root_env;
-        std::string in;
-        while( std::cin >> in ) {
-            std::cout << "!e => finish identifier manager." << std::endl;
-            if ( in == "!e" ) {
-                std::cout << "see you!" << std::endl;
-                break;
-            }
-        }
-    }
-#endif
 
 }
 

@@ -10,6 +10,7 @@
 #define RILL_SEMANTIC_ANALYSIS_IDENTIFILER_COLLECTOR_HPP
 
 #include "../ast/visitor.hpp"
+#include "../environment/global_environment_fwd.hpp"
 
 
 namespace rill
@@ -22,10 +23,17 @@ namespace rill
         {
         public:
             using self_type = identifier_collector;
-            RILL_VISITOR_OP_DEFAULT
 
         public:
+            identifier_collector(
+                global_environment_ptr const&
+                );
+
+        public:
+            RILL_VISITOR_OP_DEFAULT
+
             // statements
+            RILL_VISITOR_OP_DECL( ast::module ) const;
             RILL_VISITOR_OP_DECL( ast::statements ) const;
             RILL_VISITOR_OP_DECL( ast::can_be_template_statement ) const;
 
@@ -40,6 +48,9 @@ namespace rill
             RILL_VISITOR_OP_DECL( ast::class_variable_declaration_statement ) const;
 
             RILL_VISITOR_OP_DECL( ast::template_statement ) const;
+
+        private:
+            global_environment_ptr g_env_;
         };
 
     } // namespace semantic_analysis

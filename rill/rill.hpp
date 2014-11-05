@@ -12,7 +12,7 @@
 #include <tuple>
 #include <memory>
 
-#include "environment/environment.hpp"
+#include "environment/global_environment.hpp"
 
 #include "syntax_analysis/make_syntax_tree.hpp"
 #include "semantic_analysis/semantic_analysis.hpp"
@@ -27,7 +27,7 @@ namespace rill
     template<typename BehaviorGenarator = behavior::default_generator>
     auto create_world()
         -> std::tuple<
-            std::shared_ptr<root_environment>,
+            std::shared_ptr<global_environment>,
             std::shared_ptr<intrinsic_action_holder>
         >
     {
@@ -35,14 +35,14 @@ namespace rill
         // prepareation for semantic analysis
         // it makes core.lang
         //
-        auto root_env
-            = std::make_shared<rill::root_environment>();
+        auto g_env
+            = std::make_shared<rill::global_environment>();
         auto intrinsic_action
             = std::make_shared<rill::intrinsic_action_holder>();
 
-        BehaviorGenarator()( root_env, intrinsic_action );
+        BehaviorGenarator()( intrinsic_action );
 
-        return std::make_tuple( std::move( root_env ), std::move( intrinsic_action ) );
+        return std::make_tuple( std::move( g_env ), std::move( intrinsic_action ) );
     }
 } // namespace rill
 

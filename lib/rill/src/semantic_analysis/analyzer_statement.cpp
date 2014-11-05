@@ -19,8 +19,103 @@ namespace rill
 {
     namespace semantic_analysis
     {
+        //
+        template<typename EnvPtr>
+        inline auto to_unique_class_env( EnvPtr const& env )
+            -> class_symbol_environment_ptr
+        {
+            if ( env == nullptr ) {
+                return nullptr;
+            }
+            if ( env->get_symbol_kind() != kind::type_value::e_multi_set ) {
+                return nullptr;
+            }
 
-        // Root Scope
+            auto const& multi_set_env = cast_to<multiple_set_environment>( env );
+            if ( multi_set_env == nullptr ) {
+                return nullptr;
+            }
+            if ( multi_set_env->get_representation_kind() != kind::type_value::e_class ) {
+                return nullptr;
+            }
+
+            auto class_env = multi_set_env->template get_unique_environment<class_symbol_environment>();
+            if ( class_env == nullptr ) {
+                return nullptr;
+            }
+
+            return class_env;
+        }
+
+
+        class analyzer::builtin_class_envs_cache
+        {
+            friend analyzer;
+
+        public:
+            builtin_class_envs_cache( environment_base_ptr const& root_env )
+            {
+                auto install_primitive_class = [&]( std::string const& type_name ) mutable
+                    {
+                        auto env
+                            = to_unique_class_env( root_env->lookup( type_name ) );
+                        assert( env != nullptr );
+
+                        primitive_cache_[type_name] = env;
+                    };
+
+                install_primitive_class( "void" );
+                install_primitive_class( "type" );
+                install_primitive_class( "int" );
+                install_primitive_class( "bool" );
+                install_primitive_class( "int8" );
+            }
+
+        private:
+            inline auto find_primitive( std::string const& type_name ) const
+                -> class_symbol_environment_ptr
+            {
+                auto const it = primitive_cache_.find( type_name );
+                assert( it != primitive_cache_.cend() );
+
+                return it->second;
+            }
+
+        private:
+            std::unordered_map<std::string, class_symbol_environment_ptr> primitive_cache_;
+        };
+
+
+        //
+        auto analyzer::get_primitive_class_env( std::string const& type_name )
+            -> class_symbol_environment_ptr
+        {
+            auto env
+                = builtin_class_envs_cache_->find_primitive( type_name );
+
+            if ( env->is_incomplete() ) {
+                dispatch( env->get_related_ast(), env->get_parent_env() );
+            }
+
+            return env;
+        }
+
+
+        // root of ast
+        RILL_VISITOR_OP( analyzer, ast::module, s, parent_env )
+        {
+            auto const& module_name = "";
+            auto module_env = g_env_->find_module( module_name );
+
+            assert( builtin_class_envs_cache_ == nullptr );
+            builtin_class_envs_cache_
+                = std::make_shared<builtin_class_envs_cache>( module_env );
+
+            //
+            dispatch( s->program, module_env );
+        }
+
+
         RILL_VISITOR_OP( analyzer, ast::statements, s, parent_env )
         {
             // build environment
@@ -28,16 +123,19 @@ namespace rill
                 dispatch( ss, parent_env );
         }
 
-
-        // Root Scope
         RILL_VISITOR_OP( analyzer, ast::block_statement, s, parent_env )
         {
-            auto const& scope_env = parent_env->allocate_env<scope_environment>();
+            auto const& scope_env
+                = g_env_->allocate_env<scope_environment>( parent_env ); // TODO: 334
             scope_env->link_with_ast( s );
 
             dispatch( s->statements_, scope_env );
         }
 
+        RILL_VISITOR_OP( analyzer, ast::template_statement, s, parent_env )
+        {
+            // do nothing
+        }
 
         // statement
         RILL_VISITOR_OP( analyzer, ast::expression_statement, s, parent_env )
@@ -77,7 +175,7 @@ namespace rill
         //
         RILL_VISITOR_OP( analyzer, ast::variable_declaration_statement, s, parent_env )
         {
-            auto const related_env = parent_env->get_related_env_by_ast_ptr( s );
+            auto const related_env = g_env_->get_related_env_by_ast_ptr( s );
             assert( related_env == nullptr && "[[ice]]" ); // ??
 
             auto const& val_decl = s->declaration_;
@@ -168,9 +266,9 @@ namespace rill
             } else {
                 // type inferenced by result of evaluated "iv_type_id_and_env"
                 assert( iv_type_d != nullptr );
-                auto const& ty = root_env_->get_type_at( iv_type_d->type_id );
+                auto const& ty = g_env_->get_type_at( iv_type_d->type_id );
                 auto const& c_env = std::static_pointer_cast<class_symbol_environment const>(
-                    root_env_->get_env_strong_at( ty.class_env_id )
+                    g_env_->get_env_strong_at( ty.class_env_id )
                     );
 
                 //
@@ -198,7 +296,7 @@ namespace rill
             // TODO: make unit of variable decl to "AST NODE".
             // for( auto const& decl : s->decls_ ) {
 
-            auto const related_env = parent_env->get_related_env_by_ast_ptr( s );
+            auto const related_env = g_env_->get_related_env_by_ast_ptr( s );
             // Forward referencable
             assert( related_env != nullptr );
             assert( related_env->get_symbol_kind() == kind::type_value::e_variable );
@@ -241,7 +339,7 @@ namespace rill
 
                         // completion
                         v_env->complete(
-                            v_env->make_type_id(
+                            g_env_->make_type_id(
                                 class_env,
                                 attr
                                 ),
@@ -280,7 +378,7 @@ namespace rill
                 << "     name -- " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
                 << "     Args num -- " << s->get_parameter_list().size() << std::endl;
 
-            auto const related_env = parent_env->get_related_env_by_ast_ptr( s );
+            auto const related_env = g_env_->get_related_env_by_ast_ptr( s );
             assert( related_env != nullptr );
             assert( related_env->get_symbol_kind() == kind::type_value::e_function );
 
@@ -351,7 +449,7 @@ namespace rill
             solve_function_return_type_semantics( f_env );
 
             //
-            f_env->complete( make_mangled_name( f_env ), s->decl_attr_ );
+            f_env->complete( make_mangled_name( g_env_, f_env ), s->decl_attr_ );
         }
 
 
@@ -366,7 +464,7 @@ namespace rill
                 << "     name -- " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
                 << "     Args num -- " << s->get_parameter_list().size() << std::endl;
 
-            auto const related_env = parent_env->get_related_env_by_ast_ptr( s );
+            auto const related_env = g_env_->get_related_env_by_ast_ptr( s );
             assert( related_env != nullptr );
             assert( related_env->get_symbol_kind() == kind::type_value::e_function );
 
@@ -382,7 +480,7 @@ namespace rill
             // declare "this" at first
             auto const& c_env
                 = std::static_pointer_cast<class_symbol_environment const>(
-                    f_env->get_env_strong_at( f_env->get_parent_class_env_id() )
+                    g_env_->get_env_strong_at( f_env->get_parent_class_env_id() )
                     );
             assert( c_env != nullptr );
 
@@ -447,7 +545,7 @@ namespace rill
                 assert( s->return_type_ == nullptr && "constructor can not have a return type" );
 
                 auto const& void_class_env = get_primitive_class_env( "void" );
-                auto ret_ty_id = root_env_->make_type_id( void_class_env, attribute::make_default_type_attributes() );
+                auto ret_ty_id = g_env_->make_type_id( void_class_env, attribute::make_default_type_attributes() );
 
                 f_env->decide_return_type( ret_ty_id );
 
@@ -482,7 +580,7 @@ namespace rill
             solve_function_return_type_semantics( f_env );
 
             //
-            f_env->complete( make_mangled_name( f_env ), s->decl_attr_ );
+            f_env->complete( make_mangled_name( g_env_, f_env ), s->decl_attr_ );
         }
 
 
@@ -493,7 +591,7 @@ namespace rill
         {
             // TODO: dup check...
             // enverinment is already pre constructed by identifier_collector
-            auto const related_env = parent_env->get_related_env_by_ast_ptr( s );
+            auto const related_env = g_env_->get_related_env_by_ast_ptr( s );
             assert( related_env != nullptr );
             assert( related_env->get_symbol_kind() == kind::type_value::e_class );
 
@@ -513,7 +611,7 @@ namespace rill
 
         RILL_VISITOR_OP( analyzer, ast::test_while_statement, s, parent_env )
         {
-            auto const& scope_env = parent_env->allocate_env<scope_environment>();
+            auto const& scope_env = g_env_->allocate_env<scope_environment>( parent_env ); // TODO: 334
             scope_env->link_with_ast( s );
 
             // TODO: type check
@@ -531,7 +629,7 @@ namespace rill
         RILL_VISITOR_OP( analyzer, ast::test_if_statement, s, parent_env )
         {
             // if
-            auto const& if_scope_env = parent_env->allocate_env<scope_environment>();
+            auto const& if_scope_env = g_env_->allocate_env<scope_environment>( parent_env ); // TODO: 334
             if_scope_env->link_with_ast( s );
             dispatch( s->conditional_, if_scope_env );  // TODO: type check
 
@@ -558,7 +656,7 @@ namespace rill
                 << " Parent env -- " << (const_environment_base_ptr)parent_env << std::endl;
 
             // enverinment is already pre constructed by identifier_collector
-            auto const related_env = parent_env->get_related_env_by_ast_ptr( s );
+            auto const related_env = g_env_->get_related_env_by_ast_ptr( s );
             assert( related_env != nullptr );
             assert( related_env->get_symbol_kind() == kind::type_value::e_function );
 
@@ -616,7 +714,7 @@ namespace rill
                         ) {
                         f_env->decide_return_type( return_ty_d->type_id );
                         f_env->complete(
-                            make_mangled_name( f_env ),
+                            make_mangled_name( g_env_, f_env ),
                             attribute::decl::k_extern | s->decl_attr_
                             );
                     });
@@ -643,7 +741,7 @@ namespace rill
         {
             // TODO: dup check...
             // enverinment is already pre constructed by identifier_collector
-            auto const related_env = parent_env->get_related_env_by_ast_ptr( s );
+            auto const related_env = g_env_->get_related_env_by_ast_ptr( s );
             assert( related_env != nullptr );
             assert( related_env->get_symbol_kind() == kind::type_value::e_class );
 

@@ -17,6 +17,7 @@
 #include <boost/strong_typedef.hpp>
 
 #include "../config/macros.hpp"
+#include "global_environment_fwd.hpp"
 
 
 namespace rill
@@ -26,6 +27,10 @@ namespace rill
     environment_id_t const environment_id_undefined = environment_id_t( std::numeric_limits<std::size_t>::max() );
 
     typedef std::vector<environment_id_t> environment_id_list_t;
+
+    //
+    struct root_initialize_tag {};
+
 
 
     // forward decleration
@@ -42,6 +47,7 @@ namespace rill
     //
     struct environment_parameter_t
     {
+        weak_global_environment_ptr global_env;
         environment_id_t id;
         weak_environment_base_ptr parent;
         bool forward_referenceable;

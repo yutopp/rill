@@ -125,13 +125,7 @@ namespace rill
         auto make_type_id_from(
             attribute::type_attributes const& type_attr = attribute::make_value_default()
             ) const
-            -> shared_resource_type::type_registry_type::type_id_type
-        {
-            return make_type_id(
-                cast_to<class_symbol_environment const>( shared_from_this() ),
-                type_attr
-                );
-        }
+            -> type_id_t;
 
         auto make_as_array(
             type_id_t const& inner_type_id,

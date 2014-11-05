@@ -47,12 +47,12 @@ namespace rill
 
 
             ir_executor::ir_executor(
-                const_environment_base_ptr const& root_env,
+                const_global_environment_ptr const& g_env,
                 std::shared_ptr<code_generator::llvm_ir_generator> const& generator,
                 std::shared_ptr<llvm::ExecutionEngine> const& execution_engine,
                 std::shared_ptr<semantic_analysis::type_detail_pool_t> const& type_detail_pool
                 )
-                : root_env_( root_env )
+                : g_env_( g_env )
                 , ir_generator_( generator )
                 , execution_engine_( execution_engine )
                 , value_holder_( std::make_shared<engine_value_holder>() )
@@ -102,8 +102,8 @@ namespace rill
                 llvm::Function const* const target_function
                 ) -> void*
             {
-                auto const& ty = root_env_->get_type_at( semantic_type_id );
-                auto const& c_env = root_env_->get_env_at_as_strong_ref<class_symbol_environment const>( ty.class_env_id );
+                auto const& ty = g_env_->get_type_at( semantic_type_id );
+                auto const& c_env = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>( ty.class_env_id );
 
                 auto const& function_type = target_function->getFunctionType();
                 auto const llvm_type_id = function_type->getReturnType()->getTypeID();
@@ -165,7 +165,7 @@ namespace rill
                 // ========================================
                 // look up self function
                 auto const f_env
-                    = std::static_pointer_cast<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( e ) );
+                    = std::static_pointer_cast<function_symbol_environment const>( g_env_->get_related_env_by_ast_ptr( e ) );
                 assert( f_env != nullptr );
 
 
@@ -218,7 +218,7 @@ namespace rill
             {
                 // Look up Function
                 auto const f_env
-                    = cast_to<function_symbol_environment const>( root_env_->get_related_env_by_ast_ptr( e ) );
+                    = cast_to<function_symbol_environment const>( g_env_->get_related_env_by_ast_ptr( e ) );
 
                 std::cout << "current : " << f_env->get_mangled_name() << std::endl;
 
@@ -288,7 +288,7 @@ namespace rill
 
                 //
                 //
-                auto const& id_env = root_env_->get_related_env_by_ast_ptr( v );
+                auto const& id_env = g_env_->get_related_env_by_ast_ptr( v );
                 if ( id_env == nullptr ) {
                     std::cout << "skipped" << std::endl;
                     return nullptr;
@@ -352,7 +352,7 @@ namespace rill
 
                 //
                 //
-                auto const& id_env = root_env_->get_related_env_by_ast_ptr( v );
+                auto const& id_env = g_env_->get_related_env_by_ast_ptr( v );
                 if ( id_env == nullptr ) {
                     std::cout << "skipped" << std::endl;
                     return nullptr;

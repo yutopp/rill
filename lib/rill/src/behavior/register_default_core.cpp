@@ -29,7 +29,6 @@ namespace rill
 
         // It defined a function that contains native machine code.
         void register_default_core(
-            std::shared_ptr<root_environment> const& root_env,
             std::shared_ptr<intrinsic_action_holder> const& intrinsic_action
             )
         {

@@ -25,6 +25,7 @@
 #include "../config/macros.hpp"
 
 #include "environment_base.hpp"
+#include "global_environment.hpp"
 
 
 namespace rill
@@ -76,9 +77,9 @@ namespace rill
         }
 
         auto get_type() const
-            -> shared_resource_type::type_registry_type::type_type const&
+            -> type const&
         {
-            return get_type_at( get_type_id() );
+            return b_.lock()->get_type_at( get_type_id() );
         }
 
         auto dump( std::ostream& os, std::string const& indent ) const

@@ -20,8 +20,8 @@ namespace rill
         : public environment_base
     {
     public:
-        root_environment()
-            : environment_base( root_initialize_tag() )
+        root_environment( weak_global_environment_ptr const& b )
+            : environment_base( root_initialize_tag{}, b )
         {}
 
     private:

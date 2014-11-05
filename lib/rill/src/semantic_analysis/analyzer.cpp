@@ -102,108 +102,38 @@ namespace rill
             return a;
         }
 
-        //
-        template<typename EnvPtr>
-        inline auto to_unique_class_env( EnvPtr const& env )
-            -> class_symbol_environment_ptr
-        {
-            if ( env == nullptr ) {
-                return nullptr;
-            }
-            if ( env->get_symbol_kind() != kind::type_value::e_multi_set ) {
-                return nullptr;
-            }
-
-            auto const& multi_set_env = cast_to<multiple_set_environment>( env );
-            if ( multi_set_env == nullptr ) {
-                return nullptr;
-            }
-            if ( multi_set_env->get_representation_kind() != kind::type_value::e_class ) {
-                return nullptr;
-            }
-
-            auto class_env = multi_set_env->template get_unique_environment<class_symbol_environment>();
-            if ( class_env == nullptr ) {
-                return nullptr;
-            }
-
-            return class_env;
-        }
 
 
-        class analyzer::builtin_class_envs_cache
-        {
-            friend analyzer;
 
-        public:
-            builtin_class_envs_cache( environment_base_ptr const& root_env )
-            {
-                auto install_primitive_class = [&]( std::string const& type_name ) mutable
-                    {
-                        auto env
-                            = to_unique_class_env( root_env->lookup( type_name ) );
-                        assert( env != nullptr );
 
-                        primitive_cache_[type_name] = env;
-                    };
-
-                install_primitive_class( "void" );
-                install_primitive_class( "type" );
-                install_primitive_class( "int" );
-                install_primitive_class( "bool" );
-                install_primitive_class( "int8" );
-            }
-
-        private:
-            inline auto find_primitive( std::string const& type_name ) const
-                -> class_symbol_environment_ptr
-            {
-                auto const it = primitive_cache_.find( type_name );
-                assert( it != primitive_cache_.cend() );
-
-                return it->second;
-            }
-
-        private:
-            std::unordered_map<std::string, class_symbol_environment_ptr> primitive_cache_;
-        };
 
 
         //
         analyzer::analyzer(
-            environment_base_ptr const& root_env,
+            global_environment_ptr const& g_env,
             intrinsic_action_holder_ptr const& holder
             )
-            : root_env_( root_env )
+            : g_env_( g_env )
             , action_holder_( holder )
             , type_detail_pool_( std::make_shared<type_detail_pool_t>() )
-            , ctfe_engine_( compile_time::llvm_engine::make_ctfe_engine( this, root_env, holder, type_detail_pool_ ) )
-            , builtin_class_envs_cache_( std::make_shared<builtin_class_envs_cache>( root_env ) )
-        {
-            type_detail_factory_
-                = std::make_shared<type_detail_factory>( root_env_, type_detail_pool_ );
-        }
+            , ctfe_engine_(
+                compile_time::llvm_engine::make_ctfe_engine(
+                    this, g_env, holder, type_detail_pool_
+                    )
+                )
+            , type_detail_factory_(
+                std::make_shared<type_detail_factory>( g_env, type_detail_pool_ )
+                )
+        {}
 
-        //
-        auto analyzer::get_primitive_class_env( std::string const& type_name )
-            -> class_symbol_environment_ptr
-        {
-            auto env
-                = builtin_class_envs_cache_->find_primitive( type_name );
 
-            if ( env->is_incomplete() ) {
-                dispatch( env->get_related_ast(), env->get_parent_env() );
-            }
-
-            return env;
-        }
 
         //
         auto analyzer::ref_type(
             type_detail_ptr const& ty_detail
             ) const -> type const&
         {
-            return root_env_->get_type_at( ty_detail->type_id );
+            return g_env_->get_type_at( ty_detail->type_id );
         }
 
         auto make_mangled_name(
@@ -279,6 +209,7 @@ namespace rill
 
 
         auto make_mangled_name(
+            const_global_environment_ptr const& global_env,
             const_function_symbol_environment_ptr const& f_env,
             boost::optional<std::reference_wrapper<std::string const>> const& template_signature
             )
@@ -292,10 +223,9 @@ namespace rill
             s += f_env->get_base_name();
 
             for( auto const& type_id : f_env->get_parameter_type_ids() ) {
-                auto const& param_type = f_env->get_type_at( type_id );
-
+                auto const& param_type = global_env->get_type_at( type_id );
                 s += make_mangled_name(
-                    f_env->get_env_at_as_strong_ref<class_symbol_environment const>(
+                    global_env->get_env_at_as_strong_ref<class_symbol_environment const>(
                         param_type.class_env_id
                         ),
                     param_type.attributes
@@ -335,8 +265,8 @@ namespace rill
             auto const& t = ref_type( ty_detail );
 
             auto const& qualified_type_id
-                = root_env_->make_type_id(
-                    root_env_->get_env_at_as_strong_ref<class_symbol_environment>( t.class_env_id ),
+                = g_env_->make_type_id(
+                    g_env_->get_env_at_as_strong_ref<class_symbol_environment>( t.class_env_id ),
                     type_attr
                     );
 
@@ -453,11 +383,11 @@ namespace rill
                 // DEBUG
                 {
                     auto const& tt
-                        = root_env_->get_type_at( template_arg.type_id );
+                        = g_env_->get_type_at( template_arg.type_id );
 
                     auto const& c_e
                         = std::static_pointer_cast<class_symbol_environment const>(
-                            root_env_->get_env_strong_at(
+                            g_env_->get_env_strong_at(
                                 tt.class_env_id
                                 )
                             );
@@ -472,11 +402,11 @@ namespace rill
 
                         // get environment of arguments
                         auto const& tt
-                            = root_env_->get_type_at( t_detail->type_id );
+                            = g_env_->get_type_at( t_detail->type_id );
 
                         auto const& c_e
                             = std::static_pointer_cast<class_symbol_environment const>(
-                                root_env_->get_env_strong_at(
+                                g_env_->get_env_strong_at(
                                     tt.class_env_id
                                     )
                                 );
@@ -547,9 +477,9 @@ namespace rill
 
             for( auto const& var_env : decl_template_var_envs ) {
                 auto const& ty
-                    = root_env_->get_type_at( var_env->get_type_id() );
+                    = g_env_->get_type_at( var_env->get_type_id() );
                 auto const& c_env
-                    = root_env_->get_env_at_as_strong_ref<class_symbol_environment const>( ty.class_env_id );
+                    = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>( ty.class_env_id );
                 assert( c_env != nullptr );
 
                 // value bound to this env
@@ -563,9 +493,9 @@ namespace rill
                     auto const& ty_detail
                         = static_cast<type_detail_ptr>( evaled_value );
                     auto const& val_ty
-                        = root_env_->get_type_at( ty_detail->type_id );
+                        = g_env_->get_type_at( ty_detail->type_id );
                     auto const& val_c_env
-                        = root_env_->get_env_at_as_strong_ref<class_symbol_environment const>( val_ty.class_env_id );
+                        = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>( val_ty.class_env_id );
                     assert( val_c_env != nullptr );
                     s += "T/";
                     s += make_mangled_name( val_c_env, val_ty.attributes );
@@ -667,7 +597,11 @@ namespace rill
                 } else {
                     // collect identifiers
                     if ( class_def_ast->inner_ != nullptr ) {
-                        collect_identifier( instanting_c_env, class_def_ast->inner_ );
+                        collect_identifier(
+                            g_env_,
+                            class_def_ast->inner_,
+                            instanting_c_env
+                            );
                     }
 
                     //
@@ -743,9 +677,9 @@ namespace rill
 
                     auto const& array_element_ty_detail
                         = static_cast<type_detail_ptr>( template_args->at( 0 ).element );
-                    auto ty = root_env_->get_type_at( array_element_ty_detail->type_id ); // make copy
+                    auto ty = g_env_->get_type_at( array_element_ty_detail->type_id ); // make copy
                     ty.attributes = overlap_empty_attr( ty.attributes, attribute::make_default() );
-                    auto const& array_element_type_id = root_env_->make_type_id(
+                    auto const& array_element_type_id = g_env_->make_type_id(
                         ty.class_env_id,
                         ty.attributes
                         );
@@ -768,9 +702,9 @@ namespace rill
 
                     auto const& ptr_element_ty_detail
                         = static_cast<type_detail_ptr>( template_args->at( 0 ).element );
-                    auto ty = root_env_->get_type_at( ptr_element_ty_detail->type_id ); // make copy
+                    auto ty = g_env_->get_type_at( ptr_element_ty_detail->type_id ); // make copy
                     ty.attributes = overlap_empty_attr( ty.attributes, attribute::make_default() );
-                    auto const& ptr_element_type_id = root_env_->make_type_id(
+                    auto const& ptr_element_type_id = g_env_->make_type_id(
                         ty.class_env_id,
                         ty.attributes
                         );
@@ -837,11 +771,11 @@ namespace rill
 
                 // get environment of arguments
                 auto const& ty
-                    = root_env_->get_type_at( argument_ty_detail->type_id );
+                    = g_env_->get_type_at( argument_ty_detail->type_id );
 
                 auto const& c_env
                     = std::static_pointer_cast<class_symbol_environment const>(
-                        root_env_->get_env_strong_at( ty.class_env_id )
+                        g_env_->get_env_strong_at( ty.class_env_id )
                         );
                 assert( c_env != nullptr );
 
@@ -860,7 +794,7 @@ namespace rill
                             argument_ty_detail,
                             static_cast<type_detail_ptr>( argument_evaled_value ),
                             dependent_value_kind::k_type,
-                            root_env_->make_type_id(
+                            g_env_->make_type_id(
                                 c_env,
                                 attribute::make(
                                     attribute::holder_kind::k_val,
@@ -877,7 +811,7 @@ namespace rill
                             argument_ty_detail,
                             argument_evaled_value,
                             dependent_value_kind::k_int8,
-                            root_env_->make_type_id(
+                            g_env_->make_type_id(
                                 c_env,
                                 attribute::make(
                                     attribute::holder_kind::k_val,
@@ -894,7 +828,7 @@ namespace rill
                             argument_ty_detail,
                             argument_evaled_value,
                             dependent_value_kind::k_int32,
-                            root_env_->make_type_id(
+                            g_env_->make_type_id(
                                 c_env,
                                 attribute::make(
                                     attribute::holder_kind::k_val,
@@ -1111,12 +1045,12 @@ namespace rill
             )
             -> type_detail_ptr
         {
-            auto const& arg_type = root_env_->get_type_at( arg_type_detail->type_id );
+            auto const& arg_type = g_env_->get_type_at( arg_type_detail->type_id );
 
             if ( param_type_detail->template_args == nullptr ) {
                 // simple type match
                 std::cout << " ? simple type match" << std::endl;
-                auto const& param_type = root_env_->get_type_at( param_type_detail->type_id );
+                auto const& param_type = g_env_->get_type_at( param_type_detail->type_id );
 
                 if ( param_type.is_incomplete() ) {
                     // determine this type_detail has a pointer to the template param env
@@ -1138,7 +1072,7 @@ namespace rill
                             attribute::make_default()
                             );
                     auto const new_paramater_val_type_id
-                        = root_env_->make_type_id( arg_type.class_env_id, new_parameter_val_type_attr );
+                        = g_env_->make_type_id( arg_type.class_env_id, new_parameter_val_type_attr );
                     std::cout << "new_parameter_val_type_attr: " << new_parameter_val_type_attr << std::endl;
 
                     // update value
@@ -1148,7 +1082,7 @@ namespace rill
                     auto const new_parameter_type_attr
                         = mask_by( new_parameter_val_type_attr, param_type.attributes );
                     auto const new_paramater_type_id
-                        = root_env_->make_type_id( arg_type.class_env_id, new_parameter_type_attr );
+                        = g_env_->make_type_id( arg_type.class_env_id, new_parameter_type_attr );
                     std::cout << "new_parameter_type_attr: " << new_parameter_type_attr << std::endl;
 
                     return type_detail_pool_->construct(
@@ -1189,8 +1123,8 @@ namespace rill
 
             } else {
                 // try to type conversion
-                auto const& param_type = root_env_->get_type_at( param_type_id );
-                auto const& arg_type = root_env_->get_type_at( arg_type_id );
+                auto const& param_type = g_env_->get_type_at( param_type_id );
+                auto const& arg_type = g_env_->get_type_at( arg_type_id );
 
                 if ( param_type.class_env_id == arg_type.class_env_id ) {
                     // same class, so check quarity conversion
@@ -1422,7 +1356,7 @@ namespace rill
                     ctfe_engine_->value_holder()->bind_value(
                         template_var_env->get_id(),
                         type_detail_pool_->construct(
-                            root_env_->make_type_id(),  // empty type
+                            g_env_->make_type_id(),     // empty type
                             template_var_env            // link to template env
                             )
                         );
@@ -1532,6 +1466,7 @@ namespace rill
                     //
                     instanting_f_env->complete(
                         make_mangled_name(
+                            g_env_,
                             instanting_f_env,
                             std::cref( signature_string )
                             )
@@ -1567,8 +1502,8 @@ namespace rill
 
             // DEBUG
             if ( f_env->is_return_type_decided() ) {
-                auto const ty = root_env_->get_type_at( current_ret_type_id );
-                auto const& c_env = root_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
+                auto const ty = g_env_->get_type_at( current_ret_type_id );
+                auto const& c_env = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
                     ty.class_env_id
                     );
                 std::cout << "RETURN TYPE => "
@@ -1577,8 +1512,8 @@ namespace rill
 
             } else {
                 for( auto&& r_type_id : f_env->get_return_type_candidates() ) {
-                    auto const ty = root_env_->get_type_at( r_type_id );
-                    auto const& c_env = root_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
+                    auto const ty = g_env_->get_type_at( r_type_id );
+                    auto const& c_env = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
                         ty.class_env_id
                         );
                     std::cout << "CANDIDATE: RETURN TYPE => "
@@ -1757,7 +1692,7 @@ namespace rill
                     assert( type_class_env != nullptr );  // literal type must exist
 
                     ty_detail->type_id
-                        = type_class_env->make_type_id(
+                        = g_env_->make_type_id(
                             type_class_env,
                             attribute::make_default_type_attributes()
                             );
@@ -1842,7 +1777,7 @@ namespace rill
                                 );
                         }
                         auto const& type_type_id
-                            = type_class_env->make_type_id( type_class_env, attribute::make_default_type_attributes() );
+                            = g_env_->make_type_id( type_class_env, attribute::make_default_type_attributes() );
 
                         return type_detail_pool_->construct(
                             type_type_id,

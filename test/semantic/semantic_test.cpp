@@ -9,15 +9,15 @@
     /* create default rill world */                                     \
     auto const& t = rill::create_world<>();                             \
                                                                         \
-    auto const root_env = std::get<0>( t );                             \
+    auto const global_env = std::get<0>( t );                           \
     auto const intrinsic_function_action = std::get<1>( t );            \
     std::string const s = src;                                          \
     auto const& ast = rill::syntax_analysis::parse( s );                \
     BOOST_CHECK( ast != nullptr );                                      \
     auto report = rill::semantic_analysis::analyse_and_complement(      \
-        root_env,                                                       \
-        intrinsic_function_action,                                      \
-        ast->program /*TODO: change*/                                   \
+        global_env,                                                     \
+        ast,                                                            \
+        intrinsic_function_action                                       \
         );                                                              \
     BOOST_CHECK( report->is_errored() == false );
 

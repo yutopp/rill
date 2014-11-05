@@ -59,7 +59,11 @@ namespace rill
 
         // wrapper environment
         auto const& set_environment
-            = allocate_env_unless_exist<multiple_set_environment>( symbol_name, symbol_name );
+            = b_.lock()->allocate_env_unless_exist<multiple_set_environment>(
+                shared_from_this(),
+                symbol_name,
+                symbol_name
+                );
 
         // allocate incomplete funciton environment
         auto const& incomplete_class_env

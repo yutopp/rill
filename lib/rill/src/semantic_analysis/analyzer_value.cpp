@@ -68,7 +68,7 @@ namespace rill
             return bind_type(
                 v,
                 type_detail_pool_->construct(
-                    class_env->make_type_id( class_env, attribute::make_default() ),
+                    g_env_->make_type_id( class_env, attribute::make_default() ),
                     nullptr,    // unused
                     nullptr,    // unused
                     nullptr,    // unused
@@ -87,7 +87,7 @@ namespace rill
             return bind_type(
                 v,
                 type_detail_pool_->construct(
-                    class_env->make_type_id( class_env, attribute::make_default_type_attributes() ),
+                    g_env_->make_type_id( class_env, attribute::make_default_type_attributes() ),
                     nullptr,    // unused
                     nullptr,    // unused
                     nullptr,    // unused
@@ -101,7 +101,7 @@ namespace rill
         {
             // first, create pointer to static area
             auto const& int8_c_env = get_primitive_class_env( "int8" );
-            auto const& ty_id = root_env_->make_type_id(
+            auto const& ty_id = g_env_->make_type_id(
                     int8_c_env,
                     attribute::make(
                         attribute::holder_kind::k_val,
@@ -126,7 +126,7 @@ namespace rill
                 = resolve_type(
                     instance,
                     attribute::holder_kind::k_val,
-                    root_env_,
+                    parent_env->root_env(),
                     [&]( type_detail_ptr const& ty_d,
                          type const& ty,
                          class_symbol_environment_ptr const& class_env
@@ -175,7 +175,7 @@ namespace rill
                 = resolve_type(
                     i,
                     attribute::holder_kind::k_val,
-                    root_env_,
+                    parent_env->root_env(),
                     [&]( type_detail_ptr const& ty_d,
                          type const& ty,
                          class_symbol_environment_ptr const& class_env

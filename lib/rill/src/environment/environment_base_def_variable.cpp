@@ -54,7 +54,8 @@ namespace rill
             = variable_name->get_inner_symbol()->to_native_string();
 
         auto const& v_env
-            = allocate_env_unless_exist<variable_symbol_environment>(
+            = b_.lock()->allocate_env_unless_exist<variable_symbol_environment>(
+                shared_from_this(),
                 symbol_name,
                 symbol_name
                 );
@@ -83,7 +84,7 @@ namespace rill
             = variable_name->get_inner_symbol()->to_native_string();
 
         // complete return type, name
-        auto const& type_id = v_env->make_type_id( class_env, type_attr );
+        auto const& type_id = b_.lock()->make_type_id( class_env, type_attr );
         v_env->complete( type_id, symbol_name );
 
         std::cout << "instanced!: " << symbol_name << std::endl;

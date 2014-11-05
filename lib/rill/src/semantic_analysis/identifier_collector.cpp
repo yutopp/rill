@@ -8,6 +8,7 @@
 
 #include <rill/semantic_analysis/identifier_collector.hpp>
 #include <rill/environment/environment.hpp>
+#include <rill/environment/global_environment.hpp>
 
 #include <rill/ast/statement.hpp>
 #include <rill/ast/expression.hpp>
@@ -20,6 +21,24 @@ namespace rill
 {
     namespace semantic_analysis
     {
+        identifier_collector::identifier_collector(
+            global_environment_ptr const& g_env
+            )
+            : g_env_( g_env )
+        {}
+
+        // Root Scope
+        RILL_VISITOR_OP( identifier_collector, ast::module, s, env ) const
+        {
+            // build environment
+            auto const& module_name = "aaa";
+            auto module_env = g_env_->make_module();
+            assert( module_env != nullptr );
+
+            dispatch( s->program, module_env );
+        }
+
+
         // Root Scope
         RILL_VISITOR_OP( identifier_collector, ast::statements, s, env ) const
         {
@@ -28,7 +47,6 @@ namespace rill
         }
 
 
-        // Root Scope
         RILL_VISITOR_OP( identifier_collector, ast::can_be_template_statement, s, env ) const
         {
         }

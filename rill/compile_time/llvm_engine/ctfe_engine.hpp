@@ -29,13 +29,13 @@ namespace rill
 
             public:
                 ctfe_engine(
-                    const_environment_base_ptr const& root_env,
+                    const_global_environment_ptr const& g_env,
                     std::shared_ptr<code_generator::llvm_ir_generator> const& gen,
                     std::shared_ptr<llvm::ExecutionEngine> const& llvm_engine,
                     std::shared_ptr<semantic_analysis::type_detail_pool_t> const& type_pool,
                     semantic_analysis::analyzer* const sa
                     )
-                    : executor_( root_env, gen, llvm_engine, type_pool )
+                    : executor_( g_env, gen, llvm_engine, type_pool )
                 {
                     jit_execution_environmant const je = {
                         sa
@@ -139,7 +139,6 @@ namespace rill
 
                 //
                 engine->DisableSymbolSearching();
-
 
                 return std::make_shared<ctfe_engine>(
                     env,
