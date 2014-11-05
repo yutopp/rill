@@ -52,11 +52,7 @@ namespace rill
         template<typename TargetEnv, typename... Args>
         auto allocate(
             weak_global_environment_ptr const& global_env,
-            weak_environment_base_ptr const& parent,
-            bool const forward_referenceable,
-            std::size_t const& decl_order,
-            bool const do_mark_child_env_as_forward_referenceable,
-            std::shared_ptr<std::size_t> const& next_child_env_order,
+            weak_environment_unit_ptr const& parent,
             Args&&... args
             )
             -> typename result<TargetEnv>::type
@@ -68,11 +64,7 @@ namespace rill
             environment_parameter_t params = {
                 global_env,
                 next_id,
-                parent,
-                forward_referenceable,
-                decl_order,
-                do_mark_child_env_as_forward_referenceable,
-                next_child_env_order
+                parent
             };
 
             auto const p = std::make_shared<TargetEnv>(

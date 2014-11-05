@@ -18,7 +18,7 @@
 
 namespace rill
 {
-    auto environment_base::connect_from_ast( ast::const_ast_base_ptr const& ast )
+    auto environment_unit::connect_from_ast( ast::const_ast_base_ptr const& ast )
         -> void
     {
         std::cout << "connect_from ast_id: " << ast->get_id()
@@ -27,7 +27,7 @@ namespace rill
         b_.lock()->connect_from_ast( ast, shared_from_this() );
     }
 
-    auto environment_base::connect_to_ast( ast::statement_ptr const& ast )
+    auto environment_unit::connect_to_ast( ast::statement_ptr const& ast )
         -> void
     {
         std::cout << "connect_to env_id: " << get_id()
@@ -36,13 +36,13 @@ namespace rill
         b_.lock()->connect_to_ast( get_id(), ast );
     }
 
-    auto environment_base::get_related_ast()
+    auto environment_unit::get_related_ast()
         -> ast::statement_ptr
     {
         return b_.lock()->get_related_ast( get_id() );
     }
 
-    auto environment_base::get_related_ast() const
+    auto environment_unit::get_related_ast() const
         -> ast::const_statement_ptr
     {
         return b_.lock()->get_related_ast( get_id() );

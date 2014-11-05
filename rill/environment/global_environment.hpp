@@ -67,26 +67,9 @@ namespace rill
         template<typename T, typename EnvPtr, typename... Args>
         auto allocate_env( EnvPtr const& base_env, Args&&... args )
         {
-#if 0
-            bool const forward_referenceable
-                = do_mark_child_env_as_forward_referenceable_;
-            std::size_t const decl_order
-                = forward_referenceable ? 0 : (*next_child_env_order_)++;
-            std::shared_ptr<std::size_t> const& next_child_env_order
-                = do_mark_child_env_as_forward_referenceable_ ? nullptr : next_child_env_order_;
-#else
-            bool const forward_referenceable = true;
-            std::size_t const decl_order = 0;
-            std::shared_ptr<std::size_t> const& next_child_env_order = nullptr;
-#endif
-
             return container.template allocate<T>(
                 shared_from_this(),
                 base_env,
-                forward_referenceable,
-                decl_order,
-                false/*do_mark_child_env_as_forward_referenceable_*/,
-                next_child_env_order,
                 std::forward<Args>( args )...
                 );
         }

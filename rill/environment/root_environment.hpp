@@ -31,11 +31,6 @@ namespace rill
             return kind::type_value::e_none;
         }
 
-        bool is_root() const RILL_CXX11_OVERRIDE
-        {
-            return true;
-        }
-
     private:
 
     };

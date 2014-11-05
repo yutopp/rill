@@ -52,6 +52,102 @@ namespace rill
     };
 
 
+
+
+    class environment_unit
+        : public std::enable_shared_from_this<environment_base>
+    {
+    public:
+        environment_unit( weak_global_environment_ptr const& b )
+            : b_( b )
+            , id_( environment_id_undefined )
+        {
+            std::cout << ">> environment constructed" << std::endl;
+        }
+
+        environment_unit( environment_parameter_t&& ep )
+            : b_( ep.global_env )
+            , id_( ep.id )
+            , parent_( ep.parent )
+        {
+            std::cout << ">> environment constructed(as a child)"
+                      << " / id: " << id_ << std::endl;
+        }
+
+        virtual ~environment_unit()
+        {
+            std::cout << "<< environment destructed / id: " << id_ << " = " << typeid(*this).name() << std::endl;
+        }
+
+    public:
+        auto get_id() const
+            -> environment_id_t
+        {
+            return id_;
+        }
+
+        auto is_root() const
+            -> bool
+        {
+            // has not parent
+            return parent_.use_count() == 0;
+        }
+
+        auto has_parent() const
+            -> bool
+        {
+            return !is_root();
+        }
+
+        auto get_parent_env()
+            -> std::shared_ptr<environment_unit>
+        {
+            return is_root() ? nullptr : parent_.lock();
+        }
+
+        auto get_parent_env() const
+            -> std::shared_ptr<environment_unit const>
+        {
+            return is_root() ? nullptr : parent_.lock();
+        }
+
+    public:
+        virtual auto has_elements() const
+            -> bool
+        {
+            return false;
+        }
+
+    public:
+        auto connect_from_ast( ast::const_ast_base_ptr const& ast )
+            -> void;
+
+        auto connect_to_ast( ast::statement_ptr const& ast )
+            -> void;
+
+        template<typename AstPtr>
+        auto link_with_ast( AstPtr const& ast )
+            -> void
+        {
+            connect_from_ast( ast );
+            connect_to_ast( ast );
+        }
+
+        auto get_related_ast()
+            -> ast::statement_ptr;
+
+        auto get_related_ast() const
+            -> ast::const_statement_ptr;
+
+    private:
+    public:
+        weak_global_environment_ptr b_;
+
+        environment_id_t id_;
+        std::weak_ptr<environment_unit> parent_;
+    };
+
+
     template<typename To, typename Env>
     inline auto cast_to( std::shared_ptr<Env> const& p )
         -> std::shared_ptr<To>
@@ -74,7 +170,7 @@ namespace rill
 
     // scoped_environment is base of module's environment(function, class, etc...)
     class environment_base
-        : public std::enable_shared_from_this<environment_base>
+        : public environment_unit
     {
         friend global_environment;
 
@@ -88,46 +184,46 @@ namespace rill
 
         typedef ast::native_string_t                    native_string_type;
 
-        weak_global_environment_ptr b_;
-
     public:
         // construct as a ROOT environment
         environment_base( root_initialize_tag, weak_global_environment_ptr const& b )
-            : b_( b )
-            , id_( environment_id_undefined )
+            : environment_unit( b )
             , progress_( environment_process_progress_t::constructed )
-            , forward_referenceable_( true )
-            , decl_order_( 0 )
-            , do_mark_child_env_as_forward_referenceable_( true )
-            , next_child_env_order_( nullptr )
-        {
-            std::cout << ">> environment constructed" << std::endl;
-        }
+        {}
 
         // normal constructor
         environment_base(
-            environment_parameter_t const& ep
+            environment_parameter_t&& ep
             )
-            : b_( ep.global_env )
-            , id_( ep.id )
-            , parent_( ep.parent )
+            : environment_unit( std::move( ep ) )
             , progress_( environment_process_progress_t::constructed )
-            , forward_referenceable_( ep.forward_referenceable )
-            , decl_order_( ep.decl_order )
-            , do_mark_child_env_as_forward_referenceable_( ep.do_mark_child_env_as_forward_referenceable )
-            , next_child_env_order_( ep.next_child_env_order )
-        {
-            std::cout << ">> environment constructed(as a child)"
-                      << " / id: " << id_ << std::endl;
-        }
+        {}
 
         virtual ~environment_base()
-        {
+        {}
 
-            std::cout << "<< environment destructed / id: " << id_ << " = " << typeid(*this).name() << std::endl;
+    public:
+        virtual auto has_elements() const
+            -> bool override final
+        {
+            return true;
         }
 
     public:
+        // hiding
+        auto get_parent_env()
+            -> env_base_pointer
+        {
+            // TODO: not to use down_cast(use delegation funcion)
+            return down_cast( environment_unit::get_parent_env() );
+        }
+
+        auto get_parent_env() const
+            -> const_env_base_pointer
+        {
+            return down_cast( environment_unit::get_parent_env() );
+        }
+
         //
         virtual auto lookup( ast::const_identifier_value_base_ptr const& name )
             -> env_base_pointer;
@@ -154,6 +250,21 @@ namespace rill
             -> const_env_base_pointer { return find_on_env( std::make_shared<ast::identifier_value>( name ) ); }
 
 
+        auto down_cast( std::shared_ptr<environment_unit> p )
+            -> env_base_pointer
+        {
+            assert( p != nullptr );
+            assert( p->has_elements() == true );
+            return std::static_pointer_cast<environment_base>( p );
+        }
+
+        auto down_cast( std::shared_ptr<environment_unit const> p ) const
+            -> const_env_base_pointer
+        {
+            assert( p != nullptr );
+            assert( p->has_elements() == true );
+            return std::static_pointer_cast<environment_base const>( p );
+        }
 
         //
         auto lookup_layer( kind::type_value const& layer_type )
@@ -163,13 +274,16 @@ namespace rill
             for(;;) {
                 assert( p != nullptr );
 
-                if ( p->get_symbol_kind() == layer_type )
+                if ( p->get_symbol_kind() == layer_type ) {
                     return p;
+                }
 
-                if ( p->has_parent() )
+                if ( p->has_parent() ) {
                     p = p->get_parent_env();
-                else
+
+                } else {
                     break;
+                }
             }
 
             return nullptr;
@@ -182,13 +296,16 @@ namespace rill
             for(;;) {
                 assert( p != nullptr );
 
-                if ( p->get_symbol_kind() == layer_type )
+                if ( p->get_symbol_kind() == layer_type ) {
                     return p;
+                }
 
-                if ( p->has_parent() )
+                if ( p->has_parent() ) {
                     p = p->get_parent_env();
-                else
+
+                } else {
                     break;
+                }
             }
 
             return nullptr;
@@ -202,8 +319,9 @@ namespace rill
             -> env_base_pointer
         {
             auto p = shared_from_this();
-            while( !p->is_root() )
+            while( !p->is_root() ) {
                 p = p->get_parent_env();
+            }
 
             return p;
         }
@@ -233,21 +351,7 @@ namespace rill
 
 
 
-        auto get_id() const
-            -> environment_id_t
-        {
-            return id_;
-        }
 
-
-        virtual auto is_root() const -> bool { return false; }
-
-        auto has_parent() const -> bool {
-            return !is_root(); // if not a root, it has a parent environment
-        }
-
-        auto get_parent_env() -> env_base_pointer { return is_root() ? nullptr : parent_.lock(); }
-        auto get_parent_env() const -> const_env_base_pointer { return is_root() ? nullptr : parent_.lock(); }
 
 
 
@@ -361,27 +465,7 @@ namespace rill
 
 
 
-    public:
-        //
-        auto connect_from_ast( ast::const_ast_base_ptr const& ast )
-            -> void;
 
-        auto connect_to_ast( ast::statement_ptr const& ast )
-            -> void;
-
-        template<typename AstPtr>
-        auto link_with_ast( AstPtr const& ast )
-            -> void
-        {
-            connect_from_ast( ast );
-            connect_to_ast( ast );
-        }
-
-        auto get_related_ast()
-            -> ast::statement_ptr;
-
-        auto get_related_ast() const
-            -> ast::const_statement_ptr;
 
 
 
@@ -463,20 +547,15 @@ namespace rill
             return inner_envs_.find( name ) != inner_envs_.cend();
         }
 
-    private:
-        environment_id_t id_;
-        weak_env_base_pointer parent_;
+
 
     private:
         environment_process_progress_t progress_;
         std::unordered_map<native_string_type, env_base_pointer> inner_envs_;   // children environments
 
-    private:
-        bool forward_referenceable_;
-        std::size_t decl_order_;
-
-        bool do_mark_child_env_as_forward_referenceable_;
-        std::shared_ptr<std::size_t> next_child_env_order_;
     };
+
+
+
 
 } // namespace rill

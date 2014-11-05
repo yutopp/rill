@@ -31,7 +31,11 @@ namespace rill
     //
     struct root_initialize_tag {};
 
-
+    class environment_unit;
+    using environment_unit_ptr = std::shared_ptr<environment_unit>;
+    using const_environment_unit_ptr = std::shared_ptr<environment_unit const>;
+    using weak_environment_unit_ptr = std::weak_ptr<environment_unit>;
+    using const_weak_environment_unit_ptr = std::weak_ptr<environment_unit const>;
 
     // forward decleration
     class environment_base;
@@ -49,11 +53,7 @@ namespace rill
     {
         weak_global_environment_ptr global_env;
         environment_id_t id;
-        weak_environment_base_ptr parent;
-        bool forward_referenceable;
-        std::size_t decl_order;
-        bool do_mark_child_env_as_forward_referenceable;
-        std::shared_ptr<std::size_t> next_child_env_order;
+        weak_environment_unit_ptr parent;
     };
 
     //
