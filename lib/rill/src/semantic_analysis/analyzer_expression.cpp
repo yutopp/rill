@@ -163,7 +163,7 @@ namespace rill
                     = g_env_->get_type_at( rhs_ty_d->type_id );
                 auto const& rhs_c_env
                     = std::static_pointer_cast<class_symbol_environment>(
-                        g_env_->get_env_strong_at( rhs_ty.class_env_id )
+                        g_env_->get_env_at_as_strong_ref( rhs_ty.class_env_id )
                         );
                 assert( rhs_c_env != nullptr );
 
@@ -172,7 +172,7 @@ namespace rill
                     = g_env_->get_type_at( lhs_ty_d->type_id );
                 auto const& lhs_c_env
                     = std::static_pointer_cast<class_symbol_environment>(
-                        g_env_->get_env_strong_at( lhs_ty.class_env_id )
+                        g_env_->get_env_at_as_strong_ref( lhs_ty.class_env_id )
                         );
                 assert( lhs_c_env != nullptr );
                 // if lhs is "array", treat as builtin array type...
@@ -187,7 +187,7 @@ namespace rill
                     auto const& inner_ty
                         = g_env_->get_type_at( inner_ty_id );
                     auto const& inner_c_env
-                        = g_env_->get_env_strong_at( inner_ty.class_env_id );
+                        = g_env_->get_env_at_as_strong_ref( inner_ty.class_env_id );
 
                     //
                     return bind_type(
@@ -484,7 +484,7 @@ namespace rill
             } else {
                 auto const& ty = g_env_->get_type_at( reciever_type_detail->type_id );
                 auto const& c_env = std::static_pointer_cast<class_symbol_environment const>(
-                    g_env_->get_env_strong_at( ty.class_env_id)
+                    g_env_->get_env_at_as_strong_ref( ty.class_env_id)
                     );
 
                 // TODO: fix

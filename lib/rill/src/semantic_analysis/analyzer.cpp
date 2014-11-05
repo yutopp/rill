@@ -387,7 +387,7 @@ namespace rill
 
                     auto const& c_e
                         = std::static_pointer_cast<class_symbol_environment const>(
-                            g_env_->get_env_strong_at(
+                            g_env_->get_env_at_as_strong_ref(
                                 tt.class_env_id
                                 )
                             );
@@ -406,7 +406,7 @@ namespace rill
 
                         auto const& c_e
                             = std::static_pointer_cast<class_symbol_environment const>(
-                                g_env_->get_env_strong_at(
+                                g_env_->get_env_at_as_strong_ref(
                                     tt.class_env_id
                                     )
                                 );
@@ -775,7 +775,7 @@ namespace rill
 
                 auto const& c_env
                     = std::static_pointer_cast<class_symbol_environment const>(
-                        g_env_->get_env_strong_at( ty.class_env_id )
+                        g_env_->get_env_at_as_strong_ref( ty.class_env_id )
                         );
                 assert( c_env != nullptr );
 

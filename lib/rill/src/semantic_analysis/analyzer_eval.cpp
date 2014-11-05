@@ -41,11 +41,11 @@ namespace rill
             auto const& ty
                 = g_env_->get_type_at( ty_detail->type_id );
 
-            std::cout << "KKKKK : " << debug_string( g_env_->get_env_strong_at( ty.class_env_id )->get_symbol_kind() ) << std::endl;
+            std::cout << "KKKKK : " << debug_string( g_env_->get_env_at_as_strong_ref( ty.class_env_id )->get_symbol_kind() ) << std::endl;
 
             auto c_env
                 = std::static_pointer_cast<class_symbol_environment const>(
-                    g_env_->get_env_strong_at( ty.class_env_id )
+                    g_env_->get_env_at_as_strong_ref( ty.class_env_id )
                     );
             assert( c_env != nullptr );
 

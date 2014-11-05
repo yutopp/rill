@@ -547,7 +547,7 @@ namespace rill
 
             auto const& variable_type = g_env_->get_type_at( v_env->get_type_id() );
             if ( !context_->env_conversion_table.is_defined( variable_type.class_env_id ) ) {
-                auto const& c_env = g_env_->get_env_strong_at( variable_type.class_env_id );
+                auto const& c_env = g_env_->get_env_at_as_strong_ref( variable_type.class_env_id );
                 dispatch( c_env->get_related_ast(), c_env );
             }
 
@@ -631,14 +631,14 @@ namespace rill
             for( auto const& var_type_id : parameter_variable_type_ids ) {
                 auto const& v = g_env_->get_type_at( var_type_id );
                 if ( !context_->env_conversion_table.is_defined( v.class_env_id ) ) {
-                    auto const& c_env = g_env_->get_env_strong_at( v.class_env_id );
+                    auto const& c_env = g_env_->get_env_at_as_strong_ref( v.class_env_id );
                     dispatch( c_env->get_related_ast(), c_env );
                 }
                 parmeter_types.push_back( context_->env_conversion_table.ref_type( v.class_env_id ) );
             }
             auto const& v = g_env_->get_type_at( f_env->get_return_type_id() );
             if ( !context_->env_conversion_table.is_defined( v.class_env_id ) ) {
-                auto const& c_env = g_env_->get_env_strong_at( v.class_env_id );
+                auto const& c_env = g_env_->get_env_at_as_strong_ref( v.class_env_id );
                 dispatch( c_env->get_related_ast(), c_env );
             }
             auto const& return_type = context_->env_conversion_table.ref_type( v.class_env_id );
@@ -1120,7 +1120,7 @@ namespace rill
                     auto const this_var_type_id = f_env->get_parameter_type_ids()[0];
                     auto const& this_var_type = g_env_->get_type_at( this_var_type_id );
                     if ( !context_->env_conversion_table.is_defined( this_var_type.class_env_id ) ) {
-                        auto const& c_env = g_env_->get_env_strong_at( this_var_type.class_env_id );
+                        auto const& c_env = g_env_->get_env_at_as_strong_ref( this_var_type.class_env_id );
                         dispatch( c_env->get_related_ast(), c_env );
                     }
 
@@ -1460,7 +1460,7 @@ namespace rill
         {
             auto const& v_type = g_env_->get_type_at( v_env->get_type_id() );
             if ( !context_->env_conversion_table.is_defined( v_type.class_env_id ) ) {
-                auto const& c_env = g_env_->get_env_strong_at( v_type.class_env_id );
+                auto const& c_env = g_env_->get_env_at_as_strong_ref( v_type.class_env_id );
                 dispatch( c_env->get_related_ast(), c_env );
             }
             auto const& variable_attr = v_type.attributes;
@@ -1470,7 +1470,7 @@ namespace rill
 
             auto const& c_env
                 = cast_to<class_symbol_environment const>(
-                    g_env_->get_env_strong_at( v_type.class_env_id )
+                    g_env_->get_env_at_as_strong_ref( v_type.class_env_id )
                     );
 
             std::cout << "Store value" << std::endl;
@@ -1672,7 +1672,7 @@ namespace rill
             -> void
         {
             if ( !context_->env_conversion_table.is_defined( env_id ) ) {
-                auto const& env = g_env_->get_env_strong_at( env_id );
+                auto const& env = g_env_->get_env_at_as_strong_ref( env_id );
                 dispatch( env->get_related_ast(), env );
             }
         }

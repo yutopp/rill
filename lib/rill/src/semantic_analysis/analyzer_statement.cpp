@@ -268,7 +268,7 @@ namespace rill
                 assert( iv_type_d != nullptr );
                 auto const& ty = g_env_->get_type_at( iv_type_d->type_id );
                 auto const& c_env = std::static_pointer_cast<class_symbol_environment const>(
-                    g_env_->get_env_strong_at( ty.class_env_id )
+                    g_env_->get_env_at_as_strong_ref( ty.class_env_id )
                     );
 
                 //
@@ -480,7 +480,7 @@ namespace rill
             // declare "this" at first
             auto const& c_env
                 = std::static_pointer_cast<class_symbol_environment const>(
-                    g_env_->get_env_strong_at( f_env->get_parent_class_env_id() )
+                    g_env_->get_env_at_as_strong_ref( f_env->get_parent_class_env_id() )
                     );
             assert( c_env != nullptr );
 

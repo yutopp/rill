@@ -188,7 +188,7 @@ namespace rill
 
                     } else {
                         auto const p = std::static_pointer_cast<class_symbol_environment>(
-                            g_env_->get_env_strong_at( ty.class_env_id )
+                            g_env_->get_env_at_as_strong_ref( ty.class_env_id )
                             );
                         assert( p != nullptr );
                         assert( p->get_symbol_kind() == kind::type_value::e_class );

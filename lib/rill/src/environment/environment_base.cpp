@@ -21,29 +21,31 @@ namespace rill
     auto environment_base::connect_from_ast( ast::const_ast_base_ptr const& ast )
         -> void
     {
-        std::cout << "connect_from ast_id: " << ast->get_id() << " -> env_id: " << get_id() << std::endl;
-        b_.lock()->root_shared_resource_->ast_to_env_id_map.add( ast, shared_from_this() );
+        std::cout << "connect_from ast_id: " << ast->get_id()
+                  << " -> env_id: " << get_id() << std::endl;
+
+        b_.lock()->connect_from_ast( ast, shared_from_this() );
     }
 
     auto environment_base::connect_to_ast( ast::statement_ptr const& ast )
         -> void
     {
-        std::cout << "connect_to env_id: " << get_id() << " -> ast_id: " << ast->get_id() << std::endl;
-        b_.lock()->root_shared_resource_->env_id_to_ast_map.add( get_id(), ast );
+        std::cout << "connect_to env_id: " << get_id()
+                  << " -> ast_id: " << ast->get_id() << std::endl;
+
+        b_.lock()->connect_to_ast( get_id(), ast );
     }
 
     auto environment_base::get_related_ast()
         -> ast::statement_ptr
     {
-        // registered by connect_to_ast
-        return b_.lock()->root_shared_resource_->env_id_to_ast_map.get( get_id() );
+        return b_.lock()->get_related_ast( get_id() );
     }
 
     auto environment_base::get_related_ast() const
         -> ast::const_statement_ptr
     {
-        // registered by connect_to_ast
-        return b_.lock()->root_shared_resource_->env_id_to_ast_map.get( get_id() );
+        return b_.lock()->get_related_ast( get_id() );
     }
 
 
