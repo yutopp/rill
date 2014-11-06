@@ -26,7 +26,7 @@ namespace rill
     public:
         typedef ast::ast_id_t                  key_type;
         //typedef environment_id_t                value_type;
-        typedef const_environment_base_ptr     value_type;
+        typedef const_environment_unit_ptr     value_type;
 
     public:
         template<typename SmartPtr>

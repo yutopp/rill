@@ -35,18 +35,14 @@ namespace rill
         {
             e_none,
             e_scope,
-
+            e_namespace,
+            e_alias,
             e_multi_set,
+
             e_function,
             e_class,
             e_variable,
             e_template,
-
-            e_parameter_wrapper,
-
-
-
-            e_template_set,
 
             e_mixin
         };
@@ -60,6 +56,12 @@ namespace rill
             {
             case type_value::e_none:
                 return "e_none";
+            case type_value::e_scope:
+                return "e_scope";
+            case type_value::e_namespace:
+                return "e_namespace";
+            case type_value::e_alias:
+                return "e_alias";
             case type_value::e_multi_set:
                 return "e_multi_set";
             case type_value::e_function:

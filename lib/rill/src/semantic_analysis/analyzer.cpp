@@ -9,12 +9,16 @@
 #include <rill/semantic_analysis/semantic_analysis.hpp>
 
 #include <rill/environment/environment.hpp>
+#include <rill/environment/make_module_name.hpp>
+#include <rill/syntax_analysis/parse.hpp>
 
 #include <rill/utility/colorize.hpp>
 #include <rill/utility/tie.hpp>
 
 #include <unordered_map>
 #include <cmath>
+
+#include <boost/filesystem.hpp>
 
 
 namespace rill
@@ -103,6 +107,51 @@ namespace rill
         }
 
 
+        analyzer::builtin_class_envs_cache::builtin_class_envs_cache(
+            environment_base_ptr const& root_env
+            )
+        {
+            auto install_primitive_class = [&]( std::string const& type_name ) mutable
+                {
+                    auto env
+                        = to_unique_class_env( root_env->lookup( type_name ) );
+                    assert( env != nullptr );
+
+                    primitive_cache_[type_name] = env;
+                };
+
+            install_primitive_class( "void" );
+            install_primitive_class( "type" );
+            install_primitive_class( "int" );
+            install_primitive_class( "bool" );
+            install_primitive_class( "int8" );
+        }
+
+        inline auto analyzer::builtin_class_envs_cache::find_primitive(
+            std::string const& type_name
+            ) const
+            -> class_symbol_environment_ptr
+        {
+            auto const it = primitive_cache_.find( type_name );
+            assert( it != primitive_cache_.cend() );
+
+            return it->second;
+        }
+
+
+        //
+        auto analyzer::get_primitive_class_env( std::string const& type_name )
+            -> class_symbol_environment_ptr
+        {
+            auto env
+                = builtin_class_envs_cache_->find_primitive( type_name );
+
+            if ( env->is_incomplete() ) {
+                dispatch( env->get_related_ast(), env->get_parent_env() );
+            }
+
+            return env;
+        }
 
 
 
@@ -1844,6 +1893,79 @@ namespace rill
                 type_id_undefined,
                 nullptr
                 );
+        }
+
+        auto analyzer::import_module(
+            ast::import_decl_unit const& decl,
+            environment_base_ptr const& parent_env
+            )
+            -> void
+        {
+            auto const loaded_env = load_module( decl );
+            assert( loaded_env != nullptr && "[error] module was not found" );
+
+            parent_env->import_from( loaded_env );
+        }
+
+        auto analyzer::search_module(
+            ast::import_decl_unit const& decl
+            ) const
+            -> boost::optional<std::tuple<fs::path, fs::path>>
+        {
+            // TODO: support structured module path
+            auto const load_filepath = fs::path( decl.name + ".rill" );
+
+            // search from system libraries path
+            for( auto&& lib_path : system_import_path_ ) {
+                auto path = lib_path/load_filepath;
+                if ( fs::exists( path ) ) {
+                    return std::make_tuple( lib_path, path );
+                }
+            }
+
+            // search from working dir
+            auto path = working_dirs_.top()/load_filepath;
+            if ( fs::exists( path ) ) {
+                return std::make_tuple( working_dirs_.top(), path );
+            }
+
+            return boost::none;
+        }
+
+        auto analyzer::load_module(
+            ast::import_decl_unit const& decl
+            )
+            -> environment_base_ptr
+        {
+            auto const& found_path_set = search_module( decl );
+            if ( found_path_set == boost::none ) {
+                return nullptr;
+            }
+            auto const& import_base = std::get<0>( *found_path_set );
+            auto const& found_path = std::get<1>( *found_path_set );
+
+            // 1. parse
+            auto const module_ast
+                = syntax_analysis::parse( found_path );
+            if ( module_ast == nullptr ) {
+                assert( false && "[error] Failed to parse." );
+            }
+
+            // 2. set import base path
+            import_bases_.push( import_base );
+
+            // 3. dispatch
+            dispatch( module_ast );
+
+            // guarantee: there is new module env on top of stack after dispatching
+            auto new_module_env = module_envs_.top();
+            module_envs_.pop();
+
+            //
+            import_bases_.pop();
+            working_dirs_.pop();
+
+            return new_module_env;
         }
 
     } // namespace semantic_analysis

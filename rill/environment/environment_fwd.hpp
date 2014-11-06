@@ -18,6 +18,7 @@
 
 #include "../config/macros.hpp"
 #include "global_environment_fwd.hpp"
+#include "module_id.hpp"
 
 
 namespace rill
@@ -54,6 +55,8 @@ namespace rill
         weak_global_environment_ptr global_env;
         environment_id_t id;
         weak_environment_unit_ptr parent;
+        module_id_t mod_id;
+        bool is_private;
     };
 
     //

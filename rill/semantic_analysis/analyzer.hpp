@@ -11,9 +11,12 @@
 
 #include <memory>
 #include <vector>
+#include <stack>
+#include <unordered_map>
 #include <functional>
 
 #include <boost/optional.hpp>
+#include <boost/filesystem/path.hpp>
 
 #include "../ast/visitor.hpp"
 #include "../environment/environment_base.hpp"
@@ -30,6 +33,8 @@ namespace rill
 {
     namespace semantic_analysis
     {
+        namespace fs = boost::filesystem;
+
         class analyzer final
             : public ast::ast_visitor<analyzer, type_detail_ptr>
         {
@@ -47,6 +52,7 @@ namespace rill
             // statement
             RILL_VISITOR_OP_DECL( ast::module );
             RILL_VISITOR_OP_DECL( ast::statements );
+            RILL_VISITOR_OP_DECL( ast::import_statement );
             RILL_VISITOR_OP_DECL( ast::block_statement );
             RILL_VISITOR_OP_DECL( ast::template_statement );
             RILL_VISITOR_OP_DECL( ast::expression_statement );
@@ -308,6 +314,22 @@ namespace rill
                 )
                 -> bool;
 
+            auto import_module(
+                ast::import_decl_unit const& decl,
+                environment_base_ptr const& parent_env
+                )
+                -> void;
+
+            auto search_module(
+                ast::import_decl_unit const& decl
+                ) const
+                -> boost::optional<std::tuple<fs::path, fs::path>>;
+
+            auto load_module(
+                ast::import_decl_unit const& decl
+                )
+                -> environment_base_ptr;
+
         private:
             auto get_primitive_class_env( std::string const& type_name )
                 -> class_symbol_environment_ptr;
@@ -321,8 +343,28 @@ namespace rill
             std::shared_ptr<compile_time::llvm_engine::ctfe_engine> ctfe_engine_;
 
         private:
-            class builtin_class_envs_cache;
+            class builtin_class_envs_cache
+            {
+                friend analyzer;
+
+            public:
+                builtin_class_envs_cache( environment_base_ptr const& root_env );
+
+            private:
+                inline auto find_primitive( std::string const& type_name ) const
+                    -> class_symbol_environment_ptr;
+            private:
+                std::unordered_map<std::string, class_symbol_environment_ptr> primitive_cache_;
+            };
             std::shared_ptr<builtin_class_envs_cache> builtin_class_envs_cache_;
+
+        private:
+            std::vector<fs::path> system_import_path_;
+            // std::unordered_map<fs::path, environment_base_ptr> path_mod_rel_;
+
+            std::stack<fs::path> import_bases_;
+            std::stack<fs::path> working_dirs_;
+            std::stack<environment_base_ptr> module_envs_;
         };
 
         //
@@ -353,6 +395,35 @@ namespace rill
             attribute::type_attributes const& child_attributes
             )
             -> attribute::type_attributes;
+
+
+        //
+        template<typename EnvPtr>
+        inline auto to_unique_class_env( EnvPtr const& env )
+            -> class_symbol_environment_ptr
+        {
+            if ( env == nullptr ) {
+                return nullptr;
+            }
+            if ( env->get_symbol_kind() != kind::type_value::e_multi_set ) {
+                return nullptr;
+            }
+
+            auto const& multi_set_env = cast_to<multiple_set_environment>( env );
+            if ( multi_set_env == nullptr ) {
+                return nullptr;
+            }
+            if ( multi_set_env->get_representation_kind() != kind::type_value::e_class ) {
+                return nullptr;
+            }
+
+            auto class_env = multi_set_env->template get_unique_environment<class_symbol_environment>();
+            if ( class_env == nullptr ) {
+                return nullptr;
+            }
+
+            return class_env;
+        }
 
     } // namespace semantic_analysis
 } // namespace rill

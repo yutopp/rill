@@ -9,107 +9,49 @@
 #include <rill/semantic_analysis/semantic_analysis.hpp>
 
 #include <rill/environment/environment.hpp>
+#include <rill/environment/make_module_name.hpp>
 #include <rill/behavior/intrinsic_action_holder.hpp>
 
 #include <rill/ast/ast.hpp>
 #include <rill/utility/tie.hpp>
+
+#include <boost/filesystem/path.hpp>
+#include <boost/filesystem/operations.hpp>
 
 
 namespace rill
 {
     namespace semantic_analysis
     {
-        //
-        template<typename EnvPtr>
-        inline auto to_unique_class_env( EnvPtr const& env )
-            -> class_symbol_environment_ptr
-        {
-            if ( env == nullptr ) {
-                return nullptr;
-            }
-            if ( env->get_symbol_kind() != kind::type_value::e_multi_set ) {
-                return nullptr;
-            }
-
-            auto const& multi_set_env = cast_to<multiple_set_environment>( env );
-            if ( multi_set_env == nullptr ) {
-                return nullptr;
-            }
-            if ( multi_set_env->get_representation_kind() != kind::type_value::e_class ) {
-                return nullptr;
-            }
-
-            auto class_env = multi_set_env->template get_unique_environment<class_symbol_environment>();
-            if ( class_env == nullptr ) {
-                return nullptr;
-            }
-
-            return class_env;
-        }
-
-
-        class analyzer::builtin_class_envs_cache
-        {
-            friend analyzer;
-
-        public:
-            builtin_class_envs_cache( environment_base_ptr const& root_env )
-            {
-                auto install_primitive_class = [&]( std::string const& type_name ) mutable
-                    {
-                        auto env
-                            = to_unique_class_env( root_env->lookup( type_name ) );
-                        assert( env != nullptr );
-
-                        primitive_cache_[type_name] = env;
-                    };
-
-                install_primitive_class( "void" );
-                install_primitive_class( "type" );
-                install_primitive_class( "int" );
-                install_primitive_class( "bool" );
-                install_primitive_class( "int8" );
-            }
-
-        private:
-            inline auto find_primitive( std::string const& type_name ) const
-                -> class_symbol_environment_ptr
-            {
-                auto const it = primitive_cache_.find( type_name );
-                assert( it != primitive_cache_.cend() );
-
-                return it->second;
-            }
-
-        private:
-            std::unordered_map<std::string, class_symbol_environment_ptr> primitive_cache_;
-        };
-
-
-        //
-        auto analyzer::get_primitive_class_env( std::string const& type_name )
-            -> class_symbol_environment_ptr
-        {
-            auto env
-                = builtin_class_envs_cache_->find_primitive( type_name );
-
-            if ( env->is_incomplete() ) {
-                dispatch( env->get_related_ast(), env->get_parent_env() );
-            }
-
-            return env;
-        }
-
-
         // root of ast
         RILL_VISITOR_OP( analyzer, ast::module, s, parent_env )
         {
-            auto const& module_name = "";
+            auto const working_dir
+                = s->fullpath.empty()
+                ? fs::current_path()
+                : s->fullpath.parent_path();
+            working_dirs_.push( working_dir );
+            if ( import_bases_.empty() ) {
+                // set default import path!
+                import_bases_.push( working_dir );
+            }
+            auto const& import_base = import_bases_.top();
+
+            std::cout << "working dir  : " << working_dir << std::endl
+                      << "import_bases : " << import_base << std::endl;
+
+            //
+            collect_identifier( g_env_, s, parent_env, import_base );
+
+            auto const& module_name = make_module_name( import_base, s );
             auto module_env = g_env_->find_module( module_name );
 
-            assert( builtin_class_envs_cache_ == nullptr );
-            builtin_class_envs_cache_
-                = std::make_shared<builtin_class_envs_cache>( module_env );
+            module_envs_.push( module_env );
+
+            if ( module_name != "test10" ) {
+                builtin_class_envs_cache_
+                    = std::make_shared<builtin_class_envs_cache>( module_env );
+            }
 
             //
             dispatch( s->program, module_env );
@@ -123,10 +65,17 @@ namespace rill
                 dispatch( ss, parent_env );
         }
 
+        RILL_VISITOR_OP( analyzer, ast::import_statement, s, parent_env )
+        {
+            for( auto&& decl : s->module_decls ) {
+                import_module( decl, parent_env );
+            }
+        }
+
         RILL_VISITOR_OP( analyzer, ast::block_statement, s, parent_env )
         {
             auto const& scope_env
-                = g_env_->allocate_env<scope_environment>( parent_env ); // TODO: 334
+                = g_env_->allocate_env<scope_environment>( parent_env ); // MEMO:
             scope_env->link_with_ast( s );
 
             dispatch( s->statements_, scope_env );
@@ -611,7 +560,7 @@ namespace rill
 
         RILL_VISITOR_OP( analyzer, ast::test_while_statement, s, parent_env )
         {
-            auto const& scope_env = g_env_->allocate_env<scope_environment>( parent_env ); // TODO: 334
+            auto const& scope_env = g_env_->allocate_env<scope_environment>( parent_env ); // MEMO:
             scope_env->link_with_ast( s );
 
             // TODO: type check
@@ -629,7 +578,7 @@ namespace rill
         RILL_VISITOR_OP( analyzer, ast::test_if_statement, s, parent_env )
         {
             // if
-            auto const& if_scope_env = g_env_->allocate_env<scope_environment>( parent_env ); // TODO: 334
+            auto const& if_scope_env = g_env_->allocate_env<scope_environment>( parent_env ); // MEMO:
             if_scope_env->link_with_ast( s );
             dispatch( s->conditional_, if_scope_env );  // TODO: type check
 

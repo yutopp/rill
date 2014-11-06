@@ -12,6 +12,7 @@
 #include <string>
 
 #include <boost/optional.hpp>
+#include <boost/filesystem/path.hpp>
 
 #include "../environment/environment_fwd.hpp"
 #include "../type/attribute.hpp"
@@ -52,11 +53,13 @@ namespace rill
             {}
         RILL_AST_END
 
+
         //
         RILL_AST_BEGIN(
             module, statement,
             (( std::shared_ptr<native_string_t>, name ))
             (( statements_ptr, program ))
+            (( boost::filesystem::path, fullpath ))
             )
         public:
             module(
@@ -564,13 +567,13 @@ namespace rill
 
         RILL_AST_BEGIN(
             import_statement, statement,
-            (( import_decl_unit_list, decls_ ))
+            (( import_decl_unit_list, module_decls ))
             )
         public:
             import_statement(
                 import_decl_unit_list const& decls
                 )
-                : decls_( decls )
+                : module_decls( decls )
             {}
         RILL_AST_END
 

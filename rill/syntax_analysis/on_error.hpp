@@ -16,6 +16,7 @@
 #include <boost/spirit/home/x3.hpp>
 
 #include "position.hpp"
+#include "tag.hpp"
 #include "error.hpp"
 
 
@@ -52,7 +53,7 @@ namespace rill
                 -> x3::error_handler_result
             {
                 auto const& orig_begin
-                    = x3::get<error_iterator_orig_begin_tag>( context );
+                    = x3::get<iterator_orig_begin_tag>( context );
                 auto const first
                     = Iterator( detail::get_line_start( orig_begin, what.where().base() ) );
 

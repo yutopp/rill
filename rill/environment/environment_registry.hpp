@@ -31,40 +31,23 @@ namespace rill
 
         //
         template<typename TargetEnv, typename... Args>
-        auto allocate_root(
-            Args&&... args
-            )
-            -> typename result<TargetEnv>::type
-        {
-            environment_id_t const next_id = environment_id_t( nodes_.size() );
-            if ( next_id == environment_id_limit )
-                assert( false );
-
-            auto const p = std::make_shared<TargetEnv>(
-                std::forward<Args>( args )...
-                );
-            nodes_.push_back( p );
-
-            return p;
-        }
-
-        //
-        template<typename TargetEnv, typename... Args>
         auto allocate(
             weak_global_environment_ptr const& global_env,
             weak_environment_unit_ptr const& parent,
+            module_id_t const& mod_id,
+            bool const is_private,
             Args&&... args
             )
             -> typename result<TargetEnv>::type
         {
-            environment_id_t const next_id = environment_id_t( nodes_.size() );
-            if ( next_id == environment_id_limit )
-                assert( false );
+            environment_id_t const next_id = ref_next_id();
 
             environment_parameter_t params = {
                 global_env,
                 next_id,
-                parent
+                parent,
+                mod_id,
+                is_private
             };
 
             auto const p = std::make_shared<TargetEnv>(
@@ -90,6 +73,18 @@ namespace rill
         {
             assert( id >= environment_id_t( 0 ) && id < environment_id_limit );
             return nodes_.at( id );
+        }
+
+    private:
+        auto ref_next_id() const
+            -> environment_id_t
+        {
+            auto id = environment_id_t( nodes_.size() );
+            if ( id == environment_id_limit ) {
+                assert( false );
+            }
+
+            return id;
         }
 
     private:

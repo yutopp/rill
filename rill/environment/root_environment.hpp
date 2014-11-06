@@ -13,26 +13,41 @@
 
 namespace rill
 {
-    //
-    // for root
-    //
-    class root_environment RILL_CXX11_FINAL
+    class namespace_environment RILL_CXX11_FINAL
         : public environment_base
     {
     public:
-        root_environment( weak_global_environment_ptr const& b )
-            : environment_base( root_initialize_tag{}, b )
+        namespace_environment( environment_parameter_t&& pp )
+            : environment_base( std::move( pp ) )
         {}
 
     private:
         auto get_symbol_kind() const
-            -> kind::type_value RILL_CXX11_OVERRIDE
+            -> kind::type_value override final
         {
-            return kind::type_value::e_none;
+            return kind::type_value::e_namespace;
         }
 
     private:
 
+    };
+
+    class alias_environment final
+        : public environment_unit
+    {
+    public:
+        alias_environment( environment_parameter_t&& pp )
+            : environment_unit( std::move( pp ) )
+        {}
+
+        auto get_symbol_kind() const
+            -> kind::type_value override final
+        {
+            return kind::type_value::e_alias;
+        }
+
+    private:
+        environment_unit_ptr reference_env_;
     };
 
 } // namespace rill

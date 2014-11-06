@@ -9,6 +9,8 @@
 #ifndef RILL_SEMANTIC_ANALYSIS_HPP
 #define RILL_SEMANTIC_ANALYSIS_HPP
 
+#include <boost/filesystem/path.hpp>
+
 #include "identifier_collector.hpp"
 #include "analyzer.hpp"
 #include "helper.hpp"
@@ -26,11 +28,12 @@ namespace rill
         auto collect_identifier(
             global_environment_ptr const& g_env,
             Node const& node,
-            EnvPtr const& env = nullptr
+            EnvPtr const& env = nullptr,
+            boost::filesystem::path const& base_path = boost::filesystem::path()
             )
             -> void
         {
-            identifier_collector visitor( g_env );
+            identifier_collector visitor( g_env, base_path );
             visitor.dispatch( node, env );
         }
 
@@ -47,8 +50,6 @@ namespace rill
             EnvPtr const& env = nullptr
             )
         {
-            collect_identifier( g_env, node, env );
-
             analyzer visitor( g_env, action_holder );
             visitor.dispatch( node, env );
 

@@ -10,6 +10,7 @@
 
 #include <rill/environment/environment.hpp>
 #include <rill/environment/global_environment.hpp>
+#include <rill/environment/root_environment.hpp>
 
 #include <rill/ast/value.hpp>
 #include <rill/ast/expression.hpp>
@@ -89,7 +90,7 @@ namespace rill
         // try to find in inner_envs_
         auto&& it = inner_envs_.find( name );
         if ( it != inner_envs_.end() ) {
-            return it->second;
+            return cast_to_base( it->second );
         }
 
         // failed...
@@ -103,10 +104,38 @@ namespace rill
 
         auto&& it = inner_envs_.find( name );
         if ( it != inner_envs_.end() ) {
-            return it->second;
+            return cast_to_base( it->second );
         }
 
         return nullptr;
     }
+
+    auto environment_base::import_from(
+        const_environment_base_ptr const& from
+        )
+        -> void
+    {
+        bool import_as_public = false;
+
+        for( auto&& env_unit : from->inner_envs_ ) {
+            auto const& name = std::get<0>( env_unit );
+            auto const& target_env = std::get<1>( env_unit );
+
+            std::cout << "import: " << name << std::endl;
+            if ( target_env->is_private() ) {
+                std::cout << "  - private" << std::endl;
+                continue;
+            }
+
+            auto alias_env
+                = b_.lock()->template allocate_env<alias_environment>(
+                    shared_from_this()
+                    );
+
+            // copy!
+            inner_envs_[name] = alias_env;
+        }
+    }
+
 
 } // namespace rill

@@ -13,6 +13,7 @@
 #include <memory>
 
 #include <boost/program_options.hpp>
+#include <boost/filesystem.hpp>
 
 #include <rill/rill.hpp>
 #include <rill/environment/environment.hpp>
@@ -25,11 +26,14 @@
 
 void sample( boost::program_options::variables_map const& vm )
 {
+    namespace fs = boost::filesystem;
+
     // create default rill world
     auto const& t = rill::create_world<>();
 
     auto const g_env = std::get<0>( t );
     auto const intrinsic_function_action = std::get<1>( t );
+
 
 
     //
@@ -38,21 +42,13 @@ void sample( boost::program_options::variables_map const& vm )
 
     std::string const f = vm["input-files"].as<std::vector<std::string>>()[0];
 
-    // first(lexical & syntax)
-    std::ifstream ifs( f );
-    if ( !ifs ) {
-        std::cerr << f << " was not found..." << std::endl;
-        exit( -100 );
-    }
-    std::istreambuf_iterator<char> const begin = ifs, end;
-    rill::ast::native_string_t const input_source_code( begin, end );
-    std::cout
-        << "inputs are:" << std::endl
-        << input_source_code << std::endl;
+    auto const cwd = fs::current_path();
+    auto source_fullpath = cwd/f;
+    std::cout << source_fullpath << std::endl;
 
     //
     auto const module
-        = rill::syntax_analysis::parse( input_source_code );
+        = rill::syntax_analysis::parse( source_fullpath );
     if ( module == nullptr ) {
         std::cerr << "Failed to parse." << std::endl;
         exit( -200 );

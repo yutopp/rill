@@ -9,6 +9,8 @@
 #ifndef RILL_SEMANTIC_ANALYSIS_IDENTIFILER_COLLECTOR_HPP
 #define RILL_SEMANTIC_ANALYSIS_IDENTIFILER_COLLECTOR_HPP
 
+#include <boost/filesystem/path.hpp>
+
 #include "../ast/visitor.hpp"
 #include "../environment/global_environment_fwd.hpp"
 
@@ -26,7 +28,8 @@ namespace rill
 
         public:
             identifier_collector(
-                global_environment_ptr const&
+                global_environment_ptr const&,
+                boost::filesystem::path const&
                 );
 
         public:
@@ -51,6 +54,7 @@ namespace rill
 
         private:
             global_environment_ptr g_env_;
+            boost::filesystem::path base_path_;
         };
 
     } // namespace semantic_analysis

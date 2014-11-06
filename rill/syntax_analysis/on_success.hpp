@@ -15,7 +15,7 @@
 #include <boost/spirit/home/x3.hpp>
 
 #include "position.hpp"
-#include "error.hpp"
+#include "tag.hpp"
 #include "../ast/ast_base.hpp"
 
 
@@ -56,7 +56,7 @@ namespace rill
                 auto const line = spirit::get_line( first );
 
                 auto const& orig_begin
-                    = x3::get<error_iterator_orig_begin_tag>( context );
+                    = x3::get<iterator_orig_begin_tag>( context );
                 auto const line_first
                     = Iterator( detail::get_line_start( orig_begin, first.base() ) );
                 auto const column = spirit::get_column( line_first, first );

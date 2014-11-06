@@ -29,6 +29,7 @@
 
 #include "root_environment.hpp"
 #include "environment_registry.hpp"
+#include "module_id.hpp"
 
 #include "../type/type_registry.hpp"
 
@@ -39,13 +40,11 @@
 
 namespace rill
 {
-    using module_id_t = std::size_t;
-
     class global_environment
         : public std::enable_shared_from_this<global_environment>
     {
     public:
-        using base_env_type = environment_base;
+        using base_env_type = environment_unit;
         using base_env_pointer = std::shared_ptr<base_env_type>;
         using const_base_env_pointer = std::shared_ptr<const base_env_type>;
         using weak_base_env_pointer = std::weak_ptr<base_env_type>;
@@ -67,9 +66,11 @@ namespace rill
         template<typename T, typename EnvPtr, typename... Args>
         auto allocate_env( EnvPtr const& base_env, Args&&... args )
         {
-            return container.template allocate<T>(
+            return env_container_.template allocate<T>(
                 shared_from_this(),
                 base_env,
+                base_env->get_owner_module_id(),
+                base_env->is_private(),
                 std::forward<Args>( args )...
                 );
         }
@@ -101,17 +102,25 @@ namespace rill
         ///
         /// Module
         ///
-        auto make_module( std::string const& name = "" )
+        auto make_module( std::string const& name )
             -> base_env_pointer
         {
-            auto const decl_module_id = 0;
-            auto const owner_module_id = 0;
+            if ( name_module_rel_.find( name ) != name_module_rel_.cend() ) {
+                std::cout << "module name: " << name << std::endl;
+                assert( false && "[error] this module was already registered." );
+            }
 
+            //
             auto const module_id = module_counter_;
             ++module_counter_;
 
             auto mod
-                = container.template allocate_root<root_environment>( shared_from_this() );
+                = env_container_.template allocate<namespace_environment>(
+                    shared_from_this(),
+                    weak_environment_unit_ptr(),
+                    module_id,
+                    false
+                    );
 
             id_module_rel_[module_id] = mod;
             name_module_rel_[name] = mod;
@@ -122,6 +131,11 @@ namespace rill
         auto find_module( std::string const& name ) const
             -> base_env_pointer
         {
+            if ( name_module_rel_.find( name ) == name_module_rel_.cend() ) {
+                std::cout << "module name: " << name << std::endl;
+                assert( false && "[error] this module was NOT registered." );
+            }
+
             return name_module_rel_.at( name );
         }
 
@@ -132,13 +146,13 @@ namespace rill
         inline auto get_env_at( environment_id_t const& id )
             -> weak_base_env_pointer
         {
-            return container.at( id );
+            return env_container_.at( id );
         }
 
         inline auto get_env_at( environment_id_t const& id ) const
             -> const_weak_base_env_pointer
         {
-            return container.at( id );
+            return env_container_.at( id );
         }
 
         inline auto get_env_at_as_strong_ref( environment_id_t const& id )
@@ -201,28 +215,37 @@ namespace rill
             return env_id_to_ast_map.get( id );
         }
 
+
+        ///
+        /// Env rel
+        ///
         template<typename AstPtr>
         auto get_related_env_by_ast_ptr( AstPtr const& ast_ptr )
-            -> base_env_pointer
+            -> environment_base_ptr
         {
             auto const id
                 = ast_to_env_id_map.get( ast_ptr );
 
-            return ( id != environment_id_undefined )
-                ? get_env_at( id ).lock()
-                : base_env_pointer();
+            return cast_to_base(
+                id != environment_id_undefined
+                    ? get_env_at( id ).lock()
+                    : base_env_pointer()
+                );
+
         }
 
         template<typename AstPtr>
         auto get_related_env_by_ast_ptr( AstPtr const& ast_ptr ) const
-            -> const_base_env_pointer
+            -> const_environment_base_ptr
         {
             auto const id
                 = ast_to_env_id_map.get( ast_ptr );
 
-            return ( id != environment_id_undefined )
-                ? get_env_at( id ).lock()
-                : base_env_pointer();
+            return cast_to_base(
+                id != environment_id_undefined
+                    ? get_env_at( id ).lock()
+                    : const_base_env_pointer()
+                );
         }
 
 
@@ -294,7 +317,7 @@ namespace rill
         std::unordered_map<module_id_t, base_env_pointer> id_module_rel_;
         std::unordered_map<std::string, base_env_pointer> name_module_rel_;
 
-        environment_registry<base_env_type> container;
+        environment_registry<environment_unit> env_container_;
         ast_to_environment_id_mapper ast_to_env_id_map;
         environment_id_to_ast_mapper env_id_to_ast_map;
 
