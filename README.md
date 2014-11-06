@@ -115,6 +115,11 @@ under construction
 [Please see this dir](tools/compiler/samples)
 
 
+## Special Thanks
+[AUR / rill-git](https://aur.archlinux.org/packages/rill-git/)
+[Emacs / rill-mode](https://github.com/Johniel/rill-mode)
+
+
 ## License
 
 Boost License Version 1.0
