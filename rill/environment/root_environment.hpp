@@ -36,14 +36,30 @@ namespace rill
         : public environment_unit
     {
     public:
-        alias_environment( environment_parameter_t&& pp )
+        alias_environment(
+            environment_parameter_t&& pp,
+            environment_unit_ptr const& ref
+            )
             : environment_unit( std::move( pp ) )
+            , reference_env_( ref )
         {}
 
         auto get_symbol_kind() const
             -> kind::type_value override final
         {
             return kind::type_value::e_alias;
+        }
+
+        auto get_reference()
+            -> environment_unit_ptr
+        {
+            return reference_env_;
+        }
+
+        auto get_reference() const
+            -> const_environment_unit_ptr
+        {
+            return reference_env_;
         }
 
     private:

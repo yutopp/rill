@@ -77,9 +77,12 @@ void sample( boost::program_options::variables_map const& vm )
     std::cout << " ========================== " << std::endl;
     std::cout << " = Semantic Analysis ====== " << std::endl;
 
+    auto sema_options = rill::semantic_analysis::analyzer_options{};
+    sema_options.system_import_path.push_back( "/home/yutopp/rill/rill-rt/src" );
+
     auto const& report
         = rill::semantic_analysis::analyse_and_complement(
-            g_env, module, intrinsic_function_action
+            g_env, module, intrinsic_function_action, std::move( sema_options )
             );
     if ( report->is_errored() ) {
         std::cerr << "Failed to semantic analysis." << std::endl;

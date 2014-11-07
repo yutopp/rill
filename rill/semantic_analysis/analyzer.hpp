@@ -35,6 +35,11 @@ namespace rill
     {
         namespace fs = boost::filesystem;
 
+        struct analyzer_options
+        {
+            std::vector<fs::path> system_import_path;
+        };
+
         class analyzer final
             : public ast::ast_visitor<analyzer, type_detail_ptr>
         {
@@ -43,7 +48,8 @@ namespace rill
         public:
             analyzer(
                 global_environment_ptr const&,
-                intrinsic_action_holder_ptr const&
+                intrinsic_action_holder_ptr const&,
+                analyzer_options const&
                 );
 
         public:
@@ -360,7 +366,7 @@ namespace rill
 
         private:
             std::vector<fs::path> system_import_path_;
-            // std::unordered_map<fs::path, environment_base_ptr> path_mod_rel_;
+            std::map<fs::path, environment_base_ptr> path_mod_rel_;
 
             std::stack<fs::path> import_bases_;
             std::stack<fs::path> working_dirs_;

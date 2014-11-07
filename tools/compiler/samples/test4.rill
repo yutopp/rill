@@ -15,31 +15,3 @@ def f(val a: T): void
 {
     p( a );
 }
-
-extern class type intrinsic "type_type";
-extern class int8 intrinsic "type_int8";
-extern class int intrinsic "type_int32";
-extern class void intrinsic "type_void";
-extern class bool intrinsic "type_bool";
-template(T: type, N: int)
-extern class array intrinsic "type_array";
-template(T: type)
-extern class ptr intrinsic "type_ptr";
-
-extern def mutable( val a :type ) onlymeta: type "rill_core_typesystem_mutable";
-extern def const( val a :type ) onlymeta: type "rill_core_typesystem_const";
-extern def immutable( val a :type ) onlymeta: type "rill_core_typesystem_immutable";
-extern def ref( val a :type ) onlymeta: type "rill_core_typesystem_ref";
-extern def is_mutable( val a :type ) onlymeta: bool "rill_core_typesystem_is_mutable";
-extern def p( val i :int ): void "print_int32";
-extern def p( val i :bool ): void "print_bool";
-extern def p( val i :ptr!(int8) ): void "print_bytes";
-
-extern def %binary%operator_+( val __a: int, val __b: int ) intrinsic: int "int_add";
-extern def %binary%operator_-( val __a: int, val __b: int ) intrinsic: int "int_sub";
-extern def %binary%operator_*( val __a: int, val __b: int ) intrinsic: int "int_mul";
-extern def %binary%operator_/( val __a: int, val __b: int ) intrinsic: int "signed_int_div";
-extern def %binary%operator_%( val __a: int, val __b: int ) intrinsic: int "signed_int_mod";
-extern def %binary%operator_<( val __a: int, val __b: int ) intrinsic: int "signed_int_less_than";
-extern def %binary%operator_==( val __a: int, val __b: int ) intrinsic: bool "int_equals";
-extern def %binary%operator_=( ref __a: mutable(int), val __b: int ) intrinsic: ref(mutable(int)) "int_assign";

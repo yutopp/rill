@@ -10,6 +10,7 @@
 #define RILL_SEMANTIC_ANALYSIS_HPP
 
 #include <boost/filesystem/path.hpp>
+#include <boost/optional.hpp>
 
 #include "identifier_collector.hpp"
 #include "analyzer.hpp"
@@ -47,10 +48,11 @@ namespace rill
             global_environment_ptr const& g_env,
             Node const& node,
             ActionHolderPtr const& action_holder,
+            analyzer_options const& options = analyzer_options{},
             EnvPtr const& env = nullptr
             )
         {
-            analyzer visitor( g_env, action_holder );
+            analyzer visitor( g_env, action_holder, options );
             visitor.dispatch( node, env );
 
             return visitor.get_report();

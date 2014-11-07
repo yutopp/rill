@@ -64,7 +64,7 @@ namespace rill
         // wrapper environment
         auto const& set_environment
             = b_.lock()->allocate_env_unless_exist<multiple_set_environment>(
-                shared_from_this(),
+                std::static_pointer_cast<environment_base>( shared_from_this() ),
                 symbol_name,
                 symbol_name
                 );

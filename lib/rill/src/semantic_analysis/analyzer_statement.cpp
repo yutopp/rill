@@ -40,17 +40,24 @@ namespace rill
             std::cout << "working dir  : " << working_dir << std::endl
                       << "import_bases : " << import_base << std::endl;
 
-            //
+            // to forward reference
             collect_identifier( g_env_, s, parent_env, import_base );
 
+            //
             auto const& module_name = make_module_name( import_base, s );
             auto module_env = g_env_->find_module( module_name );
 
             module_envs_.push( module_env );
 
-            if ( module_name != "test10" ) {
+            if ( module_name.empty() || module_name == "basic_types" ) {
                 builtin_class_envs_cache_
                     = std::make_shared<builtin_class_envs_cache>( module_env );
+            } else {
+                // all modules(except 'basic_types') must import 'basic_types' module.
+                auto const i_decl = ast::import_decl_unit{
+                    "basic_types"
+                };
+                import_module( i_decl, module_env );
             }
 
             //

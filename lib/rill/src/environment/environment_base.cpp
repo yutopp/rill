@@ -8,9 +8,10 @@
 
 #include <iostream> // debug
 
-#include <rill/environment/environment.hpp>
 #include <rill/environment/global_environment.hpp>
 #include <rill/environment/root_environment.hpp>
+#include <rill/environment/environment.hpp>
+
 
 #include <rill/ast/value.hpp>
 #include <rill/ast/expression.hpp>
@@ -49,6 +50,18 @@ namespace rill
         return b_.lock()->get_related_ast( get_id() );
     }
 
+
+    auto environment_base::get_parent_env()
+        -> env_base_pointer
+    {
+        return cast_to_base( environment_unit::get_parent_env() );
+    }
+
+    auto environment_base::get_parent_env() const
+        -> const_env_base_pointer
+    {
+        return cast_to_base( environment_unit::get_parent_env() );
+    }
 
 
     auto environment_base::lookup( ast::const_identifier_value_base_ptr const& identifier )
@@ -117,6 +130,7 @@ namespace rill
     {
         bool import_as_public = false;
 
+        // make alias to top level envs
         for( auto&& env_unit : from->inner_envs_ ) {
             auto const& name = std::get<0>( env_unit );
             auto const& target_env = std::get<1>( env_unit );
@@ -127,10 +141,20 @@ namespace rill
                 continue;
             }
 
+            if ( from->get_owner_module_id() != target_env->get_owner_module_id() ) {
+                std::cout << "  - other packages" << std::endl;
+                continue;
+            }
+
             auto alias_env
                 = b_.lock()->template allocate_env<alias_environment>(
-                    shared_from_this()
+                    shared_from_this(),
+                    target_env
                     );
+            if ( !import_as_public ) {
+                std::cout << "  ! NOT public import" << std::endl;
+                alias_env->is_private( true );
+            }
 
             // copy!
             inner_envs_[name] = alias_env;

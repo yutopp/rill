@@ -160,20 +160,26 @@ namespace rill
         //
         analyzer::analyzer(
             global_environment_ptr const& g_env,
-            intrinsic_action_holder_ptr const& holder
+            intrinsic_action_holder_ptr const& holder,
+            analyzer_options const& options
             )
             : g_env_( g_env )
             , action_holder_( holder )
             , type_detail_pool_( std::make_shared<type_detail_pool_t>() )
+            , type_detail_factory_(
+                std::make_shared<type_detail_factory>( g_env, type_detail_pool_ )
+                )
             , ctfe_engine_(
                 compile_time::llvm_engine::make_ctfe_engine(
                     this, g_env, holder, type_detail_pool_
                     )
                 )
-            , type_detail_factory_(
-                std::make_shared<type_detail_factory>( g_env, type_detail_pool_ )
-                )
-        {}
+        {
+            // append
+            for( auto&& p : options.system_import_path ) {
+                system_import_path_.push_back( p );
+            }
+        }
 
 
 
@@ -1944,6 +1950,13 @@ namespace rill
             auto const& import_base = std::get<0>( *found_path_set );
             auto const& found_path = std::get<1>( *found_path_set );
 
+            assert( found_path.is_absolute() );
+            auto const mod_it = path_mod_rel_.find( found_path );
+            if ( mod_it != path_mod_rel_.end() ) {
+                // return cached env
+                return mod_it->second;
+            }
+
             // 1. parse
             auto const module_ast
                 = syntax_analysis::parse( found_path );
@@ -1960,6 +1973,9 @@ namespace rill
             // guarantee: there is new module env on top of stack after dispatching
             auto new_module_env = module_envs_.top();
             module_envs_.pop();
+
+            //
+            path_mod_rel_[found_path] = new_module_env; // cache
 
             //
             import_bases_.pop();

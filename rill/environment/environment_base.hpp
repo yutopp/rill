@@ -56,7 +56,7 @@ namespace rill
 
 
     class environment_unit
-        : public std::enable_shared_from_this<environment_base>
+        : public std::enable_shared_from_this<environment_unit>
     {
     public:
         environment_unit( environment_parameter_t&& ep )
@@ -119,6 +119,12 @@ namespace rill
             return is_private_;
         }
 
+        auto is_private( bool const b )
+            -> void
+        {
+            is_private_ = b;
+        }
+
     public:
         virtual auto has_elements() const
             -> bool
@@ -164,41 +170,40 @@ namespace rill
     };
 
 
-            inline auto cast_to_base( std::shared_ptr<environment_unit> p )
-            -> environment_base_ptr
-        {
-            assert( p != nullptr );
-            assert( p->has_elements() == true );
-            return std::static_pointer_cast<environment_base>( p );
+
+    template<typename Env>
+    inline auto cast_to_base( std::shared_ptr<Env> const& p )
+        -> environment_base_ptr
+    {
+        assert( p != nullptr );
+
+        if ( p->get_symbol_kind() == kind::type_value::e_alias ) {
+            auto const& tp = std::static_pointer_cast<environment_unit>( p );
+            return cast_to_base(
+                std::static_pointer_cast<alias_environment>( tp )->get_reference()
+                );
         }
 
-        inline auto cast_to_base( std::shared_ptr<environment_unit const> p )
-            -> const_environment_base_ptr
-        {
-            assert( p != nullptr );
-            assert( p->has_elements() == true );
-            return std::static_pointer_cast<environment_base const>( p );
+        assert( p->has_elements() == true );
+        return std::static_pointer_cast<environment_base>( p );
+    }
+
+    template<typename Env>
+    inline auto cast_to_base( std::shared_ptr<Env const> const& p )
+        -> const_environment_base_ptr
+    {
+        assert( p != nullptr );
+
+        if ( p->get_symbol_kind() == kind::type_value::e_alias ) {
+            auto const& tp = std::static_pointer_cast<environment_unit const>( p );
+            return cast_to_base(
+                std::static_pointer_cast<alias_environment const>( tp )->get_reference()
+                );
         }
 
-    template<typename To, typename Env>
-    inline auto cast_to( std::shared_ptr<Env> const& p )
-        -> std::shared_ptr<To>
-    {
-        return std::static_pointer_cast<To>(
-            cast_to_base( p )->checked_instance( To::KindValue )
-            );
+        assert( p->has_elements() == true );
+        return std::static_pointer_cast<environment_base const>( p );
     }
-
-    template<typename To, typename Env>
-    inline auto cast_to( std::shared_ptr<Env const> const& p )
-        -> std::shared_ptr<To const>
-    {
-        return std::static_pointer_cast<To const>(
-            cast_to_base( p )->checked_instance( To::KindValue )
-            );
-    }
-
-
 
 
 
@@ -239,16 +244,10 @@ namespace rill
     public:
         // hiding
         auto get_parent_env()
-            -> env_base_pointer
-        {
-            return cast_to_base( environment_unit::get_parent_env() );
-        }
-
+            -> env_base_pointer;
         auto get_parent_env() const
-            -> const_env_base_pointer
-        {
-            return cast_to_base( environment_unit::get_parent_env() );
-        }
+            -> const_env_base_pointer;
+
 
         //
         virtual auto lookup( ast::const_identifier_value_base_ptr const& name )
@@ -264,25 +263,35 @@ namespace rill
 
 
         // support functions, search identifier from native_string as NON templated
-        auto lookup( ast::native_string_t const& name )
-            -> env_base_pointer { return lookup( std::make_shared<ast::identifier_value>( name ) ); }
-        auto lookup( ast::native_string_t const& name ) const
-            -> const_env_base_pointer { return lookup( std::make_shared<ast::identifier_value>( name ) ); }
+        inline auto lookup( ast::native_string_t const& name )
+            -> env_base_pointer
+        {
+            return lookup( std::make_shared<ast::identifier_value const>( name ) );
+        }
+        inline auto lookup( ast::native_string_t const& name ) const
+            -> const_env_base_pointer
+        {
+            return lookup( std::make_shared<ast::identifier_value const>( name ) );
+        }
 
         //
-        auto find_on_env( ast::native_string_t const& name )
-            -> env_base_pointer { return find_on_env( std::make_shared<ast::identifier_value>( name ) ); }
-        auto find_on_env( ast::native_string_t const& name ) const
-            -> const_env_base_pointer { return find_on_env( std::make_shared<ast::identifier_value>( name ) ); }
-
-
+        inline auto find_on_env( ast::native_string_t const& name )
+            -> env_base_pointer
+        {
+            return find_on_env( std::make_shared<ast::identifier_value const>( name ) );
+        }
+        inline auto find_on_env( ast::native_string_t const& name ) const
+            -> const_env_base_pointer
+        {
+            return find_on_env( std::make_shared<ast::identifier_value const>( name ) );
+        }
 
 
         //
         auto lookup_layer( kind::type_value const& layer_type )
             -> env_base_pointer
         {
-            auto p = shared_from_this();
+            auto p = std::static_pointer_cast<env_type>( shared_from_this() );
             for(;;) {
                 assert( p != nullptr );
 
@@ -304,7 +313,7 @@ namespace rill
         auto lookup_layer( kind::type_value const& layer_type ) const
             -> const_env_base_pointer
         {
-            auto p = shared_from_this();
+            auto p = std::static_pointer_cast<env_type const>( shared_from_this() );
             for(;;) {
                 assert( p != nullptr );
 
@@ -326,7 +335,7 @@ namespace rill
         auto root_env()
             -> env_base_pointer
         {
-            auto p = shared_from_this();
+            auto p = std::static_pointer_cast<env_type>( shared_from_this() );
             while( !p->is_root() ) {
                 p = p->get_parent_env();
             }
@@ -337,7 +346,7 @@ namespace rill
         auto root_env() const
             -> const_env_base_pointer
         {
-            auto p = shared_from_this();
+            auto p = std::static_pointer_cast<env_type const>( shared_from_this() );
             while( !p->is_root() )
                 p = p->get_parent_env();
 
@@ -461,7 +470,7 @@ namespace rill
         {
             if ( get_symbol_kind() != e ) return nullptr;
 
-            return shared_from_this();
+            return std::static_pointer_cast<environment_base>( shared_from_this() );
         }
 
         virtual auto checked_instance( kind::type_value const& e ) const
@@ -469,7 +478,7 @@ namespace rill
         {
             if ( get_symbol_kind() != e ) return nullptr;
 
-            return shared_from_this();
+            return std::static_pointer_cast<environment_base const>( shared_from_this() );
         }
 
 
@@ -560,5 +569,26 @@ namespace rill
         environment_process_progress_t progress_;
         std::unordered_map<native_string_type, environment_unit_ptr> inner_envs_;   // children environments
     };
+
+
+
+
+    template<typename To, typename Env>
+    inline auto cast_to( std::shared_ptr<Env> const& p )
+        -> std::shared_ptr<To>
+    {
+        return std::static_pointer_cast<To>(
+            cast_to_base( p )->checked_instance( To::KindValue )
+            );
+    }
+
+    template<typename To, typename Env>
+    inline auto cast_to( std::shared_ptr<Env const> const& p )
+        -> std::shared_ptr<To const>
+    {
+        return std::static_pointer_cast<To const>(
+            cast_to_base( p )->checked_instance( To::KindValue )
+            );
+    }
 
 } // namespace rill

@@ -74,6 +74,9 @@ namespace rill
     //
     class root_environment;
 
+    class namespace_envitronment;
+    class alias_environment;
+
 
     class has_parameter_environment_base;
     typedef std::shared_ptr<has_parameter_environment_base> has_parameter_environment_base_ptr;

@@ -13,6 +13,7 @@
 #include <rill/semantic_analysis/analyzer.hpp>
 
 #include <rill/environment/environment.hpp>
+#include <rill/environment/make_module_name.hpp>
 
 #include <iterator>
 #include <cstdint>
@@ -24,6 +25,9 @@
 #include <boost/range/adaptor/transformed.hpp>
 #include <boost/range/adaptor/sliced.hpp>
 #include <boost/range/join.hpp>
+
+#include <boost/filesystem/path.hpp>
+#include <boost/filesystem/operations.hpp>
 
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
@@ -119,7 +123,11 @@ namespace rill
         //
         RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::module, s, parent_env )
         {
-            auto const& module_name = "";
+            auto const import_base
+                = s->fullpath.empty()
+                ? boost::filesystem::current_path()
+                : s->fullpath.parent_path();
+            auto const& module_name = make_module_name( import_base, s );
             auto module_env = g_env_->find_module( module_name );
 
             //
