@@ -29,6 +29,7 @@ namespace rill
 
         RILL_AST_DEF_IN_NAMESPACE( intrinsic, symbol_value, value )
         RILL_AST_DEF_IN_NAMESPACE( intrinsic, int32_value, value )
+        RILL_AST_DEF_IN_NAMESPACE( intrinsic, float_value, value )
         RILL_AST_DEF_IN_NAMESPACE( intrinsic, boolean_value, value )
         RILL_AST_DEF_IN_NAMESPACE( intrinsic, string_value, value )
         RILL_AST_DEF_IN_NAMESPACE( intrinsic, array_value, value )

@@ -29,6 +29,7 @@ namespace rill
         k_int8,
         k_int16,
         k_int32,
+        k_float,
         k_type,
         k_bool,
         k_string,

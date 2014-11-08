@@ -40,7 +40,12 @@ namespace rill
                 auto make_keyword( L&& literal )
                 {
                     return x3::lexeme[
-                        x3::lit( std::forward<L>( literal ) ) >> +skip_grammer::rules::entrypoint()
+                        x3::lit( std::forward<L>( literal ) )
+                        >> !( range( 'A', 'Z' )
+                            | range( 'a', 'z' )
+                            | x3::char_( '_' )
+                            | range( '0', '9' )
+                            )
                         ];
                 }
 
@@ -125,7 +130,9 @@ namespace rill
             // ====================================================================================================
             // executable scope, such as function, block, lambda, ...
             R( program_body_statement, ast::statement_ptr,
-                ( t.variable_declaration_statement
+                ( t.block_statement
+                | t.variable_declaration_statement
+                | t.control_flow_statement
                 | t.return_statement
                 | t.empty_statement
                 | t.expression_statement    // NOTE: this statement must be set at last
@@ -135,6 +142,12 @@ namespace rill
             R( program_body_statements, ast::statements_ptr,
                 ( *t.program_body_statement )[
                     helper::make_node_ptr<ast::statements>( ph::_1 )
+                    ]
+            )
+
+            R( block_statement, ast::block_statement_ptr,
+                ( x3::lit( "{" ) >> t.program_body_statements >> x3::lit( "}" ) )[
+                    helper::make_node_ptr<ast::block_statement>( ph::_1 )
                     ]
             )
 
@@ -389,6 +402,44 @@ namespace rill
                 t.import_decl_unit % x3::lit( ',' )
             )
 
+
+            // ====================================================================================================
+            // ====================================================================================================
+            R( control_flow_statement, ast::statement_ptr,
+                ( t.while_statement
+                | t.if_statement
+                )
+            )
+
+
+            R( while_statement, ast::while_statement_ptr,
+                ( x3::lit( "while" )
+                > ( x3::lit( "(" ) > t.expression > x3::lit( ")" ) )
+                > t.program_body_statement
+                )[
+                    helper::make_node_ptr<ast::while_statement>(
+                        ph::_1,
+                        ph::_2
+                        )
+                    ]
+            )
+
+
+            R( if_statement, ast::if_statement_ptr,
+                ( x3::lit( "if" )
+                > ( x3::lit( "(" ) > t.expression > x3::lit( ")" ) )
+                > t.program_body_statement
+                > -( x3::lit( "else" ) > t.program_body_statement )
+                )[
+                    helper::make_node_ptr<ast::if_statement>(
+                        ph::_1,
+                        ph::_2,
+                        ph::_3
+                        )
+                    ]
+            )
+
+
             // ====================================================================================================
             // ====================================================================================================
             R( empty_statement, ast::empty_statement_ptr,
@@ -546,8 +597,14 @@ namespace rill
 
             //
             R( unary_expression, ast::expression_ptr,
-                t.postfix_expression[helper::assign()]
-                // TODO: add unary operator( + - )
+                ( t.postfix_expression[helper::assign()]
+                | ( x3::lit( '-' ) >> t.unary_expression )[
+                    helper::make_unary_prefix_op_node_ptr( "-", ph::_1 )
+                    ]
+                | ( x3::lit( '+' ) >> t.unary_expression )[
+                    helper::make_unary_prefix_op_node_ptr( "+", ph::_1 )
+                    ]
+                )
             )
 
             //
@@ -557,13 +614,13 @@ namespace rill
                         ( x3::lit( '.' ) >> t.identifier_value_set )[
                             helper::make_assoc_node_ptr<ast::element_selector_expression>( ph::_1 )
                             ]
-                        | ( x3::lit( '[' ) > -t.expression > x3::lit( ']' ) )[
+                      | ( x3::lit( '[' ) > -t.expression > x3::lit( ']' ) )[
                             helper::make_assoc_node_ptr<ast::subscrpting_expression>( ph::_1 )
                             ]
-                        | ( t.argument_list )[
+                      | ( t.argument_list )[
                             helper::make_assoc_node_ptr<ast::call_expression>( ph::_1 )
                             ]
-                    )
+                   )
             )
 
             R( primary_expression, ast::expression_ptr,
@@ -630,15 +687,49 @@ namespace rill
             )
 
             // ====================================================================================================
-            R( numeric_literal, ast::intrinsic::int32_value_ptr/*TODO: change*/,
-                t.integer_literal
+            R( numeric_literal, ast::value_ptr,
+                ( t.float_literal
+                | t.integer_literal
+                )
             )
 
             R( integer_literal, ast::intrinsic::int32_value_ptr,
-                x3::int_[
+                x3::uint_[
                     helper::make_node_ptr<ast::intrinsic::int32_value>( ph::_1 )
                     ]
             )
+
+            // TODO: check range
+            R( float_literal, ast::intrinsic::float_value_ptr,
+                t.fp_[
+                    helper::make_node_ptr<ast::intrinsic::float_value>( ph::_1 )
+                    ]
+            )
+
+            // 1.0
+            // 1.e0
+            // .10
+            x3::real_parser<long double, x3::strict_ureal_policies<long double>> const fp_;
+
+#if 0
+            // TODO:
+            fp <-
+            ( fractional_constant >> -exponent_part>> -floating_suffix )
+            | ( +digit_charset >> exponent_part >> -floating_suffix )
+
+            fractional_constant <-
+                +digit_charset >> x3::lit( '.' ) >> +digit_charset
+
+            sign <-
+                lit('+') | lit('-')
+
+            exponent_part <-
+                (lit('e') | 'E') >> -sign >> +digit_charset
+
+            floating_suffix <-
+                lit('f') | 'l' | 'F' | 'L'
+#endif
+
 
             // ====================================================================================================
             R( boolean_literal, ast::intrinsic::boolean_value_ptr,
@@ -685,16 +776,32 @@ namespace rill
             )
 
             R( operator_identifier_sequence, std::string,
-               x3::raw[
-                     x3::lit( "%binary%operator_==" )
-                   | x3::lit( "%binary%operator_+" )
-                   | x3::lit( "%binary%operator_-" )
-                   | x3::lit( "%binary%operator_*" )
-                   | x3::lit( "%binary%operator_/" )
-                   | x3::lit( "%binary%operator_%" )
-                   | x3::lit( "%binary%operator_<" )
-                   | x3::lit( "%binary%operator_=" )
-                   ]
+               detail::make_keyword( "op" )[helper::construct<std::string>( "%op_" )]
+               > -( detail::make_keyword( "pre" )[helper::append( "pre_" )]
+                  | detail::make_keyword( "post" )[helper::append( "post_" )]
+                  )
+               > ( x3::lit( "==" )[helper::append( "==" )]
+                 | x3::lit( "!=" )[helper::append( "!=" )]
+                 | x3::lit( "||" )[helper::append( "||" )]
+                 | x3::lit( "&&" )[helper::append( "&&" )]
+                 | x3::lit( "<=" )[helper::append( "<=" )]
+                 | x3::lit( ">=" )[helper::append( ">=" )]
+                 | x3::lit( "<<" )[helper::append( "<<" )]
+                 | x3::lit( ">>" )[helper::append( ">>" )]
+                 | x3::lit( "()" )[helper::append( "()" )]
+                 | x3::lit( "[]" )[helper::append( "[]" )]
+                 | x3::lit( "|" )[helper::append( "|" )]
+                 | x3::lit( "^" )[helper::append( "^" )]
+                 | x3::lit( "&" )[helper::append( "&" )]
+                 | x3::lit( "+" )[helper::append( "+" )]
+                 | x3::lit( "-" )[helper::append( "-" )]
+                 | x3::lit( "*" )[helper::append( "*" )]
+                 | x3::lit( "/" )[helper::append( "/" )]
+                 | x3::lit( "%" )[helper::append( "%" )]
+                 | x3::lit( "<" )[helper::append( "<" )]
+                 | x3::lit( ">" )[helper::append( ">" )]
+                 | x3::lit( "=" )[helper::append( "=" )]
+                 )
             )
 
             R( normal_identifier_sequence, std::string,

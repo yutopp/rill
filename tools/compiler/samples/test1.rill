@@ -5,7 +5,7 @@ def main(): int
 
     val b = 20;
 
-    mutable(TestClass)();
+///    mutable(TestClass)();
 
 //    val kla: mutable(TestClass);
     val klass1 = mutable(TestClass)( 42 );
@@ -58,6 +58,7 @@ class TestClass
 
     def ctor( val i: int )
     {
+        this.a = 0;
         p( i );
     }
 

@@ -17,9 +17,9 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 
   # TODO: FIXME
   add_definitions(
-    -nodefaultlibs
+#    -nodefaultlibs
     -fno-exceptions
-    -fno-stack-protector
+#    -fno-stack-protector
     )
 
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")

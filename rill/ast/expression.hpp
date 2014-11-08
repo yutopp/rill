@@ -54,6 +54,25 @@ namespace rill
         RILL_AST_END
 
 
+        RILL_AST_BEGIN(
+            unary_operator_expression, expression,
+            (( identifier_value_ptr, op ))
+            (( expression_ptr, src ))
+            (( bool, is_prefix ))
+            )
+        public:
+            unary_operator_expression(
+                identifier_value_ptr const& o,
+                expression_ptr const& s,
+                bool const& i
+                )
+                : op( o )
+                , src( s )
+                , is_prefix( i )
+            {}
+        RILL_AST_END
+
+
         // will be used by Array, Range, Slice...
         RILL_AST_BEGIN(
             subscrpting_expression, expression,

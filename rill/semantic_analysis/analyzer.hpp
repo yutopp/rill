@@ -70,14 +70,15 @@ namespace rill
             RILL_VISITOR_OP_DECL( ast::class_definition_statement );
             RILL_VISITOR_OP_DECL( ast::class_function_definition_statement );
             RILL_VISITOR_OP_DECL( ast::class_variable_declaration_statement );
-            RILL_VISITOR_OP_DECL( ast::test_while_statement );
-            RILL_VISITOR_OP_DECL( ast::test_if_statement );
+            RILL_VISITOR_OP_DECL( ast::while_statement );
+            RILL_VISITOR_OP_DECL( ast::if_statement );
 
             // expression
             RILL_VISITOR_OP_DECL( ast::element_selector_expression );
             RILL_VISITOR_OP_DECL( ast::subscrpting_expression );
             RILL_VISITOR_OP_DECL( ast::call_expression );
             RILL_VISITOR_OP_DECL( ast::binary_operator_expression );
+            RILL_VISITOR_OP_DECL( ast::unary_operator_expression );
             RILL_VISITOR_OP_DECL( ast::id_expression );
             RILL_VISITOR_OP_DECL( ast::term_expression );
             RILL_VISITOR_OP_DECL( ast::evaluated_type_expression );
@@ -88,6 +89,7 @@ namespace rill
             RILL_VISITOR_OP_DECL( ast::template_instance_value );
 
             RILL_VISITOR_OP_DECL( ast::intrinsic::int32_value );
+            RILL_VISITOR_OP_DECL( ast::intrinsic::float_value );
             RILL_VISITOR_OP_DECL( ast::intrinsic::boolean_value );
             RILL_VISITOR_OP_DECL( ast::intrinsic::string_value );
             RILL_VISITOR_OP_DECL( ast::intrinsic::array_value );
@@ -320,6 +322,20 @@ namespace rill
                 )
                 -> bool;
 
+            //
+            auto declare_function_parameters(
+                function_symbol_environment_ptr const& f_env,
+                ast::function_definition_statement_base_ptr const& s,
+                environment_base_ptr const& parent_env,
+                bool const is_in_class = false,
+                bool const is_constructor = false
+                )
+                -> void;
+            auto function_returns_value(
+                function_symbol_environment_ptr const& f_env
+                )
+                -> bool;
+            //
             auto import_module(
                 ast::import_decl_unit const& decl,
                 environment_base_ptr const& parent_env

@@ -50,9 +50,9 @@ namespace rill
 
         RILL_AST_DEF( import_statement, statement )
 
-        //// TEST
-        RILL_AST_DEF( test_while_statement, statement )
-        RILL_AST_DEF( test_if_statement, statement )
+        RILL_AST_DEF( while_statement, statement )
+        RILL_AST_DEF( if_statement, statement )
+
 #ifdef RILL_AST_REQ_NS
     } // namespace ast
 } // namespace rill

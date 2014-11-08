@@ -60,6 +60,9 @@ namespace rill
                 );
 
 
+            auto const op_name = ast::make_identifier(
+                "%op_" + e->op_->get_inner_symbol()->to_native_string()
+                );
 
             // 1. call lhs.operator( rhs );
             // 2. call operator( lhs, rhs );
@@ -69,10 +72,10 @@ namespace rill
 
             // 2
             auto const& callee_function_type_detail
-                = solve_identifier( e->op_, parent_env );
+                = solve_identifier( op_name, parent_env );
             if ( callee_function_type_detail == nullptr ) {
                 // compilation error...
-                std::cout << "% name : " << e->op_->get_inner_symbol()->to_native_string() << std::endl;
+                std::cout << "% name : " << op_name->get_inner_symbol()->to_native_string() << std::endl;
                 assert( false && "[Error] identifier was not found." );
             }
 
@@ -139,6 +142,115 @@ namespace rill
 
             return nullptr;
         }
+
+
+        RILL_VISITOR_OP( analyzer, ast::unary_operator_expression, e, parent_env )
+        {
+            std::cout << "op_call_unary_expr" << std::endl;
+
+            // check val(reciever)
+            auto const& val_t_detail
+                = dispatch( e->src, parent_env );
+
+            // make argument types id list
+            std::vector<type_detail_ptr> const& argument_type_details
+                = { val_t_detail };
+
+            // TODO: check type_id_special
+            assert(
+                std::count_if(
+                    argument_type_details.cbegin(),
+                    argument_type_details.cend(), []( type_detail_ptr const& t ) {
+                        return t == nullptr || t->type_id == type_id_undefined || is_nontype_id( t->type_id );
+                    } ) == 0
+                );
+
+
+            auto const op_name = ast::make_identifier(
+                "%op_" + std::string( e->is_prefix ? "pre_" : "post_" ) + e->op->get_inner_symbol()->to_native_string()
+                );
+
+            std::cout << "op_call_unary_expr 3" << std::endl;
+
+            // 1. call lhs.operator( rhs );
+            // 2. call operator( lhs, rhs );
+
+            // 1
+            // solve_identifier( e->op_, lhs_t_detail->target_env )
+
+            // 2
+            auto const& callee_function_type_detail
+                = solve_identifier( op_name, parent_env );
+            if ( callee_function_type_detail == nullptr ) {
+                // compilation error...
+                std::cout << "% name : " << op_name->get_inner_symbol()->to_native_string() << std::endl;
+                assert( false && "[Error] identifier was not found." );
+            }
+
+            //
+            if ( is_nontype_id( callee_function_type_detail->type_id ) ) {
+                // reciever must be function
+                if ( callee_function_type_detail->type_id == (type_id_t)type_id_nontype::e_function ) {
+                    std::cout << "-> " << debug_string( callee_function_type_detail->target_env->get_symbol_kind() ) << std::endl;
+
+                    auto const& set_env = cast_to<multiple_set_environment>( callee_function_type_detail->target_env );
+                    assert( set_env != nullptr );
+
+                    if ( set_env->get_representation_kind() != kind::type_value::e_function ) {
+                        // symbol type was not matched
+                        assert( false );
+                    }
+
+                    auto const& function_env
+                        = solve_function_overload(
+                            set_env,
+                            argument_type_details,                      // type detailes of arguments
+                            callee_function_type_detail->template_args, // template arguments
+                            parent_env
+                            );
+                    assert( function_env != nullptr );
+
+                    // memoize called function env
+                    std::cout << "memoed template" << std::endl;
+                    function_env->connect_from_ast( e );
+                    //function_env->connect_to_ast( e );
+
+                    bool const is_xvalue = [&]() {
+                        auto const& tid = function_env->get_return_type_id();
+                        auto const& ty = g_env_->get_type_at( tid );
+                        return ty.attributes.quality == attribute::holder_kind::k_val;
+                    }();
+                    auto const eval_mode = [&]() {
+                        if ( function_env->has_attribute( attribute::decl::k_onlymeta ) ) {
+                            return type_detail::evaluate_mode::k_only_compiletime;
+                        } else {
+                            return type_detail::evaluate_mode::k_everytime;
+                        }
+                    }();
+
+                    return bind_type(
+                        e,
+                        type_detail_pool_->construct(
+                            function_env->get_return_type_id(),
+                            function_env,
+                            nullptr,    // nullptr
+                            nullptr,    // nullptr
+                            is_xvalue,
+                            eval_mode
+                            )
+                        );
+
+                } else {
+                    assert( false && "[Error]" );
+                }
+
+            } else {
+                assert( false && "[Error]" );
+            }
+
+            return nullptr;
+        }
+
 
 
         //
@@ -452,9 +564,13 @@ namespace rill
                     function_env->connect_from_ast( e );
                     //function_env->connect_to_ast( e );
 
+                    auto const& return_tid = function_env->get_return_type_id();
+                    if ( !function_env->is_return_type_decided() ) {
+                        assert( false && "[error] return type couldn't be deduced" );
+                    }
+
                     bool const is_xvalue = [&]() {
-                        auto const& tid = function_env->get_return_type_id();
-                        auto const& ty = g_env_->get_type_at( tid );
+                        auto const& ty = g_env_->get_type_at( return_tid );
                         return ty.attributes.quality == attribute::holder_kind::k_val;
                     }();
                     auto const eval_mode = [&]() {
@@ -468,7 +584,7 @@ namespace rill
                     return bind_type(
                         e,
                         type_detail_pool_->construct(
-                            function_env->get_return_type_id(),
+                            return_tid,
                             function_env,
                             nullptr,    // unused
                             nullptr,    // unused

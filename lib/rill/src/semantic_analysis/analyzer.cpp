@@ -122,9 +122,10 @@ namespace rill
 
             install_primitive_class( "void" );
             install_primitive_class( "type" );
-            install_primitive_class( "int" );
             install_primitive_class( "bool" );
             install_primitive_class( "int8" );
+            install_primitive_class( "int" );
+            install_primitive_class( "float" );
         }
 
         inline auto analyzer::builtin_class_envs_cache::find_primitive(
@@ -273,8 +274,9 @@ namespace rill
             assert( f_env != nullptr );
             assert( f_env->is_checked() );
 
-            std::string s;
+            std::string s = "_R";
 
+            s += std::to_string( f_env->get_base_name().size() );
             s += f_env->get_base_name();
 
             for( auto const& type_id : f_env->get_parameter_type_ids() ) {
@@ -1220,6 +1222,16 @@ namespace rill
                 boost::optional<std::vector<function_symbol_environment_ptr>>
             >
         {
+            auto print_type = [&]( type_id_t const& tid ){
+                auto const ty = g_env_->get_type_at( tid );
+                auto const& c_env = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
+                    ty.class_env_id
+                    );
+                std::cout
+                    << "type: " << c_env->get_mangled_name() << std::endl
+                    << ty.attributes;
+            };
+
             //
             type_id_list_t holder( arg_types.size() );
             std::vector<function_symbol_environment_ptr> f_candidate_envs;
@@ -1271,6 +1283,11 @@ namespace rill
                                      parent_env
                                      )
                         );
+
+                    std::cout << ": from" << std::endl;
+                    print_type( arg_type_id );
+                    std::cout << ": to" << std::endl;
+                    print_type( param_type_id );
 
                     switch( level ) {
                     case function_match_level::k_exact_match:
@@ -1557,42 +1574,26 @@ namespace rill
 
             // DEBUG
             if ( f_env->is_return_type_decided() ) {
-                auto const ty = g_env_->get_type_at( current_ret_type_id );
-                auto const& c_env = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
-                    ty.class_env_id
-                    );
-                std::cout << "RETURN TYPE => "
-                          << make_mangled_name( c_env, ty.attributes )
-                          << std::endl;
-
-            } else {
-                for( auto&& r_type_id : f_env->get_return_type_candidates() ) {
-                    auto const ty = g_env_->get_type_at( r_type_id );
-                    auto const& c_env = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
-                        ty.class_env_id
-                        );
-                    std::cout << "CANDIDATE: RETURN TYPE => "
-                              << ty.attributes
-                              << std::endl;
-
-                    if ( current_ret_type_id != type_id_undefined ) {
-                        if ( r_type_id != current_ret_type_id ) {
-                            //send_error( "[Error] return type is different from function signature" );
-                            assert( false && "[Error] return type is different from function signature" );
-                        }
-
-                    } else {
-                        current_ret_type_id = r_type_id;
+                if ( !f_env->is_closed() ) {
+                    if ( function_returns_value( f_env ) ) {
+                        assert( false && "[error] there is flow doesn't return value" );
                     }
                 }
 
-                f_env->decide_return_type( current_ret_type_id );
-            }
-
-            // Return type
-            if ( !f_env->is_return_type_decided() ) {
+            } else {
                 assert( false && "[Error] return type was not determined..." );
             }
+        }
+
+        auto analyzer::function_returns_value(
+            function_symbol_environment_ptr const& f_env
+            )
+            -> bool
+        {
+            assert( f_env->is_return_type_decided() );
+            auto const& ty = g_env_->get_type_at( f_env->get_return_type_id() );
+
+            return ty.class_env_id != get_primitive_class_env( "void" )->get_id();
         }
 
         // solve the function from overload set and returns one function environment
@@ -1982,6 +1983,82 @@ namespace rill
             working_dirs_.pop();
 
             return new_module_env;
+        }
+
+
+        auto analyzer::declare_function_parameters(
+            function_symbol_environment_ptr const& f_env,
+            ast::function_definition_statement_base_ptr const& s,
+            environment_base_ptr const& parent_env,
+            bool const is_in_class,
+            bool const is_constructor
+            )
+            -> void
+        {
+            if ( is_in_class ) {
+                // TODO: see attribute of function and decide this type
+                // currentry mutable, ref
+                attribute::type_attributes const& this_object_attr
+                    = attribute::make_type_attributes(
+                        attribute::holder_kind::k_ref,
+                        [&]() {
+                            if ( is_constructor ) {
+                                return attribute::modifiability_kind::k_mutable;
+                            } else {
+                                // TODO: see member function modifier
+                                return attribute::modifiability_kind::k_const;
+                            }
+                        }()
+                        );
+
+
+                // declare "this" at first
+                auto const& c_env
+                    = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
+                        f_env->get_parent_class_env_id()
+                        );
+                assert( c_env != nullptr );
+
+                // declare
+                f_env->parameter_variable_construct(
+                    ast::make_identifier( "this" ),
+                    c_env,
+                    this_object_attr
+                    );
+            }
+
+            // make function parameter variable decl
+            for( auto const& e : s->get_parameter_list() ) {
+                assert( e.decl_unit.init_unit.type != nullptr || e.decl_unit.init_unit.initializer != nullptr );
+
+                if ( e.decl_unit.init_unit.type ) { // is parameter variavle type specified ?
+                    resolve_type(
+                        e.decl_unit.init_unit.type,
+                        e.quality,
+                        parent_env,
+                        [&]( type_detail_ptr const& ty_d,
+                             type const& ty,
+                             class_symbol_environment_ptr const& class_env
+                            )
+                        {
+                            if ( auto const& v = f_env->find_on_env( e.decl_unit.name ) ) {
+                                assert( false && "[[error]] variable is already defined" );
+                            }
+
+                            // declare
+                            f_env->parameter_variable_construct(
+                                e.decl_unit.name,
+                                ty_d->type_id
+                                );
+                        });
+
+                } else {
+                    // type inferenced by result of evaluated [[default initializer expression]]
+
+                    // TODO: implement type inference
+                    assert( false );
+                }
+            }
         }
 
     } // namespace semantic_analysis

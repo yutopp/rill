@@ -83,9 +83,11 @@ namespace rill
         {
             auto const& scope_env
                 = g_env_->allocate_env<scope_environment>( parent_env ); // MEMO:
-            scope_env->link_with_ast( s );
 
             dispatch( s->statements_, scope_env );
+
+            // delegate is_closed
+            parent_env->mask_is_closed( scope_env->is_closed() );
         }
 
         RILL_VISITOR_OP( analyzer, ast::template_statement, s, parent_env )
@@ -100,6 +102,10 @@ namespace rill
             if ( ty_d->eval_mode == type_detail::evaluate_mode::k_only_compiletime ) {
                 substitute_by_ctfed_node( s->expression_, ty_d, parent_env );
             }
+
+            // TODO: check this expression is [noreturn].
+            // [noreturn] means control flow will go to elsewhere. so closed.
+            // parent_env->mask_is_closed( true );
         }
 
         //
@@ -121,7 +127,21 @@ namespace rill
 
             assert( !is_nontype_id( return_type_detail->type_id ) && "[[CE]] this object couldn't be returned" );
 
-            callee_f_env->add_return_type_candidate( return_type_detail->type_id );
+            if ( callee_f_env->is_return_type_decided() ) {
+                // type check
+                auto const& cf_tid = callee_f_env->get_return_type_id();
+                auto const& cf_ty = g_env_->get_type_at( cf_tid );
+
+                // check if available converting from return_type_detail->type_id to cf_tid
+
+            } else {
+                // return statement that first apeared in function env
+                //   sets default return type, if return type is not decided
+                callee_f_env->decide_return_type( return_type_detail->type_id );
+            }
+
+            // statement return to anywhare, so this environment is closed
+            parent_env->mask_is_closed( true );
         }
 
 
@@ -347,35 +367,8 @@ namespace rill
             f_env->change_progress_to_checked();
             std::cout << "$ uncheckd" << std::endl;
 
-            // make function parameter variable decl
-            for( auto const& e : s->get_parameter_list() ) {
-                assert( e.decl_unit.init_unit.type != nullptr || e.decl_unit.init_unit.initializer != nullptr );
-
-                if ( e.decl_unit.init_unit.type ) { // is parameter variavle type specified ?
-                    resolve_type(
-                        e.decl_unit.init_unit.type,
-                        e.quality,
-                        parent_env,
-                        [&]( type_detail_ptr const& ty_d,
-                             type const& ty,
-                             class_symbol_environment_ptr const& class_env
-                            )
-                        {
-                            if ( auto const& v = f_env->find_on_env( e.decl_unit.name ) ) {
-                                assert( false && "[[error]] variable is already defined" );
-                            }
-
-                            // declare
-                            f_env->parameter_variable_construct( e.decl_unit.name, ty_d->type_id );
-                        });
-
-                } else {
-                    // type inferenced by result of evaluated [[default initializer expression]]
-
-                    // TODO: implement type inference
-                    assert( false );
-                }
-            }
+            //
+            declare_function_parameters( f_env, s, parent_env );
 
             // return type
             if ( s->return_type_ ) {
@@ -433,68 +426,13 @@ namespace rill
             f_env->change_progress_to_checked();
             std::cout << "$ unchecked" << std::endl;
 
-            // declare "this" at first
-            auto const& c_env
-                = std::static_pointer_cast<class_symbol_environment const>(
-                    g_env_->get_env_at_as_strong_ref( f_env->get_parent_class_env_id() )
-                    );
-            assert( c_env != nullptr );
 
             // TODO: fix
             bool const is_constructor
                 = s->get_identifier()->get_inner_symbol()->to_native_string() == "ctor";
 
-            // TODO: see attribute of function and decide this type
-            // currentry mutable, ref
-            attribute::type_attributes const& this_object_attr
-                = attribute::make_type_attributes(
-                    attribute::holder_kind::k_ref,
-                    [&]() {
-                        if ( is_constructor ) {
-                            return attribute::modifiability_kind::k_mutable;
-                        } else {
-                            // TODO: see member function modifier
-                            return attribute::modifiability_kind::k_const;
-                        }
-                    }()
-                    );
-
-            // declare
-            f_env->parameter_variable_construct(
-                ast::make_identifier( "this" ),
-                c_env,
-                this_object_attr
-                );
-
-            // make function parameter variable decl
-            for( auto const& e : s->get_parameter_list() ) {
-                assert( e.decl_unit.init_unit.type != nullptr || e.decl_unit.init_unit.initializer != nullptr );
-
-                if ( e.decl_unit.init_unit.type ) { // is parameter variavle type specified ?
-                    resolve_type(
-                        e.decl_unit.init_unit.type,
-                        e.quality,
-                        parent_env,
-                        [&]( type_detail_ptr const& ty_d,
-                             type const& ty,
-                             class_symbol_environment_ptr const& class_env
-                            )
-                        {
-                            if ( auto const& v = f_env->find_on_env( e.decl_unit.name ) ) {
-                                assert( false && "[[error]] variable is already defined" );
-                            }
-
-                            // declare
-                            f_env->parameter_variable_construct( e.decl_unit.name, ty_d->type_id );
-                        });
-
-                } else {
-                    // type inferenced by result of evaluated [[default initializer expression]]
-
-                    // TODO: implement type inference
-                    assert( false );
-                }
-            }
+            //
+            declare_function_parameters( f_env, s, parent_env, true, is_constructor );
 
             if ( is_constructor ) {
                 // constructor
@@ -565,37 +503,49 @@ namespace rill
 
 
 
-        RILL_VISITOR_OP( analyzer, ast::test_while_statement, s, parent_env )
+        RILL_VISITOR_OP( analyzer, ast::while_statement, s, parent_env )
         {
             auto const& scope_env = g_env_->allocate_env<scope_environment>( parent_env ); // MEMO:
             scope_env->link_with_ast( s );
 
             // TODO: type check
             dispatch( s->conditional_, scope_env );
+            parent_env->mask_is_closed( scope_env->is_closed() );
 
-/*
-            auto const& body_scope_env = parent_env->allocate_env<scope_environment>( scope_env );
+            auto const& body_scope_env = g_env_->allocate_env<scope_environment>( scope_env );
             body_scope_env->link_with_ast( s->body_statement_ );
-*/
-            dispatch( s->body_statement_, scope_env );
+
+            dispatch( s->body_statement_, body_scope_env );
+            parent_env->mask_is_closed( body_scope_env->is_closed() );
         }
 
 
 
-        RILL_VISITOR_OP( analyzer, ast::test_if_statement, s, parent_env )
+        RILL_VISITOR_OP( analyzer, ast::if_statement, s, parent_env )
         {
-            // if
             auto const& if_scope_env = g_env_->allocate_env<scope_environment>( parent_env ); // MEMO:
             if_scope_env->link_with_ast( s );
+
+            // cond
             dispatch( s->conditional_, if_scope_env );  // TODO: type check
+            parent_env->mask_is_closed( if_scope_env->is_closed() );
 
             // then
-            dispatch( s->then_statement_, if_scope_env );
+            auto const& if_then_env = g_env_->allocate_env<scope_environment>( if_scope_env );
+            if_then_env->link_with_ast( s->then_statement_ );
+            dispatch( s->then_statement_, if_then_env );
+            bool const is_closed_0 = if_then_env->is_closed();
 
             // else( optional )
+            bool is_closed_1 = false;
             if ( s->else_statement_ ) {
-                dispatch( *s->else_statement_, if_scope_env );
+                auto const& if_else_env = g_env_->allocate_env<scope_environment>( if_scope_env );
+                if_else_env->link_with_ast( s->else_statement_ );
+                dispatch( s->else_statement_, if_else_env );
+                is_closed_1 = if_else_env->is_closed();
             }
+
+            parent_env->mask_is_closed( is_closed_0 && is_closed_1 );
         }
 
 
@@ -626,36 +576,7 @@ namespace rill
 
             // construct function environment in progress phase
 
-            // make function parameter variable decl
-            for( auto const& e : s->get_parameter_list() ) {
-                assert( e.decl_unit.init_unit.type != nullptr || e.decl_unit.init_unit.initializer != nullptr );
-
-                if ( e.decl_unit.init_unit.type ) { // is parameter variavle type specified ?
-                    resolve_type(
-                        e.decl_unit.init_unit.type,
-                        e.quality,
-                        parent_env,
-                        [&]( type_detail_ptr const& ty_d,
-                             type const& ty,
-                             class_symbol_environment_ptr const& class_env
-                            )
-                        {
-                            if ( auto const& v = f_env->find_on_env( e.decl_unit.name ) ) {
-                                assert( false && "[[error]] variable is already defined" );
-                            }
-
-                            // declare
-                            f_env->parameter_variable_construct( e.decl_unit.name, ty_d->type_id );
-                        });
-
-                } else {
-                    // type inferenced by result of evaluated [[default initializer expression]]
-
-                    // TODO: implement type inference
-                    assert( false );
-                }
-            }
-
+            declare_function_parameters( f_env, s, parent_env );
 
             //
             // Return type

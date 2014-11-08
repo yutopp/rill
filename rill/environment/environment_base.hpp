@@ -229,6 +229,7 @@ namespace rill
             )
             : environment_unit( std::move( ep ) )
             , progress_( environment_process_progress_t::constructed )
+            , closed_( false )
         {}
 
         virtual ~environment_base()
@@ -565,9 +566,24 @@ namespace rill
             return inner_envs_.find( name ) != inner_envs_.cend();
         }
 
+    public:
+        // closed means environment has at least one flow always jumps to elsewhare.
+        inline auto is_closed() const
+            -> bool
+        {
+            return closed_;
+        }
+
+        inline auto mask_is_closed( bool const b )
+            -> void
+        {
+            closed_ |= b;
+        }
+
     private:
         environment_process_progress_t progress_;
         std::unordered_map<native_string_type, environment_unit_ptr> inner_envs_;   // children environments
+        bool closed_;
     };
 
 

@@ -72,6 +72,7 @@ class HogeHuga
 extern class type intrinsic "type_type";
 extern class int8 intrinsic "type_int8";
 extern class int intrinsic "type_int32";
+extern class float intrinsic "type_float";
 extern class void intrinsic "type_void";
 extern class bool intrinsic "type_bool";
 template(T: type, N: int)

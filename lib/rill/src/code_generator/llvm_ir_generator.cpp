@@ -302,8 +302,8 @@ namespace rill
             // generate statements
             dispatch( s->inner_, f_env );
 
-            // Only the function that returns void is allowed to has no return statement
-            if ( f_env->get_return_type_candidates().size() == 0 )
+            //
+            if ( !f_env->is_closed() )
                 context_->ir_builder.CreateRetVoid();
 
             //
@@ -743,7 +743,7 @@ namespace rill
         }
 
 
-        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::test_while_statement, s, parent_env )
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::while_statement, s, parent_env )
         {
             llvm::BasicBlock* const while_begin_block
                 = llvm::BasicBlock::Create( context_->llvm_context, "", context_->ir_builder.GetInsertBlock()->getParent() );
@@ -770,7 +770,7 @@ namespace rill
         }
 
 
-        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::test_if_statement, s, parent_env )
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::if_statement, s, parent_env )
         {
             llvm::BasicBlock* const if_begin_block
                 = llvm::BasicBlock::Create( context_->llvm_context, "", context_->ir_builder.GetInsertBlock()->getParent() );
@@ -784,35 +784,49 @@ namespace rill
             llvm::BasicBlock* const final_block
                 = llvm::BasicBlock::Create( context_->llvm_context, "", context_->ir_builder.GetInsertBlock()->getParent() );
 
-
             //
             context_->ir_builder.CreateBr( if_begin_block );
             context_->ir_builder.SetInsertPoint( if_begin_block );
-            auto const& scope_env = g_env_->get_related_env_by_ast_ptr( s ); assert( scope_env != nullptr );
+
+            //
+            auto const& scope_env = g_env_->get_related_env_by_ast_ptr( s );
+            assert( scope_env != nullptr );
+
+            // conditional
             auto const& cond_llvm_value = dispatch( s->conditional_, scope_env );
-            // else( optional )
             if ( s->else_statement_ ) {
+                // true -> true block, false -> else block
                 context_->ir_builder.CreateCondBr( cond_llvm_value, then_block, else_block );
             } else {
+                // true -> true block, false -> final block
                 context_->ir_builder.CreateCondBr( cond_llvm_value, then_block, final_block );
             }
 
-            //
+            // then
             context_->ir_builder.SetInsertPoint( then_block );
-            //auto const& then_scope_env = g_env_->get_related_env_by_ast_ptr( s->then_statement_ ); assert( then_scope_env != nullptr );
-            dispatch( s->then_statement_, scope_env/*then_scope_env*/ );
-            context_->ir_builder.CreateBr( final_block );
-
-            //
-            if ( s->else_statement_ ) {
-                context_->ir_builder.SetInsertPoint( else_block );
-                //auto const& else_scope_env = g_env_->get_related_env_by_ast_ptr( *s->else_statement_ ); assert( else_scope_env != nullptr );
-                dispatch( *s->else_statement_, scope_env/*else_scope_env*/ );
+            auto const& then_scope_env = g_env_->get_related_env_by_ast_ptr( s->then_statement_ );
+            assert( then_scope_env != nullptr );
+            dispatch( s->then_statement_, then_scope_env );
+            if ( !then_scope_env->is_closed() ) {
                 context_->ir_builder.CreateBr( final_block );
             }
 
             //
+            if ( s->else_statement_ ) {
+                context_->ir_builder.SetInsertPoint( else_block );
+                auto const& else_scope_env = g_env_->get_related_env_by_ast_ptr( s->else_statement_ );
+                assert( else_scope_env != nullptr );
+                dispatch( s->else_statement_, else_scope_env );
+                if ( !else_scope_env->is_closed() ) {
+                    context_->ir_builder.CreateBr( final_block );
+                }
+            }
+
+            //
             context_->ir_builder.SetInsertPoint( final_block );
+            if ( scope_env->is_closed() ) {
+                context_->ir_builder.CreateUnreachable();
+            }
         }
 
 
@@ -867,8 +881,60 @@ namespace rill
                     return context_->ir_builder.CreateCall( callee_function, args, "calltmp" );
                 }
             }
+        }
 
 
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::unary_operator_expression, e, parent_env )
+        {
+            // Look up Function
+            auto const f_env = std::static_pointer_cast<function_symbol_environment const>( g_env_->get_related_env_by_ast_ptr( e ) );
+            assert( f_env != nullptr );
+
+            std::cout << "current : " << f_env->get_mangled_name() << std::endl;
+
+            // call function that defined in rill modules
+            // evaluate argument from last to front(but ordering of vector is from front to last)
+            ast::expression_list const& e_arguments = { e->src };
+            std::vector<llvm::Value*> args = eval_args(
+                f_env->get_parameter_type_ids(),
+                e_arguments,
+                parent_env
+                );
+
+            std::cout << "CALL!!!!!" << std::endl;
+
+            // if intrinsic function
+            if ( f_env->has_attribute( attribute::decl::k_intrinsic ) ) {
+                // look up the action
+                auto const& action = action_holder_->at( f_env->get_action_id() );
+                assert( action != nullptr );
+
+                // generate codes into this context
+                auto const value = action->invoke(
+                    processing_context::k_llvm_ir_generator,
+                    context_,
+                    f_env,
+                    args
+                    );
+                assert( value != nullptr );
+                return value;
+
+            } else {
+                auto const& callee_function = function_env_to_llvm_constatnt_ptr( f_env );
+                if ( !callee_function ) {
+                    // unexpected error...
+                    assert( false && "unexpected... callee_function was not found" );
+                }
+
+                if ( is_jit() ) {
+                    assert( false && "pyaaaaaaaaa" );
+//                analyzer_->ctfe_engine_->execution_engine_;//();
+                    return nullptr;
+                } else {
+                    // invocation
+                    return context_->ir_builder.CreateCall( callee_function, args, "calltmp" );
+                }
+            }
         }
 
 
@@ -1400,6 +1466,12 @@ namespace rill
         {
             // Currently, return int type( 32bit, integer )
             return llvm::ConstantInt::get( context_->llvm_context, llvm::APInt( 32, v->get_value() ) );
+        }
+
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::intrinsic::float_value, v, parent_env )
+        {
+            // Currently, return int type( float )
+            return llvm::ConstantFP::get( context_->llvm_context, llvm::APFloat( v->get_value() ) );
         }
 
         RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::intrinsic::boolean_value, v, parent_env )

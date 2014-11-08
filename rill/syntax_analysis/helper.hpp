@@ -242,6 +242,23 @@ namespace rill
                     );
             }
 
+            template<typename Arg>
+            auto append( Arg&& arg )
+            {
+                return std::bind(
+                    []( auto& ctx, auto&& arg ) {
+                        x3::_val( ctx ).append(
+                            action_value<decltype(ctx)>(
+                                ctx,
+                                std::forward<decltype(arg)>( arg )
+                                )
+                            );
+                    },
+                    std::placeholders::_1,  // ctx
+                    std::forward<Arg>( arg )
+                    );
+            }
+
             template<typename T, typename... Args>
             auto make_assoc_node_ptr(
                 Args&&... args
@@ -269,8 +286,34 @@ namespace rill
                 )
             {
                 return make_assoc_node_ptr<ast::binary_operator_expression>(
-                    ast::make_binary_operator_identifier( op ), // op
+                    ast::make_identifier( op ), // op
                     std::forward<T1>( rhs )
+                    );
+            }
+
+            template<typename Arg>
+            auto make_unary_prefix_op_node_ptr(
+                ast::native_string_t const& op,
+                Arg&& arg
+                )
+            {
+                return make_node_ptr<ast::unary_operator_expression>(
+                    ast::make_identifier( op ), // op
+                    std::forward<Arg>( arg ),
+                    true
+                    );
+            }
+
+            template<typename Arg>
+            auto make_unary_postfix_op_node_ptr(
+                ast::native_string_t const& op,
+                Arg&& arg
+                )
+            {
+                return make_node_ptr<ast::unary_operator_expression>(
+                    ast::make_identifier( op ), // op
+                    std::forward<Arg>( arg ),
+                    false
                     );
             }
 

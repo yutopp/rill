@@ -26,6 +26,7 @@ namespace rill
         RILL_AST_DEF_GROUP( expression )
 
         RILL_AST_DEF( binary_operator_expression, expression )
+        RILL_AST_DEF( unary_operator_expression, expression )
 
         RILL_AST_DEF( element_selector_expression, expression )
         RILL_AST_DEF( subscrpting_expression, expression )

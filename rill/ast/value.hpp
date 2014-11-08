@@ -138,6 +138,27 @@ namespace rill
                 }
             RILL_AST_END
 
+            RILL_AST_BEGIN(
+                float_value, value_base,
+                (( float, value_ ))
+                )
+            public:
+                float_value( int const v )
+                    : value_( v )
+                {}
+
+            public:
+                virtual auto get_native_typename_string() const -> native_string_t
+                {
+                    return "float";
+                }
+
+                auto get_value() const
+                    -> float const&
+                {
+                    return value_;
+                }
+            RILL_AST_END
 
             //
             RILL_AST_BEGIN(
@@ -308,38 +329,28 @@ namespace rill
             return std::make_shared<identifier_value>( simple_typename );
         }
 
-        // deprcated
-        inline auto make_single_identifier( native_string_t const& simple_typename )
-            -> identifier_value_ptr
-        {
-            return std::make_shared<identifier_value>( simple_typename );
-        }
-
-
         inline auto make_binary_operator_identifier(
             native_string_t const& symbol_name
             )
             -> identifier_value_ptr
         {
-            return make_single_identifier( "%binary%operator_" + symbol_name );
+            return make_identifier( "%binary%operator_" + symbol_name );
         }
-        inline auto make_binary_operator_identifier(
-            intrinsic::symbol_value_ptr const& symbol_name
+
+        inline auto make_unary_prefix_operator_identifier(
+            native_string_t const& symbol_name
             )
             -> identifier_value_ptr
         {
-            return make_binary_operator_identifier( symbol_name->to_native_string() );
+            return make_identifier( "%unary%prefix%operator_" + symbol_name );
         }
-        // TODO: add overload function that implement template specified operator
 
-        inline auto make_binary_operator_symbol(
-            intrinsic::symbol_value_ptr const& symbol_name
+        inline auto make_unary_postfix_operator_identifier(
+            native_string_t const& symbol_name
             )
-            -> intrinsic::symbol_value_ptr
+            -> identifier_value_ptr
         {
-            return intrinsic::make_symbol(
-                "%binary%operator_" + symbol_name->to_native_string()
-                );
+            return make_identifier( "%unary%postfix%operator_" + symbol_name );
         }
 
 

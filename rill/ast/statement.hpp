@@ -522,14 +522,14 @@ namespace rill
 
 
         RILL_AST_BEGIN(
-            test_while_statement, statement,
+            while_statement, statement,
             (( expression_ptr, conditional_ ))
-            (( block_statement_ptr, body_statement_ ))
+            (( statement_ptr, body_statement_ ))
             )
         public:
-            test_while_statement(
+            while_statement(
                 expression_ptr const& cond,
-                block_statement_ptr const& body_statement
+                statement_ptr const& body_statement
                 )
                 : conditional_( cond )
                 , body_statement_( body_statement )
@@ -539,20 +539,20 @@ namespace rill
 
 
         RILL_AST_BEGIN(
-            test_if_statement, statement,
+            if_statement, statement,
             (( expression_ptr, conditional_ ))
-            (( block_statement_ptr, then_statement_ ))
-            (( boost::optional<block_statement_ptr>, else_statement_ ))
+            (( statement_ptr, then_statement_ ))
+            (( statement_ptr, else_statement_ ))
             )
         public:
-            test_if_statement(
+            if_statement(
                 expression_ptr const& cond,
-                block_statement_ptr const& then_statement,
-                boost::optional<block_statement_ptr> const& else_statement
+                statement_ptr const& then_statement,
+                boost::optional<statement_ptr> const& else_statement
                 )
                 : conditional_( cond )
                 , then_statement_( then_statement )
-                , else_statement_( else_statement )
+                , else_statement_( else_statement ? *else_statement : nullptr)
             {}
         RILL_AST_END
 

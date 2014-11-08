@@ -58,8 +58,8 @@ namespace rill
          // RILL_VISITOR_READONLY_OP_DECL( ast::template_statement );
             RILL_VISITOR_READONLY_OP_DECL( ast::expression_statement );
             RILL_VISITOR_READONLY_OP_DECL( ast::return_statement );
-            RILL_VISITOR_READONLY_OP_DECL( ast::test_while_statement );
-            RILL_VISITOR_READONLY_OP_DECL( ast::test_if_statement );
+            RILL_VISITOR_READONLY_OP_DECL( ast::while_statement );
+            RILL_VISITOR_READONLY_OP_DECL( ast::if_statement );
             RILL_VISITOR_READONLY_OP_DECL( ast::function_definition_statement );
             RILL_VISITOR_READONLY_OP_DECL( ast::variable_declaration_statement );
             RILL_VISITOR_READONLY_OP_DECL( ast::extern_function_declaration_statement );
@@ -73,6 +73,7 @@ namespace rill
             RILL_VISITOR_READONLY_OP_DECL( ast::subscrpting_expression );
             RILL_VISITOR_READONLY_OP_DECL( ast::call_expression );
             RILL_VISITOR_READONLY_OP_DECL( ast::binary_operator_expression );
+            RILL_VISITOR_READONLY_OP_DECL( ast::unary_operator_expression );
             RILL_VISITOR_READONLY_OP_DECL( ast::id_expression );
             RILL_VISITOR_READONLY_OP_DECL( ast::term_expression );
             RILL_VISITOR_READONLY_OP_DECL( ast::evaluated_type_expression );
@@ -82,6 +83,7 @@ namespace rill
             RILL_VISITOR_READONLY_OP_DECL( ast::template_instance_value );
 
             RILL_VISITOR_READONLY_OP_DECL( ast::intrinsic::int32_value );
+            RILL_VISITOR_READONLY_OP_DECL( ast::intrinsic::float_value );
             RILL_VISITOR_READONLY_OP_DECL( ast::intrinsic::boolean_value );
             RILL_VISITOR_READONLY_OP_DECL( ast::intrinsic::string_value );
             RILL_VISITOR_READONLY_OP_DECL( ast::intrinsic::array_value );

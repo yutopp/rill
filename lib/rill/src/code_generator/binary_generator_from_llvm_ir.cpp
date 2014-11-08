@@ -196,12 +196,16 @@ namespace rill
 #endif
 
             {
+                // currently, rill-runtime uses libc. so entry point is set to "main".
+                // "-e rill_main " is dissabled .
                 // TODO: fix for command injection
+#if 0
                 std::string const command = "ld " \
-                    "-e rill_main "\
-                    /*"-nodefaultlibs"*/" -dynamic-linker /lib64/ld-linux-x86-64.so.2 -lc " \
+                    "-e rill_main " \
+                    /*"-nodefaultlibs"*/" -dynamic-linker /lib64/ld-linux-x86-64.so.2 -lstdc++ -lm -lgcc_s -lc " \
                     "-o " + output_name + " out.obj " + runtime_library_path;
-
+#endif
+                std::string const command = "clang++ -o " + output_name + " out.obj " + runtime_library_path;
                 std::cout << "EXEC: " << std::endl
                           << " " << command << std::endl;
                 std::system( command.c_str() );

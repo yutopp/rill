@@ -145,6 +145,39 @@ namespace rill
                         ) const
                         -> void
                     {
+                        c_env->set_builtin_kind( rill::class_builtin_kind::k_float );
+                    }
+
+                    auto invoke(
+                        rill::processing_context::llvm_ir_generator_typing_tag,
+                        code_generator::llvm_ir_generator_context_ptr const& context,
+                        const_class_symbol_environment_ptr const& c_env
+                        ) const
+                        -> void
+                    {
+                        // bind [ float -> i32 ]
+                        context->env_conversion_table.bind_type(
+                            c_env,
+                            llvm::Type::getFloatTy( context->llvm_context )
+                            );
+                    }
+                };
+                register_to_holder<action>(
+                    intrinsic_action,
+                    "type_float"
+                    );
+            }
+
+            {
+                struct action
+                    : rill::intrinsic_action_base
+                {
+                    auto invoke(
+                        rill::processing_context::semantics_typing_tag,
+                        class_symbol_environment_ptr const& c_env
+                        ) const
+                        -> void
+                    {
                         c_env->set_builtin_kind( rill::class_builtin_kind::k_void );
                     }
 
@@ -451,6 +484,35 @@ namespace rill
                     );
             }
 
+            {
+                //
+                // def op <=( val :int, val :int ): int
+                //
+                struct action
+                    : rill::intrinsic_action_base
+                {
+                    auto invoke(
+                        rill::processing_context::llvm_ir_generator_tag,
+                        code_generator::llvm_ir_generator_context_ptr const& context,
+                        const_environment_base_ptr const& f_env,
+                        std::vector<llvm::Value*> const& argument_vars
+                        ) const
+                        -> llvm::Value*
+                    {
+                        assert( argument_vars.size() == 2 );
+
+                        // Signed less than or equal
+                        return context->ir_builder.CreateICmpSLE(
+                            argument_vars[0],
+                            argument_vars[1]
+                            );
+                    }
+                };
+                register_to_holder<action>(
+                    intrinsic_action,
+                    "signed_int_less_than_or_equal"
+                    );
+            }
 
             // ============================================================
             // ============================================================
@@ -459,7 +521,7 @@ namespace rill
             // ============================================================
             {
                 //
-                // def =( ref :mutable(int), :int ): ref(mutable(int))
+                // def =( ref :mutable(T), :int ): ref(mutable(T))
                 //
                 struct action
                     : rill::intrinsic_action_base
@@ -483,7 +545,103 @@ namespace rill
                 };
                 register_to_holder<action>(
                     intrinsic_action,
-                    "int_assign"
+                    "store_value_b_to_a"
+                    );
+            }
+
+
+            // ============================================================
+            // ============================================================
+            //
+            //
+            // ============================================================
+            // ref: http://llvm.org/docs/LangRef.html#fcmp-instruction
+            // Ordered means that neither operand is a QNAN while unordered means that either operand may be a QNAN.
+            {
+                //
+                // def >( val :float, val :float ): float
+                //
+                struct action
+                    : rill::intrinsic_action_base
+                {
+                    auto invoke(
+                        rill::processing_context::llvm_ir_generator_tag,
+                        code_generator::llvm_ir_generator_context_ptr const& context,
+                        const_environment_base_ptr const& f_env,
+                        std::vector<llvm::Value*> const& argument_vars
+                        ) const
+                        -> llvm::Value*
+                    {
+                        assert( argument_vars.size() == 2 );
+
+                        // unordered
+                        return context->ir_builder.CreateFCmpUGT(
+                            argument_vars[0],
+                            argument_vars[1]
+                            );
+                    }
+                };
+                register_to_holder<action>(
+                    intrinsic_action,
+                    "float_unordered_greater_than"
+                    );
+            }
+
+            {
+                //
+                // def op pre -( val :float ): float
+                //
+                struct action
+                    : rill::intrinsic_action_base
+                {
+                    auto invoke(
+                        rill::processing_context::llvm_ir_generator_tag,
+                        code_generator::llvm_ir_generator_context_ptr const& context,
+                        const_environment_base_ptr const& f_env,
+                        std::vector<llvm::Value*> const& argument_vars
+                        ) const
+                        -> llvm::Value*
+                    {
+                        assert( argument_vars.size() == 1 );
+
+                        return context->ir_builder.CreateFNeg(
+                            argument_vars[0]
+                            );
+                    }
+                };
+                register_to_holder<action>(
+                    intrinsic_action,
+                    "float_negate"
+                    );
+            }
+
+            {
+                //
+                // def op <=( val :float, val :float ): float
+                //
+                struct action
+                    : rill::intrinsic_action_base
+                {
+                    auto invoke(
+                        rill::processing_context::llvm_ir_generator_tag,
+                        code_generator::llvm_ir_generator_context_ptr const& context,
+                        const_environment_base_ptr const& f_env,
+                        std::vector<llvm::Value*> const& argument_vars
+                        ) const
+                        -> llvm::Value*
+                    {
+                        assert( argument_vars.size() == 2 );
+
+                        // unordered
+                        return context->ir_builder.CreateFCmpULE(
+                            argument_vars[0],
+                            argument_vars[1]
+                            );
+                    }
+                };
+                register_to_holder<action>(
+                    intrinsic_action,
+                    "float_unordered_less_than_or_equal"
                     );
             }
 
