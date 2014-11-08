@@ -1566,13 +1566,6 @@ namespace rill
             )
             -> void
         {
-            // return type check
-            type_id_t current_ret_type_id
-                = f_env->is_return_type_decided()
-                ? f_env->get_return_type_id()
-                : type_id_undefined;
-
-            // DEBUG
             if ( f_env->is_return_type_decided() ) {
                 if ( !f_env->is_closed() ) {
                     if ( function_returns_value( f_env ) ) {

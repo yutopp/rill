@@ -82,7 +82,8 @@ namespace rill
         RILL_VISITOR_OP( analyzer, ast::block_statement, s, parent_env )
         {
             auto const& scope_env
-                = g_env_->allocate_env<scope_environment>( parent_env ); // MEMO:
+                = g_env_->allocate_env<scope_environment>( parent_env );
+            scope_env->link_with_ast( s->statements_ );
 
             dispatch( s->statements_, scope_env );
 

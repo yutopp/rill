@@ -144,7 +144,10 @@ namespace rill
 
         RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::block_statement, s, parent_env )
         {
-            dispatch( s->statements_, parent_env );
+            auto const& scope_env = g_env_->get_related_env_by_ast_ptr( s->statements_ );
+            assert( scope_env != nullptr );
+
+            dispatch( s->statements_, scope_env );
         }
 
 
@@ -755,18 +758,33 @@ namespace rill
             //
             context_->ir_builder.CreateBr( while_begin_block );
             context_->ir_builder.SetInsertPoint( while_begin_block );
-            auto const& scope_env = g_env_->get_related_env_by_ast_ptr( s ); assert( scope_env != nullptr );
+
+            //
+            auto const& scope_env = g_env_->get_related_env_by_ast_ptr( s );
+            assert( scope_env != nullptr );
+
+            // conditional
             auto const& cond_llvm_value = dispatch( s->conditional_, scope_env );
+            if ( scope_env->is_closed() ) {
+                context_->ir_builder.CreateUnreachable();
+            }
+
             context_->ir_builder.CreateCondBr( cond_llvm_value, body_block, final_block );
 
             //
             context_->ir_builder.SetInsertPoint( body_block );
-//            auto const& body_scope_env = g_env_->get_related_env_by_ast_ptr( s->body_statement_ ); assert( scope_env != nullptr );
-            dispatch( s->body_statement_, scope_env/*body_scope_env*/ );
-            context_->ir_builder.CreateBr( while_begin_block );
+            auto const& body_scope_env = g_env_->get_related_env_by_ast_ptr( s->body_statement_ );
+            assert( scope_env != nullptr );
+            dispatch( s->body_statement_, body_scope_env );
+            if ( !body_scope_env->is_closed() ) {
+                context_->ir_builder.CreateBr( while_begin_block );
+            }
 
             //
             context_->ir_builder.SetInsertPoint( final_block );
+            if ( body_scope_env->is_closed() ) {
+                context_->ir_builder.CreateUnreachable();
+            }
         }
 
 
@@ -794,6 +812,11 @@ namespace rill
 
             // conditional
             auto const& cond_llvm_value = dispatch( s->conditional_, scope_env );
+            assert( scope_env != nullptr );
+            if ( scope_env->is_closed() ) {
+                context_->ir_builder.CreateUnreachable();
+            }
+
             if ( s->else_statement_ ) {
                 // true -> true block, false -> else block
                 context_->ir_builder.CreateCondBr( cond_llvm_value, then_block, else_block );
@@ -802,6 +825,8 @@ namespace rill
                 context_->ir_builder.CreateCondBr( cond_llvm_value, then_block, final_block );
             }
 
+            int unreachable_count = 0;
+
             // then
             context_->ir_builder.SetInsertPoint( then_block );
             auto const& then_scope_env = g_env_->get_related_env_by_ast_ptr( s->then_statement_ );
@@ -809,6 +834,8 @@ namespace rill
             dispatch( s->then_statement_, then_scope_env );
             if ( !then_scope_env->is_closed() ) {
                 context_->ir_builder.CreateBr( final_block );
+            } else {
+                ++unreachable_count;
             }
 
             //
@@ -819,12 +846,14 @@ namespace rill
                 dispatch( s->else_statement_, else_scope_env );
                 if ( !else_scope_env->is_closed() ) {
                     context_->ir_builder.CreateBr( final_block );
+                } else {
+                    ++unreachable_count;
                 }
             }
 
             //
             context_->ir_builder.SetInsertPoint( final_block );
-            if ( scope_env->is_closed() ) {
+            if ( unreachable_count == 2 ) {
                 context_->ir_builder.CreateUnreachable();
             }
         }

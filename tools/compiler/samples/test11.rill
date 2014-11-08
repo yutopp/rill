@@ -1,6 +1,18 @@
 def main(): int
 {
-    p(fib(10));
+    // p(fib(10));
+
+    val m: mutable(int) = 0;
+    {
+        val i: mutable(int) = 0;
+        while( i < 10 ) {
+            p( i );
+            p("aaa");
+            i = i + 1;
+            if ( i == 2 ) return 0;
+        }
+    }
+
     return 0;
 }
 
