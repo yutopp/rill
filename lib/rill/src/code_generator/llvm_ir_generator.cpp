@@ -1256,7 +1256,6 @@ namespace rill
                     : 0;
                 //
                 if ( f_env->is_initializer() ) {
-                    assert( false );
                     assert( returns_heavy_object == false );
 
                     // constructor
