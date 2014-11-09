@@ -47,7 +47,7 @@ namespace rill
 
 
             ir_executor::ir_executor(
-                const_global_environment_ptr const& g_env,
+                global_environment_ptr const& g_env,
                 std::shared_ptr<code_generator::llvm_ir_generator> const& generator,
                 std::shared_ptr<llvm::ExecutionEngine> const& execution_engine,
                 std::shared_ptr<semantic_analysis::type_detail_pool_t> const& type_detail_pool
@@ -323,7 +323,10 @@ namespace rill
                     assert( c_env != nullptr );
 
                     auto const& type_id
-                        = c_env->make_type_id_from();
+                        = g_env_->make_type_id(
+                            c_env->get_id(),
+                            attribute::make_value_default()
+                            );
 
                     RILL_DEBUG_LOG( "in llvm.class_name " << c_env->get_qualified_name() << " (" << type_id << ")" );
 
@@ -387,7 +390,10 @@ namespace rill
                     assert( c_env != nullptr );
 
                     auto const& type_id
-                        = c_env->make_type_id_from();
+                        = g_env_->make_type_id(
+                            c_env->get_id(),
+                            attribute::make_value_default()
+                            );
 
                     RILL_DEBUG_LOG( "in llvm.class_name " << c_env->get_qualified_name() << " (" << type_id << ")" );
 

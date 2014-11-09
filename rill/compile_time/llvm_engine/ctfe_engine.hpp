@@ -29,7 +29,7 @@ namespace rill
 
             public:
                 ctfe_engine(
-                    const_global_environment_ptr const& g_env,
+                    global_environment_ptr const& g_env,
                     std::shared_ptr<code_generator::llvm_ir_generator> const& gen,
                     std::shared_ptr<llvm::ExecutionEngine> const& llvm_engine,
                     std::shared_ptr<semantic_analysis::type_detail_pool_t> const& type_pool,

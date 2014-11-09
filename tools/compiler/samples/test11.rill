@@ -1,13 +1,15 @@
 def main(): int
 {
-    // p(fib(10));
+    p(fib(10));
 
     val m: mutable(int) = 0;
     {
         val i: mutable(int) = 0;
         while( i < 10 ) {
             p( i );
-            p("aaa");
+            val p1: mutable(ptr!(int8)) = "say";
+            p1 = "bun!";
+            p(p1);
             i = i + 1;
             if ( i == 2 ) return 0;
         }
@@ -18,9 +20,8 @@ def main(): int
 
 def fib(val n: int)
 {
-    if ( n <= 1 ) {
+    if ( n <= 1 )
         return 1;
-    } else {
+    else
         return fib(n-1) + fib(n-2);
-    }
 }

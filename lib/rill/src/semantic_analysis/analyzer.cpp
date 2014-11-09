@@ -2004,7 +2004,6 @@ namespace rill
                         }()
                         );
 
-
                 // declare "this" at first
                 auto const& c_env
                     = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>(

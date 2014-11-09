@@ -116,7 +116,7 @@ namespace rill
         {
             return eval_type_expression_as_ctfe(
                 id_expression,
-                attribute::make( holder_kind, attribute::modifiability_kind::k_immutable ),
+                attribute::make( holder_kind, attribute::modifiability_kind::k_const ),
                 parent_env
                 );
         }

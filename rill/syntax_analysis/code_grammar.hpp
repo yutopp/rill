@@ -154,8 +154,9 @@ namespace rill
 
             // ====================================================================================================
             R( parameter_variable_holder_kind_specifier, attribute::holder_kind,
-                ( detail::make_keyword( "val" )[helper::assign(attribute::holder_kind::k_val)]
-                | detail::make_keyword( "ref" )[helper::assign(attribute::holder_kind::k_ref)]
+                ( detail::make_keyword( "val" )[helper::assign( attribute::holder_kind::k_val )]
+                | detail::make_keyword( "ref" )[helper::assign( attribute::holder_kind::k_ref )]
+                | x3::eps[helper::assign( attribute::holder_kind::k_ref )]
                 )
             )
 

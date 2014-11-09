@@ -201,9 +201,10 @@ namespace rill
                         return static_cast<class_symbol_environment_ptr>( nullptr );
 
                     } else {
-                        auto const p = std::static_pointer_cast<class_symbol_environment>(
-                            g_env_->get_env_at_as_strong_ref( ty.class_env_id )
-                            );
+                        auto const p
+                            = g_env_->get_env_at_as_strong_ref<class_symbol_environment>(
+                                ty.class_env_id
+                                );
                         assert( p != nullptr );
                         assert( p->get_symbol_kind() == kind::type_value::e_class );
                         return p;

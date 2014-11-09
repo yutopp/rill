@@ -9,35 +9,37 @@ extern class array intrinsic "type_array";
 template(T: type)
 extern class ptr intrinsic "type_ptr";
 
-extern def mutable( val a :type ) onlymeta: type "rill_core_typesystem_mutable";
-extern def const( val a :type ) onlymeta: type "rill_core_typesystem_const";
-extern def immutable( val a :type ) onlymeta: type "rill_core_typesystem_immutable";
-extern def ref( val a :type ) onlymeta: type "rill_core_typesystem_ref";
-extern def is_mutable( val a :type ) onlymeta: bool "rill_core_typesystem_is_mutable";
-extern def p( val i :int ): void "print_int32";
-extern def p( val i :bool ): void "print_bool";
-extern def p( val i :ptr!(int8) ): void "print_bytes";
-extern def p( val i :float ): void "print_float";
+extern def mutable( a :type ) onlymeta: type "rill_core_typesystem_mutable";
+extern def const( a :type ) onlymeta: type "rill_core_typesystem_const";
+extern def immutable( a :type ) onlymeta: type "rill_core_typesystem_immutable";
+extern def ref( a :type ) onlymeta: type "rill_core_typesystem_ref";
+extern def is_mutable( a :type ) onlymeta: bool "rill_core_typesystem_is_mutable";
+extern def p( i :int ): void "print_int32";
+extern def p( i :bool ): void "print_bool";
+extern def p( i :ptr!(int8) ): void "print_bytes";
+extern def p( i :float ): void "print_float";
 
 //
-extern def op +( val __a: int, val __b: int ) intrinsic: int "int_add";
+extern def op +( __a: int, __b: int ) intrinsic: int "int_add";
 
-// extern def op pre +( val __a: int ) intrinsic: int "int_sign_plus";
-extern def op -( val __a: int, val __b: int ) intrinsic: int "int_sub";
-extern def op *( val __a: int, val __b: int ) intrinsic: int "int_mul";
-extern def op /( val __a: int, val __b: int ) intrinsic: int "signed_int_div";
-extern def op %( val __a: int, val __b: int ) intrinsic: int "signed_int_mod";
-extern def op <( val __a: int, val __b: int ) intrinsic: int "signed_int_less_than";
+// extern def op pre +( ref __a: int ) intrinsic: int "int_sign_plus";
+extern def op -( __a: int, __b: int ) intrinsic: int "int_sub";
+extern def op *( __a: int, __b: int ) intrinsic: int "int_mul";
+extern def op /( __a: int, __b: int ) intrinsic: int "signed_int_div";
+extern def op %( __a: int, __b: int ) intrinsic: int "signed_int_mod";
+extern def op <( __a: int, __b: int ) intrinsic: int "signed_int_less_than";
 // extern def op >( val __a: int, val __b: int ) intrinsic: int "signed_int_greater_than";
 
-extern def op ==( val __a: int, val __b: int ) intrinsic: bool "int_equals";
-extern def op =( ref __a: mutable(int), val __b: int ) intrinsic: ref(mutable(int)) "store_value_b_to_a";
+extern def op ==( __a: int, __b: int ) intrinsic: bool "int_equals";
+extern def op =( __a: mutable(int), __b: int ) intrinsic: ref(mutable(int)) "store_value_b_to_a";
 
-extern def op =( ref __a: mutable(float), val __b: float ) intrinsic: ref(mutable(float)) "store_value_b_to_a";
+extern def op =( __a: mutable(float), __b: float ) intrinsic: ref(mutable(float)) "store_value_b_to_a";
 
-extern def op <=( val __a: int, val __b: int ) intrinsic: int "signed_int_less_than_or_equal";
+extern def op <=( __a: int, __b: int ) intrinsic: int "signed_int_less_than_or_equal";
 
 
-extern def op pre -( val __a: float ) intrinsic: float "float_negate";
-extern def op >( val __a: float, val __b: float ) intrinsic: float "float_unordered_greater_than";
-extern def op <=( val __a: float, val __b: float ) intrinsic: float "float_unordered_less_than_or_equal";
+extern def op pre -( __a: float ) intrinsic: float "float_negate";
+extern def op >( __a: float, __b: float ) intrinsic: float "float_unordered_greater_than";
+extern def op <=( __a: float, __b: float ) intrinsic: float "float_unordered_less_than_or_equal";
+
+extern def op =( __a: mutable(ptr!(int8)), __b: ptr!(int8) ) intrinsic: ref(mutable(ptr!(int8))) "store_value_b_to_a";

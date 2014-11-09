@@ -1377,24 +1377,6 @@ namespace rill
                 }
             }
 
-            case kind::type_value::e_class:
-            {
-                auto const& c_env
-                    = std::static_pointer_cast<class_symbol_environment const>( id_env );
-                assert( c_env != nullptr );
-
-                auto const& type_id_c
-                    = c_env->make_type_id_from();
-
-                std::cout << "in llvm.class_name " << c_env->get_mangled_name() << " (" << type_id_c << ")" << std::endl;
-
-                // return id of type!
-                llvm::Value* type_id_ptr
-                    = llvm::ConstantInt::get( context_->llvm_context, llvm::APInt( sizeof( type_id_c ), type_id_c ) );
-
-                return type_id_ptr;
-            }
-
             default:
                 std::cout << "skipped" << std::endl;
                 return nullptr;
@@ -1463,24 +1445,6 @@ namespace rill
                     assert( false && "[[ice]]" );
                     return nullptr;
                 }
-            }
-
-            case kind::type_value::e_class:
-            {
-                auto const& c_env
-                    = std::static_pointer_cast<class_symbol_environment const>( id_env );
-                assert( c_env != nullptr );
-
-                auto const& type_id_c
-                    = c_env->make_type_id_from();
-
-                std::cout << "in llvm.class_name " << c_env->get_mangled_name() << " (" << type_id_c << ")" << std::endl;
-
-                // return id of type!
-                llvm::Value* type_id_ptr
-                    = llvm::ConstantInt::get( context_->llvm_context, llvm::APInt( sizeof( type_id_c ), type_id_c ) );
-
-                return type_id_ptr;
             }
 
             default:
