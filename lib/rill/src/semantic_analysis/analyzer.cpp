@@ -2053,5 +2053,283 @@ namespace rill
             }
         }
 
+
+        template<typename Deteals>
+        inline auto check_is_args_valid(
+            Deteals const& tyds
+            )
+            -> void
+        {
+            // TODO: check type_id_special
+            assert(
+                std::count_if(
+                    tyds.cbegin(),
+                    tyds.cend(), []( type_detail_ptr const& t ) {
+                        return t->type_id == type_id_undefined
+                            || is_nontype_id( t->type_id );
+                    } ) == 0
+                );
+        }
+
+        auto analyzer::evaluate_invocation_args(
+            std::initializer_list<std::reference_wrapper<ast::expression_ptr>>&& exprs,
+            environment_base_ptr const& parent_env
+            )
+            -> std::vector<type_detail_ptr>
+        {
+            std::vector<type_detail_ptr> argument_type_details;
+
+            // make argument type list
+            for( auto& val_expr : exprs ) {
+                argument_type_details.push_back(
+                    evaluate_invocation_arg( val_expr.get(), parent_env )
+                    );
+            }
+
+            check_is_args_valid( argument_type_details );
+
+            return argument_type_details;
+        }
+
+        auto analyzer::evaluate_invocation_args(
+            type_detail_ptr const& reciever_ty_d,
+            ast::expression_list& exprs,
+            environment_base_ptr const& parent_env
+            )
+            ->std::vector<type_detail_ptr>
+        {
+            std::vector<type_detail_ptr> argument_type_details;
+
+            if ( reciever_ty_d ) {
+                if ( reciever_ty_d->nest ) {
+                    // if lhs was nested && variable, add argument as "this"
+                    //   Ex (1+3).operator+(6) should be callable.
+                    //   In this case,
+                    //       "reciever_ty_d" is "operator+"
+                    //       "reciever_ty_d->nest->back()" is result of (1+3)
+                    auto const& last_elem = reciever_ty_d->nest->back();
+
+                    if ( is_type_id( last_elem->type_id ) ) {
+                        // nested value has valid type! able to be this OR first arg
+                        argument_type_details.push_back( last_elem );
+                    }
+                }
+            }
+
+            // make argument type list
+            for( auto& val_expr : exprs ) {
+                argument_type_details.push_back(
+                    evaluate_invocation_arg( val_expr, parent_env )
+                    );
+            }
+
+            check_is_args_valid( argument_type_details );
+
+            return argument_type_details;
+        }
+
+        auto analyzer::evaluate_invocation_arg(
+            ast::expression_ptr& expr,
+            environment_base_ptr const& parent_env
+            )
+            -> type_detail_ptr
+        {
+            auto val_ty_d = dispatch( expr, parent_env );
+            if ( val_ty_d->eval_mode == type_detail::evaluate_mode::k_only_compiletime ) {
+                // replace expr
+                substitute_by_ctfed_node( expr, val_ty_d, parent_env );
+            }
+
+            return val_ty_d;
+        }
+
+        auto analyzer::find_binary_op_reciever(
+            ast::identifier_value_ptr const& id,
+            environment_base_ptr const& parent_env
+            )
+            -> type_detail_ptr
+        {
+            // make operator id
+            auto const op_name = ast::make_identifier(
+                "%op_" + id->get_inner_symbol()->to_native_string()
+                );
+
+            // solve
+            auto callee_function_type_detail
+                = solve_identifier( op_name, parent_env );
+
+            if ( callee_function_type_detail == nullptr ) {
+                // compilation error...
+                std::cout << "% name : "
+                          << op_name->get_inner_symbol()->to_native_string() << std::endl;
+                assert( false && "[Error] identifier was not found." );
+            }
+
+            return callee_function_type_detail;
+        }
+
+        auto analyzer::find_unary_op_reciever(
+            ast::identifier_value_ptr const& id,
+            bool const is_prefix,
+            environment_base_ptr const& parent_env
+            )
+            -> type_detail_ptr
+        {
+            // make operator id
+            auto const op_name = ast::make_identifier(
+                "%op_" + std::string( is_prefix ? "pre_" : "post_" ) + id->get_inner_symbol()->to_native_string()
+                );
+
+            // solve
+            auto callee_function_type_detail
+                = solve_identifier( op_name, parent_env );
+
+            if ( callee_function_type_detail == nullptr ) {
+                // compilation error...
+                std::cout << "% name : "
+                          << op_name->get_inner_symbol()->to_native_string() << std::endl;
+                assert( false && "[Error] identifier was not found." );
+            }
+
+            return callee_function_type_detail;
+        }
+
+
+        auto analyzer::select_member_element(
+            ast::identifier_value_base_ptr id,
+            type_detail_ptr const& reciever_type_detail,
+            environment_base_ptr const& parent_env,
+            bool const do_universal_search
+            )
+            -> type_detail_ptr
+        {
+            auto const& reciever_type
+                = g_env_->get_type_at( reciever_type_detail->type_id );
+            assert( reciever_type.class_env_id != environment_id_undefined );
+
+            auto const& reciever_class_env
+                = g_env_->get_env_at_as_strong_ref( reciever_type.class_env_id );
+            assert( reciever_class_env != nullptr );
+
+            // 1. resolve identifier in reciever_class_env
+            auto const& selector_id_type_detail
+                = id->is_template()
+                ? solve_identifier(
+                    std::static_pointer_cast<ast::template_instance_value const>( id ),
+                    reciever_class_env,
+                    false
+                    )
+                : solve_identifier(
+                    std::static_pointer_cast<ast::identifier_value const>( id ),
+                    reciever_class_env,
+                    false
+                    )
+                ;
+
+            if ( selector_id_type_detail != nullptr ) {
+                // found!
+                // these elements are nested!
+
+                // nest data
+                auto const& nested
+                    = reciever_type_detail->nest != nullptr
+                    ? reciever_type_detail->nest
+                    : std::make_shared<type_detail::nest_type>()
+                    ;
+                assert( nested != nullptr );
+
+                // chain type_detail data
+                // <- old [first evaled reciever type,
+                //    second evaled...,
+                //    ...,
+                //    last evaled reciever type] -> new
+                nested->push_back( reciever_type_detail );
+
+                //
+                if ( is_type_id( selector_id_type_detail->type_id ) ) {
+                    // has valid type id, so found type is "variable"
+                    if ( selector_id_type_detail->type_id != reciever_type_detail->type_id ) {
+                        // parent's attributes are different from child.
+                        //    so, delegate it from parent
+                        auto const& selector_type
+                            = g_env_->get_type_at( selector_id_type_detail->type_id );
+                        assert( selector_type.class_env_id != environment_id_undefined );
+
+                        auto const new_attr
+                            = delegate_parent_attributes(
+                                reciever_type.attributes,
+                                selector_type.attributes
+                                );
+                        auto const new_type_id
+                            = g_env_->make_type_id(
+                                selector_type.class_env_id,
+                                new_attr
+                                );
+
+                        return type_detail_pool_->construct(
+                            new_type_id,
+                            selector_id_type_detail->target_env,
+                            nested,
+                            selector_id_type_detail->template_args,
+                            false,  // not xvalue, because variable has "name"
+                            reciever_type_detail->eval_mode
+                            );
+                    }
+                }
+
+                // delegate parent attributes as they are
+                return type_detail_pool_->construct(
+                    selector_id_type_detail->type_id,
+                    selector_id_type_detail->target_env,
+                    nested,
+                    selector_id_type_detail->template_args,
+                    reciever_type_detail->is_xvalue,
+                    reciever_type_detail->eval_mode
+                    );
+
+            } else {
+                // NOT FOUND!!
+                // 1. TODO: check existence of the function such as opDispatch
+
+                // 2. Universal search
+                if ( do_universal_search ) {
+                    // search normally
+                    auto const& selector_id_type_detail
+                        = id->is_template()
+                        ? solve_identifier(
+                            std::static_pointer_cast<ast::template_instance_value const>( id ),
+                            parent_env,
+                            true
+                            )
+                        : solve_identifier(
+                            std::static_pointer_cast<ast::identifier_value const>( id ),
+                            parent_env,
+                            true
+                            )
+                        ;
+
+                    if ( selector_id_type_detail != nullptr ) {
+                        // create new nest data
+                        auto const& nested
+                            = std::make_shared<type_detail::nest_type>();
+                        assert( nested != nullptr );
+                        nested->push_back( reciever_type_detail );
+
+                        return type_detail_pool_->construct(
+                            selector_id_type_detail->type_id,
+                            selector_id_type_detail->target_env,
+                            nested,
+                            selector_id_type_detail->template_args,
+                            reciever_type_detail->is_xvalue,
+                            reciever_type_detail->eval_mode
+                            );
+                    }
+                }
+            }
+
+            assert( false && "[error] identifier not found" );
+            return nullptr;
+        }
+
     } // namespace semantic_analysis
 } // namespace rill

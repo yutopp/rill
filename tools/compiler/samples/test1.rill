@@ -1,8 +1,8 @@
 def main(): int
 {
+/*
     val a: mutable(int) = 10;
     a = 21;
-
     val b = 20;
 
 ///    mutable(TestClass)();
@@ -11,27 +11,51 @@ def main(): int
     val klass1 = mutable(TestClass)( 42 );
     val klass2 = TestClass();
 
-    val arr = [1, 2, 3, 4, 5];
-    val ppp = arr[1] * arr[2];
-    p( ppp );
+//    val arr = [1, 2, 3, 4, 5];
+//    val ppp = arr[1] * arr[2];
+//    p( ppp );
 
-    klass1.f();
-    klass2.f();
+//    klass1.f();
+    // klass2.f();
 
-    klass1.a = 1192;
+//    klass1.a = -1192;
     klass1.f();
+    p("expect = 42");
 
     val c = f( a * b );
     p( c );
+    p("expect = 4200");
+
 
     val d = f( ( a * b ) ) + 100000;
     p( d );
+    p("expect = 104200");
 
     f!(int)( 72 );
 
     ret_struct();
-
+*/
+1.f1().p();
+//I(10).f(I(20));
     return 0;
+}
+def f1(a: int): int
+{
+    return a + a;
+}
+/*
+class I {
+    def ctor(i: int) {
+        p("Ctor");
+        p(i);
+    }
+
+    def f(v: I ): void {}
+}
+
+def f1(a: int): int
+{
+    return a + a;
 }
 
 template(T: type)
@@ -42,24 +66,24 @@ def f(val a: T): T
     return a * v;
 }
 
-def ret_struct(): TestClass
-{
+def ret_struct(): TestClass {
     val a = TestClass();
     return a;
 }
+
 
 class TestClass
 {
     def ctor()
     {
         this.a = 10;
-        p( 10 );
+        // p( 10 );
     }
 
     def ctor( val i: int )
     {
-        this.a = 0;
-        p( i );
+        this.a = i;
+        // p( i );
     }
 
     def f(): void
@@ -69,3 +93,4 @@ class TestClass
 
     val a: mutable(int);
 }
+*/

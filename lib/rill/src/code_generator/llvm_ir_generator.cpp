@@ -306,8 +306,13 @@ namespace rill
             dispatch( s->inner_, f_env );
 
             //
-            if ( !f_env->is_closed() )
-                context_->ir_builder.CreateRetVoid();
+            if ( !f_env->is_closed() ) {
+                if ( returns_heavy_object ) {
+                    ;
+                } else {
+                    context_->ir_builder.CreateRetVoid();
+                }
+            }
 
             //
             llvm::verifyFunction( *func );
@@ -1015,10 +1020,16 @@ namespace rill
                     // TODO: see representation kind
 
                     // class function invocation
-                    std::cout << "class functio invocation" << std::endl;
+                    std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
+                    std::cout << "class function invocation" << std::endl;
+
 
                     // eval reciever
                     llvm::Value* const lhs = dispatch( e->reciever_, parent_env );
+                    std::cout << "GEN" << std::endl;
+                    lhs->dump();
+                    lhs->getType()->dump();
+
                     // push temporary value
                     context_->temporary_reciever_stack_.push(
                         std::make_tuple(
@@ -1029,7 +1040,6 @@ namespace rill
 
                     //
                     llvm::Value* const rhs = dispatch( e->selector_id_, parent_env );
-
 
                     // eval reciever
                     return rhs;
@@ -1132,6 +1142,9 @@ namespace rill
                 = cast_to<function_symbol_environment const>( g_env_->get_related_env_by_ast_ptr( e ) );
             assert( f_env != nullptr );
 
+            // evaluate lhs(reciever)
+            // if reciever is exist, valid value and type will be stacked
+            dispatch( e->reciever_, parent_env );
 
             // ========================================
             std::cout << "current : " << f_env->get_mangled_name() << std::endl;
@@ -1144,6 +1157,8 @@ namespace rill
             auto const& ret_type_id = f_env->get_return_type_id();
             auto const& ret_type = g_env_->get_type_at( ret_type_id );
             bool const returns_heavy_object = is_heavy_object( ret_type );
+
+
 
             // arguments
             // TODO: reduce coping
@@ -1160,7 +1175,8 @@ namespace rill
 
                     auto const& parameter_type_ids
                         = f_env->get_parameter_type_ids();
-                    std::vector<llvm::Value*> const args_without_this
+                    // this is not included in e->arguments_
+                    auto const& args_without_this
                         = eval_args(
                             parameter_type_ids
                                 | boost::adaptors::sliced( 1, parameter_type_ids.size() ),
@@ -1176,9 +1192,32 @@ namespace rill
                         );
 
                 } else {
-                    std::vector<llvm::Value*> const args_normal
+                    auto const& parameter_type_ids
+                    = f_env->get_parameter_type_ids();
+                    if( parameter_type_ids.size() != e->arguments_.size() ) {
+                        // maybe UFCS, take space for 1st arg
+                        args.push_back( nullptr );
+
+                    // this is not included in e->arguments_
+                    auto const& args_without_this
                         = eval_args(
-                            f_env->get_parameter_type_ids(),
+                            parameter_type_ids
+                                | boost::adaptors::sliced( 1, parameter_type_ids.size() ),
+                            e->arguments_,
+                            parent_env
+                            );
+
+                    // copy to total_args
+                    std::copy(
+                        args_without_this.cbegin(),
+                        args_without_this.cend(),
+                        std::back_inserter( args )
+                        );
+
+                    } else {
+                        auto const& args_normal
+                        = eval_args(
+                            parameter_type_ids,
                             e->arguments_,
                             parent_env
                             );
@@ -1188,14 +1227,15 @@ namespace rill
                         args_normal.cend(),
                         std::back_inserter( args )
                         );
+                    }
+
+
                 }
 
                 return args;
             }();
 
-            // evaluate lhs(reciever)
-            // if reciever is exist, valid value and type will be stacked
-            dispatch( e->reciever_, parent_env );
+
 
             if ( returns_heavy_object ) {
                 // create storage
@@ -1209,13 +1249,14 @@ namespace rill
             }
 
             // save the reciever object to the temprary space
-            if ( f_env->is_in_class() ) {
+            if ( f_env->is_in_class() || context_->temporary_reciever_stack_.size() > 0 ) {
                 auto const this_index
                     = returns_heavy_object
                     ? 1
                     : 0;
                 //
                 if ( f_env->is_initializer() ) {
+                    assert( false );
                     assert( returns_heavy_object == false );
 
                     // constructor
@@ -1246,7 +1287,7 @@ namespace rill
                     = context_->temporary_reciever_stack_.top();
 
                 auto const& parameter_type
-                    = g_env_->get_type_at( f_env->get_parameter_type_ids()[0] );
+                    = g_env_->get_type_at( f_env->get_parameter_type_ids().at( 0 ) );
 
                 auto const& ty
                     = g_env_->get_type_at(
@@ -1256,17 +1297,21 @@ namespace rill
                     = std::get<1>( reciever_obj_value );
                 assert( val != nullptr );
 
+                std::cout << "SIZE: " << total_args.size() << " // " << this_index << std::endl;
                 // set "this"
                 total_args[this_index] = convert_value_by_attr(
                     parameter_type,
                     ty,
                     val
                     );
-                assert( total_args[this_index] != nullptr );
+                //assert( total_args[this_index] != nullptr );
                 context_->temporary_reciever_stack_.pop();
 
                 auto const ret
                     = context_->ir_builder.CreateCall( callee_function, total_args );
+
+                std::cout << "RERERERERERE" << std::endl;
+                ret->dump();
 
                 if ( f_env->is_initializer() ) {
                     // ret call will be ctor call, so return a reciever value
@@ -1449,7 +1494,6 @@ namespace rill
 
             default:
                 std::cout << "skipped " << debug_string( id_env->get_symbol_kind() ) << std::endl;
-                assert( false && "" );
                 return nullptr;
             }
         }

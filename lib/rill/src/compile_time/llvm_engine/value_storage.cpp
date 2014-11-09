@@ -10,6 +10,7 @@
 
 #include <memory>
 #include <utility>
+#include <cstdint>
 
 
 namespace rill
@@ -29,7 +30,7 @@ namespace rill
 
                 //
                 auto const offset = ( ( raw_buffer_address % align ) == 0 ) ? 0 : ( align - ( raw_buffer_address % align ) );
-                auto const buffer_size = raw_buffer_size - offset;
+                // auto const buffer_size = raw_buffer_size - offset;
                 auto const buffer_address = raw_buffer_address + offset;
 
                 // buffer that pointing to aligned address

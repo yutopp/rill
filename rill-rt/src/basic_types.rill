@@ -21,7 +21,7 @@ extern def p( i :float ): void "print_float";
 
 //
 extern def op +( __a: int, __b: int ) intrinsic: int "int_add";
-
+extern def op pre -( __a: int ) intrinsic: int "signed_int_negate";
 // extern def op pre +( ref __a: int ) intrinsic: int "int_sign_plus";
 extern def op -( __a: int, __b: int ) intrinsic: int "int_sub";
 extern def op *( __a: int, __b: int ) intrinsic: int "int_mul";

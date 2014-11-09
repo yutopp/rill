@@ -123,11 +123,6 @@ namespace rill
         }
 
     public:
-        auto make_type_id_from(
-            attribute::type_attributes const& type_attr = attribute::make_value_default()
-            ) const
-            -> type_id_t;
-
         auto make_as_array(
             type_id_t const& inner_type_id,
             std::size_t const& elements_num

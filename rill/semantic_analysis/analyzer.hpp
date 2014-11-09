@@ -336,6 +336,66 @@ namespace rill
                 function_symbol_environment_ptr const& f_env
                 )
                 -> bool;
+
+
+            //
+            //
+            //
+            auto evaluate_invocation_args(
+                std::initializer_list<std::reference_wrapper<ast::expression_ptr>>&& exprs,
+                environment_base_ptr const& parent_env
+                )
+                -> std::vector<type_detail_ptr>;
+
+            auto evaluate_invocation_args(
+                type_detail_ptr const& reciever_ty_d,
+                ast::expression_list& exprs,
+                environment_base_ptr const& parent_env
+                )
+                -> std::vector<type_detail_ptr>;
+
+            auto evaluate_invocation_arg(
+                ast::expression_ptr& expr,
+                environment_base_ptr const& parent_env
+                )
+                -> type_detail_ptr;
+
+            auto find_binary_op_reciever(
+                ast::identifier_value_ptr const& id,
+                environment_base_ptr const& parent_env
+                )
+                -> type_detail_ptr;
+
+            auto find_unary_op_reciever(
+                ast::identifier_value_ptr const& id,
+                bool const is_prefix,
+                environment_base_ptr const& parent_env
+                )
+                -> type_detail_ptr;
+
+            auto inline select_member_element_universal(
+                ast::identifier_value_base_ptr id,
+                type_detail_ptr const& reciever_type_detail,
+                environment_base_ptr const& parent_env
+                )
+                -> type_detail_ptr
+            {
+                return select_member_element(
+                    id,
+                    reciever_type_detail,
+                    parent_env,
+                    true
+                    );
+            }
+
+            auto select_member_element(
+                ast::identifier_value_base_ptr id,
+                type_detail_ptr const& reciever_type_detail,
+                environment_base_ptr const& parent_env,
+                bool const do_universal_search = false
+                )
+                -> type_detail_ptr;
+
             //
             auto import_module(
                 ast::import_decl_unit const& decl,
@@ -418,7 +478,6 @@ namespace rill
             attribute::type_attributes const& child_attributes
             )
             -> attribute::type_attributes;
-
 
         //
         template<typename EnvPtr>

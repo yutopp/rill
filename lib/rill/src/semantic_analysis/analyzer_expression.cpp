@@ -38,54 +38,24 @@ namespace rill
         {
             std::cout << "op_call_expr" << std::endl;
 
-            // check lhs(reciever)
-            auto const& lhs_t_detail
-                = dispatch( e->lhs_, parent_env );
-            // check rhs
-            auto const& rhs_t_detail
-                = dispatch( e->rhs_, parent_env );
+            auto const& reciever_type_detail
+                = find_binary_op_reciever( e->op_, parent_env );
 
             // make argument types id list
             std::vector<type_detail_ptr> const& argument_type_details
-                = { lhs_t_detail, rhs_t_detail };
+                = evaluate_invocation_args(
+                    { std::ref( e->lhs_ ), std::ref( e->rhs_ ) },
+                    parent_env
+                    );
 
-
-            // TODO: check type_id_special
-            assert(
-                std::count_if(
-                    argument_type_details.cbegin(),
-                    argument_type_details.cend(), []( type_detail_ptr const& t ) {
-                        return t == nullptr || t->type_id == type_id_undefined || is_nontype_id( t->type_id );
-                    } ) == 0
-                );
-
-
-            auto const op_name = ast::make_identifier(
-                "%op_" + e->op_->get_inner_symbol()->to_native_string()
-                );
-
-            // 1. call lhs.operator( rhs );
-            // 2. call operator( lhs, rhs );
-
-            // 1
-            // solve_identifier( e->op_, lhs_t_detail->target_env )
-
-            // 2
-            auto const& callee_function_type_detail
-                = solve_identifier( op_name, parent_env );
-            if ( callee_function_type_detail == nullptr ) {
-                // compilation error...
-                std::cout << "% name : " << op_name->get_inner_symbol()->to_native_string() << std::endl;
-                assert( false && "[Error] identifier was not found." );
-            }
 
             //
-            if ( is_nontype_id( callee_function_type_detail->type_id ) ) {
+            if ( is_nontype_id( reciever_type_detail->type_id ) ) {
                 // reciever must be function
-                if ( callee_function_type_detail->type_id == (type_id_t)type_id_nontype::e_function ) {
-                    std::cout << "-> " << debug_string( callee_function_type_detail->target_env->get_symbol_kind() ) << std::endl;
+                if ( reciever_type_detail->type_id == (type_id_t)type_id_nontype::e_function ) {
+                    std::cout << "-> " << debug_string( reciever_type_detail->target_env->get_symbol_kind() ) << std::endl;
 
-                    auto const& set_env = cast_to<multiple_set_environment>( callee_function_type_detail->target_env );
+                    auto const& set_env = cast_to<multiple_set_environment>( reciever_type_detail->target_env );
                     assert( set_env != nullptr );
 
                     if ( set_env->get_representation_kind() != kind::type_value::e_function ) {
@@ -97,7 +67,7 @@ namespace rill
                         = solve_function_overload(
                             set_env,
                             argument_type_details,                      // type detailes of arguments
-                            callee_function_type_detail->template_args, // template arguments
+                            reciever_type_detail->template_args, // template arguments
                             parent_env
                             );
                     assert( function_env != nullptr );
@@ -166,11 +136,6 @@ namespace rill
                 );
 
 
-            auto const op_name = ast::make_identifier(
-                "%op_" + std::string( e->is_prefix ? "pre_" : "post_" ) + e->op->get_inner_symbol()->to_native_string()
-                );
-
-            std::cout << "op_call_unary_expr 3" << std::endl;
 
             // 1. call lhs.operator( rhs );
             // 2. call operator( lhs, rhs );
@@ -180,12 +145,7 @@ namespace rill
 
             // 2
             auto const& callee_function_type_detail
-                = solve_identifier( op_name, parent_env );
-            if ( callee_function_type_detail == nullptr ) {
-                // compilation error...
-                std::cout << "% name : " << op_name->get_inner_symbol()->to_native_string() << std::endl;
-                assert( false && "[Error] identifier was not found." );
-            }
+                = find_unary_op_reciever( e->op, e->is_prefix, parent_env );
 
             //
             if ( is_nontype_id( callee_function_type_detail->type_id ) ) {
@@ -348,94 +308,16 @@ namespace rill
             // TODO: support function, class, namespace...
             // "Expr.B" will be passed when the value "Expr" is type_id symbol(currently, only variable type has type_id)
             if ( is_type_id( reciever_type_detail->type_id ) ) {
-                // reciever has type, so this is member access flow
-                auto const& reciever_type
-                    = g_env_->get_type_at( reciever_type_detail->type_id );
-                assert( reciever_type.class_env_id != environment_id_undefined );
-
-                auto const& reciever_class_env
-                    = g_env_->get_env_at_as_strong_ref( reciever_type.class_env_id );
-                assert( reciever_class_env != nullptr );
-
-                // ========================================
-                // nest data
-                auto const& nested
-                    = reciever_type_detail->nest != nullptr
-                    ? reciever_type_detail->nest
-                    : std::make_shared<type_detail::nest_type>()
-                    ;
-                assert( nested != nullptr );
-
-                // chain type_detail data
-                // <- old [first evaled reciever type, second evaled..., ..., last evaled reciever type] -> new
-                nested->push_back( reciever_type_detail );
-
                 //
-                auto const& new_selector_id_type_detail = [&]() {
-                    auto const& selector_id_type_detail
-                        = e->selector_id_->is_template()
-                            ? solve_identifier(
-                                std::static_pointer_cast<ast::template_instance_value const>( e->selector_id_ ),
-                                reciever_class_env,
-                                false
-                                )
-                            : solve_identifier(
-                                std::static_pointer_cast<ast::identifier_value const>( e->selector_id_ ),
-                                reciever_class_env,
-                                false
-                                )
-                        ;
-
-                    if ( selector_id_type_detail != nullptr ) {
-                        if ( is_type_id( selector_id_type_detail->type_id )
-                             && selector_id_type_detail->type_id != reciever_type_detail->type_id )
-                        {
-                            // a selected item has type too, so this is variable flow
-                            // at least, parent's attributes are different from child. delegate it from parent
-                            auto const& selector_type
-                                = g_env_->get_type_at( selector_id_type_detail->type_id );
-                            assert( selector_type.class_env_id != environment_id_undefined );
-
-                            auto const new_attr
-                                = delegate_parent_attributes(
-                                    reciever_type.attributes,
-                                    selector_type.attributes
-                                    );
-                            auto const new_type_id
-                                = g_env_->make_type_id(
-                                    selector_type.class_env_id,
-                                    new_attr
-                                    );
-
-                            return type_detail_pool_->construct(
-                                new_type_id,
-                                selector_id_type_detail->target_env,
-                                nested,
-                                selector_id_type_detail->template_args,
-                                false,  // not xvalue
-                                reciever_type_detail->eval_mode
-                                );
-
-                        } else {
-                            // delegate as it is
-                            return type_detail_pool_->construct(
-                                selector_id_type_detail->type_id,
-                                selector_id_type_detail->target_env,
-                                nested,
-                                selector_id_type_detail->template_args,
-                                false,  // not xvalue
-                                reciever_type_detail->eval_mode
-                                );
-                        }
-
-                    } else {
-                        // identifier was not found, but it will be reused by UFCS, so make temporary type data
-
-                        assert( false && "[] not supported" );
-                        return static_cast<type_detail*>( nullptr );
-                    }
-                } ();
-
+                auto const& new_selector_id_type_detail
+                    = select_member_element_universal(
+                        e->selector_id_,
+                        reciever_type_detail,
+                        parent_env
+                        );
+                if ( new_selector_id_type_detail == nullptr ) {
+                    assert( false && "[error] id not found" );
+                }
 
                 // memoize
                 new_selector_id_type_detail->target_env->connect_from_ast( e );
@@ -474,39 +356,10 @@ namespace rill
             // ========================================
             // TODO: add comma operator
             // push values to context stack and evaluate type environment
-            std::vector<type_detail_ptr> argument_type_details;
-
-            if ( reciever_type_detail->nest ) {
-                // 2014/5/14, selected call has no specification...
-//                assert( false && "..." );
-
-                // if lhs was nested && variable, add argument as "this"
-                // TODO: change kind check to Callable check. Ex (1+3).operator+(6) should be callable, but can not call it now.
-                if ( reciever_type_detail->nest->back()->target_env->get_symbol_kind() == kind::type_value::e_variable ) {
-                    argument_type_details.push_back( reciever_type_detail->nest->back() );
-                }
-            }
+            std::vector<type_detail_ptr> argument_type_details
+                = evaluate_invocation_args( reciever_type_detail, e->arguments_, env );
 
 
-
-            // make argument type list
-            for( auto& val_expr : e->arguments_ ) {
-                auto const& val_ty_d = dispatch( val_expr, env );
-
-                argument_type_details.push_back( val_ty_d );
-                if ( val_ty_d->eval_mode == type_detail::evaluate_mode::k_only_compiletime ) {
-                    substitute_by_ctfed_node( val_expr, val_ty_d, env );
-                }
-            }
-
-            // TODO: check type_id_special
-            assert(
-                std::count_if(
-                    argument_type_details.cbegin(),
-                    argument_type_details.cend(), []( type_detail_ptr const& t ) {
-                        return t->type_id == type_id_undefined || is_nontype_id( t->type_id );
-                    } ) == 0
-                );
 
             /// *************
             // TODO:

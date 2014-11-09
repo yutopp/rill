@@ -709,8 +709,13 @@ namespace rill
 
             // 1.0
             // 1.e0
-            // .10
-            x3::real_parser<long double, x3::strict_ureal_policies<long double>> const fp_;
+            struct very_strict_fp_policies
+                : public x3::strict_ureal_policies<long double>
+            {
+                static bool const allow_leading_dot = false;
+                static bool const allow_trailing_dot = false;
+            };
+            x3::real_parser<long double, very_strict_fp_policies> const fp_;
 
 #if 0
             // TODO:

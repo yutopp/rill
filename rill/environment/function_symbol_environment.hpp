@@ -54,6 +54,7 @@ namespace rill
             , return_type_id_( type_id_undefined )
             , base_name_( base_name )
             , decl_attr_( attribute::decl::k_default )
+            , is_initializer_function_( false )
         {}
 
     public:
@@ -211,12 +212,12 @@ namespace rill
 
         void mark_as_initialize_function()
         {
-            is_initializer_function = true;
+            is_initializer_function_ = true;
         }
 
         bool is_initializer() const
         {
-            return is_initializer_function;
+            return is_initializer_function_;
         }
 
         void mark_as_intrinsic_function( intrinsic_action_id_t const& id )
@@ -247,7 +248,7 @@ namespace rill
         native_string_type base_name_, mangled_name_;
         attribute::decl::type decl_attr_;
 
-        bool is_initializer_function;
+        bool is_initializer_function_;
 
         boost::optional<intrinsic_action_id_t> intrinsic_action_id_;
     };

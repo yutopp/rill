@@ -589,6 +589,35 @@ namespace rill
 
             {
                 //
+                // def op pre -( val :int ): int
+                //
+                struct action
+                    : rill::intrinsic_action_base
+                {
+                    auto invoke(
+                        rill::processing_context::llvm_ir_generator_tag,
+                        code_generator::llvm_ir_generator_context_ptr const& context,
+                        const_environment_base_ptr const& f_env,
+                        std::vector<llvm::Value*> const& argument_vars
+                        ) const
+                        -> llvm::Value*
+                    {
+                        assert( argument_vars.size() == 1 );
+
+                        return context->ir_builder.CreateNeg(
+                            argument_vars[0]
+                            );
+                    }
+                };
+                register_to_holder<action>(
+                    intrinsic_action,
+                    "signed_int_negate"
+                    );
+            }
+
+
+            {
+                //
                 // def op pre -( val :float ): float
                 //
                 struct action
