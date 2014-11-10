@@ -35,41 +35,7 @@ namespace rill
 {
     namespace code_generator
     {
-        template<typename Px, typename EnvPtr>
-        auto llvm_ir_generator::eval_args(
-            Px const& parameter_type_ids,
-            ast::expression_list const& arguments,
-            EnvPtr const& parent_env
-            )
-            -> std::vector<llvm::Value*>
-        {
-            std::vector<llvm::Value*> args( arguments.size() );
 
-            // evaluate argument front to last
-            for( std::size_t i=0; i<arguments.size(); ++i ) {
-                auto const& parameter_type
-                    = g_env_->get_type_at( parameter_type_ids[i] );
-                auto const arg_type
-                    = g_env_->get_type_at(
-                        g_env_->get_related_type_id_by_ast_ptr(
-                            arguments[i]
-                            )
-                        );
-                auto const& arg_value
-                    = dispatch( arguments[i], parent_env );
-                assert( arg_value != nullptr );
-
-                auto result_value = convert_value_by_attr(
-                    parameter_type,
-                    arg_type,
-                    arg_value
-                    );
-
-                args[i] = std::move( result_value );
-            }
-
-            return args;
-        }
 
     } // namespace code_generator
 } // namespace rill

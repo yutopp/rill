@@ -74,17 +74,7 @@ namespace rill
             -> llvm::Constant*
         {
             // if function was not generated, generate function IR
-            if ( !context_->env_conversion_table.is_defined( f_env->get_id() ) ) {
-                //
-                std::cout
-                    << "LLVM ir gen / function_env_to_llvm_constatnt_ptr(not defined): " << f_env->get_mangled_name()
-                    << std::endl;
-
-                assert( f_env->get_related_ast() != nullptr );
-                dispatch( f_env->get_related_ast(), f_env );
-
-                std::cout << "LLVM ir gen / dispatched function_env_to_llvm_constatnt_ptr" << std::endl;
-            }
+            regard_env_is_defined( f_env->get_id() );
 
             return [&]() -> llvm::Constant*
             {
@@ -562,10 +552,7 @@ namespace rill
 
 
             auto const& variable_type = g_env_->get_type_at( v_env->get_type_id() );
-            if ( !context_->env_conversion_table.is_defined( variable_type.class_env_id ) ) {
-                auto const& c_env = g_env_->get_env_at_as_strong_ref( variable_type.class_env_id );
-                dispatch( c_env->get_related_ast(), c_env );
-            }
+            regard_env_is_defined( variable_type.class_env_id );
 
 
             auto const& variable_llvm_type = context_->env_conversion_table.ref_type( variable_type.class_env_id );
@@ -646,17 +633,13 @@ namespace rill
             std::vector<llvm::Type*> parmeter_types;
             for( auto const& var_type_id : parameter_variable_type_ids ) {
                 auto const& v = g_env_->get_type_at( var_type_id );
-                if ( !context_->env_conversion_table.is_defined( v.class_env_id ) ) {
-                    auto const& c_env = g_env_->get_env_at_as_strong_ref( v.class_env_id );
-                    dispatch( c_env->get_related_ast(), c_env );
-                }
+                regard_env_is_defined( v.class_env_id );
+
                 parmeter_types.push_back( context_->env_conversion_table.ref_type( v.class_env_id ) );
             }
             auto const& v = g_env_->get_type_at( f_env->get_return_type_id() );
-            if ( !context_->env_conversion_table.is_defined( v.class_env_id ) ) {
-                auto const& c_env = g_env_->get_env_at_as_strong_ref( v.class_env_id );
-                dispatch( c_env->get_related_ast(), c_env );
-            }
+            regard_env_is_defined( v.class_env_id );
+
             auto const& return_type = context_->env_conversion_table.ref_type( v.class_env_id );
 
             // get function type
@@ -874,49 +857,12 @@ namespace rill
 
             std::cout << "current : " << f_env->get_mangled_name() << std::endl;
 
-            // call function that defined in rill modules
-            // evaluate argument from last to front(but ordering of vector is from front to last)
-            ast::expression_list const& e_arguments = { e->lhs_, e->rhs_ };
-            std::vector<llvm::Value*> args = eval_args(
-                f_env->get_parameter_type_ids(),
-                e_arguments,
-                parent_env
+            return generate_function_call(
+                f_env,
+                { e->lhs_, e->rhs_ },
+                parent_env,
+                true
                 );
-
-            std::cout << "CALL!!!!!" << std::endl;
-
-            // if intrinsic function
-            if ( f_env->has_attribute( attribute::decl::k_intrinsic ) ) {
-                // look up the action
-                auto const& action = action_holder_->at( f_env->get_action_id() );
-                assert( action != nullptr );
-
-                // generate codes into this context
-                auto const value = action->invoke(
-                    processing_context::k_llvm_ir_generator,
-                    context_,
-                    f_env,
-                    args
-                    );
-                assert( value != nullptr );
-                return value;
-
-            } else {
-                auto const& callee_function = function_env_to_llvm_constatnt_ptr( f_env );
-                if ( !callee_function ) {
-                    // unexpected error...
-                    assert( false && "unexpected... callee_function was not found" );
-                }
-
-                if ( is_jit() ) {
-                    assert( false && "pyaaaaaaaaa" );
-//                analyzer_->ctfe_engine_->execution_engine_;//();
-                    return nullptr;
-                } else {
-                    // invocation
-                    return context_->ir_builder.CreateCall( callee_function, args, "calltmp" );
-                }
-            }
         }
 
 
@@ -928,49 +874,12 @@ namespace rill
 
             std::cout << "current : " << f_env->get_mangled_name() << std::endl;
 
-            // call function that defined in rill modules
-            // evaluate argument from last to front(but ordering of vector is from front to last)
-            ast::expression_list const& e_arguments = { e->src };
-            std::vector<llvm::Value*> args = eval_args(
-                f_env->get_parameter_type_ids(),
-                e_arguments,
-                parent_env
+            return generate_function_call(
+                f_env,
+                { e->src },
+                parent_env,
+                true
                 );
-
-            std::cout << "CALL!!!!!" << std::endl;
-
-            // if intrinsic function
-            if ( f_env->has_attribute( attribute::decl::k_intrinsic ) ) {
-                // look up the action
-                auto const& action = action_holder_->at( f_env->get_action_id() );
-                assert( action != nullptr );
-
-                // generate codes into this context
-                auto const value = action->invoke(
-                    processing_context::k_llvm_ir_generator,
-                    context_,
-                    f_env,
-                    args
-                    );
-                assert( value != nullptr );
-                return value;
-
-            } else {
-                auto const& callee_function = function_env_to_llvm_constatnt_ptr( f_env );
-                if ( !callee_function ) {
-                    // unexpected error...
-                    assert( false && "unexpected... callee_function was not found" );
-                }
-
-                if ( is_jit() ) {
-                    assert( false && "pyaaaaaaaaa" );
-//                analyzer_->ctfe_engine_->execution_engine_;//();
-                    return nullptr;
-                } else {
-                    // invocation
-                    return context_->ir_builder.CreateCall( callee_function, args, "calltmp" );
-                }
-            }
         }
 
 
@@ -1151,160 +1060,11 @@ namespace rill
             // ========================================
             std::cout << "current : " << f_env->get_mangled_name() << std::endl;
 
-            auto const& ret_type_id = f_env->get_return_type_id();
-            auto const& ret_type = g_env_->get_type_at( ret_type_id );
-            bool const returns_heavy_object = is_heavy_object( ret_type );
-
-            // arguments
-            std::vector<llvm::Value*> total_args;
-
-            //
-            if ( returns_heavy_object ) {
-                // create storage
-                llvm::Type* llvm_ty
-                    = context_->env_conversion_table.ref_type( ret_type.class_env_id );
-                llvm::AllocaInst* const allca_inst
-                    = context_->ir_builder.CreateAlloca( llvm_ty );
-
-                //
-                total_args.push_back( allca_inst );
-            }
-
-            auto const& parameter_type_ids
-                = f_env->get_parameter_type_ids();
-
-            if ( f_env->is_in_class() || context_->temporary_reciever_stack_.size() > 0 ) {
-                // if member function, take temporary space for "this" pointer
-                total_args.push_back( nullptr );
-
-                // "this" or "1st arg" is not included in e->arguments_
-                auto const& args_without_head
-                    = eval_args(
-                        parameter_type_ids
-                        | boost::adaptors::sliced( 1, parameter_type_ids.size() ),
-                        e->arguments_,
-                        parent_env
-                        );
-
-                // copy to total_args
-                std::copy(
-                    args_without_head.cbegin(),
-                    args_without_head.cend(),
-                    std::back_inserter( total_args )
-                    );
-
-            } else {
-                auto const& args_normal
-                    = eval_args(
-                        parameter_type_ids,
-                        e->arguments_,
-                        parent_env
-                        );
-
-                std::copy(
-                    args_normal.cbegin(),
-                    args_normal.cend(),
-                    std::back_inserter( total_args )
-                    );
-            }
-
-            llvm::Value* val = nullptr;
-
-            // save the reciever object to the temprary space
-            if ( f_env->is_in_class() || context_->temporary_reciever_stack_.size() > 0 ) {
-                auto const this_index
-                    = returns_heavy_object
-                    ? 1
-                    : 0;
-                //
-                if ( f_env->is_initializer() ) {
-                    assert( returns_heavy_object == false );
-
-                    // constructor
-                    // the first argument will be this
-                    auto const this_var_type_id = f_env->get_parameter_type_ids()[0];
-                    auto const& this_var_type = g_env_->get_type_at( this_var_type_id );
-                    if ( !context_->env_conversion_table.is_defined( this_var_type.class_env_id ) ) {
-                        auto const& c_env = g_env_->get_env_at_as_strong_ref( this_var_type.class_env_id );
-                        dispatch( c_env->get_related_ast(), c_env );
-                    }
-
-                    auto const& variable_llvm_type
-                        = context_->env_conversion_table.ref_type( this_var_type.class_env_id );
-                    assert( variable_llvm_type != nullptr );
-
-                    llvm::AllocaInst* const allca_inst
-                        = context_->ir_builder.CreateAlloca(
-                            variable_llvm_type
-                            );
-
-                    context_->temporary_reciever_stack_.push(
-                        std::make_tuple( this_var_type_id, allca_inst )
-                        );
-                }
-                assert( context_->temporary_reciever_stack_.size() > 0 );
-
-                auto const& reciever_obj_value
-                    = context_->temporary_reciever_stack_.top();
-
-                auto const& parameter_type
-                    = g_env_->get_type_at( f_env->get_parameter_type_ids().at( 0 ) );
-
-                auto const& ty
-                    = g_env_->get_type_at(
-                        std::get<0>( reciever_obj_value )
-                        );
-                val = std::get<1>( reciever_obj_value );
-                assert( val != nullptr );
-
-                // set "this" or "1st arg"
-                total_args[this_index] = convert_value_by_attr(
-                    parameter_type,
-                    ty,
-                    val
-                    );
-                //assert( total_args[this_index] != nullptr );
-                context_->temporary_reciever_stack_.pop();
-            }
-
-            llvm::Value* ret = nullptr;
-
-            if ( f_env->has_attribute( attribute::decl::k_intrinsic ) ) {
-                // look up the action
-                auto const& action = action_holder_->at( f_env->get_action_id() );
-                assert( action != nullptr );
-
-                // generate codes into this context
-                ret = action->invoke(
-                    processing_context::k_llvm_ir_generator,
-                    context_,
-                    f_env,
-                    total_args
-                    );
-
-            } else {
-                auto const& callee_function = function_env_to_llvm_constatnt_ptr( f_env );
-                if ( !callee_function ) {
-                    // unexpected error...
-                    assert( false && "unexpected... callee_function was not found" );
-                }
-
-                ret
-                    = context_->ir_builder.CreateCall( callee_function, total_args );
-            }
-
-            assert( ret != nullptr );
-
-            if ( f_env->is_initializer() ) {
-                // ret call will be ctor call, so return a reciever value
-                return val;
-
-            } else if ( returns_heavy_object ) {
-                return total_args[0];
-
-            } else {
-                return ret;
-            }
+            return generate_function_call(
+                f_env,
+                e->arguments_,
+                parent_env
+                );
         }
 
 
@@ -1544,10 +1304,8 @@ namespace rill
             -> void
         {
             auto const& v_type = g_env_->get_type_at( v_env->get_type_id() );
-            if ( !context_->env_conversion_table.is_defined( v_type.class_env_id ) ) {
-                auto const& c_env = g_env_->get_env_at_as_strong_ref( v_type.class_env_id );
-                dispatch( c_env->get_related_ast(), c_env );
-            }
+            regard_env_is_defined( v_type.class_env_id );
+
             auto const& variable_attr = v_type.attributes;
 
             auto const& variable_llvm_type
@@ -1758,9 +1516,174 @@ namespace rill
         {
             if ( !context_->env_conversion_table.is_defined( env_id ) ) {
                 auto const& env = g_env_->get_env_at_as_strong_ref( env_id );
-                dispatch( env->get_related_ast(), env );
+
+                switch( env->get_symbol_kind() ) {
+                case kind::type_value::e_class:
+                case kind::type_value::e_function:
+                    dispatch( env->get_related_ast(), env );
+                    break;
+
+                default:
+                    std::cout << debug_string( env->get_symbol_kind() ) << std::endl;
+                    assert( false );
+                }
             }
         }
+
+        auto llvm_ir_generator::generate_function_call(
+            const_function_symbol_environment_ptr const& f_env,
+            ast::expression_list const& e_arguments,
+            const_environment_base_ptr const& parent_env,
+            bool const is_operator
+            )
+            -> llvm::Value*
+        {
+            auto const& ret_type_id = f_env->get_return_type_id();
+            auto const& ret_type = g_env_->get_type_at( ret_type_id );
+            bool const returns_heavy_object = is_heavy_object( ret_type );
+
+            // arguments
+            std::vector<llvm::Value*> total_args;
+
+            //
+            if ( returns_heavy_object ) {
+                // create storage
+                llvm::Type* llvm_ty
+                    = context_->env_conversion_table.ref_type( ret_type.class_env_id );
+                llvm::AllocaInst* const allca_inst
+                    = context_->ir_builder.CreateAlloca( llvm_ty );
+
+                //
+                total_args.push_back( allca_inst );
+            }
+
+            //
+            bool const is_special_form
+                = ( f_env->is_in_class()
+                 || context_->temporary_reciever_stack_.size() > 0 )
+                && !is_operator;
+
+            //
+            auto const& parameter_type_ids
+                = f_env->get_parameter_type_ids();
+
+            if ( is_special_form ) {
+                // if member function call, take temporary space for "this" pointer
+                // if UFCS, take temporary space for "1st arg" pointer
+                total_args.push_back( nullptr );
+
+                // "this" or "1st arg" is not included in e_arguments
+                eval_args(
+                    parameter_type_ids
+                        | boost::adaptors::sliced( 1, parameter_type_ids.size() ),
+                    std::back_inserter( total_args ),
+                    e_arguments,
+                    parent_env
+                    );
+
+            } else {
+                // normal function call
+                eval_args(
+                    parameter_type_ids,
+                    std::back_inserter( total_args ),
+                    e_arguments,
+                    parent_env
+                    );
+            }
+
+            llvm::Value* val = nullptr;
+            llvm::Value* ret = nullptr;
+
+            // save the reciever object to the temprary space
+            if ( is_special_form ) {
+                auto const target_arg_index
+                    = returns_heavy_object ? 1 : 0;
+
+                // call constructor
+                if ( f_env->is_initializer() ) {
+                    assert( returns_heavy_object == false );
+
+                    // constructor
+                    // the first argument will be "this"
+                    auto const this_var_type_id = f_env->get_parameter_type_ids()[0];
+                    auto const& this_var_type = g_env_->get_type_at( this_var_type_id );
+                    regard_env_is_defined( this_var_type.class_env_id );
+
+                    auto const& variable_llvm_type
+                        = context_->env_conversion_table.ref_type( this_var_type.class_env_id );
+                    assert( variable_llvm_type != nullptr );
+
+                    llvm::AllocaInst* const allca_inst
+                        = context_->ir_builder.CreateAlloca(
+                            variable_llvm_type
+                            );
+
+                    context_->temporary_reciever_stack_.push(
+                        std::make_tuple( this_var_type_id, allca_inst )
+                        );
+                }
+                assert( context_->temporary_reciever_stack_.size() > 0 );
+
+                auto const& reciever_obj_value
+                    = context_->temporary_reciever_stack_.top();
+
+                auto const& parameter_type
+                    = g_env_->get_type_at( f_env->get_parameter_type_ids().at( 0 ) );
+
+                auto const& ty
+                    = g_env_->get_type_at(
+                        std::get<0>( reciever_obj_value )
+                        );
+                val = std::get<1>( reciever_obj_value );
+                assert( val != nullptr );
+
+                // set "this" or "1st arg"
+                total_args[target_arg_index] = convert_value_by_attr(
+                    parameter_type,
+                    ty,
+                    val
+                    );
+                assert( total_args[target_arg_index] != nullptr );
+                context_->temporary_reciever_stack_.pop();
+            }
+
+            // call function
+            if ( f_env->has_attribute( attribute::decl::k_intrinsic ) ) {
+                // look up the action
+                auto const& action = action_holder_->at( f_env->get_action_id() );
+                assert( action != nullptr );
+
+                // generate codes into this context
+                ret = action->invoke(
+                    processing_context::k_llvm_ir_generator,
+                    context_,
+                    f_env,
+                    total_args
+                    );
+
+            } else {
+                auto const& callee_function = function_env_to_llvm_constatnt_ptr( f_env );
+                if ( !callee_function ) {
+                    // unexpected error...
+                    assert( false && "unexpected... callee_function was not found" );
+                }
+
+                ret = context_->ir_builder.CreateCall( callee_function, total_args );
+            }
+            assert( ret != nullptr );
+
+            if ( f_env->is_initializer() ) {
+                // ret call will be ctor call, so return a reciever value
+                return val;
+
+            } else if ( returns_heavy_object ) {
+                return total_args[0];
+
+            } else {
+                return ret;
+            }
+        }
+
 
     } // namespace code_generator
 } // namespace rill

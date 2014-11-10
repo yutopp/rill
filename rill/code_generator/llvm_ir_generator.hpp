@@ -17,6 +17,7 @@
 #include "../behavior/intrinsic_action_holder_fwd.hpp"
 #include "../semantic_analysis/analyzer_fwd.hpp"
 #include "../compile_time/llvm_engine/ir_executor_fwd.hpp"
+#include "../environment/global_environment.hpp"
 
 #include "llvm_ir_generator_fwd.hpp"
 #include "llvm_ir_generator_context.hpp"
@@ -109,12 +110,58 @@ namespace rill
                 llvm::Value* const source_value
                 ) -> llvm::Value*;
 
-            template<typename Px, typename EnvPtr>
+            template<typename Px>
             auto eval_args(
                 Px const& parameter_type_ids,
                 ast::expression_list const& arguments,
-                EnvPtr const& parent_env
-                ) -> std::vector<llvm::Value*>;
+                const_environment_base_ptr const& parent_env
+                )
+                -> std::vector<llvm::Value*>
+            {
+                std::vector<llvm::Value*> args;
+
+                eval_args(
+                    parameter_type_ids,
+                    std::back_inserter( args ),
+                    arguments,
+                    parent_env
+                    );
+
+                return args;
+            }
+
+            template<typename Px, typename It>
+            auto eval_args(
+                Px const& parameter_type_ids,
+                It it,
+                ast::expression_list const& arguments,
+                const_environment_base_ptr const& parent_env
+                )
+                -> void
+            {
+                // evaluate argument front to last
+                for( std::size_t i=0; i<arguments.size(); ++i ) {
+                    auto const& parameter_type
+                        = g_env_->get_type_at( parameter_type_ids[i] );
+                    auto const arg_type
+                        = g_env_->get_type_at(
+                            g_env_->get_related_type_id_by_ast_ptr(
+                                arguments[i]
+                                )
+                            );
+                    auto const& arg_value
+                        = dispatch( arguments[i], parent_env );
+                    assert( arg_value != nullptr );
+
+                    auto result_value = convert_value_by_attr(
+                        parameter_type,
+                        arg_type,
+                        arg_value
+                        );
+
+                    it = std::move( result_value );
+                }
+            }
 
             auto store_value(
                 llvm::Value* const arg_value,
@@ -137,8 +184,13 @@ namespace rill
                 )
                 -> void;
 
+
         private:
             auto generate_function_call(
+                const_function_symbol_environment_ptr const& f_env,
+                ast::expression_list const& e_arguments,
+                const_environment_base_ptr const& parent_env,
+                bool const is_operator = false
                 )
                 -> llvm::Value*;
 
