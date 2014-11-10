@@ -3,13 +3,15 @@
 ![chi-](http://yutopp.net/image/chi-.png "Bun")
 [![Circle CI](https://circleci.com/gh/yutopp/rill.png?style=badge)](https://circleci.com/gh/yutopp/rill)
 
-Rill is a programming language for java sparrow.
-
+Rill is a programming language for java sparrow.  
 This repository contains the implementation of Rill language.
 
-文鳥の文鳥による文鳥のためのプログラミング言語 Rill の処理系です
-
+文鳥の文鳥による文鳥のためのプログラミング言語 Rill の処理系です  
 ブン！ (◔⊖◔) < "ひとまず動くようになるまでゴリ押しで書くのでコードは汚いゾ"
+
+
+## Sample Codes of Rill
+[Please see this dir](tools/compiler/samples)
 
 
 ## How to build
@@ -87,8 +89,7 @@ At first time,
 bundle install --path vendor/bundle
 ```
 
-Next, run cmake under the `build` directory.
-
+Next, run cmake under the `build` directory.  
 After that, execute below
 ```
 cd build
@@ -101,25 +102,18 @@ e.g. (on the directory of rill)
 ```
 rillc tools/compiler/samples/...
 ```
-and then, executable file `a.out` will be generated.
-
+and then, executable file `a.out` will be generated.  
 To see detail, execute `rillc --help`.
 
 
 ## Reference
-
 under construction
 
 
-## Sample Codes of Rill
-[Please see this dir](tools/compiler/samples)
-
-
 ## Special Thanks
-[AUR / rill-git](https://aur.archlinux.org/packages/rill-git/)
-[Emacs / rill-mode](https://github.com/Johniel/rill-mode)
+- [AUR / rill-git](https://aur.archlinux.org/packages/rill-git/)
+- [Emacs / rill-mode](https://github.com/Johniel/rill-mode)
 
 
 ## License
-
 Boost License Version 1.0
