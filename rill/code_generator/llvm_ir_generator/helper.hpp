@@ -45,29 +45,27 @@ namespace rill
         {
             std::vector<llvm::Value*> args( arguments.size() );
 
-            // evaluate argument from last to front(but ordering of vector is from front to last)
+            // evaluate argument front to last
             for( std::size_t i=0; i<arguments.size(); ++i ) {
-                auto const reversed_i = arguments.size()-i-1;
-
                 auto const& parameter_type
-                    = g_env_->get_type_at( parameter_type_ids[reversed_i] );
+                    = g_env_->get_type_at( parameter_type_ids[i] );
                 auto const arg_type
                     = g_env_->get_type_at(
                         g_env_->get_related_type_id_by_ast_ptr(
-                            arguments[reversed_i]
+                            arguments[i]
                             )
                         );
-                auto const arg_value
-                    = dispatch( arguments[reversed_i], parent_env );
+                auto const& arg_value
+                    = dispatch( arguments[i], parent_env );
                 assert( arg_value != nullptr );
 
-                auto const& result_value = convert_value_by_attr(
+                auto result_value = convert_value_by_attr(
                     parameter_type,
                     arg_type,
                     arg_value
                     );
 
-                args[reversed_i] = result_value;
+                args[i] = std::move( result_value );
             }
 
             return args;

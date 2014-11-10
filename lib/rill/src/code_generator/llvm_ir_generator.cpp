@@ -870,6 +870,8 @@ namespace rill
             auto const f_env = std::static_pointer_cast<function_symbol_environment const>( g_env_->get_related_env_by_ast_ptr( e ) );
             assert( f_env != nullptr );
 
+            dispatch( e->op_, parent_env );
+
             std::cout << "current : " << f_env->get_mangled_name() << std::endl;
 
             // call function that defined in rill modules
@@ -1148,95 +1150,15 @@ namespace rill
 
             // ========================================
             std::cout << "current : " << f_env->get_mangled_name() << std::endl;
-            auto const& callee_function = function_env_to_llvm_constatnt_ptr( f_env );
-            if ( !callee_function ) {
-                // unexpected error...
-                assert( false && "unexpected... callee_function was not found" );
-            }
 
             auto const& ret_type_id = f_env->get_return_type_id();
             auto const& ret_type = g_env_->get_type_at( ret_type_id );
             bool const returns_heavy_object = is_heavy_object( ret_type );
 
-
-
             // arguments
-            // TODO: reduce coping
-            std::vector<llvm::Value*> total_args = [&]() -> std::vector<llvm::Value*> {
-                std::vector<llvm::Value*> args;
+            std::vector<llvm::Value*> total_args;
 
-                if ( returns_heavy_object ) {
-                    args.push_back( nullptr );
-                }
-
-                if ( f_env->is_in_class() ) {
-                    // if member function, take temporary space for "this" pointer
-                    args.push_back( nullptr );
-
-                    auto const& parameter_type_ids
-                        = f_env->get_parameter_type_ids();
-                    // this is not included in e->arguments_
-                    auto const& args_without_this
-                        = eval_args(
-                            parameter_type_ids
-                                | boost::adaptors::sliced( 1, parameter_type_ids.size() ),
-                            e->arguments_,
-                            parent_env
-                            );
-
-                    // copy to total_args
-                    std::copy(
-                        args_without_this.cbegin(),
-                        args_without_this.cend(),
-                        std::back_inserter( args )
-                        );
-
-                } else {
-                    auto const& parameter_type_ids
-                    = f_env->get_parameter_type_ids();
-                    if( parameter_type_ids.size() != e->arguments_.size() ) {
-                        // maybe UFCS, take space for 1st arg
-                        args.push_back( nullptr );
-
-                    // this is not included in e->arguments_
-                    auto const& args_without_this
-                        = eval_args(
-                            parameter_type_ids
-                                | boost::adaptors::sliced( 1, parameter_type_ids.size() ),
-                            e->arguments_,
-                            parent_env
-                            );
-
-                    // copy to total_args
-                    std::copy(
-                        args_without_this.cbegin(),
-                        args_without_this.cend(),
-                        std::back_inserter( args )
-                        );
-
-                    } else {
-                        auto const& args_normal
-                        = eval_args(
-                            parameter_type_ids,
-                            e->arguments_,
-                            parent_env
-                            );
-
-                    std::copy(
-                        args_normal.cbegin(),
-                        args_normal.cend(),
-                        std::back_inserter( args )
-                        );
-                    }
-
-
-                }
-
-                return args;
-            }();
-
-
-
+            //
             if ( returns_heavy_object ) {
                 // create storage
                 llvm::Type* llvm_ty
@@ -1245,8 +1167,48 @@ namespace rill
                     = context_->ir_builder.CreateAlloca( llvm_ty );
 
                 //
-                total_args[0] = allca_inst;
+                total_args.push_back( allca_inst );
             }
+
+            auto const& parameter_type_ids
+                = f_env->get_parameter_type_ids();
+
+            if ( f_env->is_in_class() || context_->temporary_reciever_stack_.size() > 0 ) {
+                // if member function, take temporary space for "this" pointer
+                total_args.push_back( nullptr );
+
+                // "this" or "1st arg" is not included in e->arguments_
+                auto const& args_without_head
+                    = eval_args(
+                        parameter_type_ids
+                        | boost::adaptors::sliced( 1, parameter_type_ids.size() ),
+                        e->arguments_,
+                        parent_env
+                        );
+
+                // copy to total_args
+                std::copy(
+                    args_without_head.cbegin(),
+                    args_without_head.cend(),
+                    std::back_inserter( total_args )
+                    );
+
+            } else {
+                auto const& args_normal
+                    = eval_args(
+                        parameter_type_ids,
+                        e->arguments_,
+                        parent_env
+                        );
+
+                std::copy(
+                    args_normal.cbegin(),
+                    args_normal.cend(),
+                    std::back_inserter( total_args )
+                    );
+            }
+
+            llvm::Value* val = nullptr;
 
             // save the reciever object to the temprary space
             if ( f_env->is_in_class() || context_->temporary_reciever_stack_.size() > 0 ) {
@@ -1292,12 +1254,10 @@ namespace rill
                     = g_env_->get_type_at(
                         std::get<0>( reciever_obj_value )
                         );
-                auto const val
-                    = std::get<1>( reciever_obj_value );
+                val = std::get<1>( reciever_obj_value );
                 assert( val != nullptr );
 
-                std::cout << "SIZE: " << total_args.size() << " // " << this_index << std::endl;
-                // set "this"
+                // set "this" or "1st arg"
                 total_args[this_index] = convert_value_by_attr(
                     parameter_type,
                     ty,
@@ -1305,36 +1265,45 @@ namespace rill
                     );
                 //assert( total_args[this_index] != nullptr );
                 context_->temporary_reciever_stack_.pop();
+            }
 
-                auto const ret
-                    = context_->ir_builder.CreateCall( callee_function, total_args );
+            llvm::Value* ret = nullptr;
 
-                std::cout << "RERERERERERE" << std::endl;
-                ret->dump();
+            if ( f_env->has_attribute( attribute::decl::k_intrinsic ) ) {
+                // look up the action
+                auto const& action = action_holder_->at( f_env->get_action_id() );
+                assert( action != nullptr );
 
-                if ( f_env->is_initializer() ) {
-                    // ret call will be ctor call, so return a reciever value
-                    return val;
-
-                } else {
-                    if ( returns_heavy_object ) {
-                        return total_args[0];
-                    } else {
-                        return ret;
-                    }
-                }
+                // generate codes into this context
+                ret = action->invoke(
+                    processing_context::k_llvm_ir_generator,
+                    context_,
+                    f_env,
+                    total_args
+                    );
 
             } else {
-                // normal call
-                // invocation
-                auto const ret
-                    = context_->ir_builder.CreateCall( callee_function, total_args );
-
-                if ( returns_heavy_object ) {
-                    return total_args[0];
-                } else {
-                    return ret;
+                auto const& callee_function = function_env_to_llvm_constatnt_ptr( f_env );
+                if ( !callee_function ) {
+                    // unexpected error...
+                    assert( false && "unexpected... callee_function was not found" );
                 }
+
+                ret
+                    = context_->ir_builder.CreateCall( callee_function, total_args );
+            }
+
+            assert( ret != nullptr );
+
+            if ( f_env->is_initializer() ) {
+                // ret call will be ctor call, so return a reciever value
+                return val;
+
+            } else if ( returns_heavy_object ) {
+                return total_args[0];
+
+            } else {
+                return ret;
             }
         }
 

@@ -251,9 +251,15 @@ namespace rill
 
 
         //
-        virtual auto lookup( ast::const_identifier_value_base_ptr const& name )
+        virtual auto lookup(
+            ast::const_identifier_value_base_ptr const& name,
+            kind::type_value const& exclude_env_type = kind::type_value::e_none
+            )
             -> env_base_pointer;
-        virtual auto lookup( ast::const_identifier_value_base_ptr const& name ) const
+        virtual auto lookup(
+            ast::const_identifier_value_base_ptr const& name,
+            kind::type_value const& exclude_env_type = kind::type_value::e_none
+            ) const
             -> const_env_base_pointer;
 
         //
@@ -264,15 +270,27 @@ namespace rill
 
 
         // support functions, search identifier from native_string as NON templated
-        inline auto lookup( ast::native_string_t const& name )
+        inline auto lookup(
+            ast::native_string_t const& name,
+            kind::type_value const& exclude_env_type = kind::type_value::e_none
+            )
             -> env_base_pointer
         {
-            return lookup( std::make_shared<ast::identifier_value const>( name ) );
+            return lookup(
+                std::make_shared<ast::identifier_value const>( name ),
+                exclude_env_type
+                );
         }
-        inline auto lookup( ast::native_string_t const& name ) const
+        inline auto lookup(
+            ast::native_string_t const& name,
+            kind::type_value const& exclude_env_type = kind::type_value::e_none
+            ) const
             -> const_env_base_pointer
         {
-            return lookup( std::make_shared<ast::identifier_value const>( name ) );
+            return lookup(
+                std::make_shared<ast::identifier_value const>( name ),
+                exclude_env_type
+                );
         }
 
         //
@@ -290,48 +308,9 @@ namespace rill
 
         //
         auto lookup_layer( kind::type_value const& layer_type )
-            -> env_base_pointer
-        {
-            auto p = std::static_pointer_cast<env_type>( shared_from_this() );
-            for(;;) {
-                assert( p != nullptr );
-
-                if ( p->get_symbol_kind() == layer_type ) {
-                    return p;
-                }
-
-                if ( p->has_parent() ) {
-                    p = p->get_parent_env();
-
-                } else {
-                    break;
-                }
-            }
-
-            return nullptr;
-        }
-
+            -> env_base_pointer;
         auto lookup_layer( kind::type_value const& layer_type ) const
-            -> const_env_base_pointer
-        {
-            auto p = std::static_pointer_cast<env_type const>( shared_from_this() );
-            for(;;) {
-                assert( p != nullptr );
-
-                if ( p->get_symbol_kind() == layer_type ) {
-                    return p;
-                }
-
-                if ( p->has_parent() ) {
-                    p = p->get_parent_env();
-
-                } else {
-                    break;
-                }
-            }
-
-            return nullptr;
-        }
+            -> const_env_base_pointer;
 
         auto root_env()
             -> env_base_pointer

@@ -138,6 +138,11 @@ namespace rill
                 -> void;
 
         private:
+            auto generate_function_call(
+                )
+                -> llvm::Value*;
+
+        private:
             const_global_environment_ptr g_env_;
             intrinsic_action_holder_ptr action_holder_;
 

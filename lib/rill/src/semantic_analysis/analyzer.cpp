@@ -1008,6 +1008,7 @@ namespace rill
             case attribute::holder_kind::k_ref:
             {
                 // val to ref
+                std::cout << "val to ref" << std::endl;
                 switch( argument_attributes.modifiability ) {
                 case attribute::modifiability_kind::k_immutable:
                 case attribute::modifiability_kind::k_none: // none == immutable
@@ -1228,7 +1229,9 @@ namespace rill
                     ty.class_env_id
                     );
                 std::cout
-                    << "type: " << c_env->get_mangled_name() << std::endl
+                    << "type: " << c_env->get_mangled_name()
+                    << " / ty.class_env_id: " << ty.class_env_id << std::endl
+                    << "type: " << debug_string( c_env->get_symbol_kind() ) << std::endl
                     << ty.attributes;
             };
 
@@ -1685,10 +1688,16 @@ namespace rill
         auto analyzer::solve_identifier(
             ast::const_identifier_value_ptr const& identifier,
             environment_base_ptr const& parent_env,
-            bool const do_not_lookup
+            bool const do_not_lookup,
+            kind::type_value const& exclude_env_type
             ) -> type_detail_ptr
         {
-            return generic_solve_identifier( identifier, parent_env, do_not_lookup );
+            return generic_solve_identifier(
+                identifier,
+                parent_env,
+                do_not_lookup,
+                exclude_env_type
+                );
         }
 
 
@@ -1696,11 +1705,17 @@ namespace rill
         auto analyzer::solve_identifier(
             ast::const_template_instance_value_ptr const& identifier,
             environment_base_ptr const& parent_env,
-            bool const do_not_lookup
+            bool const do_not_lookup,
+            kind::type_value const& exclude_env_type
             ) -> type_detail_ptr
         {
             auto const ty_detail
-                = generic_solve_identifier( identifier, parent_env, do_not_lookup );
+                = generic_solve_identifier(
+                    identifier,
+                    parent_env,
+                    do_not_lookup,
+                    exclude_env_type
+                    );
             if ( ty_detail == nullptr ) {
                 // propagate nullptr...
                 return nullptr;
@@ -1761,14 +1776,15 @@ namespace rill
         auto analyzer::generic_solve_identifier(
             ast::const_identifier_value_base_ptr const& identifier,
             environment_base_ptr const& parent_env,
-            bool const do_lookup
+            bool const do_lookup,
+            kind::type_value const& exclude_env_type
             ) -> type_detail_ptr
         {
             // TODO: check that identifier is from root
 
             auto const found_env
                 = do_lookup
-                ? parent_env->lookup( identifier )
+                ? parent_env->lookup( identifier, exclude_env_type )
                 : parent_env->find_on_env( identifier )
                 ;
             if ( found_env == nullptr ) {
@@ -2143,47 +2159,37 @@ namespace rill
             return val_ty_d;
         }
 
-        auto analyzer::find_binary_op_reciever(
-            ast::identifier_value_ptr const& id,
-            environment_base_ptr const& parent_env
+
+        inline auto make_binary_op_name(
+            ast::identifier_value_ptr const& id
             )
-            -> type_detail_ptr
+            -> ast::identifier_value_ptr
         {
-            // make operator id
-            auto const op_name = ast::make_identifier(
+            return ast::make_identifier(
                 "%op_" + id->get_inner_symbol()->to_native_string()
                 );
-
-            // solve
-            auto callee_function_type_detail
-                = solve_identifier( op_name, parent_env );
-
-            if ( callee_function_type_detail == nullptr ) {
-                // compilation error...
-                std::cout << "% name : "
-                          << op_name->get_inner_symbol()->to_native_string() << std::endl;
-                assert( false && "[Error] identifier was not found." );
-            }
-
-            return callee_function_type_detail;
         }
 
-        auto analyzer::find_unary_op_reciever(
+        auto analyzer::call_suitable_binary_op(
             ast::identifier_value_ptr const& id,
-            bool const is_prefix,
-            environment_base_ptr const& parent_env
+            ast::expression_ptr const& e,
+            std::vector<type_detail_ptr> const& argument_type_details,
+            environment_base_ptr const& parent_env,
+            bool const do_universal_search
             )
             -> type_detail_ptr
         {
             // make operator id
-            auto const op_name = ast::make_identifier(
-                "%op_" + std::string( is_prefix ? "pre_" : "post_" ) + id->get_inner_symbol()->to_native_string()
-                );
+            auto const op_name = make_binary_op_name( id );
 
             // solve
             auto callee_function_type_detail
-                = solve_identifier( op_name, parent_env );
-
+                = select_member_element(
+                    op_name,
+                    argument_type_details.at(0),
+                    parent_env,
+                    do_universal_search
+                    );
             if ( callee_function_type_detail == nullptr ) {
                 // compilation error...
                 std::cout << "% name : "
@@ -2191,7 +2197,90 @@ namespace rill
                 assert( false && "[Error] identifier was not found." );
             }
 
-            return callee_function_type_detail;
+            //
+            if ( is_nontype_id( callee_function_type_detail->type_id ) ) {
+                // reciever must be function
+                if ( callee_function_type_detail->type_id == (type_id_t)type_id_nontype::e_function ) {
+                    // call!
+                    return call_function(
+                        callee_function_type_detail,
+                        argument_type_details,
+                        e,
+                        parent_env
+                        );
+
+                } else {
+                    assert( false && "[Error]" );
+                }
+
+            } else {
+                assert( false && "[Error]" );
+            }
+
+            return nullptr;
+        }
+
+
+        inline auto make_unary_op_name(
+            ast::identifier_value_ptr const& id,
+            bool const is_prefix
+            )
+            -> ast::identifier_value_ptr
+        {
+            return ast::make_identifier(
+                "%op_" + std::string( is_prefix ? "pre_" : "post_" ) + id->get_inner_symbol()->to_native_string()
+                );
+        }
+
+        auto analyzer::call_suitable_unary_op(
+            ast::identifier_value_ptr const& id,
+            bool const is_prefix,
+            ast::expression_ptr const& e,
+            std::vector<type_detail_ptr> const& argument_type_details,
+            environment_base_ptr const& parent_env,
+            bool const do_universal_search
+            )
+            -> type_detail_ptr
+        {
+            // make operator id
+            auto const op_name = make_unary_op_name( id, is_prefix );
+
+            // solve
+            auto callee_function_type_detail
+                = select_member_element(
+                    op_name,
+                    argument_type_details.at(0),
+                    parent_env,
+                    do_universal_search
+                    );
+            if ( callee_function_type_detail == nullptr ) {
+                // compilation error...
+                std::cout << "% name : "
+                          << op_name->get_inner_symbol()->to_native_string() << std::endl;
+                assert( false && "[Error] identifier was not found." );
+            }
+
+            //
+            if ( is_nontype_id( callee_function_type_detail->type_id ) ) {
+                // reciever must be function
+                if ( callee_function_type_detail->type_id == (type_id_t)type_id_nontype::e_function ) {
+                    // call!
+                    return call_function(
+                        callee_function_type_detail,
+                        argument_type_details,
+                        e,
+                        parent_env
+                        );
+
+                } else {
+                    assert( false && "[Error]" );
+                }
+
+            } else {
+                assert( false && "[Error]" );
+            }
+
+            return nullptr;
         }
 
 
@@ -2288,23 +2377,26 @@ namespace rill
                     );
 
             } else {
+                std::cout << "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAa" << std::endl;
                 // NOT FOUND!!
                 // 1. TODO: check existence of the function such as opDispatch
 
                 // 2. Universal search
                 if ( do_universal_search ) {
-                    // search normally
+                    // search with excluding "class" env type
                     auto const& selector_id_type_detail
                         = id->is_template()
                         ? solve_identifier(
                             std::static_pointer_cast<ast::template_instance_value const>( id ),
                             parent_env,
-                            true
+                            true,
+                            kind::type_value::e_class
                             )
                         : solve_identifier(
                             std::static_pointer_cast<ast::identifier_value const>( id ),
                             parent_env,
-                            true
+                            true,
+                            kind::type_value::e_class
                             )
                         ;
 
@@ -2327,8 +2419,68 @@ namespace rill
                 }
             }
 
-            assert( false && "[error] identifier not found" );
             return nullptr;
+        }
+
+        auto analyzer::call_function(
+            type_detail_ptr const& f_type_detail,
+            std::vector<type_detail_ptr> const& argument_type_details,
+            ast::expression_ptr const& e,
+            environment_base_ptr const& parent_env
+            )
+            -> type_detail_ptr
+        {
+            assert( is_nontype_id( f_type_detail->type_id ) );
+            std::cout << "-> "
+                      << debug_string( f_type_detail->target_env->get_symbol_kind() )
+                      << std::endl;
+
+            auto const& multiset_env
+                = cast_to<multiple_set_environment>( f_type_detail->target_env );
+            assert( multiset_env != nullptr );
+
+            if ( multiset_env->get_representation_kind() != kind::type_value::e_function ) {
+                // symbol type was not matched
+                assert( false );
+            }
+
+            auto const& function_env
+                = solve_function_overload(
+                    multiset_env,
+                    argument_type_details,          // type detailes of arguments
+                    f_type_detail->template_args,   // template arguments
+                    parent_env
+                    );
+            assert( function_env != nullptr );
+
+            // memoize called function env
+            std::cout << "memoed template" << std::endl;
+            function_env->connect_from_ast( e );
+
+            bool const is_xvalue = [&]() {
+                auto const& tid = function_env->get_return_type_id();
+                auto const& ty = g_env_->get_type_at( tid );
+                return ty.attributes.quality == attribute::holder_kind::k_val;
+            }();
+            auto const eval_mode = [&]() {
+                if ( function_env->has_attribute( attribute::decl::k_onlymeta ) ) {
+                    return type_detail::evaluate_mode::k_only_compiletime;
+                } else {
+                    return type_detail::evaluate_mode::k_everytime;
+                }
+            }();
+
+            return bind_type(
+                e,
+                type_detail_pool_->construct(
+                    function_env->get_return_type_id(),
+                    function_env,
+                    nullptr,    // nullptr
+                    nullptr,    // nullptr
+                    is_xvalue,
+                    eval_mode
+                    )
+                );
         }
 
     } // namespace semantic_analysis

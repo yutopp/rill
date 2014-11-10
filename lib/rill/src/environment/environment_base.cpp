@@ -64,35 +64,51 @@ namespace rill
     }
 
 
-    auto environment_base::lookup( ast::const_identifier_value_base_ptr const& identifier )
+    auto environment_base::lookup(
+        ast::const_identifier_value_base_ptr const& identifier,
+        kind::type_value const& exclude_env_type
+        )
         -> env_base_pointer
     {
+        std::cout << debug_string( get_symbol_kind() ) << std::endl;
+        if ( get_symbol_kind() == exclude_env_type ) {
+            return is_root()
+                ? nullptr
+                : get_parent_env()->lookup( identifier, exclude_env_type );
+        }
+
         // find symbol in self environment
         auto const s = find_on_env( identifier );
+        if ( s == nullptr ) {
+            return is_root()
+                ? nullptr
+                : get_parent_env()->lookup( identifier, exclude_env_type );
+        }
 
-        // if found, return it.
-        // otherwise
-        //  if self is root(= has no more parent scope), return nullptr(FAILED).
-        //  otherwise, try to find in parent scope.
-        return s
-            ? s
-            : is_root()
-                ? nullptr   // Not found...
-                : get_parent_env()->lookup( identifier )
-            ;
+        return s;
     }
 
-    auto environment_base::lookup( ast::const_identifier_value_base_ptr const& identifier ) const
+    auto environment_base::lookup(
+        ast::const_identifier_value_base_ptr const& identifier,
+        kind::type_value const& exclude_env_type
+        ) const
         -> const_env_base_pointer
     {
-        auto const s = find_on_env( identifier );
-
-        return s
-            ? s
-            : is_root()
+        std::cout << debug_string( get_symbol_kind() ) << std::endl;
+        if ( get_symbol_kind() == exclude_env_type ) {
+            return is_root()
                 ? nullptr
-                : get_parent_env()->lookup( identifier )
-            ;
+                : get_parent_env()->lookup( identifier, exclude_env_type );
+        }
+
+        auto const s = find_on_env( identifier );
+        if ( s == nullptr ) {
+            return is_root()
+                ? nullptr
+                : get_parent_env()->lookup( identifier, exclude_env_type );
+        }
+
+        return s;
     }
 
     auto environment_base::find_on_env( ast::const_identifier_value_base_ptr const& identifier )
@@ -161,5 +177,50 @@ namespace rill
         }
     }
 
+
+    //
+    auto environment_base::lookup_layer( kind::type_value const& layer_type )
+        -> env_base_pointer
+    {
+        auto p = std::static_pointer_cast<env_type>( shared_from_this() );
+        for(;;) {
+            assert( p != nullptr );
+
+            if ( p->get_symbol_kind() == layer_type ) {
+                return p;
+            }
+
+            if ( p->has_parent() ) {
+                p = p->get_parent_env();
+
+            } else {
+                break;
+            }
+        }
+
+        return nullptr;
+    }
+
+    auto environment_base::lookup_layer( kind::type_value const& layer_type ) const
+        -> const_env_base_pointer
+    {
+        auto p = std::static_pointer_cast<env_type const>( shared_from_this() );
+        for(;;) {
+            assert( p != nullptr );
+
+            if ( p->get_symbol_kind() == layer_type ) {
+                return p;
+            }
+
+            if ( p->has_parent() ) {
+                p = p->get_parent_env();
+
+            } else {
+                break;
+            }
+        }
+
+        return nullptr;
+    }
 
 } // namespace rill

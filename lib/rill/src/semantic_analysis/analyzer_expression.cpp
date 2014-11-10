@@ -38,79 +38,20 @@ namespace rill
         {
             std::cout << "op_call_expr" << std::endl;
 
-            auto const& reciever_type_detail
-                = find_binary_op_reciever( e->op_, parent_env );
-
             // make argument types id list
-            std::vector<type_detail_ptr> const& argument_type_details
+            auto const& argument_type_details
                 = evaluate_invocation_args(
                     { std::ref( e->lhs_ ), std::ref( e->rhs_ ) },
                     parent_env
                     );
 
-
-            //
-            if ( is_nontype_id( reciever_type_detail->type_id ) ) {
-                // reciever must be function
-                if ( reciever_type_detail->type_id == (type_id_t)type_id_nontype::e_function ) {
-                    std::cout << "-> " << debug_string( reciever_type_detail->target_env->get_symbol_kind() ) << std::endl;
-
-                    auto const& set_env = cast_to<multiple_set_environment>( reciever_type_detail->target_env );
-                    assert( set_env != nullptr );
-
-                    if ( set_env->get_representation_kind() != kind::type_value::e_function ) {
-                        // symbol type was not matched
-                        assert( false );
-                    }
-
-                    auto const& function_env
-                        = solve_function_overload(
-                            set_env,
-                            argument_type_details,                      // type detailes of arguments
-                            reciever_type_detail->template_args, // template arguments
-                            parent_env
-                            );
-                    assert( function_env != nullptr );
-
-                    // memoize called function env
-                    std::cout << "memoed template" << std::endl;
-                    function_env->connect_from_ast( e );
-                    //function_env->connect_to_ast( e );
-
-                    bool const is_xvalue = [&]() {
-                        auto const& tid = function_env->get_return_type_id();
-                        auto const& ty = g_env_->get_type_at( tid );
-                        return ty.attributes.quality == attribute::holder_kind::k_val;
-                    }();
-                    auto const eval_mode = [&]() {
-                        if ( function_env->has_attribute( attribute::decl::k_onlymeta ) ) {
-                            return type_detail::evaluate_mode::k_only_compiletime;
-                        } else {
-                            return type_detail::evaluate_mode::k_everytime;
-                        }
-                    }();
-
-                    return bind_type(
-                        e,
-                        type_detail_pool_->construct(
-                            function_env->get_return_type_id(),
-                            function_env,
-                            nullptr,    // nullptr
-                            nullptr,    // nullptr
-                            is_xvalue,
-                            eval_mode
-                            )
-                        );
-
-                } else {
-                    assert( false && "[Error]" );
-                }
-
-            } else {
-                assert( false && "[Error]" );
-            }
-
-            return nullptr;
+            return call_suitable_binary_op(
+                e->op_,
+                e,
+                argument_type_details,
+                parent_env,
+                true
+                );
         }
 
 
@@ -118,97 +59,21 @@ namespace rill
         {
             std::cout << "op_call_unary_expr" << std::endl;
 
-            // check val(reciever)
-            auto const& val_t_detail
-                = dispatch( e->src, parent_env );
-
             // make argument types id list
-            std::vector<type_detail_ptr> const& argument_type_details
-                = { val_t_detail };
+            auto const& argument_type_details
+                = evaluate_invocation_args(
+                    { std::ref( e->src ) },
+                    parent_env
+                    );
 
-            // TODO: check type_id_special
-            assert(
-                std::count_if(
-                    argument_type_details.cbegin(),
-                    argument_type_details.cend(), []( type_detail_ptr const& t ) {
-                        return t == nullptr || t->type_id == type_id_undefined || is_nontype_id( t->type_id );
-                    } ) == 0
+            return call_suitable_unary_op(
+                e->op,
+                e->is_prefix,
+                e,
+                argument_type_details,
+                parent_env,
+                true
                 );
-
-
-
-            // 1. call lhs.operator( rhs );
-            // 2. call operator( lhs, rhs );
-
-            // 1
-            // solve_identifier( e->op_, lhs_t_detail->target_env )
-
-            // 2
-            auto const& callee_function_type_detail
-                = find_unary_op_reciever( e->op, e->is_prefix, parent_env );
-
-            //
-            if ( is_nontype_id( callee_function_type_detail->type_id ) ) {
-                // reciever must be function
-                if ( callee_function_type_detail->type_id == (type_id_t)type_id_nontype::e_function ) {
-                    std::cout << "-> " << debug_string( callee_function_type_detail->target_env->get_symbol_kind() ) << std::endl;
-
-                    auto const& set_env = cast_to<multiple_set_environment>( callee_function_type_detail->target_env );
-                    assert( set_env != nullptr );
-
-                    if ( set_env->get_representation_kind() != kind::type_value::e_function ) {
-                        // symbol type was not matched
-                        assert( false );
-                    }
-
-                    auto const& function_env
-                        = solve_function_overload(
-                            set_env,
-                            argument_type_details,                      // type detailes of arguments
-                            callee_function_type_detail->template_args, // template arguments
-                            parent_env
-                            );
-                    assert( function_env != nullptr );
-
-                    // memoize called function env
-                    std::cout << "memoed template" << std::endl;
-                    function_env->connect_from_ast( e );
-                    //function_env->connect_to_ast( e );
-
-                    bool const is_xvalue = [&]() {
-                        auto const& tid = function_env->get_return_type_id();
-                        auto const& ty = g_env_->get_type_at( tid );
-                        return ty.attributes.quality == attribute::holder_kind::k_val;
-                    }();
-                    auto const eval_mode = [&]() {
-                        if ( function_env->has_attribute( attribute::decl::k_onlymeta ) ) {
-                            return type_detail::evaluate_mode::k_only_compiletime;
-                        } else {
-                            return type_detail::evaluate_mode::k_everytime;
-                        }
-                    }();
-
-                    return bind_type(
-                        e,
-                        type_detail_pool_->construct(
-                            function_env->get_return_type_id(),
-                            function_env,
-                            nullptr,    // nullptr
-                            nullptr,    // nullptr
-                            is_xvalue,
-                            eval_mode
-                            )
-                        );
-
-                } else {
-                    assert( false && "[Error]" );
-                }
-
-            } else {
-                assert( false && "[Error]" );
-            }
-
-            return nullptr;
         }
 
 
@@ -316,7 +181,7 @@ namespace rill
                         parent_env
                         );
                 if ( new_selector_id_type_detail == nullptr ) {
-                    assert( false && "[error] id not found" );
+                    assert( false && "[error] identifier not found" );
                 }
 
                 // memoize
@@ -356,10 +221,8 @@ namespace rill
             // ========================================
             // TODO: add comma operator
             // push values to context stack and evaluate type environment
-            std::vector<type_detail_ptr> argument_type_details
+            auto const& argument_type_details
                 = evaluate_invocation_args( reciever_type_detail, e->arguments_, env );
-
-
 
             /// *************
             // TODO:
@@ -378,72 +241,11 @@ namespace rill
             if ( is_nontype_id( reciever_type_detail->type_id ) ) {
                 // reciever must be function
                 if ( reciever_type_detail->type_id == (type_id_t)type_id_nontype::e_function ) {
-                    // TODO:
-                    // if the reciever has template args
-                    //     solve from template instantiation
-                    //     if symbol not found
-                    //         ERROR
-                    // else
-                    //     solve from normal solver
-                    //     if symbol not found
-                    //         solve from template instantiation
-                    //         if symbol not found
-                    //             ERROR
-
-                    // NOTE: reciever_type_detail->target_env will be "multiple_set_environment"
-                    std::cout << "Normal function solve" << std::endl;
-
-                    std::cout << "-> " << debug_string( reciever_type_detail->target_env->get_symbol_kind() ) << std::endl;
-
-                    // set_env has multiple environments that have same name to solve overload
-                    auto const& set_env = cast_to<multiple_set_environment>( reciever_type_detail->target_env );
-                    assert( set_env != nullptr );
-
-                    if ( set_env->get_representation_kind() != kind::type_value::e_function ) {
-                        // symbol type was not matched
-                        assert( false );
-                    }
-
-                    auto const& function_env
-                        = solve_function_overload(
-                            set_env,                                // overload set
-                            argument_type_details,                  // type detailes of arguments
-                            reciever_type_detail->template_args,    // template arguments
-                            env
-                            );
-                    assert( function_env != nullptr );
-
-                    // memoize called function env
-                    function_env->connect_from_ast( e );
-                    //function_env->connect_to_ast( e );
-
-                    auto const& return_tid = function_env->get_return_type_id();
-                    if ( !function_env->is_return_type_decided() ) {
-                        assert( false && "[error] return type couldn't be deduced" );
-                    }
-
-                    bool const is_xvalue = [&]() {
-                        auto const& ty = g_env_->get_type_at( return_tid );
-                        return ty.attributes.quality == attribute::holder_kind::k_val;
-                    }();
-                    auto const eval_mode = [&]() {
-                        if ( function_env->has_attribute( attribute::decl::k_onlymeta ) ) {
-                            return type_detail::evaluate_mode::k_only_compiletime;
-                        } else {
-                            return type_detail::evaluate_mode::k_everytime;
-                        }
-                    }();
-
-                    return bind_type(
+                    return call_function(
+                        reciever_type_detail,
+                        argument_type_details,
                         e,
-                        type_detail_pool_->construct(
-                            return_tid,
-                            function_env,
-                            nullptr,    // unused
-                            nullptr,    // unused
-                            is_xvalue,
-                            eval_mode
-                            )
+                        env
                         );
 
                 } else {
@@ -459,6 +261,7 @@ namespace rill
                 // TODO: fix
                 if ( c_env->get_base_name() == "type" ) {
                     // constructor
+
                     type_detail_ptr b_ty_d = nullptr;
 
                     resolve_type(

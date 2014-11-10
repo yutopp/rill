@@ -1,5 +1,6 @@
 def main(): int
 {
+
     val a: mutable(int) = 10;
     a = 21;
     val b = 20;
@@ -37,9 +38,14 @@ def main(): int
     f!(int)( 72 );
 
     ret_struct();
+    1.f1().f1().f1().op +(2).p();
+    p("expect = 10");
 
-    1.f1().f1().f1().p();
     I(10).f(I(20), I(30));
+
+    p( I(10) + 3 );
+    p("expect = 13");
+
 
     return 0;
 }
@@ -47,11 +53,16 @@ def main(): int
 
 class I {
     def ctor(i: int) {
-        p("Ctor");
-        p(i);
+        this.i = i;
     }
 
-    def f(v: I, v2: I ): void {}
+    def f(v:I, v2: I): void {}
+
+    def op +( v: int ): int {
+        return this.i + v;
+    }
+
+    val i: int;
 }
 
 def f1(a: int): int

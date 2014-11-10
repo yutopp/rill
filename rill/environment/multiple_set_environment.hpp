@@ -156,19 +156,6 @@ namespace rill
             return it->second;
         }
 
-    public:
-
-        // delegate lookup
-        auto lookup( ast::const_identifier_value_base_ptr const& name )
-            -> env_base_pointer RILL_CXX11_OVERRIDE { assert(false); return nullptr; }
-        auto lookup( ast::const_identifier_value_base_ptr const& name ) const
-            -> const_env_base_pointer RILL_CXX11_OVERRIDE { assert(false); return nullptr; }
-
-        auto find_on_env( ast::const_identifier_value_base_ptr const& name )
-            -> env_base_pointer RILL_CXX11_OVERRIDE { assert(false); return nullptr; }
-        auto find_on_env( ast::const_identifier_value_base_ptr const& name ) const
-            -> const_env_base_pointer RILL_CXX11_OVERRIDE { assert(false); return nullptr; }
-
     private:
         native_string_type name_;
 

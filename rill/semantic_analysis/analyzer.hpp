@@ -140,14 +140,16 @@ namespace rill
             auto solve_identifier(
                 ast::const_identifier_value_ptr const&,
                 environment_base_ptr const&,
-                bool const = true
+                bool const = true,
+                kind::type_value const& exclude_env_type = kind::type_value::e_none
                 ) -> type_detail_ptr;
 
             // for Template Instance Identifier
             auto solve_identifier(
                 ast::const_template_instance_value_ptr const&,
                 environment_base_ptr const&,
-                bool const = true
+                bool const = true,
+                kind::type_value const& exclude_env_type = kind::type_value::e_none
                 ) -> type_detail_ptr;
 
         private:
@@ -155,7 +157,8 @@ namespace rill
             auto generic_solve_identifier(
                 ast::const_identifier_value_base_ptr const& identifier,
                 environment_base_ptr const& parent_env,
-                bool const do_not_lookup
+                bool const do_not_lookup,
+                kind::type_value const& exclude_env_type
                 ) -> type_detail_ptr;
 
         public:
@@ -360,16 +363,22 @@ namespace rill
                 )
                 -> type_detail_ptr;
 
-            auto find_binary_op_reciever(
+            auto call_suitable_binary_op(
                 ast::identifier_value_ptr const& id,
-                environment_base_ptr const& parent_env
+                ast::expression_ptr const& e,
+                std::vector<type_detail_ptr> const& argument_type_details,
+                environment_base_ptr const& parent_env,
+                bool const do_universal_search
                 )
                 -> type_detail_ptr;
 
-            auto find_unary_op_reciever(
+            auto call_suitable_unary_op(
                 ast::identifier_value_ptr const& id,
                 bool const is_prefix,
-                environment_base_ptr const& parent_env
+                ast::expression_ptr const& e,
+                std::vector<type_detail_ptr> const& argument_type_details,
+                environment_base_ptr const& parent_env,
+                bool const do_universal_search
                 )
                 -> type_detail_ptr;
 
@@ -393,6 +402,14 @@ namespace rill
                 type_detail_ptr const& reciever_type_detail,
                 environment_base_ptr const& parent_env,
                 bool const do_universal_search = false
+                )
+                -> type_detail_ptr;
+
+            auto call_function(
+                type_detail_ptr const& f_type_detail,
+                std::vector<type_detail_ptr> const& argument_type_details,
+                ast::expression_ptr const& e,
+                environment_base_ptr const& parent_env
                 )
                 -> type_detail_ptr;
 
