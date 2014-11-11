@@ -3,8 +3,7 @@ build/
 *.out
 *.obj
 
-memo
-*.txt
+memo/
 
 Gemfile.lock
 .bundle

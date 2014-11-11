@@ -208,7 +208,7 @@ else()
   message( FATAL_ERROR "Currently, your platform ${CMAKE_SYSTEM_NAME} is not supported..." )
 endif()
 
-# the LLVM's "target_link_libraries" is specified at lib/rill/CMakeLists.txt
+# the LLVM's "target_link_libraries" is specified at lib/CMakeLists.txt
 
 
 ############################################################
