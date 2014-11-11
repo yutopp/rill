@@ -37,7 +37,10 @@ def main(): int
 
     f!(int)( 72 );
 
-    ret_struct();
+    val ret = ret_struct();
+    ret.f();
+    p("expect = 72");
+
     1.f1().f1().f1().op +(2).p();
     p("expect = 10");
 
@@ -79,7 +82,7 @@ def f(val a: T): T
 }
 
 def ret_struct(): TestClass {
-    val a = TestClass();
+    val a = TestClass(72);
     return a;
 }
 

@@ -17,21 +17,29 @@ namespace rill
 {
     namespace behavior
     {
-        template<typename Action, typename ActionHolder>
+        template<typename Action, typename ActionHolder, typename... Args>
         auto inline register_to_holder(
             ActionHolder& action_holder,
-            std::string const& tag_name
+            std::string const& tag_name,
+            Args&&... args
             )
             -> void
         {
-            action_holder->template append<Action>( tag_name );
+            action_holder->append(
+                tag_name,
+                std::make_shared<Action>( std::forward<Args>( args )... )
+                );
         }
+
 
         // It defined a function that contains native machine code.
         void register_default_core(
-            std::shared_ptr<intrinsic_action_holder> const& intrinsic_action
+            std::shared_ptr<intrinsic_action_holder> const& intrinsic_action,
+            std::shared_ptr<total_system_info_setter> const& sis
             )
         {
+            using sis_t = std::shared_ptr<total_system_info_setter>;
+
             // ============================================================
             // ============================================================
             // Types
@@ -40,6 +48,10 @@ namespace rill
                 struct action
                     : rill::intrinsic_action_base
                 {
+                    action( sis_t const& s )
+                        : sis_( s )
+                    {}
+
                     auto invoke(
                         rill::processing_context::semantics_typing_tag,
                         class_symbol_environment_ptr const& c_env
@@ -62,10 +74,14 @@ namespace rill
                             llvm::Type::getInt8Ty( context->llvm_context )->getPointerTo()
                             );
                     }
+
+                   sis_t sis_;
                 };
+
                 register_to_holder<action>(
                     intrinsic_action,
-                    "type_type"
+                    "type_type",
+                    sis
                     );
             }
 
@@ -73,6 +89,10 @@ namespace rill
                 struct action
                     : rill::intrinsic_action_base
                 {
+                    action( sis_t const& s )
+                        : sis_( s )
+                    {}
+
                     auto invoke(
                         rill::processing_context::semantics_typing_tag,
                         class_symbol_environment_ptr const& c_env
@@ -80,6 +100,7 @@ namespace rill
                         -> void
                     {
                         c_env->set_builtin_kind( rill::class_builtin_kind::k_int8 );
+                        sis_->set( rill::class_builtin_kind::k_int8, c_env );
                     }
 
                     auto invoke(
@@ -95,10 +116,13 @@ namespace rill
                             llvm::Type::getInt8Ty( context->llvm_context )
                             );
                     }
+
+                    sis_t sis_;
                 };
                 register_to_holder<action>(
                     intrinsic_action,
-                    "type_int8"
+                    "type_int8",
+                    sis
                     );
             }
 
@@ -106,6 +130,10 @@ namespace rill
                 struct action
                     : rill::intrinsic_action_base
                 {
+                    action( sis_t const& s )
+                        : sis_( s )
+                    {}
+
                     auto invoke(
                         rill::processing_context::semantics_typing_tag,
                         class_symbol_environment_ptr const& c_env
@@ -113,6 +141,7 @@ namespace rill
                         -> void
                     {
                         c_env->set_builtin_kind( rill::class_builtin_kind::k_int32 );
+                        sis_->set( rill::class_builtin_kind::k_int32, c_env );
                     }
 
                     auto invoke(
@@ -128,10 +157,13 @@ namespace rill
                             llvm::Type::getInt32Ty( context->llvm_context )
                             );
                     }
+
+                    sis_t sis_;
                 };
                 register_to_holder<action>(
                     intrinsic_action,
-                    "type_int32"
+                    "type_int32",
+                    sis
                     );
             }
 
@@ -139,6 +171,10 @@ namespace rill
                 struct action
                     : rill::intrinsic_action_base
                 {
+                    action( sis_t const& s )
+                        : sis_( s )
+                    {}
+
                     auto invoke(
                         rill::processing_context::semantics_typing_tag,
                         class_symbol_environment_ptr const& c_env
@@ -146,6 +182,7 @@ namespace rill
                         -> void
                     {
                         c_env->set_builtin_kind( rill::class_builtin_kind::k_float );
+                        sis_->set( rill::class_builtin_kind::k_float, c_env );
                     }
 
                     auto invoke(
@@ -161,10 +198,13 @@ namespace rill
                             llvm::Type::getFloatTy( context->llvm_context )
                             );
                     }
+
+                    sis_t sis_;
                 };
                 register_to_holder<action>(
                     intrinsic_action,
-                    "type_float"
+                    "type_float",
+                    sis
                     );
             }
 
@@ -172,6 +212,10 @@ namespace rill
                 struct action
                     : rill::intrinsic_action_base
                 {
+                    action( sis_t const& s )
+                        : sis_( s )
+                    {}
+
                     auto invoke(
                         rill::processing_context::semantics_typing_tag,
                         class_symbol_environment_ptr const& c_env
@@ -194,10 +238,13 @@ namespace rill
                             llvm::Type::getVoidTy( context->llvm_context )
                             );
                     }
+
+                    sis_t sis_;
                 };
                 register_to_holder<action>(
                     intrinsic_action,
-                    "type_void"
+                    "type_void",
+                    sis
                     );
             }
 
@@ -205,6 +252,10 @@ namespace rill
                 struct action
                     : rill::intrinsic_action_base
                 {
+                    action( sis_t const& s )
+                        : sis_( s )
+                    {}
+
                     auto invoke(
                         rill::processing_context::semantics_typing_tag,
                         class_symbol_environment_ptr const& c_env
@@ -212,6 +263,7 @@ namespace rill
                         -> void
                     {
                         c_env->set_builtin_kind( rill::class_builtin_kind::k_bool );
+                        sis_->set( rill::class_builtin_kind::k_bool, c_env );
                     }
 
                     auto invoke(
@@ -227,15 +279,90 @@ namespace rill
                             llvm::Type::getInt1Ty( context->llvm_context )
                             );
                     }
+
+                    sis_t sis_;
                 };
                 register_to_holder<action>(
                     intrinsic_action,
-                    "type_bool"
+                    "type_bool",
+                    sis
                     );
             }
 
+            {
+                struct action
+                    : rill::intrinsic_action_base
+                {
+                    action( sis_t const& s )
+                        : sis_( s )
+                    {}
 
+                    auto invoke(
+                        rill::processing_context::semantics_typing_tag,
+                        class_symbol_environment_ptr const& c_env
+                        ) const
+                        -> void
+                    {
+                        c_env->set_builtin_kind( rill::class_builtin_kind::k_ptr );
+                        sis_->set( rill::class_builtin_kind::k_ptr, c_env );
+                    }
 
+                    auto invoke(
+                        rill::processing_context::llvm_ir_generator_typing_tag,
+                        code_generator::llvm_ir_generator_context_ptr const& context,
+                        const_class_symbol_environment_ptr const& c_env
+                        ) const
+                        -> void
+                    {
+                        // do nothing
+                    }
+
+                   sis_t sis_;
+                };
+
+                register_to_holder<action>(
+                    intrinsic_action,
+                    "type_ptr",
+                    sis
+                    );
+            }
+
+            {
+                struct action
+                    : rill::intrinsic_action_base
+                {
+                    action( sis_t const& s )
+                        : sis_( s )
+                    {}
+
+                    auto invoke(
+                        rill::processing_context::semantics_typing_tag,
+                        class_symbol_environment_ptr const& c_env
+                        ) const
+                        -> void
+                    {
+                        c_env->set_builtin_kind( rill::class_builtin_kind::k_array );
+                    }
+
+                    auto invoke(
+                        rill::processing_context::llvm_ir_generator_typing_tag,
+                        code_generator::llvm_ir_generator_context_ptr const& context,
+                        const_class_symbol_environment_ptr const& c_env
+                        ) const
+                        -> void
+                    {
+                        // do nothing
+                    }
+
+                   sis_t sis_;
+                };
+
+                register_to_holder<action>(
+                    intrinsic_action,
+                    "type_array",
+                    sis
+                    );
+            }
 
             // ============================================================
             // ============================================================

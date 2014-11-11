@@ -48,7 +48,7 @@ def main(): int
 {
     val a = HogeHuga!(int, int)();
     val b: HogeHuga!(int, int8) = HogeHuga!(int, int8)();
-    val c: HogeHuga!(void, int8) = HogeHuga!(void, int8)();
+    val c: HogeHuga!(ptr!(bool), int8) = HogeHuga!(ptr!(bool), int8)();
 
     return 0;
 }

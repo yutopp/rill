@@ -290,7 +290,7 @@ namespace rill
                 ( detail::make_keyword( "def" )
                 > t.identifier
                 > t.parameter_variable_declaration_list
-                > t.decl_attribute_list
+                > t.extern_decl_attribute_list
                 > t.type_specifier
                 > t.string_literal_sequence
                 )[
@@ -307,7 +307,7 @@ namespace rill
             R( extern_class_declaration_statement, ast::extern_class_declaration_statement_ptr,
                 ( detail::make_keyword( "class" )
                 > t.identifier
-                > t.decl_attribute_list
+                > t.extern_decl_attribute_list
                 > t.string_literal_sequence
                 )[
                     helper::make_node_ptr<ast::extern_class_declaration_statement>(
@@ -316,6 +316,10 @@ namespace rill
                         ph::_3
                         )
                     ]
+            )
+
+            R( extern_decl_attribute_list, attribute::decl::type,
+               t.decl_attribute_list[helper::assign()] >> x3::eps[helper::make_merged_bitflag( attribute::decl::k_extern )]
             )
 
 

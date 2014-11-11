@@ -244,9 +244,8 @@ namespace rill
                 // type inferenced by result of evaluated "iv_type_id_and_env"
                 assert( iv_type_d != nullptr );
                 auto const& ty = g_env_->get_type_at( iv_type_d->type_id );
-                auto const& c_env = std::static_pointer_cast<class_symbol_environment const>(
-                    g_env_->get_env_at_as_strong_ref( ty.class_env_id )
-                    );
+                auto const& c_env
+                    = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>( ty.class_env_id );
 
                 //
                 parent_env->construct(
@@ -278,14 +277,19 @@ namespace rill
             assert( related_env != nullptr );
             assert( related_env->get_symbol_kind() == kind::type_value::e_variable );
 
-            auto const& v_env = std::static_pointer_cast<variable_symbol_environment>( related_env );
+            auto const& v_env = cast_to<variable_symbol_environment>( related_env );
             assert( v_env != nullptr );
-
 
             // guard double check
             if ( v_env->is_checked() )
                 return;
             v_env->change_progress_to_checked();
+
+            auto const& parent_c_env
+                = g_env_->get_env_at_as_strong_ref<class_symbol_environment>(
+                    v_env->get_parent_class_env_id()
+                    );
+            assert( parent_c_env != nullptr );
 
             auto const& val_decl = s->declaration_;
             // TODO: decl_unit will be unit_list
@@ -314,6 +318,37 @@ namespace rill
                         //
                         std::cout << "class variable: " << unit.name->get_inner_symbol()->to_native_string() << std::endl;
 
+                        if ( class_env->get_builtin_kind() == class_builtin_kind::k_void ) {
+                            assert( false && "[error] void is not able to be instanced" );
+                        }
+
+                        //
+                        if ( !class_env->is_default_copyable() ) {
+                            parent_c_env->set_traits_flag( class_traits_kind::k_has_non_default_copyable_member, true );
+                        }
+
+                        //
+                        {
+                            auto const& padding
+                                = parent_c_env->get_target_size()
+                                % std::max( class_env->get_target_align(), 1ul );
+                            auto const& size = padding + class_env->get_target_size();
+
+                            //
+                            // set alignment
+                            parent_c_env->set_target_size(
+                                parent_c_env->get_target_size() + size
+                                );
+
+                            // set alignment
+                            parent_c_env->set_target_align(
+                                std::max(
+                                    parent_c_env->get_target_align(),
+                                    class_env->get_target_align()
+                                    )
+                                );
+                        }
+
                         // completion
                         v_env->complete(
                             g_env_->make_type_id(
@@ -322,8 +357,6 @@ namespace rill
                                 ),
                             unit.name->get_inner_symbol()->to_native_string()
                             );
-
-                        //v_env->set_parent_class_env_id( class_env->get_id() );
                     });
 
             } else {
@@ -427,6 +460,11 @@ namespace rill
             f_env->change_progress_to_checked();
             std::cout << "$ unchecked" << std::endl;
 
+            auto const& parent_c_env
+                = g_env_->get_env_at_as_strong_ref<class_symbol_environment>(
+                    f_env->get_parent_class_env_id()
+                    );
+            assert( parent_c_env != nullptr );
 
             // TODO: fix
             bool const is_constructor
@@ -627,36 +665,7 @@ namespace rill
                 = std::static_pointer_cast<class_symbol_environment>( related_env );
             assert( c_env != nullptr );
 
-            // guard double check
-            if ( c_env->is_checked() ) {
-                std::cout << "Already, checked" << std::endl;
-                // assert( false );
-                return;
-            }
-            c_env->change_progress_to_checked();
-
-            // complete(do NOT mangle)
-            c_env->complete(
-                s->get_identifier()->get_inner_symbol()->to_native_string(),
-                attribute::decl::k_extern | s->decl_attr_
-                );
-
-            //
-            if ( c_env->has_attribute( attribute::decl::k_intrinsic ) ) {
-                if ( auto&& id = action_holder_->is_registered( s->extern_symbol_name_ ) ) {
-                    auto const& action = action_holder_->at( *id );
-                    assert( action != nullptr );
-
-                    action->invoke(
-                        processing_context::k_semantics_typing,
-                        c_env
-                        );
-
-                } else {
-                    std::cout << s->extern_symbol_name_ << std::endl;
-                    assert( false && "[error] this intrinsic class is not registered" );
-                }
-            }
+            complete_class( s, c_env );
         }
 
     } // namespace semantic_analysis

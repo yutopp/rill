@@ -184,7 +184,6 @@ namespace rill
                 )
                 -> void;
 
-
         private:
             auto generate_function_call(
                 const_function_symbol_environment_ptr const& f_env,
@@ -193,6 +192,23 @@ namespace rill
                 bool const is_operator = false
                 )
                 -> llvm::Value*;
+
+            auto delegate_value_to(
+                type const&,
+                llvm::Value* const from,
+                llvm::Value* const to
+                )
+                -> void;
+
+            auto get_class_size(
+                const_class_symbol_environment_ptr const&
+                ) const
+                -> std::size_t;
+
+            auto get_class_alignment(
+                const_class_symbol_environment_ptr const&
+                ) const
+                -> std::size_t;
 
         private:
             const_global_environment_ptr g_env_;

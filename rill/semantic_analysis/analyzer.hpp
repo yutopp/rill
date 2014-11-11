@@ -35,6 +35,14 @@ namespace rill
     {
         namespace fs = boost::filesystem;
 
+        struct abstract_system_info
+        {
+            bool const enable_system_info;
+
+            std::size_t host_align;
+            std::size_t target_align;
+        };
+
         struct analyzer_options
         {
             std::vector<fs::path> system_import_path;
@@ -49,7 +57,8 @@ namespace rill
             analyzer(
                 global_environment_ptr const&,
                 intrinsic_action_holder_ptr const&,
-                analyzer_options const&
+                analyzer_options const&,
+                abstract_system_info const&
                 );
 
         public:
@@ -437,6 +446,7 @@ namespace rill
         private:
             global_environment_ptr g_env_;
             intrinsic_action_holder_ptr action_holder_;
+            abstract_system_info system_info_;
 
             std::shared_ptr<type_detail_pool_t> type_detail_pool_;
             std::shared_ptr<type_detail_factory> type_detail_factory_;
@@ -466,6 +476,7 @@ namespace rill
             std::stack<fs::path> working_dirs_;
             std::stack<environment_base_ptr> module_envs_;
         };
+
 
         //
         auto make_mangled_name(

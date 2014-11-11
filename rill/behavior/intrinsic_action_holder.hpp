@@ -35,11 +35,14 @@ namespace rill
         }
 
         template<typename Action>
-        auto append( std::string const& tag_name )
+        auto append(
+            std::string const& tag_name,
+            std::shared_ptr<Action> const& action
+            )
             -> intrinsic_action_id_t
         {
             auto const next_id = actions_.size();
-            actions_.push_back( std::make_shared<Action>() );
+            actions_.push_back( action );
 
             tag_map_[tag_name] = next_id;
 

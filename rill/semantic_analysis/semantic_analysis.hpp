@@ -49,10 +49,11 @@ namespace rill
             Node const& node,
             ActionHolderPtr const& action_holder,
             analyzer_options const& options = analyzer_options{},
+            abstract_system_info const& sysinfo = abstract_system_info{},
             EnvPtr const& env = nullptr
             )
         {
-            analyzer visitor( g_env, action_holder, options );
+            analyzer visitor( g_env, action_holder, options, sysinfo );
             visitor.dispatch( node, env );
 
             return visitor.get_report();

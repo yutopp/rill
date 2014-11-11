@@ -28,8 +28,14 @@ void sample( boost::program_options::variables_map const& vm )
 {
     namespace fs = boost::filesystem;
 
+    auto const& host
+        = std::make_shared<rill::behavior::default_system_info_setter<rill::behavior::x86_64_tag>>();
+
+    auto const& target
+        = std::make_shared<rill::behavior::default_system_info_setter<rill::behavior::x86_64_tag>>();
+
     // create default rill world
-    auto const& t = rill::create_world<>();
+    auto const& t = rill::create_world<>( host, target );
 
     auto const g_env = std::get<0>( t );
     auto const intrinsic_function_action = std::get<1>( t );

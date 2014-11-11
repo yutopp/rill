@@ -24,8 +24,8 @@
 
 namespace rill
 {
-    template<typename BehaviorGenarator = behavior::default_generator>
-    auto create_world()
+    template<typename... Args, typename BehaviorGenarator = behavior::default_generator>
+    auto create_world( Args&&... args )
         -> std::tuple<
             std::shared_ptr<global_environment>,
             std::shared_ptr<intrinsic_action_holder>
@@ -40,7 +40,7 @@ namespace rill
         auto intrinsic_action
             = std::make_shared<rill::intrinsic_action_holder>();
 
-        BehaviorGenarator()( intrinsic_action );
+        BehaviorGenarator()( intrinsic_action, std::forward<Args>( args )... );
 
         return std::make_tuple( std::move( g_env ), std::move( intrinsic_action ) );
     }

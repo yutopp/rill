@@ -18,29 +18,27 @@
 #include "../config/macros.hpp"
 
 #include "environment_base.hpp"
+#include "class_symbol_builtin_kind.hpp"
 
 
 namespace rill
 {
-    enum class class_builtin_kind
+    enum class class_traits_kind : std::size_t
     {
-        k_none,
-        k_void,
-        k_int8,
-        k_int16,
-        k_int32,
-        k_float,
-        k_type,
-        k_bool,
-        k_string,
-        k_array,
-        k_ptr,
+        k_has_non_trivial_copy_ctor,
+        k_has_non_trivial_move_ctor,
+        k_has_non_trivial_copy_assign,
+        k_has_non_trivial_move_assign,
+        k_has_non_trivial_dtor,
+        k_has_non_default_copyable_member,
+
+        last
     };
 
     //
     // class
     //
-    class class_symbol_environment RILL_CXX11_FINAL
+    class class_symbol_environment final
         : public environment_base
     {
     public:
@@ -56,6 +54,11 @@ namespace rill
             , base_name_( base_name )
             , decl_attr_( attribute::decl::k_default )
             , builtin_kind_( class_builtin_kind::k_none )
+            , host_align_( std::numeric_limits<std::size_t>::max() )
+            , host_size_( std::numeric_limits<std::size_t>::max() )
+            , target_align_( std::numeric_limits<std::size_t>::max() )
+            , target_size_( std::numeric_limits<std::size_t>::max() )
+            , traits_{}
         {}
 
     public:
@@ -193,6 +196,56 @@ namespace rill
             return pointer_detail_;
         }
 
+    public:
+        auto set_host_align( std::size_t const& s )
+            -> void
+        {
+            host_align_ = s;
+        }
+
+        auto set_host_size( std::size_t const& s )
+            -> void
+        {
+            host_size_ = s;
+        }
+
+        auto set_target_align( std::size_t const& s )
+            -> void
+        {
+            target_align_ = s;
+        }
+
+        auto set_target_size( std::size_t const& s )
+            -> void
+        {
+            target_size_ = s;
+        }
+
+
+        auto get_host_align() const
+        {
+            assert( host_align_ != std::numeric_limits<std::size_t>::max() );
+            return host_align_;
+        }
+
+        auto get_host_size() const
+        {
+            assert( host_size_ != std::numeric_limits<std::size_t>::max() );
+            return host_size_;
+        }
+
+        auto get_target_align() const
+        {
+            assert( target_align_ != std::numeric_limits<std::size_t>::max() );
+            return target_align_;
+        }
+
+        auto get_target_size() const
+        {
+            assert( target_size_ != std::numeric_limits<std::size_t>::max() );
+            return target_size_;
+        }
+
     private:
         native_string_type base_name_, mangled_name_;
         attribute::decl::type decl_attr_;
@@ -200,6 +253,28 @@ namespace rill
 
         std::shared_ptr<array_detail> array_detail_;
         std::shared_ptr<pointer_detail> pointer_detail_;
+
+        std::size_t host_align_, host_size_;
+        std::size_t target_align_, target_size_;
+
+    public:
+        inline auto set_traits_flag( class_traits_kind const& f, bool const b )
+            -> void
+        {
+            traits_[static_cast<std::size_t>( f )] = b;
+        }
+
+        inline auto has_traits_flag( class_traits_kind const& f ) const
+            -> bool
+        {
+            return traits_[static_cast<std::size_t>( f )];
+        }
+
+        auto is_default_copyable() const
+            -> bool;
+
+    private:
+        bool traits_[static_cast<std::size_t>( class_traits_kind::last )];
     };
 
 } // namespace rill

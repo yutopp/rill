@@ -165,10 +165,16 @@ namespace rill
                 = g_env_->get_type_at( callee_f_env->get_return_type_id() );
             bool const returns_heavy_object = is_heavy_object( ret_type );
 
-            llvm::Value* v = dispatch( s->expression_, parent_env );
+            llvm::Value* const v = dispatch( s->expression_, parent_env );
 
             if ( returns_heavy_object ) {
-                // TODO: implement invokacion of move ctor
+                auto const& c = function_env_to_llvm_constatnt_ptr( callee_f_env );
+                assert( c != nullptr );
+                auto const& f = static_cast<llvm::Function*>( c );
+                auto const& ret_val = f->arg_begin();;
+
+                delegate_value_to( ret_type, v, ret_val );
+
                 context_->ir_builder.CreateRetVoid();
 
             } else {
@@ -668,16 +674,6 @@ namespace rill
                 std::cout << "builtin! : " << c_env->get_base_name() << std::endl;
 
                 if ( auto&& id = action_holder_->is_registered( s->extern_symbol_name_ ) ) {
-                    auto const& action = action_holder_->at( *id );
-                    assert( action != nullptr );
-
-                    action->invoke(
-                        processing_context::k_llvm_ir_generator_typing,
-                        context_,
-                        c_env
-                        );
-
-                } else {
                     // special treatment for Array...
                     if ( c_env->is_array() ) {
                         std::cout << "array" << std::endl;
@@ -720,9 +716,19 @@ namespace rill
                             );
 
                     } else {
-                        // another builtin types are defined at beheviour/register_default_core.cpp ...
-                        assert( false && "[[ice]] reached..." );
+                        auto const& action = action_holder_->at( *id );
+                        assert( action != nullptr );
+
+                        action->invoke(
+                            processing_context::k_llvm_ir_generator_typing,
+                            context_,
+                            c_env
+                            );
                     }
+
+                } else {
+                    std::cout << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
+                    assert( false && "[ice] invalid type" );
                 }
 
             } else {
@@ -1538,6 +1544,8 @@ namespace rill
         {
             auto const& ret_type_id = f_env->get_return_type_id();
             auto const& ret_type = g_env_->get_type_at( ret_type_id );
+            regard_env_is_defined( ret_type.class_env_id );
+
             bool const returns_heavy_object = is_heavy_object( ret_type );
 
             // arguments
@@ -1550,7 +1558,6 @@ namespace rill
                     = context_->env_conversion_table.ref_type( ret_type.class_env_id );
                 llvm::AllocaInst* const allca_inst
                     = context_->ir_builder.CreateAlloca( llvm_ty );
-
                 //
                 total_args.push_back( allca_inst );
             }
@@ -1625,8 +1632,10 @@ namespace rill
                 auto const& reciever_obj_value
                     = context_->temporary_reciever_stack_.top();
 
+                std::cout << "yo1" << std::endl;
                 auto const& parameter_type
                     = g_env_->get_type_at( f_env->get_parameter_type_ids().at( 0 ) );
+                std::cout << "yo2" << std::endl;
 
                 auto const& ty
                     = g_env_->get_type_at(
@@ -1811,6 +1820,47 @@ namespace rill
             } else {
                 return source_value;
             }
+        }
+
+        auto llvm_ir_generator::delegate_value_to(
+            type const& ty,
+            llvm::Value* const from,
+            llvm::Value* const to
+            )
+            -> void
+        {
+            auto const& c_env
+                = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
+                    ty.class_env_id
+                    );
+
+            if ( c_env->is_default_copyable() ) {
+                auto const copy_size = get_class_size( c_env );
+                auto const alignment = get_class_alignment( c_env );
+
+                context_->ir_builder.CreateMemCpy( to, from, copy_size, alignment );
+
+            } else {
+                assert( false && "[ice] not supported" );
+            }
+        }
+
+        auto llvm_ir_generator::get_class_size(
+            const_class_symbol_environment_ptr const& c_env
+            ) const
+            -> std::size_t
+        {
+            // TODO: check host/target
+            return c_env->get_target_size();
+        }
+
+        auto llvm_ir_generator::get_class_alignment(
+            const_class_symbol_environment_ptr const& c_env
+            ) const
+            -> std::size_t
+        {
+            // TODO: check host/target
+            return c_env->get_target_align();
         }
 
     } // namespace code_generator

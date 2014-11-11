@@ -10,6 +10,7 @@
 
 #include <rill/environment/environment.hpp>
 #include <rill/environment/make_module_name.hpp>
+#include <rill/behavior/intrinsic_action_holder.hpp>
 #include <rill/syntax_analysis/parse.hpp>
 
 #include <rill/utility/colorize.hpp>
@@ -162,10 +163,12 @@ namespace rill
         analyzer::analyzer(
             global_environment_ptr const& g_env,
             intrinsic_action_holder_ptr const& holder,
-            analyzer_options const& options
+            analyzer_options const& options,
+            abstract_system_info const& sys_info
             )
             : g_env_( g_env )
             , action_holder_( holder )
+            , system_info_( sys_info )
             , type_detail_pool_( std::make_shared<type_detail_pool_t>() )
             , type_detail_factory_(
                 std::make_shared<type_detail_factory>( g_env, type_detail_pool_ )
@@ -707,68 +710,133 @@ namespace rill
             auto const& mangled_name
                 = make_mangled_name( c_env, template_signature );
 
+            auto const& attributes
+                = s->decl_attr_;
+
             if ( s->inner_ != nullptr ) {
+                // user defined class!
+
+                if ( ( attributes & attribute::decl::k_intrinsic ) != 0 ) {
+                    assert( false && "[error] class that has body can not be intrinsic" );
+                }
+
+                if ( ( attributes & attribute::decl::k_extern ) != 0 ) {
+                    assert( false && "[error] class that has body can not be extern" );
+                }
+
+                // set 0 values
+                // c_env->set_host_align( 0 );
+                // c_env->set_host_size( 0 );
+                c_env->set_target_align( 0 );
+                c_env->set_target_size( 0 );
+
                 // analyze class body
                 dispatch( s->inner_, c_env );
 
-                // complete class data
-                c_env->complete( mangled_name, s->decl_attr_ );
+                //
+                std::cout /*<< "host align   : " << c_env->get_host_align() << std::endl
+                            << "host size    : " << c_env->get_host_size() << std::endl*/
+                          << "target align : " << c_env->get_target_align() << std::endl
+                          << "target size  : " << c_env->get_target_size() << std::endl;
 
                 // expect as structured class(not a strong typedef)
                 c_env->set_attribute( attribute::decl::k_structured );
 
+                // complete class data
+                c_env->complete( mangled_name, attributes );
+
             } else {
                 std::cout << "builtin class!" << std::endl;
 
-                // complete class data
-                c_env->complete( mangled_name, s->decl_attr_ );
+                if ( ( attributes & attribute::decl::k_extern ) != 0 ) {
+                    auto const& extern_s
+                        = std::static_pointer_cast<ast::extern_class_declaration_statement>( s );
+                    if ( ( attributes & attribute::decl::k_intrinsic ) != 0 ) {
+                        // call inner action
+                        if ( auto&& id = action_holder_->is_registered( extern_s->extern_symbol_name_ ) ) {
+                            auto const& action = action_holder_->at( *id );
+                            assert( action != nullptr );
 
-                // TODO: change...;(;(;(
-                if ( s->get_identifier()->get_inner_symbol()->to_native_string() == "array" ) {
-                    // set special flag as Array
-                    // array template args are
-                    // [0]: type(no attributes by default)
-                    // [1]: number of elements
-                    assert( template_args->size() == 2 );
-                    assert( template_args->at( 0 ).is_type() );
+                            action->invoke(
+                                processing_context::k_semantics_typing,
+                                c_env
+                                );
 
-                    auto const& array_element_ty_detail
-                        = static_cast<type_detail_ptr>( template_args->at( 0 ).element );
-                    auto ty = g_env_->get_type_at( array_element_ty_detail->type_id ); // make copy
-                    ty.attributes = overlap_empty_attr( ty.attributes, attribute::make_default() );
-                    auto const& array_element_type_id = g_env_->make_type_id(
-                        ty.class_env_id,
-                        ty.attributes
-                        );
+                        } else {
+                            std::cout << extern_s->extern_symbol_name_ << std::endl;
+                            assert( false && "[error] this intrinsic class is not registered" );
+                        }
 
-                    auto const& array_element_num
-                        = static_cast<std::int32_t const* const>( template_args->at( 1 ).element );
+                        // TODO: change...;(;(;(
+                        if ( c_env->get_builtin_kind() == class_builtin_kind::k_array ) {
+                            // set special flag as Array
+                            // array template args are
+                            // [0]: type(no attributes by default)
+                            // [1]: number of elements
+                            assert( template_args->size() == 2 );
+                            assert( template_args->at( 0 ).is_type() );
 
-                    std::cout << "Array num is " << *array_element_num << std::endl;
-                    c_env->make_as_array(
-                        array_element_type_id,
-                        *array_element_num
-                        );
+                            auto const& array_element_ty_detail
+                                = static_cast<type_detail_ptr>( template_args->at( 0 ).element );
+                            auto ty = g_env_->get_type_at( array_element_ty_detail->type_id ); // make copy
+                            ty.attributes = overlap_empty_attr( ty.attributes, attribute::make_default() );
+                            auto const& array_element_type_id = g_env_->make_type_id(
+                                ty.class_env_id,
+                                ty.attributes
+                                );
 
-                } else if ( s->get_identifier()->get_inner_symbol()->to_native_string() == "ptr" ) {
-                    // set special flag as Pointer
-                    // ptr template args are
-                    // [0]: type(no attributes by default)
-                    assert( template_args->size() == 1 );
-                    assert( template_args->at( 0 ).is_type() );
+                            auto const& array_element_num
+                                = static_cast<std::int32_t const* const>( template_args->at( 1 ).element );
 
-                    auto const& ptr_element_ty_detail
-                        = static_cast<type_detail_ptr>( template_args->at( 0 ).element );
-                    auto ty = g_env_->get_type_at( ptr_element_ty_detail->type_id ); // make copy
-                    ty.attributes = overlap_empty_attr( ty.attributes, attribute::make_default() );
-                    auto const& ptr_element_type_id = g_env_->make_type_id(
-                        ty.class_env_id,
-                        ty.attributes
-                        );
+                            std::cout << "Array num is " << *array_element_num << std::endl;
+                            c_env->make_as_array(
+                                array_element_type_id,
+                                *array_element_num
+                                );
 
-                    std::cout << "This is ptr!" << std::endl;
-                    c_env->make_as_pointer( ptr_element_type_id );
+                            // TODO: set kind
+                            // class_traits_kind::k_has_non_trivial_copy_ctor;
+                            // class_traits_kind::k_has_non_trivial_move_ctor;
+                            // class_traits_kind::k_has_non_trivial_copy_assign;
+                            // class_traits_kind::k_has_non_trivial_move_assign;
+                            // class_traits_kind::k_has_non_trivial_dtor;
+                            // class_traits_kind::k_has_non_trivial_copy_ctor;
+                            // class_traits_kind::k_has_non_default_copyable_member;
+
+                            // TODO: set alignment, size
+                            // c_env->set_target_align(
+                            // c_env->set_target_size(
+
+                        } else if ( c_env->get_builtin_kind() == class_builtin_kind::k_ptr ) {
+                            // set special flag as Pointer
+                            // ptr template args are
+                            // [0]: type(no attributes by default)
+                            assert( template_args->size() == 1 );
+                            assert( template_args->at( 0 ).is_type() );
+
+                            auto const& ptr_element_ty_detail
+                                = static_cast<type_detail_ptr>( template_args->at( 0 ).element );
+                            auto ty = g_env_->get_type_at( ptr_element_ty_detail->type_id ); // make copy
+                            ty.attributes = overlap_empty_attr( ty.attributes, attribute::make_default() );
+                            auto const& ptr_element_type_id = g_env_->make_type_id(
+                                ty.class_env_id,
+                                ty.attributes
+                                );
+
+                            std::cout << "This is ptr!" << std::endl;
+                            c_env->make_as_pointer( ptr_element_type_id );
+                        }
+
+                    } else {
+                        assert( false && "[error]" );
+                    }
+
+                } else {
+                    assert( false && "[error]" );
                 }
+
+                // complete class data
+                c_env->complete( mangled_name, attributes );
             }
 
             return true;
