@@ -32,8 +32,11 @@
 
 #define RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_UNIT(node_class_name) \
     RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_UNIT_HEADER(node_class_name) \
-    { \
-        RILL_DEBUG_S( std::cout << "<DISPATCH> " << #node_class_name << " ast_this: " << this->get_id() << std::endl ); \
+    {                                                                   \
+        debug_s {                                                       \
+            std::cout << "<DISPATCH> " << #node_class_name              \
+                      << " ast_this: " << this->get_id() << std::endl;  \
+        }                                                               \
         /* down casting */                                              \
         d.callback_from_node(                                           \
             std::static_pointer_cast<node_class_name>( self ),          \
@@ -44,8 +47,11 @@
 
 #define RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_READONLY_UNIT(node_class_name) \
     RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_READONLY_UNIT_HEADER(node_class_name) \
-    { \
-        RILL_DEBUG_S( std::cout << "<DISPATCH readonly> " << #node_class_name << " ast_this: " << this->get_id() << std::endl ); \
+    {                                                                   \
+        debug_s {                                                       \
+            std::cout << "<DISPATCH readonly> " << #node_class_name     \
+                      << " ast_this: " << this->get_id() << std::endl;  \
+        }                                                               \
         /* down casting */                                              \
         d.callback_from_node(                                           \
             std::static_pointer_cast<node_class_name const>( self ),    \

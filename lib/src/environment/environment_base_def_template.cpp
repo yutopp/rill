@@ -36,7 +36,10 @@ namespace rill
             incomplete_construct( kind::template_tag(), name_identifier )
             );
 
-        RILL_DEBUG_LOG( "Template Marked, %&%& " << multi_set_env->get_id() << " : " << template_env->get_id() );
+        debug_s {
+            std::cout << "Template Marked, %&%& " << multi_set_env->get_id()
+                      << " : " << template_env->get_id() << std::endl;
+        }
 
         //
         template_env->link_with_ast( ast );

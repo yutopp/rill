@@ -1,5 +1,12 @@
 #
-PROJECT( rill )
+if( NOT DEFINED RILL_CXX_COMPILER )
+  set( CMAKE_CXX_COMPILER "clang++" )
+else()
+  set( CMAKE_CXX_COMPILER ${RILL_CXX_COMPILER} )
+endif()
+
+#
+PROJECT( rill CXX )
 CMAKE_MINIMUM_REQUIRED( VERSION 2.8 )
 
 set( RILL_VERSION_MAJOR 0 )
@@ -10,7 +17,10 @@ set( PACKAGE_VERSION "${RILL_VERSION_MAJOR}.${RILL_VERSION_MINOR}" )
 include_directories( "${PROJECT_SOURCE_DIR}" )
 
 #
-set(CMAKE_C_FLAGS_DEBUG "-DRILL_DEBUG")
+if( CMAKE_BUILD_TYPE STREQUAL "" )
+   set( CMAKE_BUILD_TYPE Release )
+   message( STATUS "build as Release mode" )
+endif()
 
 #
 if( CMAKE_CXX_COMPILER_ID STREQUAL "Clang" )
@@ -37,6 +47,9 @@ else()
   message( WARNING "This compiler is not supported..." )
 
 endif()
+
+#
+set(CMAKE_CXX_FLAGS_DEBUG "-DRILL_DEBUG")
 
 
 ############################################################

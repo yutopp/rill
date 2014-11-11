@@ -22,7 +22,7 @@ namespace rill
     {
         namespace fs = boost::filesystem;
 
-        std::cout << "base: " << base_path << std::endl
+        debug_out << "base: " << base_path << std::endl
                   << "src : " << module->fullpath << std::endl;
 
         if ( module->fullpath.empty() ) {
@@ -48,10 +48,10 @@ namespace rill
         }
 
         //
-        std::cout << module_abs_path << std::endl;
+        debug_out << module_abs_path << std::endl;
 
         std::string module_name = module_abs_path.stem().string();
-        std::cout << "module_name: " << module_name << std::endl;
+        debug_out << "module_name: " << module_name << std::endl;
 
         return module_name;
     }

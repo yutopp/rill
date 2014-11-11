@@ -34,7 +34,7 @@ namespace rill
         // construct incomplete environment( parameter wrapper & function )
         RILL_PP_TIE( set_env, created_function_env, incomplete_construct( kind::function_tag(), name_identifier ) );
 
-        std::cout << "Marked, %&%& " << set_env->get_id() << " : " << created_function_env->get_id() << std::endl;
+        debug_out << "Marked, %&%& " << set_env->get_id() << " : " << created_function_env->get_id() << std::endl;
 
         //
         created_function_env->link_with_ast( ast );

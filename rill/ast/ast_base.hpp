@@ -32,13 +32,11 @@ namespace rill
             {
             public:
 
-                ast_id_generator()
 #ifdef RILL_DEBUG
+                ast_id_generator()
                 {
                     std::cout << "AST ID GENERATOR" << std::endl;
                 }
-#else
-                = default;
 #endif
 
             public:
@@ -62,9 +60,7 @@ namespace rill
             ast_base()
             {
                 id_ = igen_();  // generate id
-#ifdef RILL_DEBUG
-                std::cout << "NEW AST( " << typeid( this ).name() << " )@ ID: " << id_ << std::endl;
-#endif
+                debug_out << "NEW AST( " << typeid( this ).name() << " )@ ID: " << id_ << std::endl;
             }
 
         public:

@@ -26,7 +26,7 @@ namespace rill
                 void*
             >
         {
-            std::cout << "CTFE of expresison!!!!!!" << std::endl;
+            debug_out << "CTFE of expresison!!!!!!" << std::endl;
 
             // solve semantics
             auto const& ty_detail = dispatch( expression, parent_env );
@@ -41,7 +41,7 @@ namespace rill
             auto const& ty
                 = g_env_->get_type_at( ty_detail->type_id );
 
-            std::cout << "KKKKK : " << debug_string( g_env_->get_env_at_as_strong_ref( ty.class_env_id )->get_symbol_kind() ) << std::endl;
+            debug_out << "KKKKK : " << debug_string( g_env_->get_env_at_as_strong_ref( ty.class_env_id )->get_symbol_kind() ) << std::endl;
 
             auto c_env
                 = std::static_pointer_cast<class_symbol_environment const>(
@@ -68,17 +68,17 @@ namespace rill
             environment_base_ptr const& parent_env
             ) -> type_detail_ptr
         {
-            std::cout << "TYPE expresison!!!!!!" << std::endl;
+            debug_out << "TYPE expresison!!!!!!" << std::endl;
             RILL_PP_TIE(
                 c_env, evaled_value,
                 eval_expression_as_ctfe( id_expression, parent_env )
                 );
             assert( c_env != nullptr );
 
-            std::cout << "pass: " << __LINE__ << std::endl;
-            std::cout << ": " << c_env << std::endl;
-            std::cout << c_env->get_base_name() << std::endl;
-            std::cout << "pass: " << __LINE__ << std::endl;
+            debug_out << "pass: " << __LINE__ << std::endl
+                      << ": " << c_env << std::endl
+                      << c_env->get_base_name() << std::endl
+                      << "pass: " << __LINE__ << std::endl;
 
             //
             if ( c_env->get_base_name() != "type" ) {
@@ -87,7 +87,7 @@ namespace rill
 
             auto ty_d = static_cast<type_detail_ptr>( evaled_value );
 
-            std::cout << "APPEND attributes" << std::endl;
+            debug_out << "APPEND attributes" << std::endl;
             auto ty = g_env_->get_type_at( ty_d->type_id ); // make copy
             // force overwrite holder type(if specified)
             // other attributes are filled
@@ -167,7 +167,7 @@ namespace rill
 
                 default:
                 {
-                    std::cout << orig_c_env->get_base_name() << std::endl;
+                    debug_out << orig_c_env->get_base_name() << std::endl;
                     assert( false && "[[ice]] this value type was not supported currently." );
                     return nullptr;
                 }

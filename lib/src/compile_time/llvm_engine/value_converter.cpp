@@ -7,6 +7,7 @@
 //
 
 #include <rill/compile_time/llvm_engine/value_converter.hpp>
+#include <rill/config/macros.hpp>
 
 #include <iostream>
 
@@ -72,7 +73,7 @@ namespace rill
                         break;
 
                     default:
-                        std::cout << "bitwidth: " << to_type->getIntegerBitWidth() << std::endl;
+                        debug_out << "bitwidth: " << to_type->getIntegerBitWidth() << std::endl;
                         assert( false && "[ice] bitwidth" );
                     }
                     break;

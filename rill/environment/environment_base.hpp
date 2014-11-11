@@ -66,13 +66,13 @@ namespace rill
             , owner_module_id_( ep.mod_id )
             , is_private_( ep.is_private )
         {
-            std::cout << ">> environment constructed(as a child)"
+            debug_out << ">> environment constructed(as a child)"
                       << " / id: " << id_ << std::endl;
         }
 
         virtual ~environment_unit()
         {
-            std::cout << "<< environment destructed / id: " << id_ << " = " << typeid(*this).name() << std::endl;
+            debug_out << "<< environment destructed / id: " << id_ << " = " << typeid(*this).name() << std::endl;
         }
 
     public:

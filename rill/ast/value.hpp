@@ -251,9 +251,7 @@ namespace rill
                 : name_symbol_( name )
                 , started_from_root_( started_from_root )
             {
-#ifdef RILL_DEBUG
-                std::cout << "IDENTIFIER INSTNCED: " << this << " / " << name->to_native_string() << std::endl;
-#endif
+                debug_out << "IDENTIFIER INSTNCED: " << this << " / " << name->to_native_string() << std::endl;
             }
 
         public:

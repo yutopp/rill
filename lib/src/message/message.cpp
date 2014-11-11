@@ -6,9 +6,10 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#include <iostream>
-
 #include <rill/message/message.hpp>
+#include <rill/config/macros.hpp>
+
+#include <iostream>
 
 
 namespace rill
@@ -18,7 +19,7 @@ namespace rill
         auto print( message_object const& msg )
             -> void
         {
-            std::cout << "=======================================================" << std::endl
+            debug_out << "=======================================================" << std::endl
                       << "=======================================================" << std::endl
                       << "ABYAAA: " << msg.message << std::endl
                       << "=======================================================" << std::endl

@@ -200,11 +200,11 @@ namespace rill
                 F const& callback
                 ) -> type_detail_ptr
             {
-                std::cout << "solve_type :before_eval" << std::endl;
+                debug_out << "solve_type :before_eval" << std::endl;
                 auto const ty_detail
                     = eval_type_expression_as_ctfe( id_expression, attr, parent_env );
                 auto const& ty_id = ty_detail->type_id;
-                std::cout << "solve_type :after_eval" << std::endl;
+                debug_out << "solve_type :after_eval" << std::endl;
 
                 auto const ty = g_env_->get_type_at( ty_id );  // copy Ty...
 
@@ -222,7 +222,7 @@ namespace rill
                         return p;
                     }
                 }();
-                std::cout << "solve_type :finished" << std::endl;
+                debug_out << "solve_type :finished" << std::endl;
 
                 callback( ty_detail, ty, class_env );
 
