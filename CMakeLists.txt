@@ -205,7 +205,7 @@ endif()
 #
 
 # librill(lib)
-add_subdirectory( ${PROJECT_SOURCE_DIR}/lib/rill )
+add_subdirectory( ${PROJECT_SOURCE_DIR}/lib )
 install( DIRECTORY ${PROJECT_SOURCE_DIR}/rill DESTINATION include )
 
 # tools(compiler)
