@@ -10,6 +10,7 @@
 #define RILL_AST_VISITOR_HPP
 
 #include "detail/tree_visitor_base.hpp"
+#include "../message/dummy_message_container.hpp"
 
 
 namespace rill
@@ -17,9 +18,9 @@ namespace rill
     namespace ast
     {
         // AST Node: NOT const, visitor: NOT const
-        template<typename Derived, typename ReturnT>
+        template<typename Derived, typename ReturnT, typename Messaging = message::dummy_message_container>
         struct ast_visitor
-            : public detail::tree_visitor_base<Derived, ReturnT>
+            : public detail::tree_visitor_base<Derived, ReturnT, Messaging>
         {
         public:
             typedef ast_visitor                         self_type;
@@ -63,9 +64,9 @@ namespace rill
 
 
         // AST Node: NOT const, visitor: const
-        template<typename Derived, typename ReturnT>
+        template<typename Derived, typename ReturnT, typename Messaging = message::dummy_message_container>
         struct ast_visitor_const
-            : public detail::tree_visitor_base<Derived const, ReturnT>
+            : public detail::tree_visitor_base<Derived const, ReturnT, Messaging>
         {
         public:
             typedef ast_visitor_const                   self_type;
@@ -109,9 +110,9 @@ namespace rill
 
 
         // AST Node: const, visitor: NOT const
-        template<typename Derived, typename ReturnT>
+        template<typename Derived, typename ReturnT, typename Messaging = message::dummy_message_container>
         struct readonly_ast_visitor
-            : public detail::tree_visitor_base<Derived, ReturnT>
+            : public detail::tree_visitor_base<Derived, ReturnT, Messaging>
         {
         public:
             typedef readonly_ast_visitor                self_type;
@@ -161,9 +162,9 @@ namespace rill
 
 
         // AST Node: const, visitor: const
-        template<typename Derived, typename ReturnT>
+        template<typename Derived, typename ReturnT, typename Messaging = message::dummy_message_container>
         struct readonly_ast_visitor_const
-            : public detail::tree_visitor_base<Derived const, ReturnT>
+            : public detail::tree_visitor_base<Derived const, ReturnT, Messaging>
         {
         public:
             typedef readonly_ast_visitor_const          self_type;

@@ -25,7 +25,7 @@ namespace rill
         namespace detail
         {
             //
-            template<typename Derived, typename ReturnT>
+            template<typename Derived, typename ReturnT, typename Messaging>
             struct tree_visitor_base;
 
             // ========================================

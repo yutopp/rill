@@ -17,12 +17,15 @@
 
 #include <boost/optional.hpp>
 #include <boost/filesystem/path.hpp>
+#include <boost/format.hpp>
 
 #include "../ast/visitor.hpp"
 #include "../environment/environment_base.hpp"
 #include "../behavior/intrinsic_action_holder_fwd.hpp"
 
 #include "../compile_time/llvm_engine/ctfe_engine.hpp"
+#include "../message/message_container.hpp"
+#include "message_code_fwd.hpp"
 
 #include "type_detail.hpp"
 #include "type_detail_pool_t.hpp"
@@ -49,7 +52,14 @@ namespace rill
         };
 
         class analyzer final
-            : public ast::ast_visitor<analyzer, type_detail_ptr>
+            : public ast::ast_visitor<
+                analyzer,
+                type_detail_ptr,
+                message::message_container<
+                    message::message_object<message_code>,
+                    analyzer
+                >
+            >
         {
             using self_type = analyzer;
 
@@ -440,6 +450,18 @@ namespace rill
                 -> environment_base_ptr;
 
         private:
+            auto semantic_error(
+                message_code const& code,
+                ast::const_ast_base_ptr const& ast,
+                boost::format const& message
+                )
+                -> void;
+
+        public:
+            auto message_hook( message_type const& m ) const
+                -> void;
+
+        private:
             auto get_primitive_class_env( std::string const& type_name )
                 -> class_symbol_environment_ptr;
 
@@ -533,6 +555,13 @@ namespace rill
             }
 
             return class_env;
+        }
+
+        template<typename S>
+        auto format( S&& s )
+        {
+            // TODO: support Boost.Locale
+            return boost::format( std::forward<S>( s ) );
         }
 
     } // namespace semantic_analysis

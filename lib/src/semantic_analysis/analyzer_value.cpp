@@ -7,6 +7,7 @@
 //
 
 #include <rill/semantic_analysis/semantic_analysis.hpp>
+#include <rill/semantic_analysis/message_code.hpp>
 
 #include <rill/environment/environment.hpp>
 
@@ -34,9 +35,11 @@ namespace rill
         {
             auto&& td = solve_identifier( v, parent_env );
             if ( td == nullptr ) {
-                // compilation error...
-                std::cout << "% name : " << v->get_inner_symbol()->to_native_string() << std::endl;
-                assert( false && "[Error] identifier was not found." );
+                semantic_error(
+                    message_code::e_id_not_found,
+                    v,
+                    format( "Identifier '%1%' was not declared." ) % v->get_inner_symbol()->to_native_string()
+                    );
             }
 
             return bind_type( v, td );
@@ -51,9 +54,11 @@ namespace rill
         {
             auto&& td = solve_identifier( v, parent_env );
             if ( td == nullptr ) {
-                // compilation error...
-                std::cout << "% name : " << v->get_inner_symbol()->to_native_string() << std::endl;
-                assert( false && "[Error] identifier was not found." );
+                semantic_error(
+                    message_code::e_id_not_found,
+                    v,
+                    format( "Identifier '%1%' was not declared." ) % v->get_inner_symbol()->to_native_string()
+                    );
             }
 
             return bind_type( v, td );

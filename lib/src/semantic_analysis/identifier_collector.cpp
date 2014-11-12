@@ -38,6 +38,8 @@ namespace rill
             auto module_env = g_env_->make_module( module_name );
             assert( module_env != nullptr );
 
+            module_env->link_with_ast( s );
+
             dispatch( s->program, module_env );
         }
 

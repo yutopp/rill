@@ -1,7 +1,7 @@
 def main(): int
 {
 
-    val a: mutable(int) = 10;
+    val a: mutable(2) = 10;
     a = 21;
     val b = 20;
 

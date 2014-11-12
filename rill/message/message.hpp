@@ -9,7 +9,6 @@
 #ifndef RILL_MESSAGE_MESSAGE_HPP
 #define RILL_MESSAGE_MESSAGE_HPP
 
-#include <exception>
 #include <string>
 
 
@@ -25,14 +24,14 @@ namespace rill
         };
 
         //
+        template<typename CodeT>
         struct message_object
         {
             message_level level;
-            std::string message;
+            CodeT code;
+            std::string location;
+            std::string content;
         };
-
-        auto print( message_object const& )
-            -> void;
 
     } // namespace message
 } // namespace rill

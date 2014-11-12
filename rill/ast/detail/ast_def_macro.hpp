@@ -10,6 +10,7 @@
 #define RILL_AST_DETAIL_AST_DEF_MACRO_HPP
 
 #include <cstddef>
+#include <cassert>
 #include <memory>
 
 #include <boost/preprocessor.hpp>
@@ -48,7 +49,7 @@ namespace rill
             auto make_ast_instance()
                 -> std::enable_if_t<std::is_abstract<T>::value, std::shared_ptr<T>>
             {
-                assert( false && "aaaaaa" );
+                assert( false && "[ice] tried to instantiate abstract class" );
                 return nullptr;
             }
 
@@ -183,6 +184,8 @@ namespace rill
     {                                                                   \
         auto cloned = detail::make_ast_instance<class_name>();          \
         clone_elements_to( cloned );                                    \
+        cloned->line = line;                                             \
+        cloned->column = column;                                         \
         return cloned;                                                  \
     }                                                                   \
     RILL_AST_DEFINE_CLONE_ELEMENTS_FUNCITON( class_name, elem )

@@ -2554,5 +2554,43 @@ namespace rill
                 );
         }
 
+
+        auto analyzer::semantic_error(
+            message_code const& code,
+            ast::const_ast_base_ptr const& ast,
+            boost::format const& message
+            )
+            -> void
+        {
+            auto const& module_ast
+                = std::static_pointer_cast<ast::module>(
+                    g_env_->get_related_ast( module_envs_.top()->get_id() )
+                    );
+
+            auto const& location
+                = ( boost::format( "%1% (l:%2% c:%3%)" )
+                    % module_ast->fullpath
+                    % ast->line
+                    % ast->column
+                    ).str();
+            auto const& content
+                = message.str();
+
+            send_error( code, location, content );
+        }
+
+
+        auto analyzer::message_hook( message_type const& m ) const
+            -> void
+        {
+            // TODO: check if a message is error
+            std::cout << ( colorize::standard::fg::red | colorize::standard::bold )
+                      << "Error: " << colorize::standard::reset
+                      << m.location << std::endl
+                      << "       " << colorize::standard::bold
+                      << m.content << colorize::standard::reset << std::endl
+                      << std::endl;
+        }
+
     } // namespace semantic_analysis
 } // namespace rill
