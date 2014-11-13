@@ -413,7 +413,7 @@ namespace rill
                 ast->column = column;
             }
 
-            auto tagging2()
+            auto tagging()
             {
                 return []( auto& ctx ) {
                     auto& ast = x3::_val( ctx );
