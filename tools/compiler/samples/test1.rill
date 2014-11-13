@@ -4,8 +4,8 @@ def main(): int
     val a: mutable(int) = 10;
     a = 21;
     val b = 20;
-    val b = 20;
-ff();
+//    val b = 20;
+//ff();
 ///    mutable(TestClass)();
 
 //    val kla: mutable(TestClass);

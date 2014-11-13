@@ -75,6 +75,11 @@ namespace rill
                           << "  " << colorize::standard::bold
                           << m.content << colorize::standard::reset << std::endl
                           << std::endl;
+                debug_s {
+                    if ( !m.has_appendix ) {
+                        assert( false );
+                    }
+                }
                 break;
 
             case message::message_level::e_note:
@@ -84,7 +89,9 @@ namespace rill
                           << "      " << colorize::standard::bold
                           << m.content << colorize::standard::reset << std::endl
                           << std::endl;
-//                assert( false );
+                debug_s {
+                    assert( false );
+                }
                 break;
 
             default:

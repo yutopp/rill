@@ -304,10 +304,7 @@ namespace rill
             // for( auto const& unit : val_decl.decl_unit_list ) {
             auto const& unit = val_decl.decl_unit;
 
-            regard_variable_is_not_already_defined(
-                parent_env,
-                unit.name
-                );
+            // MEMO: do NOT check redefinition
 
             // TODO: make method to determine "type"
 

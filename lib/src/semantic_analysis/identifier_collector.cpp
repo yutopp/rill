@@ -242,6 +242,31 @@ namespace rill
                 kind_check( *e, kind::type_value::e_variable, s, parent_env );
             }
 
+            // prevent redefinition
+            auto const& val_decl = s->declaration_;
+            auto const& unit = val_decl.decl_unit;
+            if ( auto const& v = parent_env->find_on_env( unit.name ) ) {
+                save_stock_message_pivot();
+
+                auto const& val_decl_ast
+                    = g_env_->get_related_ast( v->get_id() );
+
+                save_appendix_information(
+                    message_code::e_reference,
+                    val_decl_ast,
+                    v,
+                    format( "reference" )
+                    );
+
+                semantic_error(
+                    message_code::e_variable_is_already_defined,
+                    unit.name,
+                    parent_env,
+                    format( "class variable is already defined" ),
+                    true
+                    );
+            }
+
             // variable declared in class scope is forward referencable
             // add variable symbol to current environment
             auto const& v_env
