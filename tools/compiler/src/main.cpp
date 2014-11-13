@@ -161,7 +161,7 @@ int main( int argc, char* argv[] )
 
         ( "rill-rt-lib-path",
           po::value<std::string>(),
-          "[obsolute option] rill runtime library path" )
+          "[obsolete option] rill runtime library path" )
         ;
 
 
@@ -230,7 +230,7 @@ int main( int argc, char* argv[] )
         }
 
         if ( vm.count( "rill-rt-lib-path" ) ) {
-            std::cerr << "the option 'rill-rt-lib-path' is obsolute." << std::endl
+            std::cerr << "the option 'rill-rt-lib-path' is obsolete." << std::endl
                       << "please use 'rill-link-rt-lib-path' instead." << std::endl;
 
             st.link_runtime_lib_path = vm["rill-rt-lib-path"].as<std::string>();
