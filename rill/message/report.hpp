@@ -10,6 +10,7 @@
 #define RILL_MESSAGE_REPORT_HPP
 
 #include <vector>
+#include <stack>
 #include <algorithm>
 
 #include "message.hpp"
@@ -22,6 +23,7 @@ namespace rill
         template<typename M>
         class report
         {
+            using self_type = report<M>;
             using message_type = M;
 
         public:
@@ -45,8 +47,39 @@ namespace rill
                 return messages_;
             }
 
+        public:
+            inline auto append_stocked_message( message_type&& msg )
+                -> void
+            {
+                stocked_.emplace( std::move( msg ) );
+            }
+
+            inline auto get_stocked() const
+                -> std::stack<message_type> const&
+            {
+                return stocked_;
+            }
+
+            inline auto get_stocked()
+                -> std::stack<message_type>&
+            {
+                return stocked_;
+            }
+
+        public:
+            auto import_from( self_type const& rep )
+                -> void
+            {
+                std::copy(
+                    rep.messages_.cbegin(),
+                    rep.messages_.cend(),
+                    std::back_inserter( messages_ )
+                    );
+            }
+
         private:
             std::vector<message_type> messages_;
+            std::stack<message_type> stocked_;
         };
 
     } // namespace message

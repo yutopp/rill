@@ -115,6 +115,9 @@ namespace rill
     typedef std::shared_ptr<class_symbol_environment>           class_symbol_environment_ptr;
     typedef std::shared_ptr<class_symbol_environment const>     const_class_symbol_environment_ptr;
 
+    class module_environment;
+    using module_environment_ptr = std::shared_ptr<module_environment>;
+    using const_module_environment_ptr = std::shared_ptr<module_environment const>;
 
     //
     std::ostream& operator<<( std::ostream& os, const_environment_base_ptr const& env );

@@ -32,10 +32,11 @@ namespace rill
             EnvPtr const& env = nullptr,
             boost::filesystem::path const& base_path = boost::filesystem::path()
             )
-            -> void
         {
             identifier_collector visitor( g_env, base_path );
             visitor.dispatch( node, env );
+
+            return visitor.get_report();
         }
 
         //

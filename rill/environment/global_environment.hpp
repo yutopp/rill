@@ -96,8 +96,8 @@ namespace rill
         ///
         /// Module
         ///
-        auto make_module( std::string const& name )
-            -> environment_base_ptr
+        auto make_module( std::string const& name, boost::filesystem::path const& path )
+            -> module_environment_ptr
         {
             if ( name_module_rel_.find( name ) != name_module_rel_.cend() ) {
                 debug_out << "module name: " << name << std::endl;
@@ -109,11 +109,12 @@ namespace rill
             ++module_counter_;
 
             auto mod
-                = env_container_.template allocate<namespace_environment>(
+                = env_container_.template allocate<module_environment>(
                     shared_from_this(),
                     weak_environment_unit_ptr(),
                     module_id,
-                    false
+                    false,
+                    path
                     );
 
             id_module_rel_[module_id] = mod;
@@ -123,7 +124,7 @@ namespace rill
         }
 
         auto find_module( std::string const& name ) const
-            -> environment_base_ptr
+            -> module_environment_ptr
         {
             if ( name_module_rel_.find( name ) == name_module_rel_.cend() ) {
                 debug_out << "module name: " << name << std::endl;
@@ -305,8 +306,8 @@ namespace rill
 
     private:
         module_id_t module_counter_;
-        std::unordered_map<module_id_t, environment_base_ptr> id_module_rel_;
-        std::unordered_map<std::string, environment_base_ptr> name_module_rel_;
+        std::unordered_map<module_id_t, module_environment_ptr> id_module_rel_;
+        std::unordered_map<std::string, module_environment_ptr> name_module_rel_;
 
         environment_registry<environment_unit> env_container_;
         ast_to_environment_id_mapper ast_to_env_id_map;

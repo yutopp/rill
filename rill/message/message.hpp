@@ -20,7 +20,9 @@ namespace rill
         {
             e_normal,
             e_warning,
-            e_error
+            e_error,
+            e_pivot,
+            e_note
         };
 
         //
@@ -31,6 +33,7 @@ namespace rill
             CodeT code;
             std::string location;
             std::string content;
+            bool has_appendix;
         };
 
     } // namespace message

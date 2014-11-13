@@ -11,13 +11,9 @@
 #include <cassert>
 #include <memory>
 #include <unordered_map>
-#include <bitset>
 #include <vector>
 #include <utility>
-#include <boost/range/adaptor/transformed.hpp>
-#include <boost/range/iterator_range.hpp>
-
-#include <boost/algorithm/string/join.hpp>
+#include <boost/optional.hpp>
 
 #include "../config/macros.hpp"
 
@@ -540,9 +536,23 @@ namespace rill
 
     public:
         inline auto is_exist( native_string_type const& name ) const
-            -> bool
+            -> boost::optional<const_environment_unit_ptr>
         {
-            return inner_envs_.find( name ) != inner_envs_.cend();
+            auto it = inner_envs_.find( name );
+            if ( it == inner_envs_.cend() ) {
+                return boost::none;
+            }
+
+            return boost::make_optional(
+                std::static_pointer_cast<environment_unit const>(
+                    it->second
+                    )
+                );
+        }
+
+        inline auto is_exist( ast::const_identifier_value_base_ptr const& name ) const
+        {
+            return is_exist( name->get_inner_symbol()->to_native_string() );
         }
 
     public:

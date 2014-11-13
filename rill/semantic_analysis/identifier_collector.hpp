@@ -10,9 +10,12 @@
 #define RILL_SEMANTIC_ANALYSIS_IDENTIFILER_COLLECTOR_HPP
 
 #include <boost/filesystem/path.hpp>
+#include <boost/format.hpp>
 
 #include "../ast/visitor.hpp"
+#include "../environment/environment_kind.hpp"
 #include "../environment/global_environment_fwd.hpp"
+#include "messaging.hpp"
 
 
 namespace rill
@@ -21,10 +24,15 @@ namespace rill
     {
         //
         class identifier_collector RILL_CXX11_FINAL
-            : public ast::ast_visitor_const<identifier_collector, environment_base_ptr>
+            : public ast::ast_visitor_const<
+                identifier_collector,
+                environment_base_ptr,
+                messaging
+            >
         {
         public:
             using self_type = identifier_collector;
+            using messenger_type = messaging;
 
         public:
             identifier_collector(
@@ -51,6 +59,54 @@ namespace rill
             RILL_VISITOR_OP_DECL( ast::class_variable_declaration_statement ) const;
 
             RILL_VISITOR_OP_DECL( ast::template_statement ) const;
+
+        private:
+            inline auto semantic_error(
+                message_code const& code,
+                ast::const_ast_base_ptr const& ast,
+                const_environment_base_ptr const& env,
+                boost::format const& message,
+                bool const has_appendix = false
+                ) const
+                -> void
+            {
+                messaging::semantic_error(
+                    get_filepath( env ),
+                    code,
+                    ast,
+                    message,
+                    has_appendix
+                    );
+            }
+
+            inline auto save_appendix_information(
+                message_code const& code,
+                ast::const_ast_base_ptr const& ast,
+                const_environment_base_ptr const& env,
+                boost::format const& message
+                ) const
+                -> void
+            {
+                messaging::save_appendix_information(
+                    get_filepath( env ),
+                    code,
+                    ast,
+                    message
+                    );
+            }
+
+            auto get_filepath(
+                const_environment_base_ptr const& env
+                ) const
+                -> boost::filesystem::path;
+
+            auto kind_check(
+                const_environment_unit_ptr const& env,
+                kind::type_value const& kind,
+                ast::const_ast_base_ptr const& s,
+                environment_base_ptr const& parent_env
+                ) const
+                -> void;
 
         private:
             global_environment_ptr g_env_;

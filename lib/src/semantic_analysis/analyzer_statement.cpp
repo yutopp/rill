@@ -7,6 +7,8 @@
 //
 
 #include <rill/semantic_analysis/semantic_analysis.hpp>
+#include <rill/semantic_analysis/messaging.hpp>
+#include <rill/semantic_analysis/message_code.hpp>
 
 #include <rill/environment/environment.hpp>
 #include <rill/environment/make_module_name.hpp>
@@ -41,7 +43,12 @@ namespace rill
                       << "import_bases : " << import_base << std::endl;
 
             // to forward reference
-            collect_identifier( g_env_, s, parent_env, import_base );
+            auto const& report = collect_identifier( g_env_, s, parent_env, import_base );
+            if ( report->is_errored() ) {
+                import_messages( report );
+                working_dirs_.pop();
+                return;
+            }
 
             //
             auto const& module_name = make_module_name( import_base, s );
@@ -160,9 +167,10 @@ namespace rill
             // for( auto const& unit : val_decl.decl_unit_list ) {
             auto const& unit = val_decl.decl_unit;
 
-            if ( auto const& v = parent_env->find_on_env( unit.name ) ) {
-                assert( false && "[[error]] variable is already defined" );
-            }
+            regard_variable_is_not_already_defined(
+                parent_env,
+                unit.name
+                );
 
             // initial value
             auto const& iv_type_d
@@ -296,13 +304,17 @@ namespace rill
             // for( auto const& unit : val_decl.decl_unit_list ) {
             auto const& unit = val_decl.decl_unit;
 
+            regard_variable_is_not_already_defined(
+                parent_env,
+                unit.name
+                );
+
             // TODO: make method to determine "type"
 
             // unit.kind -> val or ref
             // TODO: use unit.kind( default val )
 
             // TODO: evaluate type || type inference || type check
-            //       default( int )
             if ( unit.init_unit.type ) { // is parameter variable type specified ?
                 // in class, 'mutable' is DEFAULT!
                 resolve_type(
@@ -365,9 +377,6 @@ namespace rill
                 // TODO: implement type inference
                 assert( false );
             }
-
-
-
         }
 
 

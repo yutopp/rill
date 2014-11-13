@@ -7,6 +7,7 @@
 //
 
 #include <rill/semantic_analysis/semantic_analysis.hpp>
+#include <rill/semantic_analysis/messaging.hpp>
 #include <rill/semantic_analysis/message_code.hpp>
 
 #include <rill/environment/environment.hpp>
@@ -365,10 +366,10 @@ namespace rill
                     template_parameter.decl_unit.init_unit.type != nullptr
                     || template_parameter.decl_unit.init_unit.initializer != nullptr
                     );
-
-                if ( auto const& v = inner_env->find_on_env( template_parameter.decl_unit.name ) ) {
-                    assert( false && "[[error]] variable is already defined" );
-                }
+                regard_variable_is_not_already_defined(
+                    inner_env,
+                    template_parameter.decl_unit.name
+                    );
 
                 if ( template_parameter.decl_unit.init_unit.type ) {
                     resolve_type(
@@ -1579,9 +1580,10 @@ namespace rill
                         auto const& e = function_def_ast->get_parameter_list()[i];
                         auto const& ty_id = presetted_param_types[i]->type_id;
 
-                        if ( auto const& v = instanting_f_env->find_on_env( e.decl_unit.name ) ) {
-                            assert( false && "[[error]] variable is already defined" );
-                        }
+                        regard_variable_is_not_already_defined(
+                            instanting_f_env,
+                            e.decl_unit.name
+                            );
 
                         instanting_f_env->parameter_variable_construct( e.decl_unit.name, ty_id );
                     }
@@ -1718,15 +1720,16 @@ namespace rill
                     semantic_error(
                         message_code::e_overload_nomatch,
                         e,
-                        format( "Overload resulition: suitable function was not found" )
+                        format( "Overload resolition: suitable function was not found" )
                         );
-                    assert( false && "Error: Suitable function was not found" );
-                    return nullptr;
                 }
 
                 if ( o_res_f_envs->size() != 1 ) {
-                    assert( false && "Error: Callable functions were anbigous" );
-                    return nullptr;
+                    semantic_error(
+                        message_code::e_overload_anbigous,
+                        e,
+                        format( "Overload resolition: callable functions were anbigous" )
+                        );
                 }
 
                 return o_res_f_envs->at( 0 );
@@ -1747,13 +1750,19 @@ namespace rill
                 auto const& o_res_f_envs = std::get<1>( t_match_t_f_env );
 
                 if ( res_match == function_match_level::k_no_match ) {
-                    assert( false && "Error: Suitable function was not found" );
-                    return nullptr;
+                    semantic_error(
+                        message_code::e_overload_nomatch,
+                        e,
+                        format( "Overload resolition: suitable function was not found" )
+                        );
                 }
 
                 if ( o_res_f_envs->size() != 1 ) {
-                    assert( false && "Error: Callable functions were anbigous" );
-                    return nullptr;
+                    semantic_error(
+                        message_code::e_overload_anbigous,
+                        e,
+                        format( "Overload resolition: callable functions were anbigous" )
+                        );
                 }
 
                 return o_res_f_envs->at( 0 );
@@ -1998,7 +2007,14 @@ namespace rill
             -> void
         {
             auto const loaded_env = load_module( decl );
-            assert( loaded_env != nullptr && "[error] module was not found" );
+            if ( loaded_env == nullptr ) {
+                semantic_error(
+                    message_code::e_module_not_found,
+                    nullptr,
+                    format( "Failed to load module '%1%'" ) % decl.name,
+                    true
+                    );
+            }
 
             parent_env->import_from( loaded_env );
         }
@@ -2025,6 +2041,16 @@ namespace rill
                 return std::make_tuple( working_dirs_.top(), path );
             }
 
+            // -- Error
+            // set extra error info
+            save_stock_message_pivot();
+
+            save_appendix_information(
+                message_code::e_file_not_found,
+                nullptr,
+                format( "not found" )
+                );
+
             return boost::none;
         }
 
@@ -2035,6 +2061,7 @@ namespace rill
         {
             auto const& found_path_set = search_module( decl );
             if ( found_path_set == boost::none ) {
+                // search_module should set extra info
                 return nullptr;
             }
             auto const& import_base = std::get<0>( *found_path_set );
@@ -2051,7 +2078,15 @@ namespace rill
             auto const module_ast
                 = syntax_analysis::parse( found_path );
             if ( module_ast == nullptr ) {
-                assert( false && "[error] Failed to parse." );
+                save_stock_message_pivot();
+
+                save_appendix_information(
+                    message_code::e_failed_to_parse_module,
+                    nullptr,
+                    format( "Failed to parse" )
+                    );
+
+                return nullptr;
             }
 
             // 2. set import base path
@@ -2059,6 +2094,13 @@ namespace rill
 
             // 3. dispatch
             dispatch( module_ast );
+            if ( get_report()->is_errored() ) {
+                import_bases_.pop();
+
+                save_stock_message_pivot();
+
+                return nullptr;
+            }
 
             // guarantee: there is new module env on top of stack after dispatching
             auto new_module_env = module_envs_.top();
@@ -2129,9 +2171,10 @@ namespace rill
                              class_symbol_environment_ptr const& class_env
                             )
                         {
-                            if ( auto const& v = f_env->find_on_env( e.decl_unit.name ) ) {
-                                assert( false && "[[error]] variable is already defined" );
-                            }
+                            regard_variable_is_not_already_defined(
+                                f_env,
+                                e.decl_unit.name
+                                );
 
                             // declare
                             f_env->parameter_variable_construct(
@@ -2564,42 +2607,60 @@ namespace rill
         }
 
 
-        auto analyzer::semantic_error(
-            message_code const& code,
-            ast::const_ast_base_ptr const& ast,
-            boost::format const& message
-            )
-            -> void
+
+        auto analyzer::get_filepath(
+            ast::const_ast_base_ptr const& ast
+            ) const
+            -> boost::filesystem::path
         {
-            auto const& module_ast
-                = std::static_pointer_cast<ast::module>(
-                    g_env_->get_related_ast( module_envs_.top()->get_id() )
-                    );
+            auto const& rel_env
+                = g_env_->get_related_env_by_ast_ptr( ast );
 
-            auto const& location
-                = ( boost::format( "%1% (l:%2% c:%3%)" )
-                    % module_ast->fullpath
-                    % ast->line
-                    % ast->column
-                    ).str();
-            auto const& content
-                = message.str();
+            if ( rel_env != nullptr ) {
+                auto const& root
+                    = rel_env->root_env();
+                assert( root != nullptr );
+                auto const& module_env
+                    = cast_to<module_environment const>( root );
 
-            send_error( code, location, content );
+                return module_env->get_filepath();
+
+            } else {
+                auto const& module_ast
+                    = std::static_pointer_cast<ast::module>(
+                        g_env_->get_related_ast( module_envs_.top()->get_id() )
+                        );
+
+                return module_ast->fullpath;
+            }
         }
 
 
-        auto analyzer::message_hook( message_type const& m ) const
+        auto analyzer::regard_variable_is_not_already_defined(
+            const_environment_base_ptr const& top,
+            ast::const_identifier_value_base_ptr const& id
+            )
             -> void
         {
-            // TODO: check if a message is error
-            std::cout << ( colorize::standard::fg::red | colorize::standard::bold )
-                      << "Error: " << colorize::standard::reset
-                      << m.location << std::endl
-                      << "       " << colorize::standard::bold
-                      << m.content << colorize::standard::reset << std::endl
-                      << std::endl;
-            assert( false );
+            if ( auto const& v = top->find_on_env( id ) ) {
+                save_stock_message_pivot();
+
+                auto const& val_decl_ast
+                    = g_env_->get_related_ast( v->get_id() );
+
+                save_appendix_information(
+                    message_code::e_reference,
+                    val_decl_ast,
+                    format( "reference" )
+                    );
+
+                semantic_error(
+                    message_code::e_variable_is_already_defined,
+                    id,
+                    format( "variable is already defined" ),
+                    true
+                    );
+            }
         }
 
     } // namespace semantic_analysis

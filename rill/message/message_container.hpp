@@ -9,6 +9,8 @@
 #ifndef RILL_MESSAGE_MESSAGE_CONTAINER_HPP
 #define RILL_MESSAGE_MESSAGE_CONTAINER_HPP
 
+#include <memory>
+
 #include "report.hpp"
 #include "message.hpp"
 
@@ -22,7 +24,10 @@ namespace rill
         {
         public:
             using message_type = MessageT;
+
             using report_type = report<message_type>;
+            using report_pointer = std::shared_ptr<report_type>;
+            using const_report_pointer = std::shared_ptr<report_type const>;
 
         public:
             message_container()
@@ -45,13 +50,14 @@ namespace rill
 
         public:
             inline auto get_report() const
-                -> std::shared_ptr<report_type const>
+                -> const_report_pointer
             {
                 return report_;
             }
 
         public:
             template<typename... Args>
+            [[noreturn]]
             auto send_error( Args&&... args ) const
                 -> void
             {
@@ -85,7 +91,28 @@ namespace rill
                         std::forward<Args>( args )...
                         }
                     );
-                }
+            }
+
+        protected:
+            inline auto save_stock_message_pivot() const
+                -> void
+            {
+                report_->append_stocked_message(
+                    message_type{ message_level::e_pivot }
+                    );
+            }
+
+            template<typename... Args>
+            inline auto stock_message( Args&&... args ) const
+                -> void
+            {
+                report_->append_stocked_message(
+                    message_type{
+                        message::message_level::e_note,
+                        std::forward<Args>( args )...
+                        }
+                    );
+            }
 
         protected:
             template<typename T>
@@ -94,11 +121,33 @@ namespace rill
             {
                 static_cast<Derived const*>( this )->message_hook( m );
                 report_->append_message( std::forward<T>( m ) );
+
+                if ( m.has_appendix ) {
+                    assert( !report_->get_stocked().empty() );
+                    for(;;) {
+                        auto m = std::move( report_->get_stocked().top() );
+                        report_->get_stocked().pop();
+                        if ( m.level == message_level::e_pivot ) {
+                            break;
+                        }
+
+                        static_cast<Derived const*>( this )->message_hook(
+                            std::move( m )
+                            );
+                    }
+                }
+            }
+
+        protected:
+            auto import_messages( const_report_pointer const& rep ) const
+                -> void
+            {
+                report_->import_from( *rep );
             }
 
         private:
             mutable bool is_error_state_;
-            mutable std::shared_ptr<report_type> report_;
+            mutable report_pointer report_;
         };
 
     } // namespace message

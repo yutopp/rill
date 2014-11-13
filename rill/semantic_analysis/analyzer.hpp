@@ -24,8 +24,7 @@
 #include "../behavior/intrinsic_action_holder_fwd.hpp"
 
 #include "../compile_time/llvm_engine/ctfe_engine.hpp"
-#include "../message/message_container.hpp"
-#include "message_code_fwd.hpp"
+#include "messaging.hpp"
 
 #include "type_detail.hpp"
 #include "type_detail_pool_t.hpp"
@@ -55,13 +54,11 @@ namespace rill
             : public ast::ast_visitor<
                 analyzer,
                 type_detail_ptr,
-                message::message_container<
-                    message::message_object<message_code>,
-                    analyzer
-                >
+                messaging
             >
         {
             using self_type = analyzer;
+            using messenger_type = messaging;
 
         public:
             analyzer(
@@ -451,16 +448,50 @@ namespace rill
                 -> environment_base_ptr;
 
         private:
-            auto semantic_error(
-                message_code const& code,
-                ast::const_ast_base_ptr const& ast,
-                boost::format const& message
+            auto regard_variable_is_not_already_defined(
+                const_environment_base_ptr const& top,
+                ast::const_identifier_value_base_ptr const& id
                 )
                 -> void;
 
         public:
-            auto message_hook( message_type const& m ) const
-                -> void;
+            inline auto semantic_error(
+                message_code const& code,
+                ast::const_ast_base_ptr const& ast,
+                boost::format const& message,
+                bool const has_appendix = false
+                ) const
+                -> void
+            {
+                messaging::semantic_error(
+                    get_filepath( ast ),
+                    code,
+                    ast,
+                    message,
+                    has_appendix
+                    );
+            }
+
+            inline auto save_appendix_information(
+                message_code const& code,
+                ast::const_ast_base_ptr const& ast,
+                boost::format const& message
+                ) const
+                -> void
+            {
+                messaging::save_appendix_information(
+                    get_filepath( ast ),
+                    code,
+                    ast,
+                    message
+                    );
+            }
+
+            auto get_filepath(
+                ast::const_ast_base_ptr const& ast
+                ) const
+                -> boost::filesystem::path;
+
 
         private:
             auto get_primitive_class_env( std::string const& type_name )
@@ -493,11 +524,11 @@ namespace rill
 
         private:
             std::vector<fs::path> system_import_path_;
-            std::map<fs::path, environment_base_ptr> path_mod_rel_;
+            std::map<fs::path, module_environment_ptr> path_mod_rel_;
 
             std::stack<fs::path> import_bases_;
             std::stack<fs::path> working_dirs_;
-            std::stack<environment_base_ptr> module_envs_;
+            std::stack<module_environment_ptr> module_envs_;
         };
 
 
@@ -556,13 +587,6 @@ namespace rill
             }
 
             return class_env;
-        }
-
-        template<typename S>
-        auto format( S&& s )
-        {
-            // TODO: support Boost.Locale
-            return boost::format( std::forward<S>( s ) );
         }
 
     } // namespace semantic_analysis
