@@ -35,11 +35,9 @@ sudo pacman -S clang boost llvm cmake
 For example,
 ```
 git clone git@github.com:yutopp/rill.git
-cd rill
-mkdir build
-cd build
-cmake ../. -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
-make
+cd rill/build
+cmake ../. -DCMAKE_BUILD_TYPE=Release
+make -j4
 sudo make install
 ```
 Rill specific variables for CMake
@@ -48,11 +46,14 @@ Rill specific variables for CMake
 |:--|:--|:--|
 |LLVM_CONFIG_PATH | location path of `llvm-config` | `/usr/bin/llvm-config` |
 |BOOST_ROOT| location path of boost libraries | `/usr/local` |
-|RUN_TEST| set `ON` if you would like to run tests | OFF |
+|RILL_CXX_COMPILER| compiler which is used when building Rill | `clang++` |
+|RUN_TEST| set `ON` if you would like to run tests | `OFF` |
+|RILL_LINK_RUNTIME_LIB_PATH|| `${CMAKE_INSTALL_PREFIX}/lib/librill-rt.a` |
+|RILL_IMPORT_RUNTIME_LIB_DIR|| `${CMAKE_INSTALL_PREFIX}/lib/rill-rt` |
 Please change these variables to fit your environment.
 e.g.
 ```
-cmake ../. -DBOOST_ROOT=/usr -DLLVM_CONFIG_PATH=/usr/bin/llvm-config-3.4 -DRUN_TEST=ON
+cmake ../. -DBOOST_ROOT=/usr -DLLVM_CONFIG_PATH=/usr/bin/llvm-config -DRUN_TEST=ON
 ```
 
 After that, execute `make`, (`make test`),  and `sudo make install`.
@@ -71,10 +72,10 @@ And, you can specify the path that Rill will be installed by using `CMAKE_INSTAL
 cmake ../. -DCMAKE_INSTALL_PREFIX=/usr/local/torigoya
 ```
 
-If you want to use Clang, call CMake like below.
+If you want to use GCC, call CMake like below.
 
 ```
-cmake ../. -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
+cmake ../. -DRILL_CXX_COMPILER=g++
 ```
 
 ## Test

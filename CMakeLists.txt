@@ -10,8 +10,9 @@ PROJECT( rill CXX )
 CMAKE_MINIMUM_REQUIRED( VERSION 2.8 )
 
 set( RILL_VERSION_MAJOR 0 )
-set( RILL_VERSION_MINOR 1 )
-set( PACKAGE_VERSION "${RILL_VERSION_MAJOR}.${RILL_VERSION_MINOR}" )
+set( RILL_VERSION_MINOR 0 )
+set( RILL_VERSION_PATCHLEVEL 1 )
+set( PACKAGE_VERSION "${RILL_VERSION_MAJOR}.${RILL_VERSION_MINOR}.${RILL_VERSION_PATCHLEVEL}" )
 
 #
 include_directories( "${PROJECT_SOURCE_DIR}" )
@@ -50,6 +51,25 @@ endif()
 
 #
 set(CMAKE_CXX_FLAGS_DEBUG "-DRILL_DEBUG")
+
+#
+add_definitions(
+    -DRILL_VERSION_MAJOR=${RILL_VERSION_MAJOR}
+    -DRILL_VERSION_MINOR=${RILL_VERSION_MINOR}
+    -DRILL_VERSION_PATCHLEVEL=${RILL_VERSION_PATCHLEVEL}
+    )
+
+#
+set( RILL_LINK_RUNTIME_LIB_PATH ${CMAKE_INSTALL_PREFIX}/lib/librill-rt.a CACHE STRING "" )
+set( RILL_IMPORT_RUNTIME_LIB_DIR ${CMAKE_INSTALL_PREFIX}/lib/rill-rt CACHE STRING "" )
+
+message( STATUS "RILL_LINK_RUNTIME_LIB_PATH : "${RILL_LINK_RUNTIME_LIB_PATH} )
+message( STATUS "RILL_IMPORT_RUNTIME_LIB_DIR: "${RILL_IMPORT_RUNTIME_LIB_DIR} )
+
+add_definitions(
+    -DRILL_LINK_RUNTIME_LIB_PATH="${RILL_LINK_RUNTIME_LIB_PATH}"
+    -DRILL_IMPORT_RUNTIME_LIB_DIR="${RILL_IMPORT_RUNTIME_LIB_DIR}"
+    )
 
 
 ############################################################
@@ -138,19 +158,19 @@ string( REGEX MATCHALL "([^ ]+)" LLVM_COMPONENTS ${LLVM_COMPONENTS_STRING} )
 set( LLVM_COMPONENTS_RILL_REQUIRES
   native
   support
-  bitreader
-  instrumentation
-  scalaropts
-  ipo
-  vectorize
-  core
-  object
+#  bitreader
+#  instrumentation
+#  scalaropts
+#  ipo
+#  vectorize
+#  core
+#  object
   jit
 #  interpreter
-  nativecodegen
-  selectiondag
-  asmparser
-  asmprinter
+#  nativecodegen
+#  selectiondag
+#  asmparser
+#  asmprinter
   )
 
 
