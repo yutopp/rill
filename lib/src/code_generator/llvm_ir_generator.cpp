@@ -437,7 +437,7 @@ namespace rill
             llvm::verifyFunction( *func );
 
             //
-            debug_s {
+            rill_dregion {
                 rill_dout << "class function" << std::endl;
                 func->dump();
             }
@@ -658,7 +658,7 @@ namespace rill
             context_->env_conversion_table.bind_function_type( f_env->get_id(), func_type );
 
             //
-            debug_s {
+            rill_dregion {
                 rill_dout << "extern" << std::endl;
                 func_type->dump();
             }
@@ -919,7 +919,7 @@ namespace rill
                     //return context_->env_conversion_table.ref_value( v_env->get_id() );
                     llvm::Value* const lhs = dispatch( e->reciever_, parent_env );
 
-                    debug_s {
+                    rill_dregion {
                         lhs->dump();
                         lhs->getType()->dump();
                     }
@@ -948,7 +948,7 @@ namespace rill
 
                     // eval reciever
                     llvm::Value* const lhs = dispatch( e->reciever_, parent_env );
-                    debug_s {
+                    rill_dregion {
                         rill_dout << "GEN" << std::endl;
                         lhs->dump();
                         lhs->getType()->dump();
@@ -1007,7 +1007,7 @@ namespace rill
                     = std::static_pointer_cast<class_symbol_environment const>(
                         target_env
                         );
-                debug_s {
+                rill_dregion {
                     lhs_value->dump();
                 }
 
@@ -1023,7 +1023,7 @@ namespace rill
                     }
                 }();
 
-                debug_s {
+                rill_dregion {
                     pp->dump();
                     context_->llvm_module->dump();
                 }
@@ -1331,7 +1331,7 @@ namespace rill
                     g_env_->get_env_at_as_strong_ref( v_type.class_env_id )
                     );
 
-            debug_s {
+            rill_dregion {
                 rill_dout << "Store value" << std::endl;
                 value->dump();
             }
@@ -1520,7 +1520,7 @@ namespace rill
 
             context_->ir_builder.CreateRet( value );
 
-            debug_s {
+            rill_dregion {
                 rill_dout << "created!" << std::endl;
                 func->dump();
             }

@@ -196,7 +196,7 @@ namespace rill
                     assert( false );
                 }
 
-                debug_s {
+                rill_dregion {
                     callee_function->dump();
                 }
 
@@ -240,7 +240,7 @@ namespace rill
                 }
 
                 //
-                debug_s {
+                rill_dregion {
                     rill_dout << "callee function" << std::endl;
                     callee_function->dump();
                 }
@@ -332,7 +332,7 @@ namespace rill
                             attribute::make_value_default()
                             );
 
-                    debug_s {
+                    rill_dregion {
                         std::cout << "in llvm.class_name "
                                   << c_env->get_mangled_name() << " (" << type_id << ")"
                                   << std::endl;
@@ -403,7 +403,7 @@ namespace rill
                             attribute::make_value_default()
                             );
 
-                    debug_s {
+                    rill_dregion {
                         std::cout << "in llvm.class_name "
                                   << c_env->get_mangled_name() << " (" << type_id << ")"
                                   << std::endl;

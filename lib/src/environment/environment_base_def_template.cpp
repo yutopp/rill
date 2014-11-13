@@ -36,7 +36,7 @@ namespace rill
             incomplete_construct( kind::template_tag(), name_identifier )
             );
 
-        debug_s {
+        rill_dregion {
             std::cout << "Template Marked, %&%& " << multi_set_env->get_id()
                       << " : " << template_env->get_id() << std::endl;
         }

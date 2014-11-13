@@ -445,7 +445,7 @@ namespace rill
                 auto const& template_arg = template_args->at( i );
 
                 // DEBUG
-                debug_s {
+                rill_dregion {
                     auto const& tt
                         = g_env_->get_type_at( template_arg.type_id );
 
@@ -1406,7 +1406,7 @@ namespace rill
             rill_dout << " !== overload ======================================================" << std::endl
                       << "best match: " << static_cast<int>( best_matched_level ) << std::endl;
 
-            debug_s {
+            rill_dregion {
                 for( auto&& env : f_candidate_envs ) {
                     std::cout << std::endl
                               << "  !!!!! condidate found >>> " << std::endl

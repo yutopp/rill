@@ -61,15 +61,12 @@ void sample( boost::program_options::variables_map const& vm )
     }
 
     // debug
-    debug_s {
+    rill_dregion {
         std::cout
             << "Top statements size: " << module->program->statements_.size() << std::endl;
 
         rill::debug::print_ast( module );
     }
-
-
-
 
     //
     // semantic analysis

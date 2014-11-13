@@ -33,7 +33,7 @@
 #define RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_UNIT(node_class_name) \
     RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_UNIT_HEADER(node_class_name) \
     {                                                                   \
-        debug_s {                                                       \
+        rill_dregion {                                                       \
             std::cout << "<DISPATCH> " << #node_class_name              \
                       << " ast_this: " << this->get_id() << std::endl;  \
         }                                                               \
@@ -48,7 +48,7 @@
 #define RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_READONLY_UNIT(node_class_name) \
     RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_READONLY_UNIT_HEADER(node_class_name) \
     {                                                                   \
-        debug_s {                                                       \
+        rill_dregion {                                                       \
             std::cout << "<DISPATCH readonly> " << #node_class_name     \
                       << " ast_this: " << this->get_id() << std::endl;  \
         }                                                               \

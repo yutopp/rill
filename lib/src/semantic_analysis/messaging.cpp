@@ -75,7 +75,7 @@ namespace rill
                           << "  " << colorize::standard::bold
                           << m.content << colorize::standard::reset << std::endl
                           << std::endl;
-                debug_s {
+                rill_dregion {
                     if ( !m.has_appendix ) {
                         assert( false );
                     }
@@ -89,7 +89,7 @@ namespace rill
                           << "      " << colorize::standard::bold
                           << m.content << colorize::standard::reset << std::endl
                           << std::endl;
-                debug_s {
+                rill_dregion {
                     assert( false );
                 }
                 break;
