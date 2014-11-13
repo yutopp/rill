@@ -160,7 +160,7 @@ int main( int argc, char* argv[] )
           "name of output file" )
 
         ( "rill-rt-lib-path",
-          po::value<std::string>()->default_value( RILL_LINK_RUNTIME_LIB_PATH ),
+          po::value<std::string>(),
           "[obsolute option] rill runtime library path" )
         ;
 
