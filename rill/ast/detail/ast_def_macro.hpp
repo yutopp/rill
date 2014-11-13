@@ -184,8 +184,9 @@ namespace rill
     {                                                                   \
         auto cloned = detail::make_ast_instance<class_name>();          \
         clone_elements_to( cloned );                                    \
-        cloned->line = line;                                             \
-        cloned->column = column;                                         \
+        cloned->line = line;                                            \
+        cloned->column = column;                                        \
+        debug_out << "cloned!" << std::endl;                            \
         return cloned;                                                  \
     }                                                                   \
     RILL_AST_DEFINE_CLONE_ELEMENTS_FUNCITON( class_name, elem )

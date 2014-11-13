@@ -28,55 +28,19 @@ namespace rill
         class on_success_annotator_base
         {
         public:
-            template<typename Iterator, typename T, typename Context>
+#if 0
+            template<typename Iterator, typename Attr, typename Context>
             inline auto on_success(
                 Iterator const& first,
                 Iterator const& last,
-                std::shared_ptr<T>& t,
+                Attr& attr,
                 Context const& context
                 ) const
                 -> void
             {
-                tagging<Iterator, T, Context>( first, last, t, context );
+                debug_out << "on_success <> " << typeid(Attr).name() << std::endl;
             }
-
-        private:
-            template<typename Iterator, typename T, typename Context>
-            inline auto tagging(
-                Iterator const& first,
-                Iterator const& last,
-                std::shared_ptr<T>& ast,
-                Context const& context
-                ) const
-                -> std::enable_if_t<
-                    std::is_base_of<ast::ast_base, T>::value,
-                    void
-                >
-            {
-                auto const line = spirit::get_line( first );
-
-                auto const& orig_begin
-                    = x3::get<iterator_orig_begin_tag>( context );
-                auto const line_first
-                    = Iterator( detail::get_line_start( orig_begin, first.base() ) );
-                auto const column = spirit::get_column( line_first, first );
-
-                ast->line = line;
-                ast->column = column;
-            }
-
-            template<typename Iterator, typename T, typename Context>
-            inline auto tagging(
-                Iterator const&,
-                Iterator const&,
-                std::shared_ptr<T> const&,
-                Context const&
-                ) const
-                -> std::enable_if_t<
-                    !std::is_base_of<ast::ast_base, T>::value,
-                    void
-                >
-            {}
+#endif
         };
 
     } // namespace syntax_analysis

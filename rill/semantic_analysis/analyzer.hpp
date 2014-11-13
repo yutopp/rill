@@ -283,6 +283,7 @@ namespace rill
                 multiple_set_environment_ptr const& set_env,
                 std::vector<type_detail_ptr> const& arg_types,
                 type_detail::template_arg_pointer const& template_args,
+                ast::expression_ptr const& e,
                 environment_base_ptr const& parent_env
                 )
                 -> function_symbol_environment_ptr;

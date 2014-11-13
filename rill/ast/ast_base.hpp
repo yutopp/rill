@@ -58,9 +58,14 @@ namespace rill
         {
         public:
             ast_base()
+                : id_( igen_() )  // generate id
             {
-                id_ = igen_();  // generate id
-                debug_out << "NEW AST( " << typeid( this ).name() << " )@ ID: " << id_ << std::endl;
+                debug_out << "NEW AST @ ID: " << id_ << std::endl;
+            }
+
+            virtual ~ast_base()
+            {
+                debug_out << "DELETED AST @ ID: " << id_ << std::endl;
             }
 
         public:

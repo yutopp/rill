@@ -174,8 +174,18 @@ namespace rill
                 } // switch
             }();
 
+            substituted_ast->line = expression->line;
+            substituted_ast->column = expression->column;
+
+            debug_out << expression->line << std::endl
+                      << expression->column << std::endl;
+
             // substitute expression
             expression.swap( substituted_ast );
+
+            debug_out << "--" << std::endl
+                      << expression->line << std::endl
+                      << expression->column << std::endl;
 
             // rebind
             bind_type( expression, orig_ty_d );

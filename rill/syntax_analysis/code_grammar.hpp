@@ -18,8 +18,14 @@
 #include "helper.hpp"
 
 // R: ( rule_name, ast type, rule )
-#define R   RILL_RULE
-#define RC  RILL_RULE_WITH_ANNOTATOR
+#define R                                       \
+    RILL_RULE
+
+#define RA                                      \
+    RILL_RULE_WITH_ANNOTATOR
+
+#define RN( name, type, ... )                               \
+    RILL_RULE( name, type, tagged( __VA_ARGS__ ) )
 
 
 namespace rill
@@ -34,22 +40,24 @@ namespace rill
         {
             namespace ph = placeholders;
 
-            namespace detail
+            template<typename L>
+            auto make_keyword( L&& literal )
             {
-                template<typename L>
-                auto make_keyword( L&& literal )
-                {
-                    return x3::lexeme[
-                        x3::lit( std::forward<L>( literal ) )
-                        >> !( range( 'A', 'Z' )
-                            | range( 'a', 'z' )
-                            | x3::char_( '_' )
-                            | range( '0', '9' )
-                            )
-                        ];
-                }
+                return x3::lexeme[
+                    x3::lit( std::forward<L>( literal ) )
+                    >> !( range( 'A', 'Z' )
+                        | range( 'a', 'z' )
+                        | x3::char_( '_' )
+                        | range( '0', '9' )
+                        )
+                    ];
+            }
 
-            } // namespace detail
+            template<typename L>
+            decltype(auto) tagged( L&& rule )
+            {
+                return x3::raw[rule][helper::tagging2()];
+            }
 
             // ====================================================================================================
             // code grammar
@@ -57,18 +65,19 @@ namespace rill
             RILL_RULES_BEGIN( rules, program )
 
             // ====================================================================================================
-            RC( program, ast::module_ptr, ( on_error_annotator_base ),
+            RA( program, ast::module_ptr,
+                ( on_error_annotator_base ),
                 t.module > ( x3::eol | x3::eoi )
             )
 
-            R( module, ast::module_ptr,
+            RN( module, ast::module_ptr,
                 t.top_level_statements[
                     helper::make_node_ptr<ast::module>( nullptr, ph::_1 )
                     ]
             )
 
             // ====================================================================================================
-            R( top_level_statements, ast::statements_ptr,
+            RN( top_level_statements, ast::statements_ptr,
                 ( *t.top_level_statement )[
                     helper::make_node_ptr<ast::statements>( ph::_1 )
                     ]
@@ -88,8 +97,8 @@ namespace rill
             // ====================================================================================================
             // ====================================================================================================
             //
-            R( function_definition_statement, ast::function_definition_statement_ptr,
-                ( detail::make_keyword( "def" )
+            RN( function_definition_statement, ast::function_definition_statement_ptr,
+                ( make_keyword( "def" )
                 > t.identifier
                 > t.parameter_variable_declaration_list
                 > t.decl_attribute_list
@@ -106,7 +115,7 @@ namespace rill
                     ]
             )
 
-            R( function_body_block, ast::statements_ptr,
+            RN( function_body_block, ast::statements_ptr,
                 ( x3::lit( "{" ) >> t.program_body_statements >> x3::lit( "}" ) )[
                     helper::assign()
                     ]
@@ -139,13 +148,13 @@ namespace rill
                 )
             )
 
-            R( program_body_statements, ast::statements_ptr,
+            RN( program_body_statements, ast::statements_ptr,
                 ( *t.program_body_statement )[
                     helper::make_node_ptr<ast::statements>( ph::_1 )
                     ]
             )
 
-            R( block_statement, ast::block_statement_ptr,
+            RN( block_statement, ast::block_statement_ptr,
                 ( x3::lit( "{" ) >> t.program_body_statements >> x3::lit( "}" ) )[
                     helper::make_node_ptr<ast::block_statement>( ph::_1 )
                     ]
@@ -154,8 +163,8 @@ namespace rill
 
             // ====================================================================================================
             R( parameter_variable_holder_kind_specifier, attribute::holder_kind,
-                ( detail::make_keyword( "val" )[helper::assign( attribute::holder_kind::k_val )]
-                | detail::make_keyword( "ref" )[helper::assign( attribute::holder_kind::k_ref )]
+                ( make_keyword( "val" )[helper::assign( attribute::holder_kind::k_val )]
+                | make_keyword( "ref" )[helper::assign( attribute::holder_kind::k_ref )]
                 | x3::eps[helper::assign( attribute::holder_kind::k_ref )]
                 )
             )
@@ -213,8 +222,8 @@ namespace rill
 
             // ====================================================================================================
             // ====================================================================================================
-            R( class_definition_statement, ast::class_definition_statement_ptr,
-                ( detail::make_keyword( "class" )
+            RN( class_definition_statement, ast::class_definition_statement_ptr,
+                ( make_keyword( "class" )
                 > t.identifier
                 > t.decl_attribute_list
                 > t.class_body_block
@@ -228,9 +237,7 @@ namespace rill
             )
 
             R( class_body_block, ast::statements_ptr,
-                ( x3::lit( "{" ) >> t.class_body_statements >> x3::lit( "}" ) )[
-                    helper::assign()
-                    ]
+                x3::lit( "{" ) >> t.class_body_statements >> x3::lit( "}" )
             )
 
 
@@ -243,14 +250,14 @@ namespace rill
                 )
             )
 
-            R( class_body_statements, ast::statements_ptr,
+            RN( class_body_statements, ast::statements_ptr,
                 ( *t.class_body_statement )[
                     helper::make_node_ptr<ast::statements>( ph::_1 )
                     ]
             )
 
-            R( class_function_definition_statement, ast::class_function_definition_statement_ptr,
-                ( detail::make_keyword( "def" )
+            RN( class_function_definition_statement, ast::class_function_definition_statement_ptr,
+                ( make_keyword( "def" )
                 > t.identifier
                 > t.parameter_variable_declaration_list
                 > t.decl_attribute_list
@@ -267,7 +274,7 @@ namespace rill
                     ]
             )
 
-            R( class_variable_declaration_statement, ast::class_variable_declaration_statement_ptr,
+            RN( class_variable_declaration_statement, ast::class_variable_declaration_statement_ptr,
                 ( t.variable_declaration > t.statement_termination )[
                     helper::make_node_ptr<ast::class_variable_declaration_statement>( ph::_1 )
                     ]
@@ -278,7 +285,7 @@ namespace rill
             // ====================================================================================================
             //
             R( extern_statement, ast::can_be_template_statement_ptr,
-                ( detail::make_keyword( "extern" )
+                ( make_keyword( "extern" )
                 > ( t.extern_function_declaration_statement
                   | t.extern_class_declaration_statement
                   )
@@ -286,8 +293,8 @@ namespace rill
                 )
             )
 
-            R( extern_function_declaration_statement, ast::extern_function_declaration_statement_ptr,
-                ( detail::make_keyword( "def" )
+            RN( extern_function_declaration_statement, ast::extern_function_declaration_statement_ptr,
+                ( make_keyword( "def" )
                 > t.identifier
                 > t.parameter_variable_declaration_list
                 > t.extern_decl_attribute_list
@@ -304,8 +311,8 @@ namespace rill
                     ]
             )
 
-            R( extern_class_declaration_statement, ast::extern_class_declaration_statement_ptr,
-                ( detail::make_keyword( "class" )
+            RN( extern_class_declaration_statement, ast::extern_class_declaration_statement_ptr,
+                ( make_keyword( "class" )
                 > t.identifier
                 > t.extern_decl_attribute_list
                 > t.string_literal_sequence
@@ -333,7 +340,7 @@ namespace rill
                 )
             )
 
-            R( template_statement, ast::template_statement_ptr,
+            RN( template_statement, ast::template_statement_ptr,
                 ( x3::lit( "template" )
                 > t.template_parameter_variable_declaration_list
                 > t.templatable_statement
@@ -360,15 +367,15 @@ namespace rill
 
             // ====================================================================================================
             // ====================================================================================================
-            R( variable_declaration_statement, ast::variable_declaration_statement_ptr,
+            RN( variable_declaration_statement, ast::variable_declaration_statement_ptr,
                 ( t.variable_declaration > t.statement_termination )[
                     helper::make_node_ptr<ast::variable_declaration_statement>( ph::_1 )
                     ]
             )
 
             R( variable_holder_kind_specifier, attribute::holder_kind,
-                ( detail::make_keyword( "val" )[helper::assign( attribute::holder_kind::k_val )]
-                | detail::make_keyword( "ref" )[helper::assign( attribute::holder_kind::k_ref )]
+                ( make_keyword( "val" )[helper::assign( attribute::holder_kind::k_val )]
+                | make_keyword( "ref" )[helper::assign( attribute::holder_kind::k_ref )]
                 )
             )
 
@@ -387,8 +394,8 @@ namespace rill
 
             // ====================================================================================================
             // ====================================================================================================
-            R( import_statement, ast::import_statement_ptr,
-                ( detail::make_keyword( "import" )
+            RN( import_statement, ast::import_statement_ptr,
+                ( make_keyword( "import" )
                 > x3::attr(nullptr) /* work around to avoid this rule to be adapted to vector(pass type at random) */
                 > t.import_decl_unit_list
                 > t.statement_termination
@@ -417,7 +424,7 @@ namespace rill
             )
 
 
-            R( while_statement, ast::while_statement_ptr,
+            RN( while_statement, ast::while_statement_ptr,
                 ( x3::lit( "while" )
                 > ( x3::lit( "(" ) > t.expression > x3::lit( ")" ) )
                 > t.program_body_statement
@@ -430,7 +437,7 @@ namespace rill
             )
 
 
-            R( if_statement, ast::if_statement_ptr,
+            RN( if_statement, ast::if_statement_ptr,
                 ( x3::lit( "if" )
                 > ( x3::lit( "(" ) > t.expression > x3::lit( ")" ) )
                 > t.program_body_statement
@@ -447,7 +454,7 @@ namespace rill
 
             // ====================================================================================================
             // ====================================================================================================
-            R( empty_statement, ast::empty_statement_ptr,
+            RN( empty_statement, ast::empty_statement_ptr,
                 t.statement_termination[
                     helper::make_node_ptr<ast::empty_statement>()
                     ]
@@ -456,8 +463,8 @@ namespace rill
 
             // ====================================================================================================
             // ====================================================================================================
-            R( return_statement, ast::return_statement_ptr,
-                ( detail::make_keyword( "return" )
+            RN( return_statement, ast::return_statement_ptr,
+                ( make_keyword( "return" )
                 > t.expression > t.statement_termination
                 )[
                     helper::make_node_ptr<ast::return_statement>( ph::_1 )
@@ -467,7 +474,7 @@ namespace rill
 
             // ====================================================================================================
             // ====================================================================================================
-            R( expression_statement, ast::expression_statement_ptr,
+            RN( expression_statement, ast::expression_statement_ptr,
                 ( t.expression > t.statement_termination )[
                     helper::make_node_ptr<ast::expression_statement>( ph::_1 )
                     ]
@@ -483,7 +490,7 @@ namespace rill
 
             // ====================================================================================================
             // TODO: make id_expression
-            R( id_expression, ast::id_expression_ptr,
+            RN( id_expression, ast::id_expression_ptr,
                 ( t.conditional_expression
                 )[
                     helper::fun(
@@ -503,20 +510,22 @@ namespace rill
 
             //
             R( commma_expression, ast::expression_ptr,
-                t.assign_expression[helper::assign()]
-                >> *( ( x3::lit( ',' ) >> t.assign_expression )[helper::make_left_assoc_binary_op_node_ptr( ",", ph::_1 )]
-                   )
-                )
-
-            //
-            R( assign_expression, ast::expression_ptr,
-                t.conditional_expression[helper::assign()]
-                >> *( ( x3::lit( "=" ) >> t.conditional_expression )[helper::make_left_assoc_binary_op_node_ptr( "=", ph::_1 )]
+               t.assign_expression[helper::assign()]
+                >> *tagged(
+                    ( x3::lit( ',' ) >> t.assign_expression )[helper::make_left_assoc_binary_op_node_ptr( ",", ph::_1 )]
                     )
             )
 
             //
-            R( conditional_expression, ast::expression_ptr,
+            RN( assign_expression, ast::expression_ptr,
+               t.conditional_expression[helper::assign()]
+                >> *( ( x3::lit( "=" ) >> t.conditional_expression )[helper::make_left_assoc_binary_op_node_ptr( "=", ph::_1 )]
+                    )
+
+            )
+
+            //
+            RN( conditional_expression, ast::expression_ptr,
                 t.logical_or_expression[helper::assign()]
                 // TODO: add conditional operator( ? : )
             )
@@ -524,42 +533,48 @@ namespace rill
             //
             R( logical_or_expression, ast::expression_ptr,
                 t.logical_and_expression[helper::assign()]
-                >> *( ( x3::lit( "||" ) >> t.logical_and_expression )[helper::make_left_assoc_binary_op_node_ptr( "||", ph::_1 )]
+                >> *tagged(
+                    ( x3::lit( "||" ) > t.logical_and_expression )[helper::make_left_assoc_binary_op_node_ptr( "||", ph::_1 )]
                     )
             )
 
             //
             R( logical_and_expression, ast::expression_ptr,
                 t.bitwise_or_expression[helper::assign()]
-                >> *( ( x3::lit( "&&" ) >> t.bitwise_or_expression )[helper::make_left_assoc_binary_op_node_ptr( "&&", ph::_1 )]
+                >> *tagged(
+                    ( x3::lit( "&&" ) >> t.bitwise_or_expression )[helper::make_left_assoc_binary_op_node_ptr( "&&", ph::_1 )]
                     )
             )
 
             //
             R( bitwise_or_expression, ast::expression_ptr,
                 t.bitwise_xor_expression[helper::assign()]
-                >> *( ( x3::lit( "|" ) >> t.bitwise_xor_expression )[helper::make_left_assoc_binary_op_node_ptr( "|", ph::_1 )]
+                >> *tagged(
+                    ( x3::lit( "|" ) >> t.bitwise_xor_expression )[helper::make_left_assoc_binary_op_node_ptr( "|", ph::_1 )]
                     )
             )
 
             //
             R( bitwise_xor_expression, ast::expression_ptr,
                 t.bitwise_and_expression[helper::assign()]
-                >> *( ( x3::lit( "^" ) >> t.bitwise_and_expression )[helper::make_left_assoc_binary_op_node_ptr( "^", ph::_1 )]
+                >> *tagged(
+                    ( x3::lit( "^" ) >> t.bitwise_and_expression )[helper::make_left_assoc_binary_op_node_ptr( "^", ph::_1 )]
                     )
             )
 
             //
             R( bitwise_and_expression, ast::expression_ptr,
                 t.equality_expression[helper::assign()]
-                >> *( ( x3::lit( "&" ) >> t.equality_expression )[helper::make_left_assoc_binary_op_node_ptr( "&", ph::_1 )]
+                >> *tagged(
+                    ( x3::lit( "&" ) >> t.equality_expression )[helper::make_left_assoc_binary_op_node_ptr( "&", ph::_1 )]
                     )
             )
 
             //
             R( equality_expression, ast::expression_ptr,
                 t.relational_expression[helper::assign()]
-                >> *( ( x3::lit( "==" ) >> t.relational_expression )[helper::make_left_assoc_binary_op_node_ptr( "==", ph::_1 )]
+                >> *tagged(
+                    ( x3::lit( "==" ) >> t.relational_expression )[helper::make_left_assoc_binary_op_node_ptr( "==", ph::_1 )]
                     | ( x3::lit( "!=" ) >> t.relational_expression )[helper::make_left_assoc_binary_op_node_ptr( "!=", ph::_1 )]
                     )
             )
@@ -567,7 +582,8 @@ namespace rill
             //
             R( relational_expression, ast::expression_ptr,
                 t.shift_expression[helper::assign()]
-                >> *( ( x3::lit( "<=" ) >> t.shift_expression )[helper::make_left_assoc_binary_op_node_ptr( "<=", ph::_1 )]
+                >> *tagged(
+                    ( x3::lit( "<=" ) >> t.shift_expression )[helper::make_left_assoc_binary_op_node_ptr( "<=", ph::_1 )]
                     | ( x3::lit( "<" ) >> t.shift_expression )[helper::make_left_assoc_binary_op_node_ptr( "<", ph::_1 )]
                     | ( x3::lit( ">=" ) >> t.shift_expression )[helper::make_left_assoc_binary_op_node_ptr( ">=", ph::_1 )]
                     | ( x3::lit( ">" ) >> t.shift_expression )[helper::make_left_assoc_binary_op_node_ptr( ">", ph::_1 )]
@@ -577,7 +593,8 @@ namespace rill
             //
             R( shift_expression, ast::expression_ptr,
                 t.add_sub_expression[helper::assign()]
-                >> *( ( x3::lit( "<<" ) >> t.add_sub_expression )[helper::make_left_assoc_binary_op_node_ptr( "<<", ph::_1 )]
+                >> *tagged(
+                      ( x3::lit( "<<" ) >> t.add_sub_expression )[helper::make_left_assoc_binary_op_node_ptr( "<<", ph::_1 )]
                     | ( x3::lit( ">>" ) >> t.add_sub_expression )[helper::make_left_assoc_binary_op_node_ptr( ">>", ph::_1 )]
                     )
             )
@@ -585,7 +602,8 @@ namespace rill
             //
             R( add_sub_expression, ast::expression_ptr,
                 t.mul_div_rem_expression[helper::assign()]
-                >> *( ( x3::lit( "+" ) >> t.mul_div_rem_expression )[helper::make_left_assoc_binary_op_node_ptr( "+", ph::_1 )]
+                >> *tagged(
+                      ( x3::lit( "+" ) >> t.mul_div_rem_expression )[helper::make_left_assoc_binary_op_node_ptr( "+", ph::_1 )]
                     | ( x3::lit( "-" ) >> t.mul_div_rem_expression )[helper::make_left_assoc_binary_op_node_ptr( "-", ph::_1 )]
                     )
             )
@@ -594,7 +612,8 @@ namespace rill
             //
             R( mul_div_rem_expression, ast::expression_ptr,
                 t.unary_expression[helper::assign()]
-                >> *( ( x3::lit( "*" ) >> t.unary_expression )[helper::make_left_assoc_binary_op_node_ptr( "*", ph::_1 )]
+                >> *tagged(
+                      ( x3::lit( "*" ) >> t.unary_expression )[helper::make_left_assoc_binary_op_node_ptr( "*", ph::_1 )]
                     | ( x3::lit( "/" ) >> t.unary_expression )[helper::make_left_assoc_binary_op_node_ptr( "/", ph::_1 )]
                     | ( x3::lit( "%" ) >> t.unary_expression )[helper::make_left_assoc_binary_op_node_ptr( "%", ph::_1 )]
                     )
@@ -603,19 +622,21 @@ namespace rill
             //
             R( unary_expression, ast::expression_ptr,
                 ( t.postfix_expression[helper::assign()]
-                | ( x3::lit( '-' ) >> t.unary_expression )[
-                    helper::make_unary_prefix_op_node_ptr( "-", ph::_1 )
-                    ]
-                | ( x3::lit( '+' ) >> t.unary_expression )[
-                    helper::make_unary_prefix_op_node_ptr( "+", ph::_1 )
-                    ]
+                | tagged(
+                    ( x3::lit( '-' ) >> t.unary_expression )[
+                        helper::make_unary_prefix_op_node_ptr( "-", ph::_1 )
+                        ])
+                | tagged(
+                    ( x3::lit( '+' ) >> t.unary_expression )[
+                        helper::make_unary_prefix_op_node_ptr( "+", ph::_1 )
+                        ])
                 )
             )
 
             //
             R( postfix_expression, ast::expression_ptr,
                 t.primary_expression[helper::assign()]
-                >> *(
+                >> *tagged(
                         ( x3::lit( '.' ) >> t.identifier_value_set )[
                             helper::make_assoc_node_ptr<ast::element_selector_expression>( ph::_1 )
                             ]
@@ -628,7 +649,7 @@ namespace rill
                    )
             )
 
-            R( primary_expression, ast::expression_ptr,
+            RN( primary_expression, ast::expression_ptr,
                 t.primary_value[helper::make_node_ptr<ast::term_expression>( ph::_1 )]
                 | ( x3::lit( '(' ) >> t.expression >> x3::lit( ')' ) )[helper::assign()]
             )
@@ -662,13 +683,13 @@ namespace rill
                 t.identifier_from_root | t.identifier_relative
             )
 
-            R( identifier_relative, ast::identifier_value_ptr,
+            RN( identifier_relative, ast::identifier_value_ptr,
                 t.identifier_sequence[
                     helper::make_node_ptr<ast::identifier_value>( ph::_1, false )
                     ]
             )
 
-            R( identifier_from_root, ast::identifier_value_ptr,
+            RN( identifier_from_root, ast::identifier_value_ptr,
                 ( x3::lit( '.' ) >> t.identifier_sequence )[
                     helper::make_node_ptr<ast::identifier_value>( ph::_1, true )
                     ]
@@ -679,13 +700,13 @@ namespace rill
                 t.template_instance_identifier_from_root | t.template_instance_identifier_relative
             )
 
-            R( template_instance_identifier_relative, ast::template_instance_value_ptr,
+            RN( template_instance_identifier_relative, ast::template_instance_value_ptr,
                 ( t.identifier_sequence >> x3::lit( '!' ) >> t.argument_list )[
                     helper::make_node_ptr<ast::template_instance_value>( ph::_1, ph::_2, false )
                     ]
             )
 
-            R( template_instance_identifier_from_root, ast::template_instance_value_ptr,
+            RN( template_instance_identifier_from_root, ast::template_instance_value_ptr,
                 ( x3::lit( '.' ) >> t.identifier_sequence >> x3::lit( '!' ) >> t.argument_list )[
                     helper::make_node_ptr<ast::template_instance_value>( ph::_1, ph::_2, true )
                     ]
@@ -698,14 +719,14 @@ namespace rill
                 )
             )
 
-            R( integer_literal, ast::intrinsic::int32_value_ptr,
+            RN( integer_literal, ast::intrinsic::int32_value_ptr,
                 x3::uint_[
                     helper::make_node_ptr<ast::intrinsic::int32_value>( ph::_1 )
                     ]
             )
 
             // TODO: check range
-            R( float_literal, ast::intrinsic::float_value_ptr,
+            RN( float_literal, ast::intrinsic::float_value_ptr,
                 t.fp_[
                     helper::make_node_ptr<ast::intrinsic::float_value>( ph::_1 )
                     ]
@@ -742,14 +763,14 @@ namespace rill
 
 
             // ====================================================================================================
-            R( boolean_literal, ast::intrinsic::boolean_value_ptr,
+            RN( boolean_literal, ast::intrinsic::boolean_value_ptr,
                 x3::bool_[
                     helper::make_node_ptr<ast::intrinsic::boolean_value>( ph::_1 )
                     ]
             )
 
             // ====================================================================================================
-            R( array_literal, ast::intrinsic::array_value_ptr,
+            RN( array_literal, ast::intrinsic::array_value_ptr,
                 ( ( x3::lit( '[' ) >> x3::lit( ']' ) )[
                     helper::make_node_ptr<ast::intrinsic::array_value>()
                     ] )
@@ -759,7 +780,7 @@ namespace rill
             )
 
             // ====================================================================================================
-            R( string_literal, ast::intrinsic::string_value_ptr,
+            RN( string_literal, ast::intrinsic::string_value_ptr,
                 t.string_literal_sequence[
                     helper::make_node_ptr<ast::intrinsic::string_value>( ph::_1 )
                     ]
@@ -786,32 +807,32 @@ namespace rill
             )
 
             R( operator_identifier_sequence, std::string,
-               detail::make_keyword( "op" )[helper::construct<std::string>( "%op_" )]
-               > -( detail::make_keyword( "pre" )[helper::append( "pre_" )]
-                  | detail::make_keyword( "post" )[helper::append( "post_" )]
+                make_keyword( "op" )[helper::construct<std::string>( "%op_" )]
+                > -( make_keyword( "pre" )[helper::append( "pre_" )]
+                   | make_keyword( "post" )[helper::append( "post_" )]
+                   )
+                > ( x3::lit( "==" )[helper::append( "==" )]
+                  | x3::lit( "!=" )[helper::append( "!=" )]
+                  | x3::lit( "||" )[helper::append( "||" )]
+                  | x3::lit( "&&" )[helper::append( "&&" )]
+                  | x3::lit( "<=" )[helper::append( "<=" )]
+                  | x3::lit( ">=" )[helper::append( ">=" )]
+                  | x3::lit( "<<" )[helper::append( "<<" )]
+                  | x3::lit( ">>" )[helper::append( ">>" )]
+                  | x3::lit( "()" )[helper::append( "()" )]
+                  | x3::lit( "[]" )[helper::append( "[]" )]
+                  | x3::lit( "|" )[helper::append( "|" )]
+                  | x3::lit( "^" )[helper::append( "^" )]
+                  | x3::lit( "&" )[helper::append( "&" )]
+                  | x3::lit( "+" )[helper::append( "+" )]
+                  | x3::lit( "-" )[helper::append( "-" )]
+                  | x3::lit( "*" )[helper::append( "*" )]
+                  | x3::lit( "/" )[helper::append( "/" )]
+                  | x3::lit( "%" )[helper::append( "%" )]
+                  | x3::lit( "<" )[helper::append( "<" )]
+                  | x3::lit( ">" )[helper::append( ">" )]
+                  | x3::lit( "=" )[helper::append( "=" )]
                   )
-               > ( x3::lit( "==" )[helper::append( "==" )]
-                 | x3::lit( "!=" )[helper::append( "!=" )]
-                 | x3::lit( "||" )[helper::append( "||" )]
-                 | x3::lit( "&&" )[helper::append( "&&" )]
-                 | x3::lit( "<=" )[helper::append( "<=" )]
-                 | x3::lit( ">=" )[helper::append( ">=" )]
-                 | x3::lit( "<<" )[helper::append( "<<" )]
-                 | x3::lit( ">>" )[helper::append( ">>" )]
-                 | x3::lit( "()" )[helper::append( "()" )]
-                 | x3::lit( "[]" )[helper::append( "[]" )]
-                 | x3::lit( "|" )[helper::append( "|" )]
-                 | x3::lit( "^" )[helper::append( "^" )]
-                 | x3::lit( "&" )[helper::append( "&" )]
-                 | x3::lit( "+" )[helper::append( "+" )]
-                 | x3::lit( "-" )[helper::append( "-" )]
-                 | x3::lit( "*" )[helper::append( "*" )]
-                 | x3::lit( "/" )[helper::append( "/" )]
-                 | x3::lit( "%" )[helper::append( "%" )]
-                 | x3::lit( "<" )[helper::append( "<" )]
-                 | x3::lit( ">" )[helper::append( ">" )]
-                 | x3::lit( "=" )[helper::append( "=" )]
-                 )
             )
 
             R( normal_identifier_sequence, std::string,
@@ -840,6 +861,7 @@ namespace rill
 } // namespace rill
 
 #undef R
-#undef RC
+#undef RA
+#undef RN
 
 #endif /*RILL_SYNTAX_ANALYSIS_CODE_GRAMMAR_HPP*/

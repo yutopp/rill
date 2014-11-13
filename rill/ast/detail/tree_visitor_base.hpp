@@ -60,7 +60,7 @@ namespace rill
                 auto invoke( std::shared_ptr<Node> const& node, std::shared_ptr<Env> const& env )
                     -> result_type<Node>
                 try {
-                    //
+                    // TODO: alignment
                     char storage[sizeof(std::conditional_t<!std::is_same<result_type<Node>, void>::value, result_type<Node>, char/*temp*/>)];
                     node->dispatch(
                         node,
@@ -87,6 +87,7 @@ namespace rill
                 auto invoke( std::shared_ptr<Node> const& node, std::shared_ptr<Env> const& env ) const
                     -> result_type<Node>
                 try {
+                    // TODO: alignment
                     char storage[sizeof(std::conditional_t<!std::is_same<result_type<Node>, void>::value, result_type<Node>, char/*temp*/>)];
                     node->dispatch(
                         node,

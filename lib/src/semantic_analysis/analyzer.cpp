@@ -7,6 +7,7 @@
 //
 
 #include <rill/semantic_analysis/semantic_analysis.hpp>
+#include <rill/semantic_analysis/message_code.hpp>
 
 #include <rill/environment/environment.hpp>
 #include <rill/environment/make_module_name.hpp>
@@ -1669,6 +1670,7 @@ namespace rill
             multiple_set_environment_ptr const& set_env,
             std::vector<type_detail_ptr> const& arg_types,
             type_detail::template_arg_pointer const& template_args,
+            ast::expression_ptr const& e,
             environment_base_ptr const& parent_env
             )
             -> function_symbol_environment_ptr
@@ -1712,6 +1714,12 @@ namespace rill
                     : o_t_f_envs;
 
                 if ( res_match == function_match_level::k_no_match ) {
+                    // Error
+                    semantic_error(
+                        message_code::e_overload_nomatch,
+                        e,
+                        format( "Overload resulition: suitable function was not found" )
+                        );
                     assert( false && "Error: Suitable function was not found" );
                     return nullptr;
                 }
@@ -2520,6 +2528,7 @@ namespace rill
                     multiset_env,
                     argument_type_details,          // type detailes of arguments
                     f_type_detail->template_args,   // template arguments
+                    e,
                     parent_env
                     );
             assert( function_env != nullptr );
@@ -2590,6 +2599,7 @@ namespace rill
                       << "       " << colorize::standard::bold
                       << m.content << colorize::standard::reset << std::endl
                       << std::endl;
+            assert( false );
         }
 
     } // namespace semantic_analysis

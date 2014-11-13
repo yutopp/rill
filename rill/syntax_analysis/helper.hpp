@@ -37,16 +37,20 @@
 #define RILL_RULES_END                          \
     };
 
-#define RILL_ANNOTAROR_BASE_SPEC( r, _unused, elem )    \
-    , public elem
+#define RILL_ANNOTATOR_COL() :
+
+#define RILL_ANNOTAROR_BASE_SPEC( r, _unused, index, elem ) \
+    BOOST_PP_IIF( BOOST_PP_EQUAL(index, 0),                 \
+                  RILL_ANNOTATOR_COL,                       \
+                  BOOST_PP_COMMA                            \
+        )() public elem
 
 #define RILL_RULE( name, type, ... )                    \
     RILL_RULE_WITH_ANNOTATOR( name, type, BOOST_PP_SEQ_NIL, __VA_ARGS__ )
 
 #define RILL_RULE_WITH_ANNOTATOR( name, type, bases, ... )              \
     class name                                                          \
-        : public rill::syntax_analysis::on_success_annotator_base       \
-          BOOST_PP_SEQ_FOR_EACH( RILL_ANNOTAROR_BASE_SPEC, _, bases )   \
+        BOOST_PP_SEQ_FOR_EACH_I( RILL_ANNOTAROR_BASE_SPEC, _, bases )   \
     {};                                                                 \
     struct PP_ ## name {                                                \
         using rule_type = x3::rule<name, type>;                         \
@@ -100,6 +104,7 @@ namespace rill
             constexpr auto _5 = detail::placeholder_t<5>();
             constexpr auto _6 = detail::placeholder_t<6>();
             constexpr auto _7 = detail::placeholder_t<7>();
+
         } // namespace placeholder
 
 
@@ -125,10 +130,10 @@ namespace rill
                     boost::fusion::traits::is_sequence<Attr>::value
                     >* = nullptr
                 >
-            auto extract( Attr& attr )
+            decltype(auto) extract( Attr& attr )
             {
                 using boost::fusion::at_c;
-                return at_c<I>( attr );
+                return std::move( at_c<I>( attr ) );
             }
 
             template<
@@ -138,9 +143,9 @@ namespace rill
                     ! boost::fusion::traits::is_sequence<Attr>::value
                     >* = nullptr
                 >
-            auto extract( Attr& attr )
+            decltype(auto) extract( Attr& attr )
             {
-                return attr;
+                return std::move( attr );
             }
 
 
@@ -171,6 +176,7 @@ namespace rill
                 return std::forward<T>( v );
             }
 
+
             template<typename T, typename... Args>
             auto make_node_ptr( Args&&... args )
             {
@@ -187,6 +193,7 @@ namespace rill
                     std::forward<Args>( args )...
                     );
             }
+
 
             template<typename F, typename... Args>
             auto fun( F&& f, Args&&... args )
@@ -209,6 +216,7 @@ namespace rill
             inline auto assign()
             {
                 return []( auto& ctx ) {
+                    std::cout << "assign" << std::endl;
                     x3::_val( ctx ) = x3::_attr( ctx );
                 };
             }
@@ -259,6 +267,7 @@ namespace rill
                     );
             }
 
+
             template<typename T, typename... Args>
             auto make_assoc_node_ptr(
                 Args&&... args
@@ -279,39 +288,81 @@ namespace rill
                     );
             }
 
-            template<typename T1>
+            template<typename T, typename Op, typename... Args>
+            auto make_op_node_ptr( Op&& op, Args&&... args )
+            {
+                return std::bind(
+                    []( auto& ctx, auto&& op, auto&&... args ) {
+                        x3::_val( ctx ) = std::make_shared<T>(
+                            ast::make_identifier( std::forward<decltype(op)>( op ) ),   // op
+                            action_value<decltype(ctx)>(
+                                ctx,
+                                std::forward<decltype(args)>( args )
+                                )...
+                            );
+                    },
+                    std::placeholders::_1,  // ctx
+                    std::forward<Op>( op ),
+                    std::forward<Args>( args )...
+                    );
+            }
+
+            template<typename T, typename Op, typename... Args>
+            auto make_op_assoc_node_ptr(
+                Op&& op,
+                Args&&... args
+                )
+            {
+                return std::bind(
+                    []( auto& ctx, auto&& op, auto&&... args ) {
+                        x3::_val( ctx ) = std::make_shared<T>(
+                            x3::_val( ctx ),                                            // lhs
+                            ast::make_identifier( std::forward<decltype(op)>( op ) ),   // op
+                            action_value<decltype(ctx)>(
+                                ctx,
+                                std::forward<decltype(args)>( args )
+                                )...
+                            );
+                    },
+                    std::placeholders::_1,  // ctx
+                    std::forward<Op>( op ),
+                    std::forward<Args>( args )...
+                    );
+            }
+
+            template<typename Op, typename T1>
             auto make_left_assoc_binary_op_node_ptr(
-                ast::native_string_t const& op,
+                Op&& op,
                 T1&& rhs
                 )
             {
-                return make_assoc_node_ptr<ast::binary_operator_expression>(
-                    ast::make_identifier( op ), // op
+                return make_op_assoc_node_ptr<ast::binary_operator_expression>(
+                    std::forward<Op>( op ),
                     std::forward<T1>( rhs )
                     );
             }
 
-            template<typename Arg>
+            template<typename Op, typename Arg>
             auto make_unary_prefix_op_node_ptr(
-                ast::native_string_t const& op,
+                Op&& op,
                 Arg&& arg
                 )
             {
-                return make_node_ptr<ast::unary_operator_expression>(
-                    ast::make_identifier( op ), // op
+                return make_op_node_ptr<ast::unary_operator_expression>(
+                    std::forward<Op>( op ),
                     std::forward<Arg>( arg ),
                     true
                     );
             }
 
-            template<typename Arg>
+            template<typename Op, typename Arg>
             auto make_unary_postfix_op_node_ptr(
-                ast::native_string_t const& op,
+                Op&& op,
                 Arg&& arg
                 )
             {
-                return make_node_ptr<ast::unary_operator_expression>(
-                    ast::make_identifier( op ), // op
+                return make_op_node_ptr<ast::unary_operator_expression>(
+                    std::forward<Op>( op ),
                     std::forward<Arg>( arg ),
                     false
                     );
@@ -331,6 +382,45 @@ namespace rill
                     std::placeholders::_1,  // ctx
                     std::forward<T1>( rhs )
                     );
+            }
+
+            template<typename Ast, typename Range, typename Context>
+            auto set_tag_to_ast(
+                std::shared_ptr<Ast>& ast,
+                Range const& range,
+                Context const& context
+                )
+                -> void
+            {
+                auto const& first = range.begin();
+//                auto const& last = where.end();
+
+                using iterator_t = std::decay_t<decltype(first)>;
+
+                auto const line = spirit::get_line( first );
+
+                auto const& orig_begin
+                    = x3::get<iterator_orig_begin_tag>( context );
+                auto const line_first
+                    = iterator_t( detail::get_line_start( orig_begin, first.base() ) );
+                auto const column = spirit::get_column( line_first, first );
+
+                debug_out << "=== " << typeid(Ast).name() << " / " << ast->get_id() << std::endl
+                          << std::string( range.begin().base(), range.end().base() ) << std::endl
+                          << line << " / " << column << std::endl;
+
+                ast->line = line;
+                ast->column = column;
+            }
+
+            auto tagging2()
+            {
+                return []( auto& ctx ) {
+                    auto& ast = x3::_val( ctx );
+                    auto const& where = x3::_attr( ctx );
+
+                    set_tag_to_ast( ast, where, ctx );
+                };
             }
 
         } // namespace helper

@@ -16,7 +16,8 @@ namespace rill
     {
         enum class message_code
         {
-            e_id_not_found
+            e_id_not_found,
+            e_overload_nomatch,
         };
 
     } // namespace semantic_analysis

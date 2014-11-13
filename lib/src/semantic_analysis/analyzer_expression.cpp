@@ -7,6 +7,7 @@
 //
 
 #include <rill/semantic_analysis/semantic_analysis.hpp>
+#include <rill/semantic_analysis/message_code.hpp>
 
 #include <rill/environment/environment.hpp>
 
@@ -296,6 +297,7 @@ namespace rill
                                     multiset_env,                           // overload set
                                     argument_type_details_with_this,        // type detailes of arguments
                                     nullptr,                                // template arguments
+                                    e,
                                     class_env
                                     );
                             assert( function_env != nullptr );
@@ -325,6 +327,10 @@ namespace rill
                             auto substituted_ast = std::static_pointer_cast<ast::expression>(
                                 std::make_shared<ast::evaluated_type_expression>( return_ty_d->type_id )
                                 );
+
+                            substituted_ast->line = e->reciever_->line;
+                            substituted_ast->column = e->reciever_->column;
+
                             e->reciever_.swap( substituted_ast );
                         });
 
