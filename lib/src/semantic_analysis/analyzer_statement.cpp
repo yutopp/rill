@@ -17,6 +17,8 @@
 #include <rill/ast/ast.hpp>
 #include <rill/utility/tie.hpp>
 
+#include <algorithm>
+
 #include <boost/filesystem/path.hpp>
 #include <boost/filesystem/operations.hpp>
 
@@ -340,7 +342,7 @@ namespace rill
                         {
                             auto const& padding
                                 = parent_c_env->get_target_size()
-                                % std::max( class_env->get_target_align(), 1ul );
+                                % std::max( class_env->get_target_align(), static_cast<std::size_t>( 1 ) );
                             auto const& size = padding + class_env->get_target_size();
 
                             //
