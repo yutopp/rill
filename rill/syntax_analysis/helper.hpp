@@ -216,7 +216,7 @@ namespace rill
             inline auto assign()
             {
                 return []( auto& ctx ) {
-                    std::cout << "assign" << std::endl;
+                    debug_out << "assign" << std::endl;
                     x3::_val( ctx ) = x3::_attr( ctx );
                 };
             }

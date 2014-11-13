@@ -10,6 +10,7 @@
 #define RILL_CONFIG_MACROS_HPP
 
 #include <cstddef>
+#include <cstdlib>
 
 // if only using GCC(>= 4.8.1) or clang(>=3.1), use specifier.
 #ifdef _MSC_VER
@@ -42,9 +43,18 @@
 # define debug_s \
     std::cout << "--- LOG : " << __FILE__ << " / " << __LINE__ << " ----" << std::endl;
 # define debug_out std::cout
+# define rill_ice( str ) assert( false && ( str ) )
+
 #else
 # define debug_s if ( false )
 # define debug_out if ( false ) std::cout
+# define rill_ice( str )                            \
+    std::cerr << "File: " << __FILE__ << std::endl  \
+              << "Line: " << __LINE__ << std::endl  \
+              << "[ICE] " << str << std::endl       \
+              << std::endl;                         \
+    std::abort();
+
 #endif
 
 #endif /*RILL_CONFIG_MACROS_HPP*/

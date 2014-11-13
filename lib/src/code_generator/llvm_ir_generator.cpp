@@ -496,7 +496,7 @@ namespace rill
                 dispatch( s->inner_, c_env );
 
             } else {
-                assert( false && "[ice] invalid type" );
+                rill_ice( "invalid type" );
             }
         }
 
@@ -519,7 +519,9 @@ namespace rill
                 // has default value
                 auto const& initial_llvm_value
                     = dispatch( s->declaration_.decl_unit.init_unit.initializer, v_env );
-                assert( initial_llvm_value != nullptr && "[ice]" );
+                if ( initial_llvm_value == nullptr ) {
+                    rill_ice( "" );
+                }
 
                 store_value( initial_llvm_value, v_env );
 
@@ -587,7 +589,7 @@ namespace rill
                     break;
 
                 case attribute::modifiability_kind::k_const:
-                    assert( false && "[ice]" );
+                    rill_ice( "" );
                     break;
 
                 case attribute::modifiability_kind::k_mutable:
@@ -600,11 +602,11 @@ namespace rill
                 break;
 
             case attribute::holder_kind::k_ref:
-                assert( false && "not implemented..." );
+                rill_ice( "not implemented..." );
                 break;
 
             default:
-                assert( false && "[ice]" );
+                rill_ice( "" );
                 break;
             }
 #endif
@@ -660,7 +662,6 @@ namespace rill
                 debug_out << "extern" << std::endl;
                 func_type->dump();
             }
-            //assert( false );
         }
 
 
@@ -732,12 +733,12 @@ namespace rill
 
                 } else {
                     debug_out << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
-                    assert( false && "[ice] invalid type" );
+                    rill_ice( "invalid type" );
                 }
 
             } else {
                 debug_out << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
-                assert( false && "[ice] invalid type" );
+                rill_ice( "invalid type" );
             }
         }
 
@@ -968,12 +969,12 @@ namespace rill
                     return rhs;
 
                 } else {
-                    assert( false && "[[ice]]" );
+                    rill_ice( "" );
                 }
 
             } else {
                 // namespace
-                assert( false && "[ababa!w]" );
+                rill_ice( "namespace is not implemented" );
                 return nullptr;
                 //debug_out << "has NO selection" << std::endl;
                 //llvm::Value* const rhs = dispatch( e->selector_id_, parent_env );
@@ -1022,8 +1023,10 @@ namespace rill
                     }
                 }();
 
-                pp->dump();
-                context_->llvm_module->dump();
+                debug_s {
+                    pp->dump();
+                    context_->llvm_module->dump();
+                }
 
                 // TODO: fix...
                 // rhs must be integer. if it is pointer, load instruction is required...
@@ -1044,10 +1047,10 @@ namespace rill
 
             } else if ( target_env->get_symbol_kind() == kind::type_value::e_function ) {
                 //
-                assert( false && "[ICE] TODO: call operator[]");
+                rill_ice( "TODO: support call operator[]");
 
             } else {
-                assert( false );
+                rill_ice( "" );
             }
 
             return nullptr;
@@ -1131,8 +1134,6 @@ namespace rill
                     = std::static_pointer_cast<variable_symbol_environment const>( id_env );
                 assert( v_env != nullptr );
 
-
-
                 // TODO: check the type of variable !
                 // if type is "type", ...(should return id of type...?)
 
@@ -1153,13 +1154,13 @@ namespace rill
                             return static_cast<llvm::Value*>( d_val.element );
 
                         } else {
-                            assert( false && "[[ice]] llvm-jit -> value was not found..." );
+                            rill_ice( "llvm-jit -> value was not found..." );
                         }
                     } else {
-                        assert( false && "[[ice]] llvm -> value was not found..." );
+                        rill_ice( "llvm -> value was not found..." );
                     }
 #endif
-                    assert( false && "[[ice]]" );
+                    rill_ice( "" );
                     return nullptr;
                 }
             }
@@ -1223,13 +1224,13 @@ namespace rill
                             return static_cast<llvm::Value*>( d_val.element );
 
                         } else {
-                            assert( false && "[[ice]] llvm-jit -> value was not found..." );
+                            rill_ice( "llvm-jit -> value was not found..." );
                         }
                     } else {
-                        assert( false && "[[ice]] llvm -> value was not found..." );
+                        rill_ice( "llvm -> value was not found..." );
                     }
 #endif
-                    assert( false && "[[ice]]" );
+                    rill_ice( "" );
                     return nullptr;
                 }
             }
@@ -1330,8 +1331,10 @@ namespace rill
                     g_env_->get_env_at_as_strong_ref( v_type.class_env_id )
                     );
 
-            debug_out << "Store value" << std::endl;
-            value->dump();
+            debug_s {
+                debug_out << "Store value" << std::endl;
+                value->dump();
+            }
 
             if ( is_heavy_object( v_type ) ) {
                 //
@@ -1399,7 +1402,7 @@ namespace rill
 
                 default:
                 {
-                    assert( false && "[ice]" );
+                    rill_ice( "" );
                     break;
                 }
                 } // switch
@@ -1517,8 +1520,10 @@ namespace rill
 
             context_->ir_builder.CreateRet( value );
 
-            debug_out << "created!" << std::endl;
-            func->dump();
+            debug_s {
+                debug_out << "created!" << std::endl;
+                func->dump();
+            }
 
             //
             llvm::verifyFunction( *func );
@@ -1680,7 +1685,7 @@ namespace rill
                 auto const& callee_function = function_env_to_llvm_constatnt_ptr( f_env );
                 if ( !callee_function ) {
                     // unexpected error...
-                    assert( false && "unexpected... callee_function was not found" );
+                    rill_ice( "unexpected... callee_function was not found" );
                 }
 
                 ret = context_->ir_builder.CreateCall( callee_function, total_args );
@@ -1750,7 +1755,7 @@ namespace rill
                         return llvm_ty->getPointerTo();
 
                     default:
-                        assert( false && "[ice]" );
+                        rill_ice( "" );
                         return nullptr;
                     }
 
@@ -1759,7 +1764,7 @@ namespace rill
                     return llvm_ty;
 
                 default:
-                    assert( false && "[ice]" );
+                    rill_ice( "" );
                     return nullptr;
                 }
             }
@@ -1849,7 +1854,7 @@ namespace rill
                 context_->ir_builder.CreateMemCpy( to, from, copy_size, alignment );
 
             } else {
-                assert( false && "[ice] not supported" );
+                rill_ice( "not supported" );
             }
         }
 
