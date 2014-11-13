@@ -75,7 +75,7 @@ namespace rill
                 llvm::Function const* const target_function
                 ) -> std::vector<llvm::GenericValue>
             {
-                debug_out << "ababa => " << arguments.size() << std::endl;
+                rill_dout << "ababa => " << arguments.size() << std::endl;
                 std::vector<llvm::GenericValue> gvs;
                 auto const& function_type = target_function->getFunctionType();
                 std::size_t i = 0;
@@ -129,7 +129,7 @@ namespace rill
 
                 default:
                 {
-                    debug_out << c_env->get_base_name() << std::endl;
+                    rill_dout << c_env->get_base_name() << std::endl;
                     assert( false && "[[ice, JIT]] this value type was not supported currently." );
                     return nullptr;
                 }
@@ -160,7 +160,7 @@ namespace rill
 
             RILL_VISITOR_READONLY_OP( ir_executor, ast::call_expression, e, parent_env )
             {
-                debug_out << "CALL expr" << std::endl;
+                rill_dout << "CALL expr" << std::endl;
 
                 // ========================================
                 // look up self function
@@ -170,7 +170,7 @@ namespace rill
 
 
                 // ========================================
-                debug_out << "current : " << f_env->get_mangled_name() << std::endl;
+                rill_dout << "current : " << f_env->get_mangled_name() << std::endl;
                 llvm::Function* const callee_function
                     = static_cast<llvm::Function*>(
                         ir_generator_->function_env_to_llvm_constatnt_ptr( f_env )
@@ -222,7 +222,7 @@ namespace rill
                 auto const f_env
                     = cast_to<function_symbol_environment const>( g_env_->get_related_env_by_ast_ptr( e ) );
 
-                debug_out << "current : " << f_env->get_mangled_name() << std::endl;
+                rill_dout << "current : " << f_env->get_mangled_name() << std::endl;
 
                 if ( f_env->has_attribute( attribute::decl::k_intrinsic ) ) {
                     // define llvm function(adhoc)
@@ -241,7 +241,7 @@ namespace rill
 
                 //
                 debug_s {
-                    debug_out << "callee function" << std::endl;
+                    rill_dout << "callee function" << std::endl;
                     callee_function->dump();
                 }
 
@@ -285,7 +285,7 @@ namespace rill
             RILL_VISITOR_READONLY_OP( ir_executor, ast::identifier_value, v, parent_env )
             {
                 //
-                debug_out << "ir sym solving: "
+                rill_dout << "ir sym solving: "
                           << v->get_inner_symbol()->to_native_string() << std::endl
                           << "ast ptr: " << v.get() << std::endl
                           << (const_environment_base_ptr)parent_env << std::endl;
@@ -294,7 +294,7 @@ namespace rill
                 //
                 auto const& id_env = g_env_->get_related_env_by_ast_ptr( v );
                 if ( id_env == nullptr ) {
-                    debug_out << "skipped" << std::endl;
+                    rill_dout << "skipped" << std::endl;
                     return nullptr;
                 }
 
@@ -303,7 +303,7 @@ namespace rill
                 {
                 case kind::type_value::e_variable:
                 {
-                    debug_out << "llvm_ir_generator -> case Variable!" << std::endl;
+                    rill_dout << "llvm_ir_generator -> case Variable!" << std::endl;
                     auto const& v_env
                         = std::static_pointer_cast<variable_symbol_environment const>( id_env );
                     assert( v_env != nullptr );
@@ -345,7 +345,7 @@ namespace rill
                 }
 
                 default:
-                    debug_out << "skipped " << debug_string( id_env->get_symbol_kind() ) << std::endl;
+                    rill_dout << "skipped " << debug_string( id_env->get_symbol_kind() ) << std::endl;
                     assert( false && "" );
                     return nullptr;
                 }
@@ -356,7 +356,7 @@ namespace rill
             RILL_VISITOR_READONLY_OP( ir_executor, ast::template_instance_value, v, parent_env )
             {
                 //
-                debug_out << "ir sym solving: "
+                rill_dout << "ir sym solving: "
                           << v->get_inner_symbol()->to_native_string() << std::endl
                           << "ast ptr: " << v.get() << std::endl
                           << (const_environment_base_ptr)parent_env << std::endl;
@@ -365,7 +365,7 @@ namespace rill
                 //
                 auto const& id_env = g_env_->get_related_env_by_ast_ptr( v );
                 if ( id_env == nullptr ) {
-                    debug_out << "skipped" << std::endl;
+                    rill_dout << "skipped" << std::endl;
                     return nullptr;
                 }
 
@@ -374,7 +374,7 @@ namespace rill
                 {
                 case kind::type_value::e_variable:
                 {
-                    debug_out << "llvm_ir_generator -> case Variable!" << std::endl;
+                    rill_dout << "llvm_ir_generator -> case Variable!" << std::endl;
                     auto const& v_env
                         = std::static_pointer_cast<variable_symbol_environment const>( id_env );
                     assert( v_env != nullptr );
@@ -416,7 +416,7 @@ namespace rill
                 }
 
                 default:
-                    debug_out << "skipped " << debug_string( id_env->get_symbol_kind() ) << std::endl;
+                    rill_dout << "skipped " << debug_string( id_env->get_symbol_kind() ) << std::endl;
                     assert( false && "" );
                     return nullptr;
                 }

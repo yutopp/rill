@@ -36,7 +36,7 @@ namespace rill
             assert( ast_ptr != nullptr );
 
             if ( map_.find( ast_ptr->get_id() ) != map_.cend() ) {
-                debug_out << "Already mapped... :: env id -> " << map_.at( ast_ptr->get_id() )->get_id() << std::endl;
+                rill_dout << "Already mapped... :: env id -> " << map_.at( ast_ptr->get_id() )->get_id() << std::endl;
                 return;
             }
 
@@ -51,7 +51,7 @@ namespace rill
         {
             assert( ast_ptr != nullptr );
 
-            debug_out << "ptr-> " << ast_ptr << std::endl;
+            rill_dout << "ptr-> " << ast_ptr << std::endl;
             return ( map_.find( ast_ptr->get_id() ) != map_.cend() )
                 ? ( map_.at( ast_ptr->get_id() )->get_id() )
                 : environment_id_undefined;
@@ -119,7 +119,7 @@ namespace rill
         {
             assert( ast_ptr != nullptr );
 
-            debug_out << "tid ptr-> " << ast_ptr << std::endl;
+            rill_dout << "tid ptr-> " << ast_ptr << std::endl;
             return ( map_.find( ast_ptr->get_id() ) != map_.cend() )
                 ? ( map_.at( ast_ptr->get_id() ) )
                 : type_id_undefined;

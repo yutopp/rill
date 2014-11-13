@@ -112,7 +112,7 @@ namespace rill
         auto add_return_type_candidate( type_id_t const& type_id )
             -> void
         {
-            debug_out << "add overload candidate : " << type_id << " -> " << base_name_ << std::endl;
+            rill_dout << "add overload candidate : " << type_id << " -> " << base_name_ << std::endl;
             return_type_candidates_.push_back( type_id );
         }
 

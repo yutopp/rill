@@ -73,7 +73,7 @@ namespace rill
                         break;
 
                     default:
-                        debug_out << "bitwidth: " << to_type->getIntegerBitWidth() << std::endl;
+                        rill_dout << "bitwidth: " << to_type->getIntegerBitWidth() << std::endl;
                         assert( false && "[ice] bitwidth" );
                     }
                     break;

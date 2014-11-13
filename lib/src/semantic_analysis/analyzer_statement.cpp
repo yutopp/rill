@@ -39,7 +39,7 @@ namespace rill
             }
             auto const& import_base = import_bases_.top();
 
-            debug_out << "working dir  : " << working_dir << std::endl
+            rill_dout << "working dir  : " << working_dir << std::endl
                       << "import_bases : " << import_base << std::endl;
 
             // to forward reference
@@ -123,7 +123,7 @@ namespace rill
             auto const& a_env = parent_env->lookup_layer( kind::type_value::e_function );
             assert( a_env != nullptr ); // TODO: change to error_handler
 
-            debug_out << "Return Statement [target: f_env] ------>> " << std::endl
+            rill_dout << "Return Statement [target: f_env] ------>> " << std::endl
                       << " type: " << debug_string( a_env->get_symbol_kind() ) << std::endl
                       << " env : " << a_env << std::endl;
 
@@ -233,16 +233,16 @@ namespace rill
 
                             switch( level ) {
                             case function_match_level::k_exact_match:
-                                debug_out << "Exact" << std::endl;
+                                rill_dout << "Exact" << std::endl;
                                 break;
                             case function_match_level::k_qualifier_conv_match:
-                                debug_out << "Qual" << std::endl;
+                                rill_dout << "Qual" << std::endl;
                                 break;
                             case function_match_level::k_implicit_conv_match:
-                                debug_out << "Implicit" << std::endl;
+                                rill_dout << "Implicit" << std::endl;
                                 break;
                             case function_match_level::k_no_match:
-                                debug_out << "NoMatch" << std::endl;
+                                rill_dout << "NoMatch" << std::endl;
                                 assert( false && "[[error]] This value can not be assigned(type conversion)" );
                             }
                         }
@@ -325,7 +325,7 @@ namespace rill
                         auto attr = ty.attributes;
 
                         //
-                        debug_out << "class variable: " << unit.name->get_inner_symbol()->to_native_string() << std::endl;
+                        rill_dout << "class variable: " << unit.name->get_inner_symbol()->to_native_string() << std::endl;
 
                         if ( class_env->get_builtin_kind() == class_builtin_kind::k_void ) {
                             assert( false && "[error] void is not able to be instanced" );
@@ -388,7 +388,7 @@ namespace rill
         //
         RILL_VISITOR_OP( analyzer, ast::function_definition_statement, s, parent_env )
         {
-            debug_out
+            rill_dout
                 << " != Semantic" << std::endl
                 << "    function_definition_statement: " << std::endl
                 << "     name -- " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
@@ -401,11 +401,11 @@ namespace rill
             auto const& f_env = cast_to<function_symbol_environment>( related_env );
             assert( f_env != nullptr );
 
-            debug_out << "$" << std::endl;
+            rill_dout << "$" << std::endl;
             // guard double check
             if ( f_env->is_checked() ) return;
             f_env->change_progress_to_checked();
-            debug_out << "$ uncheckd" << std::endl;
+            rill_dout << "$ uncheckd" << std::endl;
 
             //
             declare_function_parameters( f_env, s, parent_env );
@@ -421,18 +421,18 @@ namespace rill
                          type const& ty,
                          class_symbol_environment_ptr const& class_env
                         ) {
-                        debug_out << "return type is >>" << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
+                        rill_dout << "return type is >>" << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
 
                         f_env->decide_return_type( return_ty_d->type_id );
                     });
             }
 
             // scan all statements in this function body
-            debug_out << ">>>>" << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
+            rill_dout << ">>>>" << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
             dispatch( s->inner_, f_env );
-            debug_out << "<<<<" << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
+            rill_dout << "<<<<" << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
 
-            debug_out << "returned: " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
+            rill_dout << "returned: " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
 
             // Return type
             solve_function_return_type_semantics( f_env );
@@ -447,7 +447,7 @@ namespace rill
         //
         RILL_VISITOR_OP( analyzer, ast::class_function_definition_statement, s, parent_env )
         {
-            debug_out
+            rill_dout
                 << " != Semantic" << std::endl
                 << "    CLASS function_definition_statement: " << std::endl
                 << "     name -- " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
@@ -460,11 +460,11 @@ namespace rill
             auto const& f_env = cast_to<function_symbol_environment>( related_env );
             assert( f_env != nullptr );
 
-            debug_out << "$" << std::endl;
+            rill_dout << "$" << std::endl;
             // guard double check
             if ( f_env->is_checked() ) return;
             f_env->change_progress_to_checked();
-            debug_out << "$ unchecked" << std::endl;
+            rill_dout << "$ unchecked" << std::endl;
 
             auto const& parent_c_env
                 = g_env_->get_env_at_as_strong_ref<class_symbol_environment>(
@@ -501,7 +501,7 @@ namespace rill
                              type const& ty,
                              class_symbol_environment_ptr const& class_env
                             ) {
-                            debug_out << "return type is >>" << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
+                            rill_dout << "return type is >>" << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
 
                             f_env->decide_return_type( return_ty_d->type_id );
                         });
@@ -509,11 +509,11 @@ namespace rill
             }
 
             // scan all statements in this function body
-            debug_out << ">>>>" << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
+            rill_dout << ">>>>" << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
             dispatch( s->inner_, f_env );
-            debug_out << "<<<<" << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
+            rill_dout << "<<<<" << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
 
-            debug_out << "returned: " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
+            rill_dout << "returned: " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
 
             // Return type
             solve_function_return_type_semantics( f_env );
@@ -600,7 +600,7 @@ namespace rill
         //
         RILL_VISITOR_OP( analyzer, ast::extern_function_declaration_statement, s, parent_env )
         {
-            debug_out
+            rill_dout
                 << "= extern_function_definition_statement:" << std::endl
                 << " Name -- " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
                 << " Args num -- " << s->get_parameter_list().size() << std::endl
@@ -653,7 +653,7 @@ namespace rill
                     f_env->mark_as_intrinsic_function( *id );
 
                 } else {
-                    debug_out << s->extern_symbol_name_ << std::endl;
+                    rill_dout << s->extern_symbol_name_ << std::endl;
                     assert( false && "[error] this intrinsic function is not registered" );
                 }
             }

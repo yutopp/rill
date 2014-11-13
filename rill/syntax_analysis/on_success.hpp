@@ -38,7 +38,7 @@ namespace rill
                 ) const
                 -> void
             {
-                debug_out << "on_success <> " << typeid(Attr).name() << std::endl;
+                rill_dout << "on_success <> " << typeid(Attr).name() << std::endl;
             }
 #endif
         };

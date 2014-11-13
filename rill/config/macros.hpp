@@ -39,15 +39,16 @@
 
 
 // for debug
+// TODO: rename names of these macros
 #ifdef RILL_DEBUG
 # define debug_s \
     std::cout << "--- LOG : " << __FILE__ << " / " << __LINE__ << " ----" << std::endl;
-# define debug_out std::cout
+# define rill_dout std::cout
 # define rill_ice( str ) assert( false && ( str ) )
 
 #else
 # define debug_s if ( false )
-# define debug_out if ( false ) std::cout
+# define rill_dout if ( false ) std::cout
 # define rill_ice( str )                            \
     std::cerr << "File: " << __FILE__ << std::endl  \
               << "Line: " << __LINE__ << std::endl  \

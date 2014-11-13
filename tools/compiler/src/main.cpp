@@ -56,16 +56,17 @@ void sample( boost::program_options::variables_map const& vm )
     auto const module
         = rill::syntax_analysis::parse( source_fullpath );
     if ( module == nullptr ) {
-        std::cerr << "Failed to parse." << std::endl;
+        std::cerr << "Failed at syntax analysis." << std::endl;
         exit( -200 );
     }
 
     // debug
-    std::cout
-        << "Top statements size: " << module->program->statements_.size() << std::endl;
+    debug_s {
+        std::cout
+            << "Top statements size: " << module->program->statements_.size() << std::endl;
 
-
-    rill::debug::print_ast( module );
+        rill::debug::print_ast( module );
+    }
 
 
 
@@ -91,7 +92,7 @@ void sample( boost::program_options::variables_map const& vm )
             g_env, module, intrinsic_function_action, std::move( sema_options )
             );
     if ( report->is_errored() ) {
-        std::cerr << "Failed to semantic analysis." << std::endl;
+        std::cerr << "Failed at semantic analysis." << std::endl;
         exit( -230 );
     }
 

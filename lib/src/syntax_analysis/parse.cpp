@@ -28,14 +28,13 @@ namespace rill
             std::ifstream ifs( source_fullpath.string() );
             if ( !ifs ) {
                 std::cerr << source_fullpath << " was not found..." << std::endl;
-                exit( -100 );
+                return nullptr;
             }
 
             std::istreambuf_iterator<char> const begin = ifs, end;
             rill::ast::native_string_t const input_source_code( begin, end );
-            std::cout
-                << "inputs are:" << std::endl
-                << input_source_code << std::endl;
+            rill_dout << "inputs are:" << std::endl
+                      << input_source_code << std::endl;
 
             return parse( input_source_code, source_fullpath );
         }

@@ -37,7 +37,7 @@ namespace rill
         //
         RILL_VISITOR_OP( analyzer, ast::binary_operator_expression, e, parent_env )
         {
-            debug_out << "op_call_expr" << std::endl;
+            rill_dout << "op_call_expr" << std::endl;
 
             // make argument types id list
             auto const& argument_type_details
@@ -58,7 +58,7 @@ namespace rill
 
         RILL_VISITOR_OP( analyzer, ast::unary_operator_expression, e, parent_env )
         {
-            debug_out << "op_call_unary_expr" << std::endl;
+            rill_dout << "op_call_unary_expr" << std::endl;
 
             // make argument types id list
             auto const& argument_type_details
@@ -191,7 +191,7 @@ namespace rill
                 // memoize
                 new_selector_id_type_detail->target_env->connect_from_ast( e );
 
-                debug_out
+                rill_dout
                     << "element selection: " << debug_string( new_selector_id_type_detail->target_env->get_symbol_kind() ) << std::endl
                     << "type_id: " << new_selector_id_type_detail->type_id << std::endl;
 
@@ -215,7 +215,7 @@ namespace rill
         {
             using namespace boost::adaptors;
 
-            debug_out << "call_expr" << std::endl;
+            rill_dout << "call_expr" << std::endl;
 
             // ========================================
             // reciever will be "function symbol", "functor object", etc...
@@ -276,7 +276,7 @@ namespace rill
                              type const& ty,
                              class_symbol_environment_ptr const& class_env
                             ) {
-                            debug_out << "CONSTRUCTING type >> " << class_env->get_base_name() << std::endl;
+                            rill_dout << "CONSTRUCTING type >> " << class_env->get_base_name() << std::endl;
 
                             // find constructor
                             auto const& multiset_env = cast_to<multiple_set_environment>( class_env->find_on_env( "ctor" ) );

@@ -179,7 +179,7 @@ namespace rill
                 bits |= static_cast<ull>( attr.lifetime ) << offset;
                 offset += detail::min_bitwidth( lifetime_kind::last );
 
-                debug_out << attr
+                rill_dout << attr
                           << " bits: " << attributes_bit_t( bits ).to_string() << std::endl;;
 
                 return attributes_bit_t( bits );

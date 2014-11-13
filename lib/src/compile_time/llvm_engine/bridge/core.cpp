@@ -118,7 +118,7 @@ extern "C" {
     auto rill_core_typesystem_is_mutable( rill::semantic_analysis::type_detail_ptr ty_detail )
         -> bool
     {
-        debug_out << "POINTER:" << ty_detail << std::endl;
+        rill_dout << "POINTER:" << ty_detail << std::endl;
 
         rill::type const& t = le::gje.semantic_analyzer->ref_type( ty_detail );
         bool const is_mutable = t.attributes.modifiability == rill::attribute::modifiability_kind::k_mutable;

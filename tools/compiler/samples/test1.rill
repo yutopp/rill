@@ -1,9 +1,11 @@
 def main(): int
 {
-
     val a: mutable(int) = 10;
     a = 21;
     val b = 20;
+    mutable(2);
+    mutable(2);
+a = int;
 //    val b = 20;
 //ff();
 ///    mutable(TestClass)();

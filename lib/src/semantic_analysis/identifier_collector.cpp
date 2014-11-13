@@ -77,7 +77,7 @@ namespace rill
         {
             // Function symbol that on (global | namespace)
 
-            debug_out << "IdentifierCollector::Function" << std::endl
+            rill_dout << "IdentifierCollector::Function" << std::endl
                       << " collected          : " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
                       << " param_num          : " << s->get_parameter_list().size() << std::endl
                       << " is_template_layout : " << s->is_template_layout() << std::endl;
@@ -118,7 +118,7 @@ namespace rill
         {
             // Function symbol that on (global | namespace)
 
-            debug_out << "collected : " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
+            rill_dout << "collected : " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
                       << "param_num : " << s->get_parameter_list().size() << std::endl;
 
             if ( s->is_template_layout() ) {
@@ -205,7 +205,7 @@ namespace rill
 
             // TODO: add support for template
 
-            debug_out << "collected : " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
+            rill_dout << "collected : " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
                       << "param_num : " << s->get_parameter_list().size() << std::endl;
 
             if ( s->is_template_layout() ) {

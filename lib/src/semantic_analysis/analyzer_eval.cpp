@@ -26,7 +26,7 @@ namespace rill
                 void*
             >
         {
-            debug_out << "CTFE of expresison!!!!!!" << std::endl;
+            rill_dout << "CTFE of expresison!!!!!!" << std::endl;
 
             // solve semantics
             auto const& ty_detail = dispatch( expression, parent_env );
@@ -41,7 +41,7 @@ namespace rill
             auto const& ty
                 = g_env_->get_type_at( ty_detail->type_id );
 
-            debug_out << "KKKKK : " << debug_string( g_env_->get_env_at_as_strong_ref( ty.class_env_id )->get_symbol_kind() ) << std::endl;
+            rill_dout << "KKKKK : " << debug_string( g_env_->get_env_at_as_strong_ref( ty.class_env_id )->get_symbol_kind() ) << std::endl;
 
             auto c_env
                 = std::static_pointer_cast<class_symbol_environment const>(
@@ -68,14 +68,14 @@ namespace rill
             environment_base_ptr const& parent_env
             ) -> type_detail_ptr
         {
-            debug_out << "TYPE expresison!!!!!!" << std::endl;
+            rill_dout << "TYPE expresison!!!!!!" << std::endl;
             RILL_PP_TIE(
                 c_env, evaled_value,
                 eval_expression_as_ctfe( id_expression, parent_env )
                 );
             assert( c_env != nullptr );
 
-            debug_out << "pass: " << __LINE__ << std::endl
+            rill_dout << "pass: " << __LINE__ << std::endl
                       << ": " << c_env << std::endl
                       << c_env->get_base_name() << std::endl
                       << "pass: " << __LINE__ << std::endl;
@@ -87,7 +87,7 @@ namespace rill
 
             auto ty_d = static_cast<type_detail_ptr>( evaled_value );
 
-            debug_out << "APPEND attributes" << std::endl;
+            rill_dout << "APPEND attributes" << std::endl;
             auto ty = g_env_->get_type_at( ty_d->type_id ); // make copy
             // force overwrite holder type(if specified)
             // other attributes are filled
@@ -167,7 +167,7 @@ namespace rill
 
                 default:
                 {
-                    debug_out << orig_c_env->get_base_name() << std::endl;
+                    rill_dout << orig_c_env->get_base_name() << std::endl;
                     assert( false && "[[ice]] this value type was not supported currently." );
                     return nullptr;
                 }
@@ -177,13 +177,13 @@ namespace rill
             substituted_ast->line = expression->line;
             substituted_ast->column = expression->column;
 
-            debug_out << expression->line << std::endl
+            rill_dout << expression->line << std::endl
                       << expression->column << std::endl;
 
             // substitute expression
             expression.swap( substituted_ast );
 
-            debug_out << "--" << std::endl
+            rill_dout << "--" << std::endl
                       << expression->line << std::endl
                       << expression->column << std::endl;
 

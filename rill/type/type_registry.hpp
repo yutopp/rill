@@ -61,7 +61,7 @@ namespace rill
             type t = { class_env_id, type_attr };
             data_holder_.emplace( current_index_, std::move( t ) );
 
-            debug_out << ">>> type registered." << std::endl
+            rill_dout << ">>> type registered." << std::endl
                       << ">>>  id  : " << class_env_id << std::endl;
 
             dereference_data_holder_[class_env_id][attribute::detail::make_type_attributes_bit( type_attr )] = current_index_;

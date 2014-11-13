@@ -36,7 +36,7 @@ namespace rill
             incomplete_construct( kind::k_class, class_name )
             );
 
-        debug_out << "%% Marked(class) " << class_env->get_id() << std::endl;
+        rill_dout << "%% Marked(class) " << class_env->get_id() << std::endl;
 
         //
         class_env->link_with_ast( ast );

@@ -100,7 +100,7 @@ namespace rill
             -> module_environment_ptr
         {
             if ( name_module_rel_.find( name ) != name_module_rel_.cend() ) {
-                debug_out << "module name: " << name << std::endl;
+                rill_dout << "module name: " << name << std::endl;
                 assert( false && "[error] this module was already registered." );
             }
 
@@ -127,7 +127,7 @@ namespace rill
             -> module_environment_ptr
         {
             if ( name_module_rel_.find( name ) == name_module_rel_.cend() ) {
-                debug_out << "module name: " << name << std::endl;
+                rill_dout << "module name: " << name << std::endl;
                 assert( false && "[error] this module was NOT registered." );
             }
 

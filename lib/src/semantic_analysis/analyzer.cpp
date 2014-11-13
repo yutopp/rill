@@ -230,7 +230,7 @@ namespace rill
             assert( c_env != nullptr );
             //assert( c_env->is_checked() );
 
-            debug_out << "mangling:: " << c_env->get_mangled_name() << std::endl
+            rill_dout << "mangling:: " << c_env->get_mangled_name() << std::endl
                       << attr << std::endl
                       << "==========" << std::endl;
 
@@ -354,7 +354,7 @@ namespace rill
                 template_parameters.size()
                 );
 
-            debug_out << "TEMPLATE param size is " << template_parameters.size() << std::endl;
+            rill_dout << "TEMPLATE param size is " << template_parameters.size() << std::endl;
 
             for( std::size_t i=0; i<template_parameters.size(); ++i ) {
                 auto const& template_parameter = template_parameters.at( i );
@@ -381,7 +381,7 @@ namespace rill
                              const_class_symbol_environment_ptr const& class_env
                             )
                         {
-                            debug_out << "Construct template parameter val / index : " << i << std::endl;
+                            rill_dout << "Construct template parameter val / index : " << i << std::endl;
 
                             // declare the template parameter into function env as variable
                             auto const& v_env
@@ -398,7 +398,7 @@ namespace rill
 
                 } else {
                     // deduce this template variable is "type" type.
-                    debug_out << "Construct template parameter[type] val / index : " << i << std::endl;
+                    rill_dout << "Construct template parameter[type] val / index : " << i << std::endl;
                     assert( false );
 /*
                     // declare the template parameter into function env as variable
@@ -440,7 +440,7 @@ namespace rill
 
                 // substitute template arguments
                 // save template argument value to the template variables env
-                debug_out << "TEMPLATE ARGS index: " << i << std::endl;
+                rill_dout << "TEMPLATE ARGS index: " << i << std::endl;
                 auto const& template_var_env = decl_template_var_envs.at( i );
                 auto const& template_arg = template_args->at( i );
 
@@ -456,10 +456,10 @@ namespace rill
                                 )
                             );
 
-                    debug_out << "#### [parameter type]: " << c_e->get_mangled_name() << std::endl;
+                    rill_dout << "#### [parameter type]: " << c_e->get_mangled_name() << std::endl;
 
                     if ( template_arg.is_type() ) {
-                        debug_out << "type: inner value is " << std::endl;
+                        rill_dout << "type: inner value is " << std::endl;
                         auto const& t_detail
                             = static_cast<type_detail_ptr>( template_arg.element );
                         assert( t_detail != nullptr );
@@ -475,13 +475,13 @@ namespace rill
                                     )
                                 );
 
-                        debug_out << "** typeid << " << t_detail->type_id << std::endl
+                        rill_dout << "** typeid << " << t_detail->type_id << std::endl
                                   << "** " << tt.class_env_id << std::endl;
 
-                        debug_out << "BINDED " << template_var_env->get_id()
+                        rill_dout << "BINDED " << template_var_env->get_id()
                                   << " -> " << c_e->get_mangled_name() << std::endl;
                     } else {
-                        debug_out << "value: " << std::endl;
+                        rill_dout << "value: " << std::endl;
                     }
                 } // debug
 
@@ -497,16 +497,16 @@ namespace rill
                 // TODO: fix
                 switch( level ) {
                 case function_match_level::k_exact_match:
-                    debug_out << "Exact" << std::endl;
+                    rill_dout << "Exact" << std::endl;
                     break;
                 case function_match_level::k_qualifier_conv_match:
-                    debug_out << "Qual" << std::endl;
+                    rill_dout << "Qual" << std::endl;
                     break;
                 case function_match_level::k_implicit_conv_match:
-                    debug_out << "Implicit" << std::endl;
+                    rill_dout << "Implicit" << std::endl;
                     return false;
                 case function_match_level::k_no_match:
-                    debug_out << "NoMatch" << std::endl;
+                    rill_dout << "NoMatch" << std::endl;
                     return false;
                 }
 
@@ -579,7 +579,7 @@ namespace rill
 
                 default:
                 {
-                    debug_out << c_env->get_base_name() << std::endl;
+                    rill_dout << c_env->get_base_name() << std::endl;
                     assert( false && "[[ice]] value parameter was not supported yet" );
                 }
                 } // switch
@@ -602,7 +602,7 @@ namespace rill
 
             // solve CLASS template
             for( auto&& env : multiset_env->get_template_environments() ) {
-                debug_out << colorize::standard::fg::red
+                rill_dout << colorize::standard::fg::red
                           << "!!!! template: " << std::endl
                           << colorize::standard::reset
                           << std::endl;
@@ -650,7 +650,7 @@ namespace rill
                 auto const signature_string
                     = make_template_signature_string( decl_template_var_envs );
 
-                debug_out << "========================================== !!!!! => " << signature_string << std::endl;
+                rill_dout << "========================================== !!!!! => " << signature_string << std::endl;
                 if ( auto const& cache = multiset_env->find_instanced_environments( signature_string ) ) {
                     //
                     auto const& cached_c_env = cast_to<class_symbol_environment>( cache );
@@ -685,7 +685,7 @@ namespace rill
                     xc.push_back( instanting_c_env );
                 }
 
-                debug_out << colorize::standard::fg::red
+                rill_dout << colorize::standard::fg::red
                           << "!!!! END: template: " << std::endl
                           << colorize::standard::reset
                           << std::endl;
@@ -705,7 +705,7 @@ namespace rill
         {
             // guard double check
             if ( c_env->is_checked() ) {
-                debug_out << "Already, checked" << std::endl;
+                rill_dout << "Already, checked" << std::endl;
                 // assert( false );
                 return false;
             }
@@ -738,7 +738,7 @@ namespace rill
                 dispatch( s->inner_, c_env );
 
                 //
-                debug_out /*<< "host align   : " << c_env->get_host_align() << std::endl
+                rill_dout /*<< "host align   : " << c_env->get_host_align() << std::endl
                             << "host size    : " << c_env->get_host_size() << std::endl*/
                           << "target align : " << c_env->get_target_align() << std::endl
                           << "target size  : " << c_env->get_target_size() << std::endl;
@@ -750,7 +750,7 @@ namespace rill
                 c_env->complete( mangled_name, attributes );
 
             } else {
-                debug_out << "builtin class!" << std::endl;
+                rill_dout << "builtin class!" << std::endl;
 
                 if ( ( attributes & attribute::decl::k_extern ) != 0 ) {
                     auto const& extern_s
@@ -767,7 +767,7 @@ namespace rill
                                 );
 
                         } else {
-                            debug_out << extern_s->extern_symbol_name_ << std::endl;
+                            rill_dout << extern_s->extern_symbol_name_ << std::endl;
                             assert( false && "[error] this intrinsic class is not registered" );
                         }
 
@@ -792,7 +792,7 @@ namespace rill
                             auto const& array_element_num
                                 = static_cast<std::int32_t const* const>( template_args->at( 1 ).element );
 
-                            debug_out << "Array num is " << *array_element_num << std::endl;
+                            rill_dout << "Array num is " << *array_element_num << std::endl;
                             c_env->make_as_array(
                                 array_element_type_id,
                                 *array_element_num
@@ -827,7 +827,7 @@ namespace rill
                                 ty.attributes
                                 );
 
-                            debug_out << "This is ptr!" << std::endl;
+                            rill_dout << "This is ptr!" << std::endl;
                             c_env->make_as_pointer( ptr_element_type_id );
                         }
 
@@ -856,7 +856,7 @@ namespace rill
         {
             assert( multiset_env->get_representation_kind() == kind::type_value::e_class );
 
-            debug_out << colorize::standard::fg::red
+            rill_dout << colorize::standard::fg::red
                       << "!!!! class solving: " << multiset_env->get_name() << std::endl
                       << "!!!! templated class candidate num: " << multiset_env->get_template_environments().size()
                       << colorize::standard::reset
@@ -868,7 +868,7 @@ namespace rill
             auto const& xc
                 = instantiate_class_templates( multiset_env, template_args, parent_env );
 
-            debug_out << "class candidate: " << xc.size() << std::endl;
+            rill_dout << "class candidate: " << xc.size() << std::endl;
             assert( xc.size() != 0 && "no candidate" );
             assert( xc.size() == 1 && "ambigous" );
 
@@ -887,7 +887,7 @@ namespace rill
             )
             -> type_detail::template_arg_type
         {
-            debug_out << "eval template arguments!!!" << std::endl;
+            rill_dout << "eval template arguments!!!" << std::endl;
 
             // evaluate template arguments...
             type_detail::template_arg_type template_args;
@@ -895,7 +895,7 @@ namespace rill
             // TODO: implement
             for( auto const& expression : arguments ) {
                 //
-                debug_out << "template expresison!!!!!!" << std::endl;
+                rill_dout << "template expresison!!!!!!" << std::endl;
                 auto const& argument_ty_detail = dispatch( expression, parent_env );
 
                 // get environment of arguments
@@ -969,13 +969,13 @@ namespace rill
 
                     default:
                     {
-                        debug_out << c_env->get_base_name() << std::endl;
+                        rill_dout << c_env->get_base_name() << std::endl;
                         assert( false && "[[ice]] value parameter was not supported yet" );
                         return { nullptr, nullptr, dependent_value_kind::k_none };
                     }
                     } // switch
                 }();
-                debug_out << "argt: " << c_env->get_mangled_name() << std::endl;
+                rill_dout << "argt: " << c_env->get_mangled_name() << std::endl;
 
                 template_args.push_back( ta );
             }
@@ -1080,7 +1080,7 @@ namespace rill
             case attribute::holder_kind::k_ref:
             {
                 // val to ref
-                debug_out << "val to ref" << std::endl;
+                rill_dout << "val to ref" << std::endl;
                 switch( argument_attributes.modifiability ) {
                 case attribute::modifiability_kind::k_immutable:
                 case attribute::modifiability_kind::k_none: // none == immutable
@@ -1179,12 +1179,12 @@ namespace rill
 
             if ( param_type_detail->template_args == nullptr ) {
                 // simple type match
-                debug_out << " ? simple type match" << std::endl;
+                rill_dout << " ? simple type match" << std::endl;
                 auto const& param_type = g_env_->get_type_at( param_type_detail->type_id );
 
                 if ( param_type.is_incomplete() ) {
                     // determine this type_detail has a pointer to the template param env
-                    debug_out << " ? : template param" << std::endl;
+                    rill_dout << " ? : template param" << std::endl;
 
                     auto const& r_tv_env = param_type_detail->target_env;
                     assert( r_tv_env != nullptr );
@@ -1203,7 +1203,7 @@ namespace rill
                             );
                     auto const new_paramater_val_type_id
                         = g_env_->make_type_id( arg_type.class_env_id, new_parameter_val_type_attr );
-                    debug_out << "new_parameter_val_type_attr: " << new_parameter_val_type_attr << std::endl;
+                    rill_dout << "new_parameter_val_type_attr: " << new_parameter_val_type_attr << std::endl;
 
                     // update value
                     ty_d->type_id = new_paramater_val_type_id;
@@ -1213,7 +1213,7 @@ namespace rill
                         = mask_by( new_parameter_val_type_attr, param_type.attributes );
                     auto const new_paramater_type_id
                         = g_env_->make_type_id( arg_type.class_env_id, new_parameter_type_attr );
-                    debug_out << "new_parameter_type_attr: " << new_parameter_type_attr << std::endl;
+                    rill_dout << "new_parameter_type_attr: " << new_parameter_type_attr << std::endl;
 
                     return type_detail_pool_->construct(
                         new_paramater_type_id,
@@ -1300,7 +1300,7 @@ namespace rill
                 auto const& c_env = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
                     ty.class_env_id
                     );
-                debug_out
+                rill_dout
                     << "type: " << c_env->get_mangled_name()
                     << " / ty.class_env_id: " << ty.class_env_id << std::endl
                     << "type: " << debug_string( c_env->get_symbol_kind() ) << std::endl
@@ -1328,7 +1328,7 @@ namespace rill
                 }
 
                 // DEBUG
-                debug_out << "[overloads] " << f_env->get_mangled_name() << " ... is_checked ? " << f_env->is_checked() << std::endl
+                rill_dout << "[overloads] " << f_env->get_mangled_name() << " ... is_checked ? " << f_env->is_checked() << std::endl
                           << (const_environment_base_ptr)f_env << std::endl;
                 assert( f_env->is_checked() );
 
@@ -1349,7 +1349,7 @@ namespace rill
                     auto const& param_type_id = f_env_parameter_type_ids[i];
                     auto const& arg_type_id = arg_types[i]->type_id;
 
-                    debug_out << "Param Type Conv (" << i << "): ";
+                    rill_dout << "Param Type Conv (" << i << "): ";
 
                     RILL_PP_TIE( level, conv_function_env,
                                  try_type_conversion(
@@ -1359,23 +1359,23 @@ namespace rill
                                      )
                         );
 
-                    debug_out << ": from" << std::endl;
+                    rill_dout << ": from" << std::endl;
                     print_type( arg_type_id );
-                    debug_out << ": to" << std::endl;
+                    rill_dout << ": to" << std::endl;
                     print_type( param_type_id );
 
                     switch( level ) {
                     case function_match_level::k_exact_match:
-                        debug_out << "Exact" << std::endl;
+                        rill_dout << "Exact" << std::endl;
                         break;
                     case function_match_level::k_qualifier_conv_match:
-                        debug_out << "Qual" << std::endl;
+                        rill_dout << "Qual" << std::endl;
                         break;
                     case function_match_level::k_implicit_conv_match:
-                        debug_out << "Implicit" << std::endl;
+                        rill_dout << "Implicit" << std::endl;
                         break;
                     case function_match_level::k_no_match:
-                        debug_out << "NoMatch" << std::endl;
+                        rill_dout << "NoMatch" << std::endl;
                         break;
                     }
 
@@ -1403,7 +1403,7 @@ namespace rill
                 }
             } // for [normal environment]
 
-            debug_out << " !== overload ======================================================" << std::endl
+            rill_dout << " !== overload ======================================================" << std::endl
                       << "best match: " << static_cast<int>( best_matched_level ) << std::endl;
 
             debug_s {
@@ -1443,7 +1443,7 @@ namespace rill
         {
             // solve FUNCTION template
             for( auto&& env : multiset_env->get_template_environments() ) {
-                debug_out << colorize::standard::fg::red
+                rill_dout << colorize::standard::fg::red
                           << "!!!! template: " << std::endl
                           << colorize::standard::reset
                           << std::endl;
@@ -1498,7 +1498,7 @@ namespace rill
                     : 0;
                 for( std::size_t i=arg_index_until_provided; i<decl_template_var_envs.size(); ++i ) {
                     // assign empty type value
-                    debug_out << "= Assign empty type value / index : " << i << std::endl;
+                    rill_dout << "= Assign empty type value / index : " << i << std::endl;
 
                     auto const& template_var_env = decl_template_var_envs.at( i );
 
@@ -1542,12 +1542,12 @@ namespace rill
                 // type decuce!
                 assert( presetted_param_types.size() == arg_types.size() );
                 for( std::size_t i=0; i<presetted_param_types.size(); ++i ) {
-                    debug_out << "Template arg/param type inference... / index : " << i << std::endl;
+                    rill_dout << "Template arg/param type inference... / index : " << i << std::endl;
                     auto& param_type = presetted_param_types[i];
                     auto const& arg_type = arg_types[i];
 
                     auto new_ty_d = infer_param_type_from_arg_type( param_type, arg_type );
-                    debug_out << " == is_succeeded : " << ( new_ty_d != nullptr ) << std::endl;
+                    rill_dout << " == is_succeeded : " << ( new_ty_d != nullptr ) << std::endl;
                     if ( new_ty_d == nullptr ) {
                         // TODO: fail! skip this function instatiation
                         assert( false && "" );
@@ -1563,7 +1563,7 @@ namespace rill
                 auto const signature_string
                     = make_template_signature_string( decl_template_var_envs );
 
-                debug_out << "========================================== !!!!! => " << signature_string << std::endl;
+                rill_dout << "========================================== !!!!! => " << signature_string << std::endl;
                 if ( auto const& cache = multiset_env->find_instanced_environments( signature_string ) ) {
                     // this function is already instanced, so do nothing
                     // TODO: remove 'instanting_f_env' and function_def_ast
@@ -1632,7 +1632,7 @@ namespace rill
                     }
                 }
 
-                debug_out << colorize::standard::fg::red
+                rill_dout << colorize::standard::fg::red
                           << "!!!! END: template: " << std::endl
                           << colorize::standard::reset
                           << std::endl;
@@ -1680,7 +1680,7 @@ namespace rill
             //
             assert( set_env->get_representation_kind() == kind::type_value::e_function );
 
-            debug_out << colorize::standard::fg::red
+            rill_dout << colorize::standard::fg::red
                       << "!!!! overload solving: " << set_env->get_name() << std::endl
                       << "!!!! normal function candidate num: " << set_env->get_normal_environments().size()
                       << colorize::standard::reset
@@ -1812,7 +1812,7 @@ namespace rill
 
             // v. template_argument()
 
-            debug_out << "  ==" << std::endl
+            rill_dout << "  ==" << std::endl
                       << "eval template arguments!!!" << std::endl
                       << "  ==" << std::endl
                       << std::endl;
@@ -1852,7 +1852,7 @@ namespace rill
 
                     // !! important
                     // memoize
-                    debug_out << "()memoed.template_class" << std::endl;
+                    rill_dout << "()memoed.template_class" << std::endl;
                     i_c_env->connect_from_ast( identifier );
                 }
             }
@@ -1882,7 +1882,7 @@ namespace rill
             }
 
             // debug
-            debug_out << "## Finding Identifier: " << identifier->get_inner_symbol()->to_native_string() << std::endl
+            rill_dout << "## Finding Identifier: " << identifier->get_inner_symbol()->to_native_string() << std::endl
                       << "## astid: " << identifier->get_id() << std::endl
                       << "## kind: " << debug_string( found_env->get_symbol_kind() ) << std::endl
                       << (const_environment_base_ptr)parent_env << std::endl;
@@ -1914,7 +1914,7 @@ namespace rill
                         auto const& c_env
                             = cast_to<class_symbol_environment>( ne.at( 0 ) );
 
-                        debug_out << "()memoed.class " << c_env->get_mangled_name() << std::endl;
+                        rill_dout << "()memoed.class " << c_env->get_mangled_name() << std::endl;
 
                         if ( c_env->is_incomplete() ) {
                             dispatch( c_env->get_related_ast(), c_env->get_parent_env() );
@@ -1969,7 +1969,7 @@ namespace rill
                     = std::static_pointer_cast<variable_symbol_environment>( found_env );
 
                 // memoize
-                debug_out << "() memoed.variable" << std::endl;
+                rill_dout << "() memoed.variable" << std::endl;
                 v_env->connect_from_ast( identifier );
 
                 // in class variable is forward referenceable
@@ -2315,7 +2315,7 @@ namespace rill
                     );
             if ( callee_function_type_detail == nullptr ) {
                 // compilation error...
-                debug_out << "% name : "
+                rill_dout << "% name : "
                           << op_name->get_inner_symbol()->to_native_string() << std::endl;
                 assert( false && "[Error] identifier was not found." );
             }
@@ -2378,7 +2378,7 @@ namespace rill
                     );
             if ( callee_function_type_detail == nullptr ) {
                 // compilation error...
-                debug_out << "% name : "
+                rill_dout << "% name : "
                           << op_name->get_inner_symbol()->to_native_string() << std::endl;
                 assert( false && "[Error] identifier was not found." );
             }
@@ -2553,7 +2553,7 @@ namespace rill
             -> type_detail_ptr
         {
             assert( is_nontype_id( f_type_detail->type_id ) );
-            debug_out << "-> "
+            rill_dout << "-> "
                       << debug_string( f_type_detail->target_env->get_symbol_kind() )
                       << std::endl;
 
@@ -2577,7 +2577,7 @@ namespace rill
             assert( function_env != nullptr );
 
             // memoize called function env
-            debug_out << "memoed template" << std::endl;
+            rill_dout << "memoed template" << std::endl;
             function_env->connect_from_ast( e );
 
             bool const is_xvalue = [&]() {

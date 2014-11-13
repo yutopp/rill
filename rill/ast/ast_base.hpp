@@ -60,12 +60,12 @@ namespace rill
             ast_base()
                 : id_( igen_() )  // generate id
             {
-                debug_out << "NEW AST @ ID: " << id_ << std::endl;
+                rill_dout << "NEW AST @ ID: " << id_ << std::endl;
             }
 
             virtual ~ast_base()
             {
-                debug_out << "DELETED AST @ ID: " << id_ << std::endl;
+                rill_dout << "DELETED AST @ ID: " << id_ << std::endl;
             }
 
         public:

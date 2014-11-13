@@ -23,7 +23,7 @@ namespace rill
     auto environment_unit::connect_from_ast( ast::const_ast_base_ptr const& ast )
         -> void
     {
-        debug_out << "connect_from ast_id: " << ast->get_id()
+        rill_dout << "connect_from ast_id: " << ast->get_id()
                   << " -> env_id: " << get_id() << std::endl;
 
         b_.lock()->connect_from_ast( ast, shared_from_this() );
@@ -32,7 +32,7 @@ namespace rill
     auto environment_unit::connect_to_ast( ast::statement_ptr const& ast )
         -> void
     {
-        debug_out << "connect_to env_id: " << get_id()
+        rill_dout << "connect_to env_id: " << get_id()
                   << " -> ast_id: " << ast->get_id() << std::endl;
 
         b_.lock()->connect_to_ast( get_id(), ast );
@@ -70,7 +70,7 @@ namespace rill
         )
         -> env_base_pointer
     {
-        debug_out << debug_string( get_symbol_kind() ) << std::endl;
+        rill_dout << debug_string( get_symbol_kind() ) << std::endl;
         if ( get_symbol_kind() == exclude_env_type ) {
             return is_root()
                 ? nullptr
@@ -94,7 +94,7 @@ namespace rill
         ) const
         -> const_env_base_pointer
     {
-        debug_out << debug_string( get_symbol_kind() ) << std::endl;
+        rill_dout << debug_string( get_symbol_kind() ) << std::endl;
         if ( get_symbol_kind() == exclude_env_type ) {
             return is_root()
                 ? nullptr
@@ -151,14 +151,14 @@ namespace rill
             auto const& name = std::get<0>( env_unit );
             auto const& target_env = std::get<1>( env_unit );
 
-            debug_out << "import: " << name << std::endl;
+            rill_dout << "import: " << name << std::endl;
             if ( target_env->is_private() ) {
-                debug_out << "  - private" << std::endl;
+                rill_dout << "  - private" << std::endl;
                 continue;
             }
 
             if ( from->get_owner_module_id() != target_env->get_owner_module_id() ) {
-                debug_out << "  - other packages" << std::endl;
+                rill_dout << "  - other packages" << std::endl;
                 continue;
             }
 
@@ -168,7 +168,7 @@ namespace rill
                     target_env
                     );
             if ( !import_as_public ) {
-                debug_out << "  ! NOT public import" << std::endl;
+                rill_dout << "  ! NOT public import" << std::endl;
                 alias_env->is_private( true );
             }
 

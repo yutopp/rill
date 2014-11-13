@@ -114,7 +114,7 @@ namespace rill
                 auto failed_to_dispatch()
                     -> result_type<Node>
                 {
-                    debug_out << "!!! DEBUG: this AST node was not implemented" << std::endl
+                    rill_dout << "!!! DEBUG: this AST node was not implemented" << std::endl
                               << "VISITOR -> " << boost::core::demangle( typeid( *this ).name() ) << std::endl
                               << "AST     -> " << boost::core::demangle( typeid( Node* ).name() ) << " / is_const: " << std::is_const<Node>::value << std::endl;
 
@@ -125,7 +125,7 @@ namespace rill
                 auto failed_to_dispatch() const
                     -> result_type<Node>
                 {
-                    debug_out << "!!! DEBUG: this AST node was not implemented" << std::endl
+                    rill_dout << "!!! DEBUG: this AST node was not implemented" << std::endl
                               << "VISITOR -> " << boost::core::demangle( typeid( *this ).name() ) << " / const" << std::endl
                               << "AST     -> " << boost::core::demangle( typeid( Node* ).name() ) << " / is_const: " << std::is_const<Node>::value << std::endl;
 

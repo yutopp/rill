@@ -30,10 +30,10 @@ namespace rill
     {
         auto const variable_env = incomplete_construct( kind::k_variable, variable_name );
 
-        debug_out << "%% Marked(variable) " << variable_env->get_id() << std::endl;
+        rill_dout << "%% Marked(variable) " << variable_env->get_id() << std::endl;
 
         if ( ast != nullptr ) {
-            debug_out << "%% Linked(variable) " << variable_env->get_id() << std::endl;
+            rill_dout << "%% Linked(variable) " << variable_env->get_id() << std::endl;
             variable_env->link_with_ast( ast );
         }
 
@@ -87,7 +87,7 @@ namespace rill
         auto const& type_id = b_.lock()->make_type_id( class_env, type_attr );
         v_env->complete( type_id, symbol_name );
 
-        debug_out << "instanced!: " << symbol_name << std::endl;
+        rill_dout << "instanced!: " << symbol_name << std::endl;
 
         return v_env;
     }

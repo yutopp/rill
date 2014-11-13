@@ -94,7 +94,7 @@ namespace rill
                     // nornal function
                     auto const& target_name
                         = f_env->get_mangled_name();
-                    debug_out << "SS: " << target_name << std::endl;
+                    rill_dout << "SS: " << target_name << std::endl;
 
                     if ( auto const f = context_->llvm_module->getFunction( target_name ) )
                         return f;
@@ -188,7 +188,7 @@ namespace rill
         //
         RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::function_definition_statement, s, parent_env )
         {
-            debug_out
+            rill_dout
                 << "= function_definition_statement:" << std::endl
                 << " Name -- " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
                 << " Args num -- " << s->get_parameter_list().size() << std::endl
@@ -206,7 +206,7 @@ namespace rill
             // information about paramaters
             auto const& parameter_variable_type_ids = f_env->get_parameter_type_ids();
             auto const& parameter_variable_decl_env_ids = f_env->get_parameter_decl_ids();
-            debug_out << "()()=> :" << f_env->get_mangled_name() << std::endl;
+            rill_dout << "()()=> :" << f_env->get_mangled_name() << std::endl;
 
 
             // ========================================
@@ -223,7 +223,7 @@ namespace rill
             auto const linkage = llvm::Function::ExternalLinkage;
             if ( current_insert_point.isSet() ) {
                 //
-                debug_out << "not external." << std::endl;
+                rill_dout << "not external." << std::endl;
             }
 
 
@@ -275,7 +275,7 @@ namespace rill
             // ========================================
             std::size_t i = 0;
             for( llvm::Function::arg_iterator ait = func->arg_begin(); ait != func->arg_end(); ++ait ) {
-                debug_out << "Argument No: " << ait->getArgNo() << std::endl;
+                rill_dout << "Argument No: " << ait->getArgNo() << std::endl;
 
                 if ( ait == func->arg_begin() && returns_heavy_object ) {
                     ait->setName( "__ret_target" );
@@ -318,7 +318,7 @@ namespace rill
         //
         RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::class_function_definition_statement, s, parent_env )
         {
-            debug_out
+            rill_dout
                 << "= class_function_definition_statement:" << std::endl
                 << " Name -- " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
                 << " Args num -- " << s->get_parameter_list().size() << std::endl
@@ -337,7 +337,7 @@ namespace rill
             // information about paramaters
             auto const& parameter_variable_type_ids = f_env->get_parameter_type_ids();
             auto const& parameter_variable_decl_env_ids = f_env->get_parameter_decl_ids();
-            debug_out << "()()=> :" << f_env->get_mangled_name() << std::endl;
+            rill_dout << "()()=> :" << f_env->get_mangled_name() << std::endl;
 
 
             // ========================================
@@ -354,7 +354,7 @@ namespace rill
             auto const linkage = llvm::Function::ExternalLinkage;
             if ( current_insert_point.isSet() ) {
                 //
-                debug_out << "not external." << std::endl;
+                rill_dout << "not external." << std::endl;
             }
 
 
@@ -407,7 +407,7 @@ namespace rill
             // and, make local variable creation
             std::size_t i = 0;
             for( llvm::Function::arg_iterator ait = func->arg_begin(); ait != func->arg_end(); ++ait ) {
-                debug_out << "Argument No: " << ait->getArgNo() << std::endl;
+                rill_dout << "Argument No: " << ait->getArgNo() << std::endl;
                 if ( ait == func->arg_begin() && returns_heavy_object ) {
                     ait->setName( "__ret_target" );
 
@@ -438,7 +438,7 @@ namespace rill
 
             //
             debug_s {
-                debug_out << "class function" << std::endl;
+                rill_dout << "class function" << std::endl;
                 func->dump();
             }
         }
@@ -453,7 +453,7 @@ namespace rill
             if ( context_->env_conversion_table.is_defined( c_env->get_id() ) )
                 return;
 
-            debug_out << "class! : " << c_env->get_base_name() << std::endl;
+            rill_dout << "class! : " << c_env->get_base_name() << std::endl;
 
             if ( s->inner_ ) {
                 // if inner statements, it will be USER DEFINED NORMAL class
@@ -482,11 +482,11 @@ namespace rill
                         )
                     {
                         //
-                        debug_out << "ast::class_variable_declaration_statement" << std::endl;
+                        rill_dout << "ast::class_variable_declaration_statement" << std::endl;
                         this->dispatch( node, env );
                     } );
 
-                debug_out
+                rill_dout
                     << "class ------> " << c_env->get_id() << std::endl
                     << "  member num: " << context_->env_conversion_table.ref_class_variable_type_list( c_env->get_id() ).size() << std::endl;
 
@@ -556,7 +556,7 @@ namespace rill
 
 
             //
-            debug_out << "v_env->get_type_id() = " << v_env->get_type_id() << std::endl;
+            rill_dout << "v_env->get_type_id() = " << v_env->get_type_id() << std::endl;
 
 
             auto const& variable_type = g_env_->get_type_at( v_env->get_type_id() );
@@ -583,7 +583,7 @@ namespace rill
                 {
                 case attribute::modifiability_kind::k_immutable:
                 {
-                    debug_out << "ABABABAB: " << parent_env->get_id() << std::endl;
+                    rill_dout << "ABABABAB: " << parent_env->get_id() << std::endl;
                     context_->env_conversion_table.bind_class_variable_type( v_env->get_parent_class_env_id(), v_env->get_id(), variable_llvm_type );
                 }
                     break;
@@ -659,7 +659,7 @@ namespace rill
 
             //
             debug_s {
-                debug_out << "extern" << std::endl;
+                rill_dout << "extern" << std::endl;
                 func_type->dump();
             }
         }
@@ -676,12 +676,12 @@ namespace rill
 
             if ( c_env->has_attribute( attribute::decl::k_intrinsic ) ) {
                 // it will be BUILTIN class
-                debug_out << "builtin! : " << c_env->get_base_name() << std::endl;
+                rill_dout << "builtin! : " << c_env->get_base_name() << std::endl;
 
                 if ( auto&& id = action_holder_->is_registered( s->extern_symbol_name_ ) ) {
                     // special treatment for Array...
                     if ( c_env->is_array() ) {
-                        debug_out << "array" << std::endl;
+                        rill_dout << "array" << std::endl;
                         auto const& array_detail = c_env->get_array_detail();
                         assert( array_detail != nullptr );
                         auto const& array_inner_type
@@ -691,7 +691,7 @@ namespace rill
                         llvm::Type* const inner_type
                             = type_id_to_llvm_type_ptr( array_detail->inner_type_id );
 
-                        debug_out << "NUM: " << array_detail->elements_num << std::endl;
+                        rill_dout << "NUM: " << array_detail->elements_num << std::endl;
 
                         auto const& array_ty = llvm::ArrayType::get(
                             inner_type,
@@ -704,7 +704,7 @@ namespace rill
                             );
 
                     } else if ( c_env->is_pointer() ) {
-                        debug_out << "pointer" << std::endl;
+                        rill_dout << "pointer" << std::endl;
                         auto const& ptr_detail = c_env->get_pointer_detail();
                         assert( ptr_detail != nullptr );
                         auto const& ptr_inner_type
@@ -732,12 +732,12 @@ namespace rill
                     }
 
                 } else {
-                    debug_out << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
+                    rill_dout << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
                     rill_ice( "invalid type" );
                 }
 
             } else {
-                debug_out << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
+                rill_dout << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
                 rill_ice( "invalid type" );
             }
         }
@@ -864,7 +864,7 @@ namespace rill
 
             dispatch( e->op_, parent_env );
 
-            debug_out << "current : " << f_env->get_mangled_name() << std::endl;
+            rill_dout << "current : " << f_env->get_mangled_name() << std::endl;
 
             return generate_function_call(
                 f_env,
@@ -881,7 +881,7 @@ namespace rill
             auto const f_env = std::static_pointer_cast<function_symbol_environment const>( g_env_->get_related_env_by_ast_ptr( e ) );
             assert( f_env != nullptr );
 
-            debug_out << "current : " << f_env->get_mangled_name() << std::endl;
+            rill_dout << "current : " << f_env->get_mangled_name() << std::endl;
 
             return generate_function_call(
                 f_env,
@@ -898,12 +898,12 @@ namespace rill
         RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::element_selector_expression, e, parent_env )
         {
             //
-            debug_out << "element selection" << std::endl;
+            rill_dout << "element selection" << std::endl;
 
             auto const& element_env = g_env_->get_related_env_by_ast_ptr( e );
             if ( element_env != nullptr ) {
                 // this pass processes variables belongs the class
-                debug_out << "has element / kind " << debug_string( element_env->get_symbol_kind() ) << std::endl;
+                rill_dout << "has element / kind " << debug_string( element_env->get_symbol_kind() ) << std::endl;
 
                 // this element selsction affects to the reciever
 
@@ -930,7 +930,7 @@ namespace rill
                             v_env->get_parent_class_env_id(),
                             v_env->get_id()
                             );
-                    debug_out << "index: " << index << std::endl;
+                    rill_dout << "index: " << index << std::endl;
 
                     auto value
                         = context_->ir_builder.CreateStructGEP( lhs, index );
@@ -942,14 +942,14 @@ namespace rill
                     // TODO: see representation kind
 
                     // class function invocation
-                    debug_out << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
-                    debug_out << "class function invocation" << std::endl;
+                    rill_dout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
+                    rill_dout << "class function invocation" << std::endl;
 
 
                     // eval reciever
                     llvm::Value* const lhs = dispatch( e->reciever_, parent_env );
                     debug_s {
-                        debug_out << "GEN" << std::endl;
+                        rill_dout << "GEN" << std::endl;
                         lhs->dump();
                         lhs->getType()->dump();
                     }
@@ -976,7 +976,7 @@ namespace rill
                 // namespace
                 rill_ice( "namespace is not implemented" );
                 return nullptr;
-                //debug_out << "has NO selection" << std::endl;
+                //rill_dout << "has NO selection" << std::endl;
                 //llvm::Value* const rhs = dispatch( e->selector_id_, parent_env );
                 //llvm::Value* const lhs = dispatch( e->reciever_, parent_env );
 
@@ -988,7 +988,7 @@ namespace rill
         //
         RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::subscrpting_expression, e, parent_env )
         {
-            debug_out << "subscripting selection" << std::endl;
+            rill_dout << "subscripting selection" << std::endl;
 
             auto const& target_env = g_env_->get_related_env_by_ast_ptr( e );
             assert( target_env != nullptr );
@@ -1000,7 +1000,7 @@ namespace rill
             llvm::Value* lhs_value = dispatch( e->lhs_, parent_env );
 
             //
-            debug_out << debug_string( target_env->get_symbol_kind() ) << std::endl;
+            rill_dout << debug_string( target_env->get_symbol_kind() ) << std::endl;
             if ( target_env->get_symbol_kind() == kind::type_value::e_class ) {
                 // builtin array type...
                 auto const& rhs_c_env
@@ -1062,7 +1062,7 @@ namespace rill
         //
         RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::call_expression, e, parent_env )
         {
-            debug_out << "CALL expr" << std::endl;
+            rill_dout << "CALL expr" << std::endl;
 
             // ========================================
             // look up self function
@@ -1075,7 +1075,7 @@ namespace rill
             dispatch( e->reciever_, parent_env );
 
             // ========================================
-            debug_out << "current : " << f_env->get_mangled_name() << std::endl;
+            rill_dout << "current : " << f_env->get_mangled_name() << std::endl;
 
             return generate_function_call(
                 f_env,
@@ -1112,7 +1112,7 @@ namespace rill
         RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::identifier_value, v, parent_env )
         {
             //
-            debug_out << "ir sym solving: "
+            rill_dout << "ir sym solving: "
                       << v->get_inner_symbol()->to_native_string() << std::endl
                       << "ast ptr: " << v.get() << std::endl
                       << (const_environment_base_ptr)parent_env << std::endl;
@@ -1120,7 +1120,7 @@ namespace rill
             //
             auto const& id_env = g_env_->get_related_env_by_ast_ptr( v );
             if ( id_env == nullptr ) {
-                debug_out << "skipped" << std::endl;
+                rill_dout << "skipped" << std::endl;
                 return nullptr;
             }
 
@@ -1129,7 +1129,7 @@ namespace rill
             {
             case kind::type_value::e_variable:
             {
-                debug_out << "llvm_ir_generator -> case Variable!" << std::endl;
+                rill_dout << "llvm_ir_generator -> case Variable!" << std::endl;
                 auto const& v_env
                     = std::static_pointer_cast<variable_symbol_environment const>( id_env );
                 assert( v_env != nullptr );
@@ -1166,7 +1166,7 @@ namespace rill
             }
 
             default:
-                debug_out << "skipped" << std::endl;
+                rill_dout << "skipped" << std::endl;
                 return nullptr;
             }
         }
@@ -1181,7 +1181,7 @@ namespace rill
         RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::template_instance_value, v, parent_env )
         {
             //
-            debug_out << "ir sym solving: "
+            rill_dout << "ir sym solving: "
                       << v->get_inner_symbol()->to_native_string() << std::endl
                       << "ast ptr: " << v.get() << std::endl
                       << (const_environment_base_ptr)parent_env << std::endl;
@@ -1190,7 +1190,7 @@ namespace rill
             //
             auto const& id_env = g_env_->get_related_env_by_ast_ptr( v );
             if ( id_env == nullptr ) {
-                debug_out << "skipped" << std::endl;
+                rill_dout << "skipped" << std::endl;
                 return nullptr;
             }
 
@@ -1199,7 +1199,7 @@ namespace rill
             {
             case kind::type_value::e_variable:
             {
-                debug_out << "llvm_ir_generator -> case Variable!" << std::endl;
+                rill_dout << "llvm_ir_generator -> case Variable!" << std::endl;
                 auto const& v_env
                     = std::static_pointer_cast<variable_symbol_environment const>( id_env );
                 assert( v_env != nullptr );
@@ -1236,7 +1236,7 @@ namespace rill
             }
 
             default:
-                debug_out << "skipped " << debug_string( id_env->get_symbol_kind() ) << std::endl;
+                rill_dout << "skipped " << debug_string( id_env->get_symbol_kind() ) << std::endl;
                 return nullptr;
             }
         }
@@ -1277,7 +1277,7 @@ namespace rill
             llvm::Type* const inner_type
                 = type_id_to_llvm_type_ptr( array_detail->inner_type_id );
 
-            debug_out << "NUM: " << array_detail->elements_num << std::endl;
+            rill_dout << "NUM: " << array_detail->elements_num << std::endl;
 
             auto const& array_ty = llvm::ArrayType::get(
                 inner_type,
@@ -1332,7 +1332,7 @@ namespace rill
                     );
 
             debug_s {
-                debug_out << "Store value" << std::endl;
+                rill_dout << "Store value" << std::endl;
                 value->dump();
             }
 
@@ -1423,7 +1423,7 @@ namespace rill
             // information about paramaters
             auto const& parameter_variable_type_ids = f_env->get_parameter_type_ids();
             auto const& parameter_variable_decl_env_ids = f_env->get_parameter_decl_ids();
-            debug_out << "()()=> :" << f_env->get_base_name() << std::endl;
+            rill_dout << "()()=> :" << f_env->get_base_name() << std::endl;
             // assert(false);
 
             // ========================================
@@ -1486,7 +1486,7 @@ namespace rill
             std::size_t i = 0;
             std::vector<llvm::Value*> args;
             for( llvm::Function::arg_iterator ait = func->arg_begin(); ait != func->arg_end(); ++ait ) {
-                debug_out << "Argument No: " << ait->getArgNo() << std::endl;
+                rill_dout << "Argument No: " << ait->getArgNo() << std::endl;
 
                 if ( ait == func->arg_begin() && returns_heavy_object ) {
                     ait->setName( "__ret_target" );
@@ -1521,7 +1521,7 @@ namespace rill
             context_->ir_builder.CreateRet( value );
 
             debug_s {
-                debug_out << "created!" << std::endl;
+                rill_dout << "created!" << std::endl;
                 func->dump();
             }
 
@@ -1543,7 +1543,7 @@ namespace rill
                     break;
 
                 default:
-                    debug_out << debug_string( env->get_symbol_kind() ) << std::endl;
+                    rill_dout << debug_string( env->get_symbol_kind() ) << std::endl;
                     assert( false );
                 }
             }
@@ -1720,7 +1720,7 @@ namespace rill
         auto llvm_ir_generator::type_id_to_llvm_type_ptr( type_id_t const& type_id )
             -> llvm::Type*
         {
-            debug_out << "T ID: "  << type_id << std::endl;
+            rill_dout << "T ID: "  << type_id << std::endl;
             auto const& ty = g_env_->get_type_at( type_id );
             auto const& type_class_env_id = ty.class_env_id;
             auto const& type_attr = ty.attributes;
@@ -1734,7 +1734,7 @@ namespace rill
                 dispatch( c_env->get_related_ast(), c_env );
             }
 
-            debug_out << "class env id: " << type_class_env_id<< " / " << c_env->get_base_name() << std::endl
+            rill_dout << "class env id: " << type_class_env_id<< " / " << c_env->get_base_name() << std::endl
                       << "is_heavy" << is_heavy_object( ty ) << std::endl;;
             llvm::Type* llvm_ty
                 = context_->env_conversion_table.ref_type( type_class_env_id );
@@ -1816,7 +1816,7 @@ namespace rill
             bool const load_required
                 = !arg_is_pointer;
 
-            debug_out << "===="
+            rill_dout << "===="
                       << "from: " << source_c_env->get_base_name() << std::endl
                       << source_type.attributes
                       << "  h?: " << is_heavy_object_source << std::endl
@@ -1825,7 +1825,7 @@ namespace rill
                       << "  h?: " << is_heavy_object_target << std::endl
                       << "arg?: " << arg_is_pointer << std::endl;
 
-            debug_out << "is_loadable   : " << is_loadable << std::endl
+            rill_dout << "is_loadable   : " << is_loadable << std::endl
                       << "load_required : " << load_required << std::endl;
 
             if ( load_required && is_loadable ) {

@@ -216,7 +216,7 @@ namespace rill
             inline auto assign()
             {
                 return []( auto& ctx ) {
-                    debug_out << "assign" << std::endl;
+                    rill_dout << "assign" << std::endl;
                     x3::_val( ctx ) = x3::_attr( ctx );
                 };
             }
@@ -405,7 +405,7 @@ namespace rill
                     = iterator_t( detail::get_line_start( orig_begin, first.base() ) );
                 auto const column = spirit::get_column( line_first, first );
 
-                debug_out << "=== " << typeid(Ast).name() << " / " << ast->get_id() << std::endl
+                rill_dout << "=== " << typeid(Ast).name() << " / " << ast->get_id() << std::endl
                           << std::string( range.begin().base(), range.end().base() ) << std::endl
                           << line << " / " << column << std::endl;
 
