@@ -35,8 +35,10 @@ sudo pacman -S clang boost llvm cmake
 For example,
 ```
 git clone git@github.com:yutopp/rill.git
-cd rill/build
-cmake ../. -DCMAKE_BUILD_TYPE=Release
+cd rill
+mkdir build
+cd build
+cmake ../.
 make -j4
 sudo make install
 ```
