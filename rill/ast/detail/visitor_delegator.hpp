@@ -70,26 +70,30 @@ namespace rill
                 auto call_visitor(
                     std::shared_ptr<Node> const& node,
                     std::shared_ptr<Env> const& env,
-                    void* const /* unused */,
+                    char* const /* unused */,
                     void* /* tag */
                     ) const
-                    -> void
+                    -> char*
                 {
                     ( *v_ ).operator()( node, env );
+                    return nullptr;
                 }
 
                 template<typename ResultT, typename Node, typename Env>
                 auto call_visitor(
                     std::shared_ptr<Node> const& node,
                     std::shared_ptr<Env> const& env,
-                    void* const storage,
+                    char* const storage,
                     ResultT* /* tag */
                     ) const
-                    -> void
+                    -> char*
                 {
-                    new( storage ) ReturnT(
+                    auto const offset = RILL_MAX_ALIGN - ( reinterpret_cast<std::uintptr_t>( storage ) % alignof( ResultT ) );
+                    auto const p = storage + offset;
+                    new( p ) ReturnT(
                         std::move( ( *v_ ).operator()( node, env ) )
                         );
+                    return p;
                 }
 
             private:

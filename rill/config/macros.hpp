@@ -44,6 +44,7 @@
     std::cout << "--- LOG : " << __FILE__ << " / " << __LINE__ << " ----" << std::endl;
 # define rill_dout std::cout
 # define rill_ice( str ) assert( false && ( str ) )
+# define rill_ice_assert( cond ) if ( !(cond) ) { rill_ice( #cond ); }
 
 #else
 # define rill_dregion if ( false )
@@ -54,6 +55,8 @@
               << "[ICE] " << str << std::endl       \
               << std::endl;                         \
     std::abort();
+
+# define rill_ice_assert( cond ) if ( !(cond) ) { rill_ice( #cond ); }
 
 #endif
 

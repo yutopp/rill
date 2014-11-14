@@ -60,16 +60,15 @@ namespace rill
                 auto invoke( std::shared_ptr<Node> const& node, std::shared_ptr<Env> const& env )
                     -> result_type<Node>
                 try {
-                    // TODO: alignment
-                    char storage[sizeof(std::conditional_t<!std::is_same<result_type<Node>, void>::value, result_type<Node>, char/*temp*/>)];
-                    node->dispatch(
+                    char storage[sizeof(std::conditional_t<!std::is_same<result_type<Node>, void>::value, result_type<Node>, char/*temp*/>)+RILL_MAX_ALIGN];
+                    auto const p = node->dispatch(
                         node,
                         delegator_,
                         env,
-                        static_cast<void*>( storage )
+                        static_cast<char*>( storage )
                         );
 
-                    return make_return_value<result_type<Node>>{}( storage );
+                    return make_return_value<result_type<Node>>{}( p );
 
                 } catch( typename mc_type::message_type const& e ) {
                     if ( std::is_base_of<statement, Node>::value ) {
@@ -87,16 +86,15 @@ namespace rill
                 auto invoke( std::shared_ptr<Node> const& node, std::shared_ptr<Env> const& env ) const
                     -> result_type<Node>
                 try {
-                    // TODO: alignment
-                    char storage[sizeof(std::conditional_t<!std::is_same<result_type<Node>, void>::value, result_type<Node>, char/*temp*/>)];
-                    node->dispatch(
+                    char storage[sizeof(std::conditional_t<!std::is_same<result_type<Node>, void>::value, result_type<Node>, char/*temp*/>)+RILL_MAX_ALIGN];
+                    auto const p = node->dispatch(
                         node,
                         delegator_,
                         env,
-                        static_cast<void*>( storage )
+                        static_cast<char*>( storage )
                         );
 
-                    return make_return_value<result_type<Node>>{}( storage );
+                    return make_return_value<result_type<Node>>{}( p );
 
                 } catch( typename mc_type::message_type const& e ) {
                     if ( std::is_base_of<statement, Node>::value ) {

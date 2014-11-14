@@ -14,17 +14,17 @@
     auto callback_from_node(                                \
         std::shared_ptr<node_type> const& node,             \
         environment_base_ptr const& env,                    \
-        void* storage                                       \
+        char* const storage                                 \
         ) qual                                              \
-        -> void
+        -> char*
 
 #define RILL_VISITOR_DELEGATOR_READONLY_SIGNATURE( node_type, qual )    \
     auto callback_from_node(                                            \
         std::shared_ptr<node_type const> const& node,                   \
         const_environment_base_ptr const& env,                          \
-        void* storage                                                   \
+        char* const storage                                             \
         ) qual                                                          \
-        -> void
+        -> char*
 
 
 #define RILL_VISITOR_DELEGATOR_INTERFACE( node_type ) \
@@ -37,7 +37,7 @@
 #define RILL_VISITOR_DELEGATOR_DEFINITION( node_type )                  \
     RILL_VISITOR_DELEGATOR_SIGNATURE( node_type, ) override             \
     {                                                                   \
-        call_visitor<tree_visitor_result_t<ReturnT, node_type>>(        \
+        return call_visitor<tree_visitor_result_t<ReturnT, node_type>>( \
             node,                                                       \
             env,                                                        \
             storage,                                                    \
@@ -46,7 +46,7 @@
     }                                                                   \
     RILL_VISITOR_DELEGATOR_SIGNATURE( node_type, const ) override       \
     {                                                                   \
-        call_visitor<tree_visitor_result_t<ReturnT, node_type>>(        \
+        return call_visitor<tree_visitor_result_t<ReturnT, node_type>>( \
             node,                                                       \
             env,                                                        \
             storage,                                                    \
@@ -55,7 +55,7 @@
     }                                                                   \
     RILL_VISITOR_DELEGATOR_READONLY_SIGNATURE( node_type, ) override    \
     {                                                                   \
-        call_visitor<tree_visitor_result_t<ReturnT, node_type>>(        \
+        return call_visitor<tree_visitor_result_t<ReturnT, node_type>>( \
             node,                                                       \
             env,                                                        \
             storage,                                                    \
@@ -64,7 +64,7 @@
     }                                                                   \
     RILL_VISITOR_DELEGATOR_READONLY_SIGNATURE( node_type, const ) override \
     {                                                                   \
-        call_visitor<tree_visitor_result_t<ReturnT, node_type>>(        \
+        return call_visitor<tree_visitor_result_t<ReturnT, node_type>>( \
             node,                                                       \
             env,                                                        \
             storage,                                                    \

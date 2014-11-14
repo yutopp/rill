@@ -18,27 +18,27 @@
         std::shared_ptr<rill::ast::detail::raw_ast_base_type<node>> const& self, \
         detail::visitor_delegator_base const& d,                        \
         environment_base_ptr const& env,                                \
-        void* storage                                                   \
-        ) -> void
+        char* const storage                                             \
+        ) -> char*
 
 #define RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_READONLY_UNIT_HEADER(node) \
     virtual auto dispatch(                                              \
         std::shared_ptr<rill::ast::detail::raw_ast_base_type<node> const> const& self, \
         detail::visitor_delegator_base const& d,                        \
         const_environment_base_ptr const& env,                          \
-        void* storage                                                   \
-        ) const -> void
+        char* const storage                                             \
+        ) const -> char*
 
 
 #define RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_UNIT(node_class_name) \
     RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_UNIT_HEADER(node_class_name) \
     {                                                                   \
-        rill_dregion {                                                       \
+        rill_dregion {                                                  \
             std::cout << "<DISPATCH> " << #node_class_name              \
                       << " ast_this: " << this->get_id() << std::endl;  \
         }                                                               \
         /* down casting */                                              \
-        d.callback_from_node(                                           \
+        return d.callback_from_node(                                    \
             std::static_pointer_cast<node_class_name>( self ),          \
             env,                                                        \
             storage                                                     \
@@ -48,12 +48,12 @@
 #define RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_READONLY_UNIT(node_class_name) \
     RILL_DETAIL_AST_ADAPT_VISITOR_DISPATCHER_READONLY_UNIT_HEADER(node_class_name) \
     {                                                                   \
-        rill_dregion {                                                       \
+        rill_dregion {                                                  \
             std::cout << "<DISPATCH readonly> " << #node_class_name     \
                       << " ast_this: " << this->get_id() << std::endl;  \
         }                                                               \
         /* down casting */                                              \
-        d.callback_from_node(                                           \
+        return d.callback_from_node(                                    \
             std::static_pointer_cast<node_class_name const>( self ),    \
             env,                                                        \
             storage                                                     \

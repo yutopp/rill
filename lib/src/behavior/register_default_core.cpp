@@ -12,6 +12,8 @@
 #include <rill/environment/environment.hpp>
 #include <rill/ast/ast.hpp>
 
+#include <rill/config/macros.hpp>
+
 
 namespace rill
 {
@@ -384,7 +386,7 @@ namespace rill
                         ) const
                         -> llvm::Value*
                     {
-                        assert( argument_vars.size() == 2 );
+                        rill_ice_assert( argument_vars.size() == 2 );
 
                         return context->ir_builder.CreateAdd(
                             argument_vars[0],
@@ -419,7 +421,7 @@ namespace rill
                         ) const
                         -> llvm::Value*
                     {
-                        assert( argument_vars.size() == 2 );
+                        rill_ice_assert( argument_vars.size() == 2 );
 
                         return context->ir_builder.CreateSub(
                             argument_vars[0],
@@ -454,7 +456,7 @@ namespace rill
                         ) const
                         -> llvm::Value*
                     {
-                        assert( argument_vars.size() == 2 );
+                        rill_ice_assert( argument_vars.size() == 2 );
 
                         return context->ir_builder.CreateMul(
                             argument_vars[0],
@@ -489,7 +491,7 @@ namespace rill
                         ) const
                         -> llvm::Value*
                     {
-                        assert( argument_vars.size() == 2 );
+                        rill_ice_assert( argument_vars.size() == 2 );
 
                         // Signed div
                         return context->ir_builder.CreateSDiv(
@@ -525,7 +527,7 @@ namespace rill
                         ) const
                         -> llvm::Value*
                     {
-                        assert( argument_vars.size() == 2 );
+                        rill_ice_assert( argument_vars.size() == 2 );
 
                         // Signed remider
                         return context->ir_builder.CreateSRem(
@@ -561,7 +563,7 @@ namespace rill
                         ) const
                         -> llvm::Value*
                     {
-                        assert( argument_vars.size() == 2 );
+                        rill_ice_assert( argument_vars.size() == 2 );
 
                         // Signed less than
                         return context->ir_builder.CreateICmpSLT(
@@ -597,7 +599,7 @@ namespace rill
                         ) const
                         -> llvm::Value*
                     {
-                        assert( argument_vars.size() == 2 );
+                        rill_ice_assert( argument_vars.size() == 2 );
 
                         return context->ir_builder.CreateICmpEQ(
                             argument_vars[0],
@@ -626,7 +628,7 @@ namespace rill
                         ) const
                         -> llvm::Value*
                     {
-                        assert( argument_vars.size() == 2 );
+                        rill_ice_assert( argument_vars.size() == 2 );
 
                         // Signed less than or equal
                         return context->ir_builder.CreateICmpSLE(
@@ -661,7 +663,7 @@ namespace rill
                         ) const
                         -> llvm::Value*
                     {
-                        assert( argument_vars.size() == 2 );
+                        rill_ice_assert( argument_vars.size() == 2 );
 
                         // store
                         return context->ir_builder.CreateStore(
@@ -699,7 +701,7 @@ namespace rill
                         ) const
                         -> llvm::Value*
                     {
-                        assert( argument_vars.size() == 2 );
+                        rill_ice_assert( argument_vars.size() == 2 );
 
                         // unordered
                         return context->ir_builder.CreateFCmpUGT(
@@ -729,7 +731,7 @@ namespace rill
                         ) const
                         -> llvm::Value*
                     {
-                        assert( argument_vars.size() == 1 );
+                        rill_ice_assert( argument_vars.size() == 1 );
 
                         return context->ir_builder.CreateNeg(
                             argument_vars[0]
@@ -758,7 +760,7 @@ namespace rill
                         ) const
                         -> llvm::Value*
                     {
-                        assert( argument_vars.size() == 1 );
+                        rill_ice_assert( argument_vars.size() == 1 );
 
                         return context->ir_builder.CreateFNeg(
                             argument_vars[0]
@@ -786,7 +788,7 @@ namespace rill
                         ) const
                         -> llvm::Value*
                     {
-                        assert( argument_vars.size() == 2 );
+                        rill_ice_assert( argument_vars.size() == 2 );
 
                         // unordered
                         return context->ir_builder.CreateFCmpULE(
