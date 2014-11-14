@@ -342,7 +342,7 @@ namespace rill
                         {
                             auto const& padding
                                 = parent_c_env->get_target_size()
-                                % std::max( class_env->get_target_align(), static_cast<std::size_t>( 1 ) );
+                                % std::max( class_env->get_target_align(), std::size_t{1u} );
                             auto const& size = padding + class_env->get_target_size();
 
                             //
