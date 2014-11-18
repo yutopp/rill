@@ -16,7 +16,7 @@ extern def ref( a :type ) onlymeta: type "rill_core_typesystem_ref";
 extern def is_mutable( a :type ) onlymeta: bool "rill_core_typesystem_is_mutable";
 extern def p( i :int ): void "print_int32";
 extern def p( i :bool ): void "print_bool";
-extern def p( i :ptr!(int8) ): void "print_bytes";
+extern def p( i :ptr!int8 ): void "print_bytes";
 extern def p( i :float ): void "print_float";
 
 //
@@ -42,4 +42,4 @@ extern def op pre -( __a: float ) intrinsic: float "float_negate";
 extern def op >( __a: float, __b: float ) intrinsic: float "float_unordered_greater_than";
 extern def op <=( __a: float, __b: float ) intrinsic: float "float_unordered_less_than_or_equal";
 
-extern def op =( __a: mutable(ptr!(int8)), __b: ptr!(int8) ) intrinsic: ref(mutable(ptr!(int8))) "store_value_b_to_a";
+extern def op =( __a: mutable(ptr!int8), __b: ptr!int8 ) intrinsic: ref(mutable(ptr!int8)) "store_value_b_to_a";

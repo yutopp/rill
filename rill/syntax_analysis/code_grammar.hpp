@@ -701,14 +701,26 @@ namespace rill
             )
 
             RN( template_instance_identifier_relative, ast::template_instance_value_ptr,
-                ( t.identifier_sequence >> x3::lit( '!' ) >> t.argument_list )[
+                ( t.identifier_sequence >> t.template_argument_list )[
                     helper::make_node_ptr<ast::template_instance_value>( ph::_1, ph::_2, false )
                     ]
             )
 
             RN( template_instance_identifier_from_root, ast::template_instance_value_ptr,
-                ( x3::lit( '.' ) >> t.identifier_sequence >> x3::lit( '!' ) >> t.argument_list )[
+                ( x3::lit( '.' ) >> t.identifier_sequence >> t.template_argument_list )[
                     helper::make_node_ptr<ast::template_instance_value>( ph::_1, ph::_2, true )
+                    ]
+            )
+
+            R( template_argument_list, ast::expression_list,
+                  ( x3::lit( '!' ) >> t.argument_list )[helper::assign()]
+                | ( x3::lit( '!' ) >> t.primary_expression )[
+                    helper::fun(
+                        []( auto&&... args ) {
+                            return ast::expression_list{ std::forward<decltype(args)>( args )... };
+                        },
+                        ph::_1
+                        )
                     ]
             )
 
