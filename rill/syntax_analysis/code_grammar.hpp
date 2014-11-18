@@ -630,6 +630,10 @@ namespace rill
                     ( x3::lit( '+' ) >> t.unary_expression )[
                         helper::make_unary_prefix_op_node_ptr( "+", ph::_1 )
                         ])
+                | tagged(
+                    ( x3::lit( '*' ) >> t.unary_expression )[
+                        helper::make_assoc_node_ptr<ast::dereference_expression>()
+                        ])
                 )
             )
 

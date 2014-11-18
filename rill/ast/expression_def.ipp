@@ -31,6 +31,7 @@ namespace rill
         RILL_AST_DEF( element_selector_expression, expression )
         RILL_AST_DEF( subscrpting_expression, expression )
         RILL_AST_DEF( call_expression, expression )
+        RILL_AST_DEF( dereference_expression, expression )
 
         RILL_AST_DEF( term_expression, expression )
 

@@ -107,8 +107,6 @@ namespace rill
         RILL_AST_END
 
 
-
-
         RILL_AST_BEGIN(
             call_expression, expression,
             (( expression_ptr, reciever_ ))
@@ -123,6 +121,21 @@ namespace rill
                 , arguments_( arguments )
             {}
         RILL_AST_END
+
+
+        RILL_AST_BEGIN(
+            dereference_expression, expression,
+            (( expression_ptr, reciever_ ))
+            )
+        public:
+            dereference_expression(
+                expression_ptr const& reciever
+                )
+                : reciever_( reciever )
+            {}
+        RILL_AST_END
+
+
 
 
         RILL_AST_BEGIN(
