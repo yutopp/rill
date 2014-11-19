@@ -1055,7 +1055,8 @@ namespace rill
         //
         auto qualifier_conversion_from_ref(
             attribute::type_attributes const& parameter_attributes,
-            attribute::type_attributes const& argument_attributes
+            attribute::type_attributes const& argument_attributes,
+            const_class_symbol_environment_ptr const& argument_c_env
             )
             -> boost::optional<attribute::type_attributes>
         {
@@ -1119,7 +1120,20 @@ namespace rill
             case attribute::holder_kind::k_val:
             {
                 // ref to val
-                // pass all
+                switch( parameter_attributes.modifiability ) {
+                case attribute::modifiability_kind::k_immutable:
+                case attribute::modifiability_kind::k_none: // none == immutable
+                    if ( !argument_c_env->is_immutable() ) {
+                        return boost::none;
+                    }
+                    break;
+                case attribute::modifiability_kind::k_const:
+                case attribute::modifiability_kind::k_mutable:
+                    break;
+                default:
+                    assert( false );
+                } // switch( parameter_attributes.modifiability )
+
                 result_attr <<= attribute::holder_kind::k_val;
                 break;
             }
@@ -1134,7 +1148,8 @@ namespace rill
         //
         auto qualifier_conversion_from_val(
             attribute::type_attributes const& parameter_attributes,
-            attribute::type_attributes const& argument_attributes
+            attribute::type_attributes const& argument_attributes,
+            const_class_symbol_environment_ptr const& argument_c_env
             )
             -> boost::optional<attribute::type_attributes>
         {
@@ -1158,7 +1173,7 @@ namespace rill
                         return boost::none;
                     default:
                         assert( false );
-                    } // switch( parameter_attributes.attributes.modifiability )
+                    }
                     break;
 
                 case attribute::modifiability_kind::k_const:
@@ -1171,7 +1186,7 @@ namespace rill
                         return boost::none;
                     default:
                         assert( false );
-                    } // switch( parameter_attributes.attributes.modifiability )
+                    }
                     break;
 
                 case attribute::modifiability_kind::k_mutable:
@@ -1184,12 +1199,12 @@ namespace rill
                         break;
                     default:
                         assert( false );
-                    } // switch( target_type.attributes.modifiability )
+                    }
                     break;
 
                 default:
                     assert( false );
-                } // switch( parameter_attributes.modifiability )
+                }
 
                 result_attr <<= attribute::holder_kind::k_ref;
                 break;
@@ -1198,7 +1213,19 @@ namespace rill
             case attribute::holder_kind::k_val:
             {
                 // val to val
-                // pass all
+                switch( parameter_attributes.modifiability ) {
+                case attribute::modifiability_kind::k_immutable:
+                case attribute::modifiability_kind::k_none: // none == immutable
+                    if ( !argument_c_env->is_immutable() ) {
+                        return boost::none;
+                    }
+                    break;
+                case attribute::modifiability_kind::k_const:
+                case attribute::modifiability_kind::k_mutable:
+                    break;
+                default:
+                    assert( false );
+                } // switch( parameter_attributes.modifiability )
                 break;
             }
 
@@ -1212,7 +1239,8 @@ namespace rill
         //
         auto qualifier_conversion(
             attribute::type_attributes const& parameter_attributes,
-            attribute::type_attributes const& argument_attributes
+            attribute::type_attributes const& argument_attributes,
+            const_class_symbol_environment_ptr const& argument_c_env
             )
             -> boost::optional<attribute::type_attributes>
         {
@@ -1221,10 +1249,18 @@ namespace rill
             {
             case attribute::holder_kind::k_ref:
             case attribute::holder_kind::k_suggest:
-                return qualifier_conversion_from_ref( parameter_attributes, argument_attributes );
+                return qualifier_conversion_from_ref(
+                    parameter_attributes,
+                    argument_attributes,
+                    argument_c_env
+                    );
 
             case attribute::holder_kind::k_val:
-                return qualifier_conversion_from_val( parameter_attributes, argument_attributes );
+                return qualifier_conversion_from_val(
+                    parameter_attributes,
+                    argument_attributes,
+                    argument_c_env
+                    );
 
             default:
                 assert( false );
@@ -1343,7 +1379,8 @@ namespace rill
                 // both value
                 return qualifier_conversion(
                     target_type.attributes,
-                    current_type.attributes
+                    current_type.attributes,
+                    current_c_env
                     ) != boost::none;
 
             } else {
@@ -1373,10 +1410,20 @@ namespace rill
                 // try to type conversion
                 auto const& param_type = g_env_->get_type_at( param_type_id );
                 auto const& arg_type = g_env_->get_type_at( arg_type_id );
+                auto const& arg_c_env
+                    = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
+                        arg_type.class_env_id
+                        );
 
                 if ( param_type.class_env_id == arg_type.class_env_id ) {
                     // same class, so check quarity conversion
-                    if ( qualifier_conversion( param_type.attributes, arg_type.attributes ) ) {
+                    if ( qualifier_conversion(
+                             param_type.attributes,
+                             arg_type.attributes,
+                             arg_c_env
+                             )
+                        )
+                    {
                         // qualifier conversion match
                         return std::make_tuple(
                             function_match_level::k_qualifier_conv_match,
@@ -1398,15 +1445,11 @@ namespace rill
                         = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
                             param_type.class_env_id
                             );
-                    auto const& arg_c_env
-                        = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
-                            arg_type.class_env_id
-                            );
 
                     // special treatment for pointer
                     if ( param_c_env->is_pointer() && arg_c_env->is_pointer() ) {
                         // check the qual of pointer "value"
-                        if ( qualifier_conversion( param_type.attributes, arg_type.attributes ) ) {
+                        if ( qualifier_conversion( param_type.attributes, arg_type.attributes, arg_c_env ) ) {
                             if( pointer_qualifier_conversion(
                                     param_type.attributes,
                                     param_c_env->get_pointer_detail()->inner_type_id,
