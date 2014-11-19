@@ -27,4 +27,11 @@ namespace rill
             ;
     }
 
+    auto class_symbol_environment::is_immutable() const
+        -> bool
+    {
+        return !has_traits_flag( class_traits_kind::k_has_non_immutable_alias )
+            ;
+    }
+
 } // namespace rill

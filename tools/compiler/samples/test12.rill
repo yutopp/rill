@@ -1,0 +1,11 @@
+def main(): int
+{
+    val imm_int: mutable(int) = 21;
+
+   // val p1: mutable(ptr!(const(int))) = &imm_int;
+//    val p2: const(ptr!(const(int))) = &imm_int;
+//    val p3: const(ptr!(mutable(int))) = &imm_int;
+    val p4: immutable(ptr!(mutable(int))) = &imm_int;
+
+    return 0;
+}

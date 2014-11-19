@@ -96,6 +96,8 @@ namespace rill
             RILL_VISITOR_OP_DECL( ast::binary_operator_expression );
             RILL_VISITOR_OP_DECL( ast::unary_operator_expression );
             RILL_VISITOR_OP_DECL( ast::id_expression );
+            RILL_VISITOR_OP_DECL( ast::dereference_expression );
+            RILL_VISITOR_OP_DECL( ast::addressof_expression );
             RILL_VISITOR_OP_DECL( ast::term_expression );
             RILL_VISITOR_OP_DECL( ast::evaluated_type_expression );
 
@@ -242,6 +244,14 @@ namespace rill
                 )
                 -> type_detail_ptr;
 
+            auto pointer_qualifier_conversion(
+                attribute::type_attributes const& extensive_target_attr,
+                type_id_t const& target_type_id,
+                attribute::type_attributes const& extensive_current_attr,
+                type_id_t const& current_type_id
+                )
+                -> bool;
+
             auto try_type_conversion(
                 type_id_t const& target_type_id,
                 type_id_t const& current_type_id,
@@ -380,18 +390,8 @@ namespace rill
                 )
                 -> type_detail_ptr;
 
-            auto call_suitable_binary_op(
-                ast::identifier_value_ptr const& id,
-                ast::expression_ptr const& e,
-                std::vector<type_detail_ptr> const& argument_type_details,
-                environment_base_ptr const& parent_env,
-                bool const do_universal_search
-                )
-                -> type_detail_ptr;
-
-            auto call_suitable_unary_op(
-                ast::identifier_value_ptr const& id,
-                bool const is_prefix,
+            auto call_suitable_operator(
+                ast::identifier_value_ptr const& op_name,
                 ast::expression_ptr const& e,
                 std::vector<type_detail_ptr> const& argument_type_details,
                 environment_base_ptr const& parent_env,
@@ -561,6 +561,7 @@ namespace rill
             )
             -> attribute::type_attributes;
 
+
         //
         template<typename EnvPtr>
         inline auto to_unique_class_env( EnvPtr const& env )
@@ -587,6 +588,29 @@ namespace rill
             }
 
             return class_env;
+        }
+
+
+        inline auto make_binary_op_name(
+            ast::identifier_value_ptr const& id
+            )
+            -> ast::identifier_value_ptr
+        {
+            return ast::make_identifier(
+                "%op_" + id->get_inner_symbol()->to_native_string()
+                );
+        }
+
+
+        inline auto make_unary_op_name(
+            ast::identifier_value_ptr const& id,
+            bool const is_prefix
+            )
+            -> ast::identifier_value_ptr
+        {
+            return ast::make_identifier(
+                "%op_" + std::string( is_prefix ? "pre_" : "post_" ) + id->get_inner_symbol()->to_native_string()
+                );
         }
 
     } // namespace semantic_analysis

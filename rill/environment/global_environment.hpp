@@ -291,7 +291,7 @@ namespace rill
         }
 
         template<typename AstPtr>
-        auto get_related_type_id_by_ast_ptr( AstPtr const& ast_ptr ) const
+        auto get_related_type_id_from_ast_ptr( AstPtr const& ast_ptr ) const
             -> type_id_t
         {
             return ast_to_type_id_map.get( ast_ptr );

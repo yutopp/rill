@@ -110,6 +110,67 @@ namespace rill
         }
 
 
+
+        namespace detail
+        {
+            inline void mask_type_attribute_transitively_by(
+                attribute::type_attributes&,
+                attribute::holder_kind const&
+                )
+            {
+                // DO nothing
+            }
+
+            inline void mask_type_attribute_transitively_by(
+                attribute::type_attributes& attr,
+                attribute::modifiability_kind const& k
+                )
+            {
+                // immutable > const > mutable
+                if ( k != attribute::modifiability_kind::k_none ) {
+                    if ( k > attr.modifiability ) {
+                        attr.modifiability = k;
+                    }
+                }
+            }
+
+            template<typename T>
+            void set_transitive_mask_by(
+                attribute::type_attributes& attr,
+                T const& arg
+                )
+            {
+                mask_type_attribute_transitively_by( attr, arg );
+            }
+
+            template<typename T, typename... Args>
+            void set_transitive_mask_by(
+                attribute::type_attributes& attr,
+                T const& arg,
+                Args const&... args
+                )
+            {
+                mask_type_attribute_transitively_by( attr, arg );
+                set_transitive_mask_by( attr, args... );
+            }
+        } // namespace detail
+
+        inline auto mask_transitively(
+            attribute::type_attributes a,  // copy
+            attribute::type_attributes const& b
+            )
+            -> attribute::type_attributes
+        {
+            detail::set_transitive_mask_by(
+                a,
+                b.quality,
+                b.modifiability
+                );
+
+            return a;
+        }
+
+
         analyzer::builtin_class_envs_cache::builtin_class_envs_cache(
             environment_base_ptr const& root_env
             )
@@ -898,6 +959,10 @@ namespace rill
                 rill_dout << "template expresison!!!!!!" << std::endl;
                 auto const& argument_ty_detail = dispatch( expression, parent_env );
 
+                if ( !is_type_id( argument_ty_detail->type_id ) ) {
+                    rill_ice( "not type id is not suppurted yet" );
+                }
+
                 // get environment of arguments
                 auto const& ty
                     = g_env_->get_type_at( argument_ty_detail->type_id );
@@ -1233,6 +1298,59 @@ namespace rill
             return nullptr;
         }
 
+        auto analyzer::pointer_qualifier_conversion(
+            attribute::type_attributes const& extensive_target_attr,
+            type_id_t const& target_type_id,
+            attribute::type_attributes const& extensive_current_attr,
+            type_id_t const& current_type_id
+            )
+            -> bool
+        {
+            auto target_type = g_env_->get_type_at( target_type_id );
+            auto const& target_c_env
+                = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
+                    target_type.class_env_id
+                    );
+            target_type.attributes
+                = mask_transitively( target_type.attributes, extensive_target_attr );
+            target_type.attributes.quality = attribute::holder_kind::k_ref;
+
+            auto current_type = g_env_->get_type_at( current_type_id );
+            auto const& current_c_env
+                = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
+                    current_type.class_env_id
+                    );
+            current_type.attributes
+                = mask_transitively( current_type.attributes, extensive_current_attr );
+            current_type.attributes.quality = attribute::holder_kind::k_ref;
+
+            if ( target_c_env->is_pointer() && current_c_env->is_pointer() ) {
+                // both pointer
+                return pointer_qualifier_conversion(
+                    target_type.attributes,
+                    target_c_env->get_pointer_detail()->inner_type_id,
+                    current_type.attributes,
+                    current_c_env->get_pointer_detail()->inner_type_id
+                    );
+
+            } else if ( !target_c_env->is_pointer() && !current_c_env->is_pointer() ) {
+                rill_dout << "target=" << std::endl
+                          << target_type.attributes
+                          << "current=" << std::endl
+                          << current_type.attributes
+                    ;
+
+                // both value
+                return qualifier_conversion(
+                    target_type.attributes,
+                    current_type.attributes
+                    ) != boost::none;
+
+            } else {
+                return false;
+            }
+        }
+
         // returns (conv_level, conv_function_env)
         auto analyzer::try_type_conversion(
             type_id_t const& param_type_id,
@@ -1275,6 +1393,35 @@ namespace rill
 
                 } else {
                     // TODO: implement implicit conversion match(k_implicit_conv_match)
+                    // TODO: call constructor
+                    auto const& param_c_env
+                        = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
+                            param_type.class_env_id
+                            );
+                    auto const& arg_c_env
+                        = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
+                            arg_type.class_env_id
+                            );
+
+                    // special treatment for pointer
+                    if ( param_c_env->is_pointer() && arg_c_env->is_pointer() ) {
+                        // check the qual of pointer "value"
+                        if ( qualifier_conversion( param_type.attributes, arg_type.attributes ) ) {
+                            if( pointer_qualifier_conversion(
+                                    param_type.attributes,
+                                    param_c_env->get_pointer_detail()->inner_type_id,
+                                    arg_type.attributes,
+                                    arg_c_env->get_pointer_detail()->inner_type_id
+                                    ) )
+                            {
+                                return std::make_tuple(
+                                    function_match_level::k_qualifier_conv_match,
+                                    nullptr
+                                    );
+                            }
+                        }
+                    }
+
                     // currentry failed immediately
                     return std::make_tuple(
                         function_match_level::k_no_match,
@@ -2283,18 +2430,8 @@ namespace rill
         }
 
 
-        inline auto make_binary_op_name(
-            ast::identifier_value_ptr const& id
-            )
-            -> ast::identifier_value_ptr
-        {
-            return ast::make_identifier(
-                "%op_" + id->get_inner_symbol()->to_native_string()
-                );
-        }
-
-        auto analyzer::call_suitable_binary_op(
-            ast::identifier_value_ptr const& id,
+        auto analyzer::call_suitable_operator(
+            ast::identifier_value_ptr const& op_name,
             ast::expression_ptr const& e,
             std::vector<type_detail_ptr> const& argument_type_details,
             environment_base_ptr const& parent_env,
@@ -2302,9 +2439,6 @@ namespace rill
             )
             -> type_detail_ptr
         {
-            // make operator id
-            auto const op_name = make_binary_op_name( id );
-
             // solve
             auto callee_function_type_detail
                 = select_member_element(
@@ -2314,10 +2448,7 @@ namespace rill
                     do_universal_search
                     );
             if ( callee_function_type_detail == nullptr ) {
-                // compilation error...
-                rill_dout << "% name : "
-                          << op_name->get_inner_symbol()->to_native_string() << std::endl;
-                assert( false && "[Error] identifier was not found." );
+                return nullptr;
             }
 
             //
@@ -2343,68 +2474,6 @@ namespace rill
             return nullptr;
         }
 
-
-        inline auto make_unary_op_name(
-            ast::identifier_value_ptr const& id,
-            bool const is_prefix
-            )
-            -> ast::identifier_value_ptr
-        {
-            return ast::make_identifier(
-                "%op_" + std::string( is_prefix ? "pre_" : "post_" ) + id->get_inner_symbol()->to_native_string()
-                );
-        }
-
-        auto analyzer::call_suitable_unary_op(
-            ast::identifier_value_ptr const& id,
-            bool const is_prefix,
-            ast::expression_ptr const& e,
-            std::vector<type_detail_ptr> const& argument_type_details,
-            environment_base_ptr const& parent_env,
-            bool const do_universal_search
-            )
-            -> type_detail_ptr
-        {
-            // make operator id
-            auto const op_name = make_unary_op_name( id, is_prefix );
-
-            // solve
-            auto callee_function_type_detail
-                = select_member_element(
-                    op_name,
-                    argument_type_details.at(0),
-                    parent_env,
-                    do_universal_search
-                    );
-            if ( callee_function_type_detail == nullptr ) {
-                // compilation error...
-                rill_dout << "% name : "
-                          << op_name->get_inner_symbol()->to_native_string() << std::endl;
-                assert( false && "[Error] identifier was not found." );
-            }
-
-            //
-            if ( is_nontype_id( callee_function_type_detail->type_id ) ) {
-                // reciever must be function
-                if ( callee_function_type_detail->type_id == (type_id_t)type_id_nontype::e_function ) {
-                    // call!
-                    return call_function(
-                        callee_function_type_detail,
-                        argument_type_details,
-                        e,
-                        parent_env
-                        );
-
-                } else {
-                    assert( false && "[Error]" );
-                }
-
-            } else {
-                assert( false && "[Error]" );
-            }
-
-            return nullptr;
-        }
 
 
         auto analyzer::select_member_element(

@@ -46,13 +46,22 @@ namespace rill
                     parent_env
                     );
 
-            return call_suitable_binary_op(
-                e->op_,
+            auto const& op_name = make_binary_op_name( e->op_ );
+            auto const ty_d = call_suitable_operator(
+                op_name,
                 e,
                 argument_type_details,
                 parent_env,
                 true
                 );
+            if ( ty_d == nullptr ) {
+                // compilation error...
+                rill_dout << "% name : "
+                          << op_name->get_inner_symbol()->to_native_string() << std::endl;
+                assert( false && "[Error] identifier was not found." );
+            }
+
+            return ty_d;
         }
 
 
@@ -67,14 +76,22 @@ namespace rill
                     parent_env
                     );
 
-            return call_suitable_unary_op(
-                e->op,
-                e->is_prefix,
+            auto const& op_name = make_unary_op_name( e->op, e->is_prefix );
+            auto const ty_d = call_suitable_operator(
+                op_name,
                 e,
                 argument_type_details,
                 parent_env,
                 true
                 );
+            if ( ty_d == nullptr ) {
+                // compilation error...
+                rill_dout << "% name : "
+                          << op_name->get_inner_symbol()->to_native_string() << std::endl;
+                assert( false && "[Error] identifier was not found." );
+            }
+
+            return ty_d;
         }
 
 
@@ -211,7 +228,7 @@ namespace rill
         //
         //
         // function call expression
-        RILL_VISITOR_OP( analyzer, ast::call_expression, e, env/*parent_env*/ )
+        RILL_VISITOR_OP( analyzer, ast::call_expression, e, parent_env )
         {
             using namespace boost::adaptors;
 
@@ -220,13 +237,13 @@ namespace rill
             // ========================================
             // reciever will be "function symbol", "functor object", etc...
             auto const& reciever_type_detail
-                = dispatch( e->reciever_, env );
+                = dispatch( e->reciever_, parent_env );
 
             // ========================================
             // TODO: add comma operator
             // push values to context stack and evaluate type environment
             auto const& argument_type_details
-                = evaluate_invocation_args( reciever_type_detail, e->arguments_, env );
+                = evaluate_invocation_args( reciever_type_detail, e->arguments_, parent_env );
 
             /// *************
             // TODO:
@@ -249,7 +266,7 @@ namespace rill
                         reciever_type_detail,
                         argument_type_details,
                         e,
-                        env
+                        parent_env
                         );
 
                 } else {
@@ -271,7 +288,7 @@ namespace rill
                     resolve_type(
                         ast::helper::make_id_expression( e->reciever_ ),
                         attribute::holder_kind::k_val,     // TODO: fix
-                        env,
+                        parent_env,
                         [&]( type_detail_ptr const& return_ty_d,
                              type const& ty,
                              class_symbol_environment_ptr const& class_env
@@ -351,30 +368,107 @@ namespace rill
         //
         //
         //
-        RILL_VISITOR_OP( analyzer, ast::id_expression, e, env )
+        RILL_VISITOR_OP( analyzer, ast::id_expression, e, parent_env )
         {
             return bind_type(
                 e,
-                dispatch( e->expression_, env )
-                );
-        }
-
-
-
-        //
-        //
-        //
-        RILL_VISITOR_OP( analyzer, ast::term_expression, e, env )
-        {
-            return bind_type(
-                e,
-                dispatch( e->value_, env )
+                dispatch( e->expression_, parent_env )
                 );
         }
 
 
         //
-        RILL_VISITOR_OP( analyzer, ast::evaluated_type_expression, e, env )
+        //
+        //
+        RILL_VISITOR_OP( analyzer, ast::dereference_expression, e, parent_env )
+        {
+            rill_ice("not supported");
+            return nullptr;
+        }
+
+
+        //
+        //
+        //
+        RILL_VISITOR_OP( analyzer, ast::addressof_expression, e, parent_env )
+        {
+            rill_dout << "addressof_expr" << std::endl;
+
+            // make argument types id list
+            auto const& argument_type_details
+                = evaluate_invocation_args(
+                    { std::ref( e->reciever ) },
+                    parent_env
+                    );
+
+            static auto const addressof_op = ast::make_identifier( "&" );
+
+            auto const& op_name = make_unary_op_name( addressof_op, true /*prefix*/ );
+            auto const ty_d = call_suitable_operator(
+                op_name,
+                e,
+                argument_type_details,
+                parent_env,
+                true
+                );
+            if ( ty_d == nullptr ) {
+                // op & was not found, use intrinsic addressof
+                auto ty = g_env_->get_type_at( argument_type_details[0]->type_id ); // make copy
+                attribute::detail::set_type_attribute( ty.attributes, attribute::holder_kind::k_val );
+                auto const& element_type_id = g_env_->make_type_id(
+                    ty.class_env_id,
+                    ty.attributes
+                    );
+
+                ast::expression_list args = {
+                    std::make_shared<ast::evaluated_type_expression>( element_type_id )
+                };
+
+                auto const& instance
+                    = ast::helper::make_id_expression(
+                        std::make_shared<ast::term_expression>(
+                            std::make_shared<ast::template_instance_value>(
+                                "ptr", std::move( args ), true
+                                )
+                            )
+                        );
+
+                auto const& ptr_ty_d
+                    = resolve_type(
+                        instance,
+                        attribute::holder_kind::k_val,
+                        parent_env->root_env(),
+                        [&]( type_detail_ptr const& ty_d,
+                             type const& ty,
+                             class_symbol_environment_ptr const& class_env
+                            ) {
+                            assert( class_env->is_pointer() );
+
+                            // connect fron LITERAL VALUE
+                            class_env->connect_from_ast( e );
+                        } );
+
+                //
+                return bind_type( e, ptr_ty_d );
+            }
+            return nullptr;
+        }
+
+
+        //
+        //
+        //
+        RILL_VISITOR_OP( analyzer, ast::term_expression, e, parent_env )
+        {
+            return bind_type(
+                e,
+                dispatch( e->value_, parent_env )
+                );
+        }
+
+
+        //
+        RILL_VISITOR_OP( analyzer, ast::evaluated_type_expression, e, parent_env )
         {
             // this value contains "type_id", so the type of this expression is "type"
             auto const& type_class_env = get_primitive_class_env( "type" );

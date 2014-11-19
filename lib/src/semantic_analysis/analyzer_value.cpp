@@ -142,7 +142,7 @@ namespace rill
                 = ast::helper::make_id_expression(
                     std::make_shared<ast::term_expression>(
                         std::make_shared<ast::template_instance_value>(
-                            "ptr", args, true
+                            "ptr", std::move( args ), true
                             )
                         )
                     );
@@ -158,7 +158,7 @@ namespace rill
                         ) {
                         assert( class_env->is_pointer() );
 
-                        // connect fron LITARAL VALUE
+                        // connect fron LITERAL VALUE
                         class_env->connect_from_ast( v );
                     } );
 

@@ -32,6 +32,8 @@ namespace rill
         k_has_non_trivial_dtor,
         k_has_non_default_copyable_member,
 
+        k_has_non_immutable_alias,
+
         last
     };
 
@@ -271,6 +273,9 @@ namespace rill
         }
 
         auto is_default_copyable() const
+            -> bool;
+
+        auto is_immutable() const
             -> bool;
 
     private:

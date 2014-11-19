@@ -76,6 +76,8 @@ namespace rill
             RILL_VISITOR_READONLY_OP_DECL( ast::binary_operator_expression );
             RILL_VISITOR_READONLY_OP_DECL( ast::unary_operator_expression );
             RILL_VISITOR_READONLY_OP_DECL( ast::id_expression );
+            RILL_VISITOR_READONLY_OP_DECL( ast::dereference_expression );
+            RILL_VISITOR_READONLY_OP_DECL( ast::addressof_expression );
             RILL_VISITOR_READONLY_OP_DECL( ast::term_expression );
             RILL_VISITOR_READONLY_OP_DECL( ast::evaluated_type_expression );
 
@@ -145,7 +147,7 @@ namespace rill
                         = g_env_->get_type_at( parameter_type_ids[i] );
                     auto const arg_type
                         = g_env_->get_type_at(
-                            g_env_->get_related_type_id_by_ast_ptr(
+                            g_env_->get_related_type_id_from_ast_ptr(
                                 arguments[i]
                                 )
                             );
@@ -174,6 +176,9 @@ namespace rill
 
         private:
             auto is_heavy_object( type const& ) const
+                -> bool;
+
+            auto is_represented_as_pointer( type const&, llvm::Value* const ) const
                 -> bool;
 
             auto type_id_to_llvm_type_ptr( type_id_t const& type_id )

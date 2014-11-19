@@ -632,7 +632,11 @@ namespace rill
                         ])
                 | tagged(
                     ( x3::lit( '*' ) >> t.unary_expression )[
-                        helper::make_assoc_node_ptr<ast::dereference_expression>()
+                        helper::make_node_ptr<ast::dereference_expression>( ph::_1 )
+                        ])
+                | tagged(
+                    ( x3::lit( '&' ) >> t.unary_expression )[
+                        helper::make_node_ptr<ast::addressof_expression>( ph::_1 )
                         ])
                 )
             )

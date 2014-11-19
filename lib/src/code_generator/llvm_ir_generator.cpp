@@ -957,7 +957,7 @@ namespace rill
                     // push temporary value
                     context_->temporary_reciever_stack_.push(
                         std::make_tuple(
-                            g_env_->get_related_type_id_by_ast_ptr( e->reciever_ ),
+                            g_env_->get_related_type_id_from_ast_ptr( e->reciever_ ),
                             lhs
                             )
                         );
@@ -1091,10 +1091,47 @@ namespace rill
         }
 
 
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::dereference_expression, e, parent_env )
+        {
+            rill_ice( "not supported" );
+            return nullptr;
+        }
+
+
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::addressof_expression, e, parent_env )
+        {
+            // Look up Function
+            auto const f_env = cast_to<function_symbol_environment const>( g_env_->get_related_env_by_ast_ptr( e ) );
+            if ( f_env != nullptr ) {
+                rill_dout << "current : " << f_env->get_mangled_name() << std::endl;
+
+                return generate_function_call(
+                    f_env,
+                    { e->reciever },
+                    parent_env,
+                    true
+                    );
+
+            } else {
+                // returns system address of value
+                auto const& tid = g_env_->get_related_type_id_from_ast_ptr( e->reciever );
+
+                llvm::Value* const val = dispatch( e->reciever, parent_env );
+                if ( is_represented_as_pointer( g_env_->get_type_at( tid ), val ) ) {
+                    return val;
+
+                } else {
+                    rill_ice( "not supported" );
+                }
+            }
+        }
+
+
         RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::term_expression, e, parent_env )
         {
             return dispatch( e->value_, parent_env );
         }
+
 
         RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::evaluated_type_expression, e, parent_env )
         {
@@ -1566,7 +1603,7 @@ namespace rill
             // arguments
             std::vector<llvm::Value*> total_args;
 
-            //
+            // first, allocate place for heavy object if the function returns heavy object
             if ( returns_heavy_object ) {
                 // create storage
                 llvm::Type* llvm_ty
@@ -1717,6 +1754,22 @@ namespace rill
                 ;
         }
 
+
+        auto llvm_ir_generator::is_represented_as_pointer(
+            type const& source_type,
+            llvm::Value* const source_value
+            ) const
+            -> bool
+        {
+            bool const is_heavy_object_source = is_heavy_object( source_type );
+
+            return is_heavy_object_source
+                || ( context_->represented_as_pointer_set.count( source_value ) == 1 )
+                || ( source_type.attributes.quality == attribute::holder_kind::k_ref && is_heavy_object_source )
+                || ( source_type.attributes.modifiability == attribute::modifiability_kind::k_mutable );
+        }
+
+
         auto llvm_ir_generator::type_id_to_llvm_type_ptr( type_id_t const& type_id )
             -> llvm::Type*
         {
@@ -1793,19 +1846,12 @@ namespace rill
                 dispatch( target_c_env->get_related_ast(), target_c_env );
             }
 
-            bool const is_heavy_object_source = is_heavy_object( source_type );
-
             // represented as pointer
             bool const is_loadable
-                = is_heavy_object_source
-                || ( context_->represented_as_pointer_set.count( source_value ) == 1 )
-                || ( source_type.attributes.quality == attribute::holder_kind::k_ref && is_heavy_object_source )
-                || ( source_type.attributes.modifiability == attribute::modifiability_kind::k_mutable )
-                ;
-
-            bool const is_heavy_object_target = is_heavy_object( target_type );
+                = is_represented_as_pointer( source_type, source_value );
 
             // represented as pointer
+            bool const is_heavy_object_target = is_heavy_object( target_type );
             bool const arg_is_pointer
                 = is_heavy_object_target
                 || ( target_type.attributes.quality == attribute::holder_kind::k_ref
@@ -1819,7 +1865,6 @@ namespace rill
             rill_dout << "===="
                       << "from: " << source_c_env->get_base_name() << std::endl
                       << source_type.attributes
-                      << "  h?: " << is_heavy_object_source << std::endl
                       << "to  : " << target_c_env->get_base_name() << std::endl
                       << target_type.attributes
                       << "  h?: " << is_heavy_object_target << std::endl
