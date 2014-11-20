@@ -446,13 +446,12 @@ namespace rill
 
                             // declare the template parameter into function env as variable
                             auto const& v_env
-                                = inner_env->construct(
+                                = inner_env->incomplete_construct(
                                     kind::k_variable,
-                                    template_parameter.decl_unit.name,
-                                    nullptr,    // TODO: change to valid ptr to ast
-                                    class_env,
-                                    ty.attributes
+                                    template_parameter.decl_unit.name
                                     );
+                            // TODO: link with ptr to ast
+                            v_env->complete( ty_d->type_id );
 
                             declared_envs[i] = v_env;
                         });
@@ -1705,7 +1704,6 @@ namespace rill
                 }
 
                 //
-                rill_dout << "HogeHogeHogeHoge " << std::endl;
                 std::vector<type_detail_ptr> presetted_param_types
                     = make_function_parameters_type_details(
                         instanting_f_env,
@@ -2131,7 +2129,7 @@ namespace rill
             case kind::type_value::e_variable:
             {
                 auto const& v_env
-                    = std::static_pointer_cast<variable_symbol_environment>( found_env );
+                    = cast_to<variable_symbol_environment>( found_env );
 
                 // memoize
                 rill_dout << "() memoed.variable" << std::endl;
@@ -2329,8 +2327,6 @@ namespace rill
                     );
             }
 
-            std::cout << "pyaa" << std::endl;
-
             // make function parameter variable decl
             for( auto const& e : s->get_parameter_list() ) {
                 assert( e.decl_unit.init_unit.type != nullptr || e.decl_unit.init_unit.initializer != nullptr );
@@ -2383,7 +2379,8 @@ namespace rill
 
                 if ( i == 0 && s->is_class_function() ) {
                     // special treatment for "this"
-                    f_env->parameter_variable_construct(
+                    construct_parameter_variable(
+                        f_env,
                         ast::make_identifier( "this" ),
                         ty_id
                         );
@@ -2397,7 +2394,11 @@ namespace rill
                     f_env,
                     e.decl_unit.name
                     );
-                f_env->parameter_variable_construct( e.decl_unit.name, ty_id );
+                construct_parameter_variable(
+                    f_env,
+                    e.decl_unit.name,
+                    ty_id
+                    );
 
                 ++pi;
             }
@@ -2861,6 +2862,29 @@ namespace rill
                         }
                     }
                 } );
+        }
+
+
+        auto analyzer::construct_parameter_variable(
+            function_symbol_environment_ptr const& f_env,
+            ast::identifier_value_base_ptr const& variable_name,
+            type_id_t const& type_id
+            )
+            -> void
+        {
+            auto const& t = g_env_->get_type_at( type_id );
+
+            // construct variable
+            // NOTE: do not link with ast
+            auto v_env = f_env->incomplete_construct(
+                kind::k_variable,
+                variable_name
+                );
+
+            // complete variable
+            v_env->complete( type_id );
+
+            f_env->append_parameter_variable( v_env );
         }
 
     } // namespace semantic_analysis

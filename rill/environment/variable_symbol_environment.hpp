@@ -58,17 +58,14 @@ namespace rill
         }
 
         auto complete(
-            type_id_t const& type_id,
-            native_string_type const& name
+            type_id_t const& type_id
             )
             -> void
         {
             value_type_id_ = type_id;
-            name_ = name;
 
             change_progress_to_completed();
         }
-
 
         auto get_type_id() const
             -> type_id_t

@@ -111,7 +111,6 @@ namespace rill
         }
 
 
-
         //
         RILL_VISITOR_OP( identifier_collector, ast::class_function_definition_statement, s, parent_env ) const
         {
@@ -119,45 +118,10 @@ namespace rill
         }
 
 
-
         //
         RILL_VISITOR_OP( identifier_collector, ast::class_variable_declaration_statement, s, parent_env ) const
         {
-            assert( parent_env->get_symbol_kind() == kind::type_value::e_class );
-            if ( auto&& e = parent_env->is_exist( s->get_identifier() ) ) {
-                kind_check( *e, kind::type_value::e_variable, s, parent_env );
-            }
-
-            // prevent redefinition
-            auto const& val_decl = s->declaration_;
-            auto const& unit = val_decl.decl_unit;
-            if ( auto const& v = parent_env->find_on_env( unit.name ) ) {
-                save_stock_message_pivot();
-
-                auto const& val_decl_ast
-                    = g_env_->get_related_ast( v->get_id() );
-
-                save_appendix_information(
-                    message_code::e_reference,
-                    val_decl_ast,
-                    v,
-                    format( "reference" )
-                    );
-
-                semantic_error(
-                    message_code::e_variable_is_already_defined,
-                    unit.name,
-                    parent_env,
-                    format( "class variable is already defined" ),
-                    true
-                    );
-            }
-
-            // variable declared in class scope is forward referencable
-            // add variable symbol to current environment
-            auto const& v_env
-                = parent_env->mark_as( kind::k_variable, s->get_identifier(), s );
-            v_env->set_parent_class_env_id( parent_env->get_id() );
+            construct_variable( s, parent_env );
         }
 
 
@@ -259,9 +223,9 @@ namespace rill
 
             } else {
                 auto&& multiset_env = [&]() {
-                    if ( auto&& e = parent_env->is_exist( s->get_identifier() ) ) {
-                        kind_check( *e, kind::type_value::e_function, s, parent_env );
-                        return cast_to<multiple_set_environment>( *e );
+                    if ( auto&& e = parent_env->find_on_env( s->get_identifier() ) ) {
+                        kind_check( e, kind::type_value::e_function, s, parent_env );
+                        return cast_to<multiple_set_environment>( e );
 
                     } else {
                         auto&& m = parent_env->incomplete_construct(
@@ -312,9 +276,9 @@ namespace rill
 
             } else {
                 auto&& multiset_env = [&]() {
-                    if ( auto&& e = parent_env->is_exist( s->get_identifier() ) ) {
-                        kind_check( *e, kind::type_value::e_class, s, parent_env );
-                        return cast_to<multiple_set_environment>( *e );
+                    if ( auto&& e = parent_env->find_on_env( s->get_identifier() ) ) {
+                        kind_check( e, kind::type_value::e_class, s, parent_env );
+                        return cast_to<multiple_set_environment>( e );
 
                     } else {
                         auto&& m = parent_env->incomplete_construct(
@@ -347,7 +311,6 @@ namespace rill
         }
 
 
-
         auto identifier_collector::construct_template(
             ast::template_statement_ptr const& s,
             environment_base_ptr const& parent_env
@@ -355,8 +318,8 @@ namespace rill
             -> void
         {
             auto&& multiset_env = [&]() {
-                if ( auto&& e = parent_env->is_exist( s->get_identifier() ) ) {
-                    return cast_to<multiple_set_environment>( *e );
+                if ( auto&& e = parent_env->find_on_env( s->get_identifier() ) ) {
+                    return cast_to<multiple_set_environment>( e );
 
                 } else {
                     auto&& m = parent_env->incomplete_construct(
@@ -383,6 +346,57 @@ namespace rill
             // delegate inner statement...
             // checking if the inner statement is templated is done in per collector
             dispatch( s->get_inner_statement(), multiset_env );
+        }
+
+
+        auto identifier_collector::construct_variable(
+            ast::variable_declaration_statement_ptr const& s,
+            environment_base_ptr const& parent_env,
+            bool const is_class_member,
+            bool const is_global
+            ) const
+            -> void
+        {
+            assert( parent_env->get_symbol_kind() == kind::type_value::e_class );
+            if ( auto&& e = parent_env->find_on_env( s->get_identifier() ) ) {
+                kind_check( e, kind::type_value::e_variable, s, parent_env );
+            }
+
+            // prevent redefinition
+            auto const& val_decl = s->declaration_;
+            auto const& unit = val_decl.decl_unit;
+            if ( auto const& v = parent_env->find_on_env( unit.name ) ) {
+                save_stock_message_pivot();
+
+                auto const& val_decl_ast
+                    = g_env_->get_related_ast( v->get_id() );
+
+                save_appendix_information(
+                    message_code::e_reference,
+                    val_decl_ast,
+                    v,
+                    format( "reference" )
+                    );
+
+                semantic_error(
+                    message_code::e_variable_is_already_defined,
+                    unit.name,
+                    parent_env,
+                    format( "class variable is already defined" ),
+                    true
+                    );
+            }
+
+            // variable declared in class scope is forward referencable
+            // add variable symbol to current environment
+            auto const& v_env
+                = parent_env->incomplete_construct(
+                    kind::k_variable,
+                    s->get_identifier()
+                    );
+            v_env->link_with_ast( s );
+
+            v_env->set_parent_class_env_id( parent_env->get_id() );
         }
 
     } // namespace semantic_analysis

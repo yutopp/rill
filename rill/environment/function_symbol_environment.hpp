@@ -63,14 +63,6 @@ namespace rill
             return KindValue;
         }
 
-        auto get_parameter_wrapper_env()
-            -> multiple_set_environment_ptr
-        {
-            return cast_to<multiple_set_environment>(
-                b_.lock()->get_env_at_as_strong_ref( parameter_wrapper_env_id_ )
-                );
-        }
-
         auto get_parameter_decl_ids() const
             -> environment_id_list_t const&
         {
@@ -108,23 +100,10 @@ namespace rill
             change_progress_to_completed();
         }
 
-        auto add_return_type_candidate( type_id_t const& type_id )
-            -> void
-        {
-            rill_dout << "add overload candidate : " << type_id << " -> " << base_name_ << std::endl;
-            return_type_candidates_.push_back( type_id );
-        }
-
         auto get_return_type_id() const
             -> type_id_t
         {
             return return_type_id_;
-        }
-
-        auto get_return_type_candidates() const
-            -> type_id_list_t const&
-        {
-            return return_type_candidates_;
         }
 
         auto dump( std::ostream& os, std::string const& indent ) const
@@ -135,25 +114,10 @@ namespace rill
             return dump_include_env( os, indent );
         }
 
-        auto parameter_variable_construct(
-            ast::identifier_value_base_ptr const& name,
-            const_class_symbol_environment_ptr const& type_env,
-            attribute::type_attributes const& type_attr = attribute::make_default_type_attributes()
+        auto append_parameter_variable(
+            variable_symbol_environment_ptr const& v_env
             )
-            -> variable_symbol_environment_ptr;
-
-        auto parameter_variable_construct(
-            ast::identifier_value_base_ptr const& name,
-            environment_id_t const& type_env_id,
-            attribute::type_attributes const& type_attr = attribute::make_default_type_attributes()
-            )
-            -> variable_symbol_environment_ptr;
-
-        auto parameter_variable_construct(
-            ast::identifier_value_base_ptr const& name,
-            type_id_t const& type_id
-            )
-            -> variable_symbol_environment_ptr;
+            -> void;
 
         auto get_base_name() const
             -> native_string_type const&

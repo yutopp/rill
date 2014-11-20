@@ -153,32 +153,38 @@ namespace rill
         //
         RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::return_statement, s, parent_env )
         {
-            // Return Statement is valid only in Function Envirionment...
-            auto const& a_env = parent_env->lookup_layer( kind::type_value::e_function );
-            assert( a_env != nullptr ); // TODO: change to error_handler
+            if ( s->expression_ ) {
+                // Return Statement is valid only in Function Envirionment...
+                auto const& a_env = parent_env->lookup_layer(
+                    kind::type_value::e_function
+                    );
+                assert( a_env != nullptr ); // TODO: change to error_handler
 
-            auto const& callee_f_env = cast_to<function_symbol_environment>( a_env );
-            assert( callee_f_env != nullptr );
+                auto const& callee_f_env = cast_to<function_symbol_environment>( a_env );
+                assert( callee_f_env != nullptr );
 
-            auto const& ret_type_id = callee_f_env->get_return_type_id();
-            auto const& ret_type
-                = g_env_->get_type_at( callee_f_env->get_return_type_id() );
-            bool const returns_heavy_object = is_heavy_object( ret_type );
+                auto const& ret_type
+                    = g_env_->get_type_at( callee_f_env->get_return_type_id() );
+                bool const returns_heavy_object = is_heavy_object( ret_type );
 
-            llvm::Value* const v = dispatch( s->expression_, parent_env );
+                llvm::Value* const v = dispatch( s->expression_, parent_env );
 
-            if ( returns_heavy_object ) {
-                auto const& c = function_env_to_llvm_constatnt_ptr( callee_f_env );
-                assert( c != nullptr );
-                auto const& f = static_cast<llvm::Function*>( c );
-                auto const& ret_val = f->arg_begin();;
+                if ( returns_heavy_object ) {
+                    auto const& c = function_env_to_llvm_constatnt_ptr( callee_f_env );
+                    assert( c != nullptr );
+                    auto const& f = static_cast<llvm::Function*>( c );
+                    auto const& ret_val = f->arg_begin();;
 
-                delegate_value_to( ret_type, v, ret_val );
+                    delegate_value_to( ret_type, v, ret_val );
 
-                context_->ir_builder.CreateRetVoid();
+                    context_->ir_builder.CreateRetVoid();
+
+                } else {
+                    context_->ir_builder.CreateRet( v );
+                }
 
             } else {
-                context_->ir_builder.CreateRet( v );
+                context_->ir_builder.CreateRetVoid();
             }
         }
 
@@ -430,8 +436,8 @@ namespace rill
 
             // ========================================
             // Only the function that returns void is allowed to has no return statement
-            if ( f_env->get_return_type_candidates().size() == 0 )
-                context_->ir_builder.CreateRetVoid();
+
+//                context_->ir_builder.CreateRetVoid();
 
             //
             llvm::verifyFunction( *func );
@@ -564,7 +570,6 @@ namespace rill
 
 
             auto const& variable_llvm_type = context_->env_conversion_table.ref_type( variable_type.class_env_id );
-            auto const& variable_attr =  variable_type.attributes;
 
 
             // in struct, variable is all normal type
@@ -634,7 +639,6 @@ namespace rill
             } BOOST_SCOPE_EXIT_END
 
             //
-            auto const& parameter_variable_decl_env_ids = f_env->get_parameter_decl_ids();
             auto const& parameter_variable_type_ids = f_env->get_parameter_type_ids();
 
             // define paramter and return types
@@ -1363,11 +1367,6 @@ namespace rill
             auto const& variable_llvm_type
                 = context_->env_conversion_table.ref_type( v_type.class_env_id );
 
-            auto const& c_env
-                = cast_to<class_symbol_environment const>(
-                    g_env_->get_env_at_as_strong_ref( v_type.class_env_id )
-                    );
-
             rill_dregion {
                 rill_dout << "Store value" << std::endl;
                 value->dump();
@@ -1423,6 +1422,9 @@ namespace rill
 
                         break;
                     }
+
+                    default:
+                        rill_ice( "unexpected" );
                     } // switch
 
                     break;

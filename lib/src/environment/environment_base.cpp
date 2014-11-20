@@ -208,4 +208,21 @@ namespace rill
             );
     }
 
+    auto environment_base::incomplete_construct(
+        kind::variable_tag,
+        ast::identifier_value_base_ptr const& name
+        )
+        -> variable_symbol_environment_ptr
+    {
+        assert( name != nullptr );
+
+        auto const& symbol_name = name->get_inner_symbol()->to_native_string();
+
+        return b_.lock()->allocate_env_unless_exist<variable_symbol_environment>(
+            std::static_pointer_cast<environment_base>( shared_from_this() ),
+            symbol_name,
+            symbol_name
+            );
+    }
+
 } // namespace rill

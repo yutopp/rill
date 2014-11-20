@@ -152,6 +152,25 @@ namespace rill
                 ) const
                 -> void;
 
+
+            //
+            auto construct_variable(
+                ast::variable_declaration_statement_ptr const& s,
+                environment_base_ptr const& parent_env,
+                bool const is_class_member = false,
+                bool const is_global = false
+                ) const
+                -> void;
+
+            inline auto construct_class_variable(
+                ast::variable_declaration_statement_ptr const& s,
+                environment_base_ptr const& parent_env
+                ) const
+                -> void
+            {
+                construct_variable( s, parent_env, true );
+            }
+
         private:
             global_environment_ptr g_env_;
             boost::filesystem::path base_path_;

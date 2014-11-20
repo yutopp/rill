@@ -211,17 +211,14 @@ namespace rill
                             assert( class_env->is_complete() );
                         }
 
-                        auto attr = ty.attributes;
-
                         // define variable
-                        auto variable_env
-                            = parent_env->construct(
+                        auto const& variable_env
+                            = parent_env->incomplete_construct(
                                 kind::k_variable,
-                                unit.name,
-                                s,
-                                class_env,
-                                attr
+                                unit.name
                                 );
+                        variable_env->link_with_ast( s );
+                        variable_env->complete( ty_d->type_id );
 
                         if ( iv_type_d != nullptr ) {
                             // type check
@@ -253,18 +250,14 @@ namespace rill
             } else {
                 // type inferenced by result of evaluated "iv_type_id_and_env"
                 assert( iv_type_d != nullptr );
-                auto const& ty = g_env_->get_type_at( iv_type_d->type_id );
-                auto const& c_env
-                    = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>( ty.class_env_id );
 
                 //
-                parent_env->construct(
+                auto const& v_env = parent_env->incomplete_construct(
                     kind::k_variable,
-                    unit.name,
-                    s,
-                    c_env,
-                    ty.attributes
+                    unit.name
                     );
+                v_env->link_with_ast( s );
+                v_env->complete( iv_type_d->type_id );
             }
         }
 
@@ -365,8 +358,7 @@ namespace rill
                             g_env_->make_type_id(
                                 class_env,
                                 attr
-                                ),
-                            unit.name->get_inner_symbol()->to_native_string()
+                                )
                             );
                     });
 
@@ -519,6 +511,13 @@ namespace rill
 
             // Return type
             solve_function_return_type_semantics( f_env );
+
+            if ( !f_env->is_closed() ) {
+                //
+                s->inner_->statements_.emplace_back(
+                    std::make_shared<ast::return_statement>( nullptr )
+                    );
+            }
 
             //
             f_env->complete( make_mangled_name( g_env_, f_env ), s->decl_attr_ );

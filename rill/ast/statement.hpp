@@ -316,7 +316,7 @@ namespace rill
             (( parameter_list, parameter_list_ ))
             (( attribute::decl::type, decl_attr_ ))
             (( id_expression_ptr, return_type_ ))
-            (( statement_ptr, inner_ ))
+            (( statements_ptr, inner_ ))
             )
         public:
             function_definition_statement_base(
@@ -324,7 +324,7 @@ namespace rill
                 parameter_list const& parameter_list,
                 attribute::decl::type const& decl_attr,
                 boost::optional<id_expression_ptr> const& return_type,
-                statement_ptr const& inner
+                statements_ptr const& inner
                 )
                 : can_be_template_statement( id )
                 , parameter_list_( parameter_list )
@@ -365,7 +365,7 @@ namespace rill
                 parameter_list const& parameter_list,
                 attribute::decl::type const& decl_attr,
                 boost::optional<id_expression_ptr> const& return_type,
-                statement_ptr const& inner
+                statements_ptr const& inner
                 )
                 : function_definition_statement_base(
                     id, parameter_list, decl_attr, return_type, inner
@@ -389,7 +389,7 @@ namespace rill
                 parameter_list const& parameter_list,
                 attribute::decl::type const& decl_attr,
                 boost::optional<id_expression_ptr> const& return_type,
-                statement_ptr const& inner
+                statements_ptr const& inner
                 )
                 : function_definition_statement_base(
                     id, parameter_list, decl_attr, return_type, inner
@@ -495,8 +495,8 @@ namespace rill
             (( variable_declaration, declaration_ ))
             )
         public:
-            variable_declaration_statement( variable_declaration const& decl )
-                : declaration_( decl )
+            variable_declaration_statement( variable_declaration&& decl )
+                : declaration_( std::move( decl ) )
             {}
 
         public:
@@ -510,20 +510,12 @@ namespace rill
 
 
         RILL_AST_BEGIN(
-            class_variable_declaration_statement, statement,
-            (( variable_declaration, declaration_ ))
+            class_variable_declaration_statement, variable_declaration_statement
             )
         public:
             class_variable_declaration_statement( variable_declaration&& decl )
-                : declaration_( std::move( decl ) )
+                : variable_declaration_statement( std::move( decl ) )
             {}
-
-        public:
-            auto get_identifier() const
-                -> identifier_value_base_ptr const&
-            {
-                return declaration_.decl_unit.name;
-            }
         RILL_AST_END
 
 
