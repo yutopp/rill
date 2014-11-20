@@ -13,6 +13,8 @@
 
 #include <rill/ast/ast.hpp>
 
+#include <rill/utility/tie.hpp>
+
 #include <vector>
 #include <boost/range/adaptor/transformed.hpp>
 
@@ -400,28 +402,64 @@ namespace rill
                     { std::ref( e->reciever ) },
                     parent_env
                     );
-
-            static auto const addressof_op = ast::make_identifier( "&" );
-
-            auto const& op_name = make_unary_op_name( addressof_op, true /*prefix*/ );
-            auto const ty_d = call_suitable_operator(
-                op_name,
-                e,
-                argument_type_details,
-                parent_env,
-                true
-                );
-            if ( ty_d == nullptr ) {
-                // op & was not found, use intrinsic addressof
-                auto const& ptr_ty_d = make_pointer_type(
-                    argument_type_details[0]->type_id,
-                    e,
-                    parent_env
+            assert( argument_type_details.size() == 1 );
+            auto const& reciever_ty
+                = g_env_->get_type_at( argument_type_details[0]->type_id );
+            auto const& reciever_c_env
+                = g_env_->get_env_at_as_strong_ref<class_symbol_environment>(
+                    reciever_ty.class_env_id
                     );
-
-                //
-                return bind_type( e, ptr_ty_d );
+            assert( reciever_c_env != nullptr );
+            if ( !reciever_c_env->is_pointer() ) {
+                // non pointer object
+                static auto const addressof_op = ast::make_identifier( "&" );
+                auto const& op_name = make_unary_op_name( addressof_op, true /*prefix*/ );
+                auto const ty_d = call_suitable_operator(
+                    op_name,
+                    e,
+                    argument_type_details,
+                    parent_env,
+                    true
+                    );
+                if ( ty_d != nullptr ) {
+                    return ty_d;
+                }
             }
+
+            // intrinsic addressof
+            auto const& ptr_ty_d = make_pointer_type(
+                argument_type_details[0]->type_id,
+                e,
+                parent_env
+                );
+
+            return bind_type( e, ptr_ty_d );
+        }
+
+
+        //
+        //
+        //
+        RILL_VISITOR_OP( analyzer, ast::lambda_expression, e, parent_env )
+        {
+            auto& module_env = module_envs_.top();
+            static int id = 0;
+            auto const& lambda_class_name
+                = ast::make_identifier( std::string( "__lamb" ) + std::to_string( id ) );
+            ++id;
+
+            // TODO: make cut block environment
+
+            // Make anonymous class
+/*
+            RILL_PP_TIE(
+                multiset_env, c_env,
+                module_env->mark_as( kind::k_class, lambda_class_name, nullptr )
+                );
+            multiset_env->add_to_normal_environments( c_env );
+*/
+
+            assert( false );
             return nullptr;
         }
 

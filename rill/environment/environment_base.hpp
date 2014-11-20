@@ -226,6 +226,8 @@ namespace rill
             : environment_unit( std::move( ep ) )
             , progress_( environment_process_progress_t::constructed )
             , closed_( false )
+            , parent_class_env_id_( environment_id_undefined )
+
         {}
 
         virtual ~environment_base()
@@ -340,39 +342,34 @@ namespace rill
             return root_env()->lookup( type_name );
         }
 
+
+        //
+        //
         auto import_from( const_environment_base_ptr const& )
             -> void;
 
+        //
+        //
+        void set_parent_class_env_id( environment_id_t const& parent_class_env_id )
+        {
+            parent_class_env_id_ = parent_class_env_id;
+        }
 
+        auto get_parent_class_env_id() const
+            -> environment_id_t
+        {
+            return parent_class_env_id_;
+        }
 
-
-
+        bool is_in_class() const
+        {
+            return parent_class_env_id_ != environment_id_undefined;
+        }
 
 
         //
         //
         //
-        auto mark_as(
-            kind::template_tag,
-            ast::identifier_value_base_ptr const&,
-            ast::statement_ptr const&
-            )
-            -> std::pair<multiple_set_environment_ptr, template_environment_ptr>;
-
-        auto mark_as(
-            kind::function_tag,
-            ast::identifier_value_base_ptr const&,
-            ast::statement_ptr const&
-            )
-            -> std::pair<multiple_set_environment_ptr, function_symbol_environment_ptr>;
-
-        auto mark_as(
-            kind::class_tag,
-            ast::identifier_value_base_ptr const&,
-            ast::statement_ptr const&
-            )
-            -> std::pair<multiple_set_environment_ptr, class_symbol_environment_ptr>;
-
         auto mark_as(
             kind::variable_tag,
             ast::identifier_value_base_ptr const&,
@@ -388,43 +385,21 @@ namespace rill
         // incomplete means this environment is in making phase
         //
         auto incomplete_construct(
-            kind::template_tag,
-            ast::identifier_value_base_ptr const&
-            )
-            -> std::pair<multiple_set_environment_ptr, template_environment_ptr>;
-
-        auto incomplete_construct(
-            kind::function_tag,
-            ast::identifier_value_base_ptr const&
-            )
-            -> std::pair<multiple_set_environment_ptr, function_symbol_environment_ptr>;
-
-        auto incomplete_construct(
-            kind::class_tag,
-            ast::identifier_value_base_ptr const&
-            )
-            -> std::pair<multiple_set_environment_ptr, class_symbol_environment_ptr>;
-
-        auto incomplete_construct(
             kind::variable_tag,
             ast::identifier_value_base_ptr const&
             )
             -> variable_symbol_environment_ptr;
 
 
+        auto incomplete_construct(
+            kind::multiset_tag,
+            ast::identifier_value_base_ptr const&
+            )
+            -> multiple_set_environment_ptr;
 
         //
         // incomplete_construct
         //
-        typedef std::function<function_symbol_environment_ptr (function_symbol_environment_ptr const&)> function_env_generator_scope_type;
-        auto construct(
-            kind::function_tag,
-            ast::identifier_value_base_ptr const&,
-            ast::statement_ptr const&,
-            function_env_generator_scope_type const&,
-            class_symbol_environment_ptr const&,
-            attribute::type_attributes const& = attribute::make_default_type_attributes()
-            ) -> function_symbol_environment_ptr;
 
         auto construct(
             kind::variable_tag,
@@ -433,12 +408,6 @@ namespace rill
             const_class_symbol_environment_ptr const&,
             attribute::type_attributes const& = attribute::make_default_type_attributes()
             ) -> variable_symbol_environment_ptr;
-
-        auto construct(
-            kind::class_tag,
-            ast::identifier_value_base_ptr const&,
-            ast::statement_ptr const&
-            ) -> class_symbol_environment_ptr;
 
     public:
         virtual auto checked_instance( kind::type_value const& e )
@@ -535,6 +504,19 @@ namespace rill
         }
 
     public:
+        inline auto is_exist( native_string_type const& name )
+            -> boost::optional<environment_unit_ptr>
+        {
+            auto it = inner_envs_.find( name );
+            if ( it == inner_envs_.cend() ) {
+                return boost::none;
+            }
+
+            return boost::make_optional(
+                it->second
+                );
+        }
+
         inline auto is_exist( native_string_type const& name ) const
             -> boost::optional<const_environment_unit_ptr>
         {
@@ -548,6 +530,11 @@ namespace rill
                     it->second
                     )
                 );
+        }
+
+        inline auto is_exist( ast::identifier_value_base_ptr const& name )
+        {
+            return is_exist( name->get_inner_symbol()->to_native_string() );
         }
 
         inline auto is_exist( ast::const_identifier_value_base_ptr const& name ) const
@@ -573,6 +560,8 @@ namespace rill
         environment_process_progress_t progress_;
         std::unordered_map<native_string_type, environment_unit_ptr> inner_envs_;   // children environments
         bool closed_;
+
+        environment_id_t parent_class_env_id_;
     };
 
 

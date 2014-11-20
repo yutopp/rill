@@ -46,12 +46,34 @@ namespace rill
 
             // pass this environment's is and args...
             // inline environment will recieve id of this multiple_set_environment
-            return b_.lock()->template allocate_env<E>(
+            auto env = b_.lock()->template allocate_env<E>(
                 get_parent_env(),
                 get_id(),
                 std::forward<Args>( args )...
                 );
+            if ( is_in_class() ) {
+                env->set_parent_class_env_id( get_parent_class_env_id() );
+            }
+
+            return env;
         }
+
+        auto incomplete_construct(
+            kind::function_tag,
+            ast::identifier_value_base_ptr const&
+            )
+            -> function_symbol_environment_ptr;
+
+        auto incomplete_construct(
+            kind::class_tag,
+            ast::identifier_value_base_ptr const&
+            )
+            -> class_symbol_environment_ptr;
+
+        auto incomplete_construct(
+            kind::template_tag
+            )
+            -> template_environment_ptr;
 
     public:
         auto get_name() const

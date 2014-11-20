@@ -242,10 +242,11 @@ namespace rill
 
 
             // ====================================================================================================
-            // executable scope, such as function, block, lambda, ...
+            //
             R( class_body_statement, ast::statement_ptr,
                 ( t.class_function_definition_statement
                 | t.class_variable_declaration_statement
+                | t.class_template_statement
                 | t.empty_statement
                 )
             )
@@ -255,6 +256,25 @@ namespace rill
                     helper::make_node_ptr<ast::statements>( ph::_1 )
                     ]
             )
+
+
+            R( class_templatable_statement, ast::can_be_template_statement_ptr,
+                ( t.class_function_definition_statement
+                )
+            )
+
+            RN( class_template_statement, ast::template_statement_ptr,
+                ( x3::lit( "template" )
+                > t.template_parameter_variable_declaration_list
+                > t.class_templatable_statement
+                )[
+                    helper::make_node_ptr<ast::template_statement>(
+                        ph::_1,
+                        ph::_2
+                        )
+                    ]
+            )
+
 
             RN( class_function_definition_statement, ast::class_function_definition_statement_ptr,
                 ( make_keyword( "def" )
@@ -658,14 +678,28 @@ namespace rill
             )
 
             RN( primary_expression, ast::expression_ptr,
-                t.primary_value[helper::make_node_ptr<ast::term_expression>( ph::_1 )]
+                ( t.primary_value[helper::make_node_ptr<ast::term_expression>( ph::_1 )]
                 | ( x3::lit( '(' ) >> t.expression >> x3::lit( ')' ) )[helper::assign()]
+                | t.lambda_expression[helper::assign()]
+                )
             )
 
 
             R( argument_list, ast::expression_list,
                 ( x3::lit( '(' ) >> x3::lit( ')' ) )
                 | ( x3::lit( '(' ) >> ( t.assign_expression % ',' ) >> x3::lit( ')' ) )
+            )
+
+
+            // ====================================================================================================
+            // ====================================================================================================
+            RN( lambda_expression, ast::lambda_expression_ptr,
+                ( t.lambda_introducer
+                )[helper::make_node_ptr<ast::lambda_expression>()]
+            )
+
+            R( lambda_introducer, x3::unused_type,
+                x3::lit( "->" )
             )
 
 

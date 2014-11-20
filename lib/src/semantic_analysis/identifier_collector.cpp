@@ -72,35 +72,12 @@ namespace rill
             // DO NOT COLLECT IDENTIFIERS
         }
 
+
         //
         RILL_VISITOR_OP( identifier_collector, ast::function_definition_statement, s, parent_env ) const
         {
             // Function symbol that on (global | namespace)
-
-            rill_dout << "IdentifierCollector::Function" << std::endl
-                      << " collected          : " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
-                      << " param_num          : " << s->get_parameter_list().size() << std::endl
-                      << " is_template_layout : " << s->is_template_layout() << std::endl;
-
-            if ( s->is_template_layout() ) {
-                auto&& multiset_env = cast_to<multiple_set_environment>( parent_env );
-                assert( multiset_env != nullptr );
-                kind_check( multiset_env, kind::type_value::e_function, s, parent_env );
-
-                multiset_env->set_inner_env_symbol_kind( kind::type_value::e_function );
-
-            } else {
-                if ( auto&& e = parent_env->is_exist( s->get_identifier() ) ) {
-                    kind_check( *e, kind::type_value::e_function, s, parent_env );
-                }
-
-                // add function symbol to current environment
-                RILL_PP_TIE(
-                    multiset_env, f_env,
-                    parent_env->mark_as( kind::k_function, s->get_identifier(), s )
-                    );
-                multiset_env->add_to_normal_environments( f_env );
-            }
+            construct_function( s, parent_env );
         }
 
 
@@ -112,88 +89,25 @@ namespace rill
         }
 
 
-
         //
         RILL_VISITOR_OP( identifier_collector, ast::extern_function_declaration_statement, s, parent_env ) const
         {
             // Function symbol that on (global | namespace)
-
-            rill_dout << "collected : " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
-                      << "param_num : " << s->get_parameter_list().size() << std::endl;
-
-            if ( s->is_template_layout() ) {
-                semantic_error(
-                    message_code::e_different_kind_symbol,
-                    s,
-                    parent_env,
-                    format( "[ice] not implemented" )
-                    );
-
-            } else {
-                if ( auto&& e = parent_env->is_exist( s->get_identifier() ) ) {
-                    kind_check( *e, kind::type_value::e_function, s, parent_env );
-                }
-
-                // add function symbol to current environment
-                RILL_PP_TIE(
-                    set_environment, f_env,
-                    parent_env->mark_as( kind::k_function, s->get_identifier(), s )
-                    );
-                set_environment->add_to_normal_environments( f_env );
-            }
+            construct_function_template_not_supported( s, parent_env );
         }
 
 
         //
         RILL_VISITOR_OP( identifier_collector, ast::extern_class_declaration_statement, s, parent_env ) const
         {
-            if ( s->is_template_layout() ) {
-                auto&& multiset_env = cast_to<multiple_set_environment>( parent_env );
-                assert( multiset_env != nullptr );
-                kind_check( multiset_env, kind::type_value::e_class, s, parent_env );
-
-                multiset_env->set_inner_env_symbol_kind( kind::type_value::e_class );
-
-            } else {
-                if ( auto&& e = parent_env->is_exist( s->get_identifier() ) ) {
-                    kind_check( *e, kind::type_value::e_class, s, parent_env );
-                }
-
-                RILL_PP_TIE(
-                    set_environment, c_env,
-                    parent_env->mark_as( kind::k_class, s->get_identifier(), s )
-                    );
-                set_environment->add_to_normal_environments( c_env );
-            }
+            construct_class( s, parent_env );
         }
-
 
 
         //
         RILL_VISITOR_OP( identifier_collector, ast::class_definition_statement, s, parent_env ) const
         {
-            if ( s->is_template_layout() ) {
-                auto&& multiset_env = cast_to<multiple_set_environment>( parent_env );
-                assert( multiset_env != nullptr );
-                kind_check( multiset_env, kind::type_value::e_class, s, parent_env );
-
-                multiset_env->set_inner_env_symbol_kind( kind::type_value::e_class );
-
-            } else {
-                if ( auto&& e = parent_env->is_exist( s->get_identifier() ) ) {
-                    kind_check( *e, kind::type_value::e_class, s, parent_env );
-                }
-
-                // add class symbol to current environment
-                RILL_PP_TIE(
-                    set_environment, c_env,
-                    parent_env->mark_as( kind::k_class, s->get_identifier(), s )
-                    );
-                set_environment->add_to_normal_environments( c_env );
-
-                // build inner environment
-                dispatch( s->inner_, c_env );
-            }
+            construct_class( s, parent_env );
         }
 
 
@@ -201,35 +115,7 @@ namespace rill
         //
         RILL_VISITOR_OP( identifier_collector, ast::class_function_definition_statement, s, parent_env ) const
         {
-            assert( parent_env->get_symbol_kind() == kind::type_value::e_class );
-
-            // TODO: add support for template
-
-            rill_dout << "collected : " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
-                      << "param_num : " << s->get_parameter_list().size() << std::endl;
-
-            if ( s->is_template_layout() ) {
-                semantic_error(
-                    message_code::e_different_kind_symbol,
-                    s,
-                    parent_env,
-                    format( "[ice] not implemented" )
-                    );
-
-            } else {
-                if ( auto&& e = parent_env->is_exist( s->get_identifier() ) ) {
-                    kind_check( *e, kind::type_value::e_function, s, parent_env );
-                }
-
-                // add function symbol to current environment
-                RILL_PP_TIE(
-                    multiset_env, f_env,
-                    parent_env->mark_as( kind::k_function, s->get_identifier(), s )
-                    );
-                f_env->set_parent_class_env_id( parent_env->get_id() );
-
-                multiset_env->add_to_normal_environments( f_env );
-            }
+            construct_class_function( s, parent_env );
         }
 
 
@@ -281,15 +167,7 @@ namespace rill
             // mark inner AST node as templated
             s->get_inner_statement()->mark_as_template_layout();
 
-            // make template envitonment with linking to this AST node
-            RILL_PP_TIE( multiset_env, template_env, parent_env->mark_as( kind::k_template, s->get_identifier(), s ) );
-
-            //
-            multiset_env->add_to_template_environments( template_env );
-
-            // delegate inner statement...
-            // checking weather the inner statement is templated is done in per collector
-            dispatch( s->get_inner_statement(), multiset_env );
+            construct_template( s, parent_env );
         }
 
 
@@ -340,6 +218,171 @@ namespace rill
                         );
                 }
             }
+        }
+
+
+        auto identifier_collector::construct_function(
+            ast::function_definition_statement_base_ptr const& s,
+            environment_base_ptr const& parent_env,
+            bool const is_class_member,
+            bool const template_not_supported
+            ) const
+            -> void
+        {
+            rill_dout << "IdentifierCollector::Function" << std::endl
+                      << " collected          : " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
+                      << " param_num          : " << s->get_parameter_list().size() << std::endl
+                      << " is_template_layout : " << s->is_template_layout() << std::endl;
+
+
+            if ( s->is_template_layout() ) {
+                if ( template_not_supported ) {
+                    semantic_error(
+                        message_code::e_different_kind_symbol,
+                        s,
+                        parent_env,
+                        format( "[ice] not implemented" )
+                        );
+                }
+
+                auto&& multiset_env = cast_to<multiple_set_environment>( parent_env );
+                assert( multiset_env != nullptr );
+                kind_check( multiset_env, kind::type_value::e_function, s, parent_env );
+
+                multiset_env->set_inner_env_symbol_kind( kind::type_value::e_function );
+                if ( is_class_member ) {
+                    auto const& parent_c_env = multiset_env->get_parent_env();
+                    assert( parent_c_env->get_symbol_kind() == kind::type_value::e_class );
+
+                    multiset_env->set_parent_class_env_id( parent_c_env->get_id() );
+                }
+
+            } else {
+                auto&& multiset_env = [&]() {
+                    if ( auto&& e = parent_env->is_exist( s->get_identifier() ) ) {
+                        kind_check( *e, kind::type_value::e_function, s, parent_env );
+                        return cast_to<multiple_set_environment>( *e );
+
+                    } else {
+                        auto&& m = parent_env->incomplete_construct(
+                            kind::k_multiset,
+                            s->get_identifier()
+                            );
+                        m->set_inner_env_symbol_kind( kind::type_value::e_function );
+                        if ( is_class_member ) {
+                            m->set_parent_class_env_id( parent_env->get_id() );
+                        }
+                        return m;
+                    }
+                }();
+
+                auto const& f_env
+                    = multiset_env->incomplete_construct(
+                        kind::k_function,
+                        s->get_identifier()
+                        );
+
+                rill_dout
+                    << "Marked function, %&%& " << multiset_env->get_id()
+                    << " : " << f_env->get_id() << std::endl;
+                f_env->link_with_ast( s );
+
+                multiset_env->add_to_normal_environments( f_env );
+            }
+        }
+
+
+        auto identifier_collector::construct_class(
+            ast::class_definition_statement_ptr const& s,
+            environment_base_ptr const& parent_env
+            ) const
+            -> void
+        {
+            rill_dout << "IdentifierCollector::Class" << std::endl
+                      << " collected          : " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
+                      << " is_template_layout : " << s->is_template_layout() << std::endl;
+
+
+            if ( s->is_template_layout() ) {
+                auto&& multiset_env = cast_to<multiple_set_environment>( parent_env );
+                assert( multiset_env != nullptr );
+                kind_check( multiset_env, kind::type_value::e_class, s, parent_env );
+
+                multiset_env->set_inner_env_symbol_kind( kind::type_value::e_class );
+
+            } else {
+                auto&& multiset_env = [&]() {
+                    if ( auto&& e = parent_env->is_exist( s->get_identifier() ) ) {
+                        kind_check( *e, kind::type_value::e_class, s, parent_env );
+                        return cast_to<multiple_set_environment>( *e );
+
+                    } else {
+                        auto&& m = parent_env->incomplete_construct(
+                            kind::k_multiset,
+                            s->get_identifier()
+                            );
+                        m->set_inner_env_symbol_kind( kind::type_value::e_class );
+                        return m;
+                    }
+                }();
+
+                auto const& c_env
+                    = multiset_env->incomplete_construct(
+                        kind::k_class,
+                        s->get_identifier()
+                        );
+
+                rill_dout
+                    << "Marked class, %&%& " << multiset_env->get_id()
+                    << " : " << c_env->get_id() << std::endl;
+                c_env->link_with_ast( s );
+
+                multiset_env->add_to_normal_environments( c_env );
+
+                // build inner environment
+                if ( s->inner_ != nullptr ) {
+                    dispatch( s->inner_, c_env );
+                }
+            }
+        }
+
+
+
+        auto identifier_collector::construct_template(
+            ast::template_statement_ptr const& s,
+            environment_base_ptr const& parent_env
+            ) const
+            -> void
+        {
+            auto&& multiset_env = [&]() {
+                if ( auto&& e = parent_env->is_exist( s->get_identifier() ) ) {
+                    return cast_to<multiple_set_environment>( *e );
+
+                } else {
+                    auto&& m = parent_env->incomplete_construct(
+                        kind::k_multiset,
+                        s->get_identifier()
+                        );
+
+                    return m;
+                }
+            }();
+
+            auto const& t_env
+                = multiset_env->incomplete_construct(
+                    kind::k_template
+                    );
+
+            rill_dout
+                << "Marked template, %&%& " << multiset_env->get_id()
+                << " : " << t_env->get_id() << std::endl;
+            t_env->link_with_ast( s );
+
+            multiset_env->add_to_template_environments( t_env );
+
+            // delegate inner statement...
+            // checking if the inner statement is templated is done in per collector
+            dispatch( s->get_inner_statement(), multiset_env );
         }
 
     } // namespace semantic_analysis

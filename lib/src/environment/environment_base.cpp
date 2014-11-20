@@ -6,8 +6,6 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#include <iostream> // debug
-
 #include <rill/environment/global_environment.hpp>
 #include <rill/environment/root_environment.hpp>
 #include <rill/environment/environment.hpp>
@@ -20,37 +18,6 @@
 
 namespace rill
 {
-    auto environment_unit::connect_from_ast( ast::const_ast_base_ptr const& ast )
-        -> void
-    {
-        rill_dout << "connect_from ast_id: " << ast->get_id()
-                  << " -> env_id: " << get_id() << std::endl;
-
-        b_.lock()->connect_from_ast( ast, shared_from_this() );
-    }
-
-    auto environment_unit::connect_to_ast( ast::statement_ptr const& ast )
-        -> void
-    {
-        rill_dout << "connect_to env_id: " << get_id()
-                  << " -> ast_id: " << ast->get_id() << std::endl;
-
-        b_.lock()->connect_to_ast( get_id(), ast );
-    }
-
-    auto environment_unit::get_related_ast()
-        -> ast::statement_ptr
-    {
-        return b_.lock()->get_related_ast( get_id() );
-    }
-
-    auto environment_unit::get_related_ast() const
-        -> ast::const_statement_ptr
-    {
-        return b_.lock()->get_related_ast( get_id() );
-    }
-
-
     auto environment_base::get_parent_env()
         -> env_base_pointer
     {
@@ -139,6 +106,7 @@ namespace rill
         return nullptr;
     }
 
+
     auto environment_base::import_from(
         const_environment_base_ptr const& from
         )
@@ -178,7 +146,6 @@ namespace rill
     }
 
 
-    //
     auto environment_base::lookup_layer( kind::type_value const& layer_type )
         -> env_base_pointer
     {
@@ -221,6 +188,24 @@ namespace rill
         }
 
         return nullptr;
+    }
+
+
+    //
+    auto environment_base::incomplete_construct(
+        kind::multiset_tag,
+        ast::identifier_value_base_ptr const& name
+        )
+        -> multiple_set_environment_ptr
+    {
+        auto const& symbol_name = name->get_inner_symbol()->to_native_string();
+
+        // wrapper environment
+        return b_.lock()->allocate_env_unless_exist<multiple_set_environment>(
+            std::static_pointer_cast<environment_base>( shared_from_this() ),
+            symbol_name,
+            symbol_name
+            );
     }
 
 } // namespace rill

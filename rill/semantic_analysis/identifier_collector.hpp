@@ -108,6 +108,50 @@ namespace rill
                 ) const
                 -> void;
 
+
+            //
+            auto construct_function(
+                ast::function_definition_statement_base_ptr const& s,
+                environment_base_ptr const& parent_env,
+                bool const is_class_member = false,
+                bool const template_not_supported = false
+                ) const
+                -> void;
+
+            inline auto construct_function_template_not_supported(
+                ast::function_definition_statement_base_ptr const& s,
+                environment_base_ptr const& parent_env
+                ) const
+                -> void
+            {
+                construct_function( s, parent_env, false, true );
+            }
+
+            inline auto construct_class_function(
+                ast::function_definition_statement_base_ptr const& s,
+                environment_base_ptr const& parent_env
+                ) const
+                -> void
+            {
+                construct_function( s, parent_env, true );
+            }
+
+
+            //
+            auto construct_class(
+                ast::class_definition_statement_ptr const& s,
+                environment_base_ptr const& parent_env
+                ) const
+                -> void;
+
+
+            //
+            auto construct_template(
+                ast::template_statement_ptr const& s,
+                environment_base_ptr const& parent_env
+                ) const
+                -> void;
+
         private:
             global_environment_ptr g_env_;
             boost::filesystem::path base_path_;

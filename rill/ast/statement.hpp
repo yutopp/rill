@@ -343,14 +343,17 @@ namespace rill
                     id, parameter_list, decl_attr, return_type, nullptr
                     )
             {}
+
         public:
             auto get_parameter_list() const
                 -> parameter_list const&
             {
                 return parameter_list_;
             }
-        RILL_AST_END
 
+            virtual auto is_class_function() const
+                -> bool = 0;
+        RILL_AST_END
 
 
         RILL_AST_BEGIN(
@@ -368,6 +371,12 @@ namespace rill
                     id, parameter_list, decl_attr, return_type, inner
                     )
             {}
+
+            auto is_class_function() const
+                -> bool override final
+            {
+                return false;
+            }
         RILL_AST_END
 
 
@@ -386,6 +395,12 @@ namespace rill
                     id, parameter_list, decl_attr, return_type, inner
                     )
             {}
+
+            auto is_class_function() const
+                -> bool override final
+            {
+                return true;
+            }
         RILL_AST_END
 
         RILL_AST_BEGIN(
@@ -411,6 +426,12 @@ namespace rill
                 -> native_string_t const&
             {
                 return extern_symbol_name_;
+            }
+
+            auto is_class_function() const
+                -> bool override final
+            {
+                return false;
             }
         RILL_AST_END
 

@@ -30,6 +30,8 @@ namespace rill
         struct mixin_tag {};
         auto const k_mixin = mixin_tag();
 
+        struct multiset_tag {};
+        auto const k_multiset = multiset_tag();
 
         enum struct type_value
         {

@@ -161,6 +161,14 @@ namespace rill
 
 
         RILL_AST_BEGIN(
+            lambda_expression, expression,
+            (( bool, dummy ))
+            )
+        public:
+        RILL_AST_END
+
+
+        RILL_AST_BEGIN(
             id_expression, expression,
             (( expression_ptr, expression_ ))
             )

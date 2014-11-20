@@ -98,6 +98,7 @@ namespace rill
             RILL_VISITOR_OP_DECL( ast::id_expression );
             RILL_VISITOR_OP_DECL( ast::dereference_expression );
             RILL_VISITOR_OP_DECL( ast::addressof_expression );
+            RILL_VISITOR_OP_DECL( ast::lambda_expression );
             RILL_VISITOR_OP_DECL( ast::term_expression );
             RILL_VISITOR_OP_DECL( ast::evaluated_type_expression );
 
@@ -354,12 +355,20 @@ namespace rill
                 -> bool;
 
             //
-            auto declare_function_parameters(
+            auto make_function_parameters_type_details(
+                function_symbol_environment_ptr const& f_env,
+                ast::function_definition_statement_base_ptr const& s
+                )
+                -> std::vector<type_detail_ptr>;
+            auto declare_function_parameters_from_list(
                 function_symbol_environment_ptr const& f_env,
                 ast::function_definition_statement_base_ptr const& s,
-                environment_base_ptr const& parent_env,
-                bool const is_in_class = false,
-                bool const is_constructor = false
+                std::vector<type_detail_ptr> const& param_types
+                )
+                -> void;
+            auto declare_function_parameters(
+                function_symbol_environment_ptr const& f_env,
+                ast::function_definition_statement_base_ptr const& s
                 )
                 -> void;
             auto function_returns_value(

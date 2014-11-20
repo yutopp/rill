@@ -50,7 +50,6 @@ namespace rill
             )
             : environment_base( std::move( pp ) )
             , parameter_wrapper_env_id_( parameter_wrapper_env_id )
-            , parent_class_env_id_( environment_id_undefined )
             , return_type_id_( type_id_undefined )
             , base_name_( base_name )
             , decl_attr_( attribute::decl::k_default )
@@ -194,22 +193,6 @@ namespace rill
             decl_attr_ ^= attribute;
         }
 
-        void set_parent_class_env_id( environment_id_t const& parent_class_env_id )
-        {
-            parent_class_env_id_ = parent_class_env_id;
-        }
-
-        auto get_parent_class_env_id() const
-            -> environment_id_t
-        {
-            return parent_class_env_id_;
-        }
-
-        bool is_in_class() const
-        {
-            return parent_class_env_id_ != environment_id_undefined;
-        }
-
         void mark_as_initialize_function()
         {
             is_initializer_function_ = true;
@@ -234,7 +217,7 @@ namespace rill
 
     private:
         environment_id_t parameter_wrapper_env_id_;
-        environment_id_t parent_class_env_id_;
+
 
         // parameter variable environments
         environment_id_list_t parameter_decl_ids_;

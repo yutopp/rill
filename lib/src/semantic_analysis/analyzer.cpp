@@ -1664,9 +1664,7 @@ namespace rill
                         function_def_ast->get_identifier()->get_inner_symbol()->to_native_string()
                         );
 
-                //
-                std::vector<int> solved_template_params_flag( template_ast->parameter_list_.size() );
-
+                // ==========
                 // declare template parameters as variables
                 auto const decl_template_var_envs
                     = declare_template_parameter_variables(
@@ -1706,33 +1704,13 @@ namespace rill
                         );
                 }
 
-                std::vector<type_detail_ptr> presetted_param_types;
-
-                // resolve types of parameters
-                // make function parameter variable decl
-                for( auto const& e : function_def_ast->get_parameter_list() ) {
-                    assert( e.decl_unit.init_unit.type != nullptr || e.decl_unit.init_unit.initializer != nullptr );
-
-                    if ( e.decl_unit.init_unit.type ) { // is parameter variavle type specified ?
-                        resolve_type(
-                            e.decl_unit.init_unit.type,
-                            e.quality,
-                            instanting_f_env,
-                            [&]( type_detail_ptr const& ty_d,
-                                 type const& ty,
-                                 const_class_symbol_environment_ptr const& class_env
-                                )
-                            {
-                                presetted_param_types.push_back( ty_d );
-                            });
-
-                    } else {
-                        // type inferenced by result of evaluated [[default initializer expression]]
-
-                        // TODO: implement type inference
-                        assert( false );
-                    }
-                }
+                //
+                rill_dout << "HogeHogeHogeHoge " << std::endl;
+                std::vector<type_detail_ptr> presetted_param_types
+                    = make_function_parameters_type_details(
+                        instanting_f_env,
+                        function_def_ast
+                        );
 
                 // type decuce!
                 assert( presetted_param_types.size() == arg_types.size() );
@@ -1769,19 +1747,11 @@ namespace rill
 
                 } else {
                     // new instanced function
-
-                    // declare parameter variable(NOT template)
-                    for( std::size_t i=0; i<presetted_param_types.size(); ++i ) {
-                        auto const& e = function_def_ast->get_parameter_list()[i];
-                        auto const& ty_id = presetted_param_types[i]->type_id;
-
-                        regard_variable_is_not_already_defined(
-                            instanting_f_env,
-                            e.decl_unit.name
-                            );
-
-                        instanting_f_env->parameter_variable_construct( e.decl_unit.name, ty_id );
-                    }
+                    declare_function_parameters_from_list(
+                        instanting_f_env,
+                        function_def_ast,
+                        presetted_param_types
+                        );
 
                     //
                     instanting_f_env->change_progress_to_checked();
@@ -2312,18 +2282,20 @@ namespace rill
         }
 
 
-        auto analyzer::declare_function_parameters(
+        auto analyzer::make_function_parameters_type_details(
             function_symbol_environment_ptr const& f_env,
-            ast::function_definition_statement_base_ptr const& s,
-            environment_base_ptr const& parent_env,
-            bool const is_in_class,
-            bool const is_constructor
+            ast::function_definition_statement_base_ptr const& s
             )
-            -> void
+            -> std::vector<type_detail_ptr>
         {
-            if ( is_in_class ) {
-                // TODO: see attribute of function and decide this type
-                // currentry mutable, ref
+            std::vector<type_detail_ptr> tx;
+
+            if ( s->is_class_function() ) {
+                // TODO: fix
+                bool const is_constructor
+                    = s->get_identifier()->get_inner_symbol()->to_native_string() == "ctor";
+
+                // calculate for "this" argument
                 attribute::type_attributes const& this_object_attr
                     = attribute::make_type_attributes(
                         attribute::holder_kind::k_ref,
@@ -2337,54 +2309,112 @@ namespace rill
                         }()
                         );
 
-                // declare "this" at first
+                assert( f_env->is_in_class() );
                 auto const& c_env
                     = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
                         f_env->get_parent_class_env_id()
                         );
                 assert( c_env != nullptr );
 
-                // declare
-                f_env->parameter_variable_construct(
-                    ast::make_identifier( "this" ),
-                    c_env,
-                    this_object_attr
+                // as this
+                tx.emplace_back(
+                    type_detail_pool_->construct(
+                        g_env_->make_type_id( c_env, this_object_attr ),
+                        nullptr,    // unused
+                        nullptr,    // unused
+                        nullptr,    // unused
+                        false,       // xvalue
+                        type_detail::evaluate_mode::k_everytime // TODO: fix
+                        )
                     );
             }
+
+            std::cout << "pyaa" << std::endl;
 
             // make function parameter variable decl
             for( auto const& e : s->get_parameter_list() ) {
                 assert( e.decl_unit.init_unit.type != nullptr || e.decl_unit.init_unit.initializer != nullptr );
 
-                if ( e.decl_unit.init_unit.type ) { // is parameter variavle type specified ?
+                if ( e.decl_unit.init_unit.type ) {
+                    // parameter variavle type is specified
                     resolve_type(
                         e.decl_unit.init_unit.type,
                         e.quality,
-                        parent_env,
+                        f_env,
                         [&]( type_detail_ptr const& ty_d,
                              type const& ty,
                              class_symbol_environment_ptr const& class_env
                             )
                         {
-                            regard_variable_is_not_already_defined(
-                                f_env,
-                                e.decl_unit.name
-                                );
-
-                            // declare
-                            f_env->parameter_variable_construct(
-                                e.decl_unit.name,
-                                ty_d->type_id
-                                );
+                            tx.emplace_back( ty_d );
                         });
 
                 } else {
                     // type inferenced by result of evaluated [[default initializer expression]]
 
                     // TODO: implement type inference
-                    assert( false );
+                    rill_ice( "not implemented" );
                 }
             }
+
+            return tx;
+        }
+
+        auto analyzer::declare_function_parameters_from_list(
+            function_symbol_environment_ptr const& f_env,
+            ast::function_definition_statement_base_ptr const& s,
+            std::vector<type_detail_ptr> const& param_types
+            )
+            -> void
+        {
+            rill_dregion {
+                if ( s->is_class_function() ) {
+                    assert( param_types.size() >= 1 );
+                    assert( param_types.size() - 1 == s->get_parameter_list().size() );
+                } else {
+                    assert( param_types.size() == s->get_parameter_list().size() );
+                }
+            }
+
+            auto const& params = s->get_parameter_list();
+
+            for( std::size_t i=0, pi=0; i<param_types.size(); ++i ) {
+                auto const& ty_id = param_types.at( i )->type_id;
+
+                if ( i == 0 && s->is_class_function() ) {
+                    // special treatment for "this"
+                    f_env->parameter_variable_construct(
+                        ast::make_identifier( "this" ),
+                        ty_id
+                        );
+
+                    continue;
+                }
+
+                auto const& e = params[pi];
+
+                regard_variable_is_not_already_defined(
+                    f_env,
+                    e.decl_unit.name
+                    );
+                f_env->parameter_variable_construct( e.decl_unit.name, ty_id );
+
+                ++pi;
+            }
+        }
+
+        auto analyzer::declare_function_parameters(
+            function_symbol_environment_ptr const& f_env,
+            ast::function_definition_statement_base_ptr const& s
+            )
+            -> void
+        {
+            auto const& param_tyx = make_function_parameters_type_details(
+                f_env,
+                s
+                );
+
+            declare_function_parameters_from_list( f_env, s, param_tyx );
         }
 
 
@@ -2521,7 +2551,6 @@ namespace rill
 
             return nullptr;
         }
-
 
 
         auto analyzer::select_member_element(
@@ -2661,6 +2690,7 @@ namespace rill
             return nullptr;
         }
 
+
         auto analyzer::call_function(
             type_detail_ptr const& f_type_detail,
             std::vector<type_detail_ptr> const& argument_type_details,
@@ -2722,7 +2752,6 @@ namespace rill
                     )
                 );
         }
-
 
 
         auto analyzer::get_filepath(

@@ -50,7 +50,6 @@ def main(): int
     p( I(10) + 3 );
     p("expect = 13");
 
-
     return 0;
 }
 

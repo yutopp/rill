@@ -410,7 +410,7 @@ namespace rill
             rill_dout << "$ uncheckd" << std::endl;
 
             //
-            declare_function_parameters( f_env, s, parent_env );
+            declare_function_parameters( f_env, s );
 
             // return type
             if ( s->return_type_ ) {
@@ -479,7 +479,7 @@ namespace rill
                 = s->get_identifier()->get_inner_symbol()->to_native_string() == "ctor";
 
             //
-            declare_function_parameters( f_env, s, parent_env, true, is_constructor );
+            declare_function_parameters( f_env, s );
 
             if ( is_constructor ) {
                 // constructor
@@ -623,7 +623,7 @@ namespace rill
 
             // construct function environment in progress phase
 
-            declare_function_parameters( f_env, s, parent_env );
+            declare_function_parameters( f_env, s );
 
             //
             // Return type
