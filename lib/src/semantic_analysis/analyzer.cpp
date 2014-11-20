@@ -1409,13 +1409,43 @@ namespace rill
             } else {
                 // try to type conversion
                 auto const& param_type = g_env_->get_type_at( param_type_id );
+                auto const& param_c_env
+                    = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
+                        param_type.class_env_id
+                        );
+
                 auto const& arg_type = g_env_->get_type_at( arg_type_id );
                 auto const& arg_c_env
                     = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
                         arg_type.class_env_id
                         );
 
-                if ( param_type.class_env_id == arg_type.class_env_id ) {
+                // special treatment for pointer
+                if ( param_c_env->is_pointer() && arg_c_env->is_pointer() ) {
+                    // check the qual of pointer "value"
+                    if ( qualifier_conversion(
+                             param_type.attributes,
+                             arg_type.attributes,
+                             arg_c_env
+                             )
+                        )
+                    {
+                        if( pointer_qualifier_conversion(
+                                param_type.attributes,
+                                param_c_env->get_pointer_detail()->inner_type_id,
+                                arg_type.attributes,
+                                arg_c_env->get_pointer_detail()->inner_type_id
+                                )
+                            )
+                        {
+                            return std::make_tuple(
+                                function_match_level::k_qualifier_conv_match,
+                                nullptr
+                                );
+                        }
+                    }
+
+                } else if ( param_type.class_env_id == arg_type.class_env_id ) {
                     // same class, so check quarity conversion
                     if ( qualifier_conversion(
                              param_type.attributes,
@@ -1429,49 +1459,24 @@ namespace rill
                             function_match_level::k_qualifier_conv_match,
                             nullptr
                             );
-
-                    } else {
-                        // unmatched
-                        return std::make_tuple(
-                            function_match_level::k_no_match,
-                            nullptr
-                            );
                     }
 
                 } else {
                     // TODO: implement implicit conversion match(k_implicit_conv_match)
                     // TODO: call constructor
-                    auto const& param_c_env
-                        = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
-                            param_type.class_env_id
-                            );
 
-                    // special treatment for pointer
-                    if ( param_c_env->is_pointer() && arg_c_env->is_pointer() ) {
-                        // check the qual of pointer "value"
-                        if ( qualifier_conversion( param_type.attributes, arg_type.attributes, arg_c_env ) ) {
-                            if( pointer_qualifier_conversion(
-                                    param_type.attributes,
-                                    param_c_env->get_pointer_detail()->inner_type_id,
-                                    arg_type.attributes,
-                                    arg_c_env->get_pointer_detail()->inner_type_id
-                                    ) )
-                            {
-                                return std::make_tuple(
-                                    function_match_level::k_qualifier_conv_match,
-                                    nullptr
-                                    );
-                            }
-                        }
-                    }
+                    // trough
+
 
                     // currentry failed immediately
-                    return std::make_tuple(
-                        function_match_level::k_no_match,
-                        nullptr
-                        );
+
                 }
             }
+
+            return std::make_tuple(
+                function_match_level::k_no_match,
+                nullptr
+                );
         }
 
         // if return value is nullptr, failed to select the function
@@ -2773,6 +2778,60 @@ namespace rill
                     true
                     );
             }
+        }
+
+        auto analyzer::make_pointer_type(
+            type_id_t const& type_id,
+            ast::ast_base_ptr const& connected_node,
+            environment_base_ptr const& parent_env
+            )
+            -> type_detail_ptr
+        {
+            auto ty = g_env_->get_type_at( type_id ); // make copy
+            attribute::detail::set_type_attribute( ty.attributes, attribute::holder_kind::k_val );
+            auto const& element_type_id = g_env_->make_type_id(
+                ty.class_env_id,
+                ty.attributes
+                );
+
+            auto const& inner_c_env
+                = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
+                    ty.class_env_id
+                    );
+
+            ast::expression_list args = {
+                std::make_shared<ast::evaluated_type_expression>( element_type_id )
+            };
+
+            auto const& instance
+                = ast::helper::make_id_expression(
+                    std::make_shared<ast::term_expression>(
+                        std::make_shared<ast::template_instance_value>(
+                            "ptr", std::move( args ), true
+                            )
+                        )
+                    );
+
+            return resolve_type(
+                instance,
+                attribute::holder_kind::k_val,
+                parent_env->root_env(),
+                [&]( type_detail_ptr const& ty_d,
+                     type const& ty,
+                     class_symbol_environment_ptr const& class_env
+                    ) {
+                    assert( class_env->is_pointer() );
+
+                    class_env->connect_from_ast( connected_node );
+
+                    // propagate
+                    assert( ty.attributes.modifiability != attribute::modifiability_kind::k_none );
+                    if ( ty.attributes.modifiability != attribute::modifiability_kind::k_immutable ) {
+                        if ( !inner_c_env->is_immutable() ) {
+                            class_env->set_traits_flag( class_traits_kind::k_has_non_immutable_alias, true );
+                        }
+                    }
+                } );
         }
 
     } // namespace semantic_analysis

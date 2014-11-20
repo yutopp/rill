@@ -454,6 +454,13 @@ namespace rill
                 )
                 -> void;
 
+            auto make_pointer_type(
+                type_id_t const& type_id,
+                ast::ast_base_ptr const& connected_node,
+                environment_base_ptr const& parent_env
+                )
+                -> type_detail_ptr;
+
         public:
             inline auto semantic_error(
                 message_code const& code,

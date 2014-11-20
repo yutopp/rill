@@ -134,33 +134,7 @@ namespace rill
                         attribute::lifetime_kind::k_static
                         )
                     );
-            ast::expression_list args = {
-                std::make_shared<ast::evaluated_type_expression>( ty_id )
-            };
-
-            auto const& instance
-                = ast::helper::make_id_expression(
-                    std::make_shared<ast::term_expression>(
-                        std::make_shared<ast::template_instance_value>(
-                            "ptr", std::move( args ), true
-                            )
-                        )
-                    );
-
-            auto const& ty_d
-                = resolve_type(
-                    instance,
-                    attribute::holder_kind::k_val,
-                    parent_env->root_env(),
-                    [&]( type_detail_ptr const& ty_d,
-                         type const& ty,
-                         class_symbol_environment_ptr const& class_env
-                        ) {
-                        assert( class_env->is_pointer() );
-
-                        // connect fron LITERAL VALUE
-                        class_env->connect_from_ast( v );
-                    } );
+            auto const& ty_d = make_pointer_type( ty_id, v, parent_env );
 
             // TODO: wrap pointer by string class
 

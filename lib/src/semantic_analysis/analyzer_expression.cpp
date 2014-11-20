@@ -413,40 +413,11 @@ namespace rill
                 );
             if ( ty_d == nullptr ) {
                 // op & was not found, use intrinsic addressof
-                auto ty = g_env_->get_type_at( argument_type_details[0]->type_id ); // make copy
-                attribute::detail::set_type_attribute( ty.attributes, attribute::holder_kind::k_val );
-                auto const& element_type_id = g_env_->make_type_id(
-                    ty.class_env_id,
-                    ty.attributes
+                auto const& ptr_ty_d = make_pointer_type(
+                    argument_type_details[0]->type_id,
+                    e,
+                    parent_env
                     );
-
-                ast::expression_list args = {
-                    std::make_shared<ast::evaluated_type_expression>( element_type_id )
-                };
-
-                auto const& instance
-                    = ast::helper::make_id_expression(
-                        std::make_shared<ast::term_expression>(
-                            std::make_shared<ast::template_instance_value>(
-                                "ptr", std::move( args ), true
-                                )
-                            )
-                        );
-
-                auto const& ptr_ty_d
-                    = resolve_type(
-                        instance,
-                        attribute::holder_kind::k_val,
-                        parent_env->root_env(),
-                        [&]( type_detail_ptr const& ty_d,
-                             type const& ty,
-                             class_symbol_environment_ptr const& class_env
-                            ) {
-                            assert( class_env->is_pointer() );
-
-                            // connect fron LITERAL VALUE
-                            class_env->connect_from_ast( e );
-                        } );
 
                 //
                 return bind_type( e, ptr_ty_d );
