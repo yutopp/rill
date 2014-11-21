@@ -53,9 +53,6 @@ macro( run_test test_target_name files libs )
   add_dependencies( test ${test_target_name}_runtest )
 endmacro()
 
-
-############################################################
-############################################################
 #
 # Add test suites
 #

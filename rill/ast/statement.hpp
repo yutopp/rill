@@ -11,15 +11,11 @@
 #include <vector>
 #include <string>
 
-#include <boost/optional.hpp>
 #include <boost/filesystem/path.hpp>
-
-#include "../environment/environment_fwd.hpp"
-#include "../type/attribute.hpp"
-#include "../decl/attribute.hpp"
 
 #include "ast_base.hpp"
 #include "statement_fwd.hpp"
+#include "elements.hpp"
 
 #include "value.hpp"
 #include "expression.hpp"
@@ -92,98 +88,6 @@ namespace rill
         RILL_AST_END
 
 
-        // namespace element {
-        //
-        struct value_initializer_unit
-        {
-            value_initializer_unit() = default;
-
-            value_initializer_unit(
-                expression_ptr const& ep
-                )
-                : initializer( ep )
-                , type( nullptr )
-            {}
-
-            value_initializer_unit(
-                id_expression_ptr const& tp,
-                boost::optional<expression_ptr> const& ep
-                )
-                : initializer( ep != boost::none ? *ep : nullptr )
-                , type( tp )
-            {}
-
-            value_initializer_unit( value_initializer_unit const& rhs )
-                : initializer( clone( rhs.initializer ) )
-                , type( clone( rhs.type ) )
-            {}
-            value_initializer_unit& operator=( value_initializer_unit const& ) =default;
-
-            value_initializer_unit( value_initializer_unit&& rhs )
-                : initializer( std::move( rhs.initializer ) )
-                , type( std::move( rhs.type ) )
-            {}
-            value_initializer_unit& operator=( value_initializer_unit&& ) =default;
-
-            expression_ptr initializer;
-            id_expression_ptr type;
-        };
-
-
-        struct variable_declaration_unit
-        {
-            variable_declaration_unit() = default;
-
-            variable_declaration_unit(
-                identifier_value_base_ptr const& n,
-                value_initializer_unit const& i
-                )
-                : name( n )
-                , init_unit( i )
-            {}
-
-            template<typename T>
-            variable_declaration_unit(
-                boost::optional<T> const& n,
-                value_initializer_unit const& i
-                )
-                : variable_declaration_unit(
-                    n != boost::none ? *n : nullptr,
-                    i
-                    )
-            {}
-
-            variable_declaration_unit( variable_declaration_unit const& rhs )
-                : name( clone( rhs.name ) )
-                , init_unit( rhs.init_unit )
-            {}
-            variable_declaration_unit& operator=( variable_declaration_unit const& ) =default;
-
-            variable_declaration_unit( variable_declaration_unit&& rhs )
-                : name( std::move( rhs.name ) )
-                , init_unit( std::move( rhs.init_unit ) )
-            {}
-            variable_declaration_unit& operator=( variable_declaration_unit&& ) =default;
-
-            identifier_value_base_ptr name;
-            value_initializer_unit init_unit;
-        };
-
-
-        typedef std::vector<variable_declaration_unit> variable_declaration_unit_container_t;
-
-
-        struct variable_declaration
-        {
-            attribute::holder_kind quality;        // Ex. val | ref | ...
-            variable_declaration_unit decl_unit;
-        };
-
-        typedef std::vector<variable_declaration> parameter_list;
-
-        // } // namespace element
-
-
         RILL_AST_BEGIN(
             expression_statement, statement,
             (( expression_ptr, expression_ ))
@@ -199,7 +103,6 @@ namespace rill
             empty_statement, statement
             )
         RILL_AST_END
-
 
 
         RILL_AST_BEGIN(

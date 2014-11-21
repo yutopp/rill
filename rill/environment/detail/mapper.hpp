@@ -88,6 +88,7 @@ namespace rill
         auto get( Id const& env_id ) const
             -> value_type
         {
+            rill_dout << "env id-> " << env_id << std::endl;
             return ( map_.find( env_id ) != map_.cend() ) ? map_.at( env_id ) : nullptr;
         }
 
@@ -119,7 +120,7 @@ namespace rill
         {
             assert( ast_ptr != nullptr );
 
-            rill_dout << "tid ptr-> " << ast_ptr << std::endl;
+            rill_dout << "ast ptr-> " << ast_ptr << std::endl;
             return ( map_.find( ast_ptr->get_id() ) != map_.cend() )
                 ? ( map_.at( ast_ptr->get_id() ) )
                 : type_id_undefined;

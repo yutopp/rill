@@ -1,6 +1,6 @@
 def main(): int
 {
-    val f = ->;
+    val f = -> (a: int) => a * a;
 
     return 0;
 }

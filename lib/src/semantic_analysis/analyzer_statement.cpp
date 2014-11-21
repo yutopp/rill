@@ -54,13 +54,14 @@ namespace rill
 
             //
             auto const& module_name = make_module_name( import_base, s );
-            auto module_env = g_env_->find_module( module_name );
 
+            auto module_env = g_env_->find_module( module_name );
             module_envs_.push( module_env );
 
             if ( module_name.empty() || module_name == "basic_types" ) {
                 builtin_class_envs_cache_
                     = std::make_shared<builtin_class_envs_cache>( module_env );
+
             } else {
                 // all modules(except 'basic_types') must import 'basic_types' module.
                 auto const i_decl = ast::import_decl_unit{
@@ -70,6 +71,7 @@ namespace rill
             }
 
             //
+            assert( s->program != nullptr );
             dispatch( s->program, module_env );
         }
 

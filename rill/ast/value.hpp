@@ -11,16 +11,9 @@
 #include <vector>
 #include <string>
 
-#include <boost/fusion/include/adapt_struct.hpp> /* for boost spirit perser */
-
-//#include "../environment/environment_fwd.hpp"
-
 #include "ast_base.hpp"
 #include "value_fwd.hpp"
-// expression_fwd is required to implement template identifier...
-#include "expression_fwd.hpp"
-
-
+#include "elements.hpp"
 
 
 namespace rill
@@ -34,14 +27,7 @@ namespace rill
         //
         // ----------------------------------------------------------------------
         // ----------------------------------------------------------------------
-
-        //enum struct value_spec
-        //{
-        //    constatnt = 0
-        //};
-
         typedef std::string     native_string_t;
-
 
 
         RILL_AST_GROUP_BEGIN( value )
@@ -56,7 +42,6 @@ namespace rill
                 return false;
             }
         RILL_AST_GROUP_END
-
 
 
         //

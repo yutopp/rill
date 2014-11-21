@@ -244,7 +244,7 @@ namespace rill
         {
             // append
             for( auto&& p : options.system_import_path ) {
-                system_import_path_.push_back( p );
+                system_import_path_.push_back( fs::absolute( p ) );
             }
         }
 
@@ -2188,20 +2188,20 @@ namespace rill
             -> boost::optional<std::tuple<fs::path, fs::path>>
         {
             // TODO: support structured module path
-            auto const load_filepath = fs::path( decl.name + ".rill" );
+            auto const& load_filepath = fs::path( decl.name + ".rill" );
 
             // search from system libraries path
             for( auto&& lib_path : system_import_path_ ) {
                 auto path = lib_path/load_filepath;
                 if ( fs::exists( path ) ) {
-                    return std::make_tuple( lib_path, path );
+                    return std::make_tuple( lib_path, std::move( path ) );
                 }
             }
 
             // search from working dir
             auto path = working_dirs_.top()/load_filepath;
             if ( fs::exists( path ) ) {
-                return std::make_tuple( working_dirs_.top(), path );
+                return std::make_tuple( working_dirs_.top(), std::move( path ) );
             }
 
             // -- Error
@@ -2761,7 +2761,9 @@ namespace rill
             -> boost::filesystem::path
         {
             auto const& rel_env
-                = g_env_->get_related_env_by_ast_ptr( ast );
+                = ast != nullptr
+                ? g_env_->get_related_env_by_ast_ptr( ast )
+                : nullptr;
 
             if ( rel_env != nullptr ) {
                 auto const& root

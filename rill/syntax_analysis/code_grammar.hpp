@@ -115,23 +115,53 @@ namespace rill
                     ]
             )
 
-            RN( function_body_block, ast::statements_ptr,
-                ( x3::lit( "{" ) >> t.program_body_statements >> x3::lit( "}" ) )[
-                    helper::assign()
-                    ]
-                | ( x3::lit( "=>" ) >> t.expression >> t.statement_termination )[
+            R( function_body_statements_list, ast::element::statement_list,
+                ( x3::lit( "{" ) >> t.program_body_statements_list >> x3::lit( "}" ) )
+                | t.function_online_body_for_normal
+            )
+
+            R( function_body_statements_list_for_lambda, ast::element::statement_list,
+                ( x3::lit( "{" ) >> t.program_body_statements_list >> x3::lit( "}" ) )
+                | t.function_online_body_for_lambda
+            )
+
+            R( function_online_body_for_normal, ast::element::statement_list,
+                ( x3::lit( "=>" ) >> t.expression >> t.statement_termination )[
                     helper::fun(
                         []( auto&&... args ) {
-                            return std::make_shared<ast::statements>(
+                            return ast::element::statement_list{
                                 std::make_shared<ast::block_statement>(
                                     std::make_shared<ast::return_statement>(
                                         std::forward<decltype(args)>( args )...
                                         )
                                     )
-                                );
+                                };
                         },
                         ph::_1
                         )
+                    ]
+            )
+
+            R( function_online_body_for_lambda, ast::element::statement_list,
+                ( x3::lit( "=>" ) >> t.expression )[
+                    helper::fun(
+                        []( auto&&... args ) {
+                            return ast::element::statement_list{
+                                std::make_shared<ast::block_statement>(
+                                    std::make_shared<ast::return_statement>(
+                                        std::forward<decltype(args)>( args )...
+                                        )
+                                    )
+                                };
+                        },
+                        ph::_1
+                        )
+                    ]
+            )
+
+            RN( function_body_block, ast::statements_ptr,
+                t.function_body_statements_list[
+                    helper::make_node_ptr<ast::statements>( ph::_1 )
                     ]
             )
 
@@ -148,8 +178,12 @@ namespace rill
                 )
             )
 
+            R( program_body_statements_list, ast::element::statement_list,
+                *t.program_body_statement
+            )
+
             RN( program_body_statements, ast::statements_ptr,
-                ( *t.program_body_statement )[
+                t.program_body_statements_list[
                     helper::make_node_ptr<ast::statements>( ph::_1 )
                     ]
             )
@@ -695,13 +729,23 @@ namespace rill
             // ====================================================================================================
             RN( lambda_expression, ast::lambda_expression_ptr,
                 ( t.lambda_introducer
-                )[helper::make_node_ptr<ast::lambda_expression>()]
+                > t.parameter_variable_declaration_list
+                > t.function_body_statements_list_for_lambda
+                )[
+                    helper::make_node_ptr<ast::lambda_expression>( ph::_1, ph::_2 )
+                    ]
             )
 
             R( lambda_introducer, x3::unused_type,
                 x3::lit( "->" )
             )
 
+            /*
+t.parameter_variable_declaration_list
+                > t.decl_attribute_list
+                > -t.type_specifier
+                > t.function_body_block
+            */
 
             // ====================================================================================================
             // ====================================================================================================

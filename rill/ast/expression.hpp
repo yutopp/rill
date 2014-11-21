@@ -18,6 +18,8 @@
 
 #include "ast_base.hpp"
 #include "expression_fwd.hpp"
+#include "statement_fwd.hpp"
+#include "elements.hpp"
 
 #include "value.hpp"
 
@@ -162,9 +164,17 @@ namespace rill
 
         RILL_AST_BEGIN(
             lambda_expression, expression,
-            (( bool, dummy ))
+            (( parameter_list, parameters ))
+            (( element::statement_list, statements ))
             )
         public:
+            lambda_expression(
+                parameter_list const& pl,
+                element::statement_list const& ss
+                )
+                : parameters( pl )
+                , statements( ss )
+            {}
         RILL_AST_END
 
 

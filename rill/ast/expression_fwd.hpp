@@ -8,17 +8,5 @@
 
 #pragma once
 
-#include <vector>
-
 #include "detail/base_type.hpp"
 #include "expression_def.ipp"
-
-
-namespace rill
-{
-    namespace ast
-    {
-        typedef std::vector<expression_ptr> expression_list;
-
-    } // namespace ast
-} // namespace rill
