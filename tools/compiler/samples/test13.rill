@@ -1,6 +1,8 @@
 def main(): int
 {
     val f = -> (a: int) => a * a;
-    p(f(42));
+    p(f(9));
+    p("expect => 81");
+
     return 0;
 }

@@ -402,8 +402,22 @@ namespace rill
                         boost::none,
                         std::make_shared<ast::statements>(
                             ast::element::statement_list{
-
+                                // TODO: add capture
                             }
+                            )
+                        );
+
+                // operator call for lambda object
+                auto const& lambda_op_call_id
+                    = ast::make_identifier( "%op_()" );
+                auto lambda_op_call_def
+                    = std::make_shared<ast::class_function_definition_statement>(
+                        lambda_op_call_id,
+                        e->parameters,
+                        attribute::decl::k_default,
+                        boost::none,
+                        std::make_shared<ast::statements>(
+                            e->statements
                             )
                         );
 
@@ -415,7 +429,8 @@ namespace rill
                         attribute::decl::k_default,
                         std::make_shared<ast::statements>(
                             ast::element::statement_list{
-                                std::move( lambda_ctor_def )
+                                std::move( lambda_ctor_def ),
+                                std::move( lambda_op_call_def )
                             }
                             )
                         );
