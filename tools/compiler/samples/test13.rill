@@ -1,6 +1,6 @@
 def main(): int
 {
     val f = -> (a: int) => a * a;
-
+    p(f(42));
     return 0;
 }

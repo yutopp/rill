@@ -101,7 +101,7 @@ namespace rill
     class ast_to_type_id_mapper
     {
     public:
-        typedef ast::ast_id_t       key_type;
+        typedef ast::ast_base_ptr   key_type;
         typedef type_id_t           value_type;
 
     public:
@@ -109,9 +109,8 @@ namespace rill
         auto add( SmartPtr const& ast_ptr, value_type const& tid )
             -> void
         {
-            map_.emplace( ast_ptr->get_id(), tid );
-            //map_[ast_ptr.get()] = tid;
-            assert( map_.at( ast_ptr->get_id() ) == tid );
+            map_.emplace( ast_ptr, tid );
+            assert( map_.at( ast_ptr ) == tid && "maybe, duplicate add" );
         }
 
         template<typename SmartPtr>
@@ -121,9 +120,8 @@ namespace rill
             assert( ast_ptr != nullptr );
 
             rill_dout << "ast ptr-> " << ast_ptr << std::endl;
-            return ( map_.find( ast_ptr->get_id() ) != map_.cend() )
-                ? ( map_.at( ast_ptr->get_id() ) )
-                : type_id_undefined;
+            auto it = map_.find( ast_ptr );
+            return ( it != map_.cend() ) ? ( it->second ) : type_id_undefined;
         }
 
     private:

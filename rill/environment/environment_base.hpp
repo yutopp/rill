@@ -517,31 +517,6 @@ namespace rill
                 );
         }
 
-        inline auto is_exist( native_string_type const& name ) const
-            -> boost::optional<const_environment_unit_ptr>
-        {
-            auto it = inner_envs_.find( name );
-            if ( it == inner_envs_.cend() ) {
-                return boost::none;
-            }
-
-            return boost::make_optional(
-                std::static_pointer_cast<environment_unit const>(
-                    it->second
-                    )
-                );
-        }
-
-        inline auto is_exist( ast::identifier_value_base_ptr const& name )
-        {
-            return is_exist( name->get_inner_symbol()->to_native_string() );
-        }
-
-        inline auto is_exist( ast::const_identifier_value_base_ptr const& name ) const
-        {
-            return is_exist( name->get_inner_symbol()->to_native_string() );
-        }
-
     public:
         // closed means environment has at least one flow always jumps to elsewhare.
         inline auto is_closed() const
@@ -571,6 +546,8 @@ namespace rill
     inline auto cast_to( std::shared_ptr<Env> const& p )
         -> std::shared_ptr<To>
     {
+        if ( p == nullptr ) return nullptr;
+
         return std::static_pointer_cast<To>(
             cast_to_base( p )->checked_instance( To::KindValue )
             );
@@ -580,6 +557,8 @@ namespace rill
     inline auto cast_to( std::shared_ptr<Env const> const& p )
         -> std::shared_ptr<To const>
     {
+        if ( p == nullptr ) return nullptr;
+
         return std::static_pointer_cast<To const>(
             cast_to_base( p )->checked_instance( To::KindValue )
             );

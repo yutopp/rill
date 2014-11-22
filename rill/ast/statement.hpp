@@ -43,10 +43,6 @@ namespace rill
             statements( element::statement_list const& s )
                 : statements_( s )
             {}
-
-            statements( statement_ptr const& s )
-                : statements_( 1, s ) // initialize with one element
-            {}
         RILL_AST_END
 
 
@@ -83,7 +79,7 @@ namespace rill
             {}
 
             explicit block_statement( statement_ptr const& s )
-                : statements_( std::make_shared<statements>( s ) )
+                : statements_( std::make_shared<statements>( element::statement_list{ s } ) )
             {}
         RILL_AST_END
 

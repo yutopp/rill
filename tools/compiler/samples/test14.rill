@@ -6,6 +6,8 @@ def main(): int
     val v2 = v.f( 2 );
     p(v2);
 
+    p(v(4));
+
     return 0;
 }
 
@@ -17,5 +19,10 @@ class F
     def f(t: T): T
     {
         return t;
+    }
+
+    def op ()(a: int): int
+    {
+        return a * a;
     }
 }

@@ -134,6 +134,7 @@ int build( settings const& st )
 int main( int argc, char* argv[] )
 {
     ::signal( SIGSEGV, sighandler );
+    ::signal( SIGABRT, sighandler );
 
     namespace po = boost::program_options;
 

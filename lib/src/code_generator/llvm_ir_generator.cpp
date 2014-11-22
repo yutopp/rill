@@ -943,12 +943,9 @@ namespace rill
                     return value;
 
                 } else if ( element_env->get_symbol_kind() == kind::type_value::e_multi_set ) {
-                    // TODO: see representation kind
-
                     // class function invocation
                     rill_dout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
                     rill_dout << "class function invocation" << std::endl;
-
 
                     // eval reciever
                     llvm::Value* const lhs = dispatch( e->reciever_, parent_env );
@@ -967,10 +964,10 @@ namespace rill
                         );
 
                     //
-                    llvm::Value* const rhs = dispatch( e->selector_id_, parent_env );
+                    //llvm::Value* const rhs = dispatch( e->selector_id_, parent_env );
+                    //return rhs;
 
-                    // eval reciever
-                    return rhs;
+                    return nullptr;
 
                 } else {
                     rill_ice( "" );
@@ -1074,12 +1071,27 @@ namespace rill
                 = cast_to<function_symbol_environment const>( g_env_->get_related_env_by_ast_ptr( e ) );
             assert( f_env != nullptr );
 
-            // evaluate lhs(reciever)
-            // if reciever is exist, valid value and type will be stacked
-            dispatch( e->reciever_, parent_env );
-
-            // ========================================
             rill_dout << "current : " << f_env->get_mangled_name() << std::endl;
+
+            // evaluate lhs(reciever)
+            // if reciever_value is exist, call 'op ()'
+            auto reciever_value
+                = dispatch( e->reciever_, parent_env );
+            if ( reciever_value != nullptr ) {
+                auto const& tid = g_env_->get_related_type_id_from_ast_ptr( e->reciever_ );
+                if ( tid != type_id_undefined ) {
+                    // op ()
+                    // push temporary value
+                    rill_dout << "OPERATOR ()" << std::endl;
+
+                    context_->temporary_reciever_stack_.push(
+                        std::make_tuple(
+                            g_env_->get_related_type_id_from_ast_ptr( e->reciever_ ),
+                            reciever_value
+                            )
+                        );
+                }
+            }
 
             return generate_function_call(
                 f_env,
@@ -1128,6 +1140,12 @@ namespace rill
                     rill_ice( "not supported" );
                 }
             }
+        }
+
+
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::lambda_expression, e, parent_env )
+        {
+            return dispatch( e->call_expr, parent_env );
         }
 
 

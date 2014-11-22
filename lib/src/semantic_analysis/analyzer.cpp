@@ -2518,6 +2518,8 @@ namespace rill
             )
             -> type_detail_ptr
         {
+            rill_dout << "select member" << std::endl;
+            assert( argument_type_details.size() >= 1 && "an argument for 'this' must be placed at(0)" );
             // solve
             auto callee_function_type_detail
                 = select_member_element(
@@ -2530,6 +2532,7 @@ namespace rill
                 return nullptr;
             }
 
+            rill_dout << "call function" << std::endl;
             //
             if ( is_nontype_id( callee_function_type_detail->type_id ) ) {
                 // reciever must be function
@@ -2551,6 +2554,98 @@ namespace rill
             }
 
             return nullptr;
+        }
+
+
+        auto analyzer::call_constructor(
+            ast::call_expression_ptr const& e,
+            std::vector<type_detail_ptr> const& argument_type_details,
+            environment_base_ptr const& parent_env
+            )
+            -> type_detail_ptr
+        {
+            type_detail_ptr b_ty_d = nullptr;
+
+            resolve_type(
+                ast::helper::make_id_expression( e->reciever_ ),
+                attribute::holder_kind::k_val,     // TODO: fix
+                parent_env,
+                [&]( type_detail_ptr const& return_ty_d,
+                     type const& ty,
+                     class_symbol_environment_ptr const& class_env
+                    ) {
+                    rill_dout << "CONSTRUCTING type >> " << class_env->get_base_name() << std::endl;
+
+                    // find constructor
+                    auto const& multiset_env
+                        = cast_to<multiple_set_environment>( class_env->find_on_env( "ctor" ) );
+                    if ( multiset_env == nullptr ) {
+                        rill_ice( "There are no ctor in class" );
+                    }
+
+                    assert( multiset_env->get_representation_kind() == kind::type_value::e_function );
+
+                    // add implicit this parameter
+                    std::vector<type_detail_ptr> argument_type_details_with_this(
+                        argument_type_details.size() + 1
+                        );
+                    argument_type_details_with_this[0]
+                        = type_detail_factory_->change_attributes(
+                            return_ty_d,
+                            attribute::modifiability_kind::k_mutable
+                            );
+                    std::copy(
+                        argument_type_details.cbegin(),
+                        argument_type_details.cend(),
+                        argument_type_details_with_this.begin() + 1
+                        );
+
+                    auto const& function_env
+                        = solve_function_overload(
+                            multiset_env,                   // overload set
+                            argument_type_details_with_this,// type detailes of arguments
+                            nullptr,                        // template arguments
+                            e,
+                            class_env
+                            );
+                    assert( function_env != nullptr );
+                    function_env->connect_from_ast( e );
+
+                    // TODO: fix
+                    function_env->mark_as_initialize_function();
+
+                    auto const eval_mode = [&]() {
+                        if ( function_env->has_attribute( attribute::decl::k_onlymeta ) ) {
+                            return type_detail::evaluate_mode::k_only_compiletime;
+                        } else {
+                            return type_detail::evaluate_mode::k_everytime;
+                        }
+                    }();
+
+                    b_ty_d = type_detail_pool_->construct(
+                        return_ty_d->type_id,
+                        function_env,
+                        nullptr,    // nullptr
+                        nullptr,    // nullptr
+                        true,
+                        eval_mode
+                        );
+
+                    // substitute expression
+                    auto substituted_ast = std::static_pointer_cast<ast::expression>(
+                        std::make_shared<ast::evaluated_type_expression>(
+                            return_ty_d->type_id
+                            )
+                        );
+
+                    substituted_ast->line = e->reciever_->line;
+                    substituted_ast->column = e->reciever_->column;
+
+                    e->reciever_.swap( substituted_ast );
+                });
+
+            assert( b_ty_d != nullptr );
+            return bind_type( e, b_ty_d );
         }
 
 

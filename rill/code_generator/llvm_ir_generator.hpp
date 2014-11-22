@@ -78,6 +78,7 @@ namespace rill
             RILL_VISITOR_READONLY_OP_DECL( ast::id_expression );
             RILL_VISITOR_READONLY_OP_DECL( ast::dereference_expression );
             RILL_VISITOR_READONLY_OP_DECL( ast::addressof_expression );
+            RILL_VISITOR_READONLY_OP_DECL( ast::lambda_expression );
             RILL_VISITOR_READONLY_OP_DECL( ast::term_expression );
             RILL_VISITOR_READONLY_OP_DECL( ast::evaluated_type_expression );
 

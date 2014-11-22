@@ -25,6 +25,11 @@ namespace rill
 {
     enum class class_traits_kind : std::size_t
     {
+        k_has_non_trivial_ctor,
+
+        k_default_ctor_defaulted,
+        k_default_ctor_deleted,
+
         k_has_non_trivial_copy_ctor,
         k_has_non_trivial_move_ctor,
         k_has_non_trivial_copy_assign,

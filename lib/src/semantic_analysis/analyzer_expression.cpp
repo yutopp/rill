@@ -23,19 +23,6 @@ namespace rill
 {
     namespace semantic_analysis
     {
-        struct to_type_id_t
-        {
-            typedef type_id_t result_type;
-
-            template<typename T>
-            auto operator()(T const& c) const
-                -> result_type
-            {
-                return c->type_id;
-            }
-        };
-
-
         //
         RILL_VISITOR_OP( analyzer, ast::binary_operator_expression, e, parent_env )
         {
@@ -95,7 +82,6 @@ namespace rill
 
             return ty_d;
         }
-
 
 
         //
@@ -173,7 +159,6 @@ namespace rill
         }
 
 
-
         //
         // check forms like "reciever.element"
         //
@@ -226,14 +211,11 @@ namespace rill
         }
 
 
-
         //
         //
         // function call expression
         RILL_VISITOR_OP( analyzer, ast::call_expression, e, parent_env )
         {
-            using namespace boost::adaptors;
-
             rill_dout << "call_expr" << std::endl;
 
             // ========================================
@@ -278,87 +260,47 @@ namespace rill
             } else {
                 auto const& ty = g_env_->get_type_at( reciever_type_detail->type_id );
                 auto const& c_env = std::static_pointer_cast<class_symbol_environment const>(
-                    g_env_->get_env_at_as_strong_ref( ty.class_env_id)
+                    g_env_->get_env_at_as_strong_ref( ty.class_env_id )
                     );
 
                 // TODO: fix
                 if ( c_env->get_base_name() == "type" ) {
                     // constructor
-
-                    type_detail_ptr b_ty_d = nullptr;
-
-                    resolve_type(
-                        ast::helper::make_id_expression( e->reciever_ ),
-                        attribute::holder_kind::k_val,     // TODO: fix
-                        parent_env,
-                        [&]( type_detail_ptr const& return_ty_d,
-                             type const& ty,
-                             class_symbol_environment_ptr const& class_env
-                            ) {
-                            rill_dout << "CONSTRUCTING type >> " << class_env->get_base_name() << std::endl;
-
-                            // find constructor
-                            auto const& multiset_env = cast_to<multiple_set_environment>( class_env->find_on_env( "ctor" ) );
-                            assert( multiset_env->get_representation_kind() == kind::type_value::e_function );
-
-                            // add implicit this parameter
-                            std::vector<type_detail_ptr> argument_type_details_with_this( argument_type_details.size() + 1 );
-                            argument_type_details_with_this[0]
-                                = type_detail_factory_->change_attributes( return_ty_d, attribute::modifiability_kind::k_mutable );
-                            std::copy(
-                                argument_type_details.cbegin(),
-                                argument_type_details.cend(),
-                                argument_type_details_with_this.begin() + 1
-                                );
-
-                            auto const& function_env
-                                = solve_function_overload(
-                                    multiset_env,                           // overload set
-                                    argument_type_details_with_this,        // type detailes of arguments
-                                    nullptr,                                // template arguments
-                                    e,
-                                    class_env
-                                    );
-                            assert( function_env != nullptr );
-                            function_env->connect_from_ast( e );
-
-                            // TODO: fix
-                            function_env->mark_as_initialize_function();
-
-                            auto const eval_mode = [&]() {
-                                if ( function_env->has_attribute( attribute::decl::k_onlymeta ) ) {
-                                    return type_detail::evaluate_mode::k_only_compiletime;
-                                } else {
-                                    return type_detail::evaluate_mode::k_everytime;
-                                }
-                            }();
-
-                            b_ty_d = type_detail_pool_->construct(
-                                return_ty_d->type_id,
-                                function_env,
-                                nullptr,    // nullptr
-                                nullptr,    // nullptr
-                                true,
-                                eval_mode
-                                );
-
-                            // substitute expression
-                            auto substituted_ast = std::static_pointer_cast<ast::expression>(
-                                std::make_shared<ast::evaluated_type_expression>( return_ty_d->type_id )
-                                );
-
-                            substituted_ast->line = e->reciever_->line;
-                            substituted_ast->column = e->reciever_->column;
-
-                            e->reciever_.swap( substituted_ast );
-                        });
-
-                    assert( b_ty_d != nullptr );
-                    return bind_type( e, b_ty_d );
+                    return call_constructor( e, argument_type_details, parent_env );
 
                 } else {
                     // operator() invocation
-                    assert( false && "[[ICE]] operator() is not supported");
+                    // TODO: fix, not binary operator
+                    static auto const call_op = ast::make_identifier( "()" );
+                    auto const& op_name = make_binary_op_name( call_op );
+
+                    std::vector<type_detail_ptr> argument_type_details_with_this(
+                        argument_type_details.size() + 1
+                        );
+                    argument_type_details_with_this[0]
+                        = reciever_type_detail;
+                    std::copy(
+                        argument_type_details.cbegin(),
+                        argument_type_details.cend(),
+                        argument_type_details_with_this.begin() + 1
+                        );
+
+                    auto const ty_d = call_suitable_operator(
+                        op_name,
+                        e,
+                        argument_type_details_with_this,
+                        parent_env,
+                        false // without universal searching
+                        );
+
+                    if ( ty_d == nullptr ) {
+                        // compilation error...
+                        rill_dout << "% name : "
+                                  << op_name->get_inner_symbol()->to_native_string() << std::endl;
+                        rill_ice( "[Error] identifier was not found." );
+                    }
+
+                    return ty_d;
                 }
             }
 
@@ -444,13 +386,66 @@ namespace rill
         {
             auto& module_env = module_envs_.top();
             static int id = 0;
-            auto const& lambda_class_name
-                = ast::make_identifier( std::string( "__lamb" ) + std::to_string( id ) );
+            auto const& lambda_class_id
+                = ast::make_identifier( std::string( "__lambda_" ) + std::to_string( id ) );
             ++id;
 
-            // TODO: make cut block environment
+            if ( parent_env->find_on_env( lambda_class_id ) == nullptr ) {
+                // constructor for lambda object
+                auto const& lambda_ctor_id
+                    = ast::make_identifier( "ctor" );
+                auto lambda_ctor_def
+                    = std::make_shared<ast::class_function_definition_statement>(
+                        lambda_ctor_id,
+                        ast::parameter_list{},
+                        attribute::decl::k_default,
+                        boost::none,
+                        std::make_shared<ast::statements>(
+                            ast::element::statement_list{
 
-            // Make anonymous class
+                            }
+                            )
+                        );
+
+                // TODO: make cut block environment
+                // Create Class AST
+                auto const& ast_for_lambda_class
+                    = std::make_shared<ast::class_definition_statement>(
+                        lambda_class_id,
+                        attribute::decl::k_default,
+                        std::make_shared<ast::statements>(
+                            ast::element::statement_list{
+                                std::move( lambda_ctor_def )
+                            }
+                            )
+                        );
+
+                // generate lambda function class
+                auto const& import_base = import_bases_.top();
+                auto const& report = collect_identifier( g_env_, ast_for_lambda_class, module_env, import_base );
+                if ( report->is_errored() ) {
+                    import_messages( report );
+                    // TODO: raise semantic error
+                    return nullptr;
+                }
+                dispatch( ast_for_lambda_class, module_env );
+
+                // create lambda object
+                auto reciever = std::make_shared<ast::term_expression>( lambda_class_id );
+                auto const& call_expr
+                    = std::make_shared<ast::call_expression>(
+                        std::move( reciever ),
+                        ast::expression_list{}
+                        );
+
+                // memoize call expression to lambda ast
+                e->call_expr = call_expr;
+
+                return call_constructor( call_expr, {}, parent_env );
+
+            } else {
+                rill_ice( "" );
+            }
 /*
             RILL_PP_TIE(
                 multiset_env, c_env,
@@ -482,7 +477,7 @@ namespace rill
             // this value contains "type_id", so the type of this expression is "type"
             auto const& type_class_env = get_primitive_class_env( "type" );
             auto const& type_type_id
-                = g_env_->make_type_id( type_class_env, attribute::make_default_type_attributes() );
+                = g_env_->make_type_id( type_class_env, attribute::make_default() );
 
             return bind_type(
                 e,

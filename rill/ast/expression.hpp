@@ -166,6 +166,7 @@ namespace rill
             lambda_expression, expression,
             (( parameter_list, parameters ))
             (( element::statement_list, statements ))
+            (( call_expression_ptr, call_expr ))
             )
         public:
             lambda_expression(
@@ -174,6 +175,7 @@ namespace rill
                 )
                 : parameters( pl )
                 , statements( ss )
+                , call_expr( nullptr )  // assigned later
             {}
         RILL_AST_END
 

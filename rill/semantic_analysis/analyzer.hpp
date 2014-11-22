@@ -408,6 +408,13 @@ namespace rill
                 )
                 -> type_detail_ptr;
 
+            auto call_constructor(
+                ast::call_expression_ptr const& e,
+                std::vector<type_detail_ptr> const& argument_type_details,
+                environment_base_ptr const& parent_env
+                )
+                -> type_detail_ptr;
+
             auto inline select_member_element_universal(
                 ast::identifier_value_base_ptr id,
                 type_detail_ptr const& reciever_type_detail,
