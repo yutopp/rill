@@ -522,7 +522,6 @@ namespace rill
                 ) const
                 -> boost::filesystem::path;
 
-
         private:
             auto get_primitive_class_env( std::string const& type_name )
                 -> class_symbol_environment_ptr;
@@ -559,6 +558,8 @@ namespace rill
             std::stack<fs::path> import_bases_;
             std::stack<fs::path> working_dirs_;
             std::stack<module_environment_ptr> module_envs_;
+
+            std::stack<environment_base_ptr> block_envs_;
         };
 
 

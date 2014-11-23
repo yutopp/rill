@@ -23,6 +23,8 @@
 
 #include <boost/filesystem.hpp>
 
+#include <boost/scope_exit.hpp>
+
 
 namespace rill
 {
@@ -770,6 +772,11 @@ namespace rill
                 return false;
             }
             c_env->change_progress_to_checked();
+
+            block_envs_.emplace( c_env );
+            BOOST_SCOPE_EXIT_ALL(this) {
+                block_envs_.pop();
+            };
 
             auto const& mangled_name
                 = make_mangled_name( c_env, template_signature );
@@ -1744,15 +1751,20 @@ namespace rill
                     }
 
                 } else {
+                    block_envs_.emplace( instanting_f_env );
+                    BOOST_SCOPE_EXIT_ALL(this) {
+                        block_envs_.pop();
+                    };
+
+                    //
+                    instanting_f_env->change_progress_to_checked();
+
                     // new instanced function
                     declare_function_parameters_from_list(
                         instanting_f_env,
                         function_def_ast,
                         presetted_param_types
                         );
-
-                    //
-                    instanting_f_env->change_progress_to_checked();
 
                     // return type
                     if ( function_def_ast->return_type_ ) {
@@ -2034,22 +2046,40 @@ namespace rill
         {
             // TODO: check that identifier is from root
 
+            rill_dout << "## Finding Identifier: " << identifier->get_inner_symbol()->to_native_string() << std::endl
+                      << "## astid: " << identifier->get_id() << std::endl;
+
             auto const found_env
-                = do_lookup
-                ? parent_env->lookup( identifier, exclude_env_type )
-                : parent_env->find_on_env( identifier )
-                ;
+                = [&]() {
+                    auto env = parent_env->find_on_env( identifier );
+                    if ( env ) return env;
+
+                    if ( do_lookup ) {
+                        assert( parent_env->has_parent() );
+                        auto env
+                            = parent_env->get_parent_env()->lookup(
+                                identifier,
+                                exclude_env_type
+                                );
+                        if ( env ) {
+                            assert( block_envs_.top() != nullptr );
+                            block_envs_.top()->append_outer_referenced(
+                                env->get_id()
+                                );
+                            rill_dout << "### OUTER: " << block_envs_.top() << std::endl;
+                            return env;
+                        }
+                    }
+
+                    return environment_base_ptr{ nullptr };
+                }();
             if ( found_env == nullptr ) {
                 // identifier was not found, return nullptr
                 return nullptr;
             }
 
-            // debug
-            rill_dout << "## Finding Identifier: " << identifier->get_inner_symbol()->to_native_string() << std::endl
-                      << "## astid: " << identifier->get_id() << std::endl
-                      << "## kind: " << debug_string( found_env->get_symbol_kind() ) << std::endl
+            rill_dout << "## kind: " << debug_string( found_env->get_symbol_kind() ) << std::endl
                       << (const_environment_base_ptr)parent_env << std::endl;
-
 
             switch( found_env->get_symbol_kind() ) {
             case kind::type_value::e_multi_set:

@@ -66,4 +66,27 @@ namespace rill
         return incomplete_template_env;
     }
 
+
+    auto multiple_set_environment::get_outer_referenced_env_ids(
+        std::vector<environment_id_t>& v
+        ) const
+        -> void
+    {
+        rill_dout << "multi !!!!! " << std::endl;
+        environment_base::get_outer_referenced_env_ids( v );
+
+        for( auto&& env : normal_envs_ ) {
+            env->get_outer_referenced_env_ids( v );
+        }
+
+        for( auto&& env : template_envs_ ) {
+            env->get_outer_referenced_env_ids( v );
+        }
+
+        for( auto&& env : instanced_envs_ ) {
+            env->get_outer_referenced_env_ids( v );
+        }
+
+    }
+
 } // namespace rill

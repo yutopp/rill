@@ -391,22 +391,6 @@ namespace rill
             ++id;
 
             if ( parent_env->find_on_env( lambda_class_id ) == nullptr ) {
-                // constructor for lambda object
-                auto const& lambda_ctor_id
-                    = ast::make_identifier( "ctor" );
-                auto lambda_ctor_def
-                    = std::make_shared<ast::class_function_definition_statement>(
-                        lambda_ctor_id,
-                        ast::parameter_list{},
-                        attribute::decl::k_default,
-                        boost::none,
-                        std::make_shared<ast::statements>(
-                            ast::element::statement_list{
-                                // TODO: add capture
-                            }
-                            )
-                        );
-
                 // operator call for lambda object
                 auto const& lambda_op_call_id
                     = ast::make_identifier( "%op_()" );
@@ -429,7 +413,6 @@ namespace rill
                         attribute::decl::k_default,
                         std::make_shared<ast::statements>(
                             ast::element::statement_list{
-                                std::move( lambda_ctor_def ),
                                 std::move( lambda_op_call_def )
                             }
                             )
@@ -437,13 +420,41 @@ namespace rill
 
                 // generate lambda function class
                 auto const& import_base = import_bases_.top();
-                auto const& report = collect_identifier( g_env_, ast_for_lambda_class, module_env, import_base );
+                auto const& report = collect_identifier( g_env_, ast_for_lambda_class, parent_env, import_base );
                 if ( report->is_errored() ) {
                     import_messages( report );
                     // TODO: raise semantic error
                     return nullptr;
                 }
-                dispatch( ast_for_lambda_class, module_env );
+                dispatch( ast_for_lambda_class, parent_env );
+
+                // CAPTURE!
+                rill_dout << "CAPTURE" << std::endl;
+                auto const& c_env = cast_to<class_symbol_environment>(
+                    g_env_->get_related_env_by_ast_ptr( ast_for_lambda_class )
+                    );
+                assert( c_env != nullptr );
+                rill_dout << "-> " << c_env->get_mangled_name() << " / ptr: " << c_env << std::endl;;
+                for( auto&& env_id : c_env->get_outer_referenced_env_ids() ) {
+                    rill_dout << "outer env id: " << env_id << std::endl;
+                }
+                assert( false );
+
+                // constructor for lambda object
+                auto const& lambda_ctor_id
+                    = ast::make_identifier( "ctor" );
+                auto lambda_ctor_def
+                    = std::make_shared<ast::class_function_definition_statement>(
+                        lambda_ctor_id,
+                        ast::parameter_list{},
+                        attribute::decl::k_default,
+                        boost::none,
+                        std::make_shared<ast::statements>(
+                            ast::element::statement_list{
+                                // TODO: add capture
+                            }
+                            )
+                        );
 
                 // create lambda object
                 auto reciever = std::make_shared<ast::term_expression>( lambda_class_id );

@@ -178,6 +178,12 @@ namespace rill
             return it->second;
         }
 
+    public:
+        virtual auto get_outer_referenced_env_ids(
+            std::vector<environment_id_t>& v
+            ) const
+            -> void;
+
     private:
         native_string_type name_;
 

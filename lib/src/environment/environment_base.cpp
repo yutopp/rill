@@ -225,4 +225,30 @@ namespace rill
             );
     }
 
+
+    auto environment_base::get_outer_referenced_env_ids() const
+        -> std::vector<environment_id_t>
+    {
+        std::vector<environment_id_t> xs;
+        get_outer_referenced_env_ids( xs );
+
+        return xs;
+    }
+
+    auto environment_base::get_outer_referenced_env_ids(
+        std::vector<environment_id_t>& v
+        ) const
+        -> void
+    {
+        rill_dout << "!!!!! " << outer_referenced_envs_.size() << " / " << this << std::endl;
+        std::copy(
+            outer_referenced_envs_.cbegin(),
+            outer_referenced_envs_.cend(),
+            std::back_inserter( v )
+            );
+        for( auto&& inner_env : inner_envs_ ) {
+            cast_to_base( inner_env.second )->get_outer_referenced_env_ids( v );
+        }
+    }
+
 } // namespace rill

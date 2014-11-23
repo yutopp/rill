@@ -22,6 +22,8 @@
 #include <boost/filesystem/path.hpp>
 #include <boost/filesystem/operations.hpp>
 
+#include <boost/scope_exit.hpp>
+
 
 namespace rill
 {
@@ -57,6 +59,11 @@ namespace rill
 
             auto module_env = g_env_->find_module( module_name );
             module_envs_.push( module_env );
+
+            block_envs_.emplace( module_env );
+            BOOST_SCOPE_EXIT_ALL(this) {
+                block_envs_.pop();
+            };
 
             if ( module_name.empty() || module_name == "basic_types" ) {
                 builtin_class_envs_cache_
@@ -95,6 +102,11 @@ namespace rill
             auto const& scope_env
                 = g_env_->allocate_env<scope_environment>( parent_env );
             scope_env->link_with_ast( s->statements_ );
+
+            block_envs_.emplace( scope_env );
+            BOOST_SCOPE_EXIT_ALL(this) {
+                block_envs_.pop();
+            };
 
             dispatch( s->statements_, scope_env );
 
@@ -373,12 +385,6 @@ namespace rill
         }
 
 
-
-
-
-
-
-
         //
         //
         //
@@ -402,6 +408,11 @@ namespace rill
             if ( f_env->is_checked() ) return;
             f_env->change_progress_to_checked();
             rill_dout << "$ uncheckd" << std::endl;
+
+            block_envs_.emplace( f_env );
+            BOOST_SCOPE_EXIT_ALL(this) {
+                block_envs_.pop();
+            };
 
             //
             declare_function_parameters( f_env, s );
@@ -461,6 +472,11 @@ namespace rill
             if ( f_env->is_checked() ) return;
             f_env->change_progress_to_checked();
             rill_dout << "$ unchecked" << std::endl;
+
+            block_envs_.emplace( f_env );
+            BOOST_SCOPE_EXIT_ALL(this) {
+                block_envs_.pop();
+            };
 
             auto const& parent_c_env
                 = g_env_->get_env_at_as_strong_ref<class_symbol_environment>(
@@ -526,9 +542,6 @@ namespace rill
         }
 
 
-
-
-
         RILL_VISITOR_OP( analyzer, ast::class_definition_statement, s, parent_env )
         {
             // TODO: dup check...
@@ -546,11 +559,6 @@ namespace rill
         }
 
 
-
-
-
-
-
         RILL_VISITOR_OP( analyzer, ast::while_statement, s, parent_env )
         {
             auto const& scope_env = g_env_->allocate_env<scope_environment>( parent_env ); // MEMO:
@@ -566,7 +574,6 @@ namespace rill
             dispatch( s->body_statement_, body_scope_env );
             parent_env->mask_is_closed( body_scope_env->is_closed() );
         }
-
 
 
         RILL_VISITOR_OP( analyzer, ast::if_statement, s, parent_env )
@@ -597,7 +604,6 @@ namespace rill
         }
 
 
-
         //
         //
         //
@@ -621,6 +627,11 @@ namespace rill
             if ( f_env->is_checked() )
                 return;
             f_env->change_progress_to_checked();
+
+            block_envs_.emplace( f_env );
+            BOOST_SCOPE_EXIT_ALL(this) {
+                block_envs_.pop();
+            };
 
             // construct function environment in progress phase
 

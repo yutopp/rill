@@ -537,6 +537,24 @@ namespace rill
         bool closed_;
 
         environment_id_t parent_class_env_id_;
+
+    public:
+        auto append_outer_referenced( environment_id_t const& id )
+            -> void
+        {
+            return outer_referenced_envs_.emplace_back( id );
+        }
+
+        auto get_outer_referenced_env_ids() const
+            -> std::vector<environment_id_t>;
+
+        virtual auto get_outer_referenced_env_ids(
+            std::vector<environment_id_t>& v
+            ) const
+            -> void;
+
+    private:
+        std::vector<environment_id_t> outer_referenced_envs_;
     };
 
 
