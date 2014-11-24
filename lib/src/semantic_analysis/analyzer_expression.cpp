@@ -462,7 +462,22 @@ namespace rill
                         = std::make_shared<ast::class_variable_declaration_statement>(
                             std::move( vd )
                             );
+                    auto const& report
+                        = collect_identifier(
+                            g_env_,
+                            captured_v_decl,
+                            c_env,
+                            import_base
+                            );
+                    if ( report->is_errored() ) {
+                        import_messages( report );
+                        // TODO: raise semantic error
+                        return nullptr;
+                    }
+                    dispatch( captured_v_decl, c_env );
                 }
+
+                std::cout << c_env << std::endl;
                 assert( false );
 
                 // constructor for lambda object
