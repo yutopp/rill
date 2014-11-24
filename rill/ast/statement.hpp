@@ -400,7 +400,7 @@ namespace rill
 
         public:
             auto get_identifier() const
-                -> identifier_value_base_ptr const&
+                -> const_identifier_value_base_ptr const&
             {
                 return declaration_.decl_unit.name;
             }

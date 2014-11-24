@@ -179,10 +179,10 @@ namespace rill
         }
 
     public:
-        virtual auto get_outer_referenced_env_ids(
-            std::vector<environment_id_t>& v
+        auto get_outer_referenced_asts(
+            outer_referenced_asts_type& v
             ) const
-            -> void;
+            -> void override;
 
     private:
         native_string_type name_;

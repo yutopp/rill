@@ -386,7 +386,7 @@ namespace rill
         //
         auto incomplete_construct(
             kind::variable_tag,
-            ast::identifier_value_base_ptr const&
+            ast::const_identifier_value_base_ptr const&
             )
             -> variable_symbol_environment_ptr;
 
@@ -539,22 +539,22 @@ namespace rill
         environment_id_t parent_class_env_id_;
 
     public:
-        auto append_outer_referenced( environment_id_t const& id )
-            -> void
-        {
-            return outer_referenced_envs_.emplace_back( id );
-        }
+        using outer_referenced_ast_ptr_type = ast::const_identifier_value_base_ptr;
+        using outer_referenced_asts_type = std::vector<outer_referenced_ast_ptr_type>;
 
-        auto get_outer_referenced_env_ids() const
-            -> std::vector<environment_id_t>;
+        auto append_outer_referenced( outer_referenced_ast_ptr_type const& node )
+            -> void;
 
-        virtual auto get_outer_referenced_env_ids(
-            std::vector<environment_id_t>& v
+        auto get_outer_referenced_asts() const
+            -> outer_referenced_asts_type;
+
+        virtual auto get_outer_referenced_asts(
+            outer_referenced_asts_type& v
             ) const
             -> void;
 
     private:
-        std::vector<environment_id_t> outer_referenced_envs_;
+        outer_referenced_asts_type outer_referenced_asts_;
     };
 
 

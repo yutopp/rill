@@ -101,8 +101,8 @@ namespace rill
     class ast_to_type_id_mapper
     {
     public:
-        typedef ast::ast_base_ptr   key_type;
-        typedef type_id_t           value_type;
+        typedef ast::const_ast_base_ptr     key_type;
+        typedef type_id_t                   value_type;
 
     public:
         template<typename SmartPtr>

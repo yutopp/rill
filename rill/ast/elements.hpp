@@ -74,7 +74,7 @@ namespace rill
             variable_declaration_unit() = default;
 
             variable_declaration_unit(
-                identifier_value_base_ptr const& n,
+                const_identifier_value_base_ptr const& n,
                 value_initializer_unit const& i
                 )
                 : name( n )
@@ -104,7 +104,7 @@ namespace rill
             {}
             variable_declaration_unit& operator=( variable_declaration_unit&& ) =default;
 
-            identifier_value_base_ptr name;
+            const_identifier_value_base_ptr name;
             value_initializer_unit init_unit;
         };
 

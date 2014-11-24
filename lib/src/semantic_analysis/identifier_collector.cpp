@@ -33,6 +33,7 @@ namespace rill
             , base_path_( base_path )
         {}
 
+
         // Root Scope
         RILL_VISITOR_OP( identifier_collector, ast::module, s, parent_env ) const
         {

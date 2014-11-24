@@ -33,6 +33,7 @@ if( CMAKE_CXX_COMPILER_ID STREQUAL "Clang" )
     -ftemplate-depth=512
     -DBOOST_PP_VARIADICS=1
     -fdiagnostics-color=always
+    -ftime-report
     )
 
 elseif( CMAKE_CXX_COMPILER_ID STREQUAL "GNU")

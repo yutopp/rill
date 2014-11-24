@@ -2063,9 +2063,7 @@ namespace rill
                                 );
                         if ( env ) {
                             assert( block_envs_.top() != nullptr );
-                            block_envs_.top()->append_outer_referenced(
-                                env->get_id()
-                                );
+                            block_envs_.top()->append_outer_referenced( identifier );
                             rill_dout << "### OUTER: " << block_envs_.top() << std::endl;
                             return env;
                         }
@@ -2994,7 +2992,7 @@ namespace rill
 
         auto analyzer::construct_parameter_variable(
             function_symbol_environment_ptr const& f_env,
-            ast::identifier_value_base_ptr const& variable_name,
+            ast::const_identifier_value_base_ptr const& variable_name,
             type_id_t const& type_id
             )
             -> void

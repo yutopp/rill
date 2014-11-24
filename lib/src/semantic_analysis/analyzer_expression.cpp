@@ -435,8 +435,33 @@ namespace rill
                     );
                 assert( c_env != nullptr );
                 rill_dout << "-> " << c_env->get_mangled_name() << " / ptr: " << c_env << std::endl;;
-                for( auto&& env_id : c_env->get_outer_referenced_env_ids() ) {
-                    rill_dout << "outer env id: " << env_id << std::endl;
+
+                for( auto&& ex_ast : c_env->get_outer_referenced_asts() ) {
+                    auto const& ex_tid = g_env_->get_related_type_id_from_ast_ptr( ex_ast );
+                    assert( ex_tid != type_id_undefined );
+                    auto const& ex_type = g_env_->get_type_at( ex_tid );
+
+                    rill_dout << "outer ast ptr " << ex_ast << std::endl;
+
+                    // create places for captured variables
+                    auto vd = ast::variable_declaration{
+                        ex_type.attributes.quality,
+                        ast::variable_declaration_unit{
+                            ex_ast,
+                            ast::value_initializer_unit{
+                                std::make_shared<ast::id_expression>(
+                                    std::make_shared<ast::evaluated_type_expression>(
+                                        ex_tid
+                                        )
+                                    ),
+                                boost::none
+                            }
+                        }
+                    };
+                    auto const& captured_v_decl
+                        = std::make_shared<ast::class_variable_declaration_statement>(
+                            std::move( vd )
+                            );
                 }
                 assert( false );
 

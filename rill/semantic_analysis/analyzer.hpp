@@ -479,7 +479,7 @@ namespace rill
 
             auto construct_parameter_variable(
                 function_symbol_environment_ptr const& f_env,
-                ast::identifier_value_base_ptr const& variable_name,
+                ast::const_identifier_value_base_ptr const& variable_name,
                 type_id_t const& type_id
                 )
                 -> void;
