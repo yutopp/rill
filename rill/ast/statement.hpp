@@ -339,7 +339,7 @@ namespace rill
         RILL_AST_BEGIN(
             class_definition_statement, can_be_template_statement,
             (( attribute::decl::type, decl_attr_ ))
-            (( statement_ptr, inner_ ))
+            (( statements_ptr, inner_ ))
             )
         public:
             class_definition_statement(
@@ -352,7 +352,7 @@ namespace rill
             class_definition_statement(
                 identifier_value_ptr const& id,
                 attribute::decl::type const& decl_attr,
-                statement_ptr const& inner
+                statements_ptr const& inner
                 )
                 : can_be_template_statement( id )
                 , decl_attr_( decl_attr )

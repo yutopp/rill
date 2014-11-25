@@ -491,8 +491,12 @@ namespace rill
                     }
                     dispatch( captured_v_decl, c_env );
 
-                    //
-                    //std::make_shared<ast::captured_value>( index );
+                    ast_for_lambda_class->inner_->statements_.push_back( captured_v_decl );
+
+                    // !!: replace ast node
+                    assert( !ex_ast->parent_expression.expired() );
+                    auto expr = ex_ast->parent_expression.lock();
+                    expr->value_ = std::make_shared<ast::captured_value>( index );
 
                     ++index;
                 }

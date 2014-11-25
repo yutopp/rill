@@ -708,7 +708,18 @@ namespace rill
             )
 
             RN( primary_expression, ast::expression_ptr,
-                ( t.primary_value[helper::make_node_ptr<ast::term_expression>( ph::_1 )]
+                ( t.primary_value[
+                    helper::fun(
+                        []( auto&& val ) {
+                            auto p = std::make_shared<ast::term_expression>(
+                                std::forward<decltype(val)>( val )
+                                );
+                            p->value_->parent_expression = p;
+                            return p;
+                        },
+                        ph::_1
+                        )
+                    ]
                 | ( x3::lit( '(' ) >> t.expression >> x3::lit( ')' ) )[helper::assign()]
                 | t.lambda_expression[helper::assign()]
                 )

@@ -8,11 +8,12 @@
 
 #pragma once
 
-#include <vector>
 #include <string>
+#include <memory>
 
 #include "ast_base.hpp"
 #include "value_fwd.hpp"
+#include "expression_fwd.hpp"
 #include "elements.hpp"
 
 
@@ -30,7 +31,10 @@ namespace rill
         typedef std::string     native_string_t;
 
 
-        RILL_AST_GROUP_BEGIN( value )
+        RILL_AST_GROUP_BEGIN(
+            value,
+            (( std::weak_ptr<term_expression>, parent_expression ))
+            )
         public:
             virtual bool is_intrinsic() const
             {
@@ -41,6 +45,7 @@ namespace rill
             {
                 return false;
             }
+
         RILL_AST_GROUP_END
 
 
@@ -393,7 +398,7 @@ namespace rill
             captured_value(
                 std::size_t const& i
                 )
-                : selector( i )
+                : index( i )
             {}
         RILL_AST_END
 

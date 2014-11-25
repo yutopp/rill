@@ -83,6 +83,7 @@ namespace rill
             RILL_VISITOR_READONLY_OP_DECL( ast::evaluated_type_expression );
 
             // value
+            RILL_VISITOR_READONLY_OP_DECL( ast::captured_value );
             RILL_VISITOR_READONLY_OP_DECL( ast::identifier_value );
             RILL_VISITOR_READONLY_OP_DECL( ast::template_instance_value );
 

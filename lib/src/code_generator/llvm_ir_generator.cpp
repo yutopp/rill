@@ -492,11 +492,14 @@ namespace rill
                         this->dispatch( node, env );
                     } );
 
-                rill_dout
-                    << "class ------> " << c_env->get_id() << std::endl
-                    << "  member num: " << context_->env_conversion_table.ref_class_variable_type_list( c_env->get_id() ).size() << std::endl;
-
                 llvm_struct_type->setBody( context_->env_conversion_table.ref_class_variable_type_list( c_env->get_id() ) );
+
+                rill_dregion {
+                    std::cout << "class ------> " << c_env->get_id() << std::endl
+                              << "  member num: " << context_->env_conversion_table.ref_class_variable_type_list( c_env->get_id() ).size() << std::endl;
+                    llvm_struct_type->dump();
+                    std::cout << std::endl;
+                }
 
                 //
                 dispatch( s->inner_, c_env );
@@ -1166,6 +1169,43 @@ namespace rill
 
             return type_id_ptr;
         }
+
+
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::captured_value, v, parent_env )
+        {
+            auto const& a_env = parent_env->lookup_layer(
+                kind::type_value::e_function
+                );
+            assert( a_env != nullptr ); // TODO: change to error_handler
+
+            auto const& callee_f_env = cast_to<function_symbol_environment>( a_env );
+            assert( callee_f_env != nullptr );
+
+            auto const& pd_ids = callee_f_env->get_parameter_decl_ids();
+            assert( pd_ids.size() >= 1 );
+
+            // 'this' of lambda class function
+            auto const& r_v_env = g_env_->get_env_at_as_strong_ref<variable_symbol_environment const>( pd_ids[0] );
+            assert( r_v_env != nullptr );
+            if ( !context_->env_conversion_table.is_defined( r_v_env->get_id() ) ) {
+                rill_ice( "invalid lambda capture" );
+            }
+            auto const& r_v
+                = context_->env_conversion_table.ref_value( r_v_env->get_id() );
+
+            rill_dregion {
+                r_v->dump();
+                r_v->getType()->dump();
+            }
+            rill_dout << "index: " << v->index << std::endl;
+
+            auto value
+                = context_->ir_builder.CreateStructGEP( r_v, v->index );
+            context_->represented_as_pointer_set.emplace( value );
+
+            return value;
+        }
+
 
         // identifier node returns Variable
         RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::identifier_value, v, parent_env )
