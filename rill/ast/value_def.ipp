@@ -40,6 +40,9 @@ namespace rill
         RILL_AST_DEF( template_instance_value, value )
         RILL_AST_DEF( nested_identifier_value, value )
 
+        //
+        RILL_AST_DEF( captured_value, value )
+
 #if defined( RILL_AST_REQ_NS )
     } // namespace ast
 } // namespace rill

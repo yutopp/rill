@@ -2055,6 +2055,7 @@ namespace rill
                     if ( env ) return env;
 
                     if ( do_lookup ) {
+                        rill_dout << "::RE" << std::endl;
                         assert( parent_env->has_parent() );
                         auto env
                             = parent_env->get_parent_env()->lookup(

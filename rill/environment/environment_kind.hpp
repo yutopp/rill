@@ -33,6 +33,9 @@ namespace rill
         struct multiset_tag {};
         auto const k_multiset = multiset_tag();
 
+        struct scope_tag {};
+        auto const k_scope = scope_tag();
+
         enum struct type_value
         {
             e_none,

@@ -383,5 +383,19 @@ namespace rill
             }
         RILL_AST_END
 
+
+        //
+        RILL_AST_BEGIN(
+            captured_value, value,
+            (( std::size_t, index ))
+            )
+        public:
+            captured_value(
+                std::size_t const& i
+                )
+                : selector( i )
+            {}
+        RILL_AST_END
+
     } // namespace ast
 } // namespace rill

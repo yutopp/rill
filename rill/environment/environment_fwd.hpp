@@ -77,6 +77,10 @@ namespace rill
     class namespace_envitronment;
     class alias_environment;
 
+    class scope_environment;
+    using scope_environment_ptr = std::shared_ptr<scope_environment>;
+    using const_scope_environment_ptr = std::shared_ptr<scope_environment const>;
+
 
     class has_parameter_environment_base;
     typedef std::shared_ptr<has_parameter_environment_base> has_parameter_environment_base_ptr;

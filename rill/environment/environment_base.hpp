@@ -225,9 +225,8 @@ namespace rill
             )
             : environment_unit( std::move( ep ) )
             , progress_( environment_process_progress_t::constructed )
-            , closed_( false )
             , parent_class_env_id_( environment_id_undefined )
-
+            , closed_( false )
         {}
 
         virtual ~environment_base()
@@ -259,20 +258,11 @@ namespace rill
             kind::type_value const& exclude_env_type = kind::type_value::e_none
             ) const
             -> const_env_base_pointer;
-
         //
-        virtual auto find_on_env( ast::const_identifier_value_base_ptr const& name )
-            -> env_base_pointer;
-        virtual auto find_on_env( ast::const_identifier_value_base_ptr const& name ) const
-            -> const_env_base_pointer;
-
-
-        // support functions, search identifier from native_string as NON templated
         inline auto lookup(
             ast::native_string_t const& name,
             kind::type_value const& exclude_env_type = kind::type_value::e_none
             )
-            -> env_base_pointer
         {
             return lookup(
                 std::make_shared<ast::identifier_value const>( name ),
@@ -283,7 +273,6 @@ namespace rill
             ast::native_string_t const& name,
             kind::type_value const& exclude_env_type = kind::type_value::e_none
             ) const
-            -> const_env_base_pointer
         {
             return lookup(
                 std::make_shared<ast::identifier_value const>( name ),
@@ -291,14 +280,18 @@ namespace rill
                 );
         }
 
+
+        //
+        virtual auto find_on_env( ast::const_identifier_value_base_ptr const& name )
+            -> env_base_pointer;
+        virtual auto find_on_env( ast::const_identifier_value_base_ptr const& name ) const
+            -> const_env_base_pointer;
         //
         inline auto find_on_env( ast::native_string_t const& name )
-            -> env_base_pointer
         {
             return find_on_env( std::make_shared<ast::identifier_value const>( name ) );
         }
         inline auto find_on_env( ast::native_string_t const& name ) const
-            -> const_env_base_pointer
         {
             return find_on_env( std::make_shared<ast::identifier_value const>( name ) );
         }
@@ -398,16 +391,12 @@ namespace rill
             -> multiple_set_environment_ptr;
 
         //
-        // incomplete_construct
+        // construct
         //
-
         auto construct(
-            kind::variable_tag,
-            ast::identifier_value_base_ptr const&,
-            ast::statement_ptr const&,
-            const_class_symbol_environment_ptr const&,
-            attribute::type_attributes const& = attribute::make_default_type_attributes()
-            ) -> variable_symbol_environment_ptr;
+            kind::scope_tag
+            )
+            -> scope_environment_ptr;
 
     public:
         virtual auto checked_instance( kind::type_value const& e )
@@ -532,11 +521,13 @@ namespace rill
         }
 
     private:
-        environment_process_progress_t progress_;
-        std::unordered_map<native_string_type, environment_unit_ptr> inner_envs_;   // children environments
-        bool closed_;
+        // children environments
+        std::unordered_map<native_string_type, environment_unit_ptr> inner_envs_;
+        std::vector<environment_base_ptr> unnamed_inner_envs_;
 
+        environment_process_progress_t progress_;
         environment_id_t parent_class_env_id_;
+        bool closed_;
 
     public:
         using outer_referenced_ast_ptr_type = ast::const_identifier_value_base_ptr;

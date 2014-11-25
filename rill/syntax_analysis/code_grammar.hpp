@@ -130,10 +130,8 @@ namespace rill
                     helper::fun(
                         []( auto&&... args ) {
                             return ast::element::statement_list{
-                                std::make_shared<ast::block_statement>(
-                                    std::make_shared<ast::return_statement>(
-                                        std::forward<decltype(args)>( args )...
-                                        )
+                                std::make_shared<ast::return_statement>(
+                                    std::forward<decltype(args)>( args )...
                                     )
                                 };
                         },
@@ -147,10 +145,8 @@ namespace rill
                     helper::fun(
                         []( auto&&... args ) {
                             return ast::element::statement_list{
-                                std::make_shared<ast::block_statement>(
-                                    std::make_shared<ast::return_statement>(
-                                        std::forward<decltype(args)>( args )...
-                                        )
+                                std::make_shared<ast::return_statement>(
+                                    std::forward<decltype(args)>( args )...
                                     )
                                 };
                         },

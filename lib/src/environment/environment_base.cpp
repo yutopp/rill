@@ -37,7 +37,6 @@ namespace rill
         )
         -> env_base_pointer
     {
-        rill_dout << debug_string( get_symbol_kind() ) << std::endl;
         if ( get_symbol_kind() == exclude_env_type ) {
             return is_root()
                 ? nullptr
@@ -61,7 +60,6 @@ namespace rill
         ) const
         -> const_env_base_pointer
     {
-        rill_dout << debug_string( get_symbol_kind() ) << std::endl;
         if ( get_symbol_kind() == exclude_env_type ) {
             return is_root()
                 ? nullptr
@@ -81,6 +79,8 @@ namespace rill
     auto environment_base::find_on_env( ast::const_identifier_value_base_ptr const& identifier )
         -> env_base_pointer
     {
+        rill_dout << debug_string( get_symbol_kind() ) << std::endl;
+
         auto const& name = identifier->get_inner_symbol()->to_native_string();
 
         // try to find in inner_envs_
@@ -96,6 +96,8 @@ namespace rill
     auto environment_base::find_on_env( ast::const_identifier_value_base_ptr const& identifier ) const
         -> const_env_base_pointer
     {
+        rill_dout << debug_string( get_symbol_kind() ) << std::endl;
+
         auto const& name = identifier->get_inner_symbol()->to_native_string();
 
         auto&& it = inner_envs_.find( name );
@@ -225,6 +227,19 @@ namespace rill
             );
     }
 
+    auto environment_base::construct(
+        kind::scope_tag
+        )
+        -> scope_environment_ptr
+    {
+        auto const s_env = b_.lock()->allocate_env<scope_environment>(
+            std::static_pointer_cast<environment_base>( shared_from_this() )
+            );
+        unnamed_inner_envs_.emplace_back( s_env );
+
+        return s_env;
+    }
+
 
     auto environment_base::append_outer_referenced(
         outer_referenced_ast_ptr_type const& node
@@ -256,6 +271,9 @@ namespace rill
             );
         for( auto&& inner_env : inner_envs_ ) {
             cast_to_base( inner_env.second )->get_outer_referenced_asts( v );
+        }
+        for( auto&& inner_env : unnamed_inner_envs_ ) {
+            inner_env->get_outer_referenced_asts( v );
         }
     }
 

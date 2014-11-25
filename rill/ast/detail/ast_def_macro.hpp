@@ -105,6 +105,16 @@ namespace rill
                 os << space << "..." << std::endl;
             }
 
+            inline auto dump_ast_element(
+                std::string const& v,
+                std::ostream& os,
+                std::string const& space
+                )
+                -> void
+            {
+                os << space << v << std::endl;
+            }
+
             template<typename T, typename Alloc>
             auto dump_ast_element(
                 std::vector<T, Alloc> const& vx,
@@ -221,9 +231,12 @@ namespace rill
         -> std::size_t                                                  \
     {                                                                   \
         auto const ni =                                                 \
-            this->try_to_call_base_dump_elements<decltype(*this)>( os, i ); \
+            this->try_to_call_base_dump_elements<std::decay_t<decltype(*this)>>( \
+                os,                                                     \
+                i                                                       \
+                );                                                      \
         auto const space = std::string( ni, ' ' );                      \
-        os << space << "== " << #class_name << std::endl;         \
+        os << space << "== " << #class_name << std::endl;               \
         BOOST_PP_SEQ_FOR_EACH( RILL_AST_DUMP_EACH, class_name, elem )   \
         return ni + 2;                                                  \
     }                                                                   \

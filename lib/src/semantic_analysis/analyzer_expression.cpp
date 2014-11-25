@@ -428,21 +428,36 @@ namespace rill
                 }
                 dispatch( ast_for_lambda_class, parent_env );
 
+
                 // CAPTURE!
                 rill_dout << "CAPTURE" << std::endl;
                 auto const& c_env = cast_to<class_symbol_environment>(
                     g_env_->get_related_env_by_ast_ptr( ast_for_lambda_class )
                     );
                 assert( c_env != nullptr );
-                rill_dout << "-> " << c_env->get_mangled_name() << " / ptr: " << c_env << std::endl;;
+                rill_dout << "-> " << c_env->get_mangled_name() << " / ptr: " << c_env << std::endl;
 
+                std::size_t index = 0;
                 for( auto&& ex_ast : c_env->get_outer_referenced_asts() ) {
+                    rill_dregion {
+                        rill_dout << "outer ast ptr " << ex_ast << std::endl;
+                        ex_ast->dump( std::cout );
+                    }
+
                     auto const& ex_tid = g_env_->get_related_type_id_from_ast_ptr( ex_ast );
-                    assert( ex_tid != type_id_undefined );
+                    if ( !is_type_id( ex_tid ) ) {
+                        continue;
+                    }
+
                     auto const& ex_type = g_env_->get_type_at( ex_tid );
+                    auto const& ex_c_env = g_env_->get_env_at_as_strong_ref<class_symbol_environment>( ex_type.class_env_id );
 
-                    rill_dout << "outer ast ptr " << ex_ast << std::endl;
+                    // TODO: fix
+                    if ( ex_c_env->has_attribute( attribute::decl::k_onlymeta ) ) {
+                        continue;
+                    }
 
+                    //
                     // create places for captured variables
                     auto vd = ast::variable_declaration{
                         ex_type.attributes.quality,
@@ -475,12 +490,18 @@ namespace rill
                         return nullptr;
                     }
                     dispatch( captured_v_decl, c_env );
+
+                    //
+                    //std::make_shared<ast::captured_value>( index );
+
+                    ++index;
                 }
 
-                std::cout << c_env << std::endl;
-                assert( false );
+                std::cout << (const_environment_base_ptr)c_env << std::endl;
+                //assert( false );
 
-                // constructor for lambda object
+                // 'constructor' for lambda object
+                {
                 auto const& lambda_ctor_id
                     = ast::make_identifier( "ctor" );
                 auto lambda_ctor_def
@@ -495,6 +516,20 @@ namespace rill
                             }
                             )
                         );
+                auto const& report
+                    = collect_identifier(
+                        g_env_,
+                        lambda_ctor_def,
+                        c_env,
+                        import_base
+                        );
+                if ( report->is_errored() ) {
+                    import_messages( report );
+                    // TODO: raise semantic error
+                    return nullptr;
+                }
+                dispatch( lambda_ctor_def, c_env );
+                }
 
                 // create lambda object
                 auto reciever = std::make_shared<ast::term_expression>( lambda_class_id );

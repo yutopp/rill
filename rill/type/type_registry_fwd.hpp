@@ -41,7 +41,7 @@ namespace rill
     inline auto is_type_id( type_id_t const& tid )
         -> bool
     {
-        return !is_nontype_id( tid );
+        return !is_nontype_id( tid ) && tid != type_id_undefined;
     }
 
 

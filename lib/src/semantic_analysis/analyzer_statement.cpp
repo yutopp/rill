@@ -100,7 +100,7 @@ namespace rill
         RILL_VISITOR_OP( analyzer, ast::block_statement, s, parent_env )
         {
             auto const& scope_env
-                = g_env_->allocate_env<scope_environment>( parent_env );
+                = parent_env->construct( kind::k_scope );
             scope_env->link_with_ast( s->statements_ );
 
             block_envs_.emplace( scope_env );
