@@ -564,28 +564,6 @@ namespace rill
 
 
         //
-        auto make_mangled_name(
-            const_class_symbol_environment_ptr const& c_env,
-            boost::optional<std::reference_wrapper<std::string const>> const& template_signature = boost::none
-            )
-            -> std::string;
-        //
-        auto make_mangled_name(
-            const_class_symbol_environment_ptr const& c_env,
-            attribute::type_attributes const& attr,
-            boost::optional<std::reference_wrapper<std::string const>> const& template_signature = boost::none
-            )
-            -> std::string;
-
-        auto make_mangled_name(
-            const_global_environment_ptr const& global_env,
-            const_function_symbol_environment_ptr const& f_env,
-            boost::optional<std::reference_wrapper<std::string const>> const& template_signature = boost::none
-            )
-            -> std::string;
-
-
-        //
         auto delegate_parent_attributes(
             attribute::type_attributes const& parent_attributes,
             attribute::type_attributes const& child_attributes

@@ -473,7 +473,7 @@ namespace rill
                 llvm::StructType* const llvm_struct_type
                     = llvm::StructType::create(
                         context_->llvm_context,
-                        c_env->get_mangled_name()/*, add is_packed*/
+                        c_env->get_qualified_name()/*, add is_packed*/
                         );
                 context_->env_conversion_table.bind_type( c_env, llvm_struct_type );
 

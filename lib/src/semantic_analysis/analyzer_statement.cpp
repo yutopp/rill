@@ -9,6 +9,7 @@
 #include <rill/semantic_analysis/semantic_analysis.hpp>
 #include <rill/semantic_analysis/messaging.hpp>
 #include <rill/semantic_analysis/message_code.hpp>
+#include <rill/semantic_analysis/make_mangled_name.hpp>
 
 #include <rill/environment/environment.hpp>
 #include <rill/environment/make_module_name.hpp>

@@ -435,7 +435,7 @@ namespace rill
                     g_env_->get_related_env_by_ast_ptr( ast_for_lambda_class )
                     );
                 assert( c_env != nullptr );
-                rill_dout << "-> " << c_env->get_mangled_name() << " / ptr: " << c_env << std::endl;
+                rill_dout << "-> " << c_env->get_qualified_name() << " / ptr: " << c_env << std::endl;
 
                 std::size_t index = 0;
                 for( auto&& ex_ast : c_env->get_outer_referenced_asts() ) {

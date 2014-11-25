@@ -75,13 +75,21 @@ namespace rill
             return KindValue;
         }
 
+        auto check(
+            native_string_type const& qualified_name
+            )
+            -> void
+        {
+            qualified_name_ = qualified_name;
+
+            change_progress_to_checked();
+        }
+
         auto complete(
-            native_string_type const& mangled_name,
             attribute::decl::type const& decl_attr = attribute::decl::k_default
             )
             -> void
         {
-            mangled_name_ = mangled_name;
             set_attribute( decl_attr );
 
             change_progress_to_completed();
@@ -93,10 +101,10 @@ namespace rill
             return base_name_;
         }
 
-        auto get_mangled_name() const
+        auto get_qualified_name() const
             -> native_string_type const&
         {
-            return mangled_name_;
+            return qualified_name_;
         }
 
         bool has_attribute( attribute::decl::type const& attribute ) const
@@ -254,7 +262,7 @@ namespace rill
         }
 
     private:
-        native_string_type base_name_, mangled_name_;
+        native_string_type base_name_, qualified_name_;
         attribute::decl::type decl_attr_;
         class_builtin_kind builtin_kind_;
 

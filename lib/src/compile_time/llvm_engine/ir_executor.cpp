@@ -334,7 +334,7 @@ namespace rill
 
                     rill_dregion {
                         std::cout << "in llvm.class_name "
-                                  << c_env->get_mangled_name() << " (" << type_id << ")"
+                                  << c_env->get_qualified_name() << " (" << type_id << ")"
                                   << std::endl;
                     }
 
@@ -405,7 +405,7 @@ namespace rill
 
                     rill_dregion {
                         std::cout << "in llvm.class_name "
-                                  << c_env->get_mangled_name() << " (" << type_id << ")"
+                                  << c_env->get_qualified_name() << " (" << type_id << ")"
                                   << std::endl;
                     }
 

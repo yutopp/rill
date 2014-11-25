@@ -9,6 +9,7 @@
 #include <rill/semantic_analysis/semantic_analysis.hpp>
 #include <rill/semantic_analysis/messaging.hpp>
 #include <rill/semantic_analysis/message_code.hpp>
+#include <rill/semantic_analysis/make_mangled_name.hpp>
 
 #include <rill/environment/environment.hpp>
 #include <rill/environment/make_module_name.hpp>
@@ -251,115 +252,12 @@ namespace rill
         }
 
 
-
         //
         auto analyzer::ref_type(
             type_detail_ptr const& ty_detail
             ) const -> type const&
         {
             return g_env_->get_type_at( ty_detail->type_id );
-        }
-
-        auto make_mangled_name(
-            const_class_symbol_environment_ptr const& c_env,
-            boost::optional<std::reference_wrapper<std::string const>> const& template_signature
-            )
-            -> std::string
-        {
-            assert( c_env != nullptr );
-            //assert( c_env->is_checked() );
-
-            std::string s;
-            s += std::to_string( c_env->get_base_name().size() );
-            s += c_env->get_base_name();
-
-            if ( template_signature ) {
-                s += "TA[";
-                s += std::to_string( template_signature->get().size() );
-                s += "]";
-                s += template_signature->get();
-            }
-
-            return s;
-        }
-
-        auto make_mangled_name(
-            const_class_symbol_environment_ptr const& c_env,
-            attribute::type_attributes const& attr,
-            boost::optional<std::reference_wrapper<std::string const>> const& template_signature
-            )
-            -> std::string
-        {
-            assert( c_env != nullptr );
-            //assert( c_env->is_checked() );
-
-            rill_dout << "mangling:: " << c_env->get_mangled_name() << std::endl
-                      << attr << std::endl
-                      << "==========" << std::endl;
-
-            std::string s = c_env->get_mangled_name();
-
-            s += [&]() {
-                switch( attr.quality )
-                {
-                case attribute::holder_kind::k_suggest:
-                    return "LET";
-                case attribute::holder_kind::k_val:
-                    return "VAL";
-                case attribute::holder_kind::k_ref:
-                    return "REF";
-                default:
-                    assert( false );
-                    return "";
-                }
-            }();
-
-            s += [&]() {
-                switch( attr.modifiability )
-                {
-                case attribute::modifiability_kind::k_mutable:
-                    return "MUT";
-                case attribute::modifiability_kind::k_const:
-                    return "CST";
-                case attribute::modifiability_kind::k_immutable:
-                case attribute::modifiability_kind::k_none: // none == immutable
-                    return "IMM";
-                default:
-                    assert( false );
-                    return "";
-                }
-            }();
-
-            return s;
-        }
-
-
-        auto make_mangled_name(
-            const_global_environment_ptr const& global_env,
-            const_function_symbol_environment_ptr const& f_env,
-            boost::optional<std::reference_wrapper<std::string const>> const& template_signature
-            )
-            -> std::string
-        {
-            assert( f_env != nullptr );
-            assert( f_env->is_checked() );
-
-            std::string s = "_R";
-
-            s += std::to_string( f_env->get_base_name().size() );
-            s += f_env->get_base_name();
-
-            for( auto const& type_id : f_env->get_parameter_type_ids() ) {
-                auto const& param_type = global_env->get_type_at( type_id );
-                s += make_mangled_name(
-                    global_env->get_env_at_as_strong_ref<class_symbol_environment const>(
-                        param_type.class_env_id
-                        ),
-                    param_type.attributes
-                    );
-            }
-
-            return s;
         }
 
 
@@ -462,19 +360,19 @@ namespace rill
                     // deduce this template variable is "type" type.
                     rill_dout << "Construct template parameter[type] val / index : " << i << std::endl;
                     assert( false );
-/*
+#if 0
                     // declare the template parameter into function env as variable
                     auto const& v_env
                         = inner_env->construct(
                             kind::k_variable,
                             template_parameter.decl_unit.name,
-                            nullptr/*TODO: change to valid ptr to ast*,
+                            nullptr, //TODO: change to valid ptr to ast
                             class_env,
                             ty.attributes
                             );
 
                     declared_envs[i] = v_env;
-*/
+#endif
                 }
             }
 
@@ -518,7 +416,7 @@ namespace rill
                                 )
                             );
 
-                    rill_dout << "#### [parameter type]: " << c_e->get_mangled_name() << std::endl;
+                    rill_dout << "#### [parameter type]: " << c_e->get_qualified_name() << std::endl;
 
                     if ( template_arg.is_type() ) {
                         rill_dout << "type: inner value is " << std::endl;
@@ -541,7 +439,7 @@ namespace rill
                                   << "** " << tt.class_env_id << std::endl;
 
                         rill_dout << "BINDED " << template_var_env->get_id()
-                                  << " -> " << c_e->get_mangled_name() << std::endl;
+                                  << " -> " << c_e->get_qualified_name() << std::endl;
                     } else {
                         rill_dout << "value: " << std::endl;
                     }
@@ -771,15 +669,14 @@ namespace rill
                 // assert( false );
                 return false;
             }
-            c_env->change_progress_to_checked();
+            auto const& qualified_name
+                = make_qualified_name( c_env, template_signature );
+            c_env->check( qualified_name );
 
             block_envs_.emplace( c_env );
             BOOST_SCOPE_EXIT_ALL(this) {
                 block_envs_.pop();
             };
-
-            auto const& mangled_name
-                = make_mangled_name( c_env, template_signature );
 
             auto const& attributes
                 = s->decl_attr_;
@@ -814,7 +711,7 @@ namespace rill
                 c_env->set_attribute( attribute::decl::k_structured );
 
                 // complete class data
-                c_env->complete( mangled_name, attributes );
+                c_env->complete( attributes );
 
             } else {
                 rill_dout << "builtin class!" << std::endl;
@@ -907,7 +804,7 @@ namespace rill
                 }
 
                 // complete class data
-                c_env->complete( mangled_name, attributes );
+                c_env->complete( attributes );
             }
 
             return true;
@@ -1046,7 +943,7 @@ namespace rill
                     }
                     } // switch
                 }();
-                rill_dout << "argt: " << c_env->get_mangled_name() << std::endl;
+                rill_dout << "argt: " << c_env->get_qualified_name() << std::endl;
 
                 template_args.push_back( ta );
             }
@@ -1502,7 +1399,7 @@ namespace rill
                     ty.class_env_id
                     );
                 rill_dout
-                    << "type: " << c_env->get_mangled_name()
+                    << "type: " << c_env->get_qualified_name()
                     << " / ty.class_env_id: " << ty.class_env_id << std::endl
                     << "type: " << debug_string( c_env->get_symbol_kind() ) << std::endl
                     << ty.attributes;
@@ -2106,7 +2003,7 @@ namespace rill
                         auto const& c_env
                             = cast_to<class_symbol_environment>( ne.at( 0 ) );
 
-                        rill_dout << "()memoed.class " << c_env->get_mangled_name() << std::endl;
+                        rill_dout << "()memoed.class " << c_env->get_qualified_name() << std::endl;
 
                         if ( c_env->is_incomplete() ) {
                             dispatch( c_env->get_related_ast(), c_env->get_parent_env() );
