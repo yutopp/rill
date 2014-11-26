@@ -159,6 +159,13 @@ namespace rill
             term_expression( value_ptr const& v )
                 : value_( v )
             {}
+
+            template<typename Ptr>
+            inline auto after_constructing( Ptr const& self )
+                -> void
+            {
+                self->value_->parent_expression = self;
+            }
         RILL_AST_END
 
 

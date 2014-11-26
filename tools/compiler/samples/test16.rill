@@ -1,0 +1,22 @@
+class A
+{
+    val n: int;
+
+    def ctor()
+        | n = hoge
+        , nn = hoge * 2
+    {}
+
+    def print(): void
+    {
+        p(this.n);
+    }
+}
+
+def main(): int
+{
+    val g = A();
+    g.print();
+
+    return 0;
+}

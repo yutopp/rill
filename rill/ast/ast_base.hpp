@@ -69,9 +69,15 @@ namespace rill
             }
 
         public:
-            inline auto get_id() const -> ast_id_t {
+            inline auto get_id() const -> ast_id_t
+            {
                 return id_;
             }
+
+            template<typename Ptr>
+            inline auto after_constructing( Ptr const& self )
+                -> void
+            {}
 
         public:
             std::size_t line, column;

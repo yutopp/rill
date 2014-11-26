@@ -223,11 +223,17 @@ namespace rill
             /// = 5
             /// :int
             R( value_initializer_unit, ast::value_initializer_unit,
-                ( x3::lit( '=' ) > t.expression )[
-                    helper::construct<ast::value_initializer_unit>( ph::_1 )
+                ( t.value_initializer_unit_only_value )[
+                    helper::assign()
                     ]
                 | ( t.type_specifier >> -( x3::lit( '=' ) > t.expression ) )[
                     helper::construct<ast::value_initializer_unit>( ph::_1, ph::_2 )
+                    ]
+            )
+
+            R( value_initializer_unit_only_value, ast::value_initializer_unit,
+                ( x3::lit( '=' ) > t.expression )[
+                    helper::construct<ast::value_initializer_unit>( ph::_1 )
                     ]
             )
 
@@ -312,6 +318,7 @@ namespace rill
                 > t.parameter_variable_declaration_list
                 > t.decl_attribute_list
                 > -t.type_specifier
+                > -t.class_variable_initializers
                 > t.function_body_block
                 )[
                     helper::make_node_ptr<ast::class_function_definition_statement>(
@@ -319,10 +326,34 @@ namespace rill
                         ph::_2,
                         ph::_3,
                         ph::_4,
-                        ph::_5
+                        ph::_5,
+                        ph::_6
                         )
                     ]
             )
+
+            R( class_variable_initializers, ast::element::class_variable_initializers,
+                ( x3::lit( "|" )
+                  > x3::attr(nullptr) /* work around to avoid this rule to be adapted to vector(pass type at random) */
+                  // > t.initializer_temporary_block
+                > t.class_variable_initializer_list
+                )[
+                    helper::construct<ast::element::class_variable_initializers>(
+                        ph::_2
+                        )
+                    ]
+            )
+
+            R( class_variable_initializer_list, ast::variable_declaration_unit_container_t,
+                +t.class_variable_initializer_unit
+            )
+
+            R( class_variable_initializer_unit, ast::variable_declaration_unit,
+                ( t.identifier > t.value_initializer_unit_only_value )[
+                    helper::construct<ast::variable_declaration_unit>( ph::_1, ph::_2 )
+                    ]
+            )
+
 
             RN( class_variable_declaration_statement, ast::class_variable_declaration_statement_ptr,
                 ( t.variable_declaration > t.statement_termination )[

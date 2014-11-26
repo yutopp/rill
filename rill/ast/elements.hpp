@@ -121,7 +121,14 @@ namespace rill
         typedef std::vector<variable_declaration> parameter_list;
 
         // } // namespace element
+        namespace element
+        {
+            struct class_variable_initializers
+            {
+                variable_declaration_unit_container_t initializers;
+            };
 
+        } // namespace element
 
         // expressions
         typedef std::vector<expression_ptr> expression_list;

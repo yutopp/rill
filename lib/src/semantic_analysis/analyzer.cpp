@@ -1788,11 +1788,24 @@ namespace rill
                     : o_t_f_envs;
 
                 if ( res_match == function_match_level::k_no_match ) {
+                    // debug
+                    for( auto&& a : arg_types ) {
+                        auto const& t
+                            = g_env_->get_type_at( a->type_id );
+                        assert( t.class_env_id != environment_id_undefined );
+
+                        auto const& t_c_env
+                            = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>( t.class_env_id );
+                        assert( t_c_env != nullptr );
+
+                        rill_dout << t_c_env->get_qualified_name() << t.attributes << std::endl;
+                    }
+
                     // Error
                     semantic_error(
                         message_code::e_overload_nomatch,
                         e,
-                        format( "Overload resolition: suitable function was not found" )
+                        format( "Overload resolution: suitable function was not found" )
                         );
                 }
 
@@ -1800,7 +1813,7 @@ namespace rill
                     semantic_error(
                         message_code::e_overload_anbigous,
                         e,
-                        format( "Overload resolition: callable functions were anbigous" )
+                        format( "Overload resolution: callable functions were anbigous" )
                         );
                 }
 
@@ -1825,7 +1838,7 @@ namespace rill
                     semantic_error(
                         message_code::e_overload_nomatch,
                         e,
-                        format( "Overload resolition: suitable function was not found" )
+                        format( "Overload resolution: suitable function was not found" )
                         );
                 }
 
@@ -1833,7 +1846,7 @@ namespace rill
                     semantic_error(
                         message_code::e_overload_anbigous,
                         e,
-                        format( "Overload resolition: callable functions were anbigous" )
+                        format( "Overload resolution: callable functions were anbigous" )
                         );
                 }
 

@@ -10,8 +10,8 @@ def main(): int
     p(g(9));
     p("expect => 81");
 
-//    p(f()(4));
-//    p("expect => 16");
+    p(f()(4));
+    p("expect => 40");
 
     return 0;
 }

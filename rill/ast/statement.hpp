@@ -288,6 +288,7 @@ namespace rill
                 parameter_list const& parameter_list,
                 attribute::decl::type const& decl_attr,
                 boost::optional<id_expression_ptr> const& return_type,
+                boost::optional<element::class_variable_initializers> const& init,
                 statements_ptr const& inner
                 )
                 : function_definition_statement_base(

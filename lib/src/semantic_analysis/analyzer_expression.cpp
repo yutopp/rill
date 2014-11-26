@@ -400,6 +400,7 @@ namespace rill
                         e->parameters,
                         attribute::decl::k_default,
                         boost::none,
+                        boost::none,
                         std::make_shared<ast::statements>(
                             e->statements
                             )
@@ -438,6 +439,8 @@ namespace rill
                 rill_dout << "-> " << c_env->get_qualified_name() << " / ptr: " << c_env << std::endl;
 
                 std::size_t index = 0;
+                ast::parameter_list parames_for_ctor;
+                ast::expression_list args_for_ctor;
                 for( auto&& ex_ast : c_env->get_outer_referenced_asts() ) {
                     rill_dregion {
                         rill_dout << "outer ast ptr " << ex_ast << std::endl;
@@ -459,6 +462,7 @@ namespace rill
 
                     //
                     // create places for captured variables
+                    //
                     auto vd = ast::variable_declaration{
                         ex_type.attributes.quality,
                         ast::variable_declaration_unit{
@@ -491,18 +495,46 @@ namespace rill
                     }
                     dispatch( captured_v_decl, c_env );
 
+                    //
                     ast_for_lambda_class->inner_->statements_.push_back( captured_v_decl );
 
-                    // !!: replace ast node
                     assert( !ex_ast->parent_expression.expired() );
                     auto expr = ex_ast->parent_expression.lock();
+                    auto for_arg = clone( expr );
+
+                    // !!: replace ast node
                     expr->value_ = std::make_shared<ast::captured_value>( index );
 
+
+                    //
+                    //
+                    //
+                    auto pvd = ast::variable_declaration{
+                        ex_type.attributes.quality,
+                        ast::variable_declaration_unit{
+                            ex_ast,
+                            ast::value_initializer_unit{
+                                std::make_shared<ast::id_expression>(
+                                    std::make_shared<ast::evaluated_type_expression>(
+                                        ex_tid
+                                        )
+                                    ),
+                                boost::none
+                            }
+                        }
+                    };
+                    parames_for_ctor.emplace_back( std::move( pvd ) );
+
+
+                    //
+                    //
+                    //
+                    args_for_ctor.emplace_back( std::move( for_arg ) );
+
+                    //
                     ++index;
                 }
 
-                std::cout << (const_environment_base_ptr)c_env << std::endl;
-                //assert( false );
 
                 // 'constructor' for lambda object
                 {
@@ -511,9 +543,10 @@ namespace rill
                 auto lambda_ctor_def
                     = std::make_shared<ast::class_function_definition_statement>(
                         lambda_ctor_id,
-                        ast::parameter_list{},
+                        parames_for_ctor,
                         attribute::decl::k_default,
                         boost::none,
+                        boost::none, // TODO: initializer for captured values
                         std::make_shared<ast::statements>(
                             ast::element::statement_list{
                                 // TODO: add capture
@@ -540,13 +573,15 @@ namespace rill
                 auto const& call_expr
                     = std::make_shared<ast::call_expression>(
                         std::move( reciever ),
-                        ast::expression_list{}
+                        args_for_ctor
                         );
 
                 // memoize call expression to lambda ast
                 e->call_expr = call_expr;
 
-                return call_constructor( call_expr, {}, parent_env );
+                auto const& argument_type_details
+                    = evaluate_invocation_args( nullptr, args_for_ctor, parent_env );
+                return call_constructor( call_expr, argument_type_details, parent_env );
 
             } else {
                 rill_ice( "" );
