@@ -33,7 +33,10 @@ namespace rill
         //
         RILL_VISITOR_OP( analyzer, ast::identifier_value, v, parent_env )
         {
-            auto&& td = solve_identifier( v, parent_env );
+            auto&& td = solve_identifier(
+                static_cast<ast::const_identifier_value_ptr>( v ),
+                parent_env
+                );
             if ( td == nullptr ) {
                 semantic_error(
                     message_code::e_id_not_found,
@@ -52,7 +55,10 @@ namespace rill
         //
         RILL_VISITOR_OP( analyzer, ast::template_instance_value, v, parent_env )
         {
-            auto&& td = solve_identifier( v, parent_env );
+            auto&& td = solve_identifier(
+                static_cast<ast::const_template_instance_value_ptr>( v ),
+                parent_env
+                );
             if ( td == nullptr ) {
                 semantic_error(
                     message_code::e_id_not_found,

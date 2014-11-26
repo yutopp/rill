@@ -260,6 +260,13 @@ namespace rill
             return g_env_->get_type_at( ty_detail->type_id );
         }
 
+        auto analyzer::ref_env(
+            type_detail_ptr const& ty_detail
+            ) const -> environment_base_ptr
+        {
+            auto const& ty = ref_type( ty_detail );
+            return g_env_->get_env_at_as_strong_ref( ty.class_env_id );
+        }
 
         //
         auto delegate_parent_attributes(
@@ -1860,16 +1867,41 @@ namespace rill
 
         // for Identifier
         auto analyzer::solve_identifier(
+            ast::const_identifier_value_base_ptr const& id,
+            environment_base_ptr const& parent_env,
+            bool const do_lookup,
+            kind::type_value const& exclude_env_type
+            ) -> type_detail_ptr
+        {
+            return id->is_template()
+                ? solve_identifier(
+                    std::static_pointer_cast<ast::template_instance_value const>( id ),
+                    parent_env,
+                    do_lookup,
+                    exclude_env_type
+                    )
+                : solve_identifier(
+                    std::static_pointer_cast<ast::identifier_value const>( id ),
+                    parent_env,
+                    do_lookup,
+                    exclude_env_type
+                    )
+                ;
+        }
+
+
+        // for Identifier
+        auto analyzer::solve_identifier(
             ast::const_identifier_value_ptr const& identifier,
             environment_base_ptr const& parent_env,
-            bool const do_not_lookup,
+            bool const do_lookup,
             kind::type_value const& exclude_env_type
             ) -> type_detail_ptr
         {
             return generic_solve_identifier(
                 identifier,
                 parent_env,
-                do_not_lookup,
+                do_lookup,
                 exclude_env_type
                 );
         }
@@ -1879,7 +1911,7 @@ namespace rill
         auto analyzer::solve_identifier(
             ast::const_template_instance_value_ptr const& identifier,
             environment_base_ptr const& parent_env,
-            bool const do_not_lookup,
+            bool const do_lookup,
             kind::type_value const& exclude_env_type
             ) -> type_detail_ptr
         {
@@ -1887,7 +1919,7 @@ namespace rill
                 = generic_solve_identifier(
                     identifier,
                     parent_env,
-                    do_not_lookup,
+                    do_lookup,
                     exclude_env_type
                     );
             if ( ty_detail == nullptr ) {
@@ -2604,20 +2636,9 @@ namespace rill
                 = g_env_->get_env_at_as_strong_ref( reciever_type.class_env_id );
             assert( reciever_class_env != nullptr );
 
-            // 1. resolve identifier in reciever_class_env
+            // 1. resolve identifier only from reciever_class_env
             auto const& selector_id_type_detail
-                = id->is_template()
-                ? solve_identifier(
-                    std::static_pointer_cast<ast::template_instance_value const>( id ),
-                    reciever_class_env,
-                    false
-                    )
-                : solve_identifier(
-                    std::static_pointer_cast<ast::identifier_value const>( id ),
-                    reciever_class_env,
-                    false
-                    )
-                ;
+                = solve_identifier( id, reciever_class_env, false );
 
             if ( selector_id_type_detail != nullptr ) {
                 // found!
@@ -2688,20 +2709,12 @@ namespace rill
                 if ( do_universal_search ) {
                     // search with excluding "class" env type
                     auto const& selector_id_type_detail
-                        = id->is_template()
-                        ? solve_identifier(
-                            std::static_pointer_cast<ast::template_instance_value const>( id ),
+                        = solve_identifier(
+                            id,
                             parent_env,
                             true,
                             kind::type_value::e_class
-                            )
-                        : solve_identifier(
-                            std::static_pointer_cast<ast::identifier_value const>( id ),
-                            parent_env,
-                            true,
-                            kind::type_value::e_class
-                            )
-                        ;
+                            );
 
                     if ( selector_id_type_detail != nullptr ) {
                         // create new nest data

@@ -412,6 +412,7 @@ namespace rill
             // function parameter variables
             // and, make local variable creation
             std::size_t i = 0;
+            llvm::Value* this_value = nullptr;
             for( llvm::Function::arg_iterator ait = func->arg_begin(); ait != func->arg_end(); ++ait ) {
                 rill_dout << "Argument No: " << ait->getArgNo() << std::endl;
                 if ( ait == func->arg_begin() && returns_heavy_object ) {
@@ -421,6 +422,9 @@ namespace rill
                     auto const& var =
                         g_env_->get_env_at_as_strong_ref<variable_symbol_environment const>( parameter_variable_decl_env_ids[i] );
                     ait->setName( var->get_mangled_name() );
+                    if ( this_value == nullptr ) {
+                        this_value = ait;
+                    }
 
                     store_value( ait, var );
                     ++i;
@@ -429,6 +433,44 @@ namespace rill
 
             // ========================================
             // func->setGC( "shadow-stack" );
+
+
+            // ========================================
+            if ( s->initializers ) {
+                for( auto&& var_unit : s->initializers->initializers ) {
+                    // initial value
+                    auto const& value
+                        = dispatch( var_unit.init_unit.initializer, f_env );
+                    assert( value != nullptr );
+
+                    auto const& element_env
+                        = g_env_->get_related_env_by_ast_ptr( var_unit.name );
+                    assert( element_env != nullptr );
+                    assert( element_env->get_symbol_kind() == kind::type_value::e_variable );
+                    auto const& v_env
+                        = cast_to<variable_symbol_environment const>( element_env );
+                    auto const& v_type
+                        = g_env_->get_type_at( v_env->get_type_id() );
+
+                    // data index in struct
+                    auto const& index
+                        = context_->env_conversion_table.get_class_variable_index(
+                            v_env->get_parent_class_env_id(),
+                            v_env->get_id()
+                            );
+                    rill_dout << "index: " << index << std::endl;
+
+                    auto class_value
+                        = context_->ir_builder.CreateStructGEP( this_value, index );
+
+                    context_->ir_builder.CreateStore(
+                        value,
+                        class_value /*, is_volatile */
+                        );
+
+                }
+            }
+
 
             // ========================================
             // generate statements
@@ -917,9 +959,7 @@ namespace rill
                 if ( element_env->get_symbol_kind() == kind::type_value::e_variable ) {
                     // variable that belonged to class
                     auto const& v_env
-                        = std::static_pointer_cast<variable_symbol_environment const>(
-                            element_env
-                            );
+                        = cast_to<variable_symbol_environment const>( element_env );
                     assert( v_env != nullptr );
                     assert( v_env->is_in_class() );
 

@@ -280,7 +280,8 @@ namespace rill
 
 
         RILL_AST_BEGIN(
-            class_function_definition_statement, function_definition_statement_base
+            class_function_definition_statement, function_definition_statement_base,
+            (( boost::optional<element::class_variable_initializers>, initializers ))
             )
         public:
             class_function_definition_statement(
@@ -288,12 +289,13 @@ namespace rill
                 parameter_list const& parameter_list,
                 attribute::decl::type const& decl_attr,
                 boost::optional<id_expression_ptr> const& return_type,
-                boost::optional<element::class_variable_initializers> const& init,
+                boost::optional<element::class_variable_initializers> const& inits,
                 statements_ptr const& inner
                 )
                 : function_definition_statement_base(
                     id, parameter_list, decl_attr, return_type, inner
                     )
+                , initializers( inits )
             {}
 
             auto is_class_function() const

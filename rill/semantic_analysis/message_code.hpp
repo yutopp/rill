@@ -19,13 +19,15 @@ namespace rill
             e_id_not_found,
             e_overload_nomatch,
             e_overload_anbigous,
-                e_module_not_found,
-                e_failed_to_parse_module,
-                e_variable_is_already_defined,
-                e_different_kind_symbol,
-                e_file_not_found,
+            e_module_not_found,
+            e_failed_to_parse_module,
+            e_variable_is_already_defined,
+            e_different_kind_symbol,
+            e_file_not_found,
+            e_constructor_has_return_type,
+            e_class_function_has_initializers,
 
-                e_reference
+            e_reference
         };
 
     } // namespace semantic_analysis

@@ -494,15 +494,33 @@ namespace rill
 
             if ( is_constructor ) {
                 // constructor
-                assert( s->return_type_ == nullptr && "constructor can not have a return type" );
+                if ( s->return_type_ != nullptr ) {
+                    semantic_error(
+                        message_code::e_constructor_has_return_type,
+                        s,
+                        format( "Constructors can not have a return type" )
+                        );
+                }
 
+                // force set, return type must be void
                 auto const& void_class_env = get_primitive_class_env( "void" );
-                auto ret_ty_id = g_env_->make_type_id( void_class_env, attribute::make_default_type_attributes() );
-
+                auto ret_ty_id = g_env_->make_type_id(
+                    void_class_env,
+                    attribute::make_default_type_attributes()
+                    );
                 f_env->decide_return_type( ret_ty_id );
 
             } else {
                 // normal function
+
+                if ( s->initializers != boost::none ) {
+                    semantic_error(
+                        message_code::e_class_function_has_initializers,
+                        s,
+                        format( "Normal class functions can not have an initializer list" )
+                        );
+                }
+
                 // return type
                 if ( s->return_type_ ) {
                     // if return type was specified, decide type to it.
@@ -518,6 +536,62 @@ namespace rill
 
                             f_env->decide_return_type( return_ty_d->type_id );
                         });
+                }
+            }
+
+            // initializer list
+            if ( s->initializers ) {
+                // list
+                for( auto&& var_unit : s->initializers->initializers ) {
+                    assert( var_unit.init_unit.initializer != nullptr );
+                    assert( var_unit.init_unit.type == nullptr );
+
+                    // initial value
+                    auto const& iv_type_d
+                        = dispatch( var_unit.init_unit.initializer, f_env );
+                    assert( iv_type_d != nullptr );
+
+                    // search class variable
+                    auto const& d_ty
+                        = solve_identifier( var_unit.name, parent_c_env, false );
+                    if ( d_ty == nullptr ) {
+                        semantic_error(
+                            message_code::e_id_not_found,
+                            var_unit.name,
+                            format( "Identifier '%1%' was not declared." ) % var_unit.name->get_inner_symbol()->to_native_string()
+                            );
+                    }
+                    auto const& v_env = ref_env( d_ty );
+                    if ( v_env->get_symbol_kind() == kind::type_value::e_variable ) {
+                        assert( false );
+                    }
+
+                    // link
+                    v_env->connect_from_ast( var_unit.name );
+
+                    // type check
+                    RILL_PP_TIE( level, conv_function_env,
+                                 try_type_conversion(
+                                     d_ty->type_id,
+                                     iv_type_d->type_id,
+                                     parent_env
+                                     )
+                        );
+
+                    switch( level ) {
+                    case function_match_level::k_exact_match:
+                        rill_dout << "Exact" << std::endl;
+                        break;
+                    case function_match_level::k_qualifier_conv_match:
+                        rill_dout << "Qual" << std::endl;
+                        break;
+                    case function_match_level::k_implicit_conv_match:
+                        rill_dout << "Implicit" << std::endl;
+                        break;
+                    case function_match_level::k_no_match:
+                        rill_dout << "NoMatch" << std::endl;
+                        assert( false && "[[error]] This value can not be assigned(type conversion)" );
+                    }
                 }
             }
 

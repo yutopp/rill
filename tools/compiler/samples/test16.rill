@@ -1,8 +1,9 @@
 class A
 {
     val n: int;
+    val nn: int;
 
-    def ctor()
+    def ctor(hoge: int)
         | n = hoge
         , nn = hoge * 2
     {}
@@ -15,7 +16,7 @@ class A
 
 def main(): int
 {
-    val g = A();
+    val g = A(10);
     g.print();
 
     return 0;

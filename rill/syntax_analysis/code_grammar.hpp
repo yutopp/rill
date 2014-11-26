@@ -317,16 +317,16 @@ namespace rill
                 > t.identifier
                 > t.parameter_variable_declaration_list
                 > t.decl_attribute_list
-                > -t.type_specifier
                 > -t.class_variable_initializers
+                > -t.type_specifier
                 > t.function_body_block
                 )[
                     helper::make_node_ptr<ast::class_function_definition_statement>(
                         ph::_1,
                         ph::_2,
                         ph::_3,
-                        ph::_4,
                         ph::_5,
+                        ph::_4, // Be careful
                         ph::_6
                         )
                     ]
@@ -334,8 +334,7 @@ namespace rill
 
             R( class_variable_initializers, ast::element::class_variable_initializers,
                 ( x3::lit( "|" )
-                  > x3::attr(nullptr) /* work around to avoid this rule to be adapted to vector(pass type at random) */
-                  // > t.initializer_temporary_block
+                > x3::attr(nullptr) /* work around to avoid this rule to be adapted to vector(pass type at random) */
                 > t.class_variable_initializer_list
                 )[
                     helper::construct<ast::element::class_variable_initializers>(
@@ -345,7 +344,7 @@ namespace rill
             )
 
             R( class_variable_initializer_list, ast::variable_declaration_unit_container_t,
-                +t.class_variable_initializer_unit
+                t.class_variable_initializer_unit % x3::lit( ',' )
             )
 
             R( class_variable_initializer_unit, ast::variable_declaration_unit,

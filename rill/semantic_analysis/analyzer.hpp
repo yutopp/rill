@@ -157,9 +157,16 @@ namespace rill
         public:
             // for Identifier
             auto solve_identifier(
+                ast::const_identifier_value_base_ptr const&,
+                environment_base_ptr const&,
+                bool const do_lookup = true,
+                kind::type_value const& exclude_env_type = kind::type_value::e_none
+                ) -> type_detail_ptr;
+
+            auto solve_identifier(
                 ast::const_identifier_value_ptr const&,
                 environment_base_ptr const&,
-                bool const = true,
+                bool const do_lookup = true,
                 kind::type_value const& exclude_env_type = kind::type_value::e_none
                 ) -> type_detail_ptr;
 
@@ -167,7 +174,7 @@ namespace rill
             auto solve_identifier(
                 ast::const_template_instance_value_ptr const&,
                 environment_base_ptr const&,
-                bool const = true,
+                bool const do_lookup = true,
                 kind::type_value const& exclude_env_type = kind::type_value::e_none
                 ) -> type_detail_ptr;
 
@@ -184,6 +191,10 @@ namespace rill
             auto ref_type(
                 type_detail_ptr const& ty_detail
                 ) const -> type const&;
+
+            auto ref_env(
+                type_detail_ptr const& ty_detail
+                ) const -> environment_base_ptr;
 
             auto qualify_type(
                 type_detail_ptr const& ty_detail,
