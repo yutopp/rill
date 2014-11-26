@@ -463,11 +463,11 @@ namespace rill
                     auto class_value
                         = context_->ir_builder.CreateStructGEP( this_value, index );
 
+                    // TODO: fix
                     context_->ir_builder.CreateStore(
                         value,
                         class_value /*, is_volatile */
                         );
-
                 }
             }
 

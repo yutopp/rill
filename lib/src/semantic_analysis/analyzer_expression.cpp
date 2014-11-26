@@ -384,7 +384,6 @@ namespace rill
         //
         RILL_VISITOR_OP( analyzer, ast::lambda_expression, e, parent_env )
         {
-            auto& module_env = module_envs_.top();
             static int id = 0;
             auto const& lambda_class_id
                 = ast::make_identifier( std::string( "__lambda_" ) + std::to_string( id ) );
@@ -441,6 +440,8 @@ namespace rill
                 std::size_t index = 0;
                 ast::parameter_list parames_for_ctor;
                 ast::expression_list args_for_ctor;
+                ast::element::class_variable_initializers initializer({});
+
                 for( auto&& ex_ast : c_env->get_outer_referenced_asts() ) {
                     rill_dregion {
                         rill_dout << "outer ast ptr " << ex_ast << std::endl;
@@ -501,6 +502,7 @@ namespace rill
                     assert( !ex_ast->parent_expression.expired() );
                     auto expr = ex_ast->parent_expression.lock();
                     auto for_arg = clone( expr );
+                    auto for_init = clone( expr );
 
                     // !!: replace ast node
                     expr->value_ = std::make_shared<ast::captured_value>( index );
@@ -531,6 +533,18 @@ namespace rill
                     //
                     args_for_ctor.emplace_back( std::move( for_arg ) );
 
+
+                    // initializer
+                    // ctor() | ex_ast = arg ...
+                    initializer.initializers.emplace_back(
+                        ast::variable_declaration_unit{
+                            std::static_pointer_cast<const rill::ast::identifier_value_base>( for_init->value_ ),
+                            ast::value_initializer_unit{
+                                for_init
+                            }
+                        }
+                        );
+
                     //
                     ++index;
                 }
@@ -546,11 +560,9 @@ namespace rill
                         parames_for_ctor,
                         attribute::decl::k_default,
                         boost::none,
-                        boost::none, // TODO: initializer for captured values
+                        initializer,
                         std::make_shared<ast::statements>(
-                            ast::element::statement_list{
-                                // TODO: add capture
-                            }
+                            ast::element::statement_list{}
                             )
                         );
                 auto const& report
