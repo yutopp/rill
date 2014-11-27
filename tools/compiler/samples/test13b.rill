@@ -1,0 +1,17 @@
+def f()
+{
+    val n = 10;
+    return -> (a: int) => -> (b: int) => a + b;
+}
+
+def main(): int
+{
+    val g = -> (a: int) => a * a;
+    p(g(9));
+    p("expect => 81");
+
+    p(f()(3)(7));
+    p("expect => 21");
+
+    return 0;
+}

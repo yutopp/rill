@@ -165,7 +165,6 @@ namespace rill
         {
             if ( kind == kind::type_value::e_function
                  || kind == kind::type_value::e_class
-                 || kind == kind::type_value::e_variable
                 )
             {
                 auto const& multiset_env = cast_to<multiple_set_environment>( env );
@@ -182,6 +181,17 @@ namespace rill
                         format( "Some symbols that are not %1% kind are already defined in this scope" ) % debug_string( kind )
                         );
                 }
+
+            } else if ( kind == kind::type_value::e_variable ) {
+                if ( env->get_symbol_kind() != kind ) {
+                    semantic_error(
+                        message_code::e_different_kind_symbol,
+                        s,
+                        parent_env,
+                        format( "Some symbols that are not %1% kind are already defined in this scope" ) % debug_string( kind )
+                        );
+                }
+
             }
         }
 

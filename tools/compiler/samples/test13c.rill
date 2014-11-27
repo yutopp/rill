@@ -1,0 +1,10 @@
+def main(): int
+{
+    val n = 4;
+    val f = -> (a: int) => a * a * n * n;
+
+    p(f(4));
+    p("expect => 256");
+
+    return 0;
+}

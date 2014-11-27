@@ -441,6 +441,7 @@ namespace rill
                 ast::parameter_list parames_for_ctor;
                 ast::expression_list args_for_ctor;
                 ast::element::class_variable_initializers initializer({});
+                std::unordered_map<ast::native_string_t, std::size_t> captured;
 
                 for( auto&& ex_ast : c_env->get_outer_referenced_asts() ) {
                     rill_dregion {
@@ -460,6 +461,21 @@ namespace rill
                     if ( ex_c_env->has_attribute( attribute::decl::k_onlymeta ) ) {
                         continue;
                     }
+
+                    // cache
+                    auto const& name
+                        = ex_ast->get_inner_symbol()->to_native_string();
+                    auto const it = captured.find( name );
+                    if ( it != captured.cend() ) {
+                        // !!: replace ast node
+                        assert( !ex_ast->parent_expression.expired() );
+                        auto expr = ex_ast->parent_expression.lock();
+                        expr->value_
+                            = std::make_shared<ast::captured_value>( it->second );
+                        continue;
+                    }
+                    captured.emplace( name, index );
+
 
                     //
                     // create places for captured variables

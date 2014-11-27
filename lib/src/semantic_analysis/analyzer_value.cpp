@@ -21,7 +21,7 @@ namespace rill
         //
         //
         //
-        RILL_VISITOR_OP( analyzer, ast::nested_identifier_value, v, parent_env )
+        RILL_VISITOR_OP( analyzer, ast::captured_value, v, parent_env )
         {
             assert( false && "[[ICE]] not supported");
             return nullptr;
