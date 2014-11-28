@@ -1213,14 +1213,21 @@ namespace rill
 
         RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::captured_value, v, parent_env )
         {
-            auto const& a_env = parent_env->lookup_layer(
-                kind::type_value::e_function
-                );
-            assert( a_env != nullptr ); // TODO: change to error_handler
-
-            auto const& callee_f_env = cast_to<function_symbol_environment>( a_env );
+            auto const& callee_f_env
+                = g_env_->get_env_at_as_strong_ref<function_symbol_environment const>(
+                    v->owner_f_env_id
+                    );
             assert( callee_f_env != nullptr );
+            regard_env_is_defined( callee_f_env->get_id() );
 
+            rill_dout << "()()=> :" << callee_f_env->get_mangled_name() << std::endl;
+            std::cout << (const_environment_base_ptr)callee_f_env
+                      << std::endl;
+#if 0
+            return llvm::ConstantInt::get(
+                context_->llvm_context, llvm::APInt( 32, 72 )
+                );
+#endif
             auto const& pd_ids = callee_f_env->get_parameter_decl_ids();
             assert( pd_ids.size() >= 1 );
 

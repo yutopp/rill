@@ -23,8 +23,19 @@ namespace rill
         //
         RILL_VISITOR_OP( analyzer, ast::captured_value, v, parent_env )
         {
-            assert( false && "[[ICE]] not supported");
-            return nullptr;
+            rill_dregion {
+                std::cout << v->get_id() << std::endl;
+                if ( captured_type_details_.find( v->get_id() ) == captured_type_details_.end() ) {
+                    assert( false && "id not found" );
+                }
+
+            }
+
+            auto ty_d = captured_type_details_.at( v->get_id() );
+            assert( ty_d != nullptr );
+
+            rill_dout << "found" << std::endl;
+            return ty_d;
         }
 
 

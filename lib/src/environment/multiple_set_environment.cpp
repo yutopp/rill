@@ -66,27 +66,28 @@ namespace rill
         return incomplete_template_env;
     }
 
-
-    auto multiple_set_environment::get_outer_referenced_asts(
-        outer_referenced_asts_type& v
-        ) const
+    auto multiple_set_environment::propagate_outer_referenced_ast(
+        outer_referenced_ast_ptr_type const& node
+        )
         -> void
     {
         rill_dout << "multi !!!!! " << std::endl;
-        environment_base::get_outer_referenced_asts( v );
+        environment_base::propagate_outer_referenced_ast( node );
 
         for( auto&& env : normal_envs_ ) {
-            env->get_outer_referenced_asts( v );
+            env->append_outer_referenced_ast( node );
+            env->propagate_outer_referenced_ast( node );
         }
 
         for( auto&& env : template_envs_ ) {
-            env->get_outer_referenced_asts( v );
+            env->append_outer_referenced_ast( node );
+            env->propagate_outer_referenced_ast( node );
         }
 
         for( auto&& env : instanced_envs_ ) {
-            env->get_outer_referenced_asts( v );
+            env->append_outer_referenced_ast( node );
+            env->propagate_outer_referenced_ast( node );
         }
-
     }
 
 } // namespace rill

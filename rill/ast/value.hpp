@@ -393,12 +393,15 @@ namespace rill
         RILL_AST_BEGIN(
             captured_value, value,
             (( std::size_t, index ))
+            (( environment_id_t, owner_f_env_id ))
             )
         public:
             captured_value(
-                std::size_t const& i
+                std::size_t const& i,
+                environment_id_t const& o
                 )
                 : index( i )
+                , owner_f_env_id( o )
             {}
         RILL_AST_END
 

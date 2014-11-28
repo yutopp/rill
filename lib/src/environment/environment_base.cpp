@@ -241,7 +241,7 @@ namespace rill
     }
 
 
-    auto environment_base::append_outer_referenced(
+    auto environment_base::append_outer_referenced_ast(
         outer_referenced_ast_ptr_type const& node
         )
         -> void
@@ -249,32 +249,29 @@ namespace rill
         return outer_referenced_asts_.emplace_back( node );
     }
 
+    auto environment_base::propagate_outer_referenced_ast(
+        outer_referenced_ast_ptr_type const& node
+        )
+        -> void
+    {
+        rill_dout
+            << "!!!!! " << outer_referenced_asts_.size() << " / " << this << std::endl;
+
+        for( auto&& inner_env : inner_envs_ ) {
+            auto const& env = cast_to_base( inner_env.second );
+            env->append_outer_referenced_ast( node );
+            env->propagate_outer_referenced_ast( node );
+        }
+        for( auto&& inner_env : unnamed_inner_envs_ ) {
+            inner_env->append_outer_referenced_ast( node );
+            inner_env->propagate_outer_referenced_ast( node );
+        }
+    }
+
     auto environment_base::get_outer_referenced_asts() const
         -> outer_referenced_asts_type
     {
-        outer_referenced_asts_type xs;
-        get_outer_referenced_asts( xs );
-
-        return xs;
-    }
-
-    auto environment_base::get_outer_referenced_asts(
-        outer_referenced_asts_type& v
-        ) const
-        -> void
-    {
-        rill_dout << "!!!!! " << outer_referenced_asts_.size() << " / " << this << std::endl;
-        std::copy(
-            outer_referenced_asts_.cbegin(),
-            outer_referenced_asts_.cend(),
-            std::back_inserter( v )
-            );
-        for( auto&& inner_env : inner_envs_ ) {
-            cast_to_base( inner_env.second )->get_outer_referenced_asts( v );
-        }
-        for( auto&& inner_env : unnamed_inner_envs_ ) {
-            inner_env->get_outer_referenced_asts( v );
-        }
+        return outer_referenced_asts_;
     }
 
 } // namespace rill

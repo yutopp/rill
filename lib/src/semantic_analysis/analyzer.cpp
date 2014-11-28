@@ -1984,12 +1984,16 @@ namespace rill
             environment_base_ptr const& parent_env,
             bool const do_lookup,
             kind::type_value const& exclude_env_type
-            ) -> type_detail_ptr
+            )
+            -> type_detail_ptr
         {
             // TODO: check that identifier is from root
 
             rill_dout << "## Finding Identifier: " << identifier->get_inner_symbol()->to_native_string() << std::endl
                       << "## astid: " << identifier->get_id() << std::endl;
+
+            bool is_captured = false;
+            bool is_capture_enabled = true;
 
             auto const found_env
                 = [&]() {
@@ -2005,9 +2009,7 @@ namespace rill
                                 exclude_env_type
                                 );
                         if ( env ) {
-                            assert( block_envs_.top() != nullptr );
-                            block_envs_.top()->append_outer_referenced( identifier );
-                            rill_dout << "### OUTER: " << block_envs_.top() << std::endl;
+                            is_captured = true;
                             return env;
                         }
                     }
@@ -2032,10 +2034,14 @@ namespace rill
                 case kind::type_value::e_function:
                 {
                     // funcion can be overloaded, so do not link with identifier
-                    return type_detail_pool_->construct(
+                    auto r_ty_d = type_detail_pool_->construct(
                         (type_id_t)type_id_nontype::e_function,
                         multiset_env
                         );
+                    if ( is_captured && is_capture_enabled ) {
+                        set_captured_value_info( identifier, found_env, r_ty_d );
+                    }
+                    return r_ty_d;
                 }
 
                 case kind::type_value::e_class:
@@ -2067,22 +2073,30 @@ namespace rill
                         auto const& type_type_id
                             = g_env_->make_type_id( type_class_env, attribute::make_default_type_attributes() );
 
-                        return type_detail_pool_->construct(
+                        auto r_ty_d = type_detail_pool_->construct(
                             type_type_id,
                             type_class_env
                             );
+                        if ( is_captured && is_capture_enabled ) {
+                            set_captured_value_info( identifier, found_env, r_ty_d );
+                        }
+                        return r_ty_d;
 
                     } else {
                         // defined as class template
                         auto const& te = multiset_env->get_template_environments();
                         assert( te.size() != 0 );
 
-                        return type_detail_pool_->construct(
+                        auto r_ty_d = type_detail_pool_->construct(
                             (type_id_t)type_id_nontype::e_template_class,
                             multiset_env,
                             nullptr/*not nested*/,
                             std::make_shared<type_detail::template_arg_type>()
                             );
+                        if ( is_captured && is_capture_enabled ) {
+                            set_captured_value_info( identifier, found_env, r_ty_d );
+                        }
+                        return r_ty_d;
                     }
                 }
 
@@ -2094,6 +2108,7 @@ namespace rill
                 break;
 
                 assert( false );
+                return nullptr;
             }
 
 
@@ -2114,10 +2129,14 @@ namespace rill
                 }
                 assert( v_env->get_type_id() != type_id_undefined );
 
-                return type_detail_pool_->construct(
+                auto r_ty_d = type_detail_pool_->construct(
                     v_env->get_type_id(),
                     v_env
                     );
+                 if ( is_captured && is_capture_enabled ) {
+                     set_captured_value_info( identifier, found_env, r_ty_d );
+                 }
+                 return r_ty_d;
             }
 
 
@@ -2133,6 +2152,25 @@ namespace rill
                 nullptr
                 );
         }
+
+
+        auto analyzer::set_captured_value_info(
+            ast::const_identifier_value_base_ptr const& identifier,
+            environment_base_ptr const& found_env,
+            type_detail_ptr const& ty_detail
+            )
+            -> void
+        {
+            //assert( block_envs_.top() != nullptr );
+            //block_envs_.top()->propagate_outer_referenced_ast( identifier );
+            assert( found_env->has_parent() );
+            found_env->get_parent_env()->propagate_outer_referenced_ast( identifier );
+
+            captured_type_details_.emplace( identifier->get_id(), ty_detail );
+
+            rill_dout << "### OUTER: " << found_env->get_parent_env() << std::endl;
+        }
+
 
         auto analyzer::import_module(
             ast::import_decl_unit const& decl,

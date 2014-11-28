@@ -187,6 +187,13 @@ namespace rill
                 kind::type_value const& exclude_env_type
                 ) -> type_detail_ptr;
 
+            // solve identifier(env, type) and returns type_detail
+            auto set_captured_value_info(
+                ast::const_identifier_value_base_ptr const& identifier,
+                environment_base_ptr const& found_env,
+                type_detail_ptr const& ty_detail
+                ) -> void;
+
         public:
             auto ref_type(
                 type_detail_ptr const& ty_detail
@@ -571,6 +578,8 @@ namespace rill
             std::stack<module_environment_ptr> module_envs_;
 
             std::stack<environment_base_ptr> block_envs_;
+
+            std::map<ast::ast_id_t, type_detail_ptr> captured_type_details_;
         };
 
 

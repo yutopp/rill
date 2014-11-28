@@ -220,13 +220,13 @@ namespace rill
         public:
             function_definition_statement_base(
                 identifier_value_ptr const& id,
-                parameter_list const& parameter_list,
+                parameter_list parameter_list,
                 attribute::decl::type const& decl_attr,
                 boost::optional<id_expression_ptr> const& return_type,
                 statements_ptr const& inner
                 )
                 : can_be_template_statement( id )
-                , parameter_list_( parameter_list )
+                , parameter_list_( std::move( parameter_list ) )
                 , decl_attr_( decl_attr )
                 , return_type_( return_type != boost::none ? *return_type : nullptr )
                 , inner_( inner )
@@ -234,12 +234,12 @@ namespace rill
 
             function_definition_statement_base(
                 identifier_value_ptr const& id,
-                parameter_list const& parameter_list,
+                parameter_list parameter_list,
                 attribute::decl::type const& decl_attr,
                 boost::optional<id_expression_ptr> const& return_type
                 )
                 : function_definition_statement_base(
-                    id, parameter_list, decl_attr, return_type, nullptr
+                    id, std::move( parameter_list ), decl_attr, return_type, nullptr
                     )
             {}
 
@@ -261,13 +261,13 @@ namespace rill
         public:
             function_definition_statement(
                 identifier_value_ptr const& id,
-                parameter_list const& parameter_list,
+                parameter_list parameter_list,
                 attribute::decl::type const& decl_attr,
                 boost::optional<id_expression_ptr> const& return_type,
                 statements_ptr const& inner
                 )
                 : function_definition_statement_base(
-                    id, parameter_list, decl_attr, return_type, inner
+                    id, std::move( parameter_list ), decl_attr, return_type, inner
                     )
             {}
 
@@ -286,16 +286,16 @@ namespace rill
         public:
             class_function_definition_statement(
                 identifier_value_ptr const& id,
-                parameter_list const& parameter_list,
+                parameter_list parameter_list,
                 attribute::decl::type const& decl_attr,
+                boost::optional<element::class_variable_initializers>&& inits,
                 boost::optional<id_expression_ptr> const& return_type,
-                boost::optional<element::class_variable_initializers> const& inits,
                 statements_ptr const& inner
                 )
                 : function_definition_statement_base(
-                    id, parameter_list, decl_attr, return_type, inner
+                    id, std::move( parameter_list ), decl_attr, return_type, inner
                     )
-                , initializers( inits )
+                , initializers( std::move( inits ) )
             {}
 
             auto is_class_function() const
@@ -312,13 +312,13 @@ namespace rill
         public:
             extern_function_declaration_statement(
                 identifier_value_ptr const& id,
-                parameter_list const& parameter_list,
+                parameter_list parameter_list,
                 attribute::decl::type const& decl_attr,
                 id_expression_ptr const& return_type,
                 native_string_t const& extern_symbol_name
                 )
                 : function_definition_statement_base(
-                    id, parameter_list, decl_attr, return_type, nullptr
+                    id, std::move( parameter_list ), decl_attr, return_type, nullptr
                     )
                 , extern_symbol_name_( extern_symbol_name )
             {}

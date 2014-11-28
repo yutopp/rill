@@ -389,198 +389,238 @@ namespace rill
                 = ast::make_identifier( std::string( "__lambda_" ) + std::to_string( id ) );
             ++id;
 
-            if ( parent_env->find_on_env( lambda_class_id ) == nullptr ) {
-                // operator call for lambda object
-                auto const& lambda_op_call_id
-                    = ast::make_identifier( "%op_()" );
-                auto lambda_op_call_def
-                    = std::make_shared<ast::class_function_definition_statement>(
-                        lambda_op_call_id,
-                        e->parameters,
-                        attribute::decl::k_default,
-                        boost::none,
-                        boost::none,
-                        std::make_shared<ast::statements>(
-                            e->statements
-                            )
-                        );
+            if ( parent_env->find_on_env( lambda_class_id ) != nullptr ) {
+                rill_ice( "" );
+            }
 
-                // TODO: make cut block environment
-                // Create Class AST
-                auto const& ast_for_lambda_class
-                    = std::make_shared<ast::class_definition_statement>(
-                        lambda_class_id,
-                        attribute::decl::k_default,
-                        std::make_shared<ast::statements>(
-                            ast::element::statement_list{
-                                std::move( lambda_op_call_def )
-                            }
-                            )
-                        );
+            // operator call for lambda object
+            auto const& lambda_op_call_id
+                = ast::make_identifier( "%op_()" );
+            auto lambda_op_call_def
+                = std::make_shared<ast::class_function_definition_statement>(
+                    lambda_op_call_id,
+                    e->parameters,
+                    attribute::decl::k_default,
+                    boost::none,
+                    boost::none,
+                    std::make_shared<ast::statements>(
+                        e->statements
+                        )
+                    );
 
-                // generate lambda function class
-                auto const& import_base = import_bases_.top();
-                auto const& report = collect_identifier( g_env_, ast_for_lambda_class, parent_env, import_base );
+            // TODO: make cut block environment
+            // Create Class AST
+            auto const& ast_for_lambda_class
+                = std::make_shared<ast::class_definition_statement>(
+                    lambda_class_id,
+                    attribute::decl::k_default,
+                    std::make_shared<ast::statements>(
+                        ast::element::statement_list{
+                            lambda_op_call_def
+                        }
+                        )
+                    );
+
+            // generate lambda function class
+            auto const& import_base = import_bases_.top();
+
+            auto const& report = collect_identifier( g_env_, ast_for_lambda_class, parent_env, import_base );
+            if ( report->is_errored() ) {
+                import_messages( report );
+                // TODO: raise semantic error
+                return nullptr;
+            }
+            dispatch( ast_for_lambda_class, parent_env );
+
+
+            // CAPTURE!
+            rill_dout << "CAPTURE" << std::endl;
+            auto const& c_env = cast_to<class_symbol_environment>(
+                g_env_->get_related_env_by_ast_ptr( ast_for_lambda_class )
+                );
+            assert( c_env != nullptr );
+            rill_dout << "class    -> " << c_env->get_qualified_name() << " / ptr: " << c_env << std::endl;
+
+            auto const& f_env = cast_to<function_symbol_environment>(
+                g_env_->get_related_env_by_ast_ptr( lambda_op_call_def )
+                );
+            assert( f_env != nullptr );
+            rill_dout << "function -> " << f_env->get_mangled_name() << " / ptr: " << f_env << std::endl
+                      << "captured num: " << f_env->get_outer_referenced_asts().size() << std::endl;
+
+            std::size_t index = 0;
+            ast::parameter_list parames_for_ctor;
+            ast::expression_list args_for_ctor;
+            ast::element::class_variable_initializers initializer({});
+            std::unordered_map<ast::native_string_t, std::size_t> captured;
+
+            for( auto&& ex_ast : f_env->get_outer_referenced_asts() ) {
+                rill_dregion {
+                    rill_dout << "outer ast ptr " << ex_ast << " / ID: " << ex_ast->get_id() << std::endl;
+                    ex_ast->dump( std::cout );
+                }
+
+                auto const& ex_tid = g_env_->get_related_type_id_from_ast_ptr( ex_ast );
+                if ( !is_type_id( ex_tid ) ) {
+                    continue;
+                }
+
+                auto const& ex_type = g_env_->get_type_at( ex_tid );
+                auto const& ex_c_env = g_env_->get_env_at_as_strong_ref<class_symbol_environment>( ex_type.class_env_id );
+
+                // TODO: fix
+                if ( ex_c_env->has_attribute( attribute::decl::k_onlymeta ) ) {
+                    continue;
+                }
+
+                // cache
+                auto const& name
+                    = ex_ast->get_inner_symbol()->to_native_string();
+                auto const it = captured.find( name );
+                if ( it != captured.cend() ) {
+                    // !!: replace ast node
+                    assert( !ex_ast->parent_expression.expired() );
+                    auto expr = ex_ast->parent_expression.lock();
+                    expr->value_
+                        = std::make_shared<ast::captured_value>( it->second, f_env->get_id() );
+                    expr->value_->parent_expression = expr;
+                    assert( false);
+                    continue;
+                }
+                captured.emplace( name, index );
+
+
+                //
+                // create places for captured variables
+                //
+                auto vd = ast::variable_declaration{
+                    ex_type.attributes.quality,
+                    ast::variable_declaration_unit{
+                        ex_ast,
+                        ast::value_initializer_unit{
+                            std::make_shared<ast::id_expression>(
+                                std::make_shared<ast::evaluated_type_expression>(
+                                    ex_tid
+                                    )
+                                ),
+                            boost::none
+                        }
+                    }
+                };
+                auto const& captured_v_decl
+                    = std::make_shared<ast::class_variable_declaration_statement>(
+                        std::move( vd )
+                        );
+                auto const& report
+                    = collect_identifier(
+                        g_env_,
+                        captured_v_decl,
+                        c_env,
+                        import_base
+                        );
                 if ( report->is_errored() ) {
                     import_messages( report );
                     // TODO: raise semantic error
                     return nullptr;
                 }
-                dispatch( ast_for_lambda_class, parent_env );
+                dispatch( captured_v_decl, c_env );
+
+                // append class variables
+                ast_for_lambda_class->inner_->statements_.push_back( captured_v_decl );
 
 
-                // CAPTURE!
-                rill_dout << "CAPTURE" << std::endl;
-                auto const& c_env = cast_to<class_symbol_environment>(
-                    g_env_->get_related_env_by_ast_ptr( ast_for_lambda_class )
+                //
+                assert( !ex_ast->parent_expression.expired() );
+                auto const id = ex_ast->get_id();
+                auto expr = ex_ast->parent_expression.lock();
+                auto for_arg = clone( expr );
+                auto for_init = clone( expr );
+
+
+                // !!: replace ast node
+                expr->value_ = std::make_shared<ast::captured_value>( index, f_env->get_id() );
+                expr->value_->parent_expression = expr;
+
+                captured_type_details_.emplace(
+                    expr->value_->get_id(),
+                    captured_type_details_.at( id )
                     );
-                assert( c_env != nullptr );
-                rill_dout << "-> " << c_env->get_qualified_name() << " / ptr: " << c_env << std::endl;
+                captured_type_details_.emplace(
+                    for_arg->value_->get_id(),
+                    captured_type_details_.at( id )
+                    );
+                captured_type_details_.emplace(
+                    for_init->value_->get_id(),
+                    captured_type_details_.at( id )
+                    );
 
-                std::size_t index = 0;
-                ast::parameter_list parames_for_ctor;
-                ast::expression_list args_for_ctor;
-                ast::element::class_variable_initializers initializer({});
-                std::unordered_map<ast::native_string_t, std::size_t> captured;
-
-                for( auto&& ex_ast : c_env->get_outer_referenced_asts() ) {
-                    rill_dregion {
-                        rill_dout << "outer ast ptr " << ex_ast << std::endl;
-                        ex_ast->dump( std::cout );
-                    }
-
-                    auto const& ex_tid = g_env_->get_related_type_id_from_ast_ptr( ex_ast );
-                    if ( !is_type_id( ex_tid ) ) {
-                        continue;
-                    }
-
-                    auto const& ex_type = g_env_->get_type_at( ex_tid );
-                    auto const& ex_c_env = g_env_->get_env_at_as_strong_ref<class_symbol_environment>( ex_type.class_env_id );
-
-                    // TODO: fix
-                    if ( ex_c_env->has_attribute( attribute::decl::k_onlymeta ) ) {
-                        continue;
-                    }
-
-                    // cache
-                    auto const& name
-                        = ex_ast->get_inner_symbol()->to_native_string();
-                    auto const it = captured.find( name );
-                    if ( it != captured.cend() ) {
-                        // !!: replace ast node
-                        assert( !ex_ast->parent_expression.expired() );
-                        auto expr = ex_ast->parent_expression.lock();
-                        expr->value_
-                            = std::make_shared<ast::captured_value>( it->second );
-                        continue;
-                    }
-                    captured.emplace( name, index );
-
-
-                    //
-                    // create places for captured variables
-                    //
-                    auto vd = ast::variable_declaration{
-                        ex_type.attributes.quality,
-                        ast::variable_declaration_unit{
-                            ex_ast,
-                            ast::value_initializer_unit{
-                                std::make_shared<ast::id_expression>(
-                                    std::make_shared<ast::evaluated_type_expression>(
-                                        ex_tid
-                                        )
-                                    ),
-                                boost::none
-                            }
+                //
+                //
+                //
+                auto pvd = ast::variable_declaration{
+                    ex_type.attributes.quality,
+                    ast::variable_declaration_unit{
+                        ex_ast,
+                        ast::value_initializer_unit{
+                            std::make_shared<ast::id_expression>(
+                                std::make_shared<ast::evaluated_type_expression>(
+                                    ex_tid
+                                    )
+                                ),
+                            boost::none
                         }
-                    };
-                    auto const& captured_v_decl
-                        = std::make_shared<ast::class_variable_declaration_statement>(
-                            std::move( vd )
-                            );
-                    auto const& report
-                        = collect_identifier(
-                            g_env_,
-                            captured_v_decl,
-                            c_env,
-                            import_base
-                            );
-                    if ( report->is_errored() ) {
-                        import_messages( report );
-                        // TODO: raise semantic error
-                        return nullptr;
                     }
-                    dispatch( captured_v_decl, c_env );
-
-                    //
-                    ast_for_lambda_class->inner_->statements_.push_back( captured_v_decl );
-
-                    assert( !ex_ast->parent_expression.expired() );
-                    auto expr = ex_ast->parent_expression.lock();
-                    auto for_arg = clone( expr );
-                    auto for_init = clone( expr );
-
-                    // !!: replace ast node
-                    expr->value_ = std::make_shared<ast::captured_value>( index );
+                };
+                parames_for_ctor.emplace_back( std::move( pvd ) );
 
 
-                    //
-                    //
-                    //
-                    auto pvd = ast::variable_declaration{
-                        ex_type.attributes.quality,
-                        ast::variable_declaration_unit{
-                            ex_ast,
-                            ast::value_initializer_unit{
-                                std::make_shared<ast::id_expression>(
-                                    std::make_shared<ast::evaluated_type_expression>(
-                                        ex_tid
-                                        )
-                                    ),
-                                boost::none
-                            }
-                        }
-                    };
-                    parames_for_ctor.emplace_back( std::move( pvd ) );
+                //
+                //
+                //
+                args_for_ctor.emplace_back( std::move( for_arg ) );
 
 
-                    //
-                    //
-                    //
-                    args_for_ctor.emplace_back( std::move( for_arg ) );
-
-
-                    // initializer
-                    // ctor() | ex_ast = arg ...
+                // initializer
+                // ctor() | ex_ast = arg ...
+                if ( captured_type_details_.find( for_init->get_id() ) == captured_type_details_.cend() ) {
+                    // uncaptured identifier
                     initializer.initializers.emplace_back(
                         ast::variable_declaration_unit{
-                            std::static_pointer_cast<const rill::ast::identifier_value_base>( for_init->value_ ),
+                            std::static_pointer_cast<const rill::ast::identifier_value_base>(
+                                for_init->value_
+                                ),
                             ast::value_initializer_unit{
                                 for_init
                             }
                         }
                         );
 
-                    //
-                    ++index;
+                } else {
+                    assert( false );
                 }
 
 
-                // 'constructor' for lambda object
-                {
+                //
+                ++index;
+            }
+
+
+            // 'constructor' for lambda object
+            {
                 auto const& lambda_ctor_id
                     = ast::make_identifier( "ctor" );
                 auto lambda_ctor_def
                     = std::make_shared<ast::class_function_definition_statement>(
                         lambda_ctor_id,
-                        parames_for_ctor,
+                        std::move( parames_for_ctor ),
                         attribute::decl::k_default,
+                        boost::none,/*/std::move( initializer ),/**/
                         boost::none,
-                        initializer,
                         std::make_shared<ast::statements>(
                             ast::element::statement_list{}
                             )
                         );
+
                 auto const& report
                     = collect_identifier(
                         g_env_,
@@ -594,36 +634,23 @@ namespace rill
                     return nullptr;
                 }
                 dispatch( lambda_ctor_def, c_env );
-                }
-
-                // create lambda object
-                auto reciever = std::make_shared<ast::term_expression>( lambda_class_id );
-                auto const& call_expr
-                    = std::make_shared<ast::call_expression>(
-                        std::move( reciever ),
-                        args_for_ctor
-                        );
-
-                // memoize call expression to lambda ast
-                e->call_expr = call_expr;
-
-                auto const& argument_type_details
-                    = evaluate_invocation_args( nullptr, args_for_ctor, parent_env );
-                return call_constructor( call_expr, argument_type_details, parent_env );
-
-            } else {
-                rill_ice( "" );
             }
-/*
-            RILL_PP_TIE(
-                multiset_env, c_env,
-                module_env->mark_as( kind::k_class, lambda_class_name, nullptr )
-                );
-            multiset_env->add_to_normal_environments( c_env );
-*/
 
-            assert( false );
-            return nullptr;
+            // create lambda object
+            auto reciever = std::make_shared<ast::term_expression>( lambda_class_id );
+            auto const& call_expr
+                = std::make_shared<ast::call_expression>(
+                    std::move( reciever ),
+                    args_for_ctor
+                    );
+
+            // memoize call expression to lambda ast
+            e->call_expr = call_expr;
+
+            // construct lambda object
+            auto const& argument_type_details
+                = evaluate_invocation_args( nullptr, args_for_ctor, parent_env );
+            return call_constructor( call_expr, argument_type_details, parent_env );
         }
 
 

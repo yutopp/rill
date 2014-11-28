@@ -32,8 +32,9 @@ void sighandler( int signum )
 {
     ::signal( signum, SIG_DFL );
 
+    std::cerr << "SIGNAL: " << signum << std::endl;
     rill::debug::dump_backtrace();
-    abort();
+    exit( -1 );
 }
 
 
@@ -259,7 +260,8 @@ int main( int argc, char* argv[] )
         return build( st );
 
     } catch( std::exception const& e ) {
-        std::cerr << e.what() << std::endl;
+        std::cerr << "Exception: " << std::endl
+                  << e.what() << std::endl;
         return -1;
     }
 }

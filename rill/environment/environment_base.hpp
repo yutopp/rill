@@ -533,16 +533,18 @@ namespace rill
         using outer_referenced_ast_ptr_type = ast::const_identifier_value_base_ptr;
         using outer_referenced_asts_type = std::vector<outer_referenced_ast_ptr_type>;
 
-        auto append_outer_referenced( outer_referenced_ast_ptr_type const& node )
+        auto append_outer_referenced_ast(
+            outer_referenced_ast_ptr_type const& node
+            )
+            -> void;
+
+        virtual auto propagate_outer_referenced_ast(
+            outer_referenced_ast_ptr_type const& node
+            )
             -> void;
 
         auto get_outer_referenced_asts() const
             -> outer_referenced_asts_type;
-
-        virtual auto get_outer_referenced_asts(
-            outer_referenced_asts_type& v
-            ) const
-            -> void;
 
     private:
         outer_referenced_asts_type outer_referenced_asts_;

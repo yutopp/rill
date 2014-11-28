@@ -197,7 +197,7 @@ namespace rill
         cloned->line = line;                                            \
         cloned->column = column;                                        \
         cloned->after_constructing( cloned );                           \
-        rill_dout << "cloned!" << std::endl;                            \
+        rill_dout << "cloned! : " << #class_name << std::endl;          \
         return cloned;                                                  \
     }                                                                   \
     RILL_AST_DEFINE_CLONE_ELEMENTS_FUNCITON( class_name, elem )

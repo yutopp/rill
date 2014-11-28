@@ -179,9 +179,9 @@ namespace rill
         }
 
     public:
-        auto get_outer_referenced_asts(
-            outer_referenced_asts_type& v
-            ) const
+        auto propagate_outer_referenced_ast(
+            outer_referenced_ast_ptr_type const& node
+            )
             -> void override;
 
     private:

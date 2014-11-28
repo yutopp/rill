@@ -75,20 +75,20 @@ namespace rill
 
             variable_declaration_unit(
                 const_identifier_value_base_ptr const& n,
-                value_initializer_unit const& i
+                value_initializer_unit&& i
                 )
                 : name( n )
-                , init_unit( i )
+                , init_unit( std::move( i ) )
             {}
 
             template<typename T>
             variable_declaration_unit(
                 boost::optional<T> const& n,
-                value_initializer_unit const& i
+                value_initializer_unit&& i
                 )
                 : variable_declaration_unit(
                     n != boost::none ? *n : nullptr,
-                    i
+                    std::move( i )
                     )
             {}
 

@@ -30,6 +30,7 @@ namespace rill
                 indent += "  ";
             }
             return e->dump( os, indent );
+
         } else {
             os << indent << "nullptr." << std::endl;
             return os;
