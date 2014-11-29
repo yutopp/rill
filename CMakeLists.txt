@@ -223,7 +223,7 @@ endforeach(l)
 
 # adhoc:
 # ADD SYSTEM LIBRARYS
-if ( CMAKE_SYSTEM_NAME STREQUAL "Linux" )
+if ( CMAKE_SYSTEM_NAME STREQUAL "Linux" OR CMAKE_SYSTEM_NAME STREQUAL "Darwin" )
   list( APPEND REQ_LLVM_LIBRARIES "z" "pthread" "dl" "curses" )     # zlib, pthread, dl, curses
 else()
   message( FATAL_ERROR "Currently, your platform ${CMAKE_SYSTEM_NAME} is not supported..." )
