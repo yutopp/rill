@@ -561,13 +561,17 @@ namespace rill
                             format( "Identifier '%1%' was not declared." ) % var_unit.name->get_inner_symbol()->to_native_string()
                             );
                     }
-                    auto const& v_env = ref_env( d_ty );
-                    if ( v_env->get_symbol_kind() == kind::type_value::e_variable ) {
+
+                    //
+                    auto const& element_env
+                        = g_env_->get_related_env_by_ast_ptr( var_unit.name );
+                    assert( element_env != nullptr );
+                    if ( element_env->get_symbol_kind() != kind::type_value::e_variable ) {
                         assert( false );
                     }
-
-                    // link
-                    v_env->connect_from_ast( var_unit.name );
+                    auto const& v_env
+                        = cast_to<variable_symbol_environment const>( element_env );
+                    assert( v_env != nullptr );
 
                     // type check
                     RILL_PP_TIE( level, conv_function_env,

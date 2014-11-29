@@ -116,11 +116,11 @@ namespace rill
             )
         public:
             call_expression(
-                expression_ptr const& reciever,
-                expression_list const& arguments
+                expression_ptr reciever,
+                expression_list arguments
                 )
-                : reciever_( reciever )
-                , arguments_( arguments )
+                : reciever_( std::move( reciever ) )
+                , arguments_( std::move( arguments ) )
             {}
         RILL_AST_END
 

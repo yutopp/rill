@@ -387,6 +387,7 @@ namespace rill
             static int id = 0;
             auto const& lambda_class_id
                 = ast::make_identifier( std::string( "__lambda_" ) + std::to_string( id ) );
+            int const current_id = id;
             ++id;
 
             if ( parent_env->find_on_env( lambda_class_id ) != nullptr ) {
@@ -428,6 +429,7 @@ namespace rill
             if ( report->is_errored() ) {
                 import_messages( report );
                 // TODO: raise semantic error
+                assert( false );
                 return nullptr;
             }
             dispatch( ast_for_lambda_class, parent_env );
@@ -448,6 +450,8 @@ namespace rill
             rill_dout << "function -> " << f_env->get_mangled_name() << " / ptr: " << f_env << std::endl
                       << "captured num: " << f_env->get_outer_referenced_asts().size() << std::endl;
 
+
+
             std::size_t index = 0;
             ast::parameter_list parames_for_ctor;
             ast::expression_list args_for_ctor;
@@ -456,7 +460,7 @@ namespace rill
 
             for( auto&& ex_ast : f_env->get_outer_referenced_asts() ) {
                 rill_dregion {
-                    rill_dout << "outer ast ptr " << ex_ast << " / ID: " << ex_ast->get_id() << std::endl;
+                    rill_dout << "=====================  outer ast ptr " << ex_ast << " / ID: " << ex_ast->get_id() << std::endl;
                     ex_ast->dump( std::cout );
                 }
 
@@ -473,18 +477,28 @@ namespace rill
                     continue;
                 }
 
+                //
+                auto const id = ex_ast->get_id();
+
                 // cache
                 auto const& name
                     = ex_ast->get_inner_symbol()->to_native_string();
+
                 auto const it = captured.find( name );
                 if ( it != captured.cend() ) {
+                    // continue;
                     // !!: replace ast node
                     assert( !ex_ast->parent_expression.expired() );
                     auto expr = ex_ast->parent_expression.lock();
                     expr->value_
                         = std::make_shared<ast::captured_value>( it->second, f_env->get_id() );
                     expr->value_->parent_expression = expr;
-                    assert( false);
+
+                    captured_type_details_.emplace(
+                        expr->value_->get_id(),
+                        captured_type_details_.at( id )
+                        );
+
                     continue;
                 }
                 captured.emplace( name, index );
@@ -521,6 +535,7 @@ namespace rill
                 if ( report->is_errored() ) {
                     import_messages( report );
                     // TODO: raise semantic error
+                    assert( false );
                     return nullptr;
                 }
                 dispatch( captured_v_decl, c_env );
@@ -528,31 +543,53 @@ namespace rill
                 // append class variables
                 ast_for_lambda_class->inner_->statements_.push_back( captured_v_decl );
 
+                auto const& v_env = cast_to<variable_symbol_environment>(
+                    g_env_->get_related_env_by_ast_ptr( captured_v_decl )
+                    );
+                assert( v_env != nullptr );
+                assert( v_env->get_parent_class_env_id() == c_env->get_id() );
+
 
                 //
-                assert( !ex_ast->parent_expression.expired() );
-                auto const id = ex_ast->get_id();
-                auto expr = ex_ast->parent_expression.lock();
-                auto for_arg = clone( expr );
-                auto for_init = clone( expr );
+                std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>><<" << std::endl;
 
+                auto for_arg = std::make_shared<ast::term_expression>(
+                    clone( ex_ast )
+                    );
+
+                std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>> FORARG: " << index << " / id: " << for_arg->value_->get_id();
+
+                auto init_name = clone( ex_ast );
+                auto init_expr = std::make_shared<ast::term_expression>(
+                    clone( ex_ast )
+                    );
 
                 // !!: replace ast node
-                expr->value_ = std::make_shared<ast::captured_value>( index, f_env->get_id() );
+                assert( !ex_ast->parent_expression.expired() );
+                auto expr = ex_ast->parent_expression.lock();
+                expr->value_
+                    = std::make_shared<ast::captured_value>(
+                        index,
+                        f_env->get_id()
+                        );
                 expr->value_->parent_expression = expr;
 
                 captured_type_details_.emplace(
                     expr->value_->get_id(),
                     captured_type_details_.at( id )
                     );
+
+/*
                 captured_type_details_.emplace(
                     for_arg->value_->get_id(),
                     captured_type_details_.at( id )
                     );
+
                 captured_type_details_.emplace(
-                    for_init->value_->get_id(),
+                    init_expr->value_->get_id(),
                     captured_type_details_.at( id )
                     );
+*/
 
                 //
                 //
@@ -582,23 +619,16 @@ namespace rill
 
                 // initializer
                 // ctor() | ex_ast = arg ...
-                if ( captured_type_details_.find( for_init->get_id() ) == captured_type_details_.cend() ) {
-                    // uncaptured identifier
-                    initializer.initializers.emplace_back(
-                        ast::variable_declaration_unit{
-                            std::static_pointer_cast<const rill::ast::identifier_value_base>(
-                                for_init->value_
-                                ),
-                            ast::value_initializer_unit{
-                                for_init
-                            }
+                initializer.initializers.emplace_back(
+                    ast::variable_declaration_unit{
+                        init_name,
+                        ast::value_initializer_unit{
+                            init_expr
                         }
-                        );
-
-                } else {
-                    assert( false );
-                }
-
+                    }
+                    );
+                // link
+                v_env->connect_from_ast( init_name );
 
                 //
                 ++index;
@@ -614,7 +644,7 @@ namespace rill
                         lambda_ctor_id,
                         std::move( parames_for_ctor ),
                         attribute::decl::k_default,
-                        boost::none,/*/std::move( initializer ),/**/
+                        /*boost::none,/*/std::move( initializer ),/**/
                         boost::none,
                         std::make_shared<ast::statements>(
                             ast::element::statement_list{}
@@ -631,25 +661,30 @@ namespace rill
                 if ( report->is_errored() ) {
                     import_messages( report );
                     // TODO: raise semantic error
+                    assert( false );
                     return nullptr;
                 }
                 dispatch( lambda_ctor_def, c_env );
             }
+
+            auto const& argument_type_details
+                = evaluate_invocation_args( nullptr, args_for_ctor, parent_env );
 
             // create lambda object
             auto reciever = std::make_shared<ast::term_expression>( lambda_class_id );
             auto const& call_expr
                 = std::make_shared<ast::call_expression>(
                     std::move( reciever ),
-                    args_for_ctor
+                    std::move( args_for_ctor )
                     );
 
             // memoize call expression to lambda ast
             e->call_expr = call_expr;
 
             // construct lambda object
-            auto const& argument_type_details
-                = evaluate_invocation_args( nullptr, args_for_ctor, parent_env );
+
+            if ( current_id == 0 ) assert( false );
+            std::cout << " = = = = = = = = = = = = = = = = = = = = = = = = =" << std::endl;
             return call_constructor( call_expr, argument_type_details, parent_env );
         }
 

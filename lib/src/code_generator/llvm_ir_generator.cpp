@@ -180,7 +180,13 @@ namespace rill
                     context_->ir_builder.CreateRetVoid();
 
                 } else {
-                    context_->ir_builder.CreateRet( v );
+                    auto const& tid
+                        = g_env_->get_related_type_id_from_ast_ptr( s->expression_ );
+                    auto const& arg_type = g_env_->get_type_at( tid );
+
+                    context_->ir_builder.CreateRet(
+                        convert_value_by_attr( ret_type, arg_type, v )
+                        );
                 }
 
             } else {
@@ -427,6 +433,7 @@ namespace rill
                     }
 
                     store_value( ait, var );
+                    rill_dout << "SAVED: " << var->get_mangled_name() << " / " << var << std::endl;
                     ++i;
                 }
             }
@@ -443,14 +450,18 @@ namespace rill
                         = dispatch( var_unit.init_unit.initializer, f_env );
                     assert( value != nullptr );
 
-                    auto const& element_env
-                        = g_env_->get_related_env_by_ast_ptr( var_unit.name );
-                    assert( element_env != nullptr );
-                    assert( element_env->get_symbol_kind() == kind::type_value::e_variable );
                     auto const& v_env
-                        = cast_to<variable_symbol_environment const>( element_env );
-                    auto const& v_type
-                        = g_env_->get_type_at( v_env->get_type_id() );
+                        = cast_to<variable_symbol_environment const>(
+                            g_env_->get_related_env_by_ast_ptr( var_unit.name )
+                            );
+                    assert( v_env != nullptr );
+
+                    rill_dout << v_env->get_mangled_name() << std::endl;
+                    rill_dout << v_env->get_parent_class_env_id() << std::endl;
+                    regard_env_is_defined( v_env->get_parent_class_env_id() );
+//                    auto const& v_type
+//                        = g_env_->get_type_at( v_env->get_type_id() );
+
 
                     // data index in struct
                     auto const& index
@@ -544,7 +555,7 @@ namespace rill
                 }
 
                 //
-                dispatch( s->inner_, c_env );
+                // dispatch( s->inner_, c_env );
 
             } else {
                 rill_ice( "invalid type" );
@@ -1220,7 +1231,7 @@ namespace rill
             assert( callee_f_env != nullptr );
             regard_env_is_defined( callee_f_env->get_id() );
 
-            rill_dout << "()()=> :" << callee_f_env->get_mangled_name() << std::endl;
+            rill_dout << "## c : callee => :" << callee_f_env->get_mangled_name() << std::endl;
             std::cout << (const_environment_base_ptr)callee_f_env
                       << std::endl;
 #if 0
@@ -1232,8 +1243,13 @@ namespace rill
             assert( pd_ids.size() >= 1 );
 
             // 'this' of lambda class function
-            auto const& r_v_env = g_env_->get_env_at_as_strong_ref<variable_symbol_environment const>( pd_ids[0] );
+            auto const& r_v_env
+                = g_env_->get_env_at_as_strong_ref<variable_symbol_environment const>(
+                    pd_ids[0]
+                    );
             assert( r_v_env != nullptr );
+            rill_dout << "name: " << r_v_env->get_mangled_name()
+                      << " / ptr : " << r_v_env << std::endl;
             if ( !context_->env_conversion_table.is_defined( r_v_env->get_id() ) ) {
                 rill_ice( "invalid lambda capture" );
             }
@@ -1276,9 +1292,12 @@ namespace rill
             case kind::type_value::e_variable:
             {
                 rill_dout << "llvm_ir_generator -> case Variable!" << std::endl;
+
                 auto const& v_env
-                    = std::static_pointer_cast<variable_symbol_environment const>( id_env );
+                    = cast_to<variable_symbol_environment const>( id_env );
                 assert( v_env != nullptr );
+
+                rill_dout << "name: " << v_env->get_mangled_name() << " / " << v_env << std::endl;
 
                 // TODO: check the type of variable !
                 // if type is "type", ...(should return id of type...?)

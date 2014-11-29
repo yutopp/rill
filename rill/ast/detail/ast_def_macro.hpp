@@ -24,11 +24,11 @@ namespace rill
     namespace ast
     {
         template<typename Ast>
-        auto clone( Ast const& ast )
-            -> Ast
+        auto clone( std::shared_ptr<Ast> const& ast )
+            -> std::shared_ptr<std::decay_t<Ast>>
         {
             if ( ast != nullptr ) {
-                return std::static_pointer_cast<typename Ast::element_type>(
+                return std::static_pointer_cast<std::decay_t<Ast>>(
                     ast->generic_clone()
                     );
             } else {
@@ -179,8 +179,8 @@ namespace rill
                                                                         \
     public:                                                             \
     template<typename Ast>                                              \
-    friend auto clone( Ast const& ast )                                 \
-        -> Ast;                                                         \
+    friend auto clone( std::shared_ptr<Ast> const& ast )                \
+        -> std::shared_ptr<std::decay_t<Ast>>;                          \
     friend auto detail::clone_ast_node(                                 \
         std::shared_ptr<detail::ast_base_type<class_name> const> const& \
         )                                                               \
