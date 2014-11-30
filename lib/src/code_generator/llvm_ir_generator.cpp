@@ -1125,7 +1125,14 @@ namespace rill
                 = cast_to<function_symbol_environment const>( g_env_->get_related_env_by_ast_ptr( e ) );
             assert( f_env != nullptr );
 
-            rill_dout << "current : " << f_env->get_mangled_name() << std::endl;
+            rill_dregion {
+                rill_dout << "=======================================" << std::endl;
+                rill_dout << "current : " << f_env->get_mangled_name() << std::endl;
+                for( auto&& e : e->arguments_ ) {
+                    e->dump( std::cout );
+                }
+                rill_dout << "=======================================" << std::endl;
+            }
 
             // evaluate lhs(reciever)
             // if reciever_value is exist, call 'op ()'
@@ -1232,13 +1239,7 @@ namespace rill
             regard_env_is_defined( callee_f_env->get_id() );
 
             rill_dout << "## c : callee => :" << callee_f_env->get_mangled_name() << std::endl;
-            std::cout << (const_environment_base_ptr)callee_f_env
-                      << std::endl;
-#if 0
-            return llvm::ConstantInt::get(
-                context_->llvm_context, llvm::APInt( 32, 72 )
-                );
-#endif
+
             auto const& pd_ids = callee_f_env->get_parameter_decl_ids();
             assert( pd_ids.size() >= 1 );
 

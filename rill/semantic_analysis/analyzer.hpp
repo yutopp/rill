@@ -580,6 +580,7 @@ namespace rill
             std::stack<environment_base_ptr> block_envs_;
 
             std::map<ast::ast_id_t, type_detail_ptr> captured_type_details_;
+            std::set<ast::ast_id_t> captured_value_ids_;
         };
 
 

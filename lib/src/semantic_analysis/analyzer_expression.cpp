@@ -490,15 +490,21 @@ namespace rill
                     // !!: replace ast node
                     assert( !ex_ast->parent_expression.expired() );
                     auto expr = ex_ast->parent_expression.lock();
-                    expr->value_
-                        = std::make_shared<ast::captured_value>( it->second, f_env->get_id() );
-                    expr->value_->parent_expression = expr;
+                    if ( captured_value_ids_.count( expr->value_->get_id() ) == 0 ) {
+                        expr->value_
+                            = std::make_shared<ast::captured_value>(
+                                it->second,
+                                f_env->get_id()
+                                );
+                        expr->value_->parent_expression = expr;
 
-                    captured_type_details_.emplace(
-                        expr->value_->get_id(),
-                        captured_type_details_.at( id )
-                        );
+                        captured_type_details_.emplace(
+                            expr->value_->get_id(),
+                            captured_type_details_.at( id )
+                            );
 
+                        captured_value_ids_.emplace( expr->value_->get_id() );
+                    }
                     continue;
                 }
                 captured.emplace( name, index );
@@ -551,22 +557,22 @@ namespace rill
 
 
                 //
-                std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>><<" << std::endl;
-
                 auto for_arg = std::make_shared<ast::term_expression>(
                     clone( ex_ast )
                     );
+                for_arg->value_->parent_expression = for_arg;
 
-                std::cout << ">>>>>>>>>>>>>>>>>>>>>>>>> FORARG: " << index << " / id: " << for_arg->value_->get_id();
-
+                //
                 auto init_name = clone( ex_ast );
                 auto init_expr = std::make_shared<ast::term_expression>(
                     clone( ex_ast )
                     );
+                init_expr->value_->parent_expression = init_expr;
 
                 // !!: replace ast node
                 assert( !ex_ast->parent_expression.expired() );
                 auto expr = ex_ast->parent_expression.lock();
+                if ( captured_value_ids_.count( expr->value_->get_id() ) == 0 ) {
                 expr->value_
                     = std::make_shared<ast::captured_value>(
                         index,
@@ -579,17 +585,9 @@ namespace rill
                     captured_type_details_.at( id )
                     );
 
-/*
-                captured_type_details_.emplace(
-                    for_arg->value_->get_id(),
-                    captured_type_details_.at( id )
-                    );
+                captured_value_ids_.emplace( expr->value_->get_id() );
+                }
 
-                captured_type_details_.emplace(
-                    init_expr->value_->get_id(),
-                    captured_type_details_.at( id )
-                    );
-*/
 
                 //
                 //
@@ -682,9 +680,6 @@ namespace rill
             e->call_expr = call_expr;
 
             // construct lambda object
-
-            if ( current_id == 0 ) assert( false );
-            std::cout << " = = = = = = = = = = = = = = = = = = = = = = = = =" << std::endl;
             return call_constructor( call_expr, argument_type_details, parent_env );
         }
 
