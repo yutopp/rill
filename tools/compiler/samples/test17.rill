@@ -1,0 +1,12 @@
+template(F: type)
+def gen(f: F)
+{
+    return f(10);
+}
+
+def main(): int
+{
+    p(gen(->(v: int)=>->(vv:int)=>v*vv)(2));
+
+    return 0;
+}

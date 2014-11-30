@@ -147,12 +147,18 @@ namespace rill
                 for( std::size_t i=0; i<arguments.size(); ++i ) {
                     auto const& parameter_type
                         = g_env_->get_type_at( parameter_type_ids[i] );
-                    auto const arg_type
-                        = g_env_->get_type_at(
-                            g_env_->get_related_type_id_from_ast_ptr(
-                                arguments[i]
-                                )
+                    auto const& arg_type_id
+                        = g_env_->get_related_type_id_from_ast_ptr(
+                            arguments[i]
                             );
+                    if ( arg_type_id == type_id_undefined ) {
+                        rill_dregion {
+                            arguments[i]->dump( std::cout );
+                        }
+                        assert( false );
+                    }
+                    auto const arg_type
+                        = g_env_->get_type_at( arg_type_id );
                     auto const& arg_value
                         = dispatch( arguments[i], parent_env );
                     assert( arg_value != nullptr );

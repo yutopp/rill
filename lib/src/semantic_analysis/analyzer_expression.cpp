@@ -680,7 +680,10 @@ namespace rill
             e->call_expr = call_expr;
 
             // construct lambda object
-            return call_constructor( call_expr, argument_type_details, parent_env );
+            auto return_ty_d
+                = call_constructor( call_expr, argument_type_details, parent_env );
+
+            return bind_type( e, return_ty_d );
         }
 
 

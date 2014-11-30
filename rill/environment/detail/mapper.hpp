@@ -97,7 +97,7 @@ namespace rill
     };
 
 
-    // table[ast_ptr -> env_id]
+    // table[ast_ptr -> type_id]
     class ast_to_type_id_mapper
     {
     public:
