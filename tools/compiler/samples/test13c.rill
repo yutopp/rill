@@ -1,7 +1,7 @@
 def main(): int
 {
     val n = 4;
-    val f = -> (a: int) => a * a * n * n;
+    val f = \(a: int) => a * a * n * n;
 
     p(f(4));
     p("expect => 256");

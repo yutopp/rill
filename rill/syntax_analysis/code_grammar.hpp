@@ -774,7 +774,7 @@ namespace rill
             )
 
             R( lambda_introducer, x3::unused_type,
-                x3::lit( "->" )
+                x3::lit( "\\" )
             )
 
             /*

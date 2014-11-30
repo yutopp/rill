@@ -6,7 +6,7 @@ def gen(f: F)
 
 def main(): int
 {
-    p(gen(->(v: int)=>->(vv:int)=>v*vv)(2));
+    p(gen(\(v: int)=>\(vv:int)=>v*vv)(2));
 
     return 0;
 }

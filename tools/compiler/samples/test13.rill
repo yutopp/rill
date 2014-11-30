@@ -1,12 +1,12 @@
 def f()
 {
     val n = 10;
-    return -> (a: int) => a * n;
+    return \(a: int) => a * n;
 }
 
 def main(): int
 {
-    val g = -> (a: int) => a * a;
+    val g = \(a: int) => a * a;
     p(g(9));
     p("expect => 81");
 

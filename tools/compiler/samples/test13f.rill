@@ -1,7 +1,7 @@
 def f(a: int)
 {
     val n = 10;
-    return -> () => -> () => n * a;
+    return \() => \() => n * a;
 }
 
 def main(): int

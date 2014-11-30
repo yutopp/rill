@@ -1,10 +1,9 @@
 def main(): int
 {
-    val n = 10;
-    val f = -> (a: int) => -> () => a;
+    val f = \(a: int) => \() => a;
 
     p(f(3)());
-    p("expect => 21");
+    p("expect => 3");
 
     return 0;
 }
