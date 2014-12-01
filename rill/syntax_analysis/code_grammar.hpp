@@ -366,7 +366,7 @@ namespace rill
             // ====================================================================================================
             // ====================================================================================================
             //
-            R( extern_statement, ast::can_be_template_statement_ptr,
+            R( extern_statement, ast::statement_ptr,
                 ( make_keyword( "extern" )
                 > ( t.extern_function_declaration_statement
                   | t.extern_class_declaration_statement
@@ -375,34 +375,38 @@ namespace rill
                 )
             )
 
-            RN( extern_function_declaration_statement, ast::extern_function_declaration_statement_ptr,
+            RN( extern_function_declaration_statement, ast::statement_ptr,
                 ( make_keyword( "def" )
                 > t.identifier
+                > -t.template_parameter_variable_declaration_list
                 > t.parameter_variable_declaration_list
                 > t.extern_decl_attribute_list
                 > t.type_specifier
                 > t.string_literal_sequence
                 )[
-                    helper::make_node_ptr<ast::extern_function_declaration_statement>(
-                        ph::_1,
+                    helper::make_templatable_node_ptr<ast::extern_function_declaration_statement>(
                         ph::_2,
+                        ph::_1,
                         ph::_3,
                         ph::_4,
-                        ph::_5
+                        ph::_5,
+                        ph::_6
                         )
                     ]
             )
 
-            RN( extern_class_declaration_statement, ast::extern_class_declaration_statement_ptr,
+            RN( extern_class_declaration_statement, ast::statement_ptr,
                 ( make_keyword( "class" )
                 > t.identifier
+                > -t.template_parameter_variable_declaration_list
                 > t.extern_decl_attribute_list
                 > t.string_literal_sequence
                 )[
-                    helper::make_node_ptr<ast::extern_class_declaration_statement>(
-                        ph::_1,
+                    helper::make_templatable_node_ptr<ast::extern_class_declaration_statement>(
                         ph::_2,
-                        ph::_3
+                        ph::_1,
+                        ph::_3,
+                        ph::_4
                         )
                     ]
             )
@@ -417,7 +421,6 @@ namespace rill
             //
             R( templatable_statement, ast::can_be_template_statement_ptr,
                 ( t.class_definition_statement
-                | t.extern_statement
                 )
             )
 
