@@ -95,6 +95,7 @@ namespace rill
                     static_assert( I > 0, "" );
                     static constexpr std::size_t value = I;
                 };
+
             } // namespace detail
 
             constexpr auto _1 = detail::placeholder_t<1>();
@@ -188,6 +189,37 @@ namespace rill
                                 std::forward<decltype(args)>( args )
                                 )...
                             );
+                    },
+                    std::placeholders::_1,  // ctx
+                    std::forward<Args>( args )...
+                    );
+            }
+
+            template<typename T, typename... Args>
+            auto make_templatable_node_ptr( Args&&... args )
+            {
+                return std::bind(
+                    []( auto& ctx, auto&& template_param, auto&&... args ) {
+                        auto def = std::make_shared<T>(
+                            action_value<decltype(ctx)>(
+                                ctx,
+                                std::forward<decltype(args)>( args )
+                                )...
+                            );
+
+                        auto optional_tp = action_value<decltype(ctx)>(
+                            ctx,
+                            std::forward<decltype(template_param)>( template_param )
+                            );
+                        if ( optional_tp ) {
+                            x3::_val( ctx ) = std::make_shared<ast::template_statement>(
+                                std::move( *optional_tp ),
+                                def
+                                );
+
+                        } else {
+                            x3::_val( ctx ) = def;
+                        }
                     },
                     std::placeholders::_1,  // ctx
                     std::forward<Args>( args )...

@@ -28,7 +28,6 @@ namespace rill
                 if ( captured_type_details_.find( v->get_id() ) == captured_type_details_.end() ) {
                     assert( false && "id not found" );
                 }
-
             }
 
             auto ty_d = captured_type_details_.at( v->get_id() );

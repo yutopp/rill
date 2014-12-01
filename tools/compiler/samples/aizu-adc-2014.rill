@@ -27,8 +27,7 @@ class u {
     }
 }
 
-template(T: type)
-def advent(_: u, c: T) {
+def advent!(T: type)(_: u, c: T) {
     p("Advent");
     return \() => p(c);
 }

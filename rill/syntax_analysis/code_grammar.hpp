@@ -97,20 +97,22 @@ namespace rill
             // ====================================================================================================
             // ====================================================================================================
             //
-            RN( function_definition_statement, ast::function_definition_statement_ptr,
+            RN( function_definition_statement, ast::statement_ptr,
                 ( make_keyword( "def" )
                 > t.identifier
+                > -t.template_parameter_variable_declaration_list
                 > t.parameter_variable_declaration_list
                 > t.decl_attribute_list
                 > -t.type_specifier
                 > t.function_body_block
                 )[
-                    helper::make_node_ptr<ast::function_definition_statement>(
-                        ph::_1,
+                    helper::make_templatable_node_ptr<ast::function_definition_statement>(
                         ph::_2,
+                        ph::_1,
                         ph::_3,
                         ph::_4,
-                        ph::_5
+                        ph::_5,
+                        ph::_6
                         )
                     ]
             )
@@ -414,8 +416,7 @@ namespace rill
             // ====================================================================================================
             //
             R( templatable_statement, ast::can_be_template_statement_ptr,
-                ( t.function_definition_statement
-                | t.class_definition_statement
+                ( t.class_definition_statement
                 | t.extern_statement
                 )
             )
@@ -439,8 +440,8 @@ namespace rill
             )
 
             R( template_parameter_variable_declaration_list, ast::parameter_list,
-                ( ( x3::lit( '(' ) >> x3::lit( ')' ) )
-                | ( x3::lit( '(' ) >> ( t.template_parameter_variable_declaration % x3::lit( ',' ) ) >> x3::lit( ')' ) )
+                ( ( x3::lit( '!' ) >> x3::lit( '(' ) >> x3::lit( ')' ) )
+                | ( x3::lit( '!' ) >> x3::lit( '(' ) >> ( t.template_parameter_variable_declaration % x3::lit( ',' ) ) >> x3::lit( ')' ) )
                 )
             )
 
