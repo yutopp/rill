@@ -15,8 +15,7 @@ class F
 {
     def ctor() {}
 
-    template(T: type)
-    def f(t: T): T
+    def f!(T: type)(t: T): T
     {
         return t;
     }

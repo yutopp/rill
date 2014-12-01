@@ -73,8 +73,7 @@ def f1(a: int): int
     return a + a;
 }
 
-template(T: type)
-def f(val a: T): T
+def f!(T: type)(val a: T): T
 {
     val v: mutable(T) = 150;
     v = 10;

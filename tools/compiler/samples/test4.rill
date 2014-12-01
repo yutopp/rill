@@ -10,8 +10,7 @@ def main(): int
     return 0;
 }
 
-template(T: type)
-def f(val a: T): void
+def f!(T: type)(val a: T): void
 {
     p( a );
 }

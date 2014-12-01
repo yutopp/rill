@@ -11,8 +11,7 @@ def main(): int
     return 10;
 }
 
-template(T: type, U: type)
-class HogeHuga
+class HogeHuga!(T: type, U: type)
 {
     def ctor()
     {

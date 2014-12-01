@@ -87,7 +87,6 @@ namespace rill
                   t.function_definition_statement
                 | t.class_definition_statement
                 | t.extern_statement
-                | t.template_statement
                 | t.import_statement
                 | t.empty_statement
                 | t.expression_statement    // this rule must be located at last
@@ -99,7 +98,7 @@ namespace rill
             //
             RN( function_definition_statement, ast::statement_ptr,
                 ( make_keyword( "def" )
-                > t.identifier
+                > t.identifier_relative
                 > -t.template_parameter_variable_declaration_list
                 > t.parameter_variable_declaration_list
                 > t.decl_attribute_list
@@ -208,7 +207,7 @@ namespace rill
             )
 
             R( parameter_variable_initializer_unit, ast::variable_declaration_unit,
-                ( -t.identifier > t.value_initializer_unit )[
+                ( -t.identifier_relative > t.value_initializer_unit )[
                     helper::construct<ast::variable_declaration_unit>( ph::_1, ph::_2 )
                     ]
             )
@@ -260,16 +259,18 @@ namespace rill
 
             // ====================================================================================================
             // ====================================================================================================
-            RN( class_definition_statement, ast::class_definition_statement_ptr,
+            RN( class_definition_statement, ast::statement_ptr,
                 ( make_keyword( "class" )
-                > t.identifier
+                > t.identifier_relative
+                > -t.template_parameter_variable_declaration_list
                 > t.decl_attribute_list
                 > t.class_body_block
                 )[
-                    helper::make_node_ptr<ast::class_definition_statement>(
-                        ph::_1,
+                    helper::make_templatable_node_ptr<ast::class_definition_statement>(
                         ph::_2,
-                        ph::_3
+                        ph::_1,
+                        ph::_3,
+                        ph::_4
                         )
                     ]
             )
@@ -284,7 +285,6 @@ namespace rill
             R( class_body_statement, ast::statement_ptr,
                 ( t.class_function_definition_statement
                 | t.class_variable_declaration_statement
-                | t.class_template_statement
                 | t.empty_statement
                 )
             )
@@ -296,40 +296,24 @@ namespace rill
             )
 
 
-            R( class_templatable_statement, ast::can_be_template_statement_ptr,
-                ( t.class_function_definition_statement
-                )
-            )
-
-            RN( class_template_statement, ast::template_statement_ptr,
-                ( x3::lit( "template" )
-                > t.template_parameter_variable_declaration_list
-                > t.class_templatable_statement
-                )[
-                    helper::make_node_ptr<ast::template_statement>(
-                        ph::_1,
-                        ph::_2
-                        )
-                    ]
-            )
-
-
-            RN( class_function_definition_statement, ast::class_function_definition_statement_ptr,
+            RN( class_function_definition_statement, ast::statement_ptr,
                 ( make_keyword( "def" )
-                > t.identifier
+                > t.identifier_relative
+                > -t.template_parameter_variable_declaration_list
                 > t.parameter_variable_declaration_list
                 > t.decl_attribute_list
                 > -t.class_variable_initializers
                 > -t.type_specifier
                 > t.function_body_block
                 )[
-                    helper::make_node_ptr<ast::class_function_definition_statement>(
-                        ph::_1,
+                    helper::make_templatable_node_ptr<ast::class_function_definition_statement>(
                         ph::_2,
+                        ph::_1,
                         ph::_3,
                         ph::_4,
                         ph::_5,
-                        ph::_6
+                        ph::_6,
+                        ph::_7
                         )
                     ]
             )
@@ -350,7 +334,7 @@ namespace rill
             )
 
             R( class_variable_initializer_unit, ast::variable_declaration_unit,
-                ( t.identifier > t.value_initializer_unit_only_value )[
+                ( t.identifier_relative > t.value_initializer_unit_only_value )[
                     helper::construct<ast::variable_declaration_unit>( ph::_1, ph::_2 )
                     ]
             )
@@ -377,7 +361,7 @@ namespace rill
 
             RN( extern_function_declaration_statement, ast::statement_ptr,
                 ( make_keyword( "def" )
-                > t.identifier
+                > t.identifier_relative
                 > -t.template_parameter_variable_declaration_list
                 > t.parameter_variable_declaration_list
                 > t.extern_decl_attribute_list
@@ -397,7 +381,7 @@ namespace rill
 
             RN( extern_class_declaration_statement, ast::statement_ptr,
                 ( make_keyword( "class" )
-                > t.identifier
+                > t.identifier_relative
                 > -t.template_parameter_variable_declaration_list
                 > t.extern_decl_attribute_list
                 > t.string_literal_sequence
@@ -419,23 +403,6 @@ namespace rill
             // ====================================================================================================
             // ====================================================================================================
             //
-            R( templatable_statement, ast::can_be_template_statement_ptr,
-                ( t.class_definition_statement
-                )
-            )
-
-            RN( template_statement, ast::template_statement_ptr,
-                ( x3::lit( "template" )
-                > t.template_parameter_variable_declaration_list
-                > t.templatable_statement
-                )[
-                    helper::make_node_ptr<ast::template_statement>(
-                        ph::_1,
-                        ph::_2
-                        )
-                    ]
-            )
-
             R( template_parameter_variable_declaration, ast::variable_declaration,
                 ( t.parameter_variable_initializer_unit )[
                     helper::construct<ast::variable_declaration>( attribute::holder_kind::k_ref, ph::_1 )
@@ -470,7 +437,7 @@ namespace rill
             )
 
             R( variable_initializer_unit, ast::variable_declaration_unit,
-                ( t.identifier > t.value_initializer_unit )[
+                ( t.identifier_relative > t.value_initializer_unit )[
                     helper::construct<ast::variable_declaration_unit>( ph::_1, ph::_2 )
                     ]
             )

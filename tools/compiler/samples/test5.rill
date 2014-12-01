@@ -20,8 +20,7 @@ def main(): int
     return 0;
 }
 
-template(T: type, U: type)
-def f(val a: T, val b: U): void
+def f!(T: type, U: type)(val a: T, val b: U): void
 {
     p( is_mutable( T ) );
     p( b );
