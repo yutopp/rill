@@ -53,8 +53,7 @@ def main(): int
     return 0;
 }
 
-template(T: type, U: type)
-class HogeHuga
+class HogeHuga!(T: type, U: type)
 {
     def ctor()
     {
@@ -75,10 +74,8 @@ extern class int intrinsic "type_int32";
 extern class float intrinsic "type_float";
 extern class void intrinsic "type_void";
 extern class bool intrinsic "type_bool";
-template(T: type, N: int)
-extern class array intrinsic "type_array";
-template(T: type)
-extern class ptr intrinsic "type_ptr";
+extern class array!(T: type, N: int) intrinsic "type_array";
+extern class ptr!(T: type) intrinsic "type_ptr";
 )s" )
 }
 

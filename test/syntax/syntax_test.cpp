@@ -69,8 +69,7 @@ def main(): int
     return 0;
 }
 
-template(T: type, U: type)
-class HogeHuga
+class HogeHuga!(T: type, U: type)
 {
     def ctor()
     {
@@ -129,8 +128,7 @@ def main(): int
     return 0;
 }
 
-template(T: type, U: type)
-class HogeHuga
+class HogeHuga!(T: type, U: type)
 {
     def ctor()
     {
