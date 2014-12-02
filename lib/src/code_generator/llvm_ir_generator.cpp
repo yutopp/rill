@@ -1453,11 +1453,19 @@ namespace rill
             llvm::AllocaInst* const alloca_inst
                 = context_->ir_builder.CreateAlloca(
                     array_ty,
-                    0/*length of array */
+                    0/*length of array*/
                     );
 
             for( std::size_t i=0; i<array_detail->elements_num; ++i ) {
-                // pointer to buffer
+                //
+                auto const& e = v->elements_list_[i];
+                llvm::Value* inner = dispatch( e, parent_env );
+
+                auto const& tid = g_env_->get_related_type_id_from_ast_ptr( e );
+                assert( tid != type_id_undefined );
+                auto const& e_type = g_env_->get_type_at( tid );
+
+                // pointer for per elements
                 llvm::Value* elem_v
                     = context_->ir_builder.CreateConstInBoundsGEP2_64(
                         alloca_inst,
@@ -1465,13 +1473,7 @@ namespace rill
                         i
                         );
 
-                auto const& e = v->elements_list_[i];
-                llvm::Value* inner = dispatch( e, parent_env );
-
-                context_->ir_builder.CreateStore(
-                    inner,
-                    elem_v /*, is_volatile */
-                    );
+                delegate_value_to( e_type, inner, elem_v );
             }
 
             return alloca_inst;
@@ -1525,7 +1527,15 @@ namespace rill
                             0/*length*/
                             );
                     if ( value ) {
-                        delegate_value_to( v_type, value, allca_inst );
+                        if ( is_heavy_object( v_type ) ) {
+                            delegate_value_to( v_type, value, allca_inst );
+
+                        } else {
+                            context_->ir_builder.CreateStore(
+                                value,
+                                allca_inst//, is_volatile
+                                );
+                        }
                     }
 
                     context_->env_conversion_table.bind_value(
@@ -2006,7 +2016,7 @@ namespace rill
                     ty.class_env_id
                     );
 
-            if ( is_heavy_object( ty ) ) {
+            if ( is_heavy_object( ty ) || is_represented_as_pointer( ty, from ) ) {
                 if ( c_env->is_default_copyable() ) {
                     auto const copy_size = get_class_size( c_env );
                     auto const alignment = get_class_alignment( c_env );
@@ -2021,7 +2031,7 @@ namespace rill
             } else {
                 context_->ir_builder.CreateStore(
                     from,
-                    to /*, is_volatile */
+                    to//, is_volatile
                     );
             }
         }

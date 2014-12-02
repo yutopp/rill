@@ -1,0 +1,20 @@
+def f(val _: mutable(l)): void
+{
+    _.n = 21;
+}
+
+def main(): int
+{
+    val o = l();
+    f( o );
+
+    return 0;
+}
+
+class l
+{
+    def ctor()
+    {}
+
+    val n: int;
+}

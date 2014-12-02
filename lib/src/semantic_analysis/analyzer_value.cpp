@@ -163,6 +163,11 @@ namespace rill
             auto const& ar
                 = std::static_pointer_cast<ast::intrinsic::array_value>( v );
 
+            // TODO: check if all values are copyable
+            for( auto&& elem : v->elements_list_ ) {
+                dispatch( elem, parent_env );
+            }
+
             // abyaaa
             // TODO: support various types
             ast::expression_list args = {
