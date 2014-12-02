@@ -326,14 +326,9 @@ namespace rill
 
             for( std::size_t i=0; i<template_parameters.size(); ++i ) {
                 auto const& template_parameter = template_parameters.at( i );
-
                 //
                 // 1. declare template parameters
                 //
-                assert(
-                    template_parameter.decl_unit.init_unit.type != nullptr
-                    || template_parameter.decl_unit.init_unit.initializer != nullptr
-                    );
                 regard_variable_is_not_already_defined(
                     inner_env,
                     template_parameter.decl_unit.name
@@ -342,7 +337,7 @@ namespace rill
                 if ( template_parameter.decl_unit.init_unit.type ) {
                     resolve_type(
                         template_parameter.decl_unit.init_unit.type,
-                        template_parameter.quality,
+                        attribute::holder_kind::k_ref,
                         parent_env,
                         [&]( type_detail_ptr const& ty_d,
                              type const& ty,
@@ -366,20 +361,26 @@ namespace rill
                 } else {
                     // deduce this template variable is "type" type.
                     rill_dout << "Construct template parameter[type] val / index : " << i << std::endl;
-                    assert( false );
-#if 0
+
+                    auto const& type_c_env = get_primitive_class_env( "type" );
+                    auto const& tid = g_env_->make_type_id(
+                        type_c_env,
+                        attribute::make(
+                            attribute::holder_kind::k_ref,
+                            attribute::modifiability_kind::k_immutable
+                            )
+                        );
+
                     // declare the template parameter into function env as variable
                     auto const& v_env
-                        = inner_env->construct(
+                        = inner_env->incomplete_construct(
                             kind::k_variable,
-                            template_parameter.decl_unit.name,
-                            nullptr, //TODO: change to valid ptr to ast
-                            class_env,
-                            ty.attributes
+                            template_parameter.decl_unit.name
                             );
+                    // TODO: link with ptr to ast
+                    v_env->complete( tid );
 
                     declared_envs[i] = v_env;
-#endif
                 }
             }
 

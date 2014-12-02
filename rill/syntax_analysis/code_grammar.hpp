@@ -404,10 +404,17 @@ namespace rill
             // ====================================================================================================
             //
             R( template_parameter_variable_declaration, ast::variable_declaration,
-                ( t.parameter_variable_initializer_unit )[
+                ( t.template_parameter_variable_initializer_unit )[
                     helper::construct<ast::variable_declaration>( attribute::holder_kind::k_ref, ph::_1 )
                     ]
             )
+
+            R( template_parameter_variable_initializer_unit, ast::variable_declaration_unit,
+                ( t.identifier_relative > -t.value_initializer_unit )[
+                    helper::construct<ast::variable_declaration_unit>( ph::_1, ph::_2 )
+                    ]
+            )
+
 
             R( template_parameter_variable_declaration_list, ast::parameter_list,
                 ( ( x3::lit( '!' ) >> x3::lit( '(' ) >> x3::lit( ')' ) )

@@ -27,7 +27,7 @@ class u {
     }
 }
 
-def advent!(T: type)(_: u, c: T) {
+def advent!(T)(_: u, c: T) {
     p("Advent");
     return \() => p(c);
 }

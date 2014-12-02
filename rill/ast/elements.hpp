@@ -92,6 +92,16 @@ namespace rill
                     )
             {}
 
+            variable_declaration_unit(
+                const_identifier_value_base_ptr const& n,
+                boost::optional<value_initializer_unit>&& i
+                )
+                : variable_declaration_unit(
+                    n,
+                    i != boost::none ? std::move( *i ) : value_initializer_unit{}
+                    )
+            {}
+
             variable_declaration_unit( variable_declaration_unit const& rhs )
                 : name( clone( rhs.name ) )
                 , init_unit( rhs.init_unit )

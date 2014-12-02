@@ -30,7 +30,7 @@ def main(): int
     return 0;
 }
 
-def ret_struct!(T: type)(i: T): TestClass
+def ret_struct!(T)(i: T): TestClass
 {
     val a = TestClass(i);
     return a;

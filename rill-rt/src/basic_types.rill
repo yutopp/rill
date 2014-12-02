@@ -4,8 +4,8 @@ extern class int intrinsic "type_int32";
 extern class float intrinsic "type_float";
 extern class void intrinsic "type_void";
 extern class bool intrinsic "type_bool";
-extern class array!(T: type, N: int) intrinsic "type_array";
-extern class ptr!(T: type) intrinsic "type_ptr";
+extern class array!(T, N: int) intrinsic "type_array";
+extern class ptr!(T) intrinsic "type_ptr";
 
 extern def mutable( a :type ) onlymeta: type "rill_core_typesystem_mutable";
 extern def const( a :type ) onlymeta: type "rill_core_typesystem_const";
