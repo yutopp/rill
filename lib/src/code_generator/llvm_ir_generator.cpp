@@ -1453,10 +1453,11 @@ namespace rill
             llvm::AllocaInst* const alloca_inst
                 = context_->ir_builder.CreateAlloca(
                     array_ty,
-                    0/*length of array*/
+                    0/*length of array */
                     );
 
             for( std::size_t i=0; i<array_detail->elements_num; ++i ) {
+                // pointer to buffer
                 llvm::Value* elem_v
                     = context_->ir_builder.CreateConstInBoundsGEP2_64(
                         alloca_inst,
@@ -1497,80 +1498,66 @@ namespace rill
                 value->dump();
             }
 
-            if ( is_heavy_object( v_type ) ) {
-                //
-                context_->env_conversion_table.bind_value(
-                    v_env->get_id(),
-                    value
-                    );
-
-            } else {
-                //
-
-                switch( variable_attr.quality )
+            switch( variable_attr.quality )
+            {
+            case attribute::holder_kind::k_val:
+            {
+                switch( variable_attr.modifiability )
                 {
-                case attribute::holder_kind::k_val:
+                case attribute::modifiability_kind::k_immutable:
+                case attribute::modifiability_kind::k_const:
                 {
-                    switch( variable_attr.modifiability )
-                    {
-                    case attribute::modifiability_kind::k_immutable:
-                    case attribute::modifiability_kind::k_const:
-                    {
-                        assert( value != nullptr );
-                        context_->env_conversion_table.bind_value(
-                            v_env->get_id(),
-                            value
-                            );
-
-                        break;
-                    }
-
-                    case attribute::modifiability_kind::k_mutable:
-                    {
-                        // FIXME:
-                        llvm::AllocaInst* const allca_inst
-                            = context_->ir_builder.CreateAlloca(
-                                variable_llvm_type,
-                                0/*length*/
-                                );
-                        if ( value ) {
-                            context_->ir_builder.CreateStore(
-                                value,
-                                allca_inst /*, is_volatile */
-                                );
-                        }
-
-                        context_->env_conversion_table.bind_value(
-                            v_env->get_id(),
-                            allca_inst
-                            );
-
-                        break;
-                    }
-
-                    default:
-                        rill_ice( "unexpected" );
-                    } // switch
+                    assert( value != nullptr );
+                    context_->env_conversion_table.bind_value(
+                        v_env->get_id(),
+                        value
+                        );
 
                     break;
                 }
 
-                case attribute::holder_kind::k_ref:
+                case attribute::modifiability_kind::k_mutable:
                 {
-                    context_->env_conversion_table.bind_value(
-                            v_env->get_id(),
-                            value
+                    // FIXME:
+                    llvm::AllocaInst* const allca_inst
+                        = context_->ir_builder.CreateAlloca(
+                            variable_llvm_type,
+                            0/*length*/
                             );
+                    if ( value ) {
+                        delegate_value_to( v_type, value, allca_inst );
+                    }
+
+                    context_->env_conversion_table.bind_value(
+                        v_env->get_id(),
+                        allca_inst
+                        );
+
                     break;
                 }
 
                 default:
-                {
-                    rill_ice( "" );
-                    break;
-                }
+                    rill_ice( "unexpected" );
                 } // switch
+
+                break;
             }
+
+            case attribute::holder_kind::k_ref:
+            {
+                context_->env_conversion_table.bind_value(
+                    v_env->get_id(),
+                    value
+                    );
+                break;
+            }
+
+            default:
+            {
+                rill_ice( "" );
+                break;
+            }
+            } // switch
         }
 
 
@@ -2019,14 +2006,23 @@ namespace rill
                     ty.class_env_id
                     );
 
-            if ( c_env->is_default_copyable() ) {
-                auto const copy_size = get_class_size( c_env );
-                auto const alignment = get_class_alignment( c_env );
+            if ( is_heavy_object( ty ) ) {
+                if ( c_env->is_default_copyable() ) {
+                    auto const copy_size = get_class_size( c_env );
+                    auto const alignment = get_class_alignment( c_env );
 
-                context_->ir_builder.CreateMemCpy( to, from, copy_size, alignment );
+                    context_->ir_builder.CreateMemCpy( to, from, copy_size, alignment );
+
+                } else {
+                    // TODO: call the suitable copy/move constructor
+                    rill_ice( "not supported" );
+                }
 
             } else {
-                rill_ice( "not supported" );
+                context_->ir_builder.CreateStore(
+                    from,
+                    to /*, is_volatile */
+                    );
             }
         }
 
