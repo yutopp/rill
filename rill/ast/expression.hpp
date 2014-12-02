@@ -171,16 +171,19 @@ namespace rill
 
         RILL_AST_BEGIN(
             lambda_expression, expression,
+            (( boost::optional<parameter_list>, template_parameters ))
             (( parameter_list, parameters ))
             (( element::statement_list, statements ))
             (( call_expression_ptr, call_expr ))
             )
         public:
             lambda_expression(
+                boost::optional<parameter_list>&& tpl,
                 parameter_list const& pl,
                 element::statement_list const& ss
                 )
-                : parameters( pl )
+                : template_parameters( std::move( tpl ) )
+                , parameters( pl )
                 , statements( ss )
                 , call_expr( nullptr )  // assigned later
             {}

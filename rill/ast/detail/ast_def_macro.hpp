@@ -12,6 +12,9 @@
 #include <cstddef>
 #include <cassert>
 #include <memory>
+#include <vector>
+
+#include <boost/optional.hpp>
 
 #include <boost/preprocessor.hpp>
 #include <boost/preprocessor/tuple/elem.hpp>
@@ -90,8 +93,16 @@ namespace rill
                 }
                 return xs;
             }
+            // optional
+            template<typename ResultT, typename T>
+            auto clone_ast_element(
+                boost::optional<T> const& v
+                )
+            {
+                return v ? boost::optional<T>( clone_ast_element<T>( *v ) ) : boost::optional<T>();
+            }
             // functions "clone_ast_element" for nodes are defined in def_switch_begin
-            // TODO: support optional, shared_ptr
+            // TODO: support shared_ptr
 
 
             template<typename T>

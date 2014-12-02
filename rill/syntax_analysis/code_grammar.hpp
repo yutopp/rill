@@ -750,7 +750,11 @@ namespace rill
                 > -t.type_specifier
                 > t.function_body_statements_list_for_lambda
                 )[
-                    helper::make_node_ptr<ast::lambda_expression>( ph::_2, ph::_5 )
+                    helper::make_node_ptr<ast::lambda_expression>(
+                        ph::_1,
+                        ph::_2,
+                        ph::_5
+                        )
                     ]
             )
 
