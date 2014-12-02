@@ -249,25 +249,6 @@ namespace rill
         return outer_referenced_asts_.emplace_back( node );
     }
 
-    auto environment_base::propagate_outer_referenced_ast(
-        outer_referenced_ast_ptr_type const& node
-        )
-        -> void
-    {
-        rill_dout
-            << "!!!!! " << outer_referenced_asts_.size() << " / " << this << std::endl;
-
-        for( auto&& inner_env : inner_envs_ ) {
-            auto const& env = cast_to_base( inner_env.second );
-            env->append_outer_referenced_ast( node );
-            env->propagate_outer_referenced_ast( node );
-        }
-        for( auto&& inner_env : unnamed_inner_envs_ ) {
-            inner_env->append_outer_referenced_ast( node );
-            inner_env->propagate_outer_referenced_ast( node );
-        }
-    }
-
     auto environment_base::get_outer_referenced_asts() const
         -> outer_referenced_asts_type
     {

@@ -1,0 +1,16 @@
+def fix!(F)(f: F)
+{
+    return \!(T)(t: T) => f(fix(f))(t);
+}
+
+def main()
+{
+    p(fix(\!(F)(f: F) => \(n: int) {
+        if (n == 0) {
+            return 1;
+        } else {
+            return n * f(n - 1);
+        }
+    })(3));
+
+}

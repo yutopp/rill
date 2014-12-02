@@ -753,6 +753,8 @@ namespace rill
                     helper::make_node_ptr<ast::lambda_expression>(
                         ph::_1,
                         ph::_2,
+                        ph::_3,
+                        ph::_4,
                         ph::_5
                         )
                     ]

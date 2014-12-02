@@ -35,9 +35,8 @@ namespace rill
         RILL_AST_DEF( addressof_expression, expression )
 
         RILL_AST_DEF( term_expression, expression )
-        RILL_AST_DEF( lambda_expression, expression )
-
         RILL_AST_DEF( id_expression, expression )
+        RILL_AST_DEF( lambda_expression, expression )
 
         // RILL_AST_DEF( while_expression, expression )
         // RILL_AST_DEF( if_expression, expression )

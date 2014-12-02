@@ -538,11 +538,6 @@ namespace rill
             )
             -> void;
 
-        virtual auto propagate_outer_referenced_ast(
-            outer_referenced_ast_ptr_type const& node
-            )
-            -> void;
-
         auto get_outer_referenced_asts() const
             -> outer_referenced_asts_type;
 

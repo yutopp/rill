@@ -394,6 +394,120 @@ namespace rill
                 rill_ice( "" );
             }
 
+            if ( e->template_parameters ) {
+                rill_ice( "Not supported" );
+#if 0
+                // operator call for lambda object
+                auto const& lambda_op_call_id
+                    = ast::make_identifier( "%op_()" );
+                auto lambda_op_call_def
+                    = std::make_shared<ast::class_function_definition_statement>(
+                        lambda_op_call_id,
+                        e->parameters,
+                        attribute::decl::k_default,
+                        boost::none,
+                        boost::none,
+                        std::make_shared<ast::statements>(
+                            e->statements
+                            )
+                        );
+                auto template_lambda_op_call_def
+                    = std::make_shared<ast::template_statement>(
+                        *e->template_parameters,
+                        lambda_op_call_def
+                        );
+
+                // TODO: make cut block environment
+                // Create Class AST
+                auto const& ast_for_lambda_class
+                    = std::make_shared<ast::class_definition_statement>(
+                        lambda_class_id,
+                        attribute::decl::k_default,
+                        std::make_shared<ast::statements>(
+                            ast::element::statement_list{
+                                template_lambda_op_call_def
+                            }
+                            )
+                        );
+
+                // generate lambda function class
+                auto const& import_base = import_bases_.top();
+
+                auto const& report = collect_identifier( g_env_, ast_for_lambda_class, parent_env, import_base );
+                if ( report->is_errored() ) {
+                    import_messages( report );
+                    // TODO: raise semantic error
+                    assert( false );
+                    return nullptr;
+                }
+                dispatch( ast_for_lambda_class, parent_env );
+
+
+                auto const& c_env = cast_to<class_symbol_environment>(
+                    g_env_->get_related_env_by_ast_ptr( ast_for_lambda_class )
+                    );
+                assert( c_env != nullptr );
+                rill_dout << "class    -> " << c_env->get_qualified_name() << " / ptr: " << c_env << std::endl;
+
+                ast::parameter_list parames_for_ctor;
+                ast::expression_list args_for_ctor;
+                ast::element::class_variable_initializers initializer({});
+
+                // 'constructor' for lambda object
+                {
+                    auto const& lambda_ctor_id
+                        = ast::make_identifier( "ctor" );
+                    auto lambda_ctor_def
+                        = std::make_shared<ast::class_function_definition_statement>(
+                            lambda_ctor_id,
+                            std::move( parames_for_ctor ),
+                            e->decl_attr,
+                            std::move( initializer ),
+                            e->return_type,
+                            std::make_shared<ast::statements>(
+                                ast::element::statement_list{}
+                                )
+                        );
+
+                    auto const& report
+                        = collect_identifier(
+                            g_env_,
+                            lambda_ctor_def,
+                            c_env,
+                            import_base
+                            );
+                    if ( report->is_errored() ) {
+                        import_messages( report );
+                        // TODO: raise semantic error
+                        assert( false );
+                        return nullptr;
+                    }
+                    dispatch( lambda_ctor_def, c_env );
+                }
+
+                auto const& argument_type_details
+                    = evaluate_invocation_args( nullptr, args_for_ctor, parent_env );
+
+                // create lambda object
+                auto reciever = std::make_shared<ast::term_expression>( lambda_class_id );
+                auto const& call_expr
+                    = std::make_shared<ast::call_expression>(
+                        std::move( reciever ),
+                        std::move( args_for_ctor )
+                        );
+
+                // memoize call expression to lambda ast
+                e->call_expr = call_expr;
+
+                // construct lambda object
+                auto return_ty_d
+                    = call_constructor( call_expr, argument_type_details, parent_env );
+
+                return bind_type( e, return_ty_d );
+#endif
+            }
+
+
             // operator call for lambda object
             auto const& lambda_op_call_id
                 = ast::make_identifier( "%op_()" );

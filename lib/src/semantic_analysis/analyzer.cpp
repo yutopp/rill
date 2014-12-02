@@ -1515,7 +1515,7 @@ namespace rill
             rill_dregion {
                 for( auto&& env : f_candidate_envs ) {
                     std::cout << std::endl
-                              << "  !!!!! condidate found >>> " << std::endl
+                              << "  !!!!! condidate found >>> " << env << std::endl
                               << std::endl;
                 }
             }
@@ -2169,14 +2169,18 @@ namespace rill
             )
             -> void
         {
-            //assert( block_envs_.top() != nullptr );
-            //block_envs_.top()->propagate_outer_referenced_ast( identifier );
-            assert( found_env->has_parent() );
-            found_env->get_parent_env()->propagate_outer_referenced_ast( identifier );
+            assert( block_envs_.top() != nullptr );
 
+            auto const& base_env = found_env->get_parent_env();
+            auto from_env = block_envs_.top();
+
+            while( from_env->has_parent() && base_env->get_id() != from_env->get_id() ) {
+                rill_dout << "### OUTER: " << from_env << std::endl;
+
+                from_env->append_outer_referenced_ast( identifier );
+                from_env = from_env->get_parent_env();
+            }
             captured_type_details_.emplace( identifier->get_id(), ty_detail );
-
-            rill_dout << "### OUTER: " << found_env->get_parent_env() << std::endl;
         }
 
 
@@ -2967,8 +2971,6 @@ namespace rill
             )
             -> void
         {
-            auto const& t = g_env_->get_type_at( type_id );
-
             // construct variable
             // NOTE: do not link with ast
             auto v_env = f_env->incomplete_construct(

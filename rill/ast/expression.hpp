@@ -170,27 +170,6 @@ namespace rill
 
 
         RILL_AST_BEGIN(
-            lambda_expression, expression,
-            (( boost::optional<parameter_list>, template_parameters ))
-            (( parameter_list, parameters ))
-            (( element::statement_list, statements ))
-            (( call_expression_ptr, call_expr ))
-            )
-        public:
-            lambda_expression(
-                boost::optional<parameter_list>&& tpl,
-                parameter_list const& pl,
-                element::statement_list const& ss
-                )
-                : template_parameters( std::move( tpl ) )
-                , parameters( pl )
-                , statements( ss )
-                , call_expr( nullptr )  // assigned later
-            {}
-        RILL_AST_END
-
-
-        RILL_AST_BEGIN(
             id_expression, expression,
             (( expression_ptr, expression_ ))
             )
@@ -198,8 +177,35 @@ namespace rill
             id_expression( expression_ptr const& expr )
                 : expression_( expr )
             {}
-
         RILL_AST_END
+
+
+        RILL_AST_BEGIN(
+            lambda_expression, expression,
+            (( boost::optional<parameter_list>, template_parameters ))
+            (( parameter_list, parameters ))
+            (( attribute::decl::type, decl_attr ))
+            (( id_expression_ptr, return_type ))
+            (( element::statement_list, statements ))
+            (( call_expression_ptr, call_expr ))
+            )
+        public:
+            lambda_expression(
+                boost::optional<parameter_list>&& tpl,
+                parameter_list const& pl,
+                attribute::decl::type const& da,
+                boost::optional<id_expression_ptr> const& rt,
+                element::statement_list const& ss
+                )
+                : template_parameters( std::move( tpl ) )
+                , parameters( pl )
+                , decl_attr( da )
+                , return_type( rt != boost::none ? *rt : nullptr )
+                , statements( ss )
+                , call_expr( nullptr )  // assigned later
+            {}
+        RILL_AST_END
+
 
         namespace helper
         {

@@ -178,12 +178,6 @@ namespace rill
             return it->second;
         }
 
-    public:
-        auto propagate_outer_referenced_ast(
-            outer_referenced_ast_ptr_type const& node
-            )
-            -> void override;
-
     private:
         native_string_type name_;
 
