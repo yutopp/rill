@@ -1732,7 +1732,14 @@ namespace rill
                 }
 
             } else {
-                assert( false && "[Error] return type was not determined..." );
+                // assert( false && "[Error] return type was not determined..." );
+                // Force set "void"
+                auto const& void_class_env = get_primitive_class_env( "void" );
+                auto ret_ty_id = g_env_->make_type_id(
+                    void_class_env,
+                    attribute::make_default_type_attributes()
+                    );
+                f_env->decide_return_type( ret_ty_id );
             }
         }
 

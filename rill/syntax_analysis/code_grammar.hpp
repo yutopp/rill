@@ -744,10 +744,13 @@ namespace rill
             // ====================================================================================================
             RN( lambda_expression, ast::lambda_expression_ptr,
                 ( t.lambda_introducer
+                > -t.template_parameter_variable_declaration_list
                 > t.parameter_variable_declaration_list
+                > t.decl_attribute_list
+                > -t.type_specifier
                 > t.function_body_statements_list_for_lambda
                 )[
-                    helper::make_node_ptr<ast::lambda_expression>( ph::_1, ph::_2 )
+                    helper::make_node_ptr<ast::lambda_expression>( ph::_2, ph::_5 )
                     ]
             )
 

@@ -1,0 +1,8 @@
+def main(): int
+{
+    (\(v: int): void {
+        p( v + 20 );
+        p( "====" );
+    })(20);
+    return 0;
+}
