@@ -528,6 +528,8 @@ namespace rill
             auto const& ast_for_lambda_class
                 = std::make_shared<ast::class_definition_statement>(
                     lambda_class_id,
+                    boost::none,    // base class
+                    boost::none,    // traits
                     attribute::decl::k_default,
                     std::make_shared<ast::statements>(
                         ast::element::statement_list{

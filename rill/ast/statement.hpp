@@ -209,7 +209,6 @@ namespace rill
         RILL_AST_END
 
 
-
         RILL_AST_BEGIN(
             function_definition_statement_base, can_be_template_statement,
             (( parameter_list, parameter_list_ ))
@@ -305,6 +304,62 @@ namespace rill
             }
         RILL_AST_END
 
+
+        RILL_AST_BEGIN(
+            class_virtual_function_definition_statement, class_function_definition_statement
+            )
+        public:
+            class_virtual_function_definition_statement(
+                identifier_value_ptr const& id,
+                parameter_list parameter_list,
+                attribute::decl::type const& decl_attr,
+                id_expression_ptr const& return_type,
+                statements_ptr const& inner
+                )
+                : class_function_definition_statement(
+                    id,
+                    std::move( parameter_list ),
+                    decl_attr,
+                    boost::none, // initializer
+                    return_type,
+                    inner
+                    )
+            {}
+
+            class_virtual_function_definition_statement(
+                identifier_value_ptr const& id,
+                parameter_list parameter_list,
+                attribute::decl::type const& decl_attr,
+                id_expression_ptr const& return_type
+                )
+                : class_function_definition_statement(
+                    id,
+                    std::move( parameter_list ),
+                    decl_attr,
+                    boost::none, // initializer
+                    return_type,
+                    nullptr
+                    )
+            {}
+
+            class_virtual_function_definition_statement(
+                identifier_value_ptr const& id,
+                parameter_list parameter_list,
+                attribute::decl::type const& decl_attr,
+                statements_ptr const& inner
+                )
+                : class_function_definition_statement(
+                    id,
+                    std::move( parameter_list ),
+                    decl_attr,
+                    boost::none, // initializer
+                    boost::none,
+                    inner
+                    )
+            {}
+        RILL_AST_END
+
+
         RILL_AST_BEGIN(
             extern_function_declaration_statement, function_definition_statement_base,
             (( native_string_t, extern_symbol_name_ ))
@@ -341,23 +396,33 @@ namespace rill
 
         RILL_AST_BEGIN(
             class_definition_statement, can_be_template_statement,
+            (( expression_ptr, base_type ))
+            (( boost::optional<expression_list>, mixin_traits_list ))
             (( attribute::decl::type, decl_attr_ ))
             (( statements_ptr, inner_ ))
             )
         public:
             class_definition_statement(
                 identifier_value_ptr const& id,
+                boost::optional<expression_ptr> const& bt,
+                boost::optional<expression_list>&& mtl,
                 attribute::decl::type const& decl_attr
                 )
-                : class_definition_statement( id, decl_attr, nullptr )
+                : class_definition_statement(
+                    id, bt, std::move( mtl ), decl_attr, nullptr
+                    )
             {}
 
             class_definition_statement(
                 identifier_value_ptr const& id,
+                boost::optional<expression_ptr> const& bt,
+                boost::optional<expression_list>&& mtl,
                 attribute::decl::type const& decl_attr,
                 statements_ptr const& inner
                 )
                 : can_be_template_statement( id )
+                , base_type( bt ? *bt : nullptr )
+                , mixin_traits_list( std::move( mtl ) )
                 , decl_attr_( decl_attr )
                 , inner_( inner )
             {}
@@ -374,7 +439,7 @@ namespace rill
                 attribute::decl::type const& decl_attr,
                 native_string_t const& extern_symbol_name
                 )
-                : class_definition_statement( id, decl_attr )
+                : class_definition_statement( id, boost::none, boost::none, decl_attr )
                 , extern_symbol_name_( extern_symbol_name )
             {}
 
@@ -385,11 +450,6 @@ namespace rill
                 return extern_symbol_name_;
             }
         RILL_AST_END
-
-
-
-
-
 
 
         RILL_AST_BEGIN(

@@ -22,6 +22,7 @@ namespace rill
             constexpr type k_intrinsic  = 1 << 1;
             constexpr type k_extern     = 1 << 2;
             constexpr type k_structured = 1 << 3;
+            constexpr type k_override   = 1 << 4;
         }
 
     } // namespace attribute

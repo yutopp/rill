@@ -41,6 +41,7 @@ namespace rill
         RILL_AST_DEF( extern_function_declaration_statement, statement )
 
         RILL_AST_DEF( class_definition_statement, statement )
+        RILL_AST_DEF( class_virtual_function_definition_statement, statement )
         RILL_AST_DEF( extern_class_declaration_statement, statement )
 
         RILL_AST_DEF( variable_declaration_statement, statement )

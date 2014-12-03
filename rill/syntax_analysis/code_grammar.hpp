@@ -247,6 +247,7 @@ namespace rill
             R( decl_attribute, attribute::decl::type,
                 ( x3::lit( "onlymeta" )[helper::assign( attribute::decl::k_onlymeta )]
                 | x3::lit( "intrinsic" )[helper::assign( attribute::decl::k_intrinsic )]
+                | x3::lit( "override" )[helper::assign( attribute::decl::k_override )]
                 )
             )
 
@@ -263,6 +264,8 @@ namespace rill
                 ( make_keyword( "class" )
                 > t.identifier_relative
                 > -t.template_parameter_variable_declaration_list
+                > -t.base_class_type
+                > -t.mixin_traits_list
                 > t.decl_attribute_list
                 > t.class_body_block
                 )[
@@ -270,9 +273,19 @@ namespace rill
                         ph::_2,
                         ph::_1,
                         ph::_3,
-                        ph::_4
+                        ph::_4,
+                        ph::_5,
+                        ph::_6
                         )
                     ]
+            )
+
+            R( base_class_type, ast::expression_ptr,
+                ( x3::lit( '<' ) >> t.assign_expression )
+            )
+
+            R( mixin_traits_list, ast::expression_list,
+                ( x3::lit( '[' ) >> ( t.assign_expression % ',' ) >> x3::lit( ']' ) )
             )
 
             R( class_body_block, ast::statements_ptr,
@@ -283,7 +296,8 @@ namespace rill
             // ====================================================================================================
             //
             R( class_body_statement, ast::statement_ptr,
-                ( t.class_function_definition_statement
+                ( t.class_virtual_function_definition_statement
+                | t.class_function_definition_statement
                 | t.class_variable_declaration_statement
                 | t.empty_statement
                 )
@@ -316,6 +330,51 @@ namespace rill
                         ph::_7
                         )
                     ]
+            )
+
+            RN( class_virtual_function_definition_statement, ast::class_virtual_function_definition_statement_ptr,
+                ( make_keyword( "virtual" ) > make_keyword( "def" )
+                > ( ( t.identifier_relative
+                    >> t.parameter_variable_declaration_list
+                    >> t.decl_attribute_list
+                    >> t.type_specifier
+                    >> t.function_body_block
+                    )[
+                        helper::make_node_ptr<ast::class_virtual_function_definition_statement>(
+                            ph::_1,
+                            ph::_2,
+                            ph::_3,
+                            ph::_4,
+                            ph::_5
+                            )
+                        ]
+                  | ( t.identifier_relative
+                    >> t.parameter_variable_declaration_list
+                    >> t.decl_attribute_list
+                    >> t.type_specifier
+                    >> t.statement_termination
+                    )[
+                        helper::make_node_ptr<ast::class_virtual_function_definition_statement>(
+                            ph::_1,
+                            ph::_2,
+                            ph::_3,
+                            ph::_4
+                            )
+                        ]
+                  | ( t.identifier_relative
+                    > t.parameter_variable_declaration_list
+                    > t.decl_attribute_list
+                    > t.function_body_block
+                    )[
+                        helper::make_node_ptr<ast::class_virtual_function_definition_statement>(
+                            ph::_1,
+                            ph::_2,
+                            ph::_3,
+                            ph::_4
+                            )
+                        ]
+                  )
+                )
             )
 
             R( class_variable_initializers, ast::element::class_variable_initializers,

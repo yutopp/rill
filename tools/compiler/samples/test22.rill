@@ -1,0 +1,26 @@
+class derived < base
+{
+    def ctor() {}
+
+    def f() override
+    {
+        p("derived");
+    }
+}
+
+class base
+{
+    def ctor() {}
+    virtual def f(): void;
+    virtual def g(): void {};
+    virtual def h() {};
+}
+
+def main()
+{
+    val v = derived();
+//    ref vv = v;
+//    vv.f();
+
+    return 0;
+}
