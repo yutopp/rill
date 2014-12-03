@@ -696,6 +696,10 @@ namespace rill
                     ( x3::lit( '&' ) >> t.unary_expression )[
                         helper::make_node_ptr<ast::addressof_expression>( ph::_1 )
                         ])
+                | tagged(
+                    ( make_keyword( "new" ) >> t.unary_expression )[
+                        helper::make_node_ptr<ast::addressof_expression>( ph::_1 )
+                        ])
                 )
             )
 

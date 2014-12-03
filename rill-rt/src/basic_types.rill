@@ -16,6 +16,7 @@ extern def p( i :int ): void "print_int32";
 extern def p( i :bool ): void "print_bool";
 extern def p( i :ptr!int8 ): void "print_bytes";
 extern def p( i :float ): void "print_float";
+extern def alloc_unmanaged_aligned_memory(alignment:int, size:int): ptr!void "alloc_unmanaged_aligned_memory";
 
 //
 extern def op +( __a: int, __b: int ) intrinsic: int "int_add";
