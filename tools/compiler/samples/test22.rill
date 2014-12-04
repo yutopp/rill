@@ -19,8 +19,9 @@ class base
 def main()
 {
     val v = derived();
-//    ref vv = v;
-//    vv.f();
+    val vv: ptr!(const(derived)) = &v;
+
+    (*vv).f();
 
     return 0;
 }

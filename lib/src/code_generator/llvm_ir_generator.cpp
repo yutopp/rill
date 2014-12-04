@@ -535,7 +535,6 @@ namespace rill
                     );
 
                 if ( c_env->is_virtual_root() ) {
-
                     // i32
                     auto i32_t = llvm::IntegerType::get( context_->llvm_context, 32 );
                     // i32(...)
@@ -1165,8 +1164,32 @@ namespace rill
 
         RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::dereference_expression, e, parent_env )
         {
-            rill_ice( "not supported" );
-            return nullptr;
+            // Look up Function
+            auto const f_env = cast_to<function_symbol_environment const>( g_env_->get_related_env_by_ast_ptr( e ) );
+            if ( f_env != nullptr ) {
+                // call user defined operator
+                rill_dout << "current : " << f_env->get_mangled_name() << std::endl;
+
+                return generate_function_call(
+                    f_env,
+                    { e->reciever },
+                    parent_env,
+                    true
+                    );
+
+            } else {
+                // reciever is pointer value
+                auto const& tid = g_env_->get_related_type_id_from_ast_ptr( e->reciever );
+
+                llvm::Value* const val = dispatch( e->reciever, parent_env );
+                if ( is_represented_as_pointer( g_env_->get_type_at( tid ), val ) ) {
+                    auto const& ptr_value = context_->ir_builder.CreateLoad( val );
+                    return context_->ir_builder.CreateLoad( ptr_value );
+
+                } else {
+                    return context_->ir_builder.CreateLoad( val );
+                }
+            }
         }
 
 
@@ -1175,6 +1198,7 @@ namespace rill
             // Look up Function
             auto const f_env = cast_to<function_symbol_environment const>( g_env_->get_related_env_by_ast_ptr( e ) );
             if ( f_env != nullptr ) {
+                // call user defined operator
                 rill_dout << "current : " << f_env->get_mangled_name() << std::endl;
 
                 return generate_function_call(

@@ -158,7 +158,7 @@ namespace rill
             }
         } // namespace detail
 
-        inline auto mask_transitively(
+        auto mask_transitively(
             attribute::type_attributes a,  // copy
             attribute::type_attributes const& b
             )

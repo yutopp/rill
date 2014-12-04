@@ -326,8 +326,59 @@ namespace rill
         //
         RILL_VISITOR_OP( analyzer, ast::dereference_expression, e, parent_env )
         {
-            rill_ice("not supported");
-            return nullptr;
+            rill_dout << "dereference_expr" << std::endl;
+
+            // make argument types id list
+            auto const& argument_type_details
+                = evaluate_invocation_args(
+                    { std::ref( e->reciever ) },
+                    parent_env
+                    );
+            assert( argument_type_details.size() == 1 );
+            auto const& reciever_ty
+                = g_env_->get_type_at( argument_type_details[0]->type_id );
+            auto const& reciever_c_env
+                = g_env_->get_env_at_as_strong_ref<class_symbol_environment>(
+                    reciever_ty.class_env_id
+                    );
+            assert( reciever_c_env != nullptr );
+            if ( !reciever_c_env->is_pointer() ) {
+                // non pointer object, try to call "op pre *"
+                static auto const addressof_op = ast::make_identifier( "*" );
+                auto const& op_name = make_unary_op_name( addressof_op, true /*prefix*/ );
+                auto const ty_d = call_suitable_operator(
+                    op_name,
+                    e,
+                    argument_type_details,
+                    parent_env,
+                    true
+                    );
+                if ( ty_d != nullptr ) {
+                    // found user defined operator
+                    return ty_d;
+
+                } else {
+                    assert( "ice: can not dereference this type" );
+                }
+            }
+
+            auto const& p_d = reciever_c_env->get_pointer_detail();
+            auto const& value_type_id = p_d->inner_type_id;
+
+            // delegate parent attributes
+            // Ex, const(ptr!int) -> dereference -> const(int)
+            auto const& ty = g_env_->get_type_at( value_type_id );
+            auto const& attr = mask_transitively( ty.attributes, reciever_ty.attributes );
+
+            auto new_type_id = g_env_->make_type_id( ty.class_env_id, attr );
+
+            return bind_type(
+                e,
+                type_detail_pool_->construct(
+                    new_type_id,
+                    nullptr // unused
+                    )
+                );
         }
 
 
@@ -353,7 +404,7 @@ namespace rill
                     );
             assert( reciever_c_env != nullptr );
             if ( !reciever_c_env->is_pointer() ) {
-                // non pointer object
+                // non pointer object, try to call "op pre &"
                 static auto const addressof_op = ast::make_identifier( "&" );
                 auto const& op_name = make_unary_op_name( addressof_op, true /*prefix*/ );
                 auto const ty_d = call_suitable_operator(
@@ -364,6 +415,7 @@ namespace rill
                     true
                     );
                 if ( ty_d != nullptr ) {
+                    // found user defined operator
                     return ty_d;
                 }
             }

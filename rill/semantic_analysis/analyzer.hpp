@@ -644,6 +644,12 @@ namespace rill
                 );
         }
 
+        auto mask_transitively(
+            attribute::type_attributes a,  // copy
+            attribute::type_attributes const& b
+            )
+            -> attribute::type_attributes;
+
     } // namespace semantic_analysis
 } // namespace rill
 
