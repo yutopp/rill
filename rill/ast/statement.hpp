@@ -396,16 +396,16 @@ namespace rill
 
         RILL_AST_BEGIN(
             class_definition_statement, can_be_template_statement,
-            (( expression_ptr, base_type ))
-            (( boost::optional<expression_list>, mixin_traits_list ))
+            (( id_expression_ptr, base_type ))
+            (( boost::optional<id_expression_list>, mixin_traits_list ))
             (( attribute::decl::type, decl_attr_ ))
             (( statements_ptr, inner_ ))
             )
         public:
             class_definition_statement(
                 identifier_value_ptr const& id,
-                boost::optional<expression_ptr> const& bt,
-                boost::optional<expression_list>&& mtl,
+                boost::optional<id_expression_ptr> const& bt,
+                boost::optional<id_expression_list>&& mtl,
                 attribute::decl::type const& decl_attr
                 )
                 : class_definition_statement(
@@ -415,8 +415,8 @@ namespace rill
 
             class_definition_statement(
                 identifier_value_ptr const& id,
-                boost::optional<expression_ptr> const& bt,
-                boost::optional<expression_list>&& mtl,
+                boost::optional<id_expression_ptr> const& bt,
+                boost::optional<id_expression_list>&& mtl,
                 attribute::decl::type const& decl_attr,
                 statements_ptr const& inner
                 )

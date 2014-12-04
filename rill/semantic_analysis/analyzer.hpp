@@ -85,6 +85,7 @@ namespace rill
             RILL_VISITOR_OP_DECL( ast::extern_class_declaration_statement );
             RILL_VISITOR_OP_DECL( ast::class_definition_statement );
             RILL_VISITOR_OP_DECL( ast::class_function_definition_statement );
+            RILL_VISITOR_OP_DECL( ast::class_virtual_function_definition_statement );
             RILL_VISITOR_OP_DECL( ast::class_variable_declaration_statement );
             RILL_VISITOR_OP_DECL( ast::while_statement );
             RILL_VISITOR_OP_DECL( ast::if_statement );

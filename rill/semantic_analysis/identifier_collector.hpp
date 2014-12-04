@@ -56,6 +56,7 @@ namespace rill
             RILL_VISITOR_OP_DECL( ast::extern_class_declaration_statement ) const;
             RILL_VISITOR_OP_DECL( ast::class_definition_statement ) const;
             RILL_VISITOR_OP_DECL( ast::class_function_definition_statement ) const;
+            RILL_VISITOR_OP_DECL( ast::class_virtual_function_definition_statement ) const;
             RILL_VISITOR_OP_DECL( ast::class_variable_declaration_statement ) const;
 
             RILL_VISITOR_OP_DECL( ast::template_statement ) const;

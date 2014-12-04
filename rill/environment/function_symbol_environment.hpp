@@ -167,6 +167,24 @@ namespace rill
             return is_initializer_function_;
         }
 
+        void mark_as_virtual( std::size_t const& index )
+        {
+            virtual_index_ = index;
+        }
+
+        auto is_virtual() const
+            -> bool
+        {
+            return virtual_index_ != boost::none;
+        }
+
+        auto get_virtual_index() const
+            -> std::size_t const&
+        {
+            assert( is_virtual() );
+            return *virtual_index_;
+        }
+
         void mark_as_intrinsic_function( intrinsic_action_id_t const& id )
         {
             intrinsic_action_id_ = id;
@@ -196,6 +214,7 @@ namespace rill
         attribute::decl::type decl_attr_;
 
         bool is_initializer_function_;
+        boost::optional<std::size_t> virtual_index_;
 
         boost::optional<intrinsic_action_id_t> intrinsic_action_id_;
     };

@@ -39,6 +39,8 @@ namespace rill
 
         k_has_non_immutable_alias,
 
+        k_has_virtual_functions,
+
         last
     };
 
@@ -65,6 +67,9 @@ namespace rill
             , host_size_( std::numeric_limits<std::size_t>::max() )
             , target_align_( std::numeric_limits<std::size_t>::max() )
             , target_size_( std::numeric_limits<std::size_t>::max() )
+            , virtual_count_( 0 )
+            , base_class_id_( environment_id_undefined )
+            , base_root_class_id_( environment_id_undefined )
             , traits_{}
         {}
 
@@ -271,6 +276,65 @@ namespace rill
 
         std::size_t host_align_, host_size_;
         std::size_t target_align_, target_size_;
+
+    public:
+        inline auto get_virtual_count() const
+            -> std::size_t const&
+        {
+            return virtual_count_;
+        }
+
+        inline auto set_virtual_count( std::size_t const& vc )
+            -> void
+        {
+            virtual_count_ = vc;
+        }
+
+        inline auto increment_virtual_count()
+            -> void
+        {
+            set_virtual_count( get_virtual_count() + 1 );
+        }
+
+        inline auto set_base_class_env_id( environment_id_t const& id )
+            -> void
+        {
+            base_class_id_ = id;
+        }
+
+        inline auto set_base_root_class_env_id( environment_id_t const& id )
+            -> void
+        {
+            base_root_class_id_ = id;
+        }
+
+        inline auto has_base_class() const
+            -> bool
+        {
+            return base_class_id_ != environment_id_undefined;
+        }
+
+        inline auto get_base_class_env_id() const
+            -> environment_id_t const&
+        {
+            return base_class_id_;
+        }
+
+        inline auto get_base_root_class_env_id() const
+            -> environment_id_t const&
+        {
+            return base_root_class_id_;
+        }
+
+        inline auto is_virtual_root() const
+            -> bool
+        {
+            return base_class_id_ == environment_id_undefined && get_virtual_count() != 0;
+        }
+
+    private:
+        std::size_t virtual_count_;
+        environment_id_t base_class_id_, base_root_class_id_;
 
     public:
         inline auto set_traits_flag( class_traits_kind const& f, bool const b )

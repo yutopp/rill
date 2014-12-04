@@ -118,6 +118,10 @@ namespace rill
             construct_class_function( s, parent_env );
         }
 
+        RILL_VISITOR_OP( identifier_collector, ast::class_virtual_function_definition_statement, s, parent_env ) const
+        {
+            construct_class_function( s, parent_env );
+        }
 
         //
         RILL_VISITOR_OP( identifier_collector, ast::class_variable_declaration_statement, s, parent_env ) const

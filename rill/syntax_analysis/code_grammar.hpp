@@ -280,12 +280,12 @@ namespace rill
                     ]
             )
 
-            R( base_class_type, ast::expression_ptr,
-                ( x3::lit( '<' ) >> t.assign_expression )
+            R( base_class_type, ast::id_expression_ptr,
+                ( x3::lit( '<' ) >> t.id_expression )
             )
 
-            R( mixin_traits_list, ast::expression_list,
-                ( x3::lit( '[' ) >> ( t.assign_expression % ',' ) >> x3::lit( ']' ) )
+            R( mixin_traits_list, ast::id_expression_list,
+                ( x3::lit( '[' ) >> ( t.id_expression % ',' ) >> x3::lit( ']' ) )
             )
 
             R( class_body_block, ast::statements_ptr,

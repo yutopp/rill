@@ -117,6 +117,16 @@ namespace rill
                 table.type_list.push_back( type );
             }
 
+            auto bind_class_variable_type(
+                environment_id_t const& class_env_id,
+                llvm::Type* const type
+                )
+                -> void
+            {
+                auto& table = class_variable_type_table_.at( class_env_id );
+                table.type_list.push_back( type );
+            }
+
             auto ref_class_variable_type_list(
                 environment_id_t const& class_env_id
                 ) const

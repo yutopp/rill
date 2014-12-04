@@ -142,6 +142,7 @@ namespace rill
 
         // expressions
         typedef std::vector<expression_ptr> expression_list;
+        typedef std::vector<id_expression_ptr> id_expression_list;
 
     } // namespace ast
 } // namespace rill

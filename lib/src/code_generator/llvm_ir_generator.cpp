@@ -530,6 +530,42 @@ namespace rill
                         );
                 context_->env_conversion_table.bind_type( c_env, llvm_struct_type );
 
+                context_->env_conversion_table.create_class_variable_type_holder(
+                    c_env->get_id()
+                    );
+
+                if ( c_env->is_virtual_root() ) {
+
+                    // i32
+                    auto i32_t = llvm::IntegerType::get( context_->llvm_context, 32 );
+                    // i32(...)
+                    auto fn_t = llvm::FunctionType::get( i32_t, true );
+
+                    // i32(...)**
+                    auto ptr_to_vtable_t = fn_t->getPointerTo()->getPointerTo();
+
+                    // create vptr: i32 (...)**
+                    context_->env_conversion_table.bind_class_variable_type(
+                        c_env->get_id(),
+                        ptr_to_vtable_t
+                        );
+                }
+
+                if ( c_env->has_base_class() ) {
+                    regard_env_is_defined( c_env->get_base_class_env_id() );
+
+                    auto const& base_class_llvm_type
+                        = context_->env_conversion_table.ref_type(
+                            c_env->get_base_class_env_id()
+                            );
+
+                    // create vptr: i32 (...)**
+                    context_->env_conversion_table.bind_class_variable_type(
+                        c_env->get_id(),
+                        base_class_llvm_type
+                        );
+                }
+
                 // filter statements
                 // collect class variables
                 ast::detail::apply_to_const_node<ast::class_variable_declaration_statement>(
@@ -616,17 +652,13 @@ namespace rill
             if ( context_->env_conversion_table.is_defined( v_env->get_parent_class_env_id(), v_env->get_id() ) )
                 return;
 
-
             //
             rill_dout << "v_env->get_type_id() = " << v_env->get_type_id() << std::endl;
-
 
             auto const& variable_type = g_env_->get_type_at( v_env->get_type_id() );
             regard_env_is_defined( variable_type.class_env_id );
 
-
             auto const& variable_llvm_type = context_->env_conversion_table.ref_type( variable_type.class_env_id );
-
 
             // in struct, variable is all normal type
             context_->env_conversion_table.bind_class_variable_type(
@@ -634,43 +666,6 @@ namespace rill
                 v_env->get_id(),
                 variable_llvm_type
                 );
-#if 0
-            //
-            switch( variable_attr.quality )
-            {
-            case attribute::holder_kind::k_val:
-
-                switch( variable_attr.modifiability )
-                {
-                case attribute::modifiability_kind::k_immutable:
-                {
-                    rill_dout << "ABABABAB: " << parent_env->get_id() << std::endl;
-                    context_->env_conversion_table.bind_class_variable_type( v_env->get_parent_class_env_id(), v_env->get_id(), variable_llvm_type );
-                }
-                    break;
-
-                case attribute::modifiability_kind::k_const:
-                    rill_ice( "" );
-                    break;
-
-                case attribute::modifiability_kind::k_mutable:
-                {
-                    context_->env_conversion_table.bind_class_variable_type( v_env->get_parent_class_env_id(), v_env->get_id(), variable_llvm_type->getPointerTo() );
-                }
-                    break;
-                }
-
-                break;
-
-            case attribute::holder_kind::k_ref:
-                rill_ice( "not implemented..." );
-                break;
-
-            default:
-                rill_ice( "" );
-                break;
-            }
-#endif
         }
 
 

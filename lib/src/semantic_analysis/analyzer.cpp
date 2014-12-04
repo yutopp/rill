@@ -681,11 +681,36 @@ namespace rill
                 = make_qualified_name( c_env, template_signature );
             c_env->check( qualified_name );
 
+            // check base class
+            if ( s->base_type ) {
+                resolve_type(
+                    s->base_type,
+                    attribute::holder_kind::k_ref,
+                    c_env,
+                    [&]( type_detail_ptr const& _unused0,
+                         type const& _unused1,
+                         const_class_symbol_environment_ptr const& base_c_env
+                        )
+                    {
+                        assert( base_c_env != nullptr );
+                        rill_dout << "Base class: " << base_c_env->get_base_name() << std::endl;
+
+                        //
+                        c_env->set_virtual_count( base_c_env->get_virtual_count() );
+
+                        //
+                        c_env->set_base_class_env_id( base_c_env->get_id() );
+                        c_env->set_base_root_class_env_id( base_c_env->get_base_root_class_env_id() );
+                    });
+            }
+
+            //
             block_envs_.emplace( c_env );
             BOOST_SCOPE_EXIT_ALL(this) {
                 block_envs_.pop();
             };
 
+            //
             auto const& attributes
                 = s->decl_attr_;
 
@@ -717,6 +742,11 @@ namespace rill
 
                 // expect as structured class(not a strong typedef)
                 c_env->set_attribute( attribute::decl::k_structured );
+
+                //
+                if ( c_env->is_virtual_root() ) {
+                    c_env->set_base_root_class_env_id( c_env->get_id() );
+                }
 
                 // complete class data
                 c_env->complete( attributes );

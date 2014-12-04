@@ -621,6 +621,87 @@ namespace rill
         }
 
 
+        RILL_VISITOR_OP( analyzer, ast::class_virtual_function_definition_statement, s, parent_env )
+        {
+            rill_dout
+                << " != Semantic" << std::endl
+                << "    CLASS virtual_function_definition_statement: " << std::endl
+                << "     name -- " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
+                << "     Args num -- " << s->get_parameter_list().size() << std::endl;
+
+            auto const related_env = g_env_->get_related_env_by_ast_ptr( s );
+            assert( related_env != nullptr );
+            assert( related_env->get_symbol_kind() == kind::type_value::e_function );
+
+            auto const& f_env = cast_to<function_symbol_environment>( related_env );
+            assert( f_env != nullptr );
+
+            rill_dout << "$" << std::endl;
+            // guard double check
+            if ( f_env->is_checked() ) return;
+            f_env->change_progress_to_checked();
+            rill_dout << "$ unchecked" << std::endl;
+
+            block_envs_.emplace( f_env );
+            BOOST_SCOPE_EXIT_ALL(this) {
+                block_envs_.pop();
+            };
+
+            auto const& parent_c_env
+                = g_env_->get_env_at_as_strong_ref<class_symbol_environment>(
+                    f_env->get_parent_class_env_id()
+                    );
+            assert( parent_c_env != nullptr );
+
+            //
+            auto const& index = parent_c_env->get_virtual_count();
+            f_env->mark_as_virtual( index );
+            parent_c_env->increment_virtual_count();
+
+            //
+            declare_function_parameters( f_env, s );
+
+            // return type
+            if ( s->return_type_ ) {
+                // if return type was specified, decide type to it.
+                resolve_type(
+                    s->return_type_,
+                    attribute::holder_kind::k_val,     // TODO: fix
+                    f_env,
+                    [&]( type_detail_ptr const& return_ty_d,
+                         type const& ty,
+                         class_symbol_environment_ptr const& class_env
+                        ) {
+                        rill_dout << "return type is >>" << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
+
+                        f_env->decide_return_type( return_ty_d->type_id );
+                    });
+            }
+
+            if ( s->inner_ ) {
+                // scan all statements in this function body
+                rill_dout << ">>>>" << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
+                dispatch( s->inner_, f_env );
+                rill_dout << "<<<<" << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
+
+                rill_dout << "returned: " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl;
+
+                // Return type
+                solve_function_return_type_semantics( f_env );
+
+                if ( !f_env->is_closed() ) {
+                    //
+                    s->inner_->statements_.emplace_back(
+                        std::make_shared<ast::return_statement>( nullptr )
+                        );
+                }
+            }
+
+            //
+            f_env->complete( make_mangled_name( g_env_, f_env ), s->decl_attr_ );
+        }
+
+
         RILL_VISITOR_OP( analyzer, ast::class_definition_statement, s, parent_env )
         {
             // TODO: dup check...
