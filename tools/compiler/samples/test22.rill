@@ -13,15 +13,22 @@ class base
     def ctor() {}
     virtual def f(): void;
     virtual def g(): void {};
-    virtual def h() {};
+virtual def h() {};
+
+    def base()
+    {
+        p("base");
+    }
 }
 
 def main()
 {
     val v = derived();
     val vv: ptr!(const(derived)) = &v;
-
     (*vv).f();
+
+    val vv2: ptr!(const(base)) = &v;
+    (*vv2).base();
 
     return 0;
 }

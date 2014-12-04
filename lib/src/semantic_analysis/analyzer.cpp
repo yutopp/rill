@@ -1318,13 +1318,44 @@ namespace rill
                     ;
 
                 // both value
-                return qualifier_conversion(
-                    target_type.attributes,
-                    current_type.attributes,
-                    current_c_env
-                    ) != boost::none;
+                if ( target_c_env->get_id() == current_c_env->get_id() ) {
+                    // exact match
+                    return qualifier_conversion(
+                        target_type.attributes,
+                        current_type.attributes,
+                        current_c_env
+                        ) != boost::none;
+
+                } else {
+                    //check class inheritance
+                    auto cc = current_c_env;
+                    while( cc != nullptr && cc->has_base_class() ) {
+                        cc = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
+                            cc->get_base_class_env_id()
+                            );
+
+                        if ( target_c_env->get_id() == cc->get_id() ) {
+                            // base class is matched!
+                            auto cc_attr
+                                = mask_transitively(
+                                    current_type.attributes,
+                                    extensive_current_attr
+                                    );
+                            cc_attr.quality = attribute::holder_kind::k_ref;
+
+                            return qualifier_conversion(
+                                target_type.attributes,
+                                cc_attr,
+                                cc
+                                ) != boost::none;
+                        }
+                    }
+
+                    return false;
+                }
 
             } else {
+                // unexpected
                 return false;
             }
         }
