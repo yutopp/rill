@@ -64,7 +64,7 @@ namespace rill
     typedef std::shared_ptr<multiple_set_environment> multiple_set_environment_ptr;
     typedef std::shared_ptr<multiple_set_environment const> const_multiple_set_environment_ptr;
 
-
+    using weak_multiple_set_environment_ptr = std::weak_ptr<multiple_set_environment>;
 
     //
     class single_identifier_environment_base;

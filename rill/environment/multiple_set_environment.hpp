@@ -48,7 +48,7 @@ namespace rill
             // inline environment will recieve id of this multiple_set_environment
             auto env = b_.lock()->template allocate_env<E>(
                 get_parent_env(),
-                get_id(),
+                std::static_pointer_cast<multiple_set_environment>( shared_from_this() ),
                 std::forward<Args>( args )...
                 );
             if ( is_in_class() ) {
@@ -184,6 +184,8 @@ namespace rill
         kind::type_value inner_env_symbol_kind_;
 
         std::vector<environment_base_ptr> normal_envs_;
+        std::unordered_map<std::string, environment_base_ptr> signaturee_cache_;
+
         std::vector<template_environment_ptr> template_envs_;
 
         std::vector<environment_base_ptr> instanced_envs_;

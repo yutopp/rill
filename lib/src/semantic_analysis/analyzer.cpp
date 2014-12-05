@@ -681,6 +681,7 @@ namespace rill
                 = make_qualified_name( c_env, template_signature );
             c_env->check( qualified_name );
 
+            const_class_symbol_environment_ptr base_c_env = nullptr;
             // check base class
             if ( s->base_type ) {
                 resolve_type(
@@ -689,19 +690,20 @@ namespace rill
                     c_env,
                     [&]( type_detail_ptr const& _unused0,
                          type const& _unused1,
-                         const_class_symbol_environment_ptr const& base_c_env
-                        )
+                         const_class_symbol_environment_ptr const& b_c_env
+                        ) mutable
                     {
-                        assert( base_c_env != nullptr );
-                        rill_dout << "Base class: " << base_c_env->get_base_name() << std::endl;
-
-                        //
-                        c_env->set_virtual_count( base_c_env->get_virtual_count() );
-
-                        //
-                        c_env->set_base_class_env_id( base_c_env->get_id() );
-                        c_env->set_base_root_class_env_id( base_c_env->get_base_root_class_env_id() );
+                        assert( b_c_env != nullptr );
+                        rill_dout << "Base class: " << b_c_env->get_base_name() << std::endl;
+                        base_c_env = b_c_env;
                     });
+
+                //
+                c_env->set_virtual_count( base_c_env->get_virtual_count() );
+
+                //
+                c_env->set_base_class_env_id( base_c_env->get_id() );
+                c_env->set_base_root_class_env_id( base_c_env->get_base_root_class_env_id() );
             }
 
             //
@@ -742,6 +744,16 @@ namespace rill
 
                 // expect as structured class(not a strong typedef)
                 c_env->set_attribute( attribute::decl::k_structured );
+
+                //
+                if ( base_c_env ) {
+                    c_env->set_traits_flag(
+                        class_traits_kind::k_has_virtual_functions,
+                        base_c_env->has_traits_flag(
+                            class_traits_kind::k_has_virtual_functions
+                            )
+                        );
+                }
 
                 //
                 if ( c_env->is_virtual_root() ) {
@@ -2692,9 +2704,6 @@ namespace rill
                             );
                     assert( function_env != nullptr );
                     function_env->connect_from_ast( e );
-
-                    // TODO: fix
-                    function_env->mark_as_initialize_function();
 
                     auto const eval_mode = [&]() {
                         if ( function_env->has_attribute( attribute::decl::k_onlymeta ) ) {

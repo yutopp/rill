@@ -345,6 +345,12 @@ namespace rill
                 return;
             context_->env_conversion_table.bind_function_type( f_env->get_id(), nullptr ); // guard
 
+            auto const& parent_c_env
+                = g_env_->get_env_at_as_strong_ref<class_symbol_environment>(
+                    f_env->get_parent_class_env_id()
+                    );
+            assert( parent_c_env != nullptr );
+
             // ========================================
             // information about paramaters
             auto const& parameter_variable_type_ids = f_env->get_parameter_type_ids();
@@ -482,6 +488,14 @@ namespace rill
                 }
             }
 
+            // ========================================
+            // set address of vtable to vptr
+            if ( f_env->is_initializer()
+                 && parent_c_env->has_traits_flag( class_traits_kind::k_has_virtual_functions )
+                )
+            {
+                //
+            }
 
             // ========================================
             // generate statements

@@ -31,7 +31,10 @@ namespace rill
         static kind::type_value const KindValue = kind::type_value::e_template;
 
     public:
-        template_environment( environment_parameter_t&& pp, environment_id_t const& template_set_env_id )
+        template_environment(
+            environment_parameter_t&& pp,
+            weak_multiple_set_environment_ptr const& multiset_env_ptr
+            )
             : environment_base( std::move( pp ) )
         {}
 

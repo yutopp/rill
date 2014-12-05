@@ -13,7 +13,7 @@ class base
     def ctor() {}
     virtual def f(): void;
     virtual def g(): void {};
-virtual def h() {};
+    virtual def h() {};
 
     def base()
     {
@@ -29,6 +29,7 @@ def main()
 
     val vv2: ptr!(const(base)) = &v;
     (*vv2).base();
+    (*vv2).f();
 
     return 0;
 }

@@ -56,10 +56,11 @@ namespace rill
     public:
         class_symbol_environment(
             environment_parameter_t&& pp,
-            environment_id_t const& wrapper_set_env_id,
+            weak_multiple_set_environment_ptr const& multiset_env_ptr,
             native_string_type const& base_name
             )
             : environment_base( std::move( pp ) )
+            , multiset_env_ptr_( multiset_env_ptr )
             , base_name_( base_name )
             , decl_attr_( attribute::decl::k_default )
             , builtin_kind_( class_builtin_kind::k_none )
@@ -267,6 +268,8 @@ namespace rill
         }
 
     private:
+        weak_multiple_set_environment_ptr multiset_env_ptr_;
+
         native_string_type base_name_, qualified_name_;
         attribute::decl::type decl_attr_;
         class_builtin_kind builtin_kind_;

@@ -45,14 +45,14 @@ namespace rill
         // pre construct
         function_symbol_environment(
             environment_parameter_t&& pp,
-            environment_id_t const& parameter_wrapper_env_id,
+            weak_multiple_set_environment_ptr const& multiset_env_ptr,
             native_string_type const& base_name
             )
             : environment_base( std::move( pp ) )
-            , parameter_wrapper_env_id_( parameter_wrapper_env_id )
-            , return_type_id_( type_id_undefined )
+            , multiset_env_ptr_( multiset_env_ptr )
             , base_name_( base_name )
             , decl_attr_( attribute::decl::k_default )
+            , return_type_id_( type_id_undefined )
             , is_initializer_function_( false )
         {}
 
@@ -197,9 +197,16 @@ namespace rill
             return *intrinsic_action_id_;
         }
 
-    private:
-        environment_id_t parameter_wrapper_env_id_;
+        auto get_multiset_env()
+        {
+            return multiset_env_ptr_.lock();
+        }
 
+    private:
+        weak_multiple_set_environment_ptr multiset_env_ptr_;
+
+        native_string_type base_name_, mangled_name_;
+        attribute::decl::type decl_attr_;
 
         // parameter variable environments
         environment_id_list_t parameter_decl_ids_;
@@ -209,9 +216,6 @@ namespace rill
         type_id_t return_type_id_;
 
         type_id_list_t return_type_candidates_;
-
-        native_string_type base_name_, mangled_name_;
-        attribute::decl::type decl_attr_;
 
         bool is_initializer_function_;
         boost::optional<std::size_t> virtual_index_;

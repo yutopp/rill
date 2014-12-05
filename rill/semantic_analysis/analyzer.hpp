@@ -226,7 +226,7 @@ namespace rill
                 ast::id_expression_ptr const& id_expression,
                 Attr const& attr,
                 environment_base_ptr const& parent_env,
-                F const& callback
+                F callback
                 ) -> type_detail_ptr
             {
                 rill_dout << "solve_type :before_eval" << std::endl;

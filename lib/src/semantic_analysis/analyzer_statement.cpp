@@ -493,6 +493,9 @@ namespace rill
             declare_function_parameters( f_env, s );
 
             if ( is_constructor ) {
+                //
+                f_env->mark_as_initialize_function();
+
                 // constructor
                 if ( s->return_type_ != nullptr ) {
                     semantic_error(
@@ -654,12 +657,35 @@ namespace rill
             assert( parent_c_env != nullptr );
 
             //
+            parent_c_env->set_traits_flag(
+                class_traits_kind::k_has_virtual_functions,
+                true
+                );
+
+            //
             auto const& index = parent_c_env->get_virtual_count();
             f_env->mark_as_virtual( index );
             parent_c_env->increment_virtual_count();
 
             //
-            declare_function_parameters( f_env, s );
+            auto const& param_tyx = make_function_parameters_type_details( f_env, s );
+            if ( s->is_class_function() ) {
+                bool found_virtual_same_signature_func = false;
+                auto cc = parent_c_env;
+                while( cc != nullptr && cc->has_base_class() ) {
+                    cc = g_env_->get_env_at_as_strong_ref<class_symbol_environment>(
+                        cc->get_base_class_env_id()
+                        );
+
+                    auto found_pf_env = cast_to<multiple_set_environment const>(
+                        cc->find_on_env( f_env->get_base_name() )
+                        );
+                    if ( found_pf_env != nullptr ) {
+                    }
+                }
+            }
+
+            declare_function_parameters_from_list( f_env, s, param_tyx );
 
             // return type
             if ( s->return_type_ ) {
