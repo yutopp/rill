@@ -42,6 +42,12 @@ namespace rill
             )
             -> std::string;
 
+        auto make_signature_for_virtual_function(
+            const_global_environment_ptr const& global_env,
+            const_function_symbol_environment_ptr const& f_env
+            )
+            -> std::string;
+
     } // namespace semantic_analysis
 } // namespace rill
 
