@@ -55,6 +55,8 @@ namespace rill
             std::shared_ptr<llvm::Module> llvm_module;
 
             env_id_llvm_table env_conversion_table;
+            env_id_llvm_table vtable_ref;
+
             temporary_reciever_stack_t temporary_reciever_stack_;
             llvm_value_ptr_set_t represented_as_pointer_set;
         };

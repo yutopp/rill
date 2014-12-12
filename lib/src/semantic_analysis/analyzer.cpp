@@ -704,6 +704,9 @@ namespace rill
                 //
                 c_env->set_base_class_env_id( base_c_env->get_id() );
                 c_env->set_base_root_class_env_id( base_c_env->get_base_root_class_env_id() );
+
+                //
+                c_env->vtable_ = base_c_env->vtable_;
             }
 
             //

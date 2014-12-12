@@ -10,6 +10,8 @@
 
 #include <rill/environment/environment.hpp>
 
+#include <boost/range/adaptor/sliced.hpp>
+
 
 namespace rill
 {
@@ -107,6 +109,38 @@ namespace rill
             s += f_env->get_base_name();
 
             for( auto const& type_id : f_env->get_parameter_type_ids() ) {
+                auto const& param_type = global_env->get_type_at( type_id );
+                s += make_mangled_name(
+                    global_env->get_env_at_as_strong_ref<class_symbol_environment const>(
+                        param_type.class_env_id
+                        ),
+                    param_type.attributes
+                    );
+            }
+
+            return s;
+        }
+
+        auto make_signature_for_virtual_function(
+            const_global_environment_ptr const& global_env,
+            const_function_symbol_environment_ptr const& f_env
+            )
+            -> std::string
+        {
+            assert( f_env != nullptr );
+            assert( f_env->is_checked() );
+
+            std::string s = "_R";
+
+            s += std::to_string( f_env->get_base_name().size() );
+            s += f_env->get_base_name();
+
+            // skip "this" parameter
+            auto const& base_ids = f_env->get_parameter_type_ids();
+            assert( base_ids.size() > 0 );
+            auto const& ids = base_ids | boost::adaptors::sliced( 1, base_ids.size() );
+
+            for( auto const& type_id : ids ) {
                 auto const& param_type = global_env->get_type_at( type_id );
                 s += make_mangled_name(
                     global_env->get_env_at_as_strong_ref<class_symbol_environment const>(

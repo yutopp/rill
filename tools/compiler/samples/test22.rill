@@ -4,16 +4,17 @@ class derived < base
 
     def f() override
     {
-        p("derived");
+        p("derived::f");
     }
 }
 
 class base
 {
     def ctor() {}
-    virtual def f(): void;
-    virtual def g(): void {};
-    virtual def h() {};
+    //    virtual def f(): void;
+    virtual def f(): void {
+        p("base::f");
+    }
 
     def base()
     {
@@ -24,12 +25,13 @@ class base
 def main()
 {
     val v = derived();
-    val vv: ptr!(const(derived)) = &v;
-    (*vv).f();
+    val p_to_derived: ptr!(const(derived)) = &v;
+    (*p_to_derived).f();
+    p("expect => derived::f");
 
-    val vv2: ptr!(const(base)) = &v;
-    (*vv2).base();
-    (*vv2).f();
+    val p_to_base: ptr!(const(base)) = &v;
+    (*p_to_base).f();
+    p("expect => derived::f");
 
     return 0;
 }

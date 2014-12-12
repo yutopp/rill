@@ -343,7 +343,7 @@ namespace rill
             assert( f_env != nullptr );
             if ( context_->env_conversion_table.is_defined( f_env->get_id() ) )
                 return;
-            context_->env_conversion_table.bind_function_type( f_env->get_id(), nullptr ); // guard
+            // context_->env_conversion_table.bind_function_type( f_env->get_id(), nullptr ); // guard
 
             auto const& parent_c_env
                 = g_env_->get_env_at_as_strong_ref<class_symbol_environment>(
@@ -494,7 +494,223 @@ namespace rill
                  && parent_c_env->has_traits_flag( class_traits_kind::k_has_virtual_functions )
                 )
             {
+                auto const ptr_to_vtable
+                    = context_->vtable_ref.ref_value( parent_c_env->get_id() );
+                assert( ptr_to_vtable != nullptr );
+
+                auto const root_base_class_ty
+                    = context_->env_conversion_table.ref_type(
+                        parent_c_env->get_base_root_class_env_id()
+                        );
+                assert( root_base_class_ty != nullptr );
+
+                auto const base_class_this
+                    = context_->ir_builder.CreateBitCast(
+                        this_value,
+                        root_base_class_ty->getPointerTo()
+                        );
+                assert( base_class_this != nullptr );
+
+                // index 0 points to vptr
+                auto const vptr
+                    = context_->ir_builder.CreateStructGEP( base_class_this, 0 );
+
+                context_->ir_builder.CreateStore(
+                    ptr_to_vtable,
+                    vptr /*, is_volatile */
+                    );
+            }
+
+            // ========================================
+            // generate statements
+            dispatch( s->inner_, f_env );
+
+            // ========================================
+            // Only the function that returns void is allowed to has no return statement
+
+//                context_->ir_builder.CreateRetVoid();
+
+            //
+            llvm::verifyFunction( *func );
+
+            //
+            rill_dregion {
+                rill_dout << "class function" << std::endl;
+                func->dump();
+            }
+        }
+
+
+        //
+        //
+        //
+        RILL_VISITOR_READONLY_OP( llvm_ir_generator, ast::class_virtual_function_definition_statement, s, parent_env )
+        {
+            rill_dout
+                << "= class_function_definition_statement:" << std::endl
+                << " Name -- " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
+                << " Args num -- " << s->get_parameter_list().size() << std::endl
+                << " Parent env -- " << (const_environment_base_ptr)parent_env << std::endl;
+
+            // ========================================
+            // get current function environment
+            auto const& f_env
+                = cast_to<function_symbol_environment const>( g_env_->get_related_env_by_ast_ptr( s ) );
+            assert( f_env != nullptr );
+            if ( context_->env_conversion_table.is_defined( f_env->get_id() ) )
+                return;
+            //context_->env_conversion_table.bind_function_type( f_env->get_id(), nullptr ); // guard
+
+            auto const& parent_c_env
+                = g_env_->get_env_at_as_strong_ref<class_symbol_environment>(
+                    f_env->get_parent_class_env_id()
+                    );
+            assert( parent_c_env != nullptr );
+
+            // ========================================
+            // information about paramaters
+            auto const& parameter_variable_type_ids = f_env->get_parameter_type_ids();
+            auto const& parameter_variable_decl_env_ids = f_env->get_parameter_decl_ids();
+            rill_dout << "()()=> :" << f_env->get_mangled_name() << std::endl;
+
+
+            // ========================================
+            // register LLVM instruction point
+            auto const current_insert_point = context_->ir_builder.saveIP();
+            BOOST_SCOPE_EXIT((&context_)(&current_insert_point)) {
+                // restore insert point
+                context_->ir_builder.restoreIP( current_insert_point );
+            } BOOST_SCOPE_EXIT_END
+
+
+            // ========================================
+            // TODO: use current_insert_point.isSet(), if it is false, this function needs external linkage( currently, all functions are exported as external linkage )
+            auto const linkage = llvm::Function::ExternalLinkage;
+            if ( current_insert_point.isSet() ) {
                 //
+                rill_dout << "not external." << std::endl;
+            }
+
+
+            // ========================================
+            auto const& ret_type_id = f_env->get_return_type_id();
+            auto const& ret_type
+                = g_env_->get_type_at( f_env->get_return_type_id() );
+            bool const returns_heavy_object = is_heavy_object( ret_type );
+
+
+            // ========================================
+            // parameter signature
+            std::vector<llvm::Type*> parameter_types;
+            if ( returns_heavy_object ) {
+                parameter_types.push_back(
+                    type_id_to_llvm_type_ptr( ret_type_id )
+                    );
+            }
+            boost::copy(
+                parameter_variable_type_ids | RILL_TID_TO_LLVM_TYPE_TRANSFORMAER,
+                std::back_inserter( parameter_types )
+                );
+
+
+            // ========================================
+            // return type
+            llvm::Type* const return_type
+                = returns_heavy_object
+                ? llvm::Type::getVoidTy( context_->llvm_context )
+                : type_id_to_llvm_type_ptr( ret_type_id );
+
+            // ========================================
+            // function type signature
+            llvm::FunctionType* const func_type = llvm::FunctionType::get( return_type, parameter_types, false/*not variable*/ );
+            context_->env_conversion_table.bind_function_type( f_env->get_id(), func_type );
+
+            // ========================================
+            // function body
+            llvm::Function* const func
+                = llvm::Function::Create( func_type, linkage, f_env->get_mangled_name(), context_->llvm_module.get() );
+
+            // ========================================
+            // create a new basic block to start insertion into.
+            llvm::BasicBlock* const basic_block
+                = llvm::BasicBlock::Create( llvm::getGlobalContext(), "entry", func );
+            context_->ir_builder.SetInsertPoint( basic_block );
+
+            // ========================================
+            // function parameter variables
+            // and, make local variable creation
+            std::size_t i = 0;
+            llvm::Value* this_value = nullptr;
+            for( llvm::Function::arg_iterator ait = func->arg_begin(); ait != func->arg_end(); ++ait ) {
+                rill_dout << "Argument No: " << ait->getArgNo() << std::endl;
+                if ( ait == func->arg_begin() && returns_heavy_object ) {
+                    ait->setName( "__ret_target" );
+
+                } else {
+                    auto const& var =
+                        g_env_->get_env_at_as_strong_ref<variable_symbol_environment const>( parameter_variable_decl_env_ids[i] );
+                    ait->setName( var->get_mangled_name() );
+                    if ( this_value == nullptr ) {
+                        this_value = ait;
+                    }
+
+                    store_value( ait, var );
+                    rill_dout << "SAVED: " << var->get_mangled_name() << " / " << var << std::endl;
+                    ++i;
+                }
+            }
+
+            // ========================================
+            // func->setGC( "shadow-stack" );
+
+
+            // ========================================
+            if ( s->initializers ) {
+                for( auto&& var_unit : s->initializers->initializers ) {
+                    // initial value
+                    auto const& value
+                        = dispatch( var_unit.init_unit.initializer, f_env );
+                    assert( value != nullptr );
+
+                    auto const& v_env
+                        = cast_to<variable_symbol_environment const>(
+                            g_env_->get_related_env_by_ast_ptr( var_unit.name )
+                            );
+                    assert( v_env != nullptr );
+
+                    rill_dout << v_env->get_mangled_name() << std::endl;
+                    rill_dout << v_env->get_parent_class_env_id() << std::endl;
+                    regard_env_is_defined( v_env->get_parent_class_env_id() );
+//                    auto const& v_type
+//                        = g_env_->get_type_at( v_env->get_type_id() );
+
+
+                    // data index in struct
+                    auto const& index
+                        = context_->env_conversion_table.get_class_variable_index(
+                            v_env->get_parent_class_env_id(),
+                            v_env->get_id()
+                            );
+                    rill_dout << "index: " << index << std::endl;
+
+                    auto class_value
+                        = context_->ir_builder.CreateStructGEP( this_value, index );
+
+                    // TODO: fix
+                    context_->ir_builder.CreateStore(
+                        value,
+                        class_value /*, is_volatile */
+                        );
+                }
+            }
+
+            // ========================================
+            // set address of vtable to vptr
+            if ( f_env->is_initializer()
+                 && parent_c_env->has_traits_flag( class_traits_kind::k_has_virtual_functions )
+                )
+            {
+
             }
 
             // ========================================
@@ -548,6 +764,7 @@ namespace rill
                     c_env->get_id()
                     );
 
+                // create vptr(only root classes having virtual functions have this one)
                 if ( c_env->is_virtual_root() ) {
                     // i32
                     auto i32_t = llvm::IntegerType::get( context_->llvm_context, 32 );
@@ -564,6 +781,7 @@ namespace rill
                         );
                 }
 
+                // set base class data structure
                 if ( c_env->has_base_class() ) {
                     regard_env_is_defined( c_env->get_base_class_env_id() );
 
@@ -572,7 +790,6 @@ namespace rill
                             c_env->get_base_class_env_id()
                             );
 
-                    // create vptr: i32 (...)**
                     context_->env_conversion_table.bind_class_variable_type(
                         c_env->get_id(),
                         base_class_llvm_type
@@ -605,6 +822,69 @@ namespace rill
 
                 //
                 // dispatch( s->inner_, c_env );
+
+                // create vtable to global
+                if ( c_env->has_traits_flag( class_traits_kind::k_has_virtual_functions ) ) {
+                    // i8
+                    auto const i8_t = llvm::IntegerType::get( context_->llvm_context, 8 );
+                    // i8*
+                    auto const ptr_t = i8_t->getPointerTo();
+
+                    //
+                    auto const num = c_env->vtable_.size();
+
+                    // 3 x i8*
+                    auto const vtable_t = llvm::ArrayType::get( ptr_t, num );
+
+                    //
+                    auto const linkage = llvm::GlobalValue::LinkOnceODRLinkage;
+
+                    rill_dregion {
+                        std::cout << "= gen vtable : " << num << std::endl;
+                        for( auto&& p : c_env->vtable_ ) {
+                            auto const& unit = p.second;
+                            std::cout << "index: " << unit.index << std::endl;
+                        }
+                        std::cout << "<< end = gen vtable : " << num << std::endl;
+                    }
+
+                    std::vector<llvm::Constant*> inits( num );
+                    for( auto&& p : c_env->vtable_ ) {
+                        auto const& unit = p.second;
+
+                        auto const& f_env
+                            = g_env_->get_env_at_as_strong_ref<function_symbol_environment const>( unit.function_env_id );
+                        regard_env_is_defined( unit.function_env_id );
+                        auto const& callee_function = function_env_to_llvm_constatnt_ptr( f_env );
+                        if ( !callee_function ) {
+                            // unexpected error...
+                            rill_ice( "unexpected... callee_function was not found" );
+                        }
+
+                        inits[unit.index] = llvm::ConstantExpr::getBitCast(
+                            callee_function,
+                            ptr_t
+                            );
+                    }
+
+                    //
+                    auto const initializer = llvm::ConstantArray::get(
+                        vtable_t,
+                        inits
+                        );
+
+                    // val pointer is owned by module...
+                    llvm::GlobalVariable* val
+                        = new llvm::GlobalVariable(
+                            *context_->llvm_module,
+                            vtable_t,
+                            true,   // constatnt
+                            linkage,
+                            initializer
+                            );
+
+                    context_->vtable_ref.bind_value( c_env->get_id(), val );
+                }
 
             } else {
                 rill_ice( "invalid type" );
@@ -1134,7 +1414,7 @@ namespace rill
             assert( f_env != nullptr );
 
             rill_dregion {
-                rill_dout << "=======================================" << std::endl;
+                rill_dout << "= CALL EXPR ===========================" << std::endl;
                 rill_dout << "current : " << f_env->get_mangled_name() << std::endl;
                 for( auto&& e : e->arguments_ ) {
                     e->dump( std::cout );
@@ -1192,13 +1472,26 @@ namespace rill
                     );
 
             } else {
+                llvm::Value* const val = dispatch( e->reciever, parent_env );
+
                 // reciever is pointer value
                 auto const& tid = g_env_->get_related_type_id_from_ast_ptr( e->reciever );
+                auto const& reciever_ty
+                    = g_env_->get_type_at( tid );
+                auto const& reciever_c_env
+                    = g_env_->get_env_at_as_strong_ref<class_symbol_environment>(
+                        reciever_ty.class_env_id
+                        );
+                assert( reciever_c_env != nullptr );
+                assert( reciever_c_env->is_pointer() );
 
-                llvm::Value* const val = dispatch( e->reciever, parent_env );
-                if ( is_represented_as_pointer( g_env_->get_type_at( tid ), val ) ) {
-                    auto const& ptr_value = context_->ir_builder.CreateLoad( val );
-                    return context_->ir_builder.CreateLoad( ptr_value );
+                auto const& p_d = reciever_c_env->get_pointer_detail();
+                auto const& value_type_id = p_d->inner_type_id;
+
+                auto const& ty = g_env_->get_type_at( value_type_id );
+
+                if ( is_heavy_object( ty ) ) {
+                    return val;
 
                 } else {
                     return context_->ir_builder.CreateLoad( val );
@@ -1808,11 +2101,11 @@ namespace rill
             llvm::Value* val = nullptr;
             llvm::Value* ret = nullptr;
 
+            auto const target_arg_index
+                = returns_heavy_object ? 1 : 0;
+
             // save the reciever object to the temprary space
             if ( is_special_form ) {
-                auto const target_arg_index
-                    = returns_heavy_object ? 1 : 0;
-
                 // call constructor
                 if ( f_env->is_initializer() ) {
                     assert( returns_heavy_object == false );
@@ -1876,7 +2169,53 @@ namespace rill
                     );
 
             } else {
-                auto const& callee_function = function_env_to_llvm_constatnt_ptr( f_env );
+                auto const& callee_function = [&]() -> llvm::Value* {
+                    if ( f_env->is_virtual() ) {
+                        assert( f_env->is_in_class() );
+                        regard_env_is_defined( f_env->get_id() );
+
+                        // TODO: if type of "this" is different, do bitcast
+
+                        // ty (p1, ..., pn)
+                        auto const f_ty
+                            = context_->env_conversion_table.ref_function_type(
+                                f_env->get_id()
+                                );
+                        assert( f_ty != nullptr );
+
+                        // ty (p1, ..., pn)***
+                        auto const t_ty
+                            = f_ty->getPointerTo()->getPointerTo()->getPointerTo();
+
+                        auto const& this_value = total_args[target_arg_index];
+                        // (T)* -> (ty (p1, ..., pn)**)*
+                        auto const vptr
+                            = context_->ir_builder.CreateBitCast(
+                                this_value,
+                                t_ty
+                                );
+                        assert( vptr != nullptr );
+
+                        // ty (p1, ..., pn)**
+                        auto const vtable
+                            = context_->ir_builder.CreateLoad( vptr );
+                        //
+                        auto const index = f_env->get_virtual_index();
+
+                        // ty (p1, ..., pn)*
+                        auto const fp
+                            = context_->ir_builder.CreateConstInBoundsGEP1_32( vtable, index );
+
+                        // ty (p1, ..., pn)*
+                        auto const function
+                            = context_->ir_builder.CreateLoad( fp );
+
+                        return function;
+
+                    } else {
+                        return function_env_to_llvm_constatnt_ptr( f_env );
+                    }
+                }();
                 if ( !callee_function ) {
                     // unexpected error...
                     rill_ice( "unexpected... callee_function was not found" );

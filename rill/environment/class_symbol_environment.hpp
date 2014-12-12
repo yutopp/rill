@@ -335,6 +335,14 @@ namespace rill
             return base_class_id_ == environment_id_undefined && get_virtual_count() != 0;
         }
 
+    public:
+        struct virtual_function_unit
+        {
+            std::size_t index;
+            environment_id_t function_env_id;
+        };
+        std::unordered_map<std::string, virtual_function_unit> vtable_;
+
     private:
         std::size_t virtual_count_;
         environment_id_t base_class_id_, base_root_class_id_;

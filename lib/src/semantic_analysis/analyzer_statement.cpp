@@ -621,6 +621,25 @@ namespace rill
 
             //
             f_env->complete( make_mangled_name( g_env_, f_env ), s->decl_attr_ );
+
+            //
+            assert( s->is_class_function() );
+            auto const sig = make_signature_for_virtual_function( g_env_, f_env );
+
+            //
+            auto it = parent_c_env->vtable_.find( sig );
+            if ( it != parent_c_env->vtable_.cend() ) {
+                auto& unit = it->second;
+                auto const index = unit.index;
+                f_env->mark_as_virtual( index );
+
+                parent_c_env->vtable_[sig]
+                    = class_symbol_environment::virtual_function_unit{
+                    index,
+                    f_env->get_id()
+                };
+
+            }
         }
 
 
@@ -663,30 +682,7 @@ namespace rill
                 );
 
             //
-            auto const& index = parent_c_env->get_virtual_count();
-            f_env->mark_as_virtual( index );
-            parent_c_env->increment_virtual_count();
-
-            //
-            auto const& param_tyx = make_function_parameters_type_details( f_env, s );
-            if ( s->is_class_function() ) {
-                bool found_virtual_same_signature_func = false;
-                auto cc = parent_c_env;
-                while( cc != nullptr && cc->has_base_class() ) {
-                    cc = g_env_->get_env_at_as_strong_ref<class_symbol_environment>(
-                        cc->get_base_class_env_id()
-                        );
-
-                    auto found_pf_env = cast_to<multiple_set_environment const>(
-                        cc->find_on_env( f_env->get_base_name() )
-                        );
-                    if ( found_pf_env != nullptr ) {
-                        found_pf_env->
-                    }
-                }
-            }
-
-            declare_function_parameters_from_list( f_env, s, param_tyx );
+            declare_function_parameters( f_env, s );
 
             // return type
             if ( s->return_type_ ) {
@@ -726,6 +722,37 @@ namespace rill
 
             //
             f_env->complete( make_mangled_name( g_env_, f_env ), s->decl_attr_ );
+
+
+            //
+            assert( s->is_class_function() );
+            auto const sig = make_signature_for_virtual_function( g_env_, f_env );
+
+            //
+            auto it = parent_c_env->vtable_.find( sig );
+            if ( it != parent_c_env->vtable_.cend() ) {
+                auto& unit = it->second;
+                auto const index = unit.index;
+                f_env->mark_as_virtual( index );
+
+                parent_c_env->vtable_[sig]
+                    = class_symbol_environment::virtual_function_unit{
+                    index,
+                    f_env->get_id()
+                };
+
+            } else {
+                //
+                auto const index = parent_c_env->get_virtual_count();
+                f_env->mark_as_virtual( index );
+                parent_c_env->increment_virtual_count();
+
+                parent_c_env->vtable_[sig]
+                    = class_symbol_environment::virtual_function_unit{
+                    index,
+                    f_env->get_id()
+                };
+            }
         }
 
 
