@@ -195,6 +195,15 @@ namespace rill
                 ? dispatch( unit.init_unit.initializer, parent_env )
                 : nullptr;
 
+            //
+            auto const& v_env = parent_env->incomplete_construct(
+                kind::k_variable,
+                unit.name
+                );
+            v_env->link_with_ast( s );
+
+            auto const& void_class_id = get_primitive_class_env( "void" )->get_id();
+
             // TODO: make method to determine "type"
 
             // unit.kind -> val or ref
@@ -216,6 +225,10 @@ namespace rill
                             assert( false && "[[error]] incomplete template class was not supported" );
                         }
 
+                        if ( class_env->get_id() == void_class_id ) {
+                            assert( false && "[[error]] the value typed void can not be assigned" );
+                        }
+
                         // TODO: move to elsewhere
                         if ( class_env->is_incomplete() ) {
                             //
@@ -226,14 +239,8 @@ namespace rill
                             assert( class_env->is_complete() );
                         }
 
-                        // define variable
-                        auto const& variable_env
-                            = parent_env->incomplete_construct(
-                                kind::k_variable,
-                                unit.name
-                                );
-                        variable_env->link_with_ast( s );
-                        variable_env->complete( ty_d->type_id );
+                        //
+                        v_env->complete( ty_d->type_id, s->declaration_.decl_unit.decl_attr );
 
                         if ( iv_type_d != nullptr ) {
                             // type check
@@ -266,13 +273,26 @@ namespace rill
                 // type inferenced by result of evaluated "iv_type_id_and_env"
                 assert( iv_type_d != nullptr );
 
+                auto const iv_type_class_env = ref_env( iv_type_d );
+                if ( iv_type_class_env->get_id() == void_class_id ) {
+                    assert( false && "[[error]] the value typed void can not be assigned" );
+                }
+
                 //
-                auto const& v_env = parent_env->incomplete_construct(
-                    kind::k_variable,
-                    unit.name
-                    );
-                v_env->link_with_ast( s );
-                v_env->complete( iv_type_d->type_id );
+                v_env->complete( iv_type_d->type_id, s->declaration_.decl_unit.decl_attr );
+            }
+
+            if ( v_env->has_attribute( attribute::decl::k_meta ) ) {
+                if ( unit.init_unit.initializer ) {
+                    substitute_by_ctfed_node(
+                        s->declaration_.decl_unit.init_unit.initializer,
+                        iv_type_d,
+                        parent_env
+                        );
+
+                } else {
+                    assert( false );
+                }
             }
         }
 
@@ -373,7 +393,8 @@ namespace rill
                             g_env_->make_type_id(
                                 class_env,
                                 attr
-                                )
+                                ),
+                            s->declaration_.decl_unit.decl_attr
                             );
                     });
 

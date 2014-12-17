@@ -165,6 +165,18 @@ namespace rill
                         );
                 }
 
+                case class_builtin_kind::k_int32:
+                {
+                    auto const& inner
+                        = static_cast<std::int32_t const*>( evaled_value );
+
+                    return std::make_shared<ast::term_expression>(
+                        std::make_shared<ast::intrinsic::int32_value>(
+                            *inner
+                            )
+                        );
+                }
+
                 default:
                 {
                     rill_dout << orig_c_env->get_base_name() << std::endl;

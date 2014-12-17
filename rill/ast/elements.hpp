@@ -79,6 +79,7 @@ namespace rill
                 value_initializer_unit&& i
                 )
                 : name( n )
+                , decl_attr( attr )
                 , init_unit( std::move( i ) )
             {}
 
@@ -109,17 +110,20 @@ namespace rill
 
             variable_declaration_unit( variable_declaration_unit const& rhs )
                 : name( clone( rhs.name ) )
+                , decl_attr( rhs.decl_attr )
                 , init_unit( rhs.init_unit )
             {}
             variable_declaration_unit& operator=( variable_declaration_unit const& ) =default;
 
             variable_declaration_unit( variable_declaration_unit&& rhs )
                 : name( std::move( rhs.name ) )
+                , decl_attr( std::move( rhs.decl_attr ) )
                 , init_unit( std::move( rhs.init_unit ) )
             {}
             variable_declaration_unit& operator=( variable_declaration_unit&& ) =default;
 
             const_identifier_value_base_ptr name;
+            attribute::decl::type decl_attr;
             value_initializer_unit init_unit;
         };
 

@@ -48,6 +48,7 @@ namespace rill
             , parent_class_env_id_( environment_id_undefined )
             , value_type_id_( type_id_undefined )
             , name_( name )
+            , decl_attr_( attribute::decl::k_default )
         {}
 
     public:
@@ -58,11 +59,13 @@ namespace rill
         }
 
         auto complete(
-            type_id_t const& type_id
+            type_id_t const& type_id,
+            attribute::decl::type const& decl_attr = attribute::decl::k_default
             )
             -> void
         {
             value_type_id_ = type_id;
+            set_attribute( decl_attr );
 
             change_progress_to_completed();
         }
@@ -110,6 +113,21 @@ namespace rill
             return parent_class_env_id_ != environment_id_undefined;
         }
 
+        bool has_attribute( attribute::decl::type const& attribute ) const
+        {
+            return ( decl_attr_ & attribute  ) != 0;
+        }
+
+        void set_attribute( attribute::decl::type const& attribute )
+        {
+            decl_attr_ |= attribute;
+        }
+
+        void unset_attribute( attribute::decl::type const& attribute )
+        {
+            decl_attr_ ^= attribute;
+        }
+
     private:
         // used when this environment is member variable
         environment_id_t parent_class_env_id_;
@@ -117,6 +135,7 @@ namespace rill
         type_id_t value_type_id_;
 
         native_string_type name_;
+        attribute::decl::type decl_attr_;
     };
 
 } // namespace rill

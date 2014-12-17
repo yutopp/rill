@@ -3,6 +3,9 @@ def main()
     val a meta = f();
 }
 
-def f()
+def f(): int
 {
+    p("compile time! compile time!");
+
+    return 1 + 2 + 4;
 }
