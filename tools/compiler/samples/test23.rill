@@ -1,3 +1,8 @@
-class A
+def main()
+{
+    val a meta = f();
+}
+
+def f()
 {
 }

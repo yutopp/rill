@@ -9,13 +9,16 @@
 #ifndef RILL_DECL_ATTRIBUTE_HPP
 #define RILL_DECL_ATTRIBUTE_HPP
 
+#include <cstdint>
+
+
 namespace rill
 {
     namespace attribute
     {
         namespace decl
         {
-            using type = int;
+            using type = std::uint16_t;
 
             constexpr type k_default    = 0;
             constexpr type k_onlymeta   = 1 << 0;
@@ -23,6 +26,7 @@ namespace rill
             constexpr type k_extern     = 1 << 2;
             constexpr type k_structured = 1 << 3;
             constexpr type k_override   = 1 << 4;
+            constexpr type k_meta       = 1 << 5;
         }
 
     } // namespace attribute

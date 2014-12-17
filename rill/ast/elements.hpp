@@ -75,6 +75,7 @@ namespace rill
 
             variable_declaration_unit(
                 const_identifier_value_base_ptr const& n,
+                attribute::decl::type const& attr,
                 value_initializer_unit&& i
                 )
                 : name( n )
@@ -84,20 +85,24 @@ namespace rill
             template<typename T>
             variable_declaration_unit(
                 boost::optional<T> const& n,
+                attribute::decl::type const& attr,
                 value_initializer_unit&& i
                 )
                 : variable_declaration_unit(
                     n != boost::none ? *n : nullptr,
+                    attr,
                     std::move( i )
                     )
             {}
 
             variable_declaration_unit(
                 const_identifier_value_base_ptr const& n,
+                attribute::decl::type const& attr,
                 boost::optional<value_initializer_unit>&& i
                 )
                 : variable_declaration_unit(
                     n,
+                    attr,
                     i != boost::none ? std::move( *i ) : value_initializer_unit{}
                     )
             {}

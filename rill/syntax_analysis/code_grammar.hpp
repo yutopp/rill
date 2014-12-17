@@ -208,7 +208,7 @@ namespace rill
 
             R( parameter_variable_initializer_unit, ast::variable_declaration_unit,
                 ( -t.identifier_relative > t.value_initializer_unit )[
-                    helper::construct<ast::variable_declaration_unit>( ph::_1, ph::_2 )
+                    helper::construct<ast::variable_declaration_unit>( ph::_1, attribute::decl::k_default, ph::_2 )
                     ]
             )
 
@@ -246,6 +246,7 @@ namespace rill
 
             R( decl_attribute, attribute::decl::type,
                 ( x3::lit( "onlymeta" )[helper::assign( attribute::decl::k_onlymeta )]
+                | x3::lit( "meta" )[helper::assign( attribute::decl::k_meta )]
                 | x3::lit( "intrinsic" )[helper::assign( attribute::decl::k_intrinsic )]
                 | x3::lit( "override" )[helper::assign( attribute::decl::k_override )]
                 )
@@ -394,7 +395,7 @@ namespace rill
 
             R( class_variable_initializer_unit, ast::variable_declaration_unit,
                 ( t.identifier_relative > t.value_initializer_unit_only_value )[
-                    helper::construct<ast::variable_declaration_unit>( ph::_1, ph::_2 )
+                    helper::construct<ast::variable_declaration_unit>( ph::_1, attribute::decl::k_default, ph::_2 )
                     ]
             )
 
@@ -470,7 +471,7 @@ namespace rill
 
             R( template_parameter_variable_initializer_unit, ast::variable_declaration_unit,
                 ( t.identifier_relative > -t.value_initializer_unit )[
-                    helper::construct<ast::variable_declaration_unit>( ph::_1, ph::_2 )
+                    helper::construct<ast::variable_declaration_unit>( ph::_1, attribute::decl::k_default, ph::_2 ) // TODO: decl::onlymeta?
                     ]
             )
 
@@ -503,8 +504,8 @@ namespace rill
             )
 
             R( variable_initializer_unit, ast::variable_declaration_unit,
-                ( t.identifier_relative > t.value_initializer_unit )[
-                    helper::construct<ast::variable_declaration_unit>( ph::_1, ph::_2 )
+                ( t.identifier_relative > t.decl_attribute_list > t.value_initializer_unit )[
+                    helper::construct<ast::variable_declaration_unit>( ph::_1, ph::_2, ph::_3 )
                     ]
             )
 

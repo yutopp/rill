@@ -554,10 +554,3 @@ namespace rill
 
     } // namespace ast
 } // namespace rill
-/*
-BOOST_FUSION_ADAPT_STRUCT(
-    rill::ast::variable_declaration_unit,
-    (rill::ast::identifier_value_base_ptr,  name)
-    (rill::ast::value_initializer_unit,     init_unit)
-    )
-*/

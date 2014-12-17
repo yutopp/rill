@@ -685,6 +685,7 @@ namespace rill
                     ex_type.attributes.quality,
                     ast::variable_declaration_unit{
                         ex_ast,
+                        attribute::decl::k_default,
                         ast::value_initializer_unit{
                             std::make_shared<ast::id_expression>(
                                 std::make_shared<ast::evaluated_type_expression>(
@@ -764,6 +765,7 @@ namespace rill
                     ex_type.attributes.quality,
                     ast::variable_declaration_unit{
                         ex_ast,
+                        attribute::decl::k_default,
                         ast::value_initializer_unit{
                             std::make_shared<ast::id_expression>(
                                 std::make_shared<ast::evaluated_type_expression>(
@@ -788,6 +790,7 @@ namespace rill
                 initializer.initializers.emplace_back(
                     ast::variable_declaration_unit{
                         init_name,
+                        attribute::decl::k_default,
                         ast::value_initializer_unit{
                             init_expr
                         }
