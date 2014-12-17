@@ -56,7 +56,7 @@ namespace rill
             template<typename L>
             decltype(auto) tagged( L&& rule )
             {
-                return x3::raw[rule][helper::tagging()];
+                return x3::raw[std::forward<L>( rule )][helper::tagging()];
             }
 
             // ====================================================================================================
