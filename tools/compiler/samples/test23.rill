@@ -6,6 +6,13 @@ def main()
 def f(): int
 {
     p("compile time! compile time!");
+    val a = cube( 3 );
+    p(a);
 
     return 1 + 2 + 4;
+}
+
+def cube(a: int): int
+{
+    return a * a * a;
 }

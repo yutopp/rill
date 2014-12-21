@@ -467,7 +467,9 @@ namespace rill
             solve_function_return_type_semantics( f_env );
 
             //
-            f_env->complete( make_mangled_name( g_env_, f_env ), s->decl_attr_ );
+            auto const& mangled_name = make_mangled_name( g_env_, f_env );
+            f_env->complete( mangled_name, s->decl_attr_ );
+            g_env_->map_mangled_env( mangled_name, f_env->get_id() );
         }
 
 
@@ -641,7 +643,9 @@ namespace rill
             }
 
             //
-            f_env->complete( make_mangled_name( g_env_, f_env ), s->decl_attr_ );
+            auto const& mangled_name = make_mangled_name( g_env_, f_env );
+            f_env->complete( mangled_name, s->decl_attr_ );
+            g_env_->map_mangled_env( mangled_name, f_env->get_id() );
 
             //
             assert( s->is_class_function() );
@@ -742,8 +746,9 @@ namespace rill
             }
 
             //
-            f_env->complete( make_mangled_name( g_env_, f_env ), s->decl_attr_ );
-
+            auto const mangled_name = make_mangled_name( g_env_, f_env );
+            f_env->complete( mangled_name, s->decl_attr_ );
+            g_env_->map_mangled_env( mangled_name, f_env->get_id() );
 
             //
             assert( s->is_class_function() );
@@ -884,10 +889,13 @@ namespace rill
                          class_symbol_environment_ptr const& class_env
                         ) {
                         f_env->decide_return_type( return_ty_d->type_id );
+
+                        auto const& mangled_name = make_mangled_name( g_env_, f_env );
                         f_env->complete(
-                            make_mangled_name( g_env_, f_env ),
+                            mangled_name,
                             attribute::decl::k_extern | s->decl_attr_
                             );
+                        g_env_->map_mangled_env( mangled_name, f_env->get_id() );
                     });
 
             } else {

@@ -1770,13 +1770,13 @@ namespace rill
                     solve_function_return_type_semantics( instanting_f_env );
 
                     //
-                    instanting_f_env->complete(
-                        make_mangled_name(
-                            g_env_,
-                            instanting_f_env,
-                            std::cref( signature_string )
-                            )
+                    auto const& mangled_name = make_mangled_name(
+                        g_env_,
+                        instanting_f_env,
+                        std::cref( signature_string )
                         );
+                    instanting_f_env->complete( mangled_name );
+                    g_env_->map_mangled_env( mangled_name, instanting_f_env->get_id() );
                     instanting_f_env->link_with_ast( function_def_ast );
 
                     //

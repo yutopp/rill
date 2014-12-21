@@ -50,6 +50,7 @@ namespace rill
             public:
                 RILL_VISITOR_OP_DEFAULT
 
+                //
                 RILL_VISITOR_READONLY_OP_DECL( ast::call_expression );
                 RILL_VISITOR_READONLY_OP_DECL( ast::binary_operator_expression );
                 RILL_VISITOR_READONLY_OP_DECL( ast::id_expression );
@@ -101,7 +102,10 @@ namespace rill
 
                 auto map_intrinsic_function(
                     llvm::Function const* const target_function
-                    ) -> void;
+                    ) -> bool;
+
+                auto update_intrinsic_functions()
+                    -> void;
 
             private:
                 global_environment_ptr g_env_;
@@ -112,6 +116,7 @@ namespace rill
                 std::shared_ptr<semantic_analysis::type_detail_pool_t> type_detail_pool_;
 
                 std::unordered_set<std::string> mapped_intrinsic_function_names_;
+                std::size_t mapped_intrinsic_functions_num_ = 0;
             };
 
         } // namespace llvm_engine

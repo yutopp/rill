@@ -139,7 +139,7 @@ namespace rill
 
             auto ir_executor::map_intrinsic_function(
                 llvm::Function const* const target_function
-                ) -> void
+                ) -> bool
             {
                 std::string const& name = target_function->getName();
 
@@ -153,7 +153,43 @@ namespace rill
                             );
 
                         mapped_intrinsic_function_names_.insert( name );
+
+                        return true;
                     }
+                }
+
+                return false;
+            }
+
+            auto ir_executor::update_intrinsic_functions(
+                )
+                -> void
+            {
+                if ( mapped_intrinsic_functions_num_ == g_env_->get_mangled_envs().size() ) {
+                    return;
+                }
+                mapped_intrinsic_functions_num_ = g_env_->get_mangled_envs().size();
+
+                for( auto const& p : g_env_->get_mangled_envs() ) {
+                    auto const& name = std::get<0>( p );
+                    auto const& env_id = std::get<1>( p );
+
+                    auto const& f_env
+                        = g_env_->get_env_at_as_strong_ref<function_symbol_environment const>(
+                            env_id
+                            );
+                    assert( f_env != nullptr );
+
+                    rill_dout << "meta function name: " << name << std::endl;
+                    llvm::Function* const callee_function
+                        = static_cast<llvm::Function*>(
+                            ir_generator_->function_env_to_llvm_constatnt_ptr( f_env )
+                            );
+                    if ( callee_function == nullptr ) {
+                        continue;
+                    }
+
+                    map_intrinsic_function( callee_function );
                 }
             }
 
@@ -161,6 +197,8 @@ namespace rill
             RILL_VISITOR_READONLY_OP( ir_executor, ast::call_expression, e, parent_env )
             {
                 rill_dout << "CALL expr" << std::endl;
+                update_intrinsic_functions();
+
 
                 // ========================================
                 // look up self function
@@ -199,8 +237,6 @@ namespace rill
                 rill_dregion {
                     callee_function->dump();
                 }
-
-                map_intrinsic_function( callee_function );
 
                 // invocation
                 auto const& raw_result

@@ -242,11 +242,12 @@ endif()
 add_subdirectory( ${PROJECT_SOURCE_DIR}/lib )
 install( DIRECTORY ${PROJECT_SOURCE_DIR}/rill DESTINATION include )
 
+# librill-rt(rill runtime)
+# NOTE: "librill" requires HOST librill-rt to resolve builtin function when CTFE
+add_subdirectory( ${PROJECT_SOURCE_DIR}/rill-rt )
+
 # tools(compiler)
 add_subdirectory( ${PROJECT_SOURCE_DIR}/tools )
-
-# librill-rt(rill runtime)
-add_subdirectory( ${PROJECT_SOURCE_DIR}/rill-rt )
 
 # test cases
 if( RUN_TEST )

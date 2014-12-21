@@ -304,6 +304,23 @@ namespace rill
         auto dump( std::ostream& os, std::string const& indent ) const
             -> std::ostream&;
 
+
+        ///
+        ///
+        ///
+        auto map_mangled_env( std::string const& name, environment_id_t const& id )
+            -> void
+        {
+            // TODO: dumplication check
+            mangled_env_ids_.emplace( name, id );
+        }
+
+        auto get_mangled_envs() const
+            -> decltype(auto)
+        {
+            return (mangled_env_ids_);
+        }
+
     private:
         module_id_t module_counter_;
         std::unordered_map<module_id_t, module_environment_ptr> id_module_rel_;
@@ -312,6 +329,8 @@ namespace rill
         environment_registry<environment_unit> env_container_;
         ast_to_environment_id_mapper ast_to_env_id_map;
         environment_id_to_ast_mapper env_id_to_ast_map;
+
+        std::unordered_map<std::string, environment_id_t> mangled_env_ids_;
 
         type_registry types_container;
         ast_to_type_id_mapper ast_to_type_id_map;

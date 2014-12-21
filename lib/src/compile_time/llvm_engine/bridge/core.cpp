@@ -9,6 +9,9 @@
 #include <rill/compile_time/llvm_engine/bridge.hpp>
 #include <rill/semantic_analysis/semantic_analysis.hpp>
 
+// symbols will be solved by LLVM
+#include <rill-rt/lib/runtime.hpp>
+
 #include <iostream>
 
 
@@ -38,7 +41,18 @@ namespace rill
                 {
                     "rill_core_typesystem_is_mutable",
                     reinterpret_cast<void*>( rill_core_typesystem_is_mutable )
+                },
+
+                // TODO: find automatically
+                {
+                    "print_bytes",
+                    reinterpret_cast<void*>( ::print_bytes )
+                },
+                {
+                    "print_int32",
+                    reinterpret_cast<void*>( ::print_int32 )
                 }
+
             };
 
             static jit_execution_environmant gje;
