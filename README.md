@@ -11,7 +11,8 @@ This repository contains the implementation of Rill language.
 
 
 ## Sample Codes of Rill
-[Please see this dir](tools/compiler/samples)
+[testcases](test/integration)  
+[samples](tools/compiler/samples)
 
 
 ## How to build

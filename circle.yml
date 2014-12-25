@@ -23,5 +23,6 @@ test:
       cd build;
       cmake ../. -DCMAKE_BUILD_TYPE=Debug -DRUN_TEST=ON &&
       make -j8 &&
-      make test;
+      make test &&
+      ruby ../test/run_integration_test.rb
       "

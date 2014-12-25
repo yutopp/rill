@@ -1,4 +1,5 @@
 extern class type intrinsic, onlymeta "type_type";
+//extern class uint8 intrinsic "type_uint8";
 extern class int8 intrinsic "type_int8";
 extern class int intrinsic "type_int32";
 extern class float intrinsic "type_float";
@@ -17,6 +18,15 @@ extern def p( i :bool ): void "print_bool";
 extern def p( i :ptr!int8 ): void "print_bytes";
 extern def p( i :float ): void "print_float";
 extern def alloc_unmanaged_aligned_memory(alignment:int, size:int): ptr!void "alloc_unmanaged_aligned_memory";
+
+extern def fopen( name: ptr!int8, mode: ptr!int8 ): ptr!int8 "fopen";
+extern def fread( buffer: array!(int, 5), size: int, count: int, fp: ptr!int8 ): ptr!(mutable(int8)) "fread";
+
+class string
+{
+    val buffer: ptr!int8;
+    val size: int;
+}
 
 //
 extern def op +( __a: int, __b: int ) intrinsic: int "int_add";

@@ -1,0 +1,14 @@
+def main(): int
+{
+    f!(int)( 72 );
+
+    return 0;
+}
+
+
+def f!(T: type)(val a: T): T
+{
+    val v: mutable(T) = 150;
+    v = 10;
+    return a * v;
+}

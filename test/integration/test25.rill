@@ -1,0 +1,16 @@
+class A!(T)
+{
+def ctor() {}
+}
+
+def main()
+{
+    val a = A!int();
+    f(a);
+}
+
+def f!(T)(bo: A!T)
+{
+    val a: T = 42;
+    p( a );
+}
