@@ -26,9 +26,9 @@
 #include "../compile_time/llvm_engine/ctfe_engine.hpp"
 #include "messaging.hpp"
 
-#include "type_detail.hpp"
-#include "type_detail_pool_t.hpp"
-#include "type_detail_factory.hpp"
+#include "../type/type_detail.hpp"
+#include "../type/type_detail_pool_t.hpp"
+#include "../type/type_detail_factory.hpp"
 
 
 namespace rill
@@ -134,6 +134,7 @@ namespace rill
                 environment_base_ptr const& parent_env
                 ) -> std::tuple<
                     const_class_symbol_environment_ptr,
+                    type_detail_ptr,
                     void*
                 >;
 
@@ -227,18 +228,22 @@ namespace rill
                 Attr const& attr,
                 environment_base_ptr const& parent_env,
                 F callback
-                ) -> type_detail_ptr
+                )
+                -> type_detail_ptr
             {
                 rill_dout << "solve_type :before_eval" << std::endl;
                 auto const ty_detail
                     = eval_type_expression_as_ctfe( id_expression, attr, parent_env );
                 auto const& ty_id = ty_detail->type_id;
+                rill_dregion {
+                    print_type_detail( ty_detail );
+                }
                 rill_dout << "solve_type :after_eval" << std::endl;
 
                 auto const ty = g_env_->get_type_at( ty_id );  // copy Ty...
 
                 auto const& class_env = [&]() {
-                    if ( ty.is_incomplete() ) {
+                    if ( ty.class_env_id == environment_id_undetermined ) {
                         return static_cast<class_symbol_environment_ptr>( nullptr );
 
                     } else {
@@ -295,7 +300,7 @@ namespace rill
             auto instantiate_function_templates(
                 multiple_set_environment_ptr const& set_env,
                 std::vector<type_detail_ptr> const& arg_types,
-                type_detail::template_arg_pointer const& template_args,
+                type_detail::template_args_pointer const& template_args,
                 environment_base_ptr const& parent_env,
                 boost::optional<std::reference_wrapper<std::vector<environment_base_ptr>>> const& instanced_envs = boost::none
                 )
@@ -309,7 +314,7 @@ namespace rill
             auto solve_function_overload(
                 multiple_set_environment_ptr const& set_env,
                 std::vector<type_detail_ptr> const& arg_types,
-                type_detail::template_arg_pointer const& template_args,
+                type_detail::template_args_pointer const& template_args,
                 ast::expression_ptr const& e,
                 environment_base_ptr const& parent_env
                 )
@@ -318,20 +323,20 @@ namespace rill
 
             auto instantiate_class_templates(
                 multiple_set_environment_ptr const& set_env,
-                type_detail::template_arg_pointer const& template_args,
+                type_detail::template_args_pointer const& template_args,
                 environment_base_ptr const& parent_env
                 )
                 -> std::vector<class_symbol_environment_ptr>;
 
             auto solve_class_candidate(
                 multiple_set_environment_ptr const& set_env,
-                type_detail::template_arg_pointer const& template_args,
+                type_detail::template_args_pointer const& template_args,
                 environment_base_ptr const& parent_env
                 )
                 -> class_symbol_environment_ptr;
 
             auto declare_template_parameter_variables(
-                ast::parameter_list const& template_parameters,
+                ast::parameter_list_t const& template_parameters,
                 environment_base_ptr const& inner_env,
                 environment_base_ptr const& parent_env
                 )
@@ -343,16 +348,16 @@ namespace rill
                 -> std::string;
 
             auto make_template_cache_string(
-                ast::parameter_list const& template_parameters,
+                ast::parameter_list_t const& template_parameters,
                 environment_base_ptr const& inner_env,
                 environment_base_ptr const& parent_env
                 )
                 -> std::vector<variable_symbol_environment_ptr>;
 
             auto assign_explicit_template_parameters(
-                ast::parameter_list const& template_parameters,
+                ast::parameter_list_t const& template_parameters,
                 std::vector<variable_symbol_environment_ptr> const& decl_template_var_envs,
-                type_detail::template_arg_pointer const& template_args,
+                type_detail::template_args_pointer const& template_args,
                 environment_base_ptr const& parent_env
                 )
                 -> bool;
@@ -362,34 +367,43 @@ namespace rill
                 ast::expression_list const& arguments,
                 environment_base_ptr const& parent_env
                 )
-                -> type_detail::template_arg_type;
+                -> type_detail::template_args_type;
 
             // return false, if class is already defined
             auto complete_class(
                 ast::class_definition_statement_ptr const& s,
                 class_symbol_environment_ptr const& c_env,
-                type_detail::template_arg_pointer const& template_args = nullptr,
+                type_detail::template_args_pointer const& template_args = nullptr,
                 boost::optional<std::reference_wrapper<std::string const>> const& template_signature = boost::none
                 )
                 -> bool;
 
             //
+            auto make_function_parameters_type_detail(
+                function_symbol_environment_ptr const& f_env,
+                ast::variable_declaration const& e
+                )
+                -> type_detail_ptr;
+
             auto make_function_parameters_type_details(
                 function_symbol_environment_ptr const& f_env,
                 ast::function_definition_statement_base_ptr const& s
                 )
                 -> std::vector<type_detail_ptr>;
+
             auto declare_function_parameters_from_list(
                 function_symbol_environment_ptr const& f_env,
                 ast::function_definition_statement_base_ptr const& s,
                 std::vector<type_detail_ptr> const& param_types
                 )
                 -> void;
+
             auto declare_function_parameters(
                 function_symbol_environment_ptr const& f_env,
                 ast::function_definition_statement_base_ptr const& s
                 )
                 -> void;
+
             auto function_returns_value(
                 function_symbol_environment_ptr const& f_env
                 )
@@ -569,6 +583,13 @@ namespace rill
                 std::unordered_map<std::string, class_symbol_environment_ptr> primitive_cache_;
             };
             std::shared_ptr<builtin_class_envs_cache> builtin_class_envs_cache_;
+
+        private:
+            auto print_type_detail( const_type_detail_ptr const& td ) const
+                -> void;
+
+            auto print_dependent_type( type_detail::dependent_type const& dt ) const
+                -> void;
 
         private:
             std::vector<fs::path> system_import_path_;

@@ -416,7 +416,7 @@ namespace rill
                 << " != Semantic" << std::endl
                 << "    function_definition_statement: " << std::endl
                 << "     name -- " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
-                << "     Args num -- " << s->get_parameter_list().size() << std::endl;
+                << "     Args num -- " << s->parameter_list.size() << std::endl;
 
             auto const related_env = g_env_->get_related_env_by_ast_ptr( s );
             assert( related_env != nullptr );
@@ -482,7 +482,7 @@ namespace rill
                 << " != Semantic" << std::endl
                 << "    CLASS function_definition_statement: " << std::endl
                 << "     name -- " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
-                << "     Args num -- " << s->get_parameter_list().size() << std::endl;
+                << "     Args num -- " << s->parameter_list.size() << std::endl;
 
             auto const related_env = g_env_->get_related_env_by_ast_ptr( s );
             assert( related_env != nullptr );
@@ -674,7 +674,7 @@ namespace rill
                 << " != Semantic" << std::endl
                 << "    CLASS virtual_function_definition_statement: " << std::endl
                 << "     name -- " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
-                << "     Args num -- " << s->get_parameter_list().size() << std::endl;
+                << "     Args num -- " << s->parameter_list.size() << std::endl;
 
             auto const related_env = g_env_->get_related_env_by_ast_ptr( s );
             assert( related_env != nullptr );
@@ -852,7 +852,7 @@ namespace rill
             rill_dout
                 << "= extern_function_definition_statement:" << std::endl
                 << " Name -- " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
-                << " Args num -- " << s->get_parameter_list().size() << std::endl
+                << " Args num -- " << s->parameter_list.size() << std::endl
                 << " Parent env -- " << (const_environment_base_ptr)parent_env << std::endl;
 
             // enverinment is already pre constructed by identifier_collector

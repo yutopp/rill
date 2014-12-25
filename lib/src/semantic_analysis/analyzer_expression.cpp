@@ -229,6 +229,12 @@ namespace rill
             auto const& argument_type_details
                 = evaluate_invocation_args( reciever_type_detail, e->arguments_, parent_env );
 
+            std::cout << "!!!!===================" << std::endl;
+            for( auto&& arg : argument_type_details ) {
+                print_type_detail( arg );
+            }
+
+
             /// *************
             // TODO:
             // Now, e->reciever_ is expression...
@@ -501,7 +507,7 @@ namespace rill
                 assert( c_env != nullptr );
                 rill_dout << "class    -> " << c_env->get_qualified_name() << " / ptr: " << c_env << std::endl;
 
-                ast::parameter_list parames_for_ctor;
+                ast::parameter_list_t parames_for_ctor;
                 ast::expression_list args_for_ctor;
                 ast::element::class_variable_initializers initializer({});
 
@@ -621,7 +627,7 @@ namespace rill
 
 
             std::size_t index = 0;
-            ast::parameter_list parames_for_ctor;
+            ast::parameter_list_t parames_for_ctor;
             ast::expression_list args_for_ctor;
             ast::element::class_variable_initializers initializer({});
             std::unordered_map<ast::native_string_t, std::size_t> captured;

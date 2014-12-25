@@ -42,7 +42,7 @@ namespace rill
             auto const& class_env_id
                 = ( class_env != nullptr )
                 ? class_env->get_id()
-                : environment_id_undefined;
+                : environment_id_undetermined;
 
             return add( class_env_id, type_attr );
         }

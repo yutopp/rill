@@ -23,13 +23,15 @@ namespace rill
             environment_base_ptr const& parent_env
             ) -> std::tuple<
                 const_class_symbol_environment_ptr,
+                type_detail_ptr,
                 void*
             >
         {
             rill_dout << "CTFE of expresison!!!!!!" << std::endl;
 
             // solve semantics
-            auto const& ty_detail = dispatch( expression, parent_env );
+            // this ty_detail denotes type of "value(includes types)"
+            auto ty_detail = dispatch( expression, parent_env );
             assert( ty_detail != nullptr );
 
             //
@@ -50,12 +52,14 @@ namespace rill
             assert( c_env != nullptr );
 
             // eval expression of arguments
+            // "value"(typeinfo, value of integer, ...)
             auto evaled_value
                 = ctfe_engine_->execute_as_raw_storage( expression, parent_env );
             assert( evaled_value != nullptr );
 
             return std::forward_as_tuple(
                 std::move( c_env ),         // type of eveled_value
+                std::move( ty_detail ),
                 std::move( evaled_value )   //
                 );
         }
@@ -70,25 +74,29 @@ namespace rill
         {
             rill_dout << "TYPE expresison!!!!!!" << std::endl;
             RILL_PP_TIE(
-                c_env, evaled_value,
+                c_env, ty_detail, evaled_value,
                 eval_expression_as_ctfe( id_expression, parent_env )
                 );
             assert( c_env != nullptr );
 
-            rill_dout << "pass: " << __LINE__ << std::endl
-                      << ": " << c_env << std::endl
-                      << c_env->get_base_name() << std::endl
-                      << "pass: " << __LINE__ << std::endl;
+            rill_dout << std::endl
+                      << ">>>>> pass(eval_type_expression_as_ctfe): " << __LINE__ << std::endl
+                      << "  env ptr     : " << c_env << std::endl
+                      << "  env basename: " << c_env->get_base_name() << std::endl
+                      << "  env qualname: " << c_env->get_qualified_name() << std::endl
+                      << ">>>>> pass(eval_type_expression_as_ctfe): " << __LINE__ << std::endl
+                      << std::endl;
 
             //
             if ( c_env->get_base_name() != "type" ) {
                 assert( false && "[[ice]] not 'type' type" );
             }
 
-            auto ty_d = static_cast<type_detail_ptr>( evaled_value );
+            // real type(int, double, etc...)
+            auto inner_ty_d = static_cast<type_detail_ptr>( evaled_value );
 
             rill_dout << "APPEND attributes" << std::endl;
-            auto ty = g_env_->get_type_at( ty_d->type_id ); // make copy
+            auto ty = g_env_->get_type_at( inner_ty_d->type_id ); // make copy
             // force overwrite holder type(if specified)
             // other attributes are filled
             ty.attributes = overlap_empty_attr(
@@ -100,12 +108,15 @@ namespace rill
                 );
 
             // update type id
-            ty_d->type_id = g_env_->make_type_id(
+            inner_ty_d->type_id = g_env_->make_type_id(
                 ty.class_env_id,
                 ty.attributes
                 );
 
-            return ty_d;
+            // copy templete args!
+            inner_ty_d->template_args = ty_detail->template_args;
+
+            return inner_ty_d;
         }
 
         auto analyzer::eval_type_expression_as_ctfe(

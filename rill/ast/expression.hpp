@@ -182,8 +182,8 @@ namespace rill
 
         RILL_AST_BEGIN(
             lambda_expression, expression,
-            (( boost::optional<parameter_list>, template_parameters ))
-            (( parameter_list, parameters ))
+            (( boost::optional<parameter_list_t>, template_parameters ))
+            (( parameter_list_t, parameters ))
             (( attribute::decl::type, decl_attr ))
             (( id_expression_ptr, return_type ))
             (( element::statement_list, statements ))
@@ -191,8 +191,8 @@ namespace rill
             )
         public:
             lambda_expression(
-                boost::optional<parameter_list>&& tpl,
-                parameter_list const& pl,
+                boost::optional<parameter_list_t>&& tpl,
+                parameter_list_t const& pl,
                 attribute::decl::type const& da,
                 boost::optional<id_expression_ptr> const& rt,
                 element::statement_list const& ss

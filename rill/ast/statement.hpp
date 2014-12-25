@@ -160,12 +160,12 @@ namespace rill
         // inner statement will be templated
         RILL_AST_BEGIN(
             template_statement, statement,
-            (( parameter_list, parameter_list_ ))
+            (( parameter_list_t, parameter_list_ ))
             (( can_be_template_statement_ptr, inner_ ))
             )
         public:
             template_statement(
-                parameter_list const& parameter_list,
+                parameter_list_t const& parameter_list,
                 can_be_template_statement_ptr const& inner
                 )
                 : parameter_list_( parameter_list )
@@ -184,12 +184,6 @@ namespace rill
                 -> can_be_template_statement_ptr const&
             {
                 return inner_;
-            }
-
-            auto get_parameter_list() const
-                -> parameter_list const&
-            {
-                return parameter_list_;
             }
 
             auto clone_inner_node()
@@ -211,7 +205,7 @@ namespace rill
 
         RILL_AST_BEGIN(
             function_definition_statement_base, can_be_template_statement,
-            (( parameter_list, parameter_list_ ))
+            (( parameter_list_t, parameter_list ))
             (( attribute::decl::type, decl_attr_ ))
             (( id_expression_ptr, return_type_ ))
             (( statements_ptr, inner_ ))
@@ -219,13 +213,13 @@ namespace rill
         public:
             function_definition_statement_base(
                 identifier_value_ptr const& id,
-                parameter_list parameter_list,
+                parameter_list_t pl,
                 attribute::decl::type const& decl_attr,
                 boost::optional<id_expression_ptr> const& return_type,
                 statements_ptr const& inner
                 )
                 : can_be_template_statement( id )
-                , parameter_list_( std::move( parameter_list ) )
+                , parameter_list( std::move( pl ) )
                 , decl_attr_( decl_attr )
                 , return_type_( return_type != boost::none ? *return_type : nullptr )
                 , inner_( inner )
@@ -233,7 +227,7 @@ namespace rill
 
             function_definition_statement_base(
                 identifier_value_ptr const& id,
-                parameter_list parameter_list,
+                parameter_list_t parameter_list,
                 attribute::decl::type const& decl_attr,
                 boost::optional<id_expression_ptr> const& return_type
                 )
@@ -243,12 +237,6 @@ namespace rill
             {}
 
         public:
-            auto get_parameter_list() const
-                -> parameter_list const&
-            {
-                return parameter_list_;
-            }
-
             virtual auto is_class_function() const
                 -> bool = 0;
         RILL_AST_END
@@ -260,7 +248,7 @@ namespace rill
         public:
             function_definition_statement(
                 identifier_value_ptr const& id,
-                parameter_list parameter_list,
+                parameter_list_t parameter_list,
                 attribute::decl::type const& decl_attr,
                 boost::optional<id_expression_ptr> const& return_type,
                 statements_ptr const& inner
@@ -285,7 +273,7 @@ namespace rill
         public:
             class_function_definition_statement(
                 identifier_value_ptr const& id,
-                parameter_list parameter_list,
+                parameter_list_t parameter_list,
                 attribute::decl::type const& decl_attr,
                 boost::optional<element::class_variable_initializers>&& inits,
                 boost::optional<id_expression_ptr> const& return_type,
@@ -311,7 +299,7 @@ namespace rill
         public:
             class_virtual_function_definition_statement(
                 identifier_value_ptr const& id,
-                parameter_list parameter_list,
+                parameter_list_t parameter_list,
                 attribute::decl::type const& decl_attr,
                 id_expression_ptr const& return_type,
                 statements_ptr const& inner
@@ -328,7 +316,7 @@ namespace rill
 
             class_virtual_function_definition_statement(
                 identifier_value_ptr const& id,
-                parameter_list parameter_list,
+                parameter_list_t parameter_list,
                 attribute::decl::type const& decl_attr,
                 id_expression_ptr const& return_type
                 )
@@ -344,7 +332,7 @@ namespace rill
 
             class_virtual_function_definition_statement(
                 identifier_value_ptr const& id,
-                parameter_list parameter_list,
+                parameter_list_t parameter_list,
                 attribute::decl::type const& decl_attr,
                 statements_ptr const& inner
                 )
@@ -367,7 +355,7 @@ namespace rill
         public:
             extern_function_declaration_statement(
                 identifier_value_ptr const& id,
-                parameter_list parameter_list,
+                parameter_list_t parameter_list,
                 attribute::decl::type const& decl_attr,
                 id_expression_ptr const& return_type,
                 native_string_t const& extern_symbol_name

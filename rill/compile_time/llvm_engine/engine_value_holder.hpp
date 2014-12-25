@@ -12,7 +12,7 @@
 #include <memory>
 #include <unordered_map>
 
-#include "../../semantic_analysis/type_detail.hpp"
+#include "../../type/type_detail.hpp"
 
 
 namespace rill
@@ -27,7 +27,7 @@ namespace rill
                 //
                 // Values
                 //
-                auto bind_value( environment_id_t const& env_id, semantic_analysis::type_detail_ptr const& value )
+                auto bind_value_of_type( environment_id_t const& env_id, type_detail_ptr const& value )
                     -> void
                 {
                     //
@@ -104,7 +104,7 @@ namespace rill
                 }
 
             private:
-                std::unordered_map<environment_id_t, semantic_analysis::type_detail_ptr> type_detail_table_;
+                std::unordered_map<environment_id_t, type_detail_ptr> type_detail_table_;
                 std::unordered_map<environment_id_t, std::shared_ptr<char>> storage_table_;
 
                 std::unordered_map<void*, std::shared_ptr<char>> temporary_storages_;

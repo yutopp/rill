@@ -210,7 +210,7 @@ namespace rill
         {
             rill_dout << "IdentifierCollector::Function" << std::endl
                       << " collected          : " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
-                      << " param_num          : " << s->get_parameter_list().size() << std::endl
+                      << " param_num          : " << s->parameter_list.size() << std::endl
                       << " is_template_layout : " << s->is_template_layout() << std::endl;
 
 

@@ -212,7 +212,7 @@ namespace rill
                     ]
             )
 
-            R( parameter_variable_declaration_list, ast::parameter_list,
+            R( parameter_variable_declaration_list, ast::parameter_list_t,
                 ( ( x3::lit( '(' ) >> x3::lit( ')' ) )
                 | ( x3::lit( '(' ) >> ( t.parameter_variable_declaration % x3::lit( ',' ) ) >> x3::lit( ')' ) )
                 )
@@ -476,7 +476,7 @@ namespace rill
             )
 
 
-            R( template_parameter_variable_declaration_list, ast::parameter_list,
+            R( template_parameter_variable_declaration_list, ast::parameter_list_t,
                 ( ( x3::lit( '!' ) >> x3::lit( '(' ) >> x3::lit( ')' ) )
                 | ( x3::lit( '!' ) >> x3::lit( '(' ) >> ( t.template_parameter_variable_declaration % x3::lit( ',' ) ) >> x3::lit( ')' ) )
                 )

@@ -81,8 +81,8 @@ namespace rill
 extern "C" {
     namespace le = rill::compile_time::llvm_engine;
 
-    auto rill_core_typesystem_mutable( rill::semantic_analysis::type_detail_ptr ty_detail )
-        -> rill::semantic_analysis::type_detail_ptr
+    auto rill_core_typesystem_mutable( rill::type_detail_ptr ty_detail )
+        -> rill::type_detail_ptr
     {
         rill::type t = le::gje.semantic_analyzer->ref_type( ty_detail );
         t.attributes <<= rill::attribute::modifiability_kind::k_mutable;
@@ -93,8 +93,8 @@ extern "C" {
             );
     }
 
-    auto rill_core_typesystem_const( rill::semantic_analysis::type_detail_ptr ty_detail )
-        -> rill::semantic_analysis::type_detail_ptr
+    auto rill_core_typesystem_const( rill::type_detail_ptr ty_detail )
+        -> rill::type_detail_ptr
     {
         rill::type t = le::gje.semantic_analyzer->ref_type( ty_detail );
         t.attributes <<= rill::attribute::modifiability_kind::k_const;
@@ -105,8 +105,8 @@ extern "C" {
             );
     }
 
-    auto rill_core_typesystem_immutable( rill::semantic_analysis::type_detail_ptr ty_detail )
-        -> rill::semantic_analysis::type_detail_ptr
+    auto rill_core_typesystem_immutable( rill::type_detail_ptr ty_detail )
+        -> rill::type_detail_ptr
     {
         rill::type t = le::gje.semantic_analyzer->ref_type( ty_detail );
         t.attributes <<= rill::attribute::modifiability_kind::k_immutable;
@@ -117,8 +117,8 @@ extern "C" {
             );
     }
 
-    auto rill_core_typesystem_ref( rill::semantic_analysis::type_detail_ptr ty_detail )
-        -> rill::semantic_analysis::type_detail_ptr
+    auto rill_core_typesystem_ref( rill::type_detail_ptr ty_detail )
+        -> rill::type_detail_ptr
     {
         rill::type t = le::gje.semantic_analyzer->ref_type( ty_detail );
         t.attributes <<= rill::attribute::holder_kind::k_ref;
@@ -129,7 +129,7 @@ extern "C" {
             );
     }
 
-    auto rill_core_typesystem_is_mutable( rill::semantic_analysis::type_detail_ptr ty_detail )
+    auto rill_core_typesystem_is_mutable( rill::type_detail_ptr ty_detail )
         -> bool
     {
         rill_dout << "POINTER:" << ty_detail << std::endl;

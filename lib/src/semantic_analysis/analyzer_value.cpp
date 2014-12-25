@@ -200,6 +200,7 @@ namespace rill
                          type const& ty,
                          class_symbol_environment_ptr const& class_env
                         ) {
+                        assert( class_env != nullptr );
                         assert( class_env->is_array() );
 
                         // connect fron LITARAL VALUE

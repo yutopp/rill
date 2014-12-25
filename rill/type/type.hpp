@@ -20,13 +20,8 @@ namespace rill
     {
         environment_id_t class_env_id;
         attribute::type_attributes attributes;
-
-        auto is_incomplete() const
-            -> bool
-        {
-            return class_env_id == environment_id_undefined;
-        }
     };
+
 } // namespace rill
 
 #endif /*RILL_TYPE_TYPE_HPP*/

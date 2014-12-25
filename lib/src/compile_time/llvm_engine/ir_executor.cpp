@@ -50,7 +50,7 @@ namespace rill
                 global_environment_ptr const& g_env,
                 std::shared_ptr<code_generator::llvm_ir_generator> const& generator,
                 std::shared_ptr<llvm::ExecutionEngine> const& execution_engine,
-                std::shared_ptr<semantic_analysis::type_detail_pool_t> const& type_detail_pool
+                std::shared_ptr<type_detail_pool_t> const& type_detail_pool
                 )
                 : g_env_( g_env )
                 , ir_generator_( generator )
@@ -369,9 +369,10 @@ namespace rill
                             );
 
                     rill_dregion {
-                        std::cout << "in llvm.class_name "
-                                  << c_env->get_qualified_name() << " (" << type_id << ")"
-                                  << std::endl;
+                        std::cout << "in llvm.class_name " << std::endl
+                                  << " - base name: " << c_env->get_base_name() << std::endl
+                                  << " - qual name: " << c_env->get_qualified_name() << std::endl
+                                  << " - type id  : " << type_id << std::endl;
                     }
 
                     return type_detail_pool_->construct(
@@ -392,7 +393,7 @@ namespace rill
             RILL_VISITOR_READONLY_OP( ir_executor, ast::template_instance_value, v, parent_env )
             {
                 //
-                rill_dout << "ir sym solving: "
+                rill_dout << "template / ir sym solving: "
                           << v->get_inner_symbol()->to_native_string() << std::endl
                           << "ast ptr: " << v.get() << std::endl
                           << (const_environment_base_ptr)parent_env << std::endl;
@@ -401,7 +402,7 @@ namespace rill
                 //
                 auto const& id_env = g_env_->get_related_env_by_ast_ptr( v );
                 if ( id_env == nullptr ) {
-                    rill_dout << "skipped" << std::endl;
+                    rill_dout << " !=========== not registered ============! " << std::endl;
                     return nullptr;
                 }
 
@@ -429,6 +430,7 @@ namespace rill
 
                 case kind::type_value::e_class:
                 {
+                    rill_dout << "llvm_ir_generator -> case Class!" << std::endl;
                     auto const& c_env
                         = std::static_pointer_cast<class_symbol_environment const>( id_env );
                     assert( c_env != nullptr );
@@ -440,9 +442,10 @@ namespace rill
                             );
 
                     rill_dregion {
-                        std::cout << "in llvm.class_name "
-                                  << c_env->get_qualified_name() << " (" << type_id << ")"
-                                  << std::endl;
+                        std::cout << "in llvm.class_name " << std::endl
+                                  << " - base name: " << c_env->get_base_name() << std::endl
+                                  << " - qual name: " << c_env->get_qualified_name() << std::endl
+                                  << " - type id  : " << type_id << std::endl;
                     }
 
                     return type_detail_pool_->construct(

@@ -203,7 +203,7 @@ namespace rill
             rill_dout
                 << "= function_definition_statement:" << std::endl
                 << " Name -- " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
-                << " Args num -- " << s->get_parameter_list().size() << std::endl
+                << " Args num -- " << s->parameter_list.size() << std::endl
                 << " Parent env -- " << (const_environment_base_ptr)parent_env << std::endl;
 
             // ========================================
@@ -333,7 +333,7 @@ namespace rill
             rill_dout
                 << "= class_function_definition_statement:" << std::endl
                 << " Name -- " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
-                << " Args num -- " << s->get_parameter_list().size() << std::endl
+                << " Args num -- " << s->parameter_list.size() << std::endl
                 << " Parent env -- " << (const_environment_base_ptr)parent_env << std::endl;
 
             // ========================================
@@ -549,7 +549,7 @@ namespace rill
             rill_dout
                 << "= class_function_definition_statement:" << std::endl
                 << " Name -- " << s->get_identifier()->get_inner_symbol()->to_native_string() << std::endl
-                << " Args num -- " << s->get_parameter_list().size() << std::endl
+                << " Args num -- " << s->parameter_list.size() << std::endl
                 << " Parent env -- " << (const_environment_base_ptr)parent_env << std::endl;
 
             // ========================================

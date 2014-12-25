@@ -312,7 +312,7 @@ namespace rill
 
 
         auto analyzer::declare_template_parameter_variables(
-            ast::parameter_list const& template_parameters,
+            ast::parameter_list_t const& template_parameters,
             environment_base_ptr const& inner_env,
             environment_base_ptr const& parent_env
             )
@@ -387,12 +387,84 @@ namespace rill
             return declared_envs;
         }
 
+        auto analyzer::print_type_detail( const_type_detail_ptr const& td ) const
+            -> void
+        {
+            if ( td->is_placeholder ) {
+                std::cout << "** placeholder [type]" << std::endl;
+
+            } else {
+                // get environment of arguments
+                if ( is_type_id( td->type_id ) ) {
+                    auto const& tt
+                        = g_env_->get_type_at( td->type_id );
+
+                    auto const& c_e
+                        = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
+                            tt.class_env_id
+                            );
+
+                    std::cout << "** name(base)  : " << c_e->get_base_name() << std::endl
+                              << "** name(qualed): " << c_e->get_qualified_name() << std::endl
+                              << "** typeid      : " << td->type_id << std::endl
+                              << "** envid       : " << tt.class_env_id << std::endl;
+
+                } else {
+                    std::cout << "** not type_id" << std::endl;
+                }
+
+                if ( td->has_template_args() ) {
+                    std::cout << " - has template args - : " << td->template_args->size() << std::endl;
+                    for( auto&& arg : *td->template_args ) {
+                        print_dependent_type( arg );
+                    }
+
+                } else {
+                    std::cout << "< has NO template args" << std::endl;
+                }
+            }
+        }
+
+        auto analyzer::print_dependent_type( type_detail::dependent_type const& dt ) const
+            -> void
+        {
+            auto const& tt
+                = g_env_->get_type_at( dt.type_id );
+
+            auto const& c_e
+                = std::static_pointer_cast<class_symbol_environment const>(
+                    g_env_->get_env_at_as_strong_ref(
+                        tt.class_env_id
+                        )
+                    );
+
+            rill_dout << "** depend / [parameter type]: " << c_e->get_qualified_name() << std::endl;
+
+            if ( dt.is_type() ) {
+                rill_dout << "** depend / type: inner value |" << std::endl;
+                auto const& t_detail
+                    = dt.element.as_type_detail;
+                assert( t_detail != nullptr );
+
+                if ( t_detail->is_placeholder ) {
+                    rill_dout << "** depend / placeholder [type]" << std::endl;
+
+                } else {
+                    print_type_detail( t_detail );
+                }
+
+            } else {
+                // TODO: placeholder check
+                rill_dout << "value: " << std::endl;
+            }
+        }
+
 
         // declare template parameter variable, and substitute explicit argument
         auto analyzer::assign_explicit_template_parameters(
-            ast::parameter_list const& template_parameters,
+            ast::parameter_list_t const& template_parameters,
             std::vector<variable_symbol_environment_ptr> const& decl_template_var_envs,
-            type_detail::template_arg_pointer const& template_args,
+            type_detail::template_args_pointer const& template_args,
             environment_base_ptr const& parent_env
             )
             -> bool
@@ -414,43 +486,7 @@ namespace rill
 
                 // DEBUG
                 rill_dregion {
-                    auto const& tt
-                        = g_env_->get_type_at( template_arg.type_id );
-
-                    auto const& c_e
-                        = std::static_pointer_cast<class_symbol_environment const>(
-                            g_env_->get_env_at_as_strong_ref(
-                                tt.class_env_id
-                                )
-                            );
-
-                    rill_dout << "#### [parameter type]: " << c_e->get_qualified_name() << std::endl;
-
-                    if ( template_arg.is_type() ) {
-                        rill_dout << "type: inner value is " << std::endl;
-                        auto const& t_detail
-                            = static_cast<type_detail_ptr>( template_arg.element );
-                        assert( t_detail != nullptr );
-
-                        // get environment of arguments
-                        auto const& tt
-                            = g_env_->get_type_at( t_detail->type_id );
-
-                        auto const& c_e
-                            = std::static_pointer_cast<class_symbol_environment const>(
-                                g_env_->get_env_at_as_strong_ref(
-                                    tt.class_env_id
-                                    )
-                                );
-
-                        rill_dout << "** typeid << " << t_detail->type_id << std::endl
-                                  << "** " << tt.class_env_id << std::endl;
-
-                        rill_dout << "BINDED " << template_var_env->get_id()
-                                  << " -> " << c_e->get_qualified_name() << std::endl;
-                    } else {
-                        rill_dout << "value: " << std::endl;
-                    }
+                    print_dependent_type( template_arg );
                 } // debug
 
                 // type check
@@ -480,18 +516,15 @@ namespace rill
 
                 // save
                 if ( template_arg.is_type() ) {
-                    auto const& t_detail
-                        = static_cast<type_detail_ptr>( template_arg.element );
-
-                    ctfe_engine_->value_holder()->bind_value(
+                    ctfe_engine_->value_holder()->bind_value_of_type(
                         template_var_env->get_id(),
-                        t_detail
+                        template_arg.element.as_type_detail
                         );
 
                 } else {
                     ctfe_engine_->value_holder()->bind_value(
                         template_var_env->get_id(),
-                        template_arg.element
+                        template_arg.element.as_value
                         );
                 }
             }
@@ -524,6 +557,7 @@ namespace rill
                 {
                     auto const& ty_detail
                         = static_cast<type_detail_ptr>( evaled_value );
+
                     auto const& val_ty
                         = g_env_->get_type_at( ty_detail->type_id );
                     auto const& val_c_env
@@ -561,7 +595,7 @@ namespace rill
         //
         auto analyzer::instantiate_class_templates(
             multiple_set_environment_ptr const& multiset_env,
-            type_detail::template_arg_pointer const& template_args,
+            type_detail::template_args_pointer const& template_args,
             environment_base_ptr const& parent_env
             )
             -> std::vector<class_symbol_environment_ptr>
@@ -614,43 +648,62 @@ namespace rill
                         );
                 assert( is_succeeded && "" );
 
-                // TODO: relocate cache evaluation
-                auto const signature_string
-                    = make_template_signature_string( decl_template_var_envs );
+                //
+                bool has_placeholder = false;
+                for( auto&& arg : *template_args ) {
+                    has_placeholder |= arg.has_placeholder();
+                }
 
-                rill_dout << "========================================== !!!!! => " << signature_string << std::endl;
-                if ( auto const& cache = multiset_env->find_instanced_environments( signature_string ) ) {
-                    //
-                    auto const& cached_c_env = cast_to<class_symbol_environment>( cache );
-                    xc.push_back( cached_c_env );
-
-                    // TODO: remove instanting_c_env
+                if ( has_placeholder ) {
+                    // this class will not be used normal flow
+                    xc.push_back( instanting_c_env );
 
                 } else {
-                    // collect identifiers
-                    if ( class_def_ast->inner_ != nullptr ) {
-                        collect_identifier(
-                            g_env_,
-                            class_def_ast->inner_,
-                            instanting_c_env
-                            );
+                    // TODO: relocate cache evaluation
+                    auto const signature_string
+                        = make_template_signature_string( decl_template_var_envs );
+
+                    rill_dout << "= class template signature string === !!!!! => " << signature_string << std::endl;
+                    if ( auto const& cache = multiset_env->find_instanced_environments( signature_string ) ) {
+                        rill_dout << "= cached" << std::endl;
+
+                        //
+                        auto const& cached_c_env = cast_to<class_symbol_environment>( cache );
+                        rill_dout << "qual: " << cached_c_env->get_qualified_name() << std::endl;;
+
+                        xc.push_back( cached_c_env );
+
+                        // TODO: remove instanting_c_env
+
+                    } else {
+                        // collect identifiers
+                        if ( class_def_ast->inner_ != nullptr ) {
+                            collect_identifier(
+                                g_env_,
+                                class_def_ast->inner_,
+                                instanting_c_env
+                                );
+                        }
+
+                        //
+                        // class instanciation
+                        if ( !complete_class( class_def_ast, instanting_c_env, template_args, std::cref( signature_string ) ) ) {
+                            // Already completed...
+                            // maybe, error...
+                            assert( false );
+                            continue;
+                        }
+
+                        // link
+                        instanting_c_env->link_with_ast( class_def_ast );
+                        multiset_env->add_to_instanced_environments( instanting_c_env, signature_string );
+
+                        // set template args
+                        instanting_c_env->set_template_args( template_args );
+
+                        //
+                        xc.push_back( instanting_c_env );
                     }
-
-                    //
-                    // class instanciation
-                    if ( !complete_class( class_def_ast, instanting_c_env, template_args, std::cref( signature_string ) ) ) {
-                        // Already completed...
-                        // maybe, error...
-                        assert( false );
-                        continue;
-                    }
-
-                    // link
-                    instanting_c_env->link_with_ast( class_def_ast );
-                    multiset_env->add_to_instanced_environments( instanting_c_env, signature_string );
-
-                    //
-                    xc.push_back( instanting_c_env );
                 }
 
                 rill_dout << colorize::standard::fg::red
@@ -666,7 +719,7 @@ namespace rill
         auto analyzer::complete_class(
             ast::class_definition_statement_ptr const& s,
             class_symbol_environment_ptr const& c_env,
-            type_detail::template_arg_pointer const& template_args,
+            type_detail::template_args_pointer const& template_args,
             boost::optional<std::reference_wrapper<std::string const>> const& template_signature
             )
             -> bool
@@ -798,7 +851,7 @@ namespace rill
                             assert( template_args->at( 0 ).is_type() );
 
                             auto const& array_element_ty_detail
-                                = static_cast<type_detail_ptr>( template_args->at( 0 ).element );
+                                = template_args->at( 0 ).element.as_type_detail;
                             auto ty = g_env_->get_type_at( array_element_ty_detail->type_id ); // make copy
                             ty.attributes = overlap_empty_attr( ty.attributes, attribute::make_default() );
                             auto const& array_element_type_id = g_env_->make_type_id(
@@ -807,7 +860,7 @@ namespace rill
                                 );
 
                             auto const& array_element_num
-                                = static_cast<std::int32_t const* const>( template_args->at( 1 ).element );
+                                = static_cast<std::int32_t const* const>( template_args->at( 1 ).element.as_value );
 
                             rill_dout << "Array num is " << *array_element_num << std::endl;
                             c_env->make_as_array(
@@ -836,7 +889,7 @@ namespace rill
                             assert( template_args->at( 0 ).is_type() );
 
                             auto const& ptr_element_ty_detail
-                                = static_cast<type_detail_ptr>( template_args->at( 0 ).element );
+                                = template_args->at( 0 ).element.as_type_detail;
                             auto ty = g_env_->get_type_at( ptr_element_ty_detail->type_id ); // make copy
                             ty.attributes = overlap_empty_attr( ty.attributes, attribute::make_default() );
                             auto const& ptr_element_type_id = g_env_->make_type_id(
@@ -866,7 +919,7 @@ namespace rill
 
         auto analyzer::solve_class_candidate(
             multiple_set_environment_ptr const& multiset_env,
-            type_detail::template_arg_pointer const& template_args,
+            type_detail::template_args_pointer const& template_args,
             environment_base_ptr const& parent_env
             )
             -> class_symbol_environment_ptr
@@ -902,12 +955,12 @@ namespace rill
             ast::expression_list const& arguments,
             environment_base_ptr const& parent_env
             )
-            -> type_detail::template_arg_type
+            -> type_detail::template_args_type
         {
             rill_dout << "eval template arguments!!!" << std::endl;
 
             // evaluate template arguments...
-            type_detail::template_arg_type template_args;
+            type_detail::template_args_type template_args;
 
             // TODO: implement
             for( auto const& expression : arguments ) {
@@ -942,7 +995,7 @@ namespace rill
                         auto const& c_env = get_primitive_class_env( "type" );
                         return {
                             argument_ty_detail,
-                            static_cast<type_detail_ptr>( argument_evaled_value ),
+                            { static_cast<type_detail_ptr>( argument_evaled_value ) },
                             dependent_value_kind::k_type,
                             g_env_->make_type_id(
                                 c_env,
@@ -959,7 +1012,7 @@ namespace rill
                         auto const& c_env = get_primitive_class_env( "int8" );
                         return {
                             argument_ty_detail,
-                            argument_evaled_value,
+                            { argument_evaled_value },
                             dependent_value_kind::k_int8,
                             g_env_->make_type_id(
                                 c_env,
@@ -976,7 +1029,7 @@ namespace rill
                         auto const& c_env = get_primitive_class_env( "int" );
                         return {
                             argument_ty_detail,
-                            argument_evaled_value,
+                            { argument_evaled_value },
                             dependent_value_kind::k_int32,
                             g_env_->make_type_id(
                                 c_env,
@@ -992,7 +1045,7 @@ namespace rill
                     {
                         rill_dout << c_env->get_base_name() << std::endl;
                         assert( false && "[[ice]] value parameter was not supported yet" );
-                        return { nullptr, nullptr, dependent_value_kind::k_none };
+                        return { nullptr, { nullptr }, dependent_value_kind::k_none };
                     }
                     } // switch
                 }();
@@ -1234,12 +1287,19 @@ namespace rill
         {
             auto const& arg_type = g_env_->get_type_at( arg_type_detail->type_id );
 
+            rill_dregion {
+                std::cout << " = param" << std::endl;
+                print_type_detail( param_type_detail );
+                std::cout << " = arg" << std::endl;
+                print_type_detail( arg_type_detail );
+            }
+
             if ( param_type_detail->template_args == nullptr ) {
                 // simple type match
                 rill_dout << " ? simple type match" << std::endl;
                 auto const& param_type = g_env_->get_type_at( param_type_detail->type_id );
 
-                if ( param_type.is_incomplete() ) {
+                if ( param_type_detail->is_placeholder ) {
                     // determine this type_detail has a pointer to the template param env
                     rill_dout << " ? : template param" << std::endl;
 
@@ -1247,11 +1307,6 @@ namespace rill
                     assert( r_tv_env != nullptr );
                     assert( r_tv_env->get_symbol_kind() == kind::type_value::e_variable );
                     auto const& template_var_env = std::static_pointer_cast<variable_symbol_environment>( r_tv_env );
-
-                    auto ty_d = reinterpret_cast<type_detail*>(
-                        ctfe_engine_->value_holder()->ref_value( template_var_env->get_id() )
-                        );
-                    assert( ty_d != nullptr );
 
                     auto const new_parameter_val_type_attr
                         = overlap_empty_attr(
@@ -1263,7 +1318,12 @@ namespace rill
                     rill_dout << "new_parameter_val_type_attr: " << new_parameter_val_type_attr << std::endl;
 
                     // update value
+                    auto ty_d = reinterpret_cast<type_detail*>(
+                        ctfe_engine_->value_holder()->ref_value( template_var_env->get_id() )
+                        );
+                    assert( ty_d != nullptr );
                     ty_d->type_id = new_paramater_val_type_id;
+                    ty_d->is_placeholder = false;
 
                     // make "parameter"'s type
                     auto const new_parameter_type_attr
@@ -1284,7 +1344,59 @@ namespace rill
 
             } else {
                 // needs type pattern match
-                assert( false && "currentry, type pattern match was not supported." );
+                // TODO: type check
+                auto const& param_type
+                    = g_env_->get_type_at( param_type_detail->type_id );
+                auto const& param_c_env
+                    = g_env_->get_env_at_as_strong_ref<class_symbol_environment>( param_type.class_env_id );
+                auto const& param_c_multi_env
+                    = param_c_env->get_multiset_env();
+
+                auto const& arg_type
+                    = g_env_->get_type_at( arg_type_detail->type_id );
+                auto const& arg_c_env
+                    = g_env_->get_env_at_as_strong_ref<class_symbol_environment>( arg_type.class_env_id );
+                auto const& arg_c_multi_env
+                    = arg_c_env->get_multiset_env();
+
+                if ( param_c_multi_env->get_id() != arg_c_multi_env->get_id() ) {
+                    assert( false && "error" );
+                }
+
+                if ( arg_type_detail->template_args == nullptr ) {
+                    assert( false && "error" );
+                }
+
+                //
+                std::size_t param_t_arg_index = 0;
+                std::size_t arg_t_arg_index = 0;
+
+                auto& param_t_args = *param_type_detail->template_args;
+                auto& arg_t_args = *arg_type_detail->template_args;
+
+                for(; param_t_arg_index < param_t_args.size(); ++param_t_arg_index ) {
+                    assert( arg_t_arg_index < arg_t_args.size() );
+                    auto const& param_t_arg = param_t_args[param_t_arg_index];
+                    if ( param_t_arg.is_type() ) {
+                        // TODO: check if variadic arg
+                        auto const& arg_t_arg = arg_t_args[arg_t_arg_index];
+                        if ( arg_t_arg.is_type() ) {
+                            infer_param_type_from_arg_type( param_t_arg.element.as_type_detail, arg_t_arg.element.as_type_detail );
+
+                        } else {
+                            assert( false && "error" );
+                        }
+
+                        ++arg_t_arg_index;
+
+                    } else {
+                        ++arg_t_arg_index;
+                        assert( false && "not supported" );
+                    }
+                }
+
+                // force rechecking
+                return nullptr;
             }
 
             return nullptr;
@@ -1617,7 +1729,7 @@ namespace rill
         auto analyzer::instantiate_function_templates(
             multiple_set_environment_ptr const& multiset_env,
             std::vector<type_detail_ptr> const& arg_types,
-            type_detail::template_arg_pointer const& template_args,
+            type_detail::template_args_pointer const& template_args,
             environment_base_ptr const& parent_env,
             boost::optional<std::reference_wrapper<std::vector<environment_base_ptr>>> const& instanced_envs
             )
@@ -1672,22 +1784,29 @@ namespace rill
                     assert( is_succeeded && "" );
                 }
 
+                // make "empty" type details
                 auto const arg_index_until_provided
                     = template_args != nullptr
                     ? template_args->size()
                     : 0;
                 for( std::size_t i=arg_index_until_provided; i<decl_template_var_envs.size(); ++i ) {
+                    // TODO: check value is type OR value
+
                     // assign empty type value
                     rill_dout << "= Assign empty type value / index : " << i << std::endl;
 
                     auto const& template_var_env = decl_template_var_envs.at( i );
 
-                    ctfe_engine_->value_holder()->bind_value(
+                    // environment_id_undetermined
+                    auto const& ty_detail = type_detail_pool_->construct(
+                        g_env_->make_type_id(),     // empty type
+                        template_var_env            // link to template env
+                        );
+                    ty_detail->is_placeholder = true;
+
+                    ctfe_engine_->value_holder()->bind_value_of_type(
                         template_var_env->get_id(),
-                        type_detail_pool_->construct(
-                            g_env_->make_type_id(),     // empty type
-                            template_var_env            // link to template env
-                            )
+                        ty_detail
                         );
                 }
 
@@ -1698,31 +1817,82 @@ namespace rill
                         function_def_ast
                         );
 
-                // type decuce!
+                rill_dregion {
+                    std::cout << "== parameter" << std::endl;
+                    for( std::size_t i=0; i<presetted_param_types.size(); ++i ) {
+                        auto const& param_type = presetted_param_types.at( i );
+                        print_type_detail( param_type );
+                        std::cout << "--------" << std::endl;
+                    }
+                }
+
+                // type deduce!
                 assert( presetted_param_types.size() == arg_types.size() );
                 for( std::size_t i=0; i<presetted_param_types.size(); ++i ) {
-                    rill_dout << "Template arg/param type inference... / index : " << i << std::endl;
+                    rill_dout << "= Infer template arg/param type... / index : " << i << std::endl;
                     auto& param_type = presetted_param_types[i];
                     auto const& arg_type = arg_types[i];
 
-                    auto new_ty_d = infer_param_type_from_arg_type( param_type, arg_type );
-                    rill_dout << " == is_succeeded : " << ( new_ty_d != nullptr ) << std::endl;
-                    if ( new_ty_d == nullptr ) {
-                        // TODO: fail! skip this function instatiation
-                        assert( false && "" );
-                    }
-
-                    // update
-                    param_type = new_ty_d;
+                    //
+                    param_type = infer_param_type_from_arg_type( param_type, arg_type );
                 }
 
-                // TODO: check existance of incomplete template vaiables
+                // TODO: check if class functions
+                // REWRITE: ast parameter nodes
+                auto& s_param = function_def_ast->parameter_list;
+                for( std::size_t i=0; i<presetted_param_types.size(); ++i ) {
+                    rill_dout << "= Complete template arg/param type... / index : " << i << std::endl;
+                    auto& param_type = presetted_param_types[i];
+                    rill_dregion {
+                        std::cout << "-----------" << std::endl;
+                        if ( param_type != nullptr ) {
+                            print_type_detail( param_type );
+
+                        } else {
+                            std::cout << "nullptr" << std::endl;
+                        }
+                        std::cout << "-----------" << std::endl;
+                    }
+
+                    if ( param_type == nullptr ) {
+                        auto cloned = s_param[i];
+                        using std::swap;
+                        swap( s_param[i], cloned );
+
+                        // update
+                        param_type
+                            = make_function_parameters_type_detail(
+                                instanting_f_env,
+                                s_param[i]
+                                );
+
+                        rill_dregion {
+                            assert( param_type != nullptr );
+                            std::cout << "- after ----" << std::endl;
+                            print_type_detail( param_type );
+                            std::cout << "-----------" << std::endl;
+                        }
+
+                    } else {
+                        // assert( false && "not supported" );
+                    }
+                }
+
+                // check existance of incomplete template variables
+                for( auto const& param_type : presetted_param_types ) {
+                    if ( param_type->is_placeholder || param_type->has_placeholder() ) {
+                        assert( false && "error" );
+
+                    } else {
+                        // assert( false && "not supported" );
+                    }
+                }
 
                 // TODO: relocate cache evaluation
                 auto const signature_string
                     = make_template_signature_string( decl_template_var_envs );
 
-                rill_dout << "========================================== !!!!! => " << signature_string << std::endl;
+                rill_dout << "= function signature string ===== !!!!! => " << signature_string << std::endl;
                 if ( auto const& cache = multiset_env->find_instanced_environments( signature_string ) ) {
                     // this function is already instanced, so do nothing
                     // TODO: remove 'instanting_f_env' and function_def_ast
@@ -1834,7 +2004,7 @@ namespace rill
         auto analyzer::solve_function_overload(
             multiple_set_environment_ptr const& set_env,
             std::vector<type_detail_ptr> const& arg_types,
-            type_detail::template_arg_pointer const& template_args,
+            type_detail::template_args_pointer const& template_args,
             ast::expression_ptr const& e,
             environment_base_ptr const& parent_env
             )
@@ -1944,7 +2114,6 @@ namespace rill
                 return o_res_f_envs->at( 0 );
             }
 
-
             return nullptr;
         }
 
@@ -2014,12 +2183,12 @@ namespace rill
             // v. template_argument()
 
             rill_dout << "  ==" << std::endl
-                      << "eval template arguments!!!" << std::endl
+                      << "    eval template arguments!!!" << std::endl
                       << "  ==" << std::endl
                       << std::endl;
 
             // evaluate template arguments
-            type_detail::template_arg_type template_args
+            type_detail::template_args_type template_args
                 = evaluate_template_args(
                     identifier->template_argument(),
                     parent_env
@@ -2027,7 +2196,7 @@ namespace rill
 
             // set evaluated template args
             if ( ty_detail->template_args == nullptr ) {
-                ty_detail->template_args = std::make_shared<type_detail::template_arg_type>();
+                ty_detail->template_args = std::make_shared<type_detail::template_args_type>();
             }
             (*ty_detail->template_args) = std::move( template_args );
 
@@ -2175,7 +2344,7 @@ namespace rill
                             (type_id_t)type_id_nontype::e_template_class,
                             multiset_env,
                             nullptr/*not nested*/,
-                            std::make_shared<type_detail::template_arg_type>()
+                            std::make_shared<type_detail::template_args_type>()
                             );
                         if ( is_captured && is_capture_enabled ) {
                             set_captured_value_info( identifier, found_env, r_ty_d );
@@ -2213,9 +2382,17 @@ namespace rill
                 }
                 assert( v_env->get_type_id() != type_id_undefined );
 
+                // type of this variable
+                auto const& typeid_of_var = v_env->get_type_id();
+                auto const& type_of_var =  g_env_->get_type_at( typeid_of_var );
+                auto const& ty_c_env
+                    = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>( type_of_var.class_env_id );
+
                 auto r_ty_d = type_detail_pool_->construct(
-                    v_env->get_type_id(),
-                    v_env
+                    typeid_of_var,
+                    v_env,
+                    nullptr,    // not nested
+                    ty_c_env->get_template_args()
                     );
                  if ( is_captured && is_capture_enabled ) {
                      set_captured_value_info( identifier, found_env, r_ty_d );
@@ -2377,6 +2554,34 @@ namespace rill
         }
 
 
+        auto analyzer::make_function_parameters_type_detail(
+            function_symbol_environment_ptr const& f_env,
+            ast::variable_declaration const& e
+            )
+            -> type_detail_ptr
+        {
+            assert( e.decl_unit.init_unit.type != nullptr || e.decl_unit.init_unit.initializer != nullptr );
+
+            if ( e.decl_unit.init_unit.type ) {
+                // parameter variavle type is specified
+                return resolve_type(
+                    e.decl_unit.init_unit.type,
+                    e.quality,
+                    f_env,
+                    [&]( type_detail_ptr const& ty_d,
+                         type const& ty,
+                         class_symbol_environment_ptr const& class_env
+                        )
+                    {});
+
+            } else {
+                // type inferenced by result of evaluated [[default initializer expression]]
+
+                // TODO: implement type inference
+                rill_ice( "not implemented" );
+            }
+        }
+
         auto analyzer::make_function_parameters_type_details(
             function_symbol_environment_ptr const& f_env,
             ast::function_definition_statement_base_ptr const& s
@@ -2425,29 +2630,8 @@ namespace rill
             }
 
             // make function parameter variable decl
-            for( auto const& e : s->get_parameter_list() ) {
-                assert( e.decl_unit.init_unit.type != nullptr || e.decl_unit.init_unit.initializer != nullptr );
-
-                if ( e.decl_unit.init_unit.type ) {
-                    // parameter variavle type is specified
-                    resolve_type(
-                        e.decl_unit.init_unit.type,
-                        e.quality,
-                        f_env,
-                        [&]( type_detail_ptr const& ty_d,
-                             type const& ty,
-                             class_symbol_environment_ptr const& class_env
-                            )
-                        {
-                            tx.emplace_back( ty_d );
-                        });
-
-                } else {
-                    // type inferenced by result of evaluated [[default initializer expression]]
-
-                    // TODO: implement type inference
-                    rill_ice( "not implemented" );
-                }
+            for( auto const& e : s->parameter_list ) {
+                tx.emplace_back( make_function_parameters_type_detail( f_env, e ) );
             }
 
             return tx;
@@ -2463,14 +2647,13 @@ namespace rill
             rill_dregion {
                 if ( s->is_class_function() ) {
                     assert( param_types.size() >= 1 );
-                    assert( param_types.size() - 1 == s->get_parameter_list().size() );
+                    assert( param_types.size() - 1 == s->parameter_list.size() );
                 } else {
-                    assert( param_types.size() == s->get_parameter_list().size() );
+                    assert( param_types.size() == s->parameter_list.size() );
                 }
             }
 
-            auto const& params = s->get_parameter_list();
-
+            auto const& params = s->parameter_list;
             for( std::size_t i=0, pi=0; i<param_types.size(); ++i ) {
                 auto const& ty_id = param_types.at( i )->type_id;
 
@@ -2507,10 +2690,8 @@ namespace rill
             )
             -> void
         {
-            auto const& param_tyx = make_function_parameters_type_details(
-                f_env,
-                s
-                );
+            auto const& param_tyx
+                = make_function_parameters_type_details( f_env, s );
 
             declare_function_parameters_from_list( f_env, s, param_tyx );
         }
@@ -2671,6 +2852,7 @@ namespace rill
                      type const& ty,
                      class_symbol_environment_ptr const& class_env
                     ) {
+                    assert( class_env != nullptr );
                     rill_dout << "CONSTRUCTING type >> " << class_env->get_base_name() << std::endl;
 
                     // find constructor

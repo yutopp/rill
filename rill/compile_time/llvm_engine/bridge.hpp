@@ -13,7 +13,7 @@
 #include <string>
 
 #include "../../semantic_analysis/analyzer_fwd.hpp"
-#include "../../semantic_analysis/type_detail.hpp"
+#include "../../type/type_detail.hpp"
 
 
 namespace rill
@@ -45,20 +45,20 @@ namespace rill
 
 
 extern "C" {
-    auto rill_core_typesystem_mutable( rill::semantic_analysis::type_detail_ptr ty_detail )
-        -> rill::semantic_analysis::type_detail_ptr;
+    auto rill_core_typesystem_mutable( rill::type_detail_ptr ty_detail )
+        -> rill::type_detail_ptr;
 
-    auto rill_core_typesystem_const( rill::semantic_analysis::type_detail_ptr ty_detail )
-        -> rill::semantic_analysis::type_detail_ptr;
+    auto rill_core_typesystem_const( rill::type_detail_ptr ty_detail )
+        -> rill::type_detail_ptr;
 
-    auto rill_core_typesystem_immutable( rill::semantic_analysis::type_detail_ptr ty_detail )
-        -> rill::semantic_analysis::type_detail_ptr;
+    auto rill_core_typesystem_immutable( rill::type_detail_ptr ty_detail )
+        -> rill::type_detail_ptr;
 
-    auto rill_core_typesystem_ref( rill::semantic_analysis::type_detail_ptr ty_detail )
-        -> rill::semantic_analysis::type_detail_ptr;
+    auto rill_core_typesystem_ref( rill::type_detail_ptr ty_detail )
+        -> rill::type_detail_ptr;
 
 
-    auto rill_core_typesystem_is_mutable( rill::semantic_analysis::type_detail_ptr ty_detail )
+    auto rill_core_typesystem_is_mutable( rill::type_detail_ptr ty_detail )
         -> bool;
 }
 

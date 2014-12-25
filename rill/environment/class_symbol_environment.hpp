@@ -16,6 +16,7 @@
 #include <utility>
 
 #include "../config/macros.hpp"
+#include "../type/type_detail.hpp"
 
 #include "environment_base.hpp"
 #include "class_symbol_builtin_kind.hpp"
@@ -64,6 +65,7 @@ namespace rill
             , base_name_( base_name )
             , decl_attr_( attribute::decl::k_default )
             , builtin_kind_( class_builtin_kind::k_none )
+            , template_args_( nullptr )
             , host_align_( std::numeric_limits<std::size_t>::max() )
             , host_size_( std::numeric_limits<std::size_t>::max() )
             , target_align_( std::numeric_limits<std::size_t>::max() )
@@ -144,6 +146,11 @@ namespace rill
         {
             os  << indent << "class_symbol_environment" << std::endl;
             return dump_include_env( os, indent );
+        }
+
+        auto get_multiset_env()
+        {
+            return multiset_env_ptr_.lock();
         }
 
     public:
@@ -267,6 +274,18 @@ namespace rill
             return target_size_;
         }
 
+        auto set_template_args( type_detail::template_args_pointer const& p )
+            -> void
+        {
+            template_args_ = p;
+        }
+
+        auto get_template_args() const
+            -> decltype(auto)
+        {
+            return (template_args_);
+        }
+
     private:
         weak_multiple_set_environment_ptr multiset_env_ptr_;
 
@@ -276,6 +295,7 @@ namespace rill
 
         std::shared_ptr<array_detail> array_detail_;
         std::shared_ptr<pointer_detail> pointer_detail_;
+        type_detail::template_args_pointer template_args_;
 
         std::size_t host_align_, host_size_;
         std::size_t target_align_, target_size_;

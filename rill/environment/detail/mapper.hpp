@@ -35,14 +35,11 @@ namespace rill
         {
             assert( ast_ptr != nullptr );
 
-            if ( map_.find( ast_ptr->get_id() ) != map_.cend() ) {
-                rill_dout << "Already mapped... :: env id -> " << map_.at( ast_ptr->get_id() )->get_id() << std::endl;
-                return;
+            auto p = map_.emplace( ast_ptr->get_id(), env_ptr );
+            if ( !std::get<1>( p ) ) {
+                // already exist, overwrite
+                map_.insert( std::make_pair( ast_ptr->get_id(), env_ptr ) );
             }
-
-            map_.emplace( ast_ptr->get_id(), env_ptr );
-            //map_[ast_ptr.get()] = env_ptr;
-            assert( map_.at( ast_ptr->get_id() ) == env_ptr && "tried to reassign" );
         }
 
         template<typename SmartPtr>

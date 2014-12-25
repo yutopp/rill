@@ -137,7 +137,7 @@ namespace rill
             variable_declaration_unit decl_unit;
         };
 
-        typedef std::vector<variable_declaration> parameter_list;
+        typedef std::vector<variable_declaration> parameter_list_t;
 
         // } // namespace element
         namespace element

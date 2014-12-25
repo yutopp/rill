@@ -21,7 +21,7 @@
 
 #include "../../code_generator/llvm_ir_generator.hpp"
 #include "../../code_generator/llvm_engine/support.hpp"
-#include "../../semantic_analysis/type_detail.hpp"
+#include "../../type/type_detail.hpp"
 
 #include "engine_value_holder.hpp"
 
@@ -44,7 +44,7 @@ namespace rill
                     global_environment_ptr const&,
                     std::shared_ptr<code_generator::llvm_ir_generator> const&,
                     std::shared_ptr<llvm::ExecutionEngine> const&,
-                    std::shared_ptr<semantic_analysis::type_detail_pool_t> const&
+                    std::shared_ptr<type_detail_pool_t> const&
                     );
 
             public:
@@ -113,7 +113,7 @@ namespace rill
                 std::shared_ptr<llvm::ExecutionEngine> execution_engine_;
 
                 std::shared_ptr<engine_value_holder> value_holder_;
-                std::shared_ptr<semantic_analysis::type_detail_pool_t> type_detail_pool_;
+                std::shared_ptr<type_detail_pool_t> type_detail_pool_;
 
                 std::unordered_set<std::string> mapped_intrinsic_function_names_;
                 std::size_t mapped_intrinsic_functions_num_ = 0;
