@@ -20,7 +20,7 @@ namespace rill
         namespace llvm_engine
         {
             auto make_dynamic_storage( std::size_t const& size, std::size_t const& align )
-                -> std::shared_ptr<char>
+                -> storage_ptr
             {
                 // calculate enough memory size
                 auto const raw_buffer_size = ( size + ( RILL_MAX_ALIGN - 1 ) ) / RILL_MAX_ALIGN;

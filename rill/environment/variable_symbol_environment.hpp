@@ -26,6 +26,7 @@
 
 #include "environment_base.hpp"
 #include "global_environment.hpp"
+#include "attributes_mixin.hpp"
 
 
 namespace rill
@@ -34,7 +35,7 @@ namespace rill
     // variable
     //
     class variable_symbol_environment RILL_CXX11_FINAL
-        : public environment_base
+        : public environment_base, public attributes_mixin
     {
     public:
         static kind::type_value const KindValue;
@@ -48,7 +49,6 @@ namespace rill
             , parent_class_env_id_( environment_id_undefined )
             , value_type_id_( type_id_undefined )
             , name_( name )
-            , decl_attr_( attribute::decl::k_default )
         {}
 
     public:
@@ -113,21 +113,6 @@ namespace rill
             return parent_class_env_id_ != environment_id_undefined;
         }
 
-        bool has_attribute( attribute::decl::type const& attribute ) const
-        {
-            return ( decl_attr_ & attribute  ) != 0;
-        }
-
-        void set_attribute( attribute::decl::type const& attribute )
-        {
-            decl_attr_ |= attribute;
-        }
-
-        void unset_attribute( attribute::decl::type const& attribute )
-        {
-            decl_attr_ ^= attribute;
-        }
-
     private:
         // used when this environment is member variable
         environment_id_t parent_class_env_id_;
@@ -135,7 +120,6 @@ namespace rill
         type_id_t value_type_id_;
 
         native_string_type name_;
-        attribute::decl::type decl_attr_;
     };
 
 } // namespace rill

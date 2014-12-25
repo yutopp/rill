@@ -236,12 +236,17 @@ namespace rill
             , action_holder_( holder )
             , system_info_( sys_info )
             , type_detail_pool_( std::make_shared<type_detail_pool_t>() )
+            , raw_value_holder_pool_( std::make_shared<raw_value_holder_pool_t>() )
             , type_detail_factory_(
-                std::make_shared<type_detail_factory>( g_env, type_detail_pool_ )
+                std::make_shared<type_detail_factory>(
+                    g_env,
+                    type_detail_pool_,
+                    raw_value_holder_pool_
+                    )
                 )
             , ctfe_engine_(
                 compile_time::llvm_engine::make_ctfe_engine(
-                    this, g_env, holder, type_detail_pool_
+                    this, g_env, holder, type_detail_factory_
                     )
                 )
         {
@@ -310,6 +315,19 @@ namespace rill
                 );
         }
 
+        auto analyzer::detect_eval_mode( attributes_mixin const& m ) const
+            -> type_detail::evaluate_mode
+        {
+            if ( m.has_attribute( attribute::decl::k_onlymeta ) ) {
+                return type_detail::evaluate_mode::k_only_meta;
+
+            } else if ( m.has_attribute( attribute::decl::k_meta ) ) {
+                return type_detail::evaluate_mode::k_meta;
+
+            } else {
+                return type_detail::evaluate_mode::k_runtime;
+            }
+        }
 
         auto analyzer::declare_template_parameter_variables(
             ast::parameter_list_t const& template_parameters,
@@ -353,7 +371,7 @@ namespace rill
                                     template_parameter.decl_unit.name
                                     );
                             // TODO: link with ptr to ast
-                            v_env->complete( ty_d->type_id );
+                            v_env->complete( ty_d->type_id, attribute::decl::k_meta );
 
                             declared_envs[i] = v_env;
                         });
@@ -417,6 +435,7 @@ namespace rill
                     std::cout << " - has template args - : " << td->template_args->size() << std::endl;
                     for( auto&& arg : *td->template_args ) {
                         print_dependent_type( arg );
+                        std::cout << "--" << std::endl;
                     }
 
                 } else {
@@ -454,8 +473,16 @@ namespace rill
                 }
 
             } else {
-                // TODO: placeholder check
-                rill_dout << "value: " << std::endl;
+                rill_dout << "** depend / value: inner value |" << std::endl;
+                auto const& v_holder
+                    = dt.element.as_value_holder;
+
+                if ( v_holder->is_placeholder ) {
+                    rill_dout << "** depend / placeholder [value]" << std::endl;
+
+                } else {
+                    rill_dout << "** value: " << std::endl;
+                }
             }
         }
 
@@ -524,7 +551,7 @@ namespace rill
                 } else {
                     ctfe_engine_->value_holder()->bind_value(
                         template_var_env->get_id(),
-                        template_arg.element.as_value
+                        template_arg.element.as_value_holder
                         );
                 }
             }
@@ -571,8 +598,10 @@ namespace rill
 
                 case class_builtin_kind::k_int32:
                 {
+                    auto const& raw_value_holder
+                        = static_cast<raw_value_holder_ptr>( evaled_value );
                     auto const& num
-                        = static_cast<std::int32_t const* const>( evaled_value );
+                        = static_cast<std::int32_t const* const>( raw_value_holder->ptr_to_raw_value.get() );
                     s += "I32/";
                     s += std::to_string( *num );
 
@@ -647,6 +676,12 @@ namespace rill
                         parent_env
                         );
                 assert( is_succeeded && "" );
+
+                // TODO: support variadic templates
+                if ( template_args->size() != decl_template_var_envs.size() ) {
+                    assert( false && "error: length of template parameters are different" );
+                    continue;
+                }
 
                 //
                 bool has_placeholder = false;
@@ -860,13 +895,16 @@ namespace rill
                                 );
 
                             auto const& array_element_num
-                                = static_cast<std::int32_t const* const>( template_args->at( 1 ).element.as_value );
+                                = static_cast<std::int32_t const* const>(
+                                    template_args->at( 1 ).element.as_value_holder->ptr_to_raw_value.get()
+                                    );
 
                             rill_dout << "Array num is " << *array_element_num << std::endl;
                             c_env->make_as_array(
                                 array_element_type_id,
                                 *array_element_num
                                 );
+                            c_env->set_template_args( template_args );
 
                             // TODO: set kind
                             // class_traits_kind::k_has_non_trivial_copy_ctor;
@@ -899,6 +937,7 @@ namespace rill
 
                             rill_dout << "This is ptr!" << std::endl;
                             c_env->make_as_pointer( ptr_element_type_id );
+                            c_env->set_template_args( template_args );
                         }
 
                     } else {
@@ -945,10 +984,6 @@ namespace rill
             // TODO: fix
             return xc[0];
         }
-
-
-
-
 
 
         auto analyzer::evaluate_template_args(
@@ -1012,7 +1047,7 @@ namespace rill
                         auto const& c_env = get_primitive_class_env( "int8" );
                         return {
                             argument_ty_detail,
-                            { argument_evaled_value },
+                            { static_cast<raw_value_holder_ptr>( argument_evaled_value ) },
                             dependent_value_kind::k_int8,
                             g_env_->make_type_id(
                                 c_env,
@@ -1029,7 +1064,7 @@ namespace rill
                         auto const& c_env = get_primitive_class_env( "int" );
                         return {
                             argument_ty_detail,
-                            { argument_evaled_value },
+                            { static_cast<raw_value_holder_ptr>( argument_evaled_value ) },
                             dependent_value_kind::k_int32,
                             g_env_->make_type_id(
                                 c_env,
@@ -1281,7 +1316,8 @@ namespace rill
 
         auto analyzer::infer_param_type_from_arg_type(
             type_detail_ptr const param_type_detail,
-            const_type_detail_ptr const arg_type_detail
+            const_type_detail_ptr const arg_type_detail,
+            environment_base_ptr const& parent_env
             )
             -> type_detail_ptr
         {
@@ -1374,14 +1410,25 @@ namespace rill
                 auto& param_t_args = *param_type_detail->template_args;
                 auto& arg_t_args = *arg_type_detail->template_args;
 
+                //
                 for(; param_t_arg_index < param_t_args.size(); ++param_t_arg_index ) {
                     assert( arg_t_arg_index < arg_t_args.size() );
                     auto const& param_t_arg = param_t_args[param_t_arg_index];
+                    auto const& arg_t_arg = arg_t_args[arg_t_arg_index];
+
                     if ( param_t_arg.is_type() ) {
+                        if ( !param_t_arg.element.as_type_detail->is_placeholder ) {
+                            ++arg_t_arg_index;
+                            continue;
+                        }
+
                         // TODO: check if variadic arg
-                        auto const& arg_t_arg = arg_t_args[arg_t_arg_index];
                         if ( arg_t_arg.is_type() ) {
-                            infer_param_type_from_arg_type( param_t_arg.element.as_type_detail, arg_t_arg.element.as_type_detail );
+                            infer_param_type_from_arg_type(
+                                param_t_arg.element.as_type_detail,
+                                arg_t_arg.element.as_type_detail,
+                                parent_env
+                                );
 
                         } else {
                             assert( false && "error" );
@@ -1390,6 +1437,43 @@ namespace rill
                         ++arg_t_arg_index;
 
                     } else {
+                        if ( !param_t_arg.element.as_value_holder->is_placeholder ) {
+                            ++arg_t_arg_index;
+                            continue;
+                        }
+
+                        RILL_PP_TIE( level, conv_function_env,
+                                     try_type_conversion(
+                                         param_t_arg.type_id,
+                                         arg_t_arg.type_id,
+                                         parent_env
+                                         )
+                            );
+
+                        // TODO: error handling
+                        switch( level ) {
+                        case function_match_level::k_exact_match:
+                            rill_dout << "Exact" << std::endl;
+                            break;
+                        case function_match_level::k_qualifier_conv_match:
+                            rill_dout << "Qual" << std::endl;
+                            break;
+                        case function_match_level::k_implicit_conv_match:
+                            rill_dout << "Implicit" << std::endl;
+                            break;
+                        case function_match_level::k_no_match:
+                            rill_dout << "NoMatch" << std::endl;
+                            break;
+                        }
+/*
+                        // update value
+                        auto val_holder = reinterpret_cast<raw_value_holder_ptr>(
+                            ctfe_engine_->value_holder()->ref_value( template_var_env->get_id() )
+                            );
+                        assert( val_holder != nullptr );
+                        val_holder->ptr_to_raw_value = arg_t_arg.element.as_value_holder->ptr_to_raw_value;
+                        val_holder->is_placeholder = false;
+*/
                         ++arg_t_arg_index;
                         assert( false && "not supported" );
                     }
@@ -1653,10 +1737,12 @@ namespace rill
                                      )
                         );
 
-                    rill_dout << ": from" << std::endl;
-                    print_type( arg_type_id );
-                    rill_dout << ": to" << std::endl;
-                    print_type( param_type_id );
+                    rill_dregion {
+                        std::cout << ": from" << std::endl;
+                        print_type( arg_type_id );
+                        std::cout << ": to" << std::endl;
+                        print_type( param_type_id );
+                    }
 
                     switch( level ) {
                     case function_match_level::k_exact_match:
@@ -1784,30 +1870,33 @@ namespace rill
                     assert( is_succeeded && "" );
                 }
 
-                // make "empty" type details
+                // make "empty" template parameters' values
+                auto const& type_class_env = get_primitive_class_env( "type" );
                 auto const arg_index_until_provided
                     = template_args != nullptr
                     ? template_args->size()
                     : 0;
                 for( std::size_t i=arg_index_until_provided; i<decl_template_var_envs.size(); ++i ) {
-                    // TODO: check value is type OR value
-
-                    // assign empty type value
-                    rill_dout << "= Assign empty type value / index : " << i << std::endl;
-
                     auto const& template_var_env = decl_template_var_envs.at( i );
+                    if ( template_var_env->get_type().class_env_id == type_class_env->get_id() ) {
+                        // assign empty type value
+                        rill_dout << "= Assign empty type value / index : " << i << std::endl;
 
-                    // environment_id_undetermined
-                    auto const& ty_detail = type_detail_pool_->construct(
-                        g_env_->make_type_id(),     // empty type
-                        template_var_env            // link to template env
-                        );
-                    ty_detail->is_placeholder = true;
+                        // environment_id_undetermined
+                        auto const& ty_detail = type_detail_pool_->construct(
+                            g_env_->make_type_id(),     // empty type
+                            template_var_env            // link to template env
+                            );
+                        ty_detail->is_placeholder = true;
 
-                    ctfe_engine_->value_holder()->bind_value_of_type(
-                        template_var_env->get_id(),
-                        ty_detail
-                        );
+                        ctfe_engine_->value_holder()->bind_value_of_type(
+                            template_var_env->get_id(),
+                            ty_detail
+                            );
+
+                    } else {
+                        assert( false );
+                    }
                 }
 
                 //
@@ -1834,7 +1923,8 @@ namespace rill
                     auto const& arg_type = arg_types[i];
 
                     //
-                    param_type = infer_param_type_from_arg_type( param_type, arg_type );
+                    param_type
+                        = infer_param_type_from_arg_type( param_type, arg_type, parent_env );
                 }
 
                 // TODO: check if class functions
@@ -2391,13 +2481,15 @@ namespace rill
                 auto r_ty_d = type_detail_pool_->construct(
                     typeid_of_var,
                     v_env,
-                    nullptr,    // not nested
-                    ty_c_env->get_template_args()
+                    nullptr,        // not nested
+                    ty_c_env->get_template_args(),
+                    false,          // not xvalue
+                    detect_eval_mode( *v_env )
                     );
-                 if ( is_captured && is_capture_enabled ) {
-                     set_captured_value_info( identifier, found_env, r_ty_d );
-                 }
-                 return r_ty_d;
+                if ( is_captured && is_capture_enabled ) {
+                    set_captured_value_info( identifier, found_env, r_ty_d );
+                }
+                return r_ty_d;
             }
 
 
@@ -2623,8 +2715,8 @@ namespace rill
                         nullptr,    // unused
                         nullptr,    // unused
                         nullptr,    // unused
-                        false,       // xvalue
-                        type_detail::evaluate_mode::k_everytime // TODO: fix
+                        false,      // xvalue
+                        type_detail::evaluate_mode::k_runtime // TODO: fix
                         )
                     );
             }
@@ -2778,7 +2870,10 @@ namespace rill
             -> type_detail_ptr
         {
             auto val_ty_d = dispatch( expr, parent_env );
-            if ( val_ty_d->eval_mode == type_detail::evaluate_mode::k_only_compiletime ) {
+            if ( val_ty_d->eval_mode == type_detail::evaluate_mode::k_meta
+                 || val_ty_d->eval_mode == type_detail::evaluate_mode::k_only_meta
+                )
+            {
                 // replace expr
                 substitute_by_ctfed_node( expr, val_ty_d, parent_env );
             }
@@ -2890,21 +2985,13 @@ namespace rill
                     assert( function_env != nullptr );
                     function_env->connect_from_ast( e );
 
-                    auto const eval_mode = [&]() {
-                        if ( function_env->has_attribute( attribute::decl::k_onlymeta ) ) {
-                            return type_detail::evaluate_mode::k_only_compiletime;
-                        } else {
-                            return type_detail::evaluate_mode::k_everytime;
-                        }
-                    }();
-
                     b_ty_d = type_detail_pool_->construct(
                         return_ty_d->type_id,
                         function_env,
                         nullptr,    // nullptr
                         nullptr,    // nullptr
                         true,
-                        eval_mode
+                        detect_eval_mode( *function_env )
                         );
 
                     // substitute expression
@@ -3085,13 +3172,6 @@ namespace rill
                 auto const& ty = g_env_->get_type_at( tid );
                 return ty.attributes.quality == attribute::holder_kind::k_val;
             }();
-            auto const eval_mode = [&]() {
-                if ( function_env->has_attribute( attribute::decl::k_onlymeta ) ) {
-                    return type_detail::evaluate_mode::k_only_compiletime;
-                } else {
-                    return type_detail::evaluate_mode::k_everytime;
-                }
-            }();
 
             return bind_type(
                 e,
@@ -3101,7 +3181,7 @@ namespace rill
                     nullptr,    // nullptr
                     nullptr,    // nullptr
                     is_xvalue,
-                    eval_mode
+                    detect_eval_mode( *function_env )
                     )
                 );
         }

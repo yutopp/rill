@@ -16,8 +16,10 @@
 namespace rill
 {
     struct type_detail;
+    struct raw_value_holder;
 
     using type_detail_pool_t = boost::object_pool_workarounded<type_detail>;
+    using raw_value_holder_pool_t = boost::object_pool_workarounded<raw_value_holder>;
 
 } // namespace rill
 

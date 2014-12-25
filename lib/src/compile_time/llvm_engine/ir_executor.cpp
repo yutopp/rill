@@ -7,7 +7,6 @@
 //
 
 #include <rill/compile_time/llvm_engine/ir_executor.hpp>
-#include <rill/compile_time/llvm_engine/value_storage.hpp>
 #include <rill/compile_time/llvm_engine/value_converter.hpp>
 #include <rill/compile_time/llvm_engine/engine_value_holder.hpp>
 #include <rill/compile_time/llvm_engine/bridge.hpp>
@@ -50,24 +49,14 @@ namespace rill
                 global_environment_ptr const& g_env,
                 std::shared_ptr<code_generator::llvm_ir_generator> const& generator,
                 std::shared_ptr<llvm::ExecutionEngine> const& execution_engine,
-                std::shared_ptr<type_detail_pool_t> const& type_detail_pool
+                std::shared_ptr<type_detail_factory> const& type_detail_factory
                 )
                 : g_env_( g_env )
                 , ir_generator_( generator )
                 , execution_engine_( execution_engine )
                 , value_holder_( std::make_shared<engine_value_holder>() )
-                , type_detail_pool_( type_detail_pool )
+                , type_detail_factory_( type_detail_factory )
             {}
-
-
-            auto ir_executor::make_storage( std::size_t const& size, std::size_t const& align ) const
-                -> void*
-            {
-                auto storage = make_dynamic_storage( size, align );
-                value_holder_->bind_as_temporary( storage );
-
-                return storage.get();
-            }
 
             auto ir_executor::eval_args(
                 ast::expression_list const& arguments,
@@ -310,7 +299,7 @@ namespace rill
 
             RILL_VISITOR_READONLY_OP( ir_executor, ast::evaluated_type_expression, e, parent_env )
             {
-                return type_detail_pool_->construct(
+                return type_detail_factory_->construct_type_detail(
                     e->type_id,
                     nullptr //variable_env
                     );
@@ -375,9 +364,9 @@ namespace rill
                                   << " - type id  : " << type_id << std::endl;
                     }
 
-                    return type_detail_pool_->construct(
+                    return type_detail_factory_->construct_type_detail(
                         type_id,
-                        nullptr //variable_env
+                        id_env  //variable_env
                         );
                 }
 
@@ -448,7 +437,7 @@ namespace rill
                                   << " - type id  : " << type_id << std::endl;
                     }
 
-                    return type_detail_pool_->construct(
+                    return type_detail_factory_->construct_type_detail(
                         type_id,
                         nullptr //variable_env
                         );

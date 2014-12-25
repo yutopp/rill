@@ -124,7 +124,10 @@ namespace rill
         RILL_VISITOR_OP( analyzer, ast::expression_statement, s, parent_env )
         {
             auto const& ty_d = dispatch( s->expression_, parent_env );
-            if ( ty_d->eval_mode == type_detail::evaluate_mode::k_only_compiletime ) {
+            if ( ty_d->eval_mode == type_detail::evaluate_mode::k_only_meta
+                 || ty_d->eval_mode == type_detail::evaluate_mode::k_meta
+                )
+            {
                 substitute_by_ctfed_node( s->expression_, ty_d, parent_env );
             }
 

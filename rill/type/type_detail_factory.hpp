@@ -14,6 +14,7 @@
 #include "../environment/environment_base.hpp"
 #include "../environment/global_environment.hpp"
 #include "type_detail_pool_t.hpp"
+#include "type_detail.hpp"
 
 
 namespace rill
@@ -23,10 +24,12 @@ namespace rill
     public:
         type_detail_factory(
             global_environment_ptr const& g_env,
-            std::shared_ptr<type_detail_pool_t> const& pool
+            std::shared_ptr<type_detail_pool_t> const& pool,
+            std::shared_ptr<raw_value_holder_pool_t> const& b_pool
             )
             : g_env_( g_env )
             , pool_( pool )
+            , b_pool_( b_pool )
         {}
 
     public:
@@ -46,9 +49,22 @@ namespace rill
                 );
         }
 
+        template<typename... Args>
+        auto construct_type_detail( Args&&... args )
+        {
+            return pool_->construct( std::forward<Args>( args )... );
+        }
+
+        template<typename... Args>
+        auto construct_raw_value_holder( Args&&... args )
+        {
+            return b_pool_->construct( std::forward<Args>( args )... );
+        }
+
     private:
         global_environment_ptr g_env_;
         std::shared_ptr<type_detail_pool_t> pool_;
+        std::shared_ptr<raw_value_holder_pool_t> b_pool_;
     };
 
 } // namespace rill

@@ -32,10 +32,10 @@ namespace rill
                     global_environment_ptr const& g_env,
                     std::shared_ptr<code_generator::llvm_ir_generator> const& gen,
                     std::shared_ptr<llvm::ExecutionEngine> const& llvm_engine,
-                    std::shared_ptr<type_detail_pool_t> const& type_pool,
+                    std::shared_ptr<type_detail_factory> const& type_factory,
                     semantic_analysis::analyzer* const sa
                     )
-                    : executor_( g_env, gen, llvm_engine, type_pool )
+                    : executor_( g_env, gen, llvm_engine, type_factory )
                 {
                     jit_execution_environmant const je = {
                         sa
@@ -111,7 +111,7 @@ namespace rill
                 // TODO: fix it...
                 // create module
                 // it has no owner ship..., because the custom deleter does NOT delete resource.
-                std::shared_ptr<llvm::Module> module( new llvm::Module( "rill", llvm::getGlobalContext() ), []( llvm::Module* ){} );
+                std::shared_ptr<llvm::Module> module( new llvm::Module( "rill_ctfe", llvm::getGlobalContext() ), []( llvm::Module* ){} );
 
                 // create llvm_ir_generator
                 auto const& context

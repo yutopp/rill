@@ -21,6 +21,7 @@
 
 #include "../ast/visitor.hpp"
 #include "../environment/environment_base.hpp"
+#include "../environment/attributes_mixin.hpp"
 #include "../behavior/intrinsic_action_holder_fwd.hpp"
 
 #include "../compile_time/llvm_engine/ctfe_engine.hpp"
@@ -265,7 +266,8 @@ namespace rill
 
             auto infer_param_type_from_arg_type(
                 type_detail_ptr,
-                const_type_detail_ptr
+                const_type_detail_ptr,
+                environment_base_ptr const& parent_env
                 )
                 -> type_detail_ptr;
 
@@ -559,13 +561,18 @@ namespace rill
             auto get_primitive_class_env( std::string const& type_name )
                 -> class_symbol_environment_ptr;
 
+            auto detect_eval_mode( attributes_mixin const& m ) const
+                -> type_detail::evaluate_mode;
+
         private:
             global_environment_ptr g_env_;
             intrinsic_action_holder_ptr action_holder_;
             abstract_system_info system_info_;
 
             std::shared_ptr<type_detail_pool_t> type_detail_pool_;
+            std::shared_ptr<raw_value_holder_pool_t> raw_value_holder_pool_;
             std::shared_ptr<type_detail_factory> type_detail_factory_;
+
             std::shared_ptr<compile_time::llvm_engine::ctfe_engine> ctfe_engine_;
 
         private:

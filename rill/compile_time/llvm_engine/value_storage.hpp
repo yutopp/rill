@@ -20,8 +20,10 @@ namespace rill
     {
         namespace llvm_engine
         {
+            using storage_ptr = std::shared_ptr<void>;
+
             auto make_dynamic_storage( std::size_t const& size, std::size_t const& align )
-                -> std::shared_ptr<char>;
+                -> storage_ptr;
 
         } // namespace llvm_engine
     } // namespace compile_time

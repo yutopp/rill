@@ -26,6 +26,7 @@
 
 #include "environment_base.hpp"
 #include "global_environment.hpp"
+#include "attributes_mixin.hpp"
 #include "../behavior/intrinsic_action_holder_fwd.hpp"
 
 
@@ -36,7 +37,7 @@ namespace rill
     // per a function
     //
     class function_symbol_environment RILL_CXX11_FINAL
-        : public environment_base
+        : public environment_base, public attributes_mixin
     {
     public:
         static kind::type_value const KindValue;
@@ -51,7 +52,6 @@ namespace rill
             : environment_base( std::move( pp ) )
             , multiset_env_ptr_( multiset_env_ptr )
             , base_name_( base_name )
-            , decl_attr_( attribute::decl::k_default )
             , return_type_id_( type_id_undefined )
             , is_initializer_function_( false )
         {}
@@ -142,21 +142,6 @@ namespace rill
             return return_type_id_ != type_id_undefined;
         }
 
-        bool has_attribute( attribute::decl::type const& attribute ) const
-        {
-            return ( decl_attr_ & attribute  ) != 0;
-        }
-
-        void set_attribute( attribute::decl::type const& attribute )
-        {
-            decl_attr_ |= attribute;
-        }
-
-        void unset_attribute( attribute::decl::type const& attribute )
-        {
-            decl_attr_ ^= attribute;
-        }
-
         void mark_as_initialize_function()
         {
             is_initializer_function_ = true;
@@ -206,7 +191,6 @@ namespace rill
         weak_multiple_set_environment_ptr multiset_env_ptr_;
 
         native_string_type base_name_, mangled_name_;
-        attribute::decl::type decl_attr_;
 
         // parameter variable environments
         environment_id_list_t parameter_decl_ids_;

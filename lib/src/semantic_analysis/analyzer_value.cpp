@@ -95,7 +95,7 @@ namespace rill
                     nullptr,    // unused
                     nullptr,    // unused
                     true,       // xvalue
-                    type_detail::evaluate_mode::k_everytime
+                    type_detail::evaluate_mode::k_runtime
                     )
                 );
         }
@@ -114,7 +114,7 @@ namespace rill
                     nullptr,    // unused
                     nullptr,    // unused
                     true,       // xvalue
-                    type_detail::evaluate_mode::k_everytime
+                    type_detail::evaluate_mode::k_runtime
                     )
                 );
         }
@@ -133,7 +133,7 @@ namespace rill
                     nullptr,    // unused
                     nullptr,    // unused
                     true,       // xvalue
-                    type_detail::evaluate_mode::k_everytime
+                    type_detail::evaluate_mode::k_runtime
                     )
                 );
         }

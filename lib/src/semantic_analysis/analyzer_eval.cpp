@@ -166,8 +166,12 @@ namespace rill
 
                 case class_builtin_kind::k_bool:
                 {
+                    auto const& value_holder
+                        = static_cast<raw_value_holder_ptr>( evaled_value );
                     auto const& inner
-                        = static_cast<bool const*>( evaled_value );
+                        = static_cast<bool const*>(
+                            value_holder->ptr_to_raw_value.get()
+                            );
 
                     return std::make_shared<ast::term_expression>(
                         std::make_shared<ast::intrinsic::boolean_value>(
@@ -178,8 +182,12 @@ namespace rill
 
                 case class_builtin_kind::k_int32:
                 {
+                    auto const& value_holder
+                        = static_cast<raw_value_holder_ptr>( evaled_value );
                     auto const& inner
-                        = static_cast<std::int32_t const*>( evaled_value );
+                        = static_cast<std::int32_t const*>(
+                            value_holder->ptr_to_raw_value.get()
+                            );
 
                     return std::make_shared<ast::term_expression>(
                         std::make_shared<ast::intrinsic::int32_value>(

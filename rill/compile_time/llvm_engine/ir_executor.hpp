@@ -21,9 +21,11 @@
 
 #include "../../code_generator/llvm_ir_generator.hpp"
 #include "../../code_generator/llvm_engine/support.hpp"
+#include "../../type/type_detail_factory.hpp"
 #include "../../type/type_detail.hpp"
 
 #include "engine_value_holder.hpp"
+#include "value_storage.hpp"
 
 
 namespace rill
@@ -33,7 +35,7 @@ namespace rill
         namespace llvm_engine
         {
             // this class holds llvm_ir_generator and llvm_ir_execute_engine
-            class ir_executor RILL_CXX11_FINAL
+            class ir_executor final
                 : public ast::readonly_ast_visitor<ir_executor, void*>
             {
                 friend code_generator::llvm_ir_generator;
@@ -44,7 +46,7 @@ namespace rill
                     global_environment_ptr const&,
                     std::shared_ptr<code_generator::llvm_ir_generator> const&,
                     std::shared_ptr<llvm::ExecutionEngine> const&,
-                    std::shared_ptr<type_detail_pool_t> const&
+                    std::shared_ptr<type_detail_factory> const&
                     );
 
             public:
@@ -75,17 +77,16 @@ namespace rill
                 }
 
             private:
-                auto make_storage( std::size_t const& size, std::size_t const& align ) const
-                    -> void*;
-
                 template<typename T,typename... Args>
                 auto make_object( Args&&... args ) const
-                    -> void*
+                    -> raw_value_holder*
                 {
-                    auto storage = make_storage( sizeof( T ), alignof( T ) );
-                    new( storage ) T( std::forward<Args>( args )... );
+                    auto storage = make_dynamic_storage( sizeof( T ), alignof( T ) );
+                    new( storage.get() ) T( std::forward<Args>( args )... );
 
-                    return storage;
+                    return type_detail_factory_->construct_raw_value_holder(
+                        storage
+                        );
                 }
 
                 auto eval_args(
@@ -113,7 +114,7 @@ namespace rill
                 std::shared_ptr<llvm::ExecutionEngine> execution_engine_;
 
                 std::shared_ptr<engine_value_holder> value_holder_;
-                std::shared_ptr<type_detail_pool_t> type_detail_pool_;
+                std::shared_ptr<type_detail_factory> type_detail_factory_;
 
                 std::unordered_set<std::string> mapped_intrinsic_function_names_;
                 std::size_t mapped_intrinsic_functions_num_ = 0;

@@ -29,6 +29,25 @@ namespace rill
     using type_detail_ptr = type_detail*;
     using const_type_detail_ptr = type_detail const*;
 
+    struct raw_value_holder
+    {
+        explicit raw_value_holder(
+            std::shared_ptr<void> p,
+            environment_base_ptr const& e = nullptr
+            )
+            : ptr_to_raw_value( std::move( p ) )
+            , target_env( e )
+            , is_placeholder( false )
+        {}
+
+        std::shared_ptr<void> ptr_to_raw_value;
+        environment_base_ptr target_env;
+
+        bool is_placeholder;
+    };
+    using raw_value_holder_ptr = raw_value_holder*;
+    using const_raw_value_holder_ptr = raw_value_holder const*;
+
     enum class dependent_value_kind
     {
         k_type = 0,
@@ -42,7 +61,6 @@ namespace rill
         k_none = 404
     };
 
-
     struct type_detail
     {
         typedef std::vector<type_detail_ptr>        nest_type;
@@ -51,15 +69,14 @@ namespace rill
         // dependent_type will holds type_detail_ptr or "TODO: write"
         struct dependent_type
         {
-            using value_ptr = void*;
-
-            type_detail_ptr         element_type_detail;
+            type_detail_ptr             element_type_detail;
             union {
-                value_ptr           as_value;
-                type_detail_ptr     as_type_detail;
+                void*                   dummy;
+                type_detail_ptr         as_type_detail;
+                raw_value_holder_ptr    as_value_holder;
             } element;
-            dependent_value_kind    kind;
-            type_id_t               type_id;
+            dependent_value_kind        kind;
+            type_id_t                   type_id;
 
             inline auto is_type() const
                -> bool
@@ -75,8 +92,7 @@ namespace rill
                         || element.as_type_detail->has_placeholder();
 
                 } else {
-                    // assert( false && "not supported" );
-                    return false;
+                    return element.as_value_holder->is_placeholder;
                 }
             }
         };
@@ -85,9 +101,10 @@ namespace rill
 
         enum class evaluate_mode
         {
-            k_everytime,
-            k_only_compiletime,
-            k_only_runtime
+            k_only_runtime,
+            k_runtime,
+            k_meta,
+            k_only_meta,
         };
 
         explicit type_detail(
@@ -96,7 +113,7 @@ namespace rill
             nest_pointer const& st = nullptr,
             template_args_pointer const& sd = nullptr,
             bool const ix = false,
-            evaluate_mode const& em = evaluate_mode::k_everytime
+            evaluate_mode const& em = evaluate_mode::k_runtime
             )
             : type_id( w )
             , target_env( e )

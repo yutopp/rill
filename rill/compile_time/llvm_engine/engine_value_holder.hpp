@@ -34,13 +34,13 @@ namespace rill
                     type_detail_table_[env_id] = value;
                 }
 
-                auto bind_value( environment_id_t const& env_id, std::shared_ptr<char> const& value )
+                auto bind_value( environment_id_t const& env_id, raw_value_holder_ptr const& value )
                     -> void
                 {
                     //
                     storage_table_[env_id] = value;
                 }
-
+/*
                 auto bind_value( environment_id_t const& env_id, void* const value )
                     -> void
                 {
@@ -51,9 +51,9 @@ namespace rill
                     }
 
                     storage_table_[env_id] = it->second;
-                    temporary_storages_.erase( it );
+                    // temporary_storages_.erase( it );
                 }
-
+*/
 
                 //
                 auto is_defined_in_type_detail( environment_id_t const& env_id ) const
@@ -81,7 +81,7 @@ namespace rill
                     return is_defined_in_type_detail( env_id )
                             ? static_cast<void*>( type_detail_table_.at( env_id ) )
                             : is_defined_in_storage( env_id )
-                                ? static_cast<void*>( storage_table_.at( env_id ).get() )
+                                ? static_cast<void*>( storage_table_.at( env_id ) )
                                 : nullptr/*TODO: throw exception*/;
                 }
 
@@ -92,22 +92,22 @@ namespace rill
                     return is_defined_in_type_detail( env_id )
                             ? static_cast<void const*>( type_detail_table_.at( env_id ) )
                             : is_defined_in_storage( env_id )
-                                ? static_cast<void const*>( storage_table_.at( env_id ).get() )
+                                ? static_cast<void const*>( storage_table_.at( env_id ) )
                                 : nullptr/*TODO: throw exception*/;
                 }
-
+/*
                 //
-                auto bind_as_temporary( std::shared_ptr<char> const& value )
+                auto bind_as_temporary( storage_ptr const& value )
                     -> void
                 {
                     temporary_storages_[value.get()] = value;
                 }
-
+*/
             private:
                 std::unordered_map<environment_id_t, type_detail_ptr> type_detail_table_;
-                std::unordered_map<environment_id_t, std::shared_ptr<char>> storage_table_;
+                std::unordered_map<environment_id_t, raw_value_holder_ptr> storage_table_;
 
-                std::unordered_map<void*, std::shared_ptr<char>> temporary_storages_;
+                std::unordered_map<void*, raw_value_holder_ptr> temporary_storages_;
             };
 
         } // namespace llvm_engine
