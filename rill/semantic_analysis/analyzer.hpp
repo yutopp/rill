@@ -155,7 +155,7 @@ namespace rill
                 ast::expression_ptr& expression,
                 type_detail_ptr const& ty_d,
                 environment_base_ptr const& parent_env
-                ) -> void;
+                ) -> void*;
 
         public:
             // for Identifier
@@ -221,6 +221,12 @@ namespace rill
                 g_env_->bind_type_id_with_ast( ast, ty_p->type_id );
                 return ty_p;
             }
+
+            auto check_eval_mode(
+                attribute::decl::type const&,
+                type_detail::evaluate_mode const&
+                ) const
+                -> boost::optional<attribute::decl::type>;
 
         private:
             template<typename Attr, typename F>
@@ -592,10 +598,16 @@ namespace rill
             std::shared_ptr<builtin_class_envs_cache> builtin_class_envs_cache_;
 
         private:
-            auto print_type_detail( const_type_detail_ptr const& td ) const
+            auto print_type_detail(
+                const_type_detail_ptr const& td,
+                std::size_t const& indent_width = 0
+                ) const
                 -> void;
 
-            auto print_dependent_type( type_detail::dependent_type const& dt ) const
+            auto print_dependent_type(
+                type_detail::dependent_type const& dt,
+                std::size_t const& indent_width = 0
+                ) const
                 -> void;
 
         private:

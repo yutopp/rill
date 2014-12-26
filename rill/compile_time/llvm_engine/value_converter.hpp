@@ -24,11 +24,6 @@ namespace rill
                 llvm::Type const* const
                 ) -> llvm::GenericValue;
 
-            auto convert_storage_to_llvm_value(
-                void* const storage,
-                llvm::Type const* const
-                ) -> llvm::GenericValue;
-
         } // namespace llvm_engine
     } // namespace compile_time
 } // namespace rill

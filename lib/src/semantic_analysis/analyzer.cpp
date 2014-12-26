@@ -318,6 +318,7 @@ namespace rill
         auto analyzer::detect_eval_mode( attributes_mixin const& m ) const
             -> type_detail::evaluate_mode
         {
+            // TODO: support only runtime
             if ( m.has_attribute( attribute::decl::k_onlymeta ) ) {
                 return type_detail::evaluate_mode::k_only_meta;
 
@@ -325,6 +326,7 @@ namespace rill
                 return type_detail::evaluate_mode::k_meta;
 
             } else {
+                // default
                 return type_detail::evaluate_mode::k_runtime;
             }
         }
@@ -405,11 +407,34 @@ namespace rill
             return declared_envs;
         }
 
-        auto analyzer::print_type_detail( const_type_detail_ptr const& td ) const
+        auto analyzer::print_type_detail(
+            const_type_detail_ptr const& td,
+            std::size_t const& indent_width
+            ) const
             -> void
         {
+            auto const indent = std::string( indent_width, ' ' );
+
+            std::cout << indent << "** is_xvalue   : " << td->is_xvalue << std::endl;
+
+            std::cout << indent << "** eval_mode   : ";
+            switch( td->eval_mode ) {
+            case type_detail::evaluate_mode::k_only_runtime:
+                std::cout << "only_runtime" << std::endl;
+                break;
+            case type_detail::evaluate_mode::k_runtime:
+                std::cout << "runtime" << std::endl;
+                break;
+            case type_detail::evaluate_mode::k_meta:
+                std::cout << "meta" << std::endl;
+                break;
+            case type_detail::evaluate_mode::k_only_meta:
+                std::cout << "only_meta" << std::endl;
+                break;
+            }
+
             if ( td->is_placeholder ) {
-                std::cout << "** placeholder [type]" << std::endl;
+                std::cout << indent << "** placeholder [type]" << std::endl;
 
             } else {
                 // get environment of arguments
@@ -422,31 +447,36 @@ namespace rill
                             tt.class_env_id
                             );
 
-                    std::cout << "** name(base)  : " << c_e->get_base_name() << std::endl
-                              << "** name(qualed): " << c_e->get_qualified_name() << std::endl
-                              << "** typeid      : " << td->type_id << std::endl
-                              << "** envid       : " << tt.class_env_id << std::endl;
+                    std::cout << indent << "** name(base)  : " << c_e->get_base_name() << std::endl
+                              << indent << "** name(qualed): " << c_e->get_qualified_name() << std::endl
+                              << indent << "** typeid      : " << td->type_id << std::endl
+                              << indent << "** envid       : " << tt.class_env_id << std::endl;
 
                 } else {
-                    std::cout << "** not type_id" << std::endl;
+                    std::cout << indent << "** not type_id" << std::endl;
                 }
 
                 if ( td->has_template_args() ) {
-                    std::cout << " - has template args - : " << td->template_args->size() << std::endl;
+                    std::cout << indent << " - has template args - : " << td->template_args->size() << std::endl;
                     for( auto&& arg : *td->template_args ) {
-                        print_dependent_type( arg );
-                        std::cout << "--" << std::endl;
+                        print_dependent_type( arg, indent_width + 4 );
+                        std::cout << indent << " --" << std::endl;
                     }
 
                 } else {
-                    std::cout << "< has NO template args" << std::endl;
+                    std::cout << indent << "< has NO template args" << std::endl;
                 }
             }
         }
 
-        auto analyzer::print_dependent_type( type_detail::dependent_type const& dt ) const
+        auto analyzer::print_dependent_type(
+            type_detail::dependent_type const& dt,
+            std::size_t const& indent_width
+            ) const
             -> void
         {
+            auto const indent = std::string( indent_width, ' ' );
+
             auto const& tt
                 = g_env_->get_type_at( dt.type_id );
 
@@ -457,31 +487,123 @@ namespace rill
                         )
                     );
 
-            rill_dout << "** depend / [parameter type]: " << c_e->get_qualified_name() << std::endl;
+            std::cout << indent << "** depend / [parameter type]: " << c_e->get_qualified_name() << std::endl;
 
             if ( dt.is_type() ) {
-                rill_dout << "** depend / type: inner value |" << std::endl;
+                std::cout << indent << "** depend / type" << std::endl;
                 auto const& t_detail
                     = dt.element.as_type_detail;
                 assert( t_detail != nullptr );
 
                 if ( t_detail->is_placeholder ) {
-                    rill_dout << "** depend / placeholder [type]" << std::endl;
+                    std::cout << indent << "** depend / placeholder [type]" << std::endl;
 
                 } else {
-                    print_type_detail( t_detail );
+                    print_type_detail( t_detail, indent_width + 4 );
                 }
 
             } else {
-                rill_dout << "** depend / value: inner value |" << std::endl;
+                std::cout << indent << "** depend / value" << std::endl;
                 auto const& v_holder
                     = dt.element.as_value_holder;
 
                 if ( v_holder->is_placeholder ) {
-                    rill_dout << "** depend / placeholder [value]" << std::endl;
+                    std::cout << indent << "** depend / placeholder [value]" << std::endl;
 
                 } else {
-                    rill_dout << "** value: " << std::endl;
+                    std::cout << indent << "**   value: ";
+
+                    auto const& orig_ty
+                        = g_env_->get_type_at( dt.type_id );
+                    auto const& orig_c_env
+                        = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
+                            orig_ty.class_env_id
+                            );
+                    assert( orig_c_env != nullptr );
+
+                    switch( orig_c_env->get_builtin_kind() ) {
+                    case class_builtin_kind::k_bool:
+                    {
+                        auto const& value_holder
+                            = dt.element.as_value_holder;
+                        auto const& inner
+                            = static_cast<bool const*>(
+                                value_holder->ptr_to_raw_value.get()
+                                );
+
+                        std::cout << "(bool) " << *inner << std::endl;
+                        break;
+                    }
+
+                    case class_builtin_kind::k_int32:
+                    {
+                        auto const& value_holder
+                            = dt.element.as_value_holder;
+                        auto const& inner
+                            = static_cast<std::int32_t const*>(
+                                value_holder->ptr_to_raw_value.get()
+                                );
+
+                        std::cout << "(int32) " << *inner << std::endl;
+                        break;
+                    }
+
+                    default:
+                    {
+                        std::cout << "(" << orig_c_env->get_base_name() << ") UNKNOWN" << std::endl;
+                        break;
+                    }
+                    } // switch
+                }
+            }
+        }
+
+
+        auto analyzer::check_eval_mode(
+            attribute::decl::type const& decl_attr,
+            type_detail::evaluate_mode const& eval_mode
+            ) const
+            -> boost::optional<attribute::decl::type>
+        {
+            // TODO: support only runtime
+            if ( ( decl_attr & attribute::decl::k_onlymeta ) != 0 ) {
+                switch( eval_mode ) {
+                case type_detail::evaluate_mode::k_only_runtime:
+                    return boost::none;
+
+                case type_detail::evaluate_mode::k_runtime:
+                case type_detail::evaluate_mode::k_meta:
+                case type_detail::evaluate_mode::k_only_meta:
+                    return attribute::decl::k_default;
+                }
+
+            } else if ( ( decl_attr & attribute::decl::k_meta ) != 0 ) {
+                switch( eval_mode ) {
+                case type_detail::evaluate_mode::k_only_runtime:
+                    return boost::none;
+
+                case type_detail::evaluate_mode::k_runtime:
+                case type_detail::evaluate_mode::k_meta:
+                    return attribute::decl::k_default;
+
+                case type_detail::evaluate_mode::k_only_meta:
+                    return boost::none;
+                }
+
+            } else {
+                // default
+                switch( eval_mode ) {
+                case type_detail::evaluate_mode::k_only_runtime:
+                    return boost::none;
+
+                case type_detail::evaluate_mode::k_runtime:
+                    return attribute::decl::k_default;
+
+                case type_detail::evaluate_mode::k_meta:
+                    return attribute::decl::k_meta;
+
+                case type_detail::evaluate_mode::k_only_meta:
+                    return attribute::decl::k_onlymeta;
                 }
             }
         }
@@ -818,7 +940,7 @@ namespace rill
                     assert( false && "[error] class that has body can not be extern" );
                 }
 
-                // set 0 values
+                // set 0 values as default
                 // c_env->set_host_align( 0 );
                 // c_env->set_host_size( 0 );
                 c_env->set_target_align( 0 );
@@ -915,9 +1037,19 @@ namespace rill
                             // class_traits_kind::k_has_non_trivial_copy_ctor;
                             // class_traits_kind::k_has_non_default_copyable_member;
 
-                            // TODO: set alignment, size
-                            // c_env->set_target_align(
-                            // c_env->set_target_size(
+                            auto const& array_element_ty
+                                = g_env_->get_type_at( array_element_type_id );
+                            auto const& array_element_c_env
+                                = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>( array_element_ty.class_env_id );
+                            assert( array_element_c_env != nullptr );
+
+                            // set alignment, size
+                            c_env->set_target_align(
+                                array_element_c_env->get_target_align()
+                                );
+                            c_env->set_target_size(
+                                c_env->get_target_align() * (*array_element_num)
+                                );
 
                         } else if ( c_env->get_builtin_kind() == class_builtin_kind::k_ptr ) {
                             // set special flag as Pointer
@@ -938,6 +1070,10 @@ namespace rill
                             rill_dout << "This is ptr!" << std::endl;
                             c_env->make_as_pointer( ptr_element_type_id );
                             c_env->set_template_args( template_args );
+
+                            //
+                            // c_env->set_target_align( 0 );
+                            // c_env->set_target_size( 0 );
                         }
 
                     } else {
@@ -1084,16 +1220,17 @@ namespace rill
                     }
                     } // switch
                 }();
-                rill_dout << "argt: " << c_env->get_qualified_name() << std::endl;
+
+                rill_dregion {
+                    rill_dout << "- Argument type: " << c_env->get_qualified_name() << std::endl;
+                    print_dependent_type( ta );
+                }
 
                 template_args.push_back( ta );
             }
 
             return template_args;
         }
-
-
-
 
 
         //
@@ -2434,9 +2571,14 @@ namespace rill
                         auto const& type_type_id
                             = g_env_->make_type_id( type_class_env, attribute::make_default_type_attributes() );
 
+                        //
                         auto r_ty_d = type_detail_pool_->construct(
                             type_type_id,
-                            type_class_env
+                            type_class_env,
+                            nullptr,        // not nested
+                            nullptr,        // no template args
+                            false,          // not xvalue
+                            type_detail::evaluate_mode::k_only_meta
                             );
                         if ( is_captured && is_capture_enabled ) {
                             set_captured_value_info( identifier, found_env, r_ty_d );
@@ -2452,7 +2594,9 @@ namespace rill
                             (type_id_t)type_id_nontype::e_template_class,
                             multiset_env,
                             nullptr/*not nested*/,
-                            std::make_shared<type_detail::template_args_type>()
+                            std::make_shared<type_detail::template_args_type>(),
+                            false,          // not xvalue
+                            type_detail::evaluate_mode::k_only_meta
                             );
                         if ( is_captured && is_capture_enabled ) {
                             set_captured_value_info( identifier, found_env, r_ty_d );
@@ -2492,7 +2636,7 @@ namespace rill
 
                 // type of this variable
                 auto const& typeid_of_var = v_env->get_type_id();
-                auto const& type_of_var =  g_env_->get_type_at( typeid_of_var );
+                auto const& type_of_var = g_env_->get_type_at( typeid_of_var );
                 auto const& ty_c_env
                     = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>( type_of_var.class_env_id );
 
@@ -2968,49 +3112,78 @@ namespace rill
                     assert( class_env != nullptr );
                     rill_dout << "CONSTRUCTING type >> " << class_env->get_base_name() << std::endl;
 
-                    // find constructor
-                    auto const& multiset_env
-                        = cast_to<multiple_set_environment>( class_env->find_on_env( "ctor" ) );
-                    if ( multiset_env == nullptr ) {
-                        rill_ice( "There are no ctor in class" );
+                    switch( class_env->get_builtin_kind() ) {
+                    case class_builtin_kind::k_none:
+                    {
+                        // user defined class
+
+                        // find constructor
+                        auto const& multiset_env
+                            = cast_to<multiple_set_environment>( class_env->find_on_env( "ctor" ) );
+                        if ( multiset_env == nullptr ) {
+                            rill_ice( "There are no ctor in class" );
+                        }
+
+                        assert( multiset_env->get_representation_kind() == kind::type_value::e_function );
+
+                        // add implicit this parameter
+                        std::vector<type_detail_ptr> argument_type_details_with_this(
+                            argument_type_details.size() + 1
+                            );
+                        argument_type_details_with_this[0]
+                            = type_detail_factory_->change_attributes(
+                                return_ty_d,
+                                attribute::modifiability_kind::k_mutable
+                                );
+                        std::copy(
+                            argument_type_details.cbegin(),
+                            argument_type_details.cend(),
+                            argument_type_details_with_this.begin() + 1
+                            );
+
+                        auto const& function_env
+                            = solve_function_overload(
+                                multiset_env,                   // overload set
+                                argument_type_details_with_this,// type detailes of arguments
+                                nullptr,                        // template arguments
+                                e,
+                                class_env
+                                );
+                        assert( function_env != nullptr );
+                        function_env->connect_from_ast( e );
+
+                        // actual type
+                        b_ty_d = type_detail_pool_->construct(
+                            return_ty_d->type_id,
+                            function_env,
+                            nullptr,                    // not nested
+                            return_ty_d->template_args,
+                            true,                       // xvalue
+                            detect_eval_mode( *function_env )
+                            );
+
+                        break;
                     }
 
-                    assert( multiset_env->get_representation_kind() == kind::type_value::e_function );
-
-                    // add implicit this parameter
-                    std::vector<type_detail_ptr> argument_type_details_with_this(
-                        argument_type_details.size() + 1
-                        );
-                    argument_type_details_with_this[0]
-                        = type_detail_factory_->change_attributes(
-                            return_ty_d,
-                            attribute::modifiability_kind::k_mutable
+                    case class_builtin_kind::k_int32:
+                    case class_builtin_kind::k_array:
+                    {
+                        // actual type
+                        b_ty_d = type_detail_pool_->construct(
+                            return_ty_d->type_id,
+                            nullptr,                    // null
+                            nullptr,                    // not nested
+                            return_ty_d->template_args,
+                            true,                       // xvalue
+                            type_detail::evaluate_mode::k_runtime
                             );
-                    std::copy(
-                        argument_type_details.cbegin(),
-                        argument_type_details.cend(),
-                        argument_type_details_with_this.begin() + 1
-                        );
+                        break;
+                    }
 
-                    auto const& function_env
-                        = solve_function_overload(
-                            multiset_env,                   // overload set
-                            argument_type_details_with_this,// type detailes of arguments
-                            nullptr,                        // template arguments
-                            e,
-                            class_env
-                            );
-                    assert( function_env != nullptr );
-                    function_env->connect_from_ast( e );
-
-                    b_ty_d = type_detail_pool_->construct(
-                        return_ty_d->type_id,
-                        function_env,
-                        nullptr,    // nullptr
-                        nullptr,    // nullptr
-                        true,
-                        detect_eval_mode( *function_env )
-                        );
+                    default:
+                        rill_ice( "not supported builtin" );
+                        break;
+                    } // switch
 
                     // substitute expression
                     auto substituted_ast = std::static_pointer_cast<ast::expression>(

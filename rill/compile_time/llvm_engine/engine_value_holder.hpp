@@ -40,20 +40,6 @@ namespace rill
                     //
                     storage_table_[env_id] = value;
                 }
-/*
-                auto bind_value( environment_id_t const& env_id, void* const value )
-                    -> void
-                {
-                    //
-                    auto it = temporary_storages_.find( value );
-                    if ( it == temporary_storages_.cend() ) {
-                        assert( false && "[ice]" );
-                    }
-
-                    storage_table_[env_id] = it->second;
-                    // temporary_storages_.erase( it );
-                }
-*/
 
                 //
                 auto is_defined_in_type_detail( environment_id_t const& env_id ) const

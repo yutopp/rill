@@ -1,0 +1,8 @@
+def main(): int
+{
+    val a: array!(mutable(int), 10);
+    a[0] = 10;
+    p(a[0]);
+
+    return 0;
+}

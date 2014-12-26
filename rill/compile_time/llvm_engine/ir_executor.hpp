@@ -77,7 +77,7 @@ namespace rill
                 }
 
             private:
-                template<typename T,typename... Args>
+                template<typename T, typename... Args>
                 auto make_object( Args&&... args ) const
                     -> raw_value_holder*
                 {

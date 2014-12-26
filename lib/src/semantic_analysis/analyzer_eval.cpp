@@ -136,7 +136,7 @@ namespace rill
             ast::expression_ptr& expression,
             type_detail_ptr const& orig_ty_d,
             environment_base_ptr const& parent_env
-            ) -> void
+            ) -> void*
         {
             // regared: expression is already checked that semantics is valid
 
@@ -149,7 +149,7 @@ namespace rill
             assert( orig_c_env != nullptr );
 
             // eval expression of arguments
-            auto evaled_value
+            auto const evaled_value
                 = ctfe_engine_->execute_as_raw_storage( expression, parent_env );
             assert( evaled_value != nullptr );
 
@@ -220,6 +220,8 @@ namespace rill
 
             // rebind
             bind_type( expression, orig_ty_d );
+
+            return evaled_value;
         }
 
     } // namespace semantic_analysis

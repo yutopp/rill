@@ -186,6 +186,7 @@ namespace rill
             // TODO: decl_unit will be unit_list
             // for( auto const& unit : val_decl.decl_unit_list ) {
             auto const& unit = val_decl.decl_unit;
+            auto& initializer = s->declaration_.decl_unit.init_unit.initializer;
 
             regard_variable_is_not_already_defined(
                 parent_env,
@@ -193,7 +194,7 @@ namespace rill
                 );
 
             // initial value
-            auto const& iv_type_d
+            auto iv_type_d
                 = unit.init_unit.initializer
                 ? dispatch( unit.init_unit.initializer, parent_env )
                 : nullptr;
@@ -272,9 +273,28 @@ namespace rill
                         }
                     });
 
+                if ( initializer == nullptr ) {
+                    // force creating initial value
+
+                    // REWRITE: make "call_expression" as ctor invocation
+                    initializer =
+                        std::make_shared<ast::call_expression>(
+                            clone( unit.init_unit.type ),
+                            ast::expression_list{}
+                            );
+
+                    // recheck
+                    iv_type_d = dispatch( unit.init_unit.initializer, parent_env );
+                    if ( iv_type_d == nullptr ) {
+                        assert( false && "[error] NOT default constructable" );
+                    }
+                }
+
             } else {
                 // type inferenced by result of evaluated "iv_type_id_and_env"
-                assert( iv_type_d != nullptr );
+                if ( iv_type_d == nullptr ) {
+                    assert( false && "[[error]] initial value is required" );
+                }
 
                 auto const iv_type_class_env = ref_env( iv_type_d );
                 if ( iv_type_class_env->get_id() == void_class_id ) {
@@ -285,16 +305,60 @@ namespace rill
                 v_env->complete( iv_type_d->type_id, s->declaration_.decl_unit.decl_attr );
             }
 
-            if ( v_env->has_attribute( attribute::decl::k_meta ) ) {
+            // update decl
+            //
+            assert( iv_type_d != nullptr );
+            rill_dregion {
+                print_type_detail( iv_type_d );
+            }
+            if ( auto&& eval_attr = check_eval_mode( s->declaration_.decl_unit.decl_attr, iv_type_d->eval_mode ) ) {
+                v_env->set_attribute( *eval_attr );
+
+            } else {
+                assert( false && "" );
+            }
+
+            //
+            if ( v_env->has_attribute( attribute::decl::k_meta )
+                || v_env->has_attribute( attribute::decl::k_onlymeta )
+                )
+            {
                 if ( unit.init_unit.initializer ) {
-                    substitute_by_ctfed_node(
-                        s->declaration_.decl_unit.init_unit.initializer,
-                        iv_type_d,
-                        parent_env
-                        );
+                    auto val
+                        = substitute_by_ctfed_node(
+                            s->declaration_.decl_unit.init_unit.initializer,
+                            iv_type_d,
+                            parent_env
+                            );
+                    assert( val != nullptr );
+
+                    auto const& orig_ty
+                        = g_env_->get_type_at( iv_type_d->type_id );
+                    auto const& orig_c_env
+                        = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
+                            orig_ty.class_env_id
+                            );
+                    assert( orig_c_env != nullptr );
+
+                    // bind
+                    switch( orig_c_env->get_builtin_kind() ) {
+                    case class_builtin_kind::k_type:
+                        ctfe_engine_->value_holder()->bind_value_of_type(
+                            v_env->get_id(),
+                            static_cast<type_detail_ptr>( val )
+                            );
+                        break;
+
+                    default:
+                        ctfe_engine_->value_holder()->bind_value(
+                            v_env->get_id(),
+                            static_cast<raw_value_holder_ptr>( val )
+                            );
+                        break;
+                    }
 
                 } else {
-                    assert( false );
+                    assert( false && "[ice]" );
                 }
             }
         }

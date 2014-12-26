@@ -19,6 +19,7 @@
 #include "../type/type_detail.hpp"
 
 #include "environment_base.hpp"
+#include "attributes_mixin.hpp"
 #include "class_symbol_builtin_kind.hpp"
 
 
@@ -49,7 +50,7 @@ namespace rill
     // class
     //
     class class_symbol_environment final
-        : public environment_base
+        : public environment_base, public attributes_mixin
     {
     public:
         static kind::type_value const KindValue;
@@ -63,7 +64,6 @@ namespace rill
             : environment_base( std::move( pp ) )
             , multiset_env_ptr_( multiset_env_ptr )
             , base_name_( base_name )
-            , decl_attr_( attribute::decl::k_default )
             , builtin_kind_( class_builtin_kind::k_none )
             , template_args_( nullptr )
             , host_align_( std::numeric_limits<std::size_t>::max() )
@@ -113,21 +113,6 @@ namespace rill
             -> native_string_type const&
         {
             return qualified_name_;
-        }
-
-        bool has_attribute( attribute::decl::type const& attribute ) const
-        {
-            return ( decl_attr_ & attribute  ) != 0;
-        }
-
-        void set_attribute( attribute::decl::type const& attribute )
-        {
-            decl_attr_ |= attribute;
-        }
-
-        void unset_attribute( attribute::decl::type const& attribute )
-        {
-            decl_attr_ ^= attribute;
         }
 
         auto set_builtin_kind( class_builtin_kind const& kind )
@@ -290,7 +275,6 @@ namespace rill
         weak_multiple_set_environment_ptr multiset_env_ptr_;
 
         native_string_type base_name_, qualified_name_;
-        attribute::decl::type decl_attr_;
         class_builtin_kind builtin_kind_;
 
         std::shared_ptr<array_detail> array_detail_;

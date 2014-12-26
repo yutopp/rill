@@ -905,6 +905,11 @@ namespace rill
                 = std::static_pointer_cast<variable_symbol_environment const>( g_env_->get_related_env_by_ast_ptr( s ) );
             assert( v_env != nullptr );
 
+            if ( v_env->has_attribute( attribute::decl::k_onlymeta ) ) {
+                // skip
+                return;
+            }
+
             // initial value
             if ( s->declaration_.decl_unit.init_unit.initializer ) {
                 // has default value
@@ -921,6 +926,7 @@ namespace rill
                 // TODO: implement default call constructor call by semantics analizer
 
                 auto const& initial_llvm_value = nullptr;
+                assert( false );
 
                 store_value( initial_llvm_value, v_env );
             }
@@ -1411,42 +1417,50 @@ namespace rill
             // look up self function
             auto const f_env
                 = cast_to<function_symbol_environment const>( g_env_->get_related_env_by_ast_ptr( e ) );
-            assert( f_env != nullptr );
-
-            rill_dregion {
-                rill_dout << "= CALL EXPR ===========================" << std::endl;
-                rill_dout << "current : " << f_env->get_mangled_name() << std::endl;
-                for( auto&& e : e->arguments_ ) {
-                    e->dump( std::cout );
+            if ( f_env != nullptr ) {
+                rill_dregion {
+                    rill_dout << "= CALL EXPR ===========================" << std::endl;
+                    rill_dout << "current : " << f_env->get_mangled_name() << std::endl;
+                    for( auto&& e : e->arguments_ ) {
+                        e->dump( std::cout );
+                    }
+                    rill_dout << "=======================================" << std::endl;
                 }
-                rill_dout << "=======================================" << std::endl;
-            }
 
-            // evaluate lhs(reciever)
-            // if reciever_value is exist, call 'op ()'
-            auto reciever_value
-                = dispatch( e->reciever_, parent_env );
-            if ( reciever_value != nullptr ) {
-                auto const& tid = g_env_->get_related_type_id_from_ast_ptr( e->reciever_ );
-                if ( tid != type_id_undefined ) {
-                    // op ()
-                    // push temporary value
-                    rill_dout << "OPERATOR ()" << std::endl;
+                // evaluate lhs(reciever)
+                // if reciever_value is exist, call 'op ()'
+                auto reciever_value
+                    = dispatch( e->reciever_, parent_env );
+                if ( reciever_value != nullptr ) {
+                    auto const& tid = g_env_->get_related_type_id_from_ast_ptr( e->reciever_ );
+                    if ( tid != type_id_undefined ) {
+                        // op ()
+                        // push temporary value
+                        rill_dout << "OPERATOR ()" << std::endl;
 
-                    context_->temporary_reciever_stack_.push(
-                        std::make_tuple(
-                            g_env_->get_related_type_id_from_ast_ptr( e->reciever_ ),
-                            reciever_value
-                            )
-                        );
+                        context_->temporary_reciever_stack_.push(
+                            std::make_tuple(
+                                g_env_->get_related_type_id_from_ast_ptr( e->reciever_ ),
+                                reciever_value
+                                )
+                            );
+                    }
                 }
-            }
 
-            return generate_function_call(
-                f_env,
-                e->arguments_,
-                parent_env
-                );
+                return generate_function_call(
+                    f_env,
+                    e->arguments_,
+                    parent_env
+                    );
+
+            } else {
+                // builtin type constructor
+                auto const& tid = g_env_->get_related_type_id_from_ast_ptr( e );
+                assert( tid != type_id_undefined );
+                auto const& ty = g_env_->get_type_at( tid );
+
+                return make_builtin_default_value( ty );
+            }
         }
 
 
@@ -1777,10 +1791,7 @@ namespace rill
                 );
 
             llvm::AllocaInst* const alloca_inst
-                = context_->ir_builder.CreateAlloca(
-                    array_ty,
-                    0/*length of array*/
-                    );
+                = context_->ir_builder.CreateAlloca( array_ty );
 
             for( std::size_t i=0; i<array_detail->elements_num; ++i ) {
                 //
@@ -2408,6 +2419,7 @@ namespace rill
             }
         }
 
+
         auto llvm_ir_generator::get_class_size(
             const_class_symbol_environment_ptr const& c_env
             ) const
@@ -2417,6 +2429,7 @@ namespace rill
             return c_env->get_target_size();
         }
 
+
         auto llvm_ir_generator::get_class_alignment(
             const_class_symbol_environment_ptr const& c_env
             ) const
@@ -2424,6 +2437,56 @@ namespace rill
         {
             // TODO: check host/target
             return c_env->get_target_align();
+        }
+
+
+        auto llvm_ir_generator::make_builtin_default_value( type const& ty )
+            -> llvm::Value*
+        {
+            auto const& c_env
+                = g_env_->get_env_at_as_strong_ref<class_symbol_environment const>(
+                    ty.class_env_id
+                    );
+            assert( c_env != nullptr );
+
+            rill_dout << "qual name: " << c_env->get_qualified_name() << std::endl;
+
+            switch( c_env->get_builtin_kind() ) {
+            case class_builtin_kind::k_int32:
+            {
+                return llvm::ConstantInt::get(
+                    context_->llvm_context,
+                    llvm::APInt( 32, 0 )
+                    );
+            }
+
+            case class_builtin_kind::k_array:
+            {
+                assert( c_env->is_array() );
+                auto const& array_detail = c_env->get_array_detail();
+
+                llvm::Type* const inner_type
+                    = type_id_to_llvm_type_ptr( array_detail->inner_type_id );
+
+                rill_dout << "NUM: " << array_detail->elements_num << std::endl;
+
+                auto const& array_ty = llvm::ArrayType::get(
+                    inner_type,
+                    array_detail->elements_num
+                    );
+
+                llvm::AllocaInst* const alloca_inst
+                    = context_->ir_builder.CreateAlloca( array_ty );
+
+                // TODO: init elements
+
+                return alloca_inst;
+            }
+
+            default:
+                rill_ice( "not supported" );
+                return nullptr;
+            } // switch
         }
 
     } // namespace code_generator

@@ -330,7 +330,7 @@ namespace rill
                 {
                     rill_dout << "llvm_ir_generator -> case Variable!" << std::endl;
                     auto const& v_env
-                        = std::static_pointer_cast<variable_symbol_environment const>( id_env );
+                        = cast_to<variable_symbol_environment const>( id_env );
                     assert( v_env != nullptr );
 
                     // TODO: check the type of variable !
@@ -348,7 +348,7 @@ namespace rill
                 case kind::type_value::e_class:
                 {
                     auto const& c_env
-                        = std::static_pointer_cast<class_symbol_environment const>( id_env );
+                        = cast_to<class_symbol_environment const>( id_env );
                     assert( c_env != nullptr );
 
                     auto const& type_id
@@ -366,7 +366,11 @@ namespace rill
 
                     return type_detail_factory_->construct_type_detail(
                         type_id,
-                        id_env  //variable_env
+                        nullptr,    // variable_env
+                        nullptr,    // not nested
+                        nullptr,    // no template args(tmp)
+                        false,      // not xvalue
+                        type_detail::evaluate_mode::k_only_meta
                         );
                 }
 
@@ -402,7 +406,7 @@ namespace rill
                 {
                     rill_dout << "llvm_ir_generator -> case Variable!" << std::endl;
                     auto const& v_env
-                        = std::static_pointer_cast<variable_symbol_environment const>( id_env );
+                        = cast_to<variable_symbol_environment const>( id_env );
                     assert( v_env != nullptr );
 
                     // TODO: check the type of variable !
@@ -421,7 +425,7 @@ namespace rill
                 {
                     rill_dout << "llvm_ir_generator -> case Class!" << std::endl;
                     auto const& c_env
-                        = std::static_pointer_cast<class_symbol_environment const>( id_env );
+                        = cast_to<class_symbol_environment const>( id_env );
                     assert( c_env != nullptr );
 
                     auto const& type_id
@@ -439,7 +443,11 @@ namespace rill
 
                     return type_detail_factory_->construct_type_detail(
                         type_id,
-                        nullptr //variable_env
+                        nullptr,    // variable_env
+                        nullptr,    // not nested
+                        nullptr,    // no template args(tmp)
+                        false,      // not xvalue
+                        type_detail::evaluate_mode::k_only_meta
                         );
                 }
 
@@ -453,7 +461,6 @@ namespace rill
 
             RILL_VISITOR_READONLY_OP( ir_executor, ast::intrinsic::int32_value, v, parent_env )
             {
-                // Currently, return int type( 32bit, integer )
                 return make_object<std::int32_t>( v->get_value() );
             }
 

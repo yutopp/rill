@@ -7,6 +7,7 @@
 //
 
 #include <rill/compile_time/llvm_engine/value_converter.hpp>
+#include <rill/type/type_detail.hpp>
 #include <rill/config/macros.hpp>
 
 #include <iostream>
@@ -57,18 +58,23 @@ namespace rill
 //                    break;
 //
                 case llvm::Type::IntegerTyID:
+                {
+                    auto const& value_holder
+                        = static_cast<raw_value_holder_ptr>( storage );
+                    auto const& val = value_holder->ptr_to_raw_value.get();
+
                     switch( to_type->getIntegerBitWidth() ) {
                     case 32:
                         gv.IntVal = llvm::APInt(
                             32,
-                            *static_cast<std::int32_t const* const>( storage )
+                            *static_cast<std::int32_t const* const>( val )
                             );
                         break;
 
                     case 64:
                         gv.IntVal = llvm::APInt(
                             64,
-                            *static_cast<std::int64_t const* const>( storage )
+                            *static_cast<std::int64_t const* const>( val )
                             );
                         break;
 
@@ -77,6 +83,7 @@ namespace rill
                         assert( false && "[ice] bitwidth" );
                     }
                     break;
+                }
 //
 //                case llvm::Type::FunctionTyID:
 //                    break;

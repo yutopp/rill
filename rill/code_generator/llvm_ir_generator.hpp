@@ -198,6 +198,9 @@ namespace rill
                 )
                 -> void;
 
+            auto make_builtin_default_value( type const& )
+                -> llvm::Value*;
+
         private:
             auto generate_function_call(
                 const_function_symbol_environment_ptr const& f_env,
