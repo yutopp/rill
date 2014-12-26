@@ -1,8 +1,8 @@
 def main()
 {
     val num meta = foo(10);
-    //val a: array!(int, num);
-    val a = [1, 2, 3];
+    val a: array!(int, num);
+    //val a = [1, 2, 3];
     f(a);
 }
 
@@ -10,6 +10,7 @@ def f!(T, N: int)( arr: array!(T, N) )
 {
     val a: T = 42;
     p( a );
+    p( N );
 }
 
 def foo!(T)(n: T) => n * n * n;

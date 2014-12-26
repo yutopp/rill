@@ -1342,7 +1342,8 @@ namespace rill
                     auto const& r_tv_env = param_type_detail->target_env;
                     assert( r_tv_env != nullptr );
                     assert( r_tv_env->get_symbol_kind() == kind::type_value::e_variable );
-                    auto const& template_var_env = std::static_pointer_cast<variable_symbol_environment>( r_tv_env );
+                    auto const& template_var_env
+                        = cast_to<variable_symbol_environment>( r_tv_env );
 
                     auto const new_parameter_val_type_attr
                         = overlap_empty_attr(
@@ -1465,17 +1466,22 @@ namespace rill
                             rill_dout << "NoMatch" << std::endl;
                             break;
                         }
-/*
+
+                        auto const& r_tv_env = param_t_arg.element.as_value_holder->target_env;
+                        assert( r_tv_env != nullptr );
+                        assert( r_tv_env->get_symbol_kind() == kind::type_value::e_variable );
+                        auto const& template_var_env
+                            = cast_to<variable_symbol_environment>( r_tv_env );
+
                         // update value
-                        auto val_holder = reinterpret_cast<raw_value_holder_ptr>(
+                        auto v_holder = reinterpret_cast<raw_value_holder_ptr>(
                             ctfe_engine_->value_holder()->ref_value( template_var_env->get_id() )
                             );
-                        assert( val_holder != nullptr );
-                        val_holder->ptr_to_raw_value = arg_t_arg.element.as_value_holder->ptr_to_raw_value;
-                        val_holder->is_placeholder = false;
-*/
+                        assert( v_holder != nullptr );
+                        v_holder->ptr_to_raw_value = arg_t_arg.element.as_value_holder->ptr_to_raw_value;
+                        v_holder->is_placeholder = false;
+
                         ++arg_t_arg_index;
-                        assert( false && "not supported" );
                     }
                 }
 
@@ -1879,8 +1885,8 @@ namespace rill
                 for( std::size_t i=arg_index_until_provided; i<decl_template_var_envs.size(); ++i ) {
                     auto const& template_var_env = decl_template_var_envs.at( i );
                     if ( template_var_env->get_type().class_env_id == type_class_env->get_id() ) {
-                        // assign empty type value
-                        rill_dout << "= Assign empty type value / index : " << i << std::endl;
+                        // assign empty [type] value
+                        rill_dout << "= Assign empty [type] value / index : " << i << std::endl;
 
                         // environment_id_undetermined
                         auto const& ty_detail = type_detail_pool_->construct(
@@ -1895,7 +1901,19 @@ namespace rill
                             );
 
                     } else {
-                        assert( false );
+                        // assign empty [value] value
+                        rill_dout << "= Assign empty [value] value / index : " << i << std::endl;
+                        //
+                        auto const& v_holder = type_detail_factory_->construct_raw_value_holder(
+                            nullptr,            // empty value
+                            template_var_env    // link to template env
+                            );
+                        v_holder->is_placeholder = true;
+
+                        ctfe_engine_->value_holder()->bind_value(
+                            template_var_env->get_id(),
+                            v_holder
+                            );
                     }
                 }
 
