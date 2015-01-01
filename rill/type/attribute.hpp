@@ -34,12 +34,24 @@ namespace rill
             last
         };
 
+        // ---------------------------------------|
+        // | k_auto                               |
+        // ---------------------------------------|
+        // | k_managed   | k_full_managed   |  |  |
+        // | k_static    |                  |  |  |
+        // ---------------------------------|  |  |
+        // | k_scoped    | k_partial_managed   |  | <- default
+        // ------------------------------------|  |
+        // | k_unmanaged | k_unmanaged            |
+        // ---------------------------------------|
         enum class lifetime_kind
         {
-            k_scoped,
             k_managed,
-            k_unmanaged,
             k_static,
+            k_unmanaged,
+            k_scoped,
+            k_full_managed,
+            k_partial_managed,
             k_none,
             last
         };
