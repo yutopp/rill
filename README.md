@@ -6,8 +6,14 @@
 Rill is a programming language for java sparrow.  
 This repository contains the implementation of Rill language.
 
-文鳥の文鳥による文鳥のためのプログラミング言語 Rill の処理系です  
-ブン！ (◔⊖◔) < "ひとまず動くようになるまでゴリ押しで書くのでコードは汚いゾ"
+Rill is designed for systems programming.
+
+
+## Influences
++ Freedom of C++
++ Compiletime features, UFCS, modules of Dlang
++ Resource management os Rust
++ Macros of Scala
 
 
 ## Sample Codes of Rill
