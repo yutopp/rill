@@ -12,7 +12,7 @@ Rill is designed for systems programming.
 ## Influences
 + Freedom of C++
 + Compiletime features, UFCS, modules of Dlang
-+ Resource management os Rust
++ Resource management of Rust
 + Macros of Scala
 
 
