@@ -1,0 +1,10 @@
+*.automaton
+*.conflicts
+
+lexer.ml
+lexer.mli
+parser.ml
+parser.mli
+
+rillc
+rillc.opt

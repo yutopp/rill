@@ -10,3 +10,11 @@ Gemfile.lock
 vendor
 
 s.sh
+
+.omakedb
+.omakedb.lock
+
+*.omc
+*.cmi
+*.cmx
+*.o

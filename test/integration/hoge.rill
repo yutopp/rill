@@ -1,4 +1,0 @@
-def g(): void
-{
-    p("hoge!");
-}

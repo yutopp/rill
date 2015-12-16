@@ -1,9 +1,0 @@
-def main(): int
-{
-    val f = \(a: int) => \() => a;
-
-    p(f(3)());
-    p("expect => 3");
-
-    return 0;
-}

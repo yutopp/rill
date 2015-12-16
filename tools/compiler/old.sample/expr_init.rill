@@ -1,5 +1,0 @@
-def main(): int
-{
-//    val a: int;
-    val a = 1 + 3 + 5: int;
-}
