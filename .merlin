@@ -1,0 +1,4 @@
+S src
+B src
+PKG llvm
+PKG batteries

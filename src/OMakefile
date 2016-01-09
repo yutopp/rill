@@ -55,6 +55,7 @@ OCAMLPACKS[] =
    batteries
    llvm
    llvm.bitwriter
+   llvm.analysis
 
 #
 if $(not $(OCAMLFIND_EXISTS))
@@ -101,9 +102,15 @@ OCamlGeneratedFiles(parser.ml lexer.ml)
 
 FILES[] =
    main
+   nodes
    ast
    lexer
    parser
+   syntax
+   env
+   sema
+   codegen
+   llvm_codegen
 
 #
 PROGRAM = rillc

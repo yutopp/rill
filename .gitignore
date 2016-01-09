@@ -18,3 +18,5 @@ s.sh
 *.cmi
 *.cmx
 *.o
+
+*.bc
