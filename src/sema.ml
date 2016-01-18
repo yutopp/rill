@@ -154,6 +154,7 @@ let rec construct_env_notype node parent_env ctx =
 
   | TaggedAst.VariableDefStmt (rv, v) ->
      begin
+       failwith "not implemented"
      end
 
   | _ -> failwith "construct_env_notype: unsupported node"
