@@ -1,5 +1,7 @@
+open Batteries
+
 type checked_state =
-    Incomplete
+    InComplete
   | Checking
   | Complete
 
@@ -12,70 +14,76 @@ module Kind =
       | MultiSet of t
   end
 
-type env =
-    Root of name_env_mapping
-  | MultiSet of env * multiset_record
+type builtin_t =
+    TypeTy
+  | Int32Ty
 
-  | Module of env_common_record * module_record
-  | Function of env_common_record
+type 'ast env_record_t =
+  | Root of 'ast lookup_table_t
+  | MultiSet of 'ast multiset_record
 
- and name_env_mapping = (string, env) Hashtbl.t
+  | Module of 'ast lookup_table_t * module_record
+  | Function of 'ast lookup_table_t
+  | Class of 'ast lookup_table_t
 
- and multiset_record = {
-   ms_kind          : Kind.t;
-   mutable ms_candidates    : env list
+  | Dummy
+
+ and 'ast env_t = {
+   parent_env       : 'ast env_t option;
+   er               : 'ast env_record_t;
+   mutable state    : checked_state;
+
+   mutable rel_node : 'ast option;
  }
 
- and env_common_record = {
-   parent   : env;
-   scope    : name_env_mapping
+ and 'ast name_env_mapping = (string, 'ast env_t) Hashtbl.t
+
+ and 'ast lookup_table_t = {
+   scope            : 'ast name_env_mapping;
  }
+
+ and 'ast multiset_record = {
+   ms_kind                  : Kind.t;
+   mutable ms_candidates    : 'ast env_t list;
+ }
+
 
  and module_record = {
    mod_name     : string;
  }
 
 
-type t = env
-
-let empty_table () =
-  Hashtbl.create 10
-
-let create_common parent_env =
-  {
-    parent = parent_env;
-    scope = empty_table ();
-  }
-
-let create_root_env () =
-  let tbl = empty_table () in
-  Root (tbl)
-
-let get_common_record e =
-  match e with
+let get_lookup_record e =
+  let { er = er; _ } = e in
+  match er with
+  | Root (r) -> r
   | Module (r, _) -> r
-  | _ -> failwith ""
+  | Function (r) -> r
+  | Class (r) -> r
+  | _ -> failwith "has no common record"
 
-let get_symbol_table (e : env) : name_env_mapping =
-  match e with
-    Root (t) -> t
-  | _ -> let r = get_common_record e in r.scope
+let get_symbol_table e =
+  let lt = get_lookup_record e in
+  lt.scope
+
 
 let is_root e =
-  match e with
-    Root _ -> true
-  | _ -> false
+  let { er = er; _ } = e in
+  match er with
+    Root _  -> true
+  | _       -> false
 
 let parent_env e =
   if is_root e then
     failwith "root env has no parent env"
   else
-    match e with
-      MultiSet (penv, _) -> penv
-    | _ -> let r = get_common_record e in r.parent
+    let { parent_env = opt_penv } = e in
+    match opt_penv with
+      Some penv -> penv
+    | None -> failwith ""
 
 (* *)
-let find e name =
+let find_on_env e name =
   let t = get_symbol_table e in
   try
     Some (Hashtbl.find t name)
@@ -84,7 +92,7 @@ let find e name =
 
 (*  *)
 let rec lookup e name =
-  let target = find e name in
+  let target = find_on_env e name in
   match target with
     Some _ as te -> te
   | None -> if is_root e then
@@ -94,35 +102,87 @@ let rec lookup e name =
               lookup penv name
 
 (*  *)
-let add (name : string) (e : env) (target_env : env) =
+let add (name : string) (e : 'a env_t) (target_env : 'a env_t) =
   let t = get_symbol_table target_env in
   Hashtbl.add t name e
 
+
+let empty_lookup_table () =
+  {
+    scope = Hashtbl.create 10;
+  }
+
+let create_env parent_env er =
+  {
+    parent_env = Some parent_env;
+    er = er;
+    state = InComplete;
+    rel_node = None;
+  }
+
+(**)
+let is_checked e =
+  let { state = s; _ } = e in
+  s = Checking || s = Complete
+
+let is_incomplete e =
+  not (is_checked e)
+
+
+let update_status e ns =
+  e.state <- ns
+
+
+(**)
+let update_rel_ast e node =
+  e.rel_node <- Some node
+
+let get_rel_ast e =
+  Option.get e.rel_node
+
+
+(**)
+let make_root_env () =
+  let tbl = empty_lookup_table () in
+  {
+    parent_env = None;
+    er = Root (tbl);
+    state = Complete;
+    rel_node = None;
+  }
+
 let find_or_create_multi_env env name k =
-  let oe = find env name in
+  let oe = find_on_env env name in
   match oe with
   (* *)
-  | Some ((MultiSet (_, {ms_kind = k; _})) as e) ->
+  | Some ({ er = (MultiSet { ms_kind = k; _ }); _} as e) ->
      e
 
   (* *)
   | None ->
-     MultiSet (env, {
-                  ms_kind = k;
-                  ms_candidates = [];
-                })
+     create_env env (MultiSet {
+                         ms_kind = k;
+                         ms_candidates = [];
+                       })
 
-  | _ -> failwith ""
+  | _ -> failwith "multienv is not found"
+
 
 module MultiSetOp =
   struct
     let add_candidates menv env =
-      match menv with
-      | MultiSet (_, record) ->
+      let { er = mer; _ } = menv in
+      match mer with
+      | MultiSet (record) ->
          begin
            (* add env to lists as candidates *)
            record.ms_candidates <- env :: record.ms_candidates;
            ()
          end
-      | _ -> failwith ""
+      | _ -> failwith "can not add candidate"
+  end
+
+
+module ClassOp =
+  struct
   end

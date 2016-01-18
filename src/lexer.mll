@@ -20,6 +20,8 @@ rule token = parse
   | newline             { next_line lexbuf; token lexbuf }
 
   | "def"               { DECL_DEF }
+  | "val"               { KEYWORD_VAL }
+  | "ref"               { KEYWORD_REF }
   | "=>"                { FAT_ARROW }
 
   | ['0'-'9']+ as i     { INT (int_of_string i) }
@@ -38,6 +40,7 @@ rule token = parse
   | '}'                 { RBLOCK }
 
   | ','                 { COMMA }
+  | ':'                 { COLON }
   | ';'                 { SEMICOLON }
 
   | eof                 { EOF }

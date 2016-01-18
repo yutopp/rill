@@ -1,6 +1,6 @@
 def main() {
-
 }
 
-def hoge() {
+def hoge(a : int) {
+    val a = 10;
 }

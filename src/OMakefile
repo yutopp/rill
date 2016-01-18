@@ -111,6 +111,7 @@ FILES[] =
    sema
    codegen
    llvm_codegen
+   type
 
 #
 PROGRAM = rillc
