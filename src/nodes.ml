@@ -13,16 +13,23 @@ module Make (Ctx : NodeContextType) =
       | StatementList of ast list
       | ExprStmt of  ast
       | FunctionDefStmt of string * ast * ast * ctx_t (* name, params, body, _ *)
-      | VariableDefStmt of Type.Attr.ref_val * ast (* ref/val, init *)
+      | ExternFunctionDefStmt of string * ast * string * ctx_t (* name, params, function name(TODO: change to AST), _ *)
+      | VariableDefStmt of Type.Attr.ref_val * ast * ctx_t (* ref/val, init, _ *)
       | EmptyStmt
 
       (* expressions *)
       | BinaryOpExpr of ast * string * ast
       | UnaryOpExpr of string * ast
 
+      | ElementSelectionExpr of ast * ast
+      | SubscriptingExpr of ast * ast option
+      | CallExpr of ast * ast
+
       (* values *)
       | Id of string
       | Int32Lit of int
+      | StringLit of string
+      | BoolLit of bool
 
       (* error *)
       | Error
@@ -30,6 +37,7 @@ module Make (Ctx : NodeContextType) =
       (* special *)
       | ParamsList of param_init_t list
       | VarInit of var_init_t
+      | ArgsList of ast list
       | PrevPassNode of pctx_t
 
      (* id * value *)

@@ -20,3 +20,6 @@ s.sh
 *.o
 
 *.bc
+
+.gdb_history
+peda-session-*

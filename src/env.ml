@@ -11,12 +11,18 @@ module Kind =
         Module
       | Class
       | Function
+      | Variable
       | MultiSet of t
   end
 
 type builtin_t =
     TypeTy
   | Int32Ty
+
+
+type id_t = Num.num
+let id_counter = ref @@ Num.num_of_int 0
+
 
 type 'ast env_record_t =
   | Root of 'ast lookup_table_t
@@ -26,9 +32,12 @@ type 'ast env_record_t =
   | Function of 'ast lookup_table_t
   | Class of 'ast lookup_table_t
 
+  | Variable of variable_record
+
   | Dummy
 
  and 'ast env_t = {
+   env_id           : id_t;
    parent_env       : 'ast env_t option;
    er               : 'ast env_record_t;
    mutable state    : checked_state;
@@ -52,6 +61,10 @@ type 'ast env_record_t =
    mod_name     : string;
  }
 
+ and variable_record = {
+   var_name     : string;
+ }
+
 
 let get_lookup_record e =
   let { er = er; _ } = e in
@@ -60,7 +73,7 @@ let get_lookup_record e =
   | Module (r, _) -> r
   | Function (r) -> r
   | Class (r) -> r
-  | _ -> failwith "has no common record"
+  | _ -> failwith "has no loopup table"
 
 let get_symbol_table e =
   let lt = get_lookup_record e in
@@ -102,7 +115,7 @@ let rec lookup e name =
               lookup penv name
 
 (*  *)
-let add (name : string) (e : 'a env_t) (target_env : 'a env_t) =
+let add_inner_env (target_env : 'a env_t) (name : string) (e : 'a env_t) =
   let t = get_symbol_table target_env in
   Hashtbl.add t name e
 
@@ -113,7 +126,10 @@ let empty_lookup_table () =
   }
 
 let create_env parent_env er =
+  let cur_id = !id_counter in
+  Num.incr_num id_counter;
   {
+    env_id = cur_id;
     parent_env = Some parent_env;
     er = er;
     state = InComplete;
@@ -144,7 +160,10 @@ let get_rel_ast e =
 (**)
 let make_root_env () =
   let tbl = empty_lookup_table () in
+  let cur_id = !id_counter in
+  Num.incr_num id_counter;
   {
+    env_id = cur_id;
     parent_env = None;
     er = Root (tbl);
     state = Complete;

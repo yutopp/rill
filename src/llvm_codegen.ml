@@ -1,3 +1,4 @@
+open Batteries
 module L = Llvm
 module LBW = Llvm_bitwriter
 
@@ -6,28 +7,28 @@ module CodeGeneratorType =
     type ir_context_t = L.llcontext
     type ir_builder_t = L.llbuilder
     type ir_module_t = L.llmodule
+
+    type ir_value_t = L.llvalue
+    type ir_type_t = L.lltype
   end
 
-module Ctx =
-  struct
-    include Codegen.Context.Make(CodeGeneratorType)
-  end
-open Ctx
+module Ctx = Codegen.Context.Make(CodeGeneratorType)
+type ctx_t = Env.id_t Ctx.t
 
-type ctx_t = Ctx.t
-
-let rec code_generate ctx node =
+let rec code_generate node ctx =
+  let open Ctx in
+  let module TAst = Sema.TaggedAst in
   match node with
-  | Sema.TaggedAst.Module (inner, _) ->
+  | TAst.Module (inner, _) ->
      begin
-       code_generate ctx inner
+       code_generate inner ctx
      end
 
-  | Sema.TaggedAst.StatementList (nodes) ->
-     let f nctx node = code_generate nctx node in
+  | TAst.StatementList (nodes) ->
+     let f nctx node = code_generate node nctx in
      List.fold_left f ctx nodes
 
-  | Sema.TaggedAst.FunctionDefStmt (name, params, body, env) ->
+  | TAst.FunctionDefStmt (name, TAst.ParamsList (params), body, Some env) ->
      begin
        let i32_ty = L.i32_type ctx.ir_context in
        let void_ty = L.void_type ctx.ir_context in
@@ -40,6 +41,11 @@ let rec code_generate ctx node =
        let bb = L.append_block ctx.ir_context "entry" f in
        let f_begin_ip = L.instr_begin bb in
        L.position_builder f_begin_ip ctx.ir_builder;
+
+       (**)
+       ignore @@ code_generate body ctx;
+
+       (**)
        ignore (L.build_ret_void ctx.ir_builder);
 
        Llvm_analysis.assert_valid_function f;
@@ -47,7 +53,31 @@ let rec code_generate ctx node =
        ctx
      end
 
-  | _ -> failwith "cannot generate"
+  | TAst.VariableDefStmt (rv, TAst.VarInit (var_init), Some env) ->
+     begin
+       let (_, (_, opt_init_expr)) = var_init in
+       let init_expr = Option.get opt_init_expr in
+       let llvm_val = code_generate_as_value init_expr ctx in
+       Ctx.bind_env_to_val ctx env llvm_val;
+
+       ctx
+     end
+
+  | _ -> failwith "cannot generate : statement"
+
+and code_generate_as_value node ctx =
+  let open Ctx in
+  let module TAst = Sema.TaggedAst in
+  match node with
+  | TAst.BinaryOpExpr (lhs, op, rhs) ->
+     begin
+       failwith ""
+     end
+  | TAst.Int32Lit (v) ->
+     begin
+       L.const_int (L.i32_type ctx.ir_context) v
+     end
+  | _ -> failwith "cannot generate : as value"
 
 
 let generate node =
@@ -60,15 +90,16 @@ let generate node =
                   ~ir_builder:ir_builder
                   ~ir_module:ir_module
   in
-  code_generate context node
+  code_generate node context
 
 
 exception FailedToWriteBitcode
 exception FailedToBuildBitcode
 exception FailedToBuildExecutable
 
-
 let create_executable ctx lib_name out_name =
+  let open Ctx in
+
   let basic_name = try Filename.chop_extension out_name with Invalid_argument _ -> out_name in
   let bitcode_name = basic_name ^ ".bc" in
 

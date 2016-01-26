@@ -1,4 +1,7 @@
+extern def print_int(v: int) = "rill_print";
+
 def main() {
+
 }
 
 def hoge(a : int) {

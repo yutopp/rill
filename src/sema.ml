@@ -2,7 +2,7 @@ open Batteries
 
 module AstContext =
   struct
-    type 'a t = 'a Env.env_t
+    type 'a t = ('a Env.env_t) option
     type 'a prev_ast_t = Ast.ast
   end
 
@@ -42,7 +42,7 @@ let make_default_context root_env =
   in
   let register_builtin_type name setter =
     let cenv = create_builtin_class () in
-    Env.add name cenv root_env;
+    Env.add_inner_env root_env name cenv;
     let ty = Type.Generator.generate_type ctx.si_type_gen cenv in
     setter ty
   in
@@ -70,15 +70,16 @@ let rec solve_forward_refs node parent_env =
   | Ast.Module (inner, _) ->
      begin
        let name = "module" in   (* "module" is a temporary name *)
-       let env = Env.create_env parent_env (Env.Module (Env.empty_lookup_table (),
-                                                        {
-                                                          Env.mod_name = name;
-                                                        })
-                                           ) in
-       Env.add name env parent_env;
+       let env = Env.create_env parent_env (
+                                  Env.Module (Env.empty_lookup_table (),
+                                              {
+                                                Env.mod_name = name;
+                                              })
+                                ) in
+       Env.add_inner_env parent_env name env;
 
        let res_node = solve_forward_refs inner env in
-       let node = TaggedAst.Module (res_node, env) in
+       let node = TaggedAst.Module (res_node, Some env) in
        Env.update_rel_ast env node;
        node
      end
@@ -90,40 +91,41 @@ let rec solve_forward_refs node parent_env =
   | Ast.FunctionDefStmt (name, params, body, _) ->
      begin
        let base_env = Env.find_or_create_multi_env parent_env name Env.Kind.Function in
-       let fenv = Env.create_env parent_env (Env.Function (Env.empty_lookup_table ())
-                                            ) in
+       let fenv = Env.create_env parent_env (
+                                   Env.Function (Env.empty_lookup_table ())
+                                 ) in
        Env.MultiSetOp.add_candidates base_env fenv;
 
        let node = TaggedAst.FunctionDefStmt (
                       name,
                       TaggedAst.PrevPassNode params,
                       TaggedAst.PrevPassNode body,
-                      fenv
+                      Some fenv
                     ) in
        Env.update_rel_ast fenv node;
        node
      end
 
-  | Ast.VariableDefStmt (rv, v) ->
-     TaggedAst.VariableDefStmt (rv, TaggedAst.PrevPassNode v)
+  | Ast.VariableDefStmt (rv, v, _) ->
+     TaggedAst.VariableDefStmt (rv, TaggedAst.PrevPassNode v, None)
 
   | Ast.EmptyStmt -> TaggedAst.EmptyStmt
 
   | _ -> failwith "solve_forward_refs: unsupported node"
 
 
-let rec construct_env_notype node parent_env ctx =
+let rec construct_env node parent_env ctx =
   match node with
-  | TaggedAst.Module (inner, env) ->
+  | TaggedAst.Module (inner, Some env) ->
      begin
-       construct_env_notype inner env ctx
+       construct_env inner env ctx
      end
 
   | TaggedAst.StatementList (nodes) ->
-     let tagged_nodes = nodes |> List.map (fun n -> construct_env_notype n parent_env ctx) in
+     let tagged_nodes = nodes |> List.map (fun n -> construct_env n parent_env ctx) in
      TaggedAst.StatementList tagged_nodes
 
-  | TaggedAst.FunctionDefStmt (name, params_node, body, env) ->
+  | TaggedAst.FunctionDefStmt (name, params_node, body, Some env) ->
      if Env.is_checked env then Env.get_rel_ast env
      else begin
        Printf.printf "function %s - unchecked\n" name;
@@ -146,33 +148,86 @@ let rec construct_env_notype node parent_env ctx =
                       name,
                       TaggedAst.ParamsList params,
                       nbody,
-                      env
+                      Some env
                     ) in
        complete_env env node;
        node
      end
 
-  | TaggedAst.VariableDefStmt (rv, v) ->
+  | TaggedAst.VariableDefStmt (rv, v, opt_env) ->
      begin
-       failwith "not implemented"
+       match opt_env with
+       | Some env -> failwith "unexpected"
+       | None ->
+          begin
+            let (var_name, init_term) =
+              match extract_prev_pass_node v with
+              | Ast.VarInit vi -> vi
+              | _ -> failwith "unexpected node"
+            in
+            check_id_is_defined_uniquely parent_env var_name;
+
+            let venv = Env.create_env parent_env (
+                                        Env.Variable {
+                                            Env.var_name = var_name;
+                                          }
+                                      )
+            in
+            Env.add_inner_env parent_env var_name venv;
+
+            let (opt_type, opt_init_value) = init_term in
+            let opt_init_value_res = match opt_init_value with
+              | Some init_value -> Some (analyze_expr init_value parent_env ctx)
+              | None -> None
+            in
+            let (type_node, value_node, var_ty) = match opt_type with
+              (* variable type is specified *)
+              | Some var_type ->
+                 begin
+                   failwith "not implemented"
+                 end
+
+              (* var_type is infered from initial_value *)
+              | None ->
+                 begin
+                   let (node, var_ty) = match opt_init_value_res with
+                     | Some v -> v
+                     | None -> failwith "[ERROR] initial value is required";
+                   in
+                   (* TODO: check void value *)
+
+                   (None, node, var_ty)
+                 end
+            in
+
+            let node = TaggedAst.VariableDefStmt (
+                           rv,
+                           TaggedAst.VarInit (var_name, (type_node, Some value_node)),
+                           Some venv
+                         ) in
+
+            complete_env venv node;
+            node
+          end
      end
 
-  | _ -> failwith "construct_env_notype: unsupported node"
+  | _ -> failwith "construct_env: unsupported node or nodes have no valid env"
 
-and construct_env node parent_env ctx =
+and analyze_expr node parent_env ctx =
   match node with
   | Ast.BinaryOpExpr (lhs, op, rhs) ->
      begin
-       failwith ""
+       failwith "b op"
      end
 
   | Ast.UnaryOpExpr (op, expr) ->
      begin
-       failwith ""
+       failwith "u op"
      end
 
   | Ast.Id (name) as id_node ->
      begin
+       (* WIP *)
        let ty = solve_identifier id_node parent_env ctx in
        let node = TaggedAst.Id name in
 
@@ -181,17 +236,25 @@ and construct_env node parent_env ctx =
 
   | Ast.Int32Lit (i) ->
      begin
-       failwith ""
+       (* WIP *)
+       let ty = ctx.si_int_type in
+       let node = TaggedAst.Int32Lit i in
+
+       (node, ty)
      end
 
-  | _ -> failwith "construct_env: unsupported node"
+  | _ -> failwith "analyze_expr: unsupported node"
 
 
 and analyze_inner node parent_env ctx =
+  let pre_node = extract_prev_pass_node node in
+  analyze pre_node parent_env ctx
+
+and extract_prev_pass_node node =
   match node with
-  | TaggedAst.PrevPassNode pre_node ->
-     analyze pre_node parent_env ctx
-  | _ -> failwith "??"
+  | TaggedAst.PrevPassNode n -> n
+  | _ -> failwith "not prev node"
+
 
 and declare_function_params f_env node params ctx =
   let params = match node with
@@ -203,6 +266,13 @@ and declare_function_params f_env node params ctx =
   let param_types = List.map f params in
   ignore param_types;
   []
+
+
+and check_id_is_defined_uniquely env id =
+  let res = Env.find_on_env env id in
+  match res with
+    Some _ -> failwith "same ids are defined"
+  | None -> ()
 
 
 and to_type_detail_from_function_param f_env ctx param =
@@ -277,7 +347,7 @@ and try_to_complete_env env ctx =
     | Some (node) ->
        begin
          let parent_env = Option.get env.Env.parent_env in
-         ignore (construct_env_notype node parent_env ctx);
+         ignore (construct_env node parent_env ctx);
          ()
        end
     | None -> failwith ""
@@ -291,18 +361,14 @@ and resolve_type expr env ctx =
 
 and eval_expr_as_ctfe expr env ctx =
   Printf.printf "-> eval_expr_as_ctfe : begin ; \n";
-  let type_of_expr = analyze_expr expr env ctx in
+  let (_, type_of_expr) = analyze_expr expr env ctx in
   if not (Type.is_unique_ty type_of_expr) then
     failwith "[ICE] : non unique type";
   Printf.printf "<- eval_expr_as_ctfe : end\n";
-  (* tmp *)
+  (* WIP WIP WIP WIP WIP WIP *)
   ctx.si_int_type
 
 
 and analyze node env ctx =
   let snode = solve_forward_refs node env in
-  construct_env_notype snode env ctx
-
-and analyze_expr node env ctx =
-  let (_, ty) = construct_env node env ctx in
-  ty
+  construct_env snode env ctx
