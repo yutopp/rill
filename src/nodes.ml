@@ -9,15 +9,21 @@ module Make (Ctx : NodeContextType) =
     type ast =
         Module of ast * ctx_t
 
-      (* statements *)
+      (*
+       * statements
+       *)
       | StatementList of ast list
       | ExprStmt of  ast
-      | FunctionDefStmt of string * ast * ast * ctx_t (* name, params, body, _ *)
-      | ExternFunctionDefStmt of string * ast * string * ctx_t (* name, params, function name(TODO: change to AST), _ *)
+      (* name, params, return_type, body, _ *)
+      | FunctionDefStmt of string * ast * ast option * ast * ctx_t
+      (* name, params, return_type, function name(TODO: change to AST), _ *)
+      | ExternFunctionDefStmt of string * ast * ast * string * ctx_t
       | VariableDefStmt of Type.Attr.ref_val * ast * ctx_t (* ref/val, init, _ *)
       | EmptyStmt
 
-      (* expressions *)
+      (*
+       * expressions
+       *)
       | BinaryOpExpr of ast * string * ast
       | UnaryOpExpr of string * ast
 
@@ -25,7 +31,9 @@ module Make (Ctx : NodeContextType) =
       | SubscriptingExpr of ast * ast option
       | CallExpr of ast * ast
 
-      (* values *)
+      (*
+       * values
+       *)
       | Id of string
       | Int32Lit of int
       | StringLit of string
@@ -73,7 +81,7 @@ module Make (Ctx : NodeContextType) =
            asts |> List.iter (fun a -> print a; print_newline())
          end
 
-      | FunctionDefStmt (id, _, statements, ctx) ->
+      | FunctionDefStmt (id, _, _, statements, ctx) ->
          begin
            open_hbox();
            print_string "function def : "; print_string id; print_string "\n";

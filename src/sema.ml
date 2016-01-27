@@ -88,7 +88,7 @@ let rec solve_forward_refs node parent_env =
      let tagged_nodes = nodes |> List.map (fun n -> solve_forward_refs n parent_env) in
      TaggedAst.StatementList tagged_nodes
 
-  | Ast.FunctionDefStmt (name, params, body, _) ->
+  | Ast.FunctionDefStmt (name, params, opt_ret_type, body, _) ->
      begin
        let base_env = Env.find_or_create_multi_env parent_env name Env.Kind.Function in
        let fenv = Env.create_env parent_env (
@@ -99,7 +99,27 @@ let rec solve_forward_refs node parent_env =
        let node = TaggedAst.FunctionDefStmt (
                       name,
                       TaggedAst.PrevPassNode params,
+                      Option.map (fun x -> TaggedAst.PrevPassNode x) opt_ret_type,
                       TaggedAst.PrevPassNode body,
+                      Some fenv
+                    ) in
+       Env.update_rel_ast fenv node;
+       node
+     end
+
+  | Ast.ExternFunctionDefStmt (name, params, ret_type, extern_fname, _) ->
+     begin
+       let base_env = Env.find_or_create_multi_env parent_env name Env.Kind.Function in
+       let fenv = Env.create_env parent_env (
+                                   Env.Function (Env.empty_lookup_table ~init:0 ())
+                                 ) in
+       Env.MultiSetOp.add_candidates base_env fenv;
+
+       let node = TaggedAst.ExternFunctionDefStmt (
+                      name,
+                      TaggedAst.PrevPassNode params,
+                      TaggedAst.PrevPassNode ret_type,
+                      extern_fname,
                       Some fenv
                     ) in
        Env.update_rel_ast fenv node;
@@ -125,18 +145,14 @@ let rec construct_env node parent_env ctx =
      let tagged_nodes = nodes |> List.map (fun n -> construct_env n parent_env ctx) in
      TaggedAst.StatementList tagged_nodes
 
-  | TaggedAst.FunctionDefStmt (name, params_node, body, Some env) ->
+  | TaggedAst.FunctionDefStmt (name, params_node, opt_ret_type, body, Some env) ->
      if Env.is_checked env then Env.get_rel_ast env
      else begin
        Printf.printf "function %s - unchecked\n" name;
        check_env env;
 
        (* check parameters *)
-       let params = match params_node with
-         | TaggedAst.PrevPassNode (Ast.ParamsList ps) ->
-             (declare_function_params env node ps ctx)
-         | _ -> failwith ""
-       in
+       let params = check_params env node params_node ctx in
 
        (* infer return type *)
 
@@ -147,12 +163,37 @@ let rec construct_env node parent_env ctx =
        let node = TaggedAst.FunctionDefStmt (
                       name,
                       TaggedAst.ParamsList params,
+                      opt_ret_type, (* TODO: fix *)
                       nbody,
                       Some env
                     ) in
        complete_env env node;
        node
      end
+
+  | TaggedAst.ExternFunctionDefStmt (name, params_node, ret_type, extern_fname, Some env) ->
+     if Env.is_checked env then Env.get_rel_ast env
+     else begin
+       Printf.printf "function %s - unchecked\n" name;
+       check_env env;
+
+       (* check parameters *)
+       let params = check_params env node params_node ctx in
+
+       (* infer return type *)
+
+       (* body *)
+       Printf.printf "function %s - complete\n" name;
+       let node = TaggedAst.ExternFunctionDefStmt (
+                      name,
+                      TaggedAst.ParamsList params,
+                      ret_type, (* TODO: fix *)
+                      extern_fname,
+                      Some env
+                    ) in
+       complete_env env node;
+       node
+       end
 
   | TaggedAst.VariableDefStmt (rv, v, opt_env) ->
      begin
@@ -211,6 +252,8 @@ let rec construct_env node parent_env ctx =
           end
      end
 
+  | TaggedAst.EmptyStmt -> node
+
   | _ -> failwith "construct_env: unsupported node or nodes have no valid env"
 
 and analyze_expr node parent_env ctx =
@@ -256,11 +299,18 @@ and extract_prev_pass_node node =
   | _ -> failwith "not prev node"
 
 
+and check_params env node params_node ctx =
+  match params_node with
+  | TaggedAst.PrevPassNode (Ast.ParamsList ps) ->
+     (declare_function_params env node ps ctx)
+  | _ -> failwith ""
+
 and declare_function_params f_env node params ctx =
   let params = match node with
     | TaggedAst.FunctionDefStmt _ -> params
+    | TaggedAst.ExternFunctionDefStmt _ -> params
     (* TODO: support functions that have recievers. ex, member function (this/self) *)
-    | _ -> failwith "not supported"
+    | _ -> failwith "declare_function_params: not supported"
   in
   let f = to_type_detail_from_function_param f_env ctx in
   let param_types = List.map f params in

@@ -50,9 +50,10 @@ function_decl_statement:
                 DECL_DEF
                 rel_id_as_s
                 parameter_variables_decl_list
+                type_specifier?
                 function_decl_body_block
                 {
-                    Ast.FunctionDefStmt ($2, $3, $4, ())
+                    Ast.FunctionDefStmt ($2, $3, $4, $5, ())
                 }
 
 function_decl_body_block:
@@ -108,9 +109,10 @@ extern_function_statement:
                 DECL_DEF
                 rel_id_as_s
                 parameter_variables_decl_list
+                type_specifier
                 ASSIGN
                 STRING (*string_lit*)
-                { Ast.ExternFunctionDefStmt ($2, $3, $5, ()) }
+                { Ast.ExternFunctionDefStmt ($2, $3, $4, $6, ()) }
 
 
 (**)
@@ -119,10 +121,11 @@ program_body_statement:
                 * | variable_declaration_statement
                 * | control_flow_statement
                 * | return_statement
-                * | empty_statement
                 * | expression_statement
                 *)
-                variable_declaration_statement { $1 }
+                empty_statement { $1 }
+        |       expression_statement { $1 }
+        |       variable_declaration_statement { $1 }
 
 program_body_statements:
                 program_body_statement* { Ast.StatementList ($1) }
@@ -139,7 +142,8 @@ variable_decl_introducer:
         |       KEYWORD_REF { Type.Attr.Ref }
 
 variable_declaration_statement:
-                variable_declararion SEMICOLON {
+                variable_declararion SEMICOLON
+                {
                     let (rv, v) = $1 in
                     Ast.VariableDefStmt (rv, Ast.VarInit v, ())
                 }
@@ -157,6 +161,11 @@ argument_list:
                 LPAREN
                 separated_list(COMMA, assign_expression)
                 RPAREN { Ast.ArgsList $2 }
+
+(**)
+expression_statement:
+                expression SEMICOLON { $1 }
+
 
 (**)
 id_expression:

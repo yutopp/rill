@@ -73,7 +73,7 @@ let get_lookup_record e =
   | Module (r, _) -> r
   | Function (r) -> r
   | Class (r) -> r
-  | _ -> failwith "has no loopup table"
+  | _ -> failwith "has no lookup table"
 
 let get_symbol_table e =
   let lt = get_lookup_record e in
@@ -120,9 +120,9 @@ let add_inner_env (target_env : 'a env_t) (name : string) (e : 'a env_t) =
   Hashtbl.add t name e
 
 
-let empty_lookup_table () =
+let empty_lookup_table ?(init=8) () =
   {
-    scope = Hashtbl.create 10;
+    scope = Hashtbl.create init;
   }
 
 let create_env parent_env er =

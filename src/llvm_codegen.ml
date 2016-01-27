@@ -28,7 +28,7 @@ let rec code_generate node ctx =
      let f nctx node = code_generate node nctx in
      List.fold_left f ctx nodes
 
-  | TAst.FunctionDefStmt (name, TAst.ParamsList (params), body, Some env) ->
+  | TAst.FunctionDefStmt (name, TAst.ParamsList (params), _, body, Some env) ->
      begin
        let i32_ty = L.i32_type ctx.ir_context in
        let void_ty = L.void_type ctx.ir_context in
@@ -53,6 +53,20 @@ let rec code_generate node ctx =
        ctx
      end
 
+  | TAst.ExternFunctionDefStmt (name, TAst.ParamsList (params), _, extern_fname, Some env) ->
+     begin
+       let i32_ty = L.i32_type ctx.ir_context in
+       let void_ty = L.void_type ctx.ir_context in
+
+       (* int -> void *)
+       let f_ty = L.function_type void_ty [|i32_ty|] in
+
+       let llvm_func = L.declare_function extern_fname f_ty ctx.ir_module in
+
+       Ctx.bind_env_to_val ctx env llvm_func;
+       ctx
+     end
+
   | TAst.VariableDefStmt (rv, TAst.VarInit (var_init), Some env) ->
      begin
        let (_, (_, opt_init_expr)) = var_init in
@@ -62,6 +76,8 @@ let rec code_generate node ctx =
 
        ctx
      end
+
+  | TAst.EmptyStmt -> ctx
 
   | _ -> failwith "cannot generate : statement"
 
@@ -90,7 +106,9 @@ let generate node =
                   ~ir_builder:ir_builder
                   ~ir_module:ir_module
   in
-  code_generate node context
+  let ret_ctx = code_generate node context in
+  L.dump_module ret_ctx.Ctx.ir_module;
+  ret_ctx
 
 
 exception FailedToWriteBitcode

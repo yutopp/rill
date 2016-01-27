@@ -1,9 +1,8 @@
-extern def print_int(v: int) = "rill_print";
+extern def print_int(v: int):void = "rill_print";
 
 def main() {
 
 }
 
 def hoge(a : int) {
-    val a = 10;
 }
