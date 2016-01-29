@@ -11,6 +11,26 @@ and 'env record_t = {
 
 and type_id_ref_t = int
 
+
+let is_unique_ty ty =
+  match ty with
+    UniqueTy _ -> true
+  | _ -> false
+
+let has_same_class lhs rhs =
+  match (lhs, rhs) with
+    (UniqueTy lhs_r, UniqueTy rhs_r) -> lhs_r.ty_cenv = rhs_r.ty_cenv
+  | (ClassSetTy, ClassSetTy) -> true
+  | (FunctionSetTy, FunctionSetTy) -> true
+  | _ -> false
+
+
+let as_unique ty =
+  match ty with
+    UniqueTy r -> r
+  | _ -> failwith "as_unique: not unique"
+
+
 module Generator =
   struct
     type 'env id_record_table_t =
@@ -28,30 +48,21 @@ module Generator =
 
     let dummy_ty = InvalidTy
 
+    let make_fresh_id gen =
+      let new_id = gen.gen_fresh_id in
+      gen.gen_fresh_id <- gen.gen_fresh_id + 1; (* update fresh id *)
+      new_id
+
     let generate_type gen env =
-      let tid = gen.gen_fresh_id in
+      let tid = make_fresh_id gen in
       let ty = {
         ty_id = Some tid;
         ty_cenv = env;
       } in
       Hashtbl.add gen.gen_table tid ty;
-      gen.gen_fresh_id <- gen.gen_fresh_id + 1; (* update fresh id *)
 
       UniqueTy ty
   end
-
-
-let is_unique_ty ty =
-  match ty with
-    UniqueTy _ -> true
-  | _ -> false
-
-let has_same_class lhs rhs =
-  match (lhs, rhs) with
-    (UniqueTy lhs_r, UniqueTy rhs_r) -> lhs_r.ty_cenv = rhs_r.ty_cenv
-  | (ClassSetTy, ClassSetTy) -> true
-  | (FunctionSetTy, FunctionSetTy) -> true
-  | _ -> false
 
 
 module Attr =

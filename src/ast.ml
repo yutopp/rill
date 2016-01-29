@@ -1,7 +1,7 @@
 module Context =
   struct
-    type 'a t = unit
-    type 'a prev_ast_t = unit
+    type 'a current_ctx_t = unit
+    type 'a prev_ctx_t = unit
   end
 
 include Nodes.Make(Context)

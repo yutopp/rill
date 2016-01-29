@@ -1,7 +1,8 @@
 extern def print_int(v: int):void = "rill_print";
+extern def operator+(:int, :int):int = "aaaaa";
 
 def main() {
-
+    val a = 10 + 20;
 }
 
 def hoge(a : int) {

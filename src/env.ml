@@ -24,26 +24,24 @@ type id_t = Num.num
 let id_counter = ref @@ Num.num_of_int 0
 
 
-type 'ast env_record_t =
-  | Root of 'ast lookup_table_t
-  | MultiSet of 'ast multiset_record
-
-  | Module of 'ast lookup_table_t * module_record
-  | Function of 'ast lookup_table_t
-  | Class of 'ast lookup_table_t
-
-  | Variable of variable_record
-
-  | Dummy
-
- and 'ast env_t = {
+type 'ast env_t = {
    env_id           : id_t;
    parent_env       : 'ast env_t option;
    er               : 'ast env_record_t;
    mutable state    : checked_state;
 
    mutable rel_node : 'ast option;
- }
+}
+
+ and 'ast env_record_t =
+  | Root of 'ast lookup_table_t
+  | MultiSet of 'ast multiset_record
+
+  | Module of 'ast lookup_table_t * module_record
+  | Function of 'ast lookup_table_t
+  | Class of 'ast lookup_table_t * class_record
+
+  | Variable of variable_record
 
  and 'ast name_env_mapping = (string, 'ast env_t) Hashtbl.t
 
@@ -65,6 +63,9 @@ type 'ast env_record_t =
    var_name     : string;
  }
 
+ and class_record = {
+   cls_name     : string;
+ }
 
 let get_lookup_record e =
   let { er = er; _ } = e in
@@ -72,7 +73,7 @@ let get_lookup_record e =
   | Root (r) -> r
   | Module (r, _) -> r
   | Function (r) -> r
-  | Class (r) -> r
+  | Class (r, _) -> r
   | _ -> failwith "has no lookup table"
 
 let get_symbol_table e =
@@ -170,7 +171,7 @@ let make_root_env () =
     rel_node = None;
   }
 
-let find_or_create_multi_env env name k =
+let find_or_add_multi_env env name k =
   let oe = find_on_env env name in
   match oe with
   (* *)
@@ -179,10 +180,12 @@ let find_or_create_multi_env env name k =
 
   (* *)
   | None ->
-     create_env env (MultiSet {
-                         ms_kind = k;
-                         ms_candidates = [];
-                       })
+     let e = create_env env (MultiSet {
+                                 ms_kind = k;
+                                 ms_candidates = [];
+                               }) in
+     add_inner_env env name e;
+     e
 
   | _ -> failwith "multienv is not found"
 
@@ -205,3 +208,55 @@ module MultiSetOp =
 module ClassOp =
   struct
   end
+
+
+let print env =
+  let print_table tbl indent =
+    let open Printf in
+    let p name =
+      printf "%s+ %s\n" indent name
+    in
+    tbl |> Hashtbl.iter @@ fun name _ -> p name
+  in
+  let print_ er f indent =
+    let open Printf in
+    let nindent = (indent ^ "  ") in
+    match er with
+    | Root (lt) ->
+       begin
+         printf "%sRootEnv\n" indent;
+         print_table lt.scope indent;
+         f nindent;
+       end
+    | Module (lt, r) ->
+       begin
+         printf "%sModuleEnv - %s\n" indent r.mod_name;
+         print_table lt.scope indent;
+         f nindent;
+       end
+    | Function (lt) ->
+       begin
+         printf "%sFunction\n" indent;
+         print_table lt.scope indent;
+         f nindent;
+       end
+    | Class (lt, r) ->
+       begin
+         printf "%sClassEnv - %s\n" indent r.cls_name;
+         print_table lt.scope indent;
+         f nindent;
+       end
+    | _ -> failwith "print: unsupported env"
+  in
+  let rec dig env f =
+    if is_root env then begin
+      let { er = er; _ } = env in
+      print_ er f ""
+    end else begin
+      let pr = parent_env env in
+      let { er = er; _ } = env in
+      let newf indent = print_ er f indent in
+      dig pr newf
+    end
+  in
+  dig env (fun _ -> ())

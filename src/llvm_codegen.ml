@@ -30,10 +30,12 @@ let rec code_generate node ctx =
 
   | TAst.FunctionDefStmt (name, TAst.ParamsList (params), _, body, Some env) ->
      begin
+
        let i32_ty = L.i32_type ctx.ir_context in
        let void_ty = L.void_type ctx.ir_context in
 
        (* int -> void *)
+       let name = Nodes.string_of_id_string name in (*TODO: use the value in the env*)
        let f_ty = L.function_type void_ty [|i32_ty|] in
        let f = L.declare_function name f_ty ctx.ir_module in
 
@@ -43,14 +45,14 @@ let rec code_generate node ctx =
        L.position_builder f_begin_ip ctx.ir_builder;
 
        (**)
-       ignore @@ code_generate body ctx;
+       let nctx = code_generate body ctx in
 
        (**)
        ignore (L.build_ret_void ctx.ir_builder);
 
        Llvm_analysis.assert_valid_function f;
 
-       ctx
+       nctx
      end
 
   | TAst.ExternFunctionDefStmt (name, TAst.ParamsList (params), _, extern_fname, Some env) ->
@@ -69,10 +71,12 @@ let rec code_generate node ctx =
 
   | TAst.VariableDefStmt (rv, TAst.VarInit (var_init), Some env) ->
      begin
-       let (_, (_, opt_init_expr)) = var_init in
+       let (var_name, (_, opt_init_expr)) = var_init in
        let init_expr = Option.get opt_init_expr in
        let llvm_val = code_generate_as_value init_expr ctx in
        Ctx.bind_env_to_val ctx env llvm_val;
+
+       L.set_value_name var_name llvm_val;
 
        ctx
      end

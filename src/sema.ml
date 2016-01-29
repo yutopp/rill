@@ -2,8 +2,8 @@ open Batteries
 
 module AstContext =
   struct
-    type 'a t = ('a Env.env_t) option
-    type 'a prev_ast_t = Ast.ast
+    type 'a current_ctx_t = ('a Env.env_t) option
+    type 'a prev_ctx_t = Ast.ast
   end
 
 module TaggedAst = Nodes.Make(AstContext)
@@ -34,14 +34,17 @@ let make_default_context root_env =
     si_int_type = Type.Generator.dummy_ty;
   } in
 
-  let create_builtin_class () =
-    let env = Env.create_env root_env (Env.Class (Env.empty_lookup_table ())
+  let create_builtin_class name =
+    let env = Env.create_env root_env (Env.Class (Env.empty_lookup_table (),
+                                                  {
+                                                    Env.cls_name = name;
+                                                  })
                                   ) in
     Env.update_status env Env.Complete;
     env
   in
   let register_builtin_type name setter =
-    let cenv = create_builtin_class () in
+    let cenv = create_builtin_class name in
     Env.add_inner_env root_env name cenv;
     let ty = Type.Generator.generate_type ctx.si_type_gen cenv in
     setter ty
@@ -63,6 +66,10 @@ let check_env env =
 let complete_env env node =
   Env.update_status env Env.Complete;
   Env.update_rel_ast env node
+
+let check_is_args_valid ty =
+  (* TODO: implement *)
+  ()
 
 
 let rec solve_forward_refs node parent_env =
@@ -90,7 +97,8 @@ let rec solve_forward_refs node parent_env =
 
   | Ast.FunctionDefStmt (name, params, opt_ret_type, body, _) ->
      begin
-       let base_env = Env.find_or_create_multi_env parent_env name Env.Kind.Function in
+       let name_s = Nodes.string_of_id_string name in
+       let base_env = Env.find_or_add_multi_env parent_env name_s Env.Kind.Function in
        let fenv = Env.create_env parent_env (
                                    Env.Function (Env.empty_lookup_table ())
                                  ) in
@@ -109,7 +117,8 @@ let rec solve_forward_refs node parent_env =
 
   | Ast.ExternFunctionDefStmt (name, params, ret_type, extern_fname, _) ->
      begin
-       let base_env = Env.find_or_create_multi_env parent_env name Env.Kind.Function in
+       let name_s = Nodes.string_of_id_string name in
+       let base_env = Env.find_or_add_multi_env parent_env name_s Env.Kind.Function in
        let fenv = Env.create_env parent_env (
                                    Env.Function (Env.empty_lookup_table ~init:0 ())
                                  ) in
@@ -148,7 +157,8 @@ let rec construct_env node parent_env ctx =
   | TaggedAst.FunctionDefStmt (name, params_node, opt_ret_type, body, Some env) ->
      if Env.is_checked env then Env.get_rel_ast env
      else begin
-       Printf.printf "function %s - unchecked\n" name;
+       let name_s = Nodes.string_of_id_string name in
+       Printf.printf "function %s - unchecked\n" name_s;
        check_env env;
 
        (* check parameters *)
@@ -159,7 +169,7 @@ let rec construct_env node parent_env ctx =
        (* body *)
        let nbody = analyze_inner body env ctx in
 
-       Printf.printf "function %s - complete\n" name;
+       Printf.printf "function %s - complete\n" name_s;
        let node = TaggedAst.FunctionDefStmt (
                       name,
                       TaggedAst.ParamsList params,
@@ -174,7 +184,8 @@ let rec construct_env node parent_env ctx =
   | TaggedAst.ExternFunctionDefStmt (name, params_node, ret_type, extern_fname, Some env) ->
      if Env.is_checked env then Env.get_rel_ast env
      else begin
-       Printf.printf "function %s - unchecked\n" name;
+       let name_s = Nodes.string_of_id_string name in
+       Printf.printf "function %s - unchecked\n" name_s;
        check_env env;
 
        (* check parameters *)
@@ -183,7 +194,7 @@ let rec construct_env node parent_env ctx =
        (* infer return type *)
 
        (* body *)
-       Printf.printf "function %s - complete\n" name;
+       Printf.printf "function %s - complete\n" name_s;
        let node = TaggedAst.ExternFunctionDefStmt (
                       name,
                       TaggedAst.ParamsList params,
@@ -260,7 +271,23 @@ and analyze_expr node parent_env ctx =
   match node with
   | Ast.BinaryOpExpr (lhs, op, rhs) ->
      begin
-       failwith "b op"
+       let args = [lhs; rhs] in
+       let eargs = args |> List.map @@ fun n -> evaluate_invocation_arg n parent_env ctx in
+       let args_type_details = eargs |> List.map Tuple2.second in
+       List.iter check_is_args_valid args_type_details;
+       let args_ty_recs = args_type_details |> List.map Type.as_unique in
+
+       let opt_f_ty =
+         find_suitable_operator ~universal_search:true
+                                op args_ty_recs node parent_env ctx in
+       match opt_f_ty with
+       | Some f_ty ->
+          begin
+            failwith "!!!!!!!!!!!!!"
+          end
+       | None ->
+          (* TODO: error message *)
+          failwith "binary operator is not found"
      end
 
   | Ast.UnaryOpExpr (op, expr) ->
@@ -271,7 +298,10 @@ and analyze_expr node parent_env ctx =
   | Ast.Id (name) as id_node ->
      begin
        (* WIP *)
-       let ty = solve_identifier id_node parent_env ctx in
+       let ty = match solve_identifier id_node parent_env ctx with
+           Some v -> v
+         | None -> failwith "id not found"  (* TODO: change to exception *)
+       in
        let node = TaggedAst.Id name in
 
        (node, ty)
@@ -346,18 +376,14 @@ and solve_identifier ?(do_rec_search=true) id_node env ctx =
   | _ -> failwith "unsupported ID type"
 
 and solve_simple_identifier ?(do_rec_search=true) name env ctx =
-  Printf.printf "-> finding identitifer = %s\n" name;
+  let name_s = Nodes.string_of_id_string name in
+  Printf.printf "-> finding identitifer = %s : rec = %b\n" name_s do_rec_search;
   let oenv = if do_rec_search then
-              Env.lookup env name
-            else
-              Env.find_on_env env name
+               Env.lookup env name_s
+             else
+               Env.find_on_env env name_s
   in
-  let env = match oenv with
-      Some (e) -> e
-    | None -> failwith "env is not found" (* TODO: change to exception *)
-  in
-  let env_r = env.Env.er in
-
+  Env.print env;
   (* Ex, "int" -> { type: type, value: int } *)
   let single_type_id_node name cenv =
     try_to_complete_env cenv ctx;
@@ -365,30 +391,34 @@ and solve_simple_identifier ?(do_rec_search=true) name env ctx =
     ctx.si_type_type
   in
 
-  match env_r with
-  | Env.MultiSet (record) ->
-     begin
-       match record.Env.ms_kind with
-       | Env.Kind.Class ->
-          begin
-            (* classes will not be overloaded. However, template classes have
-             * some instances (specialized). Thus, type may be unclear...
-             *)
-            failwith "not implemented : class"
-          end
-       | Env.Kind.Function ->
-          begin
-            (* functions will be overloaded *)
-            failwith "not implemented : function"
-          end
-       | _ -> failwith "unexpected env : multi-set kind"
-     end
+  let solve env_r =
+    match env_r with
+    | Env.MultiSet (record) ->
+       begin
+         match record.Env.ms_kind with
+         | Env.Kind.Class ->
+            begin
+              (* classes will not be overloaded. However, template classes have
+               * some instances (specialized). Thus, type may be unclear...
+               *)
+              failwith "not implemented : class / multi-set"
+            end
+         | Env.Kind.Function ->
+            begin
+              (* functions will be overloaded *)
+              failwith "not implemented : function / multi-set"
+            end
+         | _ -> failwith "unexpected env : multi-set kind"
+       end
 
-  (* only primitive classes may be matched *)
-  | Env.Class (_) -> single_type_id_node name env
+    (* only primitive classes may be matched *)
+    | Env.Class (_) -> single_type_id_node name env
 
-  (*| Env.Variable *)
-  | _ -> failwith "unexpected env"
+    (*| Env.Variable *)
+    | _ -> failwith "unexpected env"
+  in
+
+  oenv |> Option.map (fun e -> solve e.Env.er)
 
 
 and try_to_complete_env env ctx =
@@ -408,7 +438,6 @@ and resolve_type expr env ctx =
   let ty = eval_expr_as_ctfe expr env ctx in
   ty
 
-
 and eval_expr_as_ctfe expr env ctx =
   Printf.printf "-> eval_expr_as_ctfe : begin ; \n";
   let (_, type_of_expr) = analyze_expr expr env ctx in
@@ -417,6 +446,53 @@ and eval_expr_as_ctfe expr env ctx =
   Printf.printf "<- eval_expr_as_ctfe : end\n";
   (* WIP WIP WIP WIP WIP WIP *)
   ctx.si_int_type
+
+
+and evaluate_invocation_arg expr env ctx =
+  (* TODO: check CTFE-able node *)
+  analyze_expr expr env ctx
+
+and find_suitable_operator ?(universal_search=false) op_name_id_s arg_types expr env ctx =
+  let op_name = Ast.Id op_name_id_s in
+  let callee_function_ty =
+    select_member_element ~universal_search:universal_search
+                          (List.hd arg_types) op_name env ctx
+  in
+
+  callee_function_ty
+
+(* this function solves types of the following
+* "some_class.some_method"
+* When universal_search option is true, a following code will be also solved (for UFCS).
+* "some_method"
+*)
+and select_member_element ?(universal_search=false) recv_ty_r t_id env ctx =
+  let r_cenv = recv_ty_r.Type.ty_cenv in
+  let opt_t_id_info = solve_identifier ~do_rec_search:false t_id r_cenv ctx in
+
+  match opt_t_id_info with
+  | Some (t_id_info) ->
+     begin
+       (* member env named id is found in recv_ty_r! *)
+       failwith "select_member_element: not implemented / select"
+     end
+  | None ->
+     begin
+       (* not found *)
+       (* first, find the member function like "opDispatch" in recv_ty_r *)
+       (* TODO: implement *)
+
+       (* second, do universal_search *)
+       if universal_search then begin
+         (* TODO: exclude class envs *)
+         let opt_t_id_info = solve_identifier t_id env ctx in
+         let solve t_id_info =
+           t_id_info
+         in
+         Option.map solve opt_t_id_info
+       end else
+         None
+     end
 
 
 and analyze node env ctx =

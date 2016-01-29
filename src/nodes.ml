@@ -1,7 +1,24 @@
+type id_string =
+    Pure of string
+  | UnaryPreOp of string
+  | UnaryPostOp of string
+  | BinaryOp of string
+
+let string_of_binary_op s =
+  "op_binary_" ^ s
+
+let string_of_id_string id_s =
+  match id_s with
+  | Pure s -> s
+  | UnaryPreOp s -> "op_unary_pre_" ^ s
+  | UnaryPostOp s -> "op_unary_post_" ^ s
+  | BinaryOp s -> string_of_binary_op s
+
+
 module type NodeContextType =
   sig
-    type 'a t
-    type 'a prev_ast_t
+    type 'a current_ctx_t
+    type 'a prev_ctx_t
   end
 
 module Make (Ctx : NodeContextType) =
@@ -13,18 +30,18 @@ module Make (Ctx : NodeContextType) =
        * statements
        *)
       | StatementList of ast list
-      | ExprStmt of  ast
+      | ExprStmt of ast
       (* name, params, return_type, body, _ *)
-      | FunctionDefStmt of string * ast * ast option * ast * ctx_t
+      | FunctionDefStmt of id_string * ast * ast option * ast * ctx_t
       (* name, params, return_type, function name(TODO: change to AST), _ *)
-      | ExternFunctionDefStmt of string * ast * ast * string * ctx_t
+      | ExternFunctionDefStmt of id_string * ast * ast * string * ctx_t
       | VariableDefStmt of Type.Attr.ref_val * ast * ctx_t (* ref/val, init, _ *)
       | EmptyStmt
 
       (*
        * expressions
        *)
-      | BinaryOpExpr of ast * string * ast
+      | BinaryOpExpr of ast * id_string * ast
       | UnaryOpExpr of string * ast
 
       | ElementSelectionExpr of ast * ast
@@ -34,7 +51,7 @@ module Make (Ctx : NodeContextType) =
       (*
        * values
        *)
-      | Id of string
+      | Id of id_string
       | Int32Lit of int
       | StringLit of string
       | BoolLit of bool
@@ -57,8 +74,9 @@ module Make (Ctx : NodeContextType) =
      and value_init_t = ast option * ast option
 
 
-     and ctx_t = ast Ctx.t
-     and pctx_t = ast Ctx.prev_ast_t
+     and ctx_t = ast Ctx.current_ctx_t
+     and pctx_t = ast Ctx.prev_ctx_t
+
 
     type t = ast
 
@@ -84,7 +102,7 @@ module Make (Ctx : NodeContextType) =
       | FunctionDefStmt (id, _, _, statements, ctx) ->
          begin
            open_hbox();
-           print_string "function def : "; print_string id; print_string "\n";
+           print_string "function def : "; print_string (string_of_id_string id); print_string "\n";
            print statements;
            close_box()
          end

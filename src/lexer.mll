@@ -22,6 +22,8 @@ rule token = parse
   | blank               { token lexbuf }
   | newline             { next_line lexbuf; token lexbuf }
 
+  | "operator"          { KEYWORD_OPERATOR }
+
   | "def"               { DECL_DEF }
   | "val"               { KEYWORD_VAL }
   | "ref"               { KEYWORD_REF }
@@ -39,32 +41,35 @@ rule token = parse
   | ['0'-'9']+ as i     { INT (int_of_string i) }
   | ['a'-'z' '_']+ as s { ID s }
 
-  | "||"                { LOGICAL_OR }
-  | "&&"                { LOGICAL_AND }
+  | "++" as op          { INCREMENT op }
+  | "--" as op          { DECREMENT op }
 
-  | "=="                { EQUALS }
-  | "!="                { NOT_EQUALS }
+  | "||" as op          { LOGICAL_OR op }
+  | "&&" as op          { LOGICAL_AND op }
 
-  | "<<"                { LSHIFT }
-  | ">>"                { RSHIFT }
+  | "==" as op          { EQUALS op }
+  | "!=" as op          { NOT_EQUALS op }
 
-  | ">="                { GTE }
-  | "<="                { LTE }
+  | "<<" as op          { LSHIFT op }
+  | ">>" as op          { RSHIFT op }
 
-  | '|'                 { BITWISE_OR }
-  | '^'                 { BITWISE_XOR }
-  | '&'                 { BITWISE_AND }
+  | ">=" as op          { GTE op }
+  | "<=" as op          { LTE op }
 
-  | '>'                 { GT }
-  | '<'                 { LT }
+  | '|' as op           { BITWISE_OR (Char.escaped op) }
+  | '^' as op           { BITWISE_XOR (Char.escaped op) }
+  | '&' as op           { BITWISE_AND (Char.escaped op) }
 
-  | '+'                 { PLUS }
-  | '-'                 { MINUS }
-  | '*'                 { TIMES }
-  | '/'                 { DIV }
-  | '%'                 { MOD }
+  | '>' as op           { GT (Char.escaped op) }
+  | '<' as op           { LT (Char.escaped op) }
 
-  | '='                 { ASSIGN }
+  | '+' as op           { PLUS (Char.escaped op) }
+  | '-' as op           { MINUS (Char.escaped op) }
+  | '*' as op           { TIMES (Char.escaped op) }
+  | '/' as op           { DIV (Char.escaped op) }
+  | '%' as op           { MOD (Char.escaped op) }
+
+  | '=' as op           { ASSIGN (Char.escaped op) }
 
   | '['                 { LBRACKET }
   | ']'                 { RBRACKET }
