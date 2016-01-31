@@ -22,19 +22,35 @@
 # Phony targets are scoped, so you probably want to declare them first.
 #
 
-.PHONY: all install clean
+# .PHONY: all install clean
 
 
 ########################################################################
-# Subdirectories.
-# You may want to include some subdirectories in this project.
-# If so, define the subdirectory targets and uncomment this section.
+# C configuration.
+# Delete this section if you are not building C files.
 #
 
-.SUBDIRS: rillc corelib stdlib
-
-
-########################################################################
+################################################
+# Configuration.  You might want to modify any of these
+# configuration variables.
 #
-clean:
-    rm -f *~ *.opt *.cmi *.cmx *.cmxa *.o *.omc *.a *.out *.s *.bc *.log *.cache
+
+CXXFLAGS += -std=c++14 -Wall -pedantic -fdiagnostics-color=always
+# ASFLAGS +=
+# LDFLAGS +=
+
+################################################
+# Uncomment the following section if you want
+# to build a C program in the current directory.
+#
+
+LIBFILES[] =
+   runtime
+
+
+LIB = rillstd-rt
+
+# INCLUDES +=
+# LIBS =
+
+.DEFAULT: $(StaticCXXLibrary $(LIB), $(LIBFILES))

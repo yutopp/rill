@@ -9,5 +9,9 @@ let () =
 
   let module M = (Llvm_codegen : Codegen.GENERATOR_TYPE) in
   let c_ctx = M.generate sem_ast in
-  M.create_executable c_ctx "" "a.out";
+  let tmp_stdlib_path = "./stdlib/lib/rillstd-rt.a" in (* TODO: fix *)
+  M.create_executable c_ctx tmp_stdlib_path "a.out";
   flush_all ();
+
+  Printf.printf "Finished!!!\n";
+  flush_all ()

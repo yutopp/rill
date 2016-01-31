@@ -19,6 +19,10 @@ eval `opam config env`
 `omake`
 
 
+## Try
+`omake && rillc/src/rillc && ./a.out`
+
+
 # Trouble shoorting
 ## Failed to opam install llvm
 

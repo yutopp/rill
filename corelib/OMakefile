@@ -31,7 +31,7 @@
 # If so, define the subdirectory targets and uncomment this section.
 #
 
-.SUBDIRS: rillc corelib stdlib
+.SUBDIRS:
 
 
 ########################################################################

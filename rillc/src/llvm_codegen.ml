@@ -216,7 +216,7 @@ let create_executable ctx lib_name out_name =
   if sc <> 0 then raise FailedToBuildBitcode;
 
   (* output executable *)
-  (*let sc = Sys.command (Printf.sprintf "g++ %s %s -o %s" (Filename.quote bin_name) (Filename.quote lib_name) (Filename.quote out_name)) in*)
-  let sc = Sys.command (Printf.sprintf "gcc %s -o %s" (Filename.quote bin_name) (Filename.quote out_name)) in
+  let sc = Sys.command (Printf.sprintf "g++ %s %s -o %s" (Filename.quote bin_name) (Filename.quote lib_name) (Filename.quote out_name)) in
+  (*let sc = Sys.command (Printf.sprintf "gcc %s -o %s" (Filename.quote bin_name) (Filename.quote out_name)) in*)
   if sc <> 0 then raise FailedToBuildExecutable;
   ()
