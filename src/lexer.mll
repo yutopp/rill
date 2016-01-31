@@ -71,6 +71,7 @@ rule token = parse
 
   | '=' as op           { ASSIGN (Char.escaped op) }
 
+  | '#'                 { SHARP }
   | '['                 { LBRACKET }
   | ']'                 { RBRACKET }
 

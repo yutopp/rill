@@ -38,10 +38,11 @@ type 'ast env_t = {
   | MultiSet of 'ast multiset_record
 
   | Module of 'ast lookup_table_t * module_record
-  | Function of 'ast lookup_table_t
+  | Function of 'ast lookup_table_t * 'ast function_record
   | Class of 'ast lookup_table_t * class_record
+  | Variable of 'ast variable_record
 
-  | Variable of variable_record
+ and 'ast type_info_t = ('ast env_t) Type.info_t
 
  and 'ast name_env_mapping = (string, 'ast env_t) Hashtbl.t
 
@@ -59,20 +60,62 @@ type 'ast env_t = {
    mod_name     : string;
  }
 
- and variable_record = {
-   var_name     : string;
+
+ (*
+  *
+  *)
+ and 'ast function_record = {
+   fn_name              : Nodes.id_string;
+   mutable fn_detail    : 'ast function_record_var;
+ }
+ and 'ast function_record_var =
+   | FnRecordNormal of function_record_normal
+   | FnRecordExtern of function_record_extern
+   | FnUndef
+
+ and function_record_normal = {
+   fn_n_yo          : string;
  }
 
+ and function_record_extern = {
+   fn_e_name        : string;
+   fn_e_is_builtin  : bool;
+ }
+
+
+ (*
+  *
+  *)
+ and 'ast variable_record = {
+   var_name             : string;
+   mutable var_type     : 'ast type_info_t;
+   mutable var_detail   : 'ast variable_record_var;
+ }
+ and 'ast variable_record_var =
+   | VarRecordNormal of 'ast variable_record_normal
+   | VarUndef
+
+ and 'ast variable_record_normal = unit (* TODO: implement *)
+
+
+ (*
+  *
+  *)
  and class_record = {
    cls_name     : string;
  }
+
+
+let get_env_record env =
+  let { er = er; _ } = env in
+  er
 
 let get_lookup_record e =
   let { er = er; _ } = e in
   match er with
   | Root (r) -> r
   | Module (r, _) -> r
-  | Function (r) -> r
+  | Function (r, _) -> r
   | Class (r, _) -> r
   | _ -> failwith "has no lookup table"
 
@@ -116,7 +159,7 @@ let rec lookup e name =
               lookup penv name
 
 (*  *)
-let add_inner_env (target_env : 'a env_t) (name : string) (e : 'a env_t) =
+let add_inner_env target_env name e =
   let t = get_symbol_table target_env in
   Hashtbl.add t name e
 
@@ -171,27 +214,25 @@ let make_root_env () =
     rel_node = None;
   }
 
-let find_or_add_multi_env env name k =
-  let oe = find_on_env env name in
-  match oe with
-  (* *)
-  | Some ({ er = (MultiSet { ms_kind = k; _ }); _} as e) ->
-     e
-
-  (* *)
-  | None ->
-     let e = create_env env (MultiSet {
-                                 ms_kind = k;
-                                 ms_candidates = [];
-                               }) in
-     add_inner_env env name e;
-     e
-
-  | _ -> failwith "multienv is not found"
-
 
 module MultiSetOp =
   struct
+    let find_or_add env name k =
+      let oe = find_on_env env name in
+      match oe with
+      (* *)
+      | Some ({ er = (MultiSet { ms_kind = k; _ }); _} as e) ->
+         e
+      (* *)
+      | None ->
+         let e = create_env env (MultiSet {
+                                     ms_kind = k;
+                                     ms_candidates = [];
+                                   }) in
+         add_inner_env env name e;
+         e
+      | _ -> failwith "multienv is not found"
+
     let add_candidates menv env =
       let { er = mer; _ } = menv in
       match mer with
@@ -205,8 +246,34 @@ module MultiSetOp =
   end
 
 
+module FunctionOp =
+  struct
+    let get_record env =
+      let er = get_env_record env in
+      match er with
+      | Function (_, r) -> r
+      | _ -> failwith "FunctionOp.get_record : not function"
+
+    let get_extern_record env =
+      let r = get_record env in
+      match r.fn_detail with
+      | FnRecordExtern r -> r
+      | _ -> failwith "FunctionOp.get_extern_record : not extern"
+  end
+
+
 module ClassOp =
   struct
+  end
+
+
+module VariableOp =
+  struct
+    let get_record env =
+      let er = get_env_record env in
+      match er with
+      | Variable (r) -> r
+      | _ -> failwith "VariableOp.get_record : not function"
   end
 
 
@@ -234,7 +301,7 @@ let print env =
          print_table lt.scope indent;
          f nindent;
        end
-    | Function (lt) ->
+    | Function (lt, r) ->
        begin
          printf "%sFunction\n" indent;
          print_table lt.scope indent;

@@ -1,8 +1,9 @@
 type 'env info_t =
     UniqueTy of 'env record_t
   | ClassSetTy
-  | FunctionSetTy
+  | FunctionSetTy of 'env
   | InvalidTy
+  | Undef
 
 and 'env record_t = {
   ty_id     : type_id_ref_t option;
@@ -21,7 +22,7 @@ let has_same_class lhs rhs =
   match (lhs, rhs) with
     (UniqueTy lhs_r, UniqueTy rhs_r) -> lhs_r.ty_cenv = rhs_r.ty_cenv
   | (ClassSetTy, ClassSetTy) -> true
-  | (FunctionSetTy, FunctionSetTy) -> true
+  | (FunctionSetTy lhs_e, FunctionSetTy rhs_e) -> lhs_e = rhs_e
   | _ -> false
 
 
@@ -53,7 +54,7 @@ module Generator =
       gen.gen_fresh_id <- gen.gen_fresh_id + 1; (* update fresh id *)
       new_id
 
-    let generate_type gen env =
+    let generate_type_with_cache gen env =
       let tid = make_fresh_id gen in
       let ty = {
         ty_id = Some tid;

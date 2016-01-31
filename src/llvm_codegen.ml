@@ -10,10 +10,13 @@ module CodeGeneratorType =
 
     type ir_value_t = L.llvalue
     type ir_type_t = L.lltype
+
+    type 'ctx builtin_f_t = (ir_value_t array -> 'ctx -> ir_value_t)
   end
 
 module Ctx = Codegen.Context.Make(CodeGeneratorType)
 type ctx_t = Env.id_t Ctx.t
+
 
 let rec code_generate node ctx =
   let open Ctx in
@@ -30,7 +33,6 @@ let rec code_generate node ctx =
 
   | TAst.FunctionDefStmt (name, TAst.ParamsList (params), _, body, Some env) ->
      begin
-
        let i32_ty = L.i32_type ctx.ir_context in
        let void_ty = L.void_type ctx.ir_context in
 
@@ -81,6 +83,12 @@ let rec code_generate node ctx =
        ctx
      end
 
+  | TAst.ExprStmt e ->
+     begin
+       ignore @@ code_generate_as_value e ctx;
+       ctx
+     end
+
   | TAst.EmptyStmt -> ctx
 
   | _ -> failwith "cannot generate : statement"
@@ -89,28 +97,101 @@ and code_generate_as_value node ctx =
   let open Ctx in
   let module TAst = Sema.TaggedAst in
   match node with
-  | TAst.BinaryOpExpr (lhs, op, rhs) ->
+  | TAst.GenericCall (name, args, Some env) ->
      begin
-       failwith ""
+       let llargs = args
+                    |> List.map (fun n -> code_generate_as_value n ctx)
+                    |> Array.of_list in
+       let { Env.er = er; _ } = env in
+       let llval = match er with
+         | Env.Function (_, r) ->
+            begin
+              let { Env.fn_detail = detail; _ } = r in
+              match detail with
+              | Env.FnRecordExtern {
+                  Env.fn_e_name = extern_name;
+                  Env.fn_e_is_builtin = is_builtin;
+                } ->
+                 begin
+                   (* TODO: fix *)
+                   match is_builtin with
+                   | true ->
+                      begin
+                        Printf.printf "debug / builtin = \"%s\"\n" extern_name;
+
+                        let builtin_gen_f = Ctx.find_builtin_func ctx extern_name in
+                        builtin_gen_f llargs ctx
+                      end
+                   | false ->
+                      begin
+                        Printf.printf "debug / extern = \"%s\"\n" extern_name;
+                        let extern_f = Ctx.find_val_from_env ctx env in
+                        L.build_call extern_f llargs "" ctx.ir_builder
+                      end
+                 end
+              | Env.FnRecordNormal _ -> failwith "codegen: not implemented fun"
+              | _ -> failwith "codegen: invalid function record"
+            end
+         | _ -> failwith @@ "codegen; id " ^ name
+       in
+       llval
      end
+
   | TAst.Int32Lit (v) ->
      begin
        L.const_int (L.i32_type ctx.ir_context) v
      end
+
+  | TAst.Id (name, Some rel_env) ->
+     begin
+       let { Env.er = er; _ } = rel_env in
+       match er with
+       | Env.Function (_, _) ->
+          begin
+            (* *)
+            failwith "function"
+          end
+       | Env.Variable (vr) ->
+          begin
+            Ctx.find_val_from_env ctx rel_env
+          end
+       | _ -> failwith @@ "codegen; id " ^ (Nodes.string_of_id_string name)
+     end
+
   | _ -> failwith "cannot generate : as value"
 
 
-let generate node =
+
+let make_default_context () =
   let ir_context = L.global_context () in
   let ir_builder = L.builder ir_context in
   let ir_module = L.create_module ir_context "Rill" in
 
-  let context = Ctx.init
-                  ~ir_context:ir_context
-                  ~ir_builder:ir_builder
-                  ~ir_module:ir_module
+  Ctx.init
+    ~ir_context:ir_context
+    ~ir_builder:ir_builder
+    ~ir_module:ir_module
+
+
+let inject_builtins ctx =
+  let open Ctx in
+  let register_builtin name f =
+    Ctx.bind_builtin_func ctx name f;
+    Printf.printf "debug / registerd builtin = \"%s\"\n" name
   in
-  let ret_ctx = code_generate node context in
+
+  let add_int_int args ctx =
+    assert (Array.length args = 2);
+    L.build_add args.(0) args.(1) "" ctx.Ctx.ir_builder
+  in
+  register_builtin "__builtin_op_binary_+_int_int" add_int_int
+
+
+let generate node =
+  let ctx = make_default_context () in
+  inject_builtins ctx;
+
+  let ret_ctx = code_generate node ctx in
   L.dump_module ret_ctx.Ctx.ir_module;
   ret_ctx
 

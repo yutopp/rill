@@ -37,6 +37,7 @@ module Make (Ctx : NodeContextType) =
       | ExternFunctionDefStmt of id_string * ast * ast * string * ctx_t
       | VariableDefStmt of Type.Attr.ref_val * ast * ctx_t (* ref/val, init, _ *)
       | EmptyStmt
+      | AttrWrapperStmt of (string, ast option) Hashtbl.t * ast
 
       (*
        * expressions
@@ -46,12 +47,12 @@ module Make (Ctx : NodeContextType) =
 
       | ElementSelectionExpr of ast * ast
       | SubscriptingExpr of ast * ast option
-      | CallExpr of ast * ast
+      | CallExpr of ast * ast list
 
       (*
        * values
        *)
-      | Id of id_string
+      | Id of id_string * ctx_t
       | Int32Lit of int
       | StringLit of string
       | BoolLit of bool
@@ -62,8 +63,10 @@ module Make (Ctx : NodeContextType) =
       (* special *)
       | ParamsList of param_init_t list
       | VarInit of var_init_t
-      | ArgsList of ast list
       | PrevPassNode of pctx_t
+
+      | GenericCall of string * ast list * ctx_t
+
 
      (* id * value *)
      and param_init_t = string option * value_init_t
@@ -72,7 +75,6 @@ module Make (Ctx : NodeContextType) =
 
      (* type * default value *)
      and value_init_t = ast option * ast option
-
 
      and ctx_t = ast Ctx.current_ctx_t
      and pctx_t = ast Ctx.prev_ctx_t
@@ -99,6 +101,9 @@ module Make (Ctx : NodeContextType) =
            asts |> List.iter (fun a -> print a; print_newline())
          end
 
+      | ExprStmt _ ->
+         print_string "ExprStmt\n"
+
       | FunctionDefStmt (id, _, _, statements, ctx) ->
          begin
            open_hbox();
@@ -107,6 +112,12 @@ module Make (Ctx : NodeContextType) =
            close_box()
          end
 
+      | ExternFunctionDefStmt _ ->
+         print_string "ExternFunctionDefStmt\n"
+
+      | VariableDefStmt _ ->
+         print_string "VariableDefStmt\n"
+
       | EmptyStmt ->
          begin
            open_hbox();
@@ -114,5 +125,6 @@ module Make (Ctx : NodeContextType) =
            close_box()
          end
 
-      | otherwise -> ()
+      | _ ->
+         print_string "unknown\n"
   end

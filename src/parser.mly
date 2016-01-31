@@ -13,7 +13,7 @@
                         LBRACKET RBRACKET
 %token                  COMMA DOT
                         COLON SEMICOLON
-                        FAT_ARROW
+                        FAT_ARROW SHARP
 %token                  EOF
 %token                  LIT_TRUE LIT_FALSE
                         DECL_DEF
@@ -40,10 +40,13 @@ top_level_statements:
 (* statements *)
 
 top_level_statement:
+                attribute top_level_statement_ { Ast.AttrWrapperStmt ($1, $2) }
+        |       top_level_statement_ { $1 }
+
+top_level_statement_:
                 empty_statement { $1 }
         |       function_decl_statement { $1 }
         |       extern_statement { $1 }
-
 
 empty_statement:
                 SEMICOLON { Ast.EmptyStmt }
@@ -119,6 +122,10 @@ extern_function_statement:
 
 (**)
 program_body_statement:
+                attribute program_body_statement_ { Ast.AttrWrapperStmt ($1, $2) }
+        |       program_body_statement_ { $1 }
+
+program_body_statement_:
                 (*  block_statement
                 * | variable_declaration_statement
                 * | control_flow_statement
@@ -163,11 +170,11 @@ variable_initializer_unit:
 argument_list:
                 LPAREN
                 separated_list(COMMA, assign_expression)
-                RPAREN { Ast.ArgsList $2 }
+                RPAREN { $2 }
 
 (**)
 expression_statement:
-                expression SEMICOLON { $1 }
+                expression SEMICOLON { Ast.ExprStmt $1 }
 
 
 (**)
@@ -316,9 +323,9 @@ rel_id_as_s:
 
 (*
 rel_id_has_no_op:
-                rel_id_has_no_op_as_s { Ast.Id ($1) }
+                     rel_id_has_no_op_as_s { Ast.Id ($1, ()) }
 *)
-rel_id:         rel_id_as_s { Ast.Id ($1) }
+rel_id:         rel_id_as_s { Ast.Id ($1, ()) }
 
 
 rel_generic_id:
@@ -338,3 +345,23 @@ numeric_literal:
 
 string_literal:
                 STRING { Ast.StringLit ($1) }
+
+
+(**)
+attribute:
+                SHARP LBRACKET separated_list(COMMA, attribute_pair) RBRACKET
+                {
+                    let pair_list = $3 in
+                    let m = Hashtbl.create (List.length pair_list) in
+                    List.iter (fun (k, v) -> Hashtbl.add m k v) pair_list;
+                    m
+                }
+
+attribute_pair:
+                attribute_key attribute_value? { ($1, $2) }
+
+attribute_key:
+                rel_id_has_no_op_as_raw { $1 }
+
+attribute_value:
+                ASSIGN conditional_expression { $2 }

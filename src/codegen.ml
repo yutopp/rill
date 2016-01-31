@@ -6,6 +6,8 @@ module type CONTEXT_TYPE =
 
     type ir_value_t
     type ir_type_t
+
+    type 'ctx builtin_f_t
   end
 
 module Context =
@@ -19,6 +21,7 @@ module Context =
 
           env_to_val_tbl    : ('id_t, Cgt.ir_value_t) Hashtbl.t;
           env_to_type_tbl   : ('id_t, Cgt.ir_type_t) Hashtbl.t;
+          name_to_builtin_f_tbl   : (string, ('id_t t) Cgt.builtin_f_t) Hashtbl.t;
         }
 
         let init ~ir_context ~ir_builder ~ir_module = {
@@ -28,13 +31,26 @@ module Context =
 
           env_to_val_tbl = Hashtbl.create 64;
           env_to_type_tbl = Hashtbl.create 64;
+          name_to_builtin_f_tbl = Hashtbl.create 64;
         }
+
 
         let bind_env_to_val ctx env value =
           Hashtbl.add ctx.env_to_val_tbl env.Env.env_id value
 
+        let find_val_from_env ctx env =
+          Hashtbl.find ctx.env_to_val_tbl env.Env.env_id
+
+
         let bind_env_to_type ctx env ty =
           Hashtbl.add ctx.env_to_type_tbl env.Env.env_id ty
+
+
+        let find_builtin_func ctx name =
+          Hashtbl.find ctx.name_to_builtin_f_tbl name
+
+        let bind_builtin_func ctx name f =
+          Hashtbl.add ctx.name_to_builtin_f_tbl name f
       end
   end
 
