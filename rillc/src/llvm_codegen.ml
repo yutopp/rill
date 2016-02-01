@@ -18,7 +18,7 @@ module Ctx = Codegen.Context.Make(CodeGeneratorType)
 type ctx_t = Env.id_t Ctx.t
 
 
-let rec code_generate node ctx =
+let rec code_generate ?(ip=None) node ctx =
   let open Ctx in
   let module TAst = Sema.TaggedAst in
   match node with
@@ -28,8 +28,7 @@ let rec code_generate node ctx =
      end
 
   | TAst.StatementList (nodes) ->
-     let f nctx node = code_generate node nctx in
-     List.fold_left f ctx nodes
+     nodes |> List.iter @@ fun n -> code_generate n ctx
 
   | TAst.FunctionDefStmt (name, TAst.ParamsList (params), _, body, Some env) ->
      begin
@@ -47,53 +46,61 @@ let rec code_generate node ctx =
        L.position_builder f_begin_ip ctx.ir_builder;
 
        (**)
-       let nctx = code_generate body ctx in
+       code_generate body ctx ~ip:(Some f_begin_ip);
 
        (**)
        ignore (L.build_ret_void ctx.ir_builder);
 
        Llvm_analysis.assert_valid_function f;
 
-       nctx
+       ()
      end
 
-  | TAst.ExternFunctionDefStmt (name, TAst.ParamsList (params), _, extern_fname, Some env) ->
+  | TAst.ExternFunctionDefStmt
+      (name, TAst.ParamsList (params), _, extern_fname, Some env) ->
      begin
-       let i32_ty = L.i32_type ctx.ir_context in
-       let void_ty = L.void_type ctx.ir_context in
+       let fr = Env.FunctionOp.get_extern_record env in
 
-       (* int -> void *)
-       let f_ty = L.function_type void_ty [|i32_ty|] in
+       match fr.Env.fn_e_is_builtin with
+       | true -> () (* DO NOTHING *)
+       | false ->
+          begin
+            let i32_ty = L.i32_type ctx.ir_context in
+            let void_ty = L.void_type ctx.ir_context in
 
-       let llvm_func = L.declare_function extern_fname f_ty ctx.ir_module in
+            (* int -> void *)
+            let f_ty = L.function_type void_ty [|i32_ty|] in
 
-       Ctx.bind_env_to_val ctx env llvm_func;
-       ctx
+            let llvm_func = L.declare_function extern_fname f_ty ctx.ir_module in
+
+            Ctx.bind_env_to_val ctx env llvm_func;
+            ()
+          end
      end
 
   | TAst.VariableDefStmt (rv, TAst.VarInit (var_init), Some env) ->
      begin
        let (var_name, (_, opt_init_expr)) = var_init in
        let init_expr = Option.get opt_init_expr in
-       let llvm_val = code_generate_as_value init_expr ctx in
+       let llvm_val = code_generate_as_value init_expr ctx ~ip:ip in
        Ctx.bind_env_to_val ctx env llvm_val;
 
        L.set_value_name var_name llvm_val;
 
-       ctx
+       ()
      end
 
   | TAst.ExprStmt e ->
      begin
        ignore @@ code_generate_as_value e ctx;
-       ctx
+       ()
      end
 
-  | TAst.EmptyStmt -> ctx
+  | TAst.EmptyStmt -> ()
 
   | _ -> failwith "cannot generate : statement"
 
-and code_generate_as_value node ctx =
+and code_generate_as_value ?(ip=None) node ctx =
   let open Ctx in
   let module TAst = Sema.TaggedAst in
   match node with
@@ -125,7 +132,8 @@ and code_generate_as_value node ctx =
                    | false ->
                       begin
                         Printf.printf "debug / extern = \"%s\"\n" extern_name;
-                        let extern_f = Ctx.find_val_from_env ctx env in
+                        let extern_f =
+                          find_val_from_env_with_force_generation ctx env ip in
                         L.build_call extern_f llargs "" ctx.ir_builder
                       end
                  end
@@ -161,6 +169,30 @@ and code_generate_as_value node ctx =
   | _ -> failwith "cannot generate : as value"
 
 
+and code_generate_by_interrupt node ctx opt_ip =
+  code_generate node ctx;
+  (* Restore position *)
+  opt_ip |> Option.may (fun ip -> L.position_builder ip ctx.Ctx.ir_builder)
+
+
+and find_val_from_env_with_force_generation ctx env opt_ip =
+  try Ctx.find_val_from_env ctx env with
+  | Not_found ->
+     begin
+       let { Env.rel_node = rel_node; _ } = env in
+       let node = match rel_node with
+         | Some v -> v
+         | None ->
+            failwith "find_val_from_env_with_force_generation: there is no rel node"
+       in
+       code_generate_by_interrupt node ctx opt_ip;
+
+       (* retry *)
+       try Ctx.find_val_from_env ctx env with
+       | Not_found ->
+          failwith "find_val_from_env_with_force_generation: couldn't find value"
+     end
+
 
 let make_default_context () =
   let ir_context = L.global_context () in
@@ -191,9 +223,9 @@ let generate node =
   let ctx = make_default_context () in
   inject_builtins ctx;
 
-  let ret_ctx = code_generate node ctx in
-  L.dump_module ret_ctx.Ctx.ir_module;
-  ret_ctx
+  code_generate node ctx;
+  L.dump_module ctx.Ctx.ir_module;
+  ctx
 
 
 exception FailedToWriteBitcode

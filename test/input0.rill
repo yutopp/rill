@@ -1,12 +1,14 @@
-extern def print_int(v: int):void = "rill_print";
-
-#[builtin]
-extern def operator+(:int, :int) :int = "__builtin_op_binary_+_int_int";
-
 def main() {
     val a = 10 + 20;
     print_int(a);
+    val b = a + 10;
+    print_int(b);
 }
 
 def hoge(a : int) {
 }
+
+extern def print_int(v: int):void = "rill_print";
+
+#[builtin]
+extern def operator+(:int, :int) :int = "__builtin_op_binary_+_int_int";
