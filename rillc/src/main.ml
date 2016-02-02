@@ -3,11 +3,13 @@ let () =
   Ast.print ast;
   flush_all ();
 
-  let (env, ctx) = Sema.make_default_state () in
+  let module CtfeEngine = Ctfe.Make(Llvm_codegen) in
+  let (env, ctx) = Sema.make_default_state (CtfeEngine.empty ()) in
   let sem_ast = Sema.analyze ast env ctx in
   flush_all ();
 
   let module M = (Llvm_codegen : Codegen.GENERATOR_TYPE) in
+
   let c_ctx = M.generate sem_ast in
   let tmp_stdlib_path = "./stdlib/lib/rillstd-rt.a" in (* TODO: fix *)
   M.create_executable c_ctx tmp_stdlib_path "a.out";

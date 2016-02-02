@@ -10,15 +10,19 @@ module AstContext =
 module TaggedAst = Nodes.Make(AstContext)
 
 
+
 type 'env type_info = 'env Type.info_t
 
-type 'env shared_info = {
+type ('env, 'ctfe_engine) shared_info = {
   si_type_gen      : 'env Type.Generator.t;
 
   (* buildin primitive types *)
-  mutable si_type_type     : 'env type_info;
-  mutable si_void_type     : 'env type_info;
-  mutable si_int_type      : 'env type_info;
+  mutable si_type_type      : 'env type_info;
+  mutable si_void_type      : 'env type_info;
+  mutable si_int_type       : 'env type_info;
+
+  (* ctfe engine *)
+  si_ctfe_engine            : 'ctfe_engine;
 }
 
 
@@ -41,12 +45,15 @@ let check_is_args_valid ty =
 let make_default_env () =
   Env.make_root_env ()
 
-let make_default_context root_env =
+let make_default_context root_env ctfe_engine =
   let ctx = {
     si_type_gen = Type.Generator.default ();
+
     si_type_type = Type.Generator.dummy_ty;
     si_void_type = Type.Generator.dummy_ty;
     si_int_type = Type.Generator.dummy_ty;
+
+    si_ctfe_engine = ctfe_engine;
   } in
 
   let create_builtin_class name inner_name =
@@ -75,9 +82,9 @@ let make_default_context root_env =
   ctx
 
 
-let make_default_state () =
+let make_default_state ctfe_engine =
   let env = make_default_env () in
-  let ctx = make_default_context env in
+  let ctx = make_default_context env ctfe_engine in
   (env, ctx)
 
 
@@ -714,9 +721,12 @@ and resolve_type expr env ctx attr =
 
 and eval_expr_as_ctfe expr env ctx attr =
   Printf.printf "-> eval_expr_as_ctfe : begin ; \n";
-  let (_, type_of_expr) = analyze_expr expr env ctx attr in
+  let (nexpr, type_of_expr) = analyze_expr expr env ctx attr in
   if not (Type.is_unique_ty type_of_expr) then
     failwith "[ICE] : non unique type";
+
+
+
   Printf.printf "<- eval_expr_as_ctfe : end\n";
   (* WIP WIP WIP WIP WIP WIP *)
   ctx.si_int_type
@@ -757,6 +767,7 @@ and solve_function_overload arg_types mset_env ext_env ctx attr =
   in
   if mset_record.Env.ms_kind != Env.Kind.Function then
     failwith "";
+  (* TODO: fix *)
   List.hd mset_record.Env.ms_candidates
 
 

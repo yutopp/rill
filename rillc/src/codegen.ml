@@ -92,6 +92,8 @@ module type GENERATOR_TYPE =
   sig
     type ctx_t
 
+    val make_default_context : unit -> ctx_t
+
     val generate : Sema.TaggedAst.t -> ctx_t
     val create_executable : ctx_t -> string -> string -> unit
   end
