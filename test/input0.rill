@@ -6,6 +6,8 @@ def main() {
 }
 
 def hoge(a : int) {
+    print_int(a);
+    print_int(a+1);
 }
 
 extern def print_int(v: int):void = "rill_print";

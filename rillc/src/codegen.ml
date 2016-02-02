@@ -14,25 +14,48 @@ module Context =
   struct
     module Make (Cgt : CONTEXT_TYPE) =
       struct
-        type 'id_t t = {
+        module IdOrderedType =
+          struct
+            type t = Env.id_t
+            let compare = Num.compare_num
+          end
+        module IdSet = Set.Make(IdOrderedType)
+
+        type t = {
           ir_context        : Cgt.ir_context_t;
           ir_builder        : Cgt.ir_builder_t;
           ir_module         : Cgt.ir_module_t;
 
-          env_to_val_tbl    : ('id_t, Cgt.ir_value_t) Hashtbl.t;
-          env_to_type_tbl   : ('id_t, Cgt.ir_type_t) Hashtbl.t;
-          name_to_builtin_f_tbl   : (string, ('id_t t) Cgt.builtin_f_t) Hashtbl.t;
+          env_to_val_tbl    : (Env.id_t, Cgt.ir_value_t) Hashtbl.t;
+          env_to_type_tbl   : (Env.id_t, Cgt.ir_type_t) Hashtbl.t;
+
+          name_to_builtin_type_tbl  : (string, Cgt.ir_type_t) Hashtbl.t;
+          name_to_builtin_func_tbl  : (string, t Cgt.builtin_f_t) Hashtbl.t;
+
+          mutable defined_env       : IdSet.t
         }
 
-        let init ~ir_context ~ir_builder ~ir_module = {
-          ir_context = ir_context;
-          ir_builder = ir_builder;
-          ir_module = ir_module;
+        let init ~ir_context ~ir_builder ~ir_module =
+          {
+            ir_context = ir_context;
+            ir_builder = ir_builder;
+            ir_module = ir_module;
 
-          env_to_val_tbl = Hashtbl.create 64;
-          env_to_type_tbl = Hashtbl.create 64;
-          name_to_builtin_f_tbl = Hashtbl.create 64;
-        }
+            env_to_val_tbl = Hashtbl.create 64;
+            env_to_type_tbl = Hashtbl.create 64;
+
+            name_to_builtin_type_tbl = Hashtbl.create 32;
+            name_to_builtin_func_tbl = Hashtbl.create 32;
+
+            defined_env = IdSet.empty;
+          }
+
+
+        let mark_env_as_defined ctx env =
+          ctx.defined_env <- (IdSet.add env.Env.env_id ctx.defined_env)
+
+        let is_env_defined ctx env =
+          IdSet.mem env.Env.env_id ctx.defined_env
 
 
         let bind_env_to_val ctx env value =
@@ -45,12 +68,22 @@ module Context =
         let bind_env_to_type ctx env ty =
           Hashtbl.add ctx.env_to_type_tbl env.Env.env_id ty
 
+        let find_type_from_env ctx env =
+          Hashtbl.find ctx.env_to_type_tbl env.Env.env_id
+
+
+        let find_builtin_type ctx name =
+          Hashtbl.find ctx.name_to_builtin_type_tbl name
+
+        let bind_builtin_type ctx name f =
+          Hashtbl.add ctx.name_to_builtin_type_tbl name f
+
 
         let find_builtin_func ctx name =
-          Hashtbl.find ctx.name_to_builtin_f_tbl name
+          Hashtbl.find ctx.name_to_builtin_func_tbl name
 
         let bind_builtin_func ctx name f =
-          Hashtbl.add ctx.name_to_builtin_f_tbl name f
+          Hashtbl.add ctx.name_to_builtin_func_tbl name f
       end
   end
 

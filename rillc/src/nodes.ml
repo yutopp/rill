@@ -35,6 +35,7 @@ module Make (Ctx : NodeContextType) =
       | FunctionDefStmt of id_string * ast * ast option * ast * ctx_t
       (* name, params, return_type, function name(TODO: change to AST), _ *)
       | ExternFunctionDefStmt of id_string * ast * ast * string * ctx_t
+      | ExternClassDefStmt of id_string * string * ctx_t
       | VariableDefStmt of Type.Attr.ref_val * ast * ctx_t (* ref/val, init, _ *)
       | EmptyStmt
       | AttrWrapperStmt of (string, ast option) Hashtbl.t * ast
@@ -66,7 +67,7 @@ module Make (Ctx : NodeContextType) =
       | PrevPassNode of pctx_t
 
       | GenericCall of string * ast list * ctx_t
-
+      | BuiltinClass of string * ctx_t
 
      (* id * value *)
      and param_init_t = string option * value_init_t

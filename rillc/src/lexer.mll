@@ -24,7 +24,8 @@ rule token = parse
 
   | "operator"          { KEYWORD_OPERATOR }
 
-  | "def"               { DECL_DEF }
+  | "def"               { KEYWORD_DEF }
+  | "class"             { KEYWORD_CLASS }
   | "val"               { KEYWORD_VAL }
   | "ref"               { KEYWORD_REF }
   | "extern"            { KEYWORD_EXTERN }

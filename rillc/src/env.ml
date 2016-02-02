@@ -39,7 +39,7 @@ type 'ast env_t = {
 
   | Module of 'ast lookup_table_t * module_record
   | Function of 'ast lookup_table_t * 'ast function_record
-  | Class of 'ast lookup_table_t * class_record
+  | Class of 'ast lookup_table_t * 'ast class_record
   | Variable of 'ast variable_record
 
  and 'ast type_info_t = ('ast env_t) Type.info_t
@@ -65,19 +65,21 @@ type 'ast env_t = {
   *
   *)
  and 'ast function_record = {
-   fn_name              : Nodes.id_string;
-   mutable fn_detail    : 'ast function_record_var;
+   fn_name                  : Nodes.id_string;
+   mutable fn_param_types   : 'ast type_info_t list;
+   mutable fn_return_type   : 'ast type_info_t;
+   mutable fn_detail        : 'ast function_record_var;
  }
  and 'ast function_record_var =
-   | FnRecordNormal of function_record_normal
-   | FnRecordExtern of function_record_extern
+   | FnRecordNormal of 'ast function_record_normal
+   | FnRecordExtern of 'ast function_record_extern
    | FnUndef
 
- and function_record_normal = {
-   fn_n_yo          : string;
+ and 'ast function_record_normal = {
+   fn_n_param_envs  : 'ast env_t option list;
  }
 
- and function_record_extern = {
+ and 'ast function_record_extern = {
    fn_e_name        : string;
    fn_e_is_builtin  : bool;
  }
@@ -101,8 +103,16 @@ type 'ast env_t = {
  (*
   *
   *)
- and class_record = {
-   cls_name     : string;
+ and 'ast class_record = {
+   cls_name             : Nodes.id_string;
+   mutable cls_detail   : 'ast class_record_var;
+ }
+ and 'ast class_record_var =
+   | ClsRecordExtern of class_record_extern
+   | ClsUndef
+
+ and class_record_extern = {
+   cls_e_name           : string;
  }
 
 
@@ -259,11 +269,22 @@ module FunctionOp =
       match r.fn_detail with
       | FnRecordExtern r -> r
       | _ -> failwith "FunctionOp.get_extern_record : not extern"
+
+    let get_normal_record env =
+      let r = get_record env in
+      match r.fn_detail with
+      | FnRecordNormal r -> r
+      | _ -> failwith "FunctionOp.get_extern_record : not normal"
   end
 
 
 module ClassOp =
   struct
+    let get_record env =
+      let er = get_env_record env in
+      match er with
+      | Class (_, r) -> r
+      | _ -> failwith "ClassOp.get_record : not class"
   end
 
 
@@ -303,13 +324,15 @@ let print env =
        end
     | Function (lt, r) ->
        begin
-         printf "%sFunction\n" indent;
+         let name = Nodes.string_of_id_string r.fn_name in
+         printf "%sFunction - %s\n" indent name;
          print_table lt.scope indent;
          f nindent;
        end
     | Class (lt, r) ->
        begin
-         printf "%sClassEnv - %s\n" indent r.cls_name;
+         let name = Nodes.string_of_id_string r.cls_name in
+         printf "%sClassEnv - %s\n" indent name;
          print_table lt.scope indent;
          f nindent;
        end

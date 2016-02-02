@@ -16,7 +16,8 @@
                         FAT_ARROW SHARP
 %token                  EOF
 %token                  LIT_TRUE LIT_FALSE
-                        DECL_DEF
+                        KEYWORD_DEF
+                        KEYWORD_CLASS
                         KEYWORD_VAL
                         KEYWORD_REF
                         KEYWORD_EXTERN
@@ -52,7 +53,7 @@ empty_statement:
                 SEMICOLON { Ast.EmptyStmt }
 
 function_decl_statement:
-                DECL_DEF
+                KEYWORD_DEF
                 rel_id_as_s
                 parameter_variables_decl_list
                 type_specifier?
@@ -109,15 +110,23 @@ extern_statement:
 
 extern_statement_:
                 extern_function_statement { $1 }
+        |       extern_class_statement { $1 }
 
 extern_function_statement:
-                DECL_DEF
+                KEYWORD_DEF
                 rel_id_as_s
                 parameter_variables_decl_list
                 type_specifier
                 ASSIGN
                 STRING (*string_lit*)
                 { Ast.ExternFunctionDefStmt ($2, $3, $4, $6, ()) }
+
+extern_class_statement:
+                KEYWORD_CLASS
+                rel_id_as_s
+                ASSIGN
+                STRING (*string_lit*)
+                { Ast.ExternClassDefStmt ($2, $4, ()) }
 
 
 (**)

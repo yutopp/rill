@@ -17,48 +17,13 @@ type 'env shared_info = {
 
   (* buildin primitive types *)
   mutable si_type_type     : 'env type_info;
+  mutable si_void_type     : 'env type_info;
   mutable si_int_type      : 'env type_info;
 }
 
 
 let is_type ty ctx =
   Type.has_same_class ty ctx.si_type_type
-
-
-let make_default_env () =
-  Env.make_root_env ()
-
-let make_default_context root_env =
-  let ctx = {
-    si_type_gen = Type.Generator.default ();
-    si_type_type = Type.Generator.dummy_ty;
-    si_int_type = Type.Generator.dummy_ty;
-  } in
-
-  let create_builtin_class name =
-    let env = Env.create_env root_env (Env.Class (Env.empty_lookup_table (),
-                                                  {
-                                                    Env.cls_name = name;
-                                                  })
-                                  ) in
-    Env.update_status env Env.Complete;
-    env
-  in
-  let register_builtin_type name setter =
-    let cenv = create_builtin_class name in
-    Env.add_inner_env root_env name cenv;
-    let ty = Type.Generator.generate_type_with_cache ctx.si_type_gen cenv in
-    setter ty
-  in
-
-  register_builtin_type "type" (fun ty -> ctx.si_type_type <- ty);
-  register_builtin_type "int" (fun ty -> ctx.si_int_type <- ty);
-  ctx
-
-let make_default_state () =
-  let env = make_default_env () in
-  let ctx = make_default_context env in
-  (env, ctx)
 
 
 let check_env env =
@@ -71,6 +36,49 @@ let complete_env env node =
 let check_is_args_valid ty =
   (* TODO: implement *)
   ()
+
+
+let make_default_env () =
+  Env.make_root_env ()
+
+let make_default_context root_env =
+  let ctx = {
+    si_type_gen = Type.Generator.default ();
+    si_type_type = Type.Generator.dummy_ty;
+    si_void_type = Type.Generator.dummy_ty;
+    si_int_type = Type.Generator.dummy_ty;
+  } in
+
+  let create_builtin_class name inner_name =
+    let env = Env.create_env root_env (Env.Class (Env.empty_lookup_table (),
+                                                  {
+                                                    Env.cls_name = name;
+                                                    Env.cls_detail = Env.ClsUndef;
+                                                  })
+                                      ) in
+    let node = TaggedAst.BuiltinClass (inner_name, Some env) in
+    complete_env env node;
+    env
+  in
+  let register_builtin_type name inner_name setter =
+    let id_name = Nodes.Pure name in
+    let cenv = create_builtin_class id_name inner_name in
+    Env.add_inner_env root_env name cenv;
+    let ty = Type.Generator.generate_type_with_cache ctx.si_type_gen cenv in
+    setter ty
+  in
+
+  register_builtin_type "type" "__type_type" (fun ty -> ctx.si_type_type <- ty);
+
+  register_builtin_type "void" "__type_void" (fun ty -> ctx.si_void_type <- ty);
+  register_builtin_type "int" "__type_int" (fun ty -> ctx.si_int_type <- ty);
+  ctx
+
+
+let make_default_state () =
+  let env = make_default_env () in
+  let ctx = make_default_context env in
+  (env, ctx)
 
 
 let rec solve_forward_refs node parent_env =
@@ -99,13 +107,16 @@ let rec solve_forward_refs node parent_env =
   | Ast.FunctionDefStmt (name, params, opt_ret_type, body, _) ->
      begin
        let name_s = Nodes.string_of_id_string name in
+       (* accept multiple definition for overload *)
        let base_env = Env.MultiSetOp.find_or_add parent_env name_s Env.Kind.Function in
        let fenv = Env.create_env parent_env (
                                    Env.Function (
                                        Env.empty_lookup_table (),
                                        {
                                          Env.fn_name = name;
-                                         Env.fn_detail = Env.FnUndef
+                                         Env.fn_param_types = [];
+                                         Env.fn_return_type = Type.Undef;
+                                         Env.fn_detail = Env.FnUndef;
                                        })
                                  ) in
        Env.MultiSetOp.add_candidates base_env fenv;
@@ -124,13 +135,16 @@ let rec solve_forward_refs node parent_env =
   | Ast.ExternFunctionDefStmt (name, params, ret_type, extern_fname, _) ->
      begin
        let name_s = Nodes.string_of_id_string name in
+       (* accept multiple definition for overload *)
        let base_env = Env.MultiSetOp.find_or_add parent_env name_s Env.Kind.Function in
        let fenv = Env.create_env parent_env (
                                    Env.Function (
                                        Env.empty_lookup_table ~init:0 (),
                                        {
                                          Env.fn_name = name;
-                                         Env.fn_detail = Env.FnUndef
+                                         Env.fn_param_types = [];
+                                         Env.fn_return_type = Type.Undef;
+                                         Env.fn_detail = Env.FnUndef;
                                        })
                                  ) in
        Env.MultiSetOp.add_candidates base_env fenv;
@@ -143,6 +157,31 @@ let rec solve_forward_refs node parent_env =
                       Some fenv
                     ) in
        Env.update_rel_ast fenv node;
+       node
+     end
+
+  | Ast.ExternClassDefStmt (name, extern_cname, _) ->
+     begin
+       let name_s = Nodes.string_of_id_string name in
+       (* accept multiple definition for specialization *)
+       let base_env = Env.MultiSetOp.find_or_add parent_env name_s Env.Kind.Class in
+       let cenv = Env.create_env parent_env (
+                                   Env.Class (
+                                       Env.empty_lookup_table ~init:0 (),
+                                       {
+                                         Env.cls_name = name;
+                                         Env.cls_detail = Env.ClsUndef;
+                                       })
+                                 ) in
+
+       Env.MultiSetOp.add_candidates base_env cenv;
+
+       let node = TaggedAst.ExternClassDefStmt (
+                      name,
+                      extern_cname,
+                      Some cenv
+                    ) in
+       Env.update_rel_ast cenv node;
        node
      end
 
@@ -185,14 +224,18 @@ let rec construct_env node parent_env ctx attr =
   | TaggedAst.FunctionDefStmt (name, params_node, opt_ret_type, body, Some env) ->
      if Env.is_checked env then Env.get_rel_ast env
      else begin
+       (* TODO: check duplicate *)
        let name_s = Nodes.string_of_id_string name in
        Printf.printf "function %s - unchecked\n" name_s;
        check_env env;
 
        (* check parameters *)
-       let params = check_params env node params_node ctx in
+       let (params, param_types, param_venvs) =
+         prepare_params env node params_node ctx attr in
 
        (* infer return type *)
+       (* TODO: implement *)
+       let return_type = ctx.si_void_type in
 
        (* body *)
        let nbody = analyze_inner body env ctx in
@@ -201,10 +244,20 @@ let rec construct_env node parent_env ctx attr =
        let node = TaggedAst.FunctionDefStmt (
                       name,
                       TaggedAst.ParamsList params,
-                      opt_ret_type, (* TODO: fix *)
+                      opt_ret_type,
                       nbody,
                       Some env
                     ) in
+
+       (* update record *)
+       let detail_r = Env.FnRecordNormal {
+                          Env.fn_n_param_envs = param_venvs;
+                        } in
+       let r = Env.FunctionOp.get_record env in
+       r.Env.fn_param_types <- param_types;
+       r.Env.fn_return_type <- return_type;
+       r.Env.fn_detail <- detail_r;
+
        complete_env env node;
        node
      end
@@ -213,14 +266,18 @@ let rec construct_env node parent_env ctx attr =
         name, params_node, ret_type, extern_fname, Some env) ->
      if Env.is_checked env then Env.get_rel_ast env
      else begin
+       (* TODO: check duplicate *)
        let name_s = Nodes.string_of_id_string name in
-       Printf.printf "function %s - unchecked\n" name_s;
+       Printf.printf "extern function %s - unchecked\n" name_s;
        check_env env;
 
        (* check parameters *)
-       let params = check_params env node params_node ctx in
+       let (params, param_types, _) =
+         prepare_params env node params_node ctx attr in
 
-       (* infer return type *)
+       (* determine return type *)
+       (* TODO: implement *)
+       let return_type = ctx.si_void_type in
 
        (* TODO: fix *)
        let is_builtin = match attr with
@@ -229,11 +286,11 @@ let rec construct_env node parent_env ctx attr =
        in
 
        (* body *)
-       Printf.printf "function %s - complete\n" name_s;
+       Printf.printf "extern function %s - complete\n" name_s;
        let node = TaggedAst.ExternFunctionDefStmt (
                       name,
                       TaggedAst.ParamsList params,
-                      ret_type, (* TODO: fix *)
+                      ret_type,
                       extern_fname,
                       Some env
                     ) in
@@ -244,11 +301,36 @@ let rec construct_env node parent_env ctx attr =
                           Env.fn_e_is_builtin = is_builtin;
                         } in
        let r = Env.FunctionOp.get_record env in
+       r.Env.fn_param_types <- param_types;
+       r.Env.fn_return_type <- return_type;
        r.Env.fn_detail <- detail_r;
 
        complete_env env node;
        node
-       end
+     end
+
+  | TaggedAst.ExternClassDefStmt (
+        name, extern_cname, Some env) ->
+     if Env.is_checked env then Env.get_rel_ast env
+     else begin
+       (* TODO: check duplicate *)
+       let name_s = Nodes.string_of_id_string name in
+       Printf.printf "extern class %s - unchecked\n" name_s;
+       check_env env;
+
+       (* currently, do not remake a node like other nodes *)
+       Printf.printf "extern class %s - complete\n" name_s;
+
+       (* update record *)
+       let detail_r = Env.ClsRecordExtern {
+                          Env.cls_e_name = extern_cname;
+                        } in
+       let r = Env.ClassOp.get_record env in
+       r.Env.cls_detail <- detail_r;
+
+       complete_env env node;
+       node
+     end
 
   | TaggedAst.VariableDefStmt (rv, v, opt_env) ->
      begin
@@ -328,6 +410,8 @@ let rec construct_env node parent_env ctx attr =
        (* TODO: merge prev attributes *)
        construct_env ast parent_env ctx (Some attr_tbl)
      end
+
+  | TaggedAst.BuiltinClass _ -> node
 
   | _ ->
      begin
@@ -437,23 +521,100 @@ and extract_prev_pass_node node =
   | _ -> failwith "not prev node"
 
 
-and check_params env node params_node ctx =
+and prepare_params env func_decl_node params_node ctx attr =
   match params_node with
   | TaggedAst.PrevPassNode (Ast.ParamsList ps) ->
-     (declare_function_params env node ps ctx)
-  | _ -> failwith ""
+     begin
+       declare_function_params env func_decl_node ps ctx attr
+     end
+  | _ -> failwith "check_params / unexpected"
 
-and declare_function_params f_env node params ctx =
-  let params = match node with
-    | TaggedAst.FunctionDefStmt _ -> params
-    | TaggedAst.ExternFunctionDefStmt _ -> params
-    (* TODO: support functions that have recievers. ex, member function (this/self) *)
-    | _ -> failwith "declare_function_params: not supported"
+(*
+* if parameter has name, create variable env
+* DO NOT forget to call Env.add_inner_env
+*)
+and make_parameter_env f_env opt_param_name param_ty ctx =
+  let make_env name =
+    let detail_r = Env.VarRecordNormal () in
+    let venv = Env.create_env f_env (
+                                Env.Variable (
+                                    {
+                                      Env.var_name = name;
+                                      Env.var_type = param_ty;
+                                      Env.var_detail = detail_r;
+                                    })
+                              )
+    in
+    Env.update_status venv Env.Complete;
+    venv
   in
-  let f = to_type_detail_from_function_param f_env ctx in
-  let param_types = List.map f params in
-  ignore param_types;
-  []
+  opt_param_name |> Option.map make_env
+
+and declare_function_params f_env func_decl_node params ctx attr =
+  let analyze_param param =
+    let (name, init_part) = param in
+    let (param_ty, default_value) = match init_part with
+    (* Ex. :int = 10 *)
+    | (Some type_expr, Some defalut_val) ->
+       begin
+         failwith "declare_function_params : not implemented / default value of param"
+       end
+
+    (* Ex. :int *)
+    | (Some type_expr, None) ->
+       begin
+         let ty = resolve_type type_expr f_env ctx attr in
+         (ty, None)
+       end
+
+    (* Ex. = 10 *)
+    | (None, Some defalut_val) ->
+       begin
+         (* type is inferenced from defalut_val *)
+         failwith "declare_function_params : not implemented / infer type from value"
+       end
+
+    | _ ->
+       (* TODO: change to exception *)
+       failwith "type or default value is required"
+    in
+
+    let ninit_part = (None, default_value) in   (* type node is no longer necessary *)
+    let nparam = (name, ninit_part) in
+    (nparam, param_ty)
+  in
+
+  let (nparams, param_types) = params |> List.map analyze_param |> List.split
+  in
+  match func_decl_node with
+  | TaggedAst.FunctionDefStmt _ ->
+     begin
+       let make_env param ty =
+         let (opt_name, _) = param in
+         make_parameter_env f_env opt_name ty ctx
+       in
+       let declare_env param opt_env =
+         let declare name =
+           let env = Option.get opt_env in
+           Env.add_inner_env f_env name env
+         in
+         let (opt_name, _) = param in
+         Option.may declare opt_name
+       in
+       let param_envs = List.map2 make_env params param_types in
+       List.iter2 declare_env params param_envs;
+
+       (* TODO: support functions that have recievers. ex, member function (this/self) *)
+       (nparams, param_types, param_envs)
+     end
+
+  | TaggedAst.ExternFunctionDefStmt _ ->
+     begin
+       (*params*)
+       (nparams, param_types, [])
+     end
+
+  | _ -> failwith "declare_function_params: not supported"
 
 
 and check_id_is_defined_uniquely env id =
@@ -461,21 +622,6 @@ and check_id_is_defined_uniquely env id =
   match res with
     Some _ -> failwith "same ids are defined"
   | None -> ()
-
-
-and to_type_detail_from_function_param f_env ctx param =
-  let (_, init_value) = param in
-  match init_value with
-  | (Some type_expr, opt_defalut_val) ->
-     resolve_type type_expr f_env ctx
-
-  | (None, Some defalut_val) ->
-     begin
-       (* type is inferenced from defalut_val *)
-       failwith "not implemented"
-     end
-
-  | _ -> failwith "type or default value is required"
 
 
 and solve_identifier ?(do_rec_search=true) id_node env ctx attr =
@@ -508,13 +654,17 @@ and solve_simple_identifier ?(do_rec_search=true) name env ctx attr =
     match env_r with
     | Env.MultiSet (record) ->
        begin
+         let num_of_candiates = List.length record.Env.ms_candidates in
          match record.Env.ms_kind with
          | Env.Kind.Class ->
             begin
               (* classes will not be overloaded. However, template classes have
                * some instances (specialized). Thus, type may be unclear...
                *)
-              failwith "not implemented : class / multi-set"
+              match num_of_candiates with
+              | 1 -> single_type_id_node name (List.hd record.Env.ms_candidates) attr
+              | n when n >= 1 -> failwith "not implemented : class / multi-set"
+              | _ -> failwith "[ICE] unexpected : class / multi-set"
             end
          | Env.Kind.Function ->
             begin
@@ -525,7 +675,7 @@ and solve_simple_identifier ?(do_rec_search=true) name env ctx attr =
          | _ -> failwith "unexpected env : multi-set kind"
        end
 
-    (* only primitive classes may be matched *)
+    (* only builtin classes may be matched *)
     | Env.Class (_) -> single_type_id_node name env attr
 
     | Env.Variable (vr) ->

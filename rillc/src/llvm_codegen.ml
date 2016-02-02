@@ -13,9 +13,9 @@ module CodeGeneratorType =
 
     type 'ctx builtin_f_t = (ir_value_t array -> 'ctx -> ir_value_t)
   end
-
 module Ctx = Codegen.Context.Make(CodeGeneratorType)
-type ctx_t = Env.id_t Ctx.t
+
+type ctx_t = Ctx.t
 
 
 let rec code_generate ?(ip=None) node ctx =
@@ -31,14 +31,42 @@ let rec code_generate ?(ip=None) node ctx =
      nodes |> List.iter @@ fun n -> code_generate n ctx
 
   | TAst.FunctionDefStmt (name, TAst.ParamsList (params), _, body, Some env) ->
+     if Ctx.is_env_defined ctx env then () else
      begin
-       let i32_ty = L.i32_type ctx.ir_context in
-       let void_ty = L.void_type ctx.ir_context in
+       (* *)
+       let fenv_r = Env.FunctionOp.get_record env in
+       let fenv_nr = Env.FunctionOp.get_normal_record env in
 
-       (* int -> void *)
+       let llparam_tys =
+         fenv_r.Env.fn_param_types
+         |> List.map (fun t -> lltype_of_typeinfo ~ip:ip t ctx)
+         |> Array.of_list
+       in
+       let llret_ty = lltype_of_typeinfo ~ip:ip fenv_r.Env.fn_return_type ctx in
+
+       (* type of function *)
+       let f_ty = L.function_type llret_ty llparam_tys in
+
+       (* declare function *)
        let name = Nodes.string_of_id_string name in (*TODO: use the value in the env*)
-       let f_ty = L.function_type void_ty [|i32_ty|] in
        let f = L.declare_function name f_ty ctx.ir_module in
+
+       (* setup parameters *)
+       let param_envs = fenv_nr.Env.fn_n_param_envs |> Array.of_list in
+       let ll_params = L.params f in
+       assert (Array.length ll_params = Array.length param_envs);
+       let declare_param_var optenv llvar =
+         match optenv with
+         | Some env ->
+            begin
+              let venv = Env.VariableOp.get_record env in
+              let var_name = venv.Env.var_name in
+              L.set_value_name var_name llvar;
+              Ctx.bind_env_to_val ctx env llvar
+            end
+         | None -> ()
+       in
+       Array.iter2 declare_param_var param_envs ll_params;
 
        (* entry block *)
        let bb = L.append_block ctx.ir_context "entry" f in
@@ -53,11 +81,12 @@ let rec code_generate ?(ip=None) node ctx =
 
        Llvm_analysis.assert_valid_function f;
 
-       ()
+       Ctx.mark_env_as_defined ctx env
      end
 
   | TAst.ExternFunctionDefStmt
       (name, TAst.ParamsList (params), _, extern_fname, Some env) ->
+     if Ctx.is_env_defined ctx env then () else
      begin
        let fr = Env.FunctionOp.get_extern_record env in
 
@@ -74,12 +103,16 @@ let rec code_generate ?(ip=None) node ctx =
             let llvm_func = L.declare_function extern_fname f_ty ctx.ir_module in
 
             Ctx.bind_env_to_val ctx env llvm_func;
-            ()
+
+            Ctx.mark_env_as_defined ctx env
           end
      end
 
   | TAst.VariableDefStmt (rv, TAst.VarInit (var_init), Some env) ->
+     if Ctx.is_env_defined ctx env then () else
      begin
+       if Ctx.is_env_defined ctx env then ();
+
        let (var_name, (_, opt_init_expr)) = var_init in
        let init_expr = Option.get opt_init_expr in
        let llvm_val = code_generate_as_value init_expr ctx ~ip:ip in
@@ -87,7 +120,7 @@ let rec code_generate ?(ip=None) node ctx =
 
        L.set_value_name var_name llvm_val;
 
-       ()
+       Ctx.mark_env_as_defined ctx env
      end
 
   | TAst.ExprStmt e ->
@@ -97,6 +130,17 @@ let rec code_generate ?(ip=None) node ctx =
      end
 
   | TAst.EmptyStmt -> ()
+
+  | TAst.BuiltinClass (builtin_name, Some env) ->
+     if Ctx.is_env_defined ctx env then () else
+     begin
+       if Ctx.is_env_defined ctx env then ();
+
+       let ty = Ctx.find_builtin_type ctx builtin_name in
+       Ctx.bind_env_to_type ctx env ty;
+
+       Ctx.mark_env_as_defined ctx env
+     end
 
   | _ -> failwith "cannot generate : statement"
 
@@ -113,7 +157,12 @@ and code_generate_as_value ?(ip=None) node ctx =
        let llval = match er with
          | Env.Function (_, r) ->
             begin
-              let { Env.fn_detail = detail; _ } = r in
+              let {
+                Env.fn_name = fn_name;
+                Env.fn_detail = detail;
+                _
+              } = r in
+              let fn_s_name = Nodes.string_of_id_string fn_name in
               match detail with
               | Env.FnRecordExtern {
                   Env.fn_e_name = extern_name;
@@ -124,21 +173,23 @@ and code_generate_as_value ?(ip=None) node ctx =
                    match is_builtin with
                    | true ->
                       begin
-                        Printf.printf "debug / builtin = \"%s\"\n" extern_name;
+                        Printf.printf "gen value: debug / builtin %s = \"%s\"\n"
+                                      fn_s_name extern_name;
 
                         let builtin_gen_f = Ctx.find_builtin_func ctx extern_name in
                         builtin_gen_f llargs ctx
                       end
                    | false ->
                       begin
-                        Printf.printf "debug / extern = \"%s\"\n" extern_name;
+                        Printf.printf "gen value: debug / extern  %s = \"%s\"\n"
+                                      fn_s_name extern_name;
                         let extern_f =
                           find_val_from_env_with_force_generation ctx env ip in
                         L.build_call extern_f llargs "" ctx.ir_builder
                       end
                  end
               | Env.FnRecordNormal _ -> failwith "codegen: not implemented fun"
-              | _ -> failwith "codegen: invalid function record"
+              | Env.FnUndef -> failwith "codegen: undefined function record"
             end
          | _ -> failwith @@ "codegen; id " ^ name
        in
@@ -161,6 +212,7 @@ and code_generate_as_value ?(ip=None) node ctx =
           end
        | Env.Variable (vr) ->
           begin
+            Printf.printf "variable\n";
             Ctx.find_val_from_env ctx rel_env
           end
        | _ -> failwith @@ "codegen; id " ^ (Nodes.string_of_id_string name)
@@ -175,23 +227,49 @@ and code_generate_by_interrupt node ctx opt_ip =
   opt_ip |> Option.may (fun ip -> L.position_builder ip ctx.Ctx.ir_builder)
 
 
-and find_val_from_env_with_force_generation ctx env opt_ip =
-  try Ctx.find_val_from_env ctx env with
+and force_target_generation : 'a. ('ctx -> 'env -> 'a) -> 'ctx -> 'env -> 'ip -> 'a =
+  fun f ctx env opt_ip ->
+  try f ctx env with
   | Not_found ->
      begin
        let { Env.rel_node = rel_node; _ } = env in
        let node = match rel_node with
          | Some v -> v
          | None ->
-            failwith "find_val_from_env_with_force_generation: there is no rel node"
+            begin
+              Env.print env;
+              failwith "[ICE] force_target_generation: there is no rel node"
+            end
        in
        code_generate_by_interrupt node ctx opt_ip;
 
        (* retry *)
-       try Ctx.find_val_from_env ctx env with
+       try f ctx env with
        | Not_found ->
-          failwith "find_val_from_env_with_force_generation: couldn't find value"
+          begin
+            Env.print env;
+            failwith "[ICE] force_target_generation: couldn't find target"
+          end
      end
+
+and find_val_from_env_with_force_generation ctx env opt_ip : L.llvalue =
+  force_target_generation Ctx.find_val_from_env
+                          ctx env opt_ip
+
+and find_type_from_env_with_force_generation ctx env opt_ip : L.lltype =
+  force_target_generation Ctx.find_type_from_env
+                          ctx env opt_ip
+
+
+and lltype_of_typeinfo ?(ip=None) ty ctx =
+  let open Ctx in
+  let {
+    Type.ty_cenv = cenv;
+    _
+  } = Type.as_unique ty in
+  let ll_ty = find_type_from_env_with_force_generation ctx cenv ip in
+  ll_ty
+
 
 
 let make_default_context () =
@@ -207,16 +285,24 @@ let make_default_context () =
 
 let inject_builtins ctx =
   let open Ctx in
-  let register_builtin name f =
-    Ctx.bind_builtin_func ctx name f;
-    Printf.printf "debug / registerd builtin = \"%s\"\n" name
+  let register_builtin_type name ty =
+    Ctx.bind_builtin_type ctx name ty;
+    Printf.printf "debug / registerd builtin type = \"%s\"\n" name
   in
+  let register_builtin_func name f =
+    Ctx.bind_builtin_func ctx name f;
+    Printf.printf "debug / registerd builtin func = \"%s\"\n" name
+  in
+
+  register_builtin_type "__type_void" (L.void_type ctx.ir_context);
+  register_builtin_type "__type_int" (L.i32_type ctx.ir_context);
+
 
   let add_int_int args ctx =
     assert (Array.length args = 2);
     L.build_add args.(0) args.(1) "" ctx.Ctx.ir_builder
   in
-  register_builtin "__builtin_op_binary_+_int_int" add_int_int
+  register_builtin_func "__builtin_op_binary_+_int_int" add_int_int
 
 
 let generate node =
