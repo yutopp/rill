@@ -104,6 +104,7 @@ FILES[] =
    main
    nodes
    ast
+   tagged_ast
    lexer
    parser
    syntax

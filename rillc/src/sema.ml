@@ -1,19 +1,11 @@
 open Batteries
 
-
-module AstContext =
-  struct
-    type 'a current_ctx_t = ('a Env.env_t) option
-    type 'a prev_ctx_t = Ast.ast
-  end
-
-module TaggedAst = Nodes.Make(AstContext)
-
-
+module TAst = Tagged_ast
+module CtfeEngine = Ctfe.Make(Llvm_codegen)
 
 type 'env type_info = 'env Type.info_t
 
-type ('env, 'ctfe_engine) shared_info = {
+type 'env shared_info = {
   si_type_gen      : 'env Type.Generator.t;
 
   (* buildin primitive types *)
@@ -22,7 +14,7 @@ type ('env, 'ctfe_engine) shared_info = {
   mutable si_int_type       : 'env type_info;
 
   (* ctfe engine *)
-  si_ctfe_engine            : 'ctfe_engine;
+  si_ctfe_engine            : CtfeEngine.t;
 }
 
 
@@ -63,7 +55,7 @@ let make_default_context root_env ctfe_engine =
                                                     Env.cls_detail = Env.ClsUndef;
                                                   })
                                       ) in
-    let node = TaggedAst.BuiltinClass (inner_name, Some env) in
+    let node = TAst.BuiltinClass (inner_name, Some env) in
     complete_env env node;
     env
   in
@@ -82,8 +74,9 @@ let make_default_context root_env ctfe_engine =
   ctx
 
 
-let make_default_state ctfe_engine =
+let make_default_state () =
   let env = make_default_env () in
+  let ctfe_engine = CtfeEngine.empty () in
   let ctx = make_default_context env ctfe_engine in
   (env, ctx)
 
@@ -102,14 +95,14 @@ let rec solve_forward_refs node parent_env =
        Env.add_inner_env parent_env name env;
 
        let res_node = solve_forward_refs inner env in
-       let node = TaggedAst.Module (res_node, Some env) in
+       let node = TAst.Module (res_node, Some env) in
        Env.update_rel_ast env node;
        node
      end
 
   | Ast.StatementList (nodes) ->
      let tagged_nodes = nodes |> List.map (fun n -> solve_forward_refs n parent_env) in
-     TaggedAst.StatementList tagged_nodes
+     TAst.StatementList tagged_nodes
 
   | Ast.FunctionDefStmt (name, params, opt_ret_type, body, _) ->
      begin
@@ -128,11 +121,11 @@ let rec solve_forward_refs node parent_env =
                                  ) in
        Env.MultiSetOp.add_candidates base_env fenv;
 
-       let node = TaggedAst.FunctionDefStmt (
+       let node = TAst.FunctionDefStmt (
                       name,
-                      TaggedAst.PrevPassNode params,
-                      Option.map (fun x -> TaggedAst.PrevPassNode x) opt_ret_type,
-                      TaggedAst.PrevPassNode body,
+                      TAst.PrevPassNode params,
+                      Option.map (fun x -> TAst.PrevPassNode x) opt_ret_type,
+                      TAst.PrevPassNode body,
                       Some fenv
                     ) in
        Env.update_rel_ast fenv node;
@@ -156,10 +149,10 @@ let rec solve_forward_refs node parent_env =
                                  ) in
        Env.MultiSetOp.add_candidates base_env fenv;
 
-       let node = TaggedAst.ExternFunctionDefStmt (
+       let node = TAst.ExternFunctionDefStmt (
                       name,
-                      TaggedAst.PrevPassNode params,
-                      TaggedAst.PrevPassNode ret_type,
+                      TAst.PrevPassNode params,
+                      TAst.PrevPassNode ret_type,
                       extern_fname,
                       Some fenv
                     ) in
@@ -183,7 +176,7 @@ let rec solve_forward_refs node parent_env =
 
        Env.MultiSetOp.add_candidates base_env cenv;
 
-       let node = TaggedAst.ExternClassDefStmt (
+       let node = TAst.ExternClassDefStmt (
                       name,
                       extern_cname,
                       Some cenv
@@ -193,20 +186,20 @@ let rec solve_forward_refs node parent_env =
      end
 
   | Ast.VariableDefStmt (rv, v, _) ->
-     TaggedAst.VariableDefStmt (rv, TaggedAst.PrevPassNode v, None)
+     TAst.VariableDefStmt (rv, TAst.PrevPassNode v, None)
 
-  | Ast.ExprStmt ast -> TaggedAst.ExprStmt (TaggedAst.PrevPassNode ast)
+  | Ast.ExprStmt ast -> TAst.ExprStmt (TAst.PrevPassNode ast)
 
-  | Ast.EmptyStmt -> TaggedAst.EmptyStmt
+  | Ast.EmptyStmt -> TAst.EmptyStmt
 
   | Ast.AttrWrapperStmt (attr_tbl, ast) ->
      begin
        let tast = solve_forward_refs ast parent_env in
        let tattr_tbl = attr_tbl
                        |> Hashtbl.map @@ fun k v ->
-                                         Option.map (fun v -> TaggedAst.PrevPassNode v) v
+                                         Option.map (fun v -> TAst.PrevPassNode v) v
        in
-       TaggedAst.AttrWrapperStmt (tattr_tbl, tast)
+       TAst.AttrWrapperStmt (tattr_tbl, tast)
      end
 
   | _ ->
@@ -218,17 +211,17 @@ let rec solve_forward_refs node parent_env =
 
 let rec construct_env node parent_env ctx attr =
   match node with
-  | TaggedAst.Module (inner, Some env) ->
+  | TAst.Module (inner, Some env) ->
      begin
        construct_env inner env ctx attr
      end
 
-  | TaggedAst.StatementList (nodes) ->
+  | TAst.StatementList (nodes) ->
      let tagged_nodes = nodes
                         |> List.map (fun n -> construct_env n parent_env ctx attr) in
-     TaggedAst.StatementList tagged_nodes
+     TAst.StatementList tagged_nodes
 
-  | TaggedAst.FunctionDefStmt (name, params_node, opt_ret_type, body, Some env) ->
+  | TAst.FunctionDefStmt (name, params_node, opt_ret_type, body, Some env) ->
      if Env.is_checked env then Env.get_rel_ast env
      else begin
        (* TODO: check duplicate *)
@@ -248,9 +241,9 @@ let rec construct_env node parent_env ctx attr =
        let nbody = analyze_inner body env ctx in
 
        Printf.printf "function %s - complete\n" name_s;
-       let node = TaggedAst.FunctionDefStmt (
+       let node = TAst.FunctionDefStmt (
                       name,
-                      TaggedAst.ParamsList params,
+                      TAst.ParamsList params,
                       opt_ret_type,
                       nbody,
                       Some env
@@ -269,7 +262,7 @@ let rec construct_env node parent_env ctx attr =
        node
      end
 
-  | TaggedAst.ExternFunctionDefStmt (
+  | TAst.ExternFunctionDefStmt (
         name, params_node, ret_type, extern_fname, Some env) ->
      if Env.is_checked env then Env.get_rel_ast env
      else begin
@@ -294,9 +287,9 @@ let rec construct_env node parent_env ctx attr =
 
        (* body *)
        Printf.printf "extern function %s - complete\n" name_s;
-       let node = TaggedAst.ExternFunctionDefStmt (
+       let node = TAst.ExternFunctionDefStmt (
                       name,
-                      TaggedAst.ParamsList params,
+                      TAst.ParamsList params,
                       ret_type,
                       extern_fname,
                       Some env
@@ -316,7 +309,7 @@ let rec construct_env node parent_env ctx attr =
        node
      end
 
-  | TaggedAst.ExternClassDefStmt (
+  | TAst.ExternClassDefStmt (
         name, extern_cname, Some env) ->
      if Env.is_checked env then Env.get_rel_ast env
      else begin
@@ -339,7 +332,7 @@ let rec construct_env node parent_env ctx attr =
        node
      end
 
-  | TaggedAst.VariableDefStmt (rv, v, opt_env) ->
+  | TAst.VariableDefStmt (rv, v, opt_env) ->
      begin
        match opt_env with
        | Some env -> failwith "unexpected"
@@ -390,9 +383,9 @@ let rec construct_env node parent_env ctx attr =
                  end
             in
 
-            let node = TaggedAst.VariableDefStmt (
+            let node = TAst.VariableDefStmt (
                            rv,
-                           TaggedAst.VarInit (var_name, (type_node, Some value_node)),
+                           TAst.VarInit (var_name, (type_node, Some value_node)),
                            Some venv
                          ) in
 
@@ -406,23 +399,23 @@ let rec construct_env node parent_env ctx attr =
           end
      end
 
-  | TaggedAst.ExprStmt (TaggedAst.PrevPassNode e) ->
+  | TAst.ExprStmt (TAst.PrevPassNode e) ->
      let (node, ty) = analyze_expr e parent_env ctx attr in
-     TaggedAst.ExprStmt node
+     TAst.ExprStmt node
 
-  | TaggedAst.EmptyStmt -> node
+  | TAst.EmptyStmt -> node
 
-  | TaggedAst.AttrWrapperStmt (attr_tbl, ast) ->
+  | TAst.AttrWrapperStmt (attr_tbl, ast) ->
      begin
        (* TODO: merge prev attributes *)
        construct_env ast parent_env ctx (Some attr_tbl)
      end
 
-  | TaggedAst.BuiltinClass _ -> node
+  | TAst.BuiltinClass _ -> node
 
   | _ ->
      begin
-       TaggedAst.print node;
+       TAst.print node;
        failwith "construct_env: unsupported node or nodes have no valid env"
      end
 
@@ -443,7 +436,7 @@ and analyze_expr node parent_env ctx attr =
        | Some f_env ->
           begin
             (* Replace BinOpCall to generic FuncCall *)
-            let node = TaggedAst.GenericCall (
+            let node = TAst.GenericCall (
                            Nodes.string_of_id_string op,
                            args_nodes,
                            Some f_env) in
@@ -479,7 +472,7 @@ and analyze_expr node parent_env ctx attr =
               solve_function_overload args_type_records menv parent_env ctx attr in
 
             let { Env.fn_name = fname; _ } = Env.FunctionOp.get_record f_env in
-            let node = TaggedAst.GenericCall (
+            let node = TAst.GenericCall (
                            Nodes.string_of_id_string fname,
                            args_nodes,
                            Some f_env) in
@@ -497,7 +490,7 @@ and analyze_expr node parent_env ctx attr =
            Some v -> v
          | None -> failwith "id not found"  (* TODO: change to exception *)
        in
-       let node = TaggedAst.Id (name, trg_env) in
+       let node = TAst.Id (name, trg_env) in
 
        (node, ty)
      end
@@ -506,7 +499,7 @@ and analyze_expr node parent_env ctx attr =
      begin
        (* WIP *)
        let ty = ctx.si_int_type in
-       let node = TaggedAst.Int32Lit i in
+       let node = TAst.Int32Lit i in
 
        (node, ty)
      end
@@ -524,13 +517,13 @@ and analyze_inner node parent_env ctx =
 
 and extract_prev_pass_node node =
   match node with
-  | TaggedAst.PrevPassNode n -> n
+  | TAst.PrevPassNode n -> n
   | _ -> failwith "not prev node"
 
 
 and prepare_params env func_decl_node params_node ctx attr =
   match params_node with
-  | TaggedAst.PrevPassNode (Ast.ParamsList ps) ->
+  | TAst.PrevPassNode (Ast.ParamsList ps) ->
      begin
        declare_function_params env func_decl_node ps ctx attr
      end
@@ -594,7 +587,7 @@ and declare_function_params f_env func_decl_node params ctx attr =
   let (nparams, param_types) = params |> List.map analyze_param |> List.split
   in
   match func_decl_node with
-  | TaggedAst.FunctionDefStmt _ ->
+  | TAst.FunctionDefStmt _ ->
      begin
        let make_env param ty =
          let (opt_name, _) = param in
@@ -615,7 +608,7 @@ and declare_function_params f_env func_decl_node params ctx attr =
        (nparams, param_types, param_envs)
      end
 
-  | TaggedAst.ExternFunctionDefStmt _ ->
+  | TAst.ExternFunctionDefStmt _ ->
      begin
        (*params*)
        (nparams, param_types, [])

@@ -14,13 +14,13 @@ module CodeGeneratorType =
     type 'ctx builtin_f_t = (ir_value_t array -> 'ctx -> ir_value_t)
   end
 module Ctx = Codegen.Context.Make(CodeGeneratorType)
+module TAst = Codegen.TAst
 
 type ctx_t = Ctx.t
 
 
 let rec code_generate ~bb node ctx =
   let open Ctx in
-  let module TAst = Sema.TaggedAst in
   match node with
   | TAst.Module (inner, _) ->
      begin
@@ -147,7 +147,6 @@ let rec code_generate ~bb node ctx =
 
 and code_generate_as_value ?(bb=None) node ctx =
   let open Ctx in
-  let module TAst = Sema.TaggedAst in
   match node with
   | TAst.GenericCall (name, args, Some env) ->
      begin

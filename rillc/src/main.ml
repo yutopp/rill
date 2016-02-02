@@ -3,8 +3,7 @@ let () =
   Ast.print ast;
   flush_all ();
 
-  let module CtfeEngine = Ctfe.Make(Llvm_codegen) in
-  let (env, ctx) = Sema.make_default_state (CtfeEngine.empty ()) in
+  let (env, ctx) = Sema.make_default_state () in
   let sem_ast = Sema.analyze ast env ctx in
   flush_all ();
 
