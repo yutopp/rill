@@ -3,6 +3,7 @@ def main() {
     print_int(a);
     val b = a + 10;
     print_int(b);
+    hoge(10);
 }
 
 def hoge(a : int) {

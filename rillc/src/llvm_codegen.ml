@@ -18,17 +18,17 @@ module Ctx = Codegen.Context.Make(CodeGeneratorType)
 type ctx_t = Ctx.t
 
 
-let rec code_generate ?(ip=None) node ctx =
+let rec code_generate ~bb node ctx =
   let open Ctx in
   let module TAst = Sema.TaggedAst in
   match node with
   | TAst.Module (inner, _) ->
      begin
-       code_generate inner ctx
+       code_generate ~bb:bb inner ctx
      end
 
   | TAst.StatementList (nodes) ->
-     nodes |> List.iter @@ fun n -> code_generate n ctx
+     nodes |> List.iter @@ fun n -> code_generate ~bb:bb n ctx
 
   | TAst.FunctionDefStmt (name, TAst.ParamsList (params), _, body, Some env) ->
      if Ctx.is_env_defined ctx env then () else
@@ -39,10 +39,10 @@ let rec code_generate ?(ip=None) node ctx =
 
        let llparam_tys =
          fenv_r.Env.fn_param_types
-         |> List.map (fun t -> lltype_of_typeinfo ~ip:ip t ctx)
+         |> List.map (fun t -> lltype_of_typeinfo ~bb:bb t ctx)
          |> Array.of_list
        in
-       let llret_ty = lltype_of_typeinfo ~ip:ip fenv_r.Env.fn_return_type ctx in
+       let llret_ty = lltype_of_typeinfo ~bb:bb fenv_r.Env.fn_return_type ctx in
 
        (* type of function *)
        let f_ty = L.function_type llret_ty llparam_tys in
@@ -50,6 +50,7 @@ let rec code_generate ?(ip=None) node ctx =
        (* declare function *)
        let name = Nodes.string_of_id_string name in (*TODO: use the value in the env*)
        let f = L.declare_function name f_ty ctx.ir_module in
+       Ctx.bind_env_to_val ctx env f;
 
        (* setup parameters *)
        let param_envs = fenv_nr.Env.fn_n_param_envs |> Array.of_list in
@@ -70,11 +71,10 @@ let rec code_generate ?(ip=None) node ctx =
 
        (* entry block *)
        let bb = L.append_block ctx.ir_context "entry" f in
-       let f_begin_ip = L.instr_begin bb in
-       L.position_builder f_begin_ip ctx.ir_builder;
+       L.position_builder (L.instr_begin bb) ctx.ir_builder;
 
        (**)
-       code_generate body ctx ~ip:(Some f_begin_ip);
+       code_generate body ctx ~bb:(Some bb);
 
        (**)
        ignore (L.build_ret_void ctx.ir_builder);
@@ -84,8 +84,9 @@ let rec code_generate ?(ip=None) node ctx =
        Ctx.mark_env_as_defined ctx env
      end
 
-  | TAst.ExternFunctionDefStmt
-      (name, TAst.ParamsList (params), _, extern_fname, Some env) ->
+  | TAst.ExternFunctionDefStmt (
+        name, TAst.ParamsList (params), _, extern_fname, Some env
+      ) ->
      if Ctx.is_env_defined ctx env then () else
      begin
        let fr = Env.FunctionOp.get_extern_record env in
@@ -115,7 +116,7 @@ let rec code_generate ?(ip=None) node ctx =
 
        let (var_name, (_, opt_init_expr)) = var_init in
        let init_expr = Option.get opt_init_expr in
-       let llvm_val = code_generate_as_value init_expr ctx ~ip:ip in
+       let llvm_val = code_generate_as_value ~bb:bb init_expr ctx in
        Ctx.bind_env_to_val ctx env llvm_val;
 
        L.set_value_name var_name llvm_val;
@@ -125,7 +126,7 @@ let rec code_generate ?(ip=None) node ctx =
 
   | TAst.ExprStmt e ->
      begin
-       ignore @@ code_generate_as_value e ctx;
+       ignore @@ code_generate_as_value ~bb:bb e ctx;
        ()
      end
 
@@ -144,14 +145,14 @@ let rec code_generate ?(ip=None) node ctx =
 
   | _ -> failwith "cannot generate : statement"
 
-and code_generate_as_value ?(ip=None) node ctx =
+and code_generate_as_value ?(bb=None) node ctx =
   let open Ctx in
   let module TAst = Sema.TaggedAst in
   match node with
   | TAst.GenericCall (name, args, Some env) ->
      begin
        let llargs = args
-                    |> List.map (fun n -> code_generate_as_value n ctx)
+                    |> List.map (fun n -> code_generate_as_value ~bb:bb n ctx)
                     |> Array.of_list in
        let { Env.er = er; _ } = env in
        let llval = match er with
@@ -164,6 +165,14 @@ and code_generate_as_value ?(ip=None) node ctx =
               } = r in
               let fn_s_name = Nodes.string_of_id_string fn_name in
               match detail with
+              (* normal function *)
+              | Env.FnRecordNormal _ ->
+                 begin
+                   Printf.printf "gen value: debug / function %s\n" fn_s_name;
+                   let f = find_val_from_env_with_force_generation ~bb:bb ctx env in
+                   L.build_call f llargs "" ctx.ir_builder
+                 end
+              (* extern function *)
               | Env.FnRecordExtern {
                   Env.fn_e_name = extern_name;
                   Env.fn_e_is_builtin = is_builtin;
@@ -184,14 +193,13 @@ and code_generate_as_value ?(ip=None) node ctx =
                         Printf.printf "gen value: debug / extern  %s = \"%s\"\n"
                                       fn_s_name extern_name;
                         let extern_f =
-                          find_val_from_env_with_force_generation ctx env ip in
+                          find_val_from_env_with_force_generation ~bb:bb ctx env in
                         L.build_call extern_f llargs "" ctx.ir_builder
                       end
                  end
-              | Env.FnRecordNormal _ -> failwith "codegen: not implemented fun"
-              | Env.FnUndef -> failwith "codegen: undefined function record"
+              | Env.FnUndef -> failwith "[ICE] codegen: undefined function record"
             end
-         | _ -> failwith @@ "codegen; id " ^ name
+         | _ -> failwith @@ "[ICE] codegen; id " ^ name
        in
        llval
      end
@@ -221,14 +229,14 @@ and code_generate_as_value ?(ip=None) node ctx =
   | _ -> failwith "cannot generate : as value"
 
 
-and code_generate_by_interrupt node ctx opt_ip =
-  code_generate node ctx;
+and code_generate_by_interrupt ~bb:bb node ctx =
+  code_generate ~bb:bb node ctx;
   (* Restore position *)
-  opt_ip |> Option.may (fun ip -> L.position_builder ip ctx.Ctx.ir_builder)
+  bb |> Option.may (fun bb -> L.position_at_end bb ctx.Ctx.ir_builder)
 
 
-and force_target_generation : 'a. ('ctx -> 'env -> 'a) -> 'ctx -> 'env -> 'ip -> 'a =
-  fun f ctx env opt_ip ->
+and force_target_generation : 'a. ('ctx -> 'env -> 'a) -> 'ctx -> 'env -> 'bb -> 'a =
+  fun f ctx env bb ->
   try f ctx env with
   | Not_found ->
      begin
@@ -241,7 +249,7 @@ and force_target_generation : 'a. ('ctx -> 'env -> 'a) -> 'ctx -> 'env -> 'ip ->
               failwith "[ICE] force_target_generation: there is no rel node"
             end
        in
-       code_generate_by_interrupt node ctx opt_ip;
+       code_generate_by_interrupt ~bb:bb node ctx;
 
        (* retry *)
        try f ctx env with
@@ -252,22 +260,22 @@ and force_target_generation : 'a. ('ctx -> 'env -> 'a) -> 'ctx -> 'env -> 'ip ->
           end
      end
 
-and find_val_from_env_with_force_generation ctx env opt_ip : L.llvalue =
+and find_val_from_env_with_force_generation ~bb ctx env =
   force_target_generation Ctx.find_val_from_env
-                          ctx env opt_ip
+                          ctx env bb
 
-and find_type_from_env_with_force_generation ctx env opt_ip : L.lltype =
+and find_type_from_env_with_force_generation ~bb ctx env =
   force_target_generation Ctx.find_type_from_env
-                          ctx env opt_ip
+                          ctx env bb
 
 
-and lltype_of_typeinfo ?(ip=None) ty ctx =
+and lltype_of_typeinfo ~bb ty ctx =
   let open Ctx in
   let {
     Type.ty_cenv = cenv;
     _
   } = Type.as_unique ty in
-  let ll_ty = find_type_from_env_with_force_generation ctx cenv ip in
+  let ll_ty = find_type_from_env_with_force_generation ~bb:bb ctx cenv  in
   ll_ty
 
 
@@ -309,7 +317,7 @@ let generate node =
   let ctx = make_default_context () in
   inject_builtins ctx;
 
-  code_generate node ctx;
+  code_generate ~bb:None node ctx;
   L.dump_module ctx.Ctx.ir_module;
   ctx
 
