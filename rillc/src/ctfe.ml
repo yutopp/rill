@@ -4,7 +4,7 @@ module L = Llvm
 module LE = Llvm_executionengine
 
 type t = {
-  cg_ctx        : Llvm_codegen.ctx_t;
+  cg_ctx        : Codegen_llvm.ctx_t;
   exec_engine   : LE.llexecutionengine;
 }
 
@@ -25,10 +25,10 @@ let initialize type_gen =
   if not (LE.initialize ()) then
     failwith "[ICE] Couldn't initialize LLVM backend";
 
-  let module CgCtx = Llvm_codegen.Ctx in
+  let module CgCtx = Codegen_llvm.Ctx in
   let codegen_ctx =
-    Llvm_codegen.make_default_context ~opt_type_gen:(Some type_gen) () in
-  Llvm_codegen.inject_builtins codegen_ctx;
+    Codegen_llvm.make_default_context ~opt_type_gen:(Some type_gen) () in
+  Codegen_llvm.inject_builtins codegen_ctx;
 
   let llmod = codegen_ctx.CgCtx.ir_module in
   let jit_engine = LE.create llmod in
@@ -62,7 +62,7 @@ let invoke_function engine fname ret_ty type_sets =
 
 
 let execute engine expr_node expr_ty type_sets =
-  let module CgCtx = Llvm_codegen.Ctx in
+  let module CgCtx = Codegen_llvm.Ctx in
   (* TODO: add cache... *)
   Printf.printf "JIT ==== execute!!!\n";
 
@@ -70,7 +70,7 @@ let execute engine expr_node expr_ty type_sets =
   LE.add_module engine.cg_ctx.CgCtx.ir_module engine.exec_engine;
 
   (* generate a new module to define a temporary function for CTFE *)
-  Llvm_codegen.regenerate_module engine.cg_ctx;
+  Codegen_llvm.regenerate_module engine.cg_ctx;
 
   (* alias *)
   let ir_ctx = engine.cg_ctx.CgCtx.ir_context in
@@ -78,7 +78,7 @@ let execute engine expr_node expr_ty type_sets =
   let ir_builder = engine.cg_ctx.CgCtx.ir_builder in
 
   (**)
-  let expr_llty = Llvm_codegen.lltype_of_typeinfo ~bb:None expr_ty engine.cg_ctx in
+  let expr_llty = Codegen_llvm.lltype_of_typeinfo ~bb:None expr_ty engine.cg_ctx in
 
   (**)
   let tmp_expr_fname = JITCounter.generate_fresh_name () in
@@ -92,7 +92,7 @@ let execute engine expr_node expr_ty type_sets =
 
   (* generate a LLVM value from the expression *)
   let expr_llval =
-    Llvm_codegen.code_generate_as_value ~bb:(Some bb) expr_node engine.cg_ctx in
+    Codegen_llvm.code_generate_as_value ~bb:(Some bb) expr_node engine.cg_ctx in
   ignore @@ L.build_ret expr_llval ir_builder;
 
   Llvm_analysis.assert_valid_function f;

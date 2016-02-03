@@ -9,7 +9,7 @@ let () =
   let sem_ast = Sema.analyze ast env ctx in
   flush_all ();
 
-  let module M = (Llvm_codegen : Codegen.GENERATOR_TYPE) in
+  let module M = (Codegen_llvm : Codegen.GENERATOR_TYPE) in
 
   let c_ctx = M.generate sem_ast in
   let tmp_stdlib_path = "./stdlib/lib/rillstd-rt.a" in (* TODO: fix *)

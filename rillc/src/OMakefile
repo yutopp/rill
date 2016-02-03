@@ -113,7 +113,7 @@ FILES[] =
    env
    sema
    codegen
-   llvm_codegen
+   codegen_llvm
    type
    type_sets
    ctfe
