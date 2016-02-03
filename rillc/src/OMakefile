@@ -56,6 +56,8 @@ OCAMLPACKS[] =
    llvm
    llvm.bitwriter
    llvm.analysis
+   llvm.executionengine
+   ctypes
 
 #
 if $(not $(OCAMLFIND_EXISTS))
@@ -79,7 +81,7 @@ if $(not $(OCAMLFIND_EXISTS))
 #
 # Various options
 #
-# OCAMLFLAGS    +=
+OCAMLFLAGS    += -g
 # OCAMLCFLAGS   +=
 # OCAMLOPTFLAGS +=
 # OCAML_LINK_FLAGS +=
@@ -104,14 +106,17 @@ FILES[] =
    main
    nodes
    ast
+   tagged_ast
    lexer
    parser
    syntax
    env
    sema
    codegen
-   llvm_codegen
+   codegen_llvm
    type
+   type_sets
+   ctfe
 
 #
 PROGRAM = rillc

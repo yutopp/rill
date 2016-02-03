@@ -126,6 +126,34 @@ module Make (Ctx : NodeContextType) =
            close_box()
          end
 
+
+      | BinaryOpExpr (lhs, op, rhs) ->
+         begin
+           print lhs; print_string (string_of_id_string op); print rhs
+         end
+
+      (*| UnaryOpExpr (op, expr) ->
+         begin
+           print_string (string_of_id_string op); print expr
+         end*)
+
+      | ElementSelectionExpr (recv, sel) ->
+         begin
+           print recv; print_string "."; print sel
+         end
+
+      | CallExpr (recv, args) ->
+         begin
+           print recv; print_string "(\n";
+           List.iter (fun arg -> print arg; print_string ",\n") args;
+           print_string ")\n"
+         end
+
+      | Id (name, _) ->
+         begin
+           print_string "id{"; print_string (string_of_id_string name); print_string "}"
+         end
+
       | _ ->
          print_string "unknown\n"
   end
