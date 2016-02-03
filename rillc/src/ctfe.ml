@@ -15,6 +15,8 @@ module JITCounter =
 
     let generate_fresh_name () =
       let c = !counter in
+      if c = Int64.max_int then
+        failwith "[ICE] Internal JIT cache id is reached to max id...";
       counter := Int64.succ !counter;
 
       "__rill_jit_tmp_expr_" ^ (Int64.to_string c)
