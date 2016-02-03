@@ -81,7 +81,7 @@ if $(not $(OCAMLFIND_EXISTS))
 #
 # Various options
 #
-# OCAMLFLAGS    +=
+OCAMLFLAGS    += -g
 # OCAMLCFLAGS   +=
 # OCAMLOPTFLAGS +=
 # OCAML_LINK_FLAGS +=

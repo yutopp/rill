@@ -1,4 +1,6 @@
 let () =
+  Printexc.record_backtrace true;
+
   let ast = Syntax.make_ast_from_file "test/input0.rill" in
   Ast.print ast;
   flush_all ();

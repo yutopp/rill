@@ -49,12 +49,13 @@ let make_default_context root_env ctfe_engine =
   } in
 
   let create_builtin_class name inner_name =
-    let env = Env.create_env root_env (Env.Class (Env.empty_lookup_table (),
-                                                  {
-                                                    Env.cls_name = name;
-                                                    Env.cls_detail = Env.ClsUndef;
-                                                  })
-                                      ) in
+    let env = Env.create_env root_env (
+                               Env.Class (Env.empty_lookup_table ~init:0 (),
+                                          {
+                                            Env.cls_name = name;
+                                            Env.cls_detail = Env.ClsUndef;
+                                          })
+                             ) in
     let node = TAst.BuiltinClass (inner_name, Some env) in
     complete_env env node;
     env
@@ -630,13 +631,14 @@ and solve_identifier ?(do_rec_search=true) id_node env ctx attr =
      solve_simple_identifier ~do_rec_search:do_rec_search name env ctx attr
   | _ -> failwith "unsupported ID type"
 
-and solve_simple_identifier ?(do_rec_search=true) name env ctx attr =
+and solve_simple_identifier
+      ?(do_rec_search=true) name search_base_env ctx attr =
   let name_s = Nodes.string_of_id_string name in
   Printf.printf "-> finding identitifer = %s : rec = %b\n" name_s do_rec_search;
   let oenv = if do_rec_search then
-               Env.lookup env name_s
+               Env.lookup search_base_env name_s
              else
-               Env.find_on_env env name_s
+               Env.find_on_env search_base_env name_s
   in
   (*Env.print env;*)
 
@@ -649,8 +651,8 @@ and solve_simple_identifier ?(do_rec_search=true) name env ctx attr =
     (ctx.si_type_type, Some cenv)
   in
 
-  let solve target_env =
-    let { Env.er = env_r; _ } = target_env in
+  let solve env =
+    let { Env.er = env_r; _ } = env in
     match env_r with
     | Env.MultiSet (record) ->
        begin
@@ -669,8 +671,8 @@ and solve_simple_identifier ?(do_rec_search=true) name env ctx attr =
          | Env.Kind.Function ->
             begin
               (* functions will be overloaded *)
-              let ty = Type.FunctionSetTy target_env in
-              (ty, Some target_env)
+              let ty = Type.FunctionSetTy env in
+              (ty, Some env)
             end
          | _ -> failwith "unexpected env : multi-set kind"
        end
@@ -686,7 +688,7 @@ and solve_simple_identifier ?(do_rec_search=true) name env ctx attr =
          } = vr in
          (* TODO: check class variable *)
 
-         (var_ty, Some target_env)
+         (var_ty, Some env)
        end
 
     | _ -> failwith "solve_simple_identifier: unexpected env"
@@ -718,6 +720,7 @@ and eval_expr_as_ctfe expr env ctx attr =
   if not (Type.is_unique_ty type_of_expr) then
     failwith "[ICE] : non unique type";
 
+  TAst.print nexpr;
   CtfeEngine.execute ctx.si_ctfe_engine nexpr type_of_expr;
 
   Printf.printf "<- eval_expr_as_ctfe : end\n";

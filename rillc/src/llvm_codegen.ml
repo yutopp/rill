@@ -138,7 +138,11 @@ let rec code_generate ~bb node ctx =
      begin
        if Ctx.is_env_defined ctx env then ();
 
-       let ty = Ctx.find_builtin_type ctx builtin_name in
+       let ty = try Ctx.find_builtin_type ctx builtin_name with
+                | Not_found ->
+                   failwith (Printf.sprintf "[ICE] builtin class \"%s\" is not found"
+                                            builtin_name)
+       in
        Ctx.bind_env_to_type ctx env ty;
 
        Ctx.mark_env_as_defined ctx env
@@ -213,10 +217,12 @@ and code_generate_as_value ?(bb=None) node ctx =
      begin
        let { Env.er = er; _ } = rel_env in
        match er with
-       | Env.Function (_, _) ->
+       | Env.Function (_, r) ->
           begin
+            let rv = Env.FunctionOp.get_record rel_env in
             (* *)
-            failwith "function"
+            Env.print rel_env;
+            failwith @@ "TAst.Id: function " ^ (Nodes.string_of_id_string name) ^ " // " ^ (Nodes.string_of_id_string rv.Env.fn_name)
           end
        | Env.Variable (vr) ->
           begin
@@ -276,13 +282,7 @@ and lltype_of_typeinfo ~bb ty ctx =
     Type.ty_cenv = cenv;
     _
   } = Type.as_unique ty in
-  let ll_ty = try find_type_from_env_with_force_generation ~bb:bb ctx cenv with
-              | Not_found ->
-                 failwith (
-                     Printf.sprintf "[ICE] lltype_of_typeinfo: class \"%s\" is not found"
-                                    (Nodes.string_of_id_string (Env.ClassOp.get_record cenv).Env.cls_name)
-                   )
-  in
+  let ll_ty = find_type_from_env_with_force_generation ~bb:bb ctx cenv in
   ll_ty
 
 
@@ -313,6 +313,11 @@ let inject_builtins ctx =
     Ctx.bind_builtin_func ctx name f;
     Printf.printf "debug / registerd builtin func = \"%s\"\n" name
   in
+
+  (* type is represented as int64 in this context.
+   * It donates ID of type in the type generator
+   *)
+  register_builtin_type "__type_type" (L.i32_type ctx.ir_context);
 
   register_builtin_type "__type_void" (L.void_type ctx.ir_context);
   register_builtin_type "__type_int" (L.i32_type ctx.ir_context);

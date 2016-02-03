@@ -13,8 +13,9 @@ let initialize () =
 
   let module CgCtx = Llvm_codegen.Ctx in
   let codegen_ctx = Llvm_codegen.make_default_context () in
-  let llmod = codegen_ctx.CgCtx.ir_module in
+  Llvm_codegen.inject_builtins codegen_ctx;
 
+  let llmod = codegen_ctx.CgCtx.ir_module in
   let jit_engine = LE.create llmod in
   {
     cg_ctx = codegen_ctx;
@@ -26,7 +27,7 @@ let tmp_expr_fname = "__rill_jit_tmp_expr"
 let ctype_of_semantic_type ty =
   Ctypes.int
 
-let execute engine node expr_ty =
+let execute engine expr_node expr_ty =
   let module CgCtx = Llvm_codegen.Ctx in
   Printf.printf "JIT ==== execute!!!\n";
 
@@ -44,6 +45,7 @@ let execute engine node expr_ty =
   (**)
   LE.add_module ir_mod engine.exec_engine;
 
+  (**)
   let expr_llty = Llvm_codegen.lltype_of_typeinfo ~bb:None expr_ty engine.cg_ctx in
 
   (* unit -> (typeof expr) *)
@@ -52,6 +54,11 @@ let execute engine node expr_ty =
 
   let bb = L.append_block ir_ctx "entry" f in
   L.position_at_end bb ir_builder;
+
+  (* generate the LLVM value of the expression *)
+  let expr_llval =
+    Llvm_codegen.code_generate_as_value ~bb:(Some bb) expr_node engine.cg_ctx in
+  ignore expr_llval;
 
   let llret = L.const_int (L.i32_type ir_ctx) 10 in
 
