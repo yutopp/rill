@@ -71,7 +71,7 @@ let rec code_generate ~bb node ctx =
 
        (* entry block *)
        let bb = L.append_block ctx.ir_context "entry" f in
-       L.position_builder (L.instr_begin bb) ctx.ir_builder;
+       L.position_at_end bb ctx.ir_builder;
 
        (**)
        code_generate body ctx ~bb:(Some bb);
@@ -95,6 +95,7 @@ let rec code_generate ~bb node ctx =
        | true -> () (* DO NOTHING *)
        | false ->
           begin
+            (* TODO: fix fix fix fix *)
             let i32_ty = L.i32_type ctx.ir_context in
             let void_ty = L.void_type ctx.ir_context in
 
@@ -220,7 +221,8 @@ and code_generate_as_value ?(bb=None) node ctx =
        | Env.Variable (vr) ->
           begin
             Printf.printf "variable\n";
-            Ctx.find_val_from_env ctx rel_env
+            try Ctx.find_val_from_env ctx rel_env with
+            | Not_found -> failwith "[ICE] variable env is not found"
           end
        | _ -> failwith @@ "codegen; id " ^ (Nodes.string_of_id_string name)
      end
@@ -274,7 +276,13 @@ and lltype_of_typeinfo ~bb ty ctx =
     Type.ty_cenv = cenv;
     _
   } = Type.as_unique ty in
-  let ll_ty = find_type_from_env_with_force_generation ~bb:bb ctx cenv  in
+  let ll_ty = try find_type_from_env_with_force_generation ~bb:bb ctx cenv with
+              | Not_found ->
+                 failwith (
+                     Printf.sprintf "[ICE] lltype_of_typeinfo: class \"%s\" is not found"
+                                    (Nodes.string_of_id_string (Env.ClassOp.get_record cenv).Env.cls_name)
+                   )
+  in
   ll_ty
 
 
@@ -288,6 +296,11 @@ let make_default_context () =
     ~ir_context:ir_context
     ~ir_builder:ir_builder
     ~ir_module:ir_module
+
+
+let regenerate_module ctx =
+  let ir_module = L.create_module ctx.Ctx.ir_context "Rill" in
+  ctx.Ctx.ir_module <- ir_module
 
 
 let inject_builtins ctx =

@@ -1,7 +1,7 @@
 open Batteries
 
 module TAst = Tagged_ast
-module CtfeEngine = Ctfe.Make(Llvm_codegen)
+module CtfeEngine = Ctfe
 
 type 'env type_info = 'env Type.info_t
 
@@ -76,7 +76,7 @@ let make_default_context root_env ctfe_engine =
 
 let make_default_state () =
   let env = make_default_env () in
-  let ctfe_engine = CtfeEngine.empty () in
+  let ctfe_engine = CtfeEngine.initialize () in
   let ctx = make_default_context env ctfe_engine in
   (env, ctx)
 
@@ -718,7 +718,7 @@ and eval_expr_as_ctfe expr env ctx attr =
   if not (Type.is_unique_ty type_of_expr) then
     failwith "[ICE] : non unique type";
 
-
+  CtfeEngine.execute ctx.si_ctfe_engine nexpr type_of_expr;
 
   Printf.printf "<- eval_expr_as_ctfe : end\n";
   (* WIP WIP WIP WIP WIP WIP *)

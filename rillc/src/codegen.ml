@@ -22,9 +22,9 @@ module Context =
         module IdSet = Set.Make(IdOrderedType)
 
         type t = {
-          ir_context        : Cgt.ir_context_t;
-          ir_builder        : Cgt.ir_builder_t;
-          ir_module         : Cgt.ir_module_t;
+          mutable ir_context        : Cgt.ir_context_t;
+          mutable ir_builder        : Cgt.ir_builder_t;
+          mutable ir_module         : Cgt.ir_module_t;
 
           env_to_val_tbl    : (Env.id_t, Cgt.ir_value_t) Hashtbl.t;
           env_to_type_tbl   : (Env.id_t, Cgt.ir_type_t) Hashtbl.t;

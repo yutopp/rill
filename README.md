@@ -11,7 +11,7 @@ Rill is designed for systems programming.
 # How to build
 ## Preparation
 ```
-opam install omake menhir batteries llvm.3.7
+opam install omake menhir batteries ctypes-foreign llvm.3.7
 eval `opam config env`
 ```
 
