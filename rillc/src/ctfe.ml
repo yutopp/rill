@@ -8,6 +8,12 @@ type t = {
   exec_engine   : LE.llexecutionengine;
 }
 
+module Value =
+  struct
+    type 'env ctfe_value_t =
+      | Type of 'env Type.info_t
+  end
+
 
 module JITCounter =
   struct
@@ -41,26 +47,28 @@ let initialize type_gen =
 
 
 let invoke_function engine fname ret_ty type_sets =
-  let {
-    Type.ty_cenv = cenv;
-    _
-  } = Type.as_unique ret_ty in
   let open Ctypes in
-  ignore cenv;
-  if true then
-    begin
-      let cfunc_ty = Ctypes.void @-> returning Ctypes.int64_t in
-      let jit_f =
-        LE.get_function_address fname
-                                (Foreign.funptr cfunc_ty)
-                                engine.exec_engine
-      in
-      let tv = jit_f () in
-      Printf.printf "=========> %s\n" (Int64.to_string tv);
-    end else
-    begin
-      failwith "not supported"
-    end
+  match ret_ty with
+  | ty when Type.has_same_class ty type_sets.ts_type_type ->
+     begin
+       let cfunc_ty = Ctypes.void @-> returning Ctypes.int64_t in
+       let jit_f =
+         LE.get_function_address fname
+                                 (Foreign.funptr cfunc_ty)
+                                 engine.exec_engine
+       in
+       let ret_val = jit_f () in
+       Printf.printf "=========> %s\n" (Int64.to_string ret_val);
+
+       let ty =
+         Type.Generator.find_type_by_cache_id type_sets.ts_type_gen ret_val in
+       Value.Type ty
+     end
+
+  | _ ->
+     begin
+       failwith "this type is not supported"
+     end
 
 
 let execute engine expr_node expr_ty type_sets =
@@ -104,7 +112,7 @@ let execute engine expr_node expr_ty type_sets =
   LE.add_module ir_mod engine.exec_engine;
 
   (**)
-  invoke_function engine tmp_expr_fname expr_ty type_sets;
+  let ctfe_val = invoke_function engine tmp_expr_fname expr_ty type_sets in
 
   (* Remove the module for this tmporary function from execution engine.
    * However, the module will be used until next time.
@@ -113,4 +121,5 @@ let execute engine expr_node expr_ty type_sets =
   L.delete_function f;
 
   L.dump_module engine.cg_ctx.CgCtx.ir_module;   (* debug *)
-  ()
+
+  ctfe_val

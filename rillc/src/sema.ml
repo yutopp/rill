@@ -711,8 +711,15 @@ and try_to_complete_env env ctx attr =
     ()
 
 and resolve_type expr env ctx attr =
-  let ty = eval_expr_as_ctfe expr env ctx attr in
-  ty
+  let ctfe_val = eval_expr_as_ctfe expr env ctx attr in
+  match ctfe_val with
+  | CtfeEngine.Value.Type ty -> ty
+(*  | _ ->
+     begin
+       (* TODO: change to exception *)
+       failwith "This expression must be type"
+     end
+ *)
 
 and eval_expr_as_ctfe expr env ctx attr =
   Printf.printf "-> eval_expr_as_ctfe : begin ; \n";
@@ -720,12 +727,12 @@ and eval_expr_as_ctfe expr env ctx attr =
   if not (Type.is_unique_ty type_of_expr) then
     failwith "[ICE] : non unique type";
 
-  TAst.print nexpr;
-  CtfeEngine.execute ctx.sc_ctfe_engine nexpr type_of_expr ctx.sc_tsets;
+  (*TAst.print nexpr;*)
+  let ctfe_val =
+    CtfeEngine.execute ctx.sc_ctfe_engine nexpr type_of_expr ctx.sc_tsets in
 
   Printf.printf "<- eval_expr_as_ctfe : end\n";
-  (* WIP WIP WIP WIP WIP WIP *)
-  ctx.sc_tsets.ts_int_type
+  ctfe_val
 
 
 and evaluate_invocation_args args env ctx attr =

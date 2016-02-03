@@ -22,7 +22,8 @@ let is_unique_ty ty =
 
 let has_same_class lhs rhs =
   match (lhs, rhs) with
-    (UniqueTy lhs_r, UniqueTy rhs_r) -> lhs_r.ty_cenv = rhs_r.ty_cenv
+  | (UniqueTy lhs_r, UniqueTy rhs_r) ->
+     lhs_r.ty_cenv == rhs_r.ty_cenv (* compare envs by reference *)
   | (ClassSetTy, ClassSetTy) -> true
   | (FunctionSetTy lhs_e, FunctionSetTy rhs_e) -> lhs_e = rhs_e
   | _ -> false
@@ -38,15 +39,17 @@ module Generator =
   struct
     type 'env id_record_table_t =
         (type_id_ref_t, 'env record_t) Hashtbl.t
+
     type 'env t = {
       mutable gen_fresh_id  : type_id_ref_t;
-      gen_table             : 'env id_record_table_t;
+      cache_table           : 'env id_record_table_t;
     }
+
 
     let default () =
       {
         gen_fresh_id = IdType.zero;
-        gen_table = Hashtbl.create 10;
+        cache_table = Hashtbl.create 10;
       }
 
     let dummy_ty = InvalidTy
@@ -56,7 +59,8 @@ module Generator =
       if new_id = IdType.max_int then
         failwith "[ICE] Internal type id is reached to max id...";
       gen.gen_fresh_id <- IdType.succ gen.gen_fresh_id; (* update fresh id *)
-      Printf.printf "debug / typeid = new %s / cur %s\n" (IdType.to_string new_id) (IdType.to_string gen.gen_fresh_id);
+      Printf.printf "debug / typeid = new %s / cur %s\n"
+                    (IdType.to_string new_id) (IdType.to_string gen.gen_fresh_id);
       new_id
 
     let generate_type_with_cache gen env =
@@ -66,9 +70,16 @@ module Generator =
         ty_id = Some tid;
         ty_cenv = env;
       } in
-      Hashtbl.add gen.gen_table tid ty;
+      Hashtbl.add gen.cache_table tid ty;
 
       (UniqueTy ty, tid)
+
+    let find_type_by_cache_id gen t_id =
+      let ty_record = try Hashtbl.find gen.cache_table t_id with
+                      | Not_found ->
+                         failwith "[ICE] Internal type id is not found"
+      in
+      UniqueTy ty_record
   end
 
 
