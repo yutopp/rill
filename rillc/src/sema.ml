@@ -1,25 +1,18 @@
 open Batteries
+open Type_sets
 
 module TAst = Tagged_ast
 module CtfeEngine = Ctfe
 
-type 'env type_info = 'env Type.info_t
 
-type 'env shared_info = {
-  si_type_gen      : 'env Type.Generator.t;
 
-  (* buildin primitive types *)
-  mutable si_type_type      : 'env type_info;
-  mutable si_void_type      : 'env type_info;
-  mutable si_int_type       : 'env type_info;
-
+type 'env ctx_t = {
   (* ctfe engine *)
-  si_ctfe_engine            : CtfeEngine.t;
+  sc_ctfe_engine    : CtfeEngine.t;
+
+  (* type sets *)
+  sc_tsets          : 'env type_sets_t;
 }
-
-
-let is_type ty ctx =
-  Type.has_same_class ty ctx.si_type_type
 
 
 let check_env env =
@@ -37,15 +30,20 @@ let check_is_args_valid ty =
 let make_default_env () =
   Env.make_root_env ()
 
-let make_default_context root_env ctfe_engine =
+let make_default_context root_env =
+  let type_gen = Type.Generator.default () in
+  let ctfe_engine = CtfeEngine.initialize type_gen in
+
+  let tsets = {
+    ts_type_gen = type_gen;
+
+    ts_type_type = Type.Generator.dummy_ty;
+    ts_void_type = Type.Generator.dummy_ty;
+    ts_int_type = Type.Generator.dummy_ty;
+  } in
   let ctx = {
-    si_type_gen = Type.Generator.default ();
-
-    si_type_type = Type.Generator.dummy_ty;
-    si_void_type = Type.Generator.dummy_ty;
-    si_int_type = Type.Generator.dummy_ty;
-
-    si_ctfe_engine = ctfe_engine;
+    sc_ctfe_engine = ctfe_engine;
+    sc_tsets = tsets;
   } in
 
   let create_builtin_class name inner_name =
@@ -64,21 +62,23 @@ let make_default_context root_env ctfe_engine =
     let id_name = Nodes.Pure name in
     let cenv = create_builtin_class id_name inner_name in
     Env.add_inner_env root_env name cenv;
-    let ty = Type.Generator.generate_type_with_cache ctx.si_type_gen cenv in
+    let (ty, _) = Type.Generator.generate_type_with_cache ctx.sc_tsets.ts_type_gen cenv in
     setter ty
   in
 
-  register_builtin_type "type" "__type_type" (fun ty -> ctx.si_type_type <- ty);
+  register_builtin_type "type" "__type_type"
+                        (fun ty -> ctx.sc_tsets.ts_type_type <- ty);
 
-  register_builtin_type "void" "__type_void" (fun ty -> ctx.si_void_type <- ty);
-  register_builtin_type "int" "__type_int" (fun ty -> ctx.si_int_type <- ty);
+  register_builtin_type "void" "__type_void"
+                        (fun ty -> ctx.sc_tsets.ts_void_type <- ty);
+  register_builtin_type "int" "__type_int"
+                        (fun ty -> ctx.sc_tsets.ts_int_type <- ty);
   ctx
 
 
 let make_default_state () =
   let env = make_default_env () in
-  let ctfe_engine = CtfeEngine.initialize () in
-  let ctx = make_default_context env ctfe_engine in
+  let ctx = make_default_context env in
   (env, ctx)
 
 
@@ -236,7 +236,7 @@ let rec construct_env node parent_env ctx attr =
 
        (* infer return type *)
        (* TODO: implement *)
-       let return_type = ctx.si_void_type in
+       let return_type = ctx.sc_tsets.ts_void_type in
 
        (* body *)
        let nbody = analyze_inner body env ctx in
@@ -278,7 +278,7 @@ let rec construct_env node parent_env ctx attr =
 
        (* determine return type *)
        (* TODO: implement *)
-       let return_type = ctx.si_void_type in
+       let return_type = ctx.sc_tsets.ts_void_type in
 
        (* TODO: fix *)
        let is_builtin = match attr with
@@ -442,7 +442,7 @@ and analyze_expr node parent_env ctx attr =
                            args_nodes,
                            Some f_env) in
             (*TODO: extract return type from f_env*)
-            let f_ty = ctx.si_int_type in
+            let f_ty = ctx.sc_tsets.ts_int_type in
             (node, f_ty)
           end
        | None ->
@@ -478,7 +478,7 @@ and analyze_expr node parent_env ctx attr =
                            args_nodes,
                            Some f_env) in
             (*TODO: extract return type from f_env*)
-            let f_ty = ctx.si_int_type in
+            let f_ty = ctx.sc_tsets.ts_int_type in
             (node, f_ty)
           end
        | _ -> failwith "not implemented" (* TODO: call ctor OR operator() *)
@@ -499,7 +499,7 @@ and analyze_expr node parent_env ctx attr =
   | Ast.Int32Lit (i) ->
      begin
        (* WIP *)
-       let ty = ctx.si_int_type in
+       let ty = ctx.sc_tsets.ts_int_type in
        let node = TAst.Int32Lit i in
 
        (node, ty)
@@ -648,7 +648,7 @@ and solve_simple_identifier
   let single_type_id_node name cenv attr =
     try_to_complete_env cenv ctx attr;
 
-    (ctx.si_type_type, Some cenv)
+    (ctx.sc_tsets.ts_type_type, Some cenv)
   in
 
   let solve env =
@@ -721,11 +721,11 @@ and eval_expr_as_ctfe expr env ctx attr =
     failwith "[ICE] : non unique type";
 
   TAst.print nexpr;
-  CtfeEngine.execute ctx.si_ctfe_engine nexpr type_of_expr;
+  CtfeEngine.execute ctx.sc_ctfe_engine nexpr type_of_expr ctx.sc_tsets;
 
   Printf.printf "<- eval_expr_as_ctfe : end\n";
   (* WIP WIP WIP WIP WIP WIP *)
-  ctx.si_int_type
+  ctx.sc_tsets.ts_int_type
 
 
 and evaluate_invocation_args args env ctx attr =
@@ -761,7 +761,7 @@ and solve_function_overload arg_types mset_env ext_env ctx attr =
     | Env.MultiSet r -> r
     | _ -> Env.print mset_env; failwith "[ICE] solve_function_overload : Only Multiset is accepted"
   in
-  if mset_record.Env.ms_kind != Env.Kind.Function then
+  if mset_record.Env.ms_kind <> Env.Kind.Function then
     failwith "";
   (* TODO: fix *)
   List.hd mset_record.Env.ms_candidates

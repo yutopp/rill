@@ -16,7 +16,9 @@ module CodeGeneratorType =
 module Ctx = Codegen.Context.Make(CodeGeneratorType)
 module TAst = Codegen.TAst
 
-type ctx_t = Ctx.t
+type env_t = TAst.t Env.env_t
+type ctx_t = env_t Ctx.t
+type type_gen_t = env_t Type.Generator.t
 
 
 let rec code_generate ~bb node ctx =
@@ -219,17 +221,46 @@ and code_generate_as_value ?(bb=None) node ctx =
        match er with
        | Env.Function (_, r) ->
           begin
-            let rv = Env.FunctionOp.get_record rel_env in
             (* *)
             Env.print rel_env;
-            failwith @@ "TAst.Id: function " ^ (Nodes.string_of_id_string name) ^ " // " ^ (Nodes.string_of_id_string rv.Env.fn_name)
+            failwith @@ "[ICE] TAst.Id: function "
+                        ^ (Nodes.string_of_id_string name)
+                        ^ " // "
+                        ^ (Nodes.string_of_id_string r.Env.fn_name)
           end
-       | Env.Variable (vr) ->
+
+       | Env.Variable (r) ->
           begin
             Printf.printf "variable\n";
             try Ctx.find_val_from_env ctx rel_env with
             | Not_found -> failwith "[ICE] variable env is not found"
           end
+
+       | Env.Class (_, r) ->
+          begin
+            match ctx.type_generator with
+            | Some gen ->
+               begin
+                 let (_, itype_id) =
+                   Type.Generator.generate_type_with_cache gen rel_env
+                 in
+                 Printf.printf "##### type_id = %s\n" (Int64.to_string itype_id);
+
+                 (* return the internal typeid as a type *)
+                 L.const_of_int64 (L.i64_type ctx.ir_context)
+                                  itype_id
+                                  Type.is_type_id_signed
+               end
+            | None ->
+               begin
+                 Env.print rel_env;
+                 failwith @@ "[ICE] TAst.Id: class in RUNTIME"
+                             ^ (Nodes.string_of_id_string name)
+                             ^ " // "
+                             ^ (Nodes.string_of_id_string r.Env.cls_name)
+               end
+          end
+
        | _ -> failwith @@ "codegen; id " ^ (Nodes.string_of_id_string name)
      end
 
@@ -287,7 +318,7 @@ and lltype_of_typeinfo ~bb ty ctx =
 
 
 
-let make_default_context () =
+let make_default_context ?(opt_type_gen=None) () =
   let ir_context = L.global_context () in
   let ir_builder = L.builder ir_context in
   let ir_module = L.create_module ir_context "Rill" in
@@ -296,6 +327,7 @@ let make_default_context () =
     ~ir_context:ir_context
     ~ir_builder:ir_builder
     ~ir_module:ir_module
+    ~type_generator:opt_type_gen
 
 
 let regenerate_module ctx =
@@ -317,7 +349,7 @@ let inject_builtins ctx =
   (* type is represented as int64 in this context.
    * It donates ID of type in the type generator
    *)
-  register_builtin_type "__type_type" (L.i32_type ctx.ir_context);
+  register_builtin_type "__type_type" (L.i64_type ctx.ir_context);
 
   register_builtin_type "__type_void" (L.void_type ctx.ir_context);
   register_builtin_type "__type_int" (L.i32_type ctx.ir_context);

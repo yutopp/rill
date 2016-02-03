@@ -10,7 +10,9 @@ and 'env record_t = {
   ty_cenv   : 'env;
 }
 
-and type_id_ref_t = int
+and type_id_ref_t = int64   (* type id is represented by int64 *)
+module IdType = Int64
+let is_type_id_signed = true
 
 
 let is_unique_ty ty =
@@ -43,7 +45,7 @@ module Generator =
 
     let default () =
       {
-        gen_fresh_id = 0;
+        gen_fresh_id = IdType.zero;
         gen_table = Hashtbl.create 10;
       }
 
@@ -51,10 +53,14 @@ module Generator =
 
     let make_fresh_id gen =
       let new_id = gen.gen_fresh_id in
-      gen.gen_fresh_id <- gen.gen_fresh_id + 1; (* update fresh id *)
+      if new_id = IdType.max_int then
+        failwith "[ICE] Internal type id is reached to max id...";
+      gen.gen_fresh_id <- IdType.succ gen.gen_fresh_id; (* update fresh id *)
+      Printf.printf "debug / typeid = new %s / cur %s\n" (IdType.to_string new_id) (IdType.to_string gen.gen_fresh_id);
       new_id
 
     let generate_type_with_cache gen env =
+      (* TODO: implement cache *)
       let tid = make_fresh_id gen in
       let ty = {
         ty_id = Some tid;
@@ -62,7 +68,7 @@ module Generator =
       } in
       Hashtbl.add gen.gen_table tid ty;
 
-      UniqueTy ty
+      (UniqueTy ty, tid)
   end
 
 

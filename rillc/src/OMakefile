@@ -115,6 +115,7 @@ FILES[] =
    codegen
    llvm_codegen
    type
+   type_sets
    ctfe
 
 #

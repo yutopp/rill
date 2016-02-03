@@ -21,21 +21,22 @@ module Context =
           end
         module IdSet = Set.Make(IdOrderedType)
 
-        type t = {
+        type 'env t = {
           mutable ir_context        : Cgt.ir_context_t;
           mutable ir_builder        : Cgt.ir_builder_t;
           mutable ir_module         : Cgt.ir_module_t;
 
-          env_to_val_tbl    : (Env.id_t, Cgt.ir_value_t) Hashtbl.t;
-          env_to_type_tbl   : (Env.id_t, Cgt.ir_type_t) Hashtbl.t;
+          env_to_val_tbl            : (Env.id_t, Cgt.ir_value_t) Hashtbl.t;
+          env_to_type_tbl           : (Env.id_t, Cgt.ir_type_t) Hashtbl.t;
 
           name_to_builtin_type_tbl  : (string, Cgt.ir_type_t) Hashtbl.t;
-          name_to_builtin_func_tbl  : (string, t Cgt.builtin_f_t) Hashtbl.t;
+          name_to_builtin_func_tbl  : (string, ('env t) Cgt.builtin_f_t) Hashtbl.t;
 
-          mutable defined_env       : IdSet.t
+          mutable defined_env       : IdSet.t;
+          type_generator            : 'env Type.Generator.t option;
         }
 
-        let init ~ir_context ~ir_builder ~ir_module =
+        let init ~ir_context ~ir_builder ~ir_module ~type_generator=
           {
             ir_context = ir_context;
             ir_builder = ir_builder;
@@ -48,9 +49,10 @@ module Context =
             name_to_builtin_func_tbl = Hashtbl.create 32;
 
             defined_env = IdSet.empty;
+            type_generator = type_generator;
           }
 
-
+        (**)
         let mark_env_as_defined ctx env =
           ctx.defined_env <- (IdSet.add env.Env.env_id ctx.defined_env)
 
@@ -58,6 +60,7 @@ module Context =
           IdSet.mem env.Env.env_id ctx.defined_env
 
 
+        (**)
         let bind_env_to_val ctx env value =
           Hashtbl.add ctx.env_to_val_tbl env.Env.env_id value
 
@@ -65,6 +68,7 @@ module Context =
           Hashtbl.find ctx.env_to_val_tbl env.Env.env_id
 
 
+        (**)
         let bind_env_to_type ctx env ty =
           Hashtbl.add ctx.env_to_type_tbl env.Env.env_id ty
 
@@ -72,6 +76,7 @@ module Context =
           Hashtbl.find ctx.env_to_type_tbl env.Env.env_id
 
 
+        (**)
         let find_builtin_type ctx name =
           Hashtbl.find ctx.name_to_builtin_type_tbl name
 
@@ -79,6 +84,7 @@ module Context =
           Hashtbl.add ctx.name_to_builtin_type_tbl name f
 
 
+        (**)
         let find_builtin_func ctx name =
           Hashtbl.find ctx.name_to_builtin_func_tbl name
 
@@ -92,8 +98,10 @@ module TAst = Tagged_ast
 module type GENERATOR_TYPE =
   sig
     type ctx_t
+    type type_gen_t
 
-    val make_default_context : unit -> ctx_t
+    val make_default_context
+        : ?opt_type_gen:type_gen_t option -> unit -> ctx_t
 
     val generate : TAst.ast -> ctx_t
     val create_executable : ctx_t -> string -> string -> unit
