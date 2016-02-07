@@ -1,11 +1,16 @@
 def main() {
-    val a = 10 + 20;
+    val a: int = 10 + 20;
+
+    val arr = [1, 2, 3];
+
     print_int(a);
     val b = a + 10;
     print_int(b);
     hoge(10);
 
     tempfunc(b+10);
+
+
 }
 
 def hoge(a : int) {

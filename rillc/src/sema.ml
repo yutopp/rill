@@ -2,7 +2,6 @@ open Batteries
 open Type_sets
 
 module TAst = Tagged_ast
-module Ctfe_engine = Ctfe
 
 type type_info = TAst.ast Env.type_info_t
 
@@ -472,29 +471,49 @@ let rec construct_env node parent_env ctx opt_chain_attr =
 
             let (opt_type, opt_init_value) = init_term in
             let opt_init_value_res = match opt_init_value with
-              | Some init_value -> Some (analyze_expr init_value parent_env ctx
-                                                      opt_chain_attr)
+              | Some init_value -> Some (analyze_expr init_value parent_env
+                                                      ctx opt_chain_attr)
               | None -> None
             in
 
             (* type check for the variable *)
             let (type_node, value_node, var_ty) = match opt_type with
               (* variable type is specified *)
-              | Some var_type ->
+              | Some var_type_node ->
                  begin
-                   failwith "not implemented //"
+                   let (var_ty, type_expr) =
+                     resolve_type_with_node var_type_node parent_env ctx opt_chain_attr
+                   in
+                   let res_expr_node = match opt_init_value_res with
+                     | Some (expr_node, expr_ty) ->
+                        begin
+                          let (m_level, m_filter) =
+                            convert_type expr_ty var_ty parent_env ctx opt_chain_attr
+                          in
+                          if m_level = FuncMatchLevel.NoMatch then
+                            failwith "[ERR] cannot conver type";
+                          (* TODO: call filter, call copy/mode ctor *)
+                          expr_node
+                        end
+                     | None ->
+                        begin
+                          (* TODO: implement call defaut constructor *)
+                          failwith "not implemented //"
+                        end
+                   in
+                   (Some type_expr, res_expr_node, var_ty)
                  end
 
               (* var_type is infered from initial_value *)
               | None ->
                  begin
-                   let (node, var_ty) = match opt_init_value_res with
+                   let (expr_node, expr_ty) = match opt_init_value_res with
                      | Some v -> v
                      | None -> failwith "[ERROR] initial value is required";
                    in
                    (* TODO: check void value *)
 
-                   (None, node, var_ty)
+                   (None, expr_node, expr_ty)
                  end
             in
 
@@ -866,9 +885,15 @@ and convert_type src_ty dist_ty ext_env ctx attr =
 
 
 and resolve_type expr env ctx attr =
-  let ctfe_val = eval_expr_as_ctfe expr env ctx attr in
-  match ctfe_val with
-  | Ctfe_value.Type ty -> ty
+  let (ty, _) = resolve_type_with_node expr env ctx attr in
+  ty
+
+and resolve_type_with_node expr env ctx attr =
+  let (ctfe_val, nexpr) = eval_expr_as_ctfe expr env ctx attr in
+  let ty = match ctfe_val with
+    | Ctfe_value.Type ty -> ty
+  in
+  (ty, nexpr)
 (*  | _ ->
      begin
        (* TODO: change to exception *)
@@ -887,7 +912,7 @@ and eval_expr_as_ctfe expr env ctx attr =
     Ctfe_engine.execute ctx.sc_ctfe_engine nexpr type_of_expr ctx.sc_tsets in
 
   Printf.printf "<- eval_expr_as_ctfe : end\n";
-  ctfe_val
+  (ctfe_val, nexpr)
 
 
 and evaluate_invocation_args args env ctx attr =
