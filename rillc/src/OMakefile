@@ -116,7 +116,7 @@ FILES[] =
    codegen_llvm
    type
    type_sets
-   ctfe
+   ctfe_engine
    ctfe_value
    ctfe_exn
    unification
