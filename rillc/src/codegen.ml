@@ -21,7 +21,7 @@ module Context =
           end
         module IdSet = Set.Make(IdOrderedType)
 
-        type 'env t = {
+        type ('env, 'ty) t = {
           mutable ir_context        : Cgt.ir_context_t;
           mutable ir_builder        : Cgt.ir_builder_t;
           mutable ir_module         : Cgt.ir_module_t;
@@ -30,13 +30,18 @@ module Context =
           env_to_type_tbl           : (Env.id_t, Cgt.ir_type_t) Hashtbl.t;
 
           name_to_builtin_type_tbl  : (string, Cgt.ir_type_t) Hashtbl.t;
-          name_to_builtin_func_tbl  : (string, ('env t) Cgt.builtin_f_t) Hashtbl.t;
+          name_to_builtin_func_tbl  : (string, (('env, 'ty) t) Cgt.builtin_f_t) Hashtbl.t;
 
           mutable defined_env       : IdSet.t;
           type_generator            : 'env Type.Generator.t option;
+          uni_map                   : 'ty Unification.t option;
         }
 
-        let init ~ir_context ~ir_builder ~ir_module ~type_generator=
+        let init ~ir_context
+                 ~ir_builder
+                 ~ir_module
+                 ~type_generator
+                 ~uni_map =
           {
             ir_context = ir_context;
             ir_builder = ir_builder;
@@ -50,6 +55,7 @@ module Context =
 
             defined_env = IdSet.empty;
             type_generator = type_generator;
+            uni_map = uni_map;
           }
 
         (**)
@@ -98,10 +104,13 @@ module TAst = Tagged_ast
 module type GENERATOR_TYPE =
   sig
     type ctx_t
+    type type_info_t
     type type_gen_t
 
     val make_default_context
-        : ?opt_type_gen:type_gen_t option -> unit -> ctx_t
+        : ?opt_type_gen: type_gen_t option ->
+          ?opt_uni_map: type_info_t Unification.t option ->
+          unit -> ctx_t
 
     val generate : TAst.ast -> ctx_t
     val create_executable : ctx_t -> string -> string -> unit

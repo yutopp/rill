@@ -8,6 +8,7 @@
                         LOGICAL_OR LOGICAL_AND
                         BITWISE_AND BITWISE_OR BITWISE_XOR
                         INCREMENT DECREMENT
+                        NOT
 %token                  LPAREN RPAREN
                         LBLOCK RBLOCK
                         LBRACKET RBRACKET
@@ -53,14 +54,33 @@ empty_statement:
                 SEMICOLON { Ast.EmptyStmt }
 
 function_decl_statement:
+                function_decl_statement_ { $1 }
+        |       template_function_decl_statement_ { $1 }
+
+function_decl_statement_:
                 KEYWORD_DEF
-                rel_id_as_s
-                parameter_variables_decl_list
-                type_specifier?
-                function_decl_body_block
+                name = rel_id_as_s
+                params = parameter_variables_decl_list
+                ret_type = type_specifier?
+                body = function_decl_body_block
                 {
-                    Ast.FunctionDefStmt ($2, $3, $4, $5, ())
+                    Ast.FunctionDefStmt (name, params, ret_type, body, None, ())
                 }
+
+template_function_decl_statement_:
+                KEYWORD_DEF
+                name = rel_id_as_s
+                template_params = template_parameter_variables_decl_list
+                params = parameter_variables_decl_list
+                ret_type = type_specifier?
+                body = function_decl_body_block
+                {
+                    let inner =
+                      Ast.FunctionDefStmt (name, params, ret_type, body, None, ())
+                    in
+                    Ast.TemplateStmt (name, template_params, inner)
+                }
+
 
 function_decl_body_block:
                 function_body_block             { $1 }
@@ -88,6 +108,20 @@ parameter_variable_declaration:
 
 parameter_variable_initializer_unit:
                 rel_id_has_no_op_as_raw? value_initializer_unit { ($1, $2) }
+
+
+(**)
+template_parameter_variables_decl_list:
+                NOT LPAREN
+                separated_list(COMMA, template_parameter_variable_declaration)
+                RPAREN { Ast.TemplateParamsList $3 }
+
+template_parameter_variable_declaration:
+                template_parameter_variable_initializer_unit { $1 }
+
+template_parameter_variable_initializer_unit:
+                rel_id_has_no_op_as_raw value_initializer_unit? { ($1, $2) }
+
 
 (*
     :int = 5
@@ -119,7 +153,7 @@ extern_function_statement:
                 type_specifier
                 ASSIGN
                 STRING (*string_lit*)
-                { Ast.ExternFunctionDefStmt ($2, $3, $4, $6, ()) }
+                { Ast.ExternFunctionDefStmt ($2, $3, $4, $6, None, ()) }
 
 extern_class_statement:
                 KEYWORD_CLASS

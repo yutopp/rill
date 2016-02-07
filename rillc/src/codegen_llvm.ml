@@ -17,7 +17,8 @@ module Ctx = Codegen.Context.Make(CodeGeneratorType)
 module TAst = Codegen.TAst
 
 type env_t = TAst.t Env.env_t
-type ctx_t = env_t Ctx.t
+type type_info_t = env_t Type.info_t
+type ctx_t = (env_t, type_info_t)  Ctx.t
 type type_gen_t = env_t Type.Generator.t
 
 
@@ -32,7 +33,14 @@ let rec code_generate ~bb node ctx =
   | TAst.StatementList (nodes) ->
      nodes |> List.iter @@ fun n -> code_generate ~bb:bb n ctx
 
-  | TAst.FunctionDefStmt (name, TAst.ParamsList (params), _, body, Some env) ->
+  | TAst.ExprStmt e ->
+     begin
+       ignore @@ code_generate_as_value ~bb:bb e ctx
+     end
+
+  | TAst.FunctionDefStmt (
+        name, TAst.ParamsList (params), _, body, opt_attr, Some env
+      ) ->
      if Ctx.is_env_defined ctx env then () else
      begin
        (* *)
@@ -87,7 +95,7 @@ let rec code_generate ~bb node ctx =
      end
 
   | TAst.ExternFunctionDefStmt (
-        name, TAst.ParamsList (params), _, extern_fname, Some env
+        name, TAst.ParamsList (params), _, extern_fname, opt_attr, Some env
       ) ->
      if Ctx.is_env_defined ctx env then () else
      begin
@@ -125,12 +133,6 @@ let rec code_generate ~bb node ctx =
        L.set_value_name var_name llvm_val;
 
        Ctx.mark_env_as_defined ctx env
-     end
-
-  | TAst.ExprStmt e ->
-     begin
-       ignore @@ code_generate_as_value ~bb:bb e ctx;
-       ()
      end
 
   | TAst.EmptyStmt -> ()
@@ -189,7 +191,7 @@ and code_generate_as_value ?(bb=None) node ctx =
                    | true ->
                       begin
                         Printf.printf "gen value: debug / builtin %s = \"%s\"\n"
-                                      fn_s_name extern_name;
+                                      fn_s_name extern_name; flush_all ();
 
                         let builtin_gen_f = Ctx.find_builtin_func ctx extern_name in
                         builtin_gen_f llargs ctx
@@ -197,7 +199,7 @@ and code_generate_as_value ?(bb=None) node ctx =
                    | false ->
                       begin
                         Printf.printf "gen value: debug / extern  %s = \"%s\"\n"
-                                      fn_s_name extern_name;
+                                      fn_s_name extern_name; flush_all ();
                         let extern_f =
                           find_val_from_env_with_force_generation ~bb:bb ctx env in
                         L.build_call extern_f llargs "" ctx.ir_builder
@@ -205,7 +207,7 @@ and code_generate_as_value ?(bb=None) node ctx =
                  end
               | Env.FnUndef -> failwith "[ICE] codegen: undefined function record"
             end
-         | _ -> failwith @@ "[ICE] codegen; id " ^ name
+         | _ -> failwith @@ "[ICE] codegen; function lhs id " ^ name
        in
        llval
      end
@@ -242,7 +244,10 @@ and code_generate_as_value ?(bb=None) node ctx =
             | Some gen ->
                begin
                  let (_, itype_id) =
-                   Type.Generator.generate_type_with_cache gen rel_env
+                   Type.Generator.generate_type gen (Type.UniqueTy
+                                                       {
+                                                         Type.ty_cenv = rel_env;
+                                                       })
                  in
                  Printf.printf "##### type_id = %s\n" (Int64.to_string itype_id);
 
@@ -261,7 +266,54 @@ and code_generate_as_value ?(bb=None) node ctx =
                end
           end
 
-       | _ -> failwith @@ "codegen; id " ^ (Nodes.string_of_id_string name)
+       (* regards all values are NOT references *)
+       | Env.MetaVariable (uni_id) ->
+          begin
+            match ctx.uni_map with
+            | Some uni_map ->
+               begin
+                 Printf.printf "LLVM codegen Env.MetaVariable = %d\n" uni_id;
+                 let (_, c) = Unification.search_value_until_terminal uni_map uni_id in
+                 match c with
+                 | Unification.Val v ->
+                    begin
+                      match v with
+                      | Ctfe_value.Type (ty) ->
+                         begin
+                           let {
+                             Type.ti_id = opt_tid;
+                             Type.ti_sort = ty_sort;
+                             _
+                           } = ty in
+                           match ty_sort with
+                           | Type.UniqueTy _
+                           | Type.NotDetermined _ ->
+                              begin
+                                match opt_tid with
+                                | Some tid ->
+                                   (* return the internal typeid as a type *)
+                                   L.const_of_int64 (L.i64_type ctx.ir_context)
+                                                    tid
+                                                    Type.is_type_id_signed
+                                | None -> failwith "[ICE] codegen_llvm : nontermin"
+                              end
+                           | _-> failwith "[ICE] codegen_llvm : type"
+                         end
+                    end
+                 | _ -> raise Ctfe_exn.Meta_var_un_evaluatable
+               end
+            | None ->
+               begin
+                 Env.print rel_env;
+                 failwith "[ICE] TAst.Id: meta variable in RUNTIME"
+               end
+          end
+
+       | _ ->
+          begin
+            Env.print rel_env;
+            failwith @@ "codegen; id " ^ (Nodes.string_of_id_string name)
+          end
      end
 
   | _ -> failwith "cannot generate : as value"
@@ -318,7 +370,7 @@ and lltype_of_typeinfo ~bb ty ctx =
 
 
 
-let make_default_context ?(opt_type_gen=None) () =
+let make_default_context ?(opt_type_gen=None) ?(opt_uni_map=None) () =
   let ir_context = L.global_context () in
   let ir_builder = L.builder ir_context in
   let ir_module = L.create_module ir_context "Rill" in
@@ -328,6 +380,7 @@ let make_default_context ?(opt_type_gen=None) () =
     ~ir_builder:ir_builder
     ~ir_module:ir_module
     ~type_generator:opt_type_gen
+    ~uni_map:opt_uni_map
 
 
 let regenerate_module ctx =

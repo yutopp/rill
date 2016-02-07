@@ -4,11 +4,18 @@ def main() {
     val b = a + 10;
     print_int(b);
     hoge(10);
+
+    tempfunc(b+10);
 }
 
 def hoge(a : int) {
     print_int(a);
     print_int(a+1);
+}
+
+def tempfunc!(T)(a : T) {
+    print_int(a+100);
+    print_int(a+200);
 }
 
 extern def print_int(v: int):void = "rill_print";

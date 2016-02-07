@@ -117,6 +117,9 @@ FILES[] =
    type
    type_sets
    ctfe
+   ctfe_value
+   ctfe_exn
+   unification
 
 #
 PROGRAM = rillc

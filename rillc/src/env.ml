@@ -20,6 +20,7 @@ type builtin_t =
   | Int32Ty
 
 
+(* used for id of environments *)
 type id_t = Num.num
 let id_counter = ref @@ Num.num_of_int 0
 
@@ -36,11 +37,15 @@ type 'ast env_t = {
  and 'ast env_record_t =
   | Root of 'ast lookup_table_t
   | MultiSet of 'ast multiset_record
+  | Template of 'ast template_record
 
   | Module of 'ast lookup_table_t * module_record
   | Function of 'ast lookup_table_t * 'ast function_record
   | Class of 'ast lookup_table_t * 'ast class_record
   | Variable of 'ast variable_record
+
+  | Temporary of 'ast lookup_table_t
+  | MetaVariable of int (*Unification.id_t*)
 
  and 'ast type_info_t = ('ast env_t) Type.info_t
 
@@ -52,7 +57,17 @@ type 'ast env_t = {
 
  and 'ast multiset_record = {
    ms_kind                  : Kind.t;
-   mutable ms_candidates    : 'ast env_t list;
+   mutable ms_templates     : 'ast template_record list;
+
+   mutable ms_normal_instances      : 'ast env_t list;
+   mutable ms_template_instances    : 'ast env_t list;
+ }
+
+
+ and 'ast template_record = {
+   tl_name          : Nodes.id_string;
+   tl_params        : 'ast;
+   tl_inner_node    : 'ast;
  }
 
 
@@ -127,6 +142,7 @@ let get_lookup_record e =
   | Module (r, _) -> r
   | Function (r, _) -> r
   | Class (r, _) -> r
+  | Temporary (r) -> r
   | _ -> failwith "has no lookup table"
 
 let get_symbol_table e =
@@ -198,6 +214,10 @@ let is_checked e =
 let is_incomplete e =
   not (is_checked e)
 
+let is_complete e =
+  let { state = s; _ } = e in
+  s = Complete
+
 
 let update_status e ns =
   e.state <- ns
@@ -237,22 +257,30 @@ module MultiSetOp =
       | None ->
          let e = create_env env (MultiSet {
                                      ms_kind = k;
-                                     ms_candidates = [];
+                                     ms_templates = [];
+                                     ms_normal_instances = [];
+                                     ms_template_instances = [];
                                    }) in
          add_inner_env env name e;
          e
       | _ -> failwith "multienv is not found"
 
-    let add_candidates menv env =
-      let { er = mer; _ } = menv in
-      match mer with
-      | MultiSet (record) ->
-         begin
-           (* add env to lists as candidates *)
-           record.ms_candidates <- env :: record.ms_candidates;
-           ()
-         end
-      | _ -> failwith "can not add candidate"
+    let get_record env =
+      let er = get_env_record env in
+      match er with
+      | MultiSet (r) -> r
+      | _ -> failwith "MultiSetOp.get_record : not multiset"
+
+
+    let add_normal_instances menv env =
+      let record = get_record menv in
+      (* add env to lists as candidates *)
+      record.ms_normal_instances <- env :: record.ms_normal_instances
+
+    let add_template_instances menv env =
+      let record = get_record menv in
+      (* add env to lists as candidates *)
+      record.ms_template_instances <- env :: record.ms_template_instances
   end
 
 
@@ -336,6 +364,17 @@ let print env =
          print_table lt.scope indent;
          f nindent;
        end
+    | Temporary _ ->
+       begin
+         printf "%sTemporary\n" indent;
+         f nindent
+       end
+    | MetaVariable uni_id ->
+       begin
+         printf "%sMetaVariable - %d\n" indent uni_id;
+         f nindent
+       end
+
     | _ -> failwith "print: unsupported env"
   in
   let rec dig env f =

@@ -40,7 +40,9 @@ rule token = parse
                         }
 
   | ['0'-'9']+ as i     { INT (int_of_string i) }
-  | ['a'-'z' '_']+ as s { ID s }
+
+  | ['a'-'z' 'A'-'Z' '_'] ['a'-'z' 'A'-'Z' '0'-'9' '_']* as s
+                        { ID s }
 
   | "++" as op          { INCREMENT op }
   | "--" as op          { DECREMENT op }
@@ -71,6 +73,8 @@ rule token = parse
   | '%' as op           { MOD (Char.escaped op) }
 
   | '=' as op           { ASSIGN (Char.escaped op) }
+
+  | '!' as op           { NOT (Char.escaped op) }
 
   | '#'                 { SHARP }
   | '['                 { LBRACKET }

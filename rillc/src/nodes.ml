@@ -31,12 +31,14 @@ module Make (Ctx : NodeContextType) =
        *)
       | StatementList of ast list
       | ExprStmt of ast
-      (* name, params, return_type, body, _ *)
-      | FunctionDefStmt of id_string * ast * ast option * ast * ctx_t
-      (* name, params, return_type, function name(TODO: change to AST), _ *)
-      | ExternFunctionDefStmt of id_string * ast * ast * string * ctx_t
+      (* name, params, return_type?, body, attribute?, _ *)
+      | FunctionDefStmt of id_string * ast * ast option * ast * attr_tbl_t option *ctx_t
+      (* name, params, return_type, function name(TODO: change to AST), attribute?, _ *)
+      | ExternFunctionDefStmt of id_string * ast * ast * string * attr_tbl_t option * ctx_t
       | ExternClassDefStmt of id_string * string * ctx_t
       | VariableDefStmt of Type.Attr.ref_val * ast * ctx_t (* ref/val, init, _ *)
+      (* name, template params, inner node *)
+      | TemplateStmt of id_string * ast * ast
       | EmptyStmt
       | AttrWrapperStmt of (string, ast option) Hashtbl.t * ast
 
@@ -63,6 +65,7 @@ module Make (Ctx : NodeContextType) =
 
       (* special *)
       | ParamsList of param_init_t list
+      | TemplateParamsList of template_param_init_t list
       | VarInit of var_init_t
       | PrevPassNode of pctx_t
 
@@ -71,11 +74,15 @@ module Make (Ctx : NodeContextType) =
 
      (* id * value *)
      and param_init_t = string option * value_init_t
+     (* id * value *)
+     and template_param_init_t = string * value_init_t option
      (* *)
      and var_init_t = string * value_init_t
 
      (* type * default value *)
      and value_init_t = ast option * ast option
+
+     and attr_tbl_t = (string, ast option) Hashtbl.t
 
      and ctx_t = ast Ctx.current_ctx_t
      and pctx_t = ast Ctx.prev_ctx_t
@@ -105,7 +112,7 @@ module Make (Ctx : NodeContextType) =
       | ExprStmt _ ->
          print_string "ExprStmt\n"
 
-      | FunctionDefStmt (id, _, _, statements, ctx) ->
+      | FunctionDefStmt (id, _, _, statements, _, ctx) ->
          begin
            open_hbox();
            print_string "function def : "; print_string (string_of_id_string id); print_string "\n";

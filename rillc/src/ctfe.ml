@@ -1,4 +1,5 @@
 open Type_sets
+open Ctfe_value
 
 module L = Llvm
 module LE = Llvm_executionengine
@@ -7,12 +8,6 @@ type t = {
   cg_ctx        : Codegen_llvm.ctx_t;
   exec_engine   : LE.llexecutionengine;
 }
-
-module Value =
-  struct
-    type 'env ctfe_value_t =
-      | Type of 'env Type.info_t
-  end
 
 
 module JITCounter =
@@ -29,13 +24,16 @@ module JITCounter =
   end
 
 
-let initialize type_gen =
+let initialize type_gen uni_map =
   if not (LE.initialize ()) then
     failwith "[ICE] Couldn't initialize LLVM backend";
 
   let module CgCtx = Codegen_llvm.Ctx in
   let codegen_ctx =
-    Codegen_llvm.make_default_context ~opt_type_gen:(Some type_gen) () in
+    Codegen_llvm.make_default_context ~opt_type_gen:(Some type_gen)
+                                      ~opt_uni_map:(Some uni_map)
+                                      ()
+  in
   Codegen_llvm.inject_builtins codegen_ctx;
 
   let llmod = codegen_ctx.CgCtx.ir_module in
@@ -62,7 +60,7 @@ let invoke_function engine fname ret_ty type_sets =
 
        let ty =
          Type.Generator.find_type_by_cache_id type_sets.ts_type_gen ret_val in
-       Value.Type ty
+       Type ty
      end
 
   | _ ->
@@ -101,25 +99,35 @@ let execute engine expr_node expr_ty type_sets =
   L.position_at_end bb ir_builder;
 
   (* generate a LLVM value from the expression *)
-  let expr_llval =
-    Codegen_llvm.code_generate_as_value ~bb:(Some bb) expr_node engine.cg_ctx in
-  ignore @@ L.build_ret expr_llval ir_builder;
+  try
+    begin
+      let expr_llval =
+        Codegen_llvm.code_generate_as_value ~bb:(Some bb) expr_node engine.cg_ctx in
+      ignore @@ L.build_ret expr_llval ir_builder;
 
-  Llvm_analysis.assert_valid_function f;
-  L.dump_value f;   (* debug *)
+      Llvm_analysis.assert_valid_function f;
+      L.dump_value f;   (* debug *)
 
-  (**)
-  LE.add_module ir_mod engine.exec_engine;
+      (**)
+      LE.add_module ir_mod engine.exec_engine;
 
-  (**)
-  let ctfe_val = invoke_function engine tmp_expr_fname expr_ty type_sets in
+      (**)
+      let ctfe_val = invoke_function engine tmp_expr_fname expr_ty type_sets in
 
-  (* Remove the module for this tmporary function from execution engine.
-   * However, the module will be used until next time.
-   *)
-  LE.remove_module ir_mod engine.exec_engine;
-  L.delete_function f;
+      (* Remove the module for this tmporary function from execution engine.
+       * However, the module will be used until next time.
+       *)
+      LE.remove_module ir_mod engine.exec_engine;
+      L.dump_module engine.cg_ctx.CgCtx.ir_module;   (* debug *)
 
-  L.dump_module engine.cg_ctx.CgCtx.ir_module;   (* debug *)
+      L.delete_function f;
 
-  ctfe_val
+      ctfe_val
+    end
+  with
+  | Ctfe_exn.Meta_var_un_evaluatable ->
+     begin
+       L.delete_function f;
+
+       failwith "Meta_var_un_evaluatable"
+     end
