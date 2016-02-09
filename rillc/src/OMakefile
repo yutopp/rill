@@ -43,7 +43,6 @@
 # variables.
 #
 MENHIR_ENABLED = true
-MENHIR_FLAGS  += --infer -v
 
 #
 # This project requires ocamlfind (default - false).
@@ -95,6 +94,13 @@ OCAMLFLAGS    += -g
 # Workaround for the fact that ocamldep does not pay attention to .mll
 # and .mly files.
 #
+MENHIR_FLAGS_BASE = --infer -v
+MENHIR_FLAGS	= $(MENHIR_FLAGS_BASE) --only-tokens
+MenhirMulti(tokens, tokens)
+OCamlGeneratedFiles(tokens.ml)
+
+MENHIR_FLAGS	= $(MENHIR_FLAGS_BASE) --external-tokens Tokens
+MenhirMulti(parser, tokens parser)
 OCamlGeneratedFiles(parser.ml lexer.ml)
 
 
@@ -109,6 +115,7 @@ FILES[] =
    tagged_ast
    lexer
    parser
+   tokens
    syntax
    env
    sema
@@ -120,6 +127,7 @@ FILES[] =
    ctfe_value
    ctfe_exn
    unification
+   module_info
 
 #
 PROGRAM = rillc
