@@ -72,7 +72,8 @@ type 'ast env_t = {
 
 
  and module_record = {
-   mod_name     : string;
+   mod_name         : string;
+   mod_pkg_names    : string list;
  }
 
 

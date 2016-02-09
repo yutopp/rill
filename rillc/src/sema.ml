@@ -6,6 +6,11 @@ module TAst = Tagged_ast
 type type_info = TAst.ast Env.type_info_t
 
 type 'env ctx_t = {
+  sc_root_env       : 'env;
+
+  sc_module_bag         : 'env Module_info.Bag.t;
+  sc_module_search_dirs : string list;
+
   (* ctfe engine *)
   sc_ctfe_engine    : Ctfe_engine.t;
 
@@ -75,7 +80,7 @@ module FuncMatchLevel =
 let make_default_env () =
   Env.make_root_env ()
 
-let make_default_context root_env =
+let make_default_context root_env module_search_dirs =
   let type_gen = Type.Generator.default () in
   let uni_map = Unification.empty () in
   let ctfe_engine = Ctfe_engine.initialize type_gen uni_map in
@@ -88,6 +93,11 @@ let make_default_context root_env =
     ts_int_type = Type.undef_ty;
   } in
   let ctx = {
+    sc_root_env = root_env;
+
+    sc_module_search_dirs = module_search_dirs;
+    sc_module_bag = Module_info.Bag.empty ();
+
     sc_ctfe_engine = ctfe_engine;
     sc_tsets = tsets;
     sc_unification_ctx = uni_map;
@@ -127,42 +137,36 @@ let make_default_context root_env =
   ctx
 
 
-let make_default_state () =
+let make_default_state system_libs_dirs user_srcs_dirs =
+  let module_search_dirs = system_libs_dirs @ user_srcs_dirs in
+
   let env = make_default_env () in
-  let ctx = make_default_context env in
+  let ctx = make_default_context env module_search_dirs in
   (env, ctx)
 
 
-let rec solve_forward_refs ?(meta_variables=[]) ?(opt_attr=None)
-                           node parent_env =
+let rec solve_forward_refs ?(meta_variables=[])
+                           ?(opt_attr=None)
+                           node parent_env (ctx:TAst.ast Env.env_t ctx_t) =
   let in_template = List.length meta_variables > 0 in
   let declare_meta_var env (name, env_r) =
     let e = Env.create_env env env_r in
     Env.add_inner_env env name e
   in
   match node with
-  | Ast.Module (inner, _) ->
-     begin
-       let name = "module" in   (* "module" is a temporary name *)
-       let env = Env.create_env parent_env (
-                                  Env.Module (Env.empty_lookup_table (),
-                                              {
-                                                Env.mod_name = name;
-                                              })
-                                ) in
-       Env.add_inner_env parent_env name env;
-
-       let res_node = solve_forward_refs inner env in
-       let node = TAst.Module (res_node, Some env) in
-       Env.update_rel_ast env node;
-       node
-     end
-
   | Ast.StatementList (nodes) ->
-     let tagged_nodes = nodes |> List.map (fun n -> solve_forward_refs n parent_env) in
+     let tagged_nodes = nodes |> List.map (fun n -> solve_forward_refs n parent_env ctx) in
      TAst.StatementList tagged_nodes
 
   | Ast.ExprStmt ast -> TAst.ExprStmt (TAst.PrevPassNode ast)
+
+  | Ast.ImportStmt (pkg_names, mod_name, _) ->
+     begin
+       let mod_env = load_module pkg_names mod_name ctx in
+       ignore mod_env;
+
+       TAst.EmptyStmt
+     end
 
   | Ast.FunctionDefStmt (name, params, opt_ret_type, body, None, _) ->
      begin
@@ -305,7 +309,7 @@ let rec solve_forward_refs ?(meta_variables=[]) ?(opt_attr=None)
        let t_ast =
          solve_forward_refs ~meta_variables:meta_variables
                             ~opt_attr:(Some t_attr_tbl)
-                            ast parent_env
+                            ast parent_env ctx
        in
        (* reduce AttrWrapperStmt *)
        t_ast
@@ -317,10 +321,86 @@ let rec solve_forward_refs ?(meta_variables=[]) ?(opt_attr=None)
        failwith "solve_forward_refs: unsupported node"
      end
 
+and load_module_by_filepath ?(def_mod_info=None) filepath ctx =
+  let root_env = ctx.sc_root_env in
+  let (raw_pkg_names, raw_mod_name) =
+    Option.default ([], filepath |> Filename.basename |> Filename.chop_extension)
+                   def_mod_info
+  in
+  let mod_ast = Syntax.make_ast_from_file ~default_pkg_names:raw_pkg_names
+                                          ~default_mod_name:raw_mod_name
+                                          filepath
+  in
+
+  match mod_ast with
+  | Ast.Module (inner, pkg_names, mod_name, base_dir, _) ->
+     begin
+       let check_mod_name (raw_pkg_names, raw_mod_name) =
+         if not (pkg_names = raw_pkg_names && mod_name = raw_mod_name) then
+           failwith "[ERR] package/module names are different";
+       in
+       Option.may check_mod_name def_mod_info;
+
+       let env = Env.create_env root_env (
+                                  Env.Module (Env.empty_lookup_table (),
+                                              {
+                                                Env.mod_name = mod_name;
+                                                Env.mod_pkg_names = pkg_names;
+                                              })
+                                ) in
+       (* TODO: fix g_name *)
+       let g_name = String.concat "." (pkg_names @ [mod_name]) in
+       Env.add_inner_env root_env g_name env;
+
+       (* register module*)
+       let mod_id =
+         Module_info.Bag.register ctx.sc_module_bag
+                                  pkg_names mod_name env
+       in
+       ignore mod_id;
+
+       (* solve forward references *)
+       let res_node = solve_forward_refs inner env ctx in
+       let node = TAst.Module (res_node, pkg_names, mod_name, base_dir, Some env) in
+       Env.update_rel_ast env node;
+
+       env
+     end
+  | _ -> failwith "[ICE]"
+
+
+and load_module pkg_names mod_name ctx =
+  let mod_env = Module_info.Bag.search_module ctx.sc_module_bag
+                                              pkg_names mod_name in
+  let _ = match mod_env with
+    | Some r -> failwith ""
+    | None -> ()
+  in
+
+  let pp dirs dir_name =
+    let exist dir =
+      let dir_name = Filename.concat dir dir_name in
+      Sys.file_exists dir_name
+    in
+    try [Filename.concat (List.find exist dirs) dir_name] with
+    | Not_found -> []
+  in
+  let target_dirs = List.fold_left pp ctx.sc_module_search_dirs pkg_names in
+  let target_dir = match target_dirs with
+    | [dir] -> dir
+    | [] -> failwith "[ERR] package not found"
+    | _ -> failwith "[ICE]"
+  in
+  Printf.printf "import from = %s\n" target_dir;
+  let filepath = Filename.concat target_dir mod_name ^ ".rill" in
+
+  load_module_by_filepath ~def_mod_info:(Some (pkg_names, mod_name))
+                          filepath ctx
+
 
 let rec construct_env node parent_env ctx opt_chain_attr =
   match node with
-  | TAst.Module (inner, Some env) ->
+  | TAst.Module (inner, pkg_names, mod_name, base_dir, Some env) ->
      begin
        construct_env inner env ctx opt_chain_attr
      end
@@ -567,7 +647,7 @@ and analyze_expr node parent_env ctx attr : ('node * type_info)=
                            args_nodes,
                            Some f_env) in
             (*TODO: extract return type from f_env*)
-            let f_ty = ctx.sc_tsets.ts_int_type in
+            let f_ty = get_builtin_int_type ctx in
             (node, f_ty)
           end
        | None ->
@@ -601,7 +681,7 @@ and analyze_expr node parent_env ctx attr : ('node * type_info)=
                            args_nodes,
                            Some f_env) in
             (*TODO: extract return type from f_env*)
-            let f_ty = ctx.sc_tsets.ts_int_type in
+            let f_ty = get_builtin_int_type ctx in
             (node, f_ty)
           end
        | _ -> failwith "not implemented//" (* TODO: call ctor OR operator() *)
@@ -622,10 +702,21 @@ and analyze_expr node parent_env ctx attr : ('node * type_info)=
   | Ast.Int32Lit (i) ->
      begin
        (* WIP *)
-       let ty = ctx.sc_tsets.ts_int_type in
+       let ty = get_builtin_int_type ctx in
        let node = TAst.Int32Lit i in
 
        (node, ty)
+     end
+
+  | Ast.ArrayLit (elems) ->
+     begin
+       let (n_nodes, n_tys) = elems
+                          |> List.map (fun e -> analyze_expr e parent_env ctx attr)
+                          |> List.split
+       in
+       let n_array = TAst.ArrayLit (n_nodes) in
+       let n_array_ty = List.hd n_tys in
+       (n_array, n_array_ty)
      end
 
   | _ ->
@@ -880,7 +971,7 @@ and convert_type src_ty dist_ty ext_env ctx attr =
   if Type.is_same src_ty dist_ty then
     (FuncMatchLevel.ExactMatch, None)
   else begin
-    failwith "not implemented"
+    failwith "convert_type / not implemented"
   end
 
 
@@ -1374,7 +1465,33 @@ and select_member_element ?(universal_search=false) recv_ty t_id env ctx attr =
          None
      end
 
+and get_builtin_int_type ctx =
+  ctx.sc_tsets.ts_int_type
+    (*
+  let ty = ctx.sc_tsets.ts_int_type in
+  match Type.type_sort ctx.sc_tsets.ts_int_type with
+  | Type.Undef ->
+     begin
+       let res =
+         solve_simple_identifier ~do_rec_search:false (Nodes.Pure "int") ctx.sc_root_env ctx None
+       in
+       match res with
+       | Some (ty, Some c_env) when ty = ctx.sc_tsets.ts_type_type ->
+          begin
+            try_to_complete_env c_env ctx None;
+            failwith "Yo"
+          end
+       | _ -> failwith "[ICE]"
+     end
+  | _ -> ty
+     *)
 
-and analyze ?(meta_variables=[]) ?(opt_attr=None) node env ctx  =
-  let snode = solve_forward_refs ~meta_variables:meta_variables node env in
+
+and analyze ?(meta_variables=[]) ?(opt_attr=None) node env ctx =
+  let snode = solve_forward_refs ~meta_variables:meta_variables node env ctx in
   construct_env snode env ctx opt_attr
+
+
+let analyze_module mod_env ctx =
+  let mod_node = Option.get mod_env.Env.rel_node in
+  construct_env mod_node ctx.sc_root_env ctx None

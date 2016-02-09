@@ -1,7 +1,7 @@
 def main() {
     val a: int = 10 + 20;
 
-    val arr = [1, 2, 3];
+    // val arr = [1, 2, 3];
 
     print_int(a);
     val b = a + 10;
@@ -9,8 +9,6 @@ def main() {
     hoge(10);
 
     tempfunc(b+10);
-
-
 }
 
 def hoge(a : int) {
@@ -23,7 +21,4 @@ def tempfunc!(T)(a : T) {
     print_int(a+200);
 }
 
-extern def print_int(v: int):void = "rill_print";
-
-#[builtin]
-extern def operator+(:int, :int) :int = "__builtin_op_binary_+_int_int";
+import core.builtin;

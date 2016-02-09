@@ -25,7 +25,7 @@ type type_gen_t = env_t Type.Generator.t
 let rec code_generate ~bb node ctx =
   let open Ctx in
   match node with
-  | TAst.Module (inner, _) ->
+  | TAst.Module (inner, pkg_names, mod_name, base_dir, _) ->
      begin
        code_generate ~bb:bb inner ctx
      end

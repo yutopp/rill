@@ -1,28 +1,4 @@
-%token  <int>           INT
-%token  <string>        ID STRING
-%token  <string>        PLUS MINUS TIMES DIV MOD
-                        GT GTE LT LTE
-                        LSHIFT RSHIFT
-                        EQUALS NOT_EQUALS
-                        ASSIGN
-                        LOGICAL_OR LOGICAL_AND
-                        BITWISE_AND BITWISE_OR BITWISE_XOR
-                        INCREMENT DECREMENT
-                        NOT
-%token                  LPAREN RPAREN
-                        LBLOCK RBLOCK
-                        LBRACKET RBRACKET
-%token                  COMMA DOT
-                        COLON SEMICOLON
-                        FAT_ARROW SHARP
-%token                  EOF
-%token                  LIT_TRUE LIT_FALSE
-                        KEYWORD_DEF
-                        KEYWORD_CLASS
-                        KEYWORD_VAL
-                        KEYWORD_REF
-                        KEYWORD_EXTERN
-                        KEYWORD_OPERATOR
+%parameter <Mi : Module_info.INFO_TYPE>
 
 %start <Ast.t>          program_entry
 
@@ -33,7 +9,25 @@ program_entry:
                 prog_module EOF { $1 }
 
 prog_module:
-                top_level_statements { Ast.Module ($1, ()) }
+                m = module_decl
+                body = top_level_statements
+                {
+                    let (full_base_dir, pkg_names, mod_name) = m in
+                    Ast.Module (body, pkg_names, mod_name, full_base_dir, ())
+                }
+
+module_decl:
+                (* empty *)
+                { (Mi.full_filepath, Mi.package_names, Mi.module_name) }
+
+        |       xs = separated_nonempty_list(DOT, rel_id_has_no_op_as_raw)
+                {
+                    let rev_xs = List.rev xs in
+                    let pkg_names = List.rev (List.tl rev_xs) in
+                    let mod_name = List.hd rev_xs in
+                    (Mi.full_filepath, pkg_names, mod_name)
+                }
+
 
 top_level_statements:
                 top_level_statement* { Ast.StatementList $1 }
@@ -49,9 +43,20 @@ top_level_statement_:
                 empty_statement { $1 }
         |       function_decl_statement { $1 }
         |       extern_statement { $1 }
+        |       import_statement { $1 }
 
 empty_statement:
                 SEMICOLON { Ast.EmptyStmt }
+
+import_statement:
+                KEYWORD_IMPORT
+                xs = separated_nonempty_list(DOT, rel_id_has_no_op_as_raw)
+                {
+                    let rev_xs = List.rev xs in
+                    let pkg_names = List.rev (List.tl rev_xs) in
+                    let mod_name = List.hd rev_xs in
+                    Ast.ImportStmt (pkg_names, mod_name, ())
+                }
 
 function_decl_statement:
                 function_decl_statement_ { $1 }
@@ -155,13 +160,29 @@ extern_function_statement:
                 STRING (*string_lit*)
                 { Ast.ExternFunctionDefStmt ($2, $3, $4, $6, None, ()) }
 
-extern_class_statement:
-                KEYWORD_CLASS
-                rel_id_as_s
-                ASSIGN
-                STRING (*string_lit*)
-                { Ast.ExternClassDefStmt ($2, $4, ()) }
 
+extern_class_statement:
+                extern_class_statement_ { $1 }
+        |       template_extern_class_statement_ { $1 }
+
+extern_class_statement_:
+                KEYWORD_CLASS
+                name = rel_id_as_s
+                ASSIGN
+                body_name = STRING (*string_lit*)
+                { Ast.ExternClassDefStmt (name, body_name, ()) }
+
+template_extern_class_statement_:
+                KEYWORD_CLASS
+                name = rel_id_as_s
+                template_params = template_parameter_variables_decl_list
+                ASSIGN
+                body_name = STRING (*string_lit*)
+                {
+                    let inner = Ast.ExternClassDefStmt (name, body_name, ())
+                    in
+                    Ast.TemplateStmt (name, template_params, inner)
+                }
 
 (**)
 program_body_statement:
@@ -326,6 +347,7 @@ primary_value:
                 boolean_literal { $1 }
         |       numeric_literal { $1 }
         |       string_literal { $1 }
+        |       array_literal { $1 }
         |       generic_id { $1 }
 
 
@@ -389,6 +411,11 @@ numeric_literal:
 string_literal:
                 STRING { Ast.StringLit ($1) }
 
+array_literal:
+                LBRACKET
+                elems = separated_list(COMMA, expression)
+                RBRACKET
+                { Ast.ArrayLit (elems) }
 
 (**)
 attribute:

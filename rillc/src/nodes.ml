@@ -24,13 +24,14 @@ module type NodeContextType =
 module Make (Ctx : NodeContextType) =
   struct
     type ast =
-        Module of ast * ctx_t
+        Module of ast * string list * string * string * ctx_t
 
       (*
        * statements
        *)
       | StatementList of ast list
       | ExprStmt of ast
+      | ImportStmt of (string list * string * ctx_t)
       (* name, params, return_type?, body, attribute?, _ *)
       | FunctionDefStmt of id_string * ast * ast option * ast * attr_tbl_t option *ctx_t
       (* name, params, return_type, function name(TODO: change to AST), attribute?, _ *)
@@ -59,6 +60,7 @@ module Make (Ctx : NodeContextType) =
       | Int32Lit of int
       | StringLit of string
       | BoolLit of bool
+      | ArrayLit of ast list
 
       (* error *)
       | Error
@@ -71,6 +73,8 @@ module Make (Ctx : NodeContextType) =
 
       | GenericCall of string * ast list * ctx_t
       | BuiltinClass of string * ctx_t
+
+      | DefinedModule
 
      (* id * value *)
      and param_init_t = string option * value_init_t
@@ -94,7 +98,7 @@ module Make (Ctx : NodeContextType) =
     let rec print ast =
       let open Format in
       match ast with
-      | Module (a, ctx) ->
+      | Module (a, _, _, _, ctx) ->
          begin
            open_hbox();
            print_string "module";

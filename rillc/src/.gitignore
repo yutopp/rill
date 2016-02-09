@@ -5,6 +5,8 @@ lexer.ml
 lexer.mli
 parser.ml
 parser.mli
+tokens.ml
+tokens.mli
 
 rillc
 rillc.opt

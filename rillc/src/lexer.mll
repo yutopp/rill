@@ -1,5 +1,5 @@
 {
-  open Parser
+  open Tokens
   open Lexing
 
   exception UnexpectedToken of char
@@ -22,8 +22,10 @@ rule token = parse
   | blank               { token lexbuf }
   | newline             { next_line lexbuf; token lexbuf }
 
-  | "operator"          { KEYWORD_OPERATOR }
+  | "//"                { oneline_comment lexbuf }
 
+  | "operator"          { KEYWORD_OPERATOR }
+  | "import"            { KEYWORD_IMPORT }
   | "def"               { KEYWORD_DEF }
   | "class"             { KEYWORD_CLASS }
   | "val"               { KEYWORD_VAL }
@@ -96,15 +98,20 @@ rule token = parse
   | _ as s              { raise (UnexpectedToken s) }
 
 and read_string_lit buf = parse
-  | '"'       { STRING (Buffer.contents buf) }
-  | '\\' '/'  { Buffer.add_char buf '/'; read_string_lit buf lexbuf }
-  | '\\' '\\' { Buffer.add_char buf '\\'; read_string_lit buf lexbuf }
-  | '\\' 'n'  { Buffer.add_char buf '\n'; read_string_lit buf lexbuf }
-  | '\\' 'r'  { Buffer.add_char buf '\r'; read_string_lit buf lexbuf }
-  | '\\' 't'  { Buffer.add_char buf '\t'; read_string_lit buf lexbuf }
+  | '"'             { STRING (Buffer.contents buf) }
+  | '\\' '/'        { Buffer.add_char buf '/'; read_string_lit buf lexbuf }
+  | '\\' '\\'       { Buffer.add_char buf '\\'; read_string_lit buf lexbuf }
+  | '\\' 'n'        { Buffer.add_char buf '\n'; read_string_lit buf lexbuf }
+  | '\\' 'r'        { Buffer.add_char buf '\r'; read_string_lit buf lexbuf }
+  | '\\' 't'        { Buffer.add_char buf '\t'; read_string_lit buf lexbuf }
   | [^ '"' '\\']+
     { Buffer.add_string buf (Lexing.lexeme lexbuf);
       read_string_lit buf lexbuf
     }
-  | _ { raise (LexerError ("Illegal string character: " ^ Lexing.lexeme lexbuf)) }
+  | _   { raise (LexerError ("Illegal string character: " ^ Lexing.lexeme lexbuf)) }
   | eof { raise (LexerError ("String is not terminated")) }
+
+and oneline_comment = parse
+  | newline         { next_line lexbuf; token lexbuf }
+  | eof             { EOF }
+  | _               { oneline_comment lexbuf }
