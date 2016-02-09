@@ -163,7 +163,9 @@ let rec solve_forward_refs ?(meta_variables=[])
   | Ast.ImportStmt (pkg_names, mod_name, _) ->
      begin
        let mod_env = load_module pkg_names mod_name ctx in
-       ignore mod_env;
+
+       let lt = Env.get_lookup_table parent_env in
+       lt.Env.imported_mods <- (mod_env, Env.ModPrivate) :: lt.Env.imported_mods;
 
        TAst.EmptyStmt
      end
@@ -692,7 +694,9 @@ and analyze_expr node parent_env ctx attr : ('node * type_info)=
        (* WIP *)
        let (ty, trg_env) = match solve_identifier id_node parent_env ctx attr with
            Some v -> v
-         | None -> failwith "id not found"  (* TODO: change to exception *)
+         | None ->
+            (* TODO: change to exception *)
+            failwith @@ "id not found : " ^ (Nodes.string_of_id_string name)
        in
        let node = TAst.Id (name, trg_env) in
 
@@ -845,17 +849,23 @@ and check_id_is_defined_uniquely env id =
 and solve_identifier ?(do_rec_search=true) id_node env ctx attr =
   match id_node with
   | Ast.Id (name, _) ->
-     solve_simple_identifier ~do_rec_search:do_rec_search name env ctx attr
+     begin
+       let tmp = solve_simple_identifier ~do_rec_search:do_rec_search name env ctx attr in
+       match tmp with
+       | [] -> None
+       | [x] -> Some x
+       | _ -> failwith "[ICE] not implemented"
+     end
   | _ -> failwith "unsupported ID type"
 
 and solve_simple_identifier
-      ?(do_rec_search=true) name search_base_env ctx attr =
+      ?(do_rec_search=true) name search_base_env ctx attr : (type_info * 'env option) list =
   let name_s = Nodes.string_of_id_string name in
   Printf.printf "-> finding identitifer = %s : rec = %b\n" name_s do_rec_search;
   let oenv = if do_rec_search then
                Env.lookup search_base_env name_s
              else
-               Env.find_on_env search_base_env name_s
+               Env.find_all_on_env search_base_env name_s
   in
   (*Env.print env;*)
 
@@ -868,7 +878,7 @@ and solve_simple_identifier
     (ctx.sc_tsets.ts_type_type, Some cenv)
   in
 
-  let solve env : (type_info * 'env option)=
+  let solve (env : 'env) : (type_info * 'env option) =
     let { Env.er = env_r; _ } = env in
     match env_r with
     | Env.MultiSet (record) ->
@@ -948,7 +958,7 @@ and solve_simple_identifier
     | _ -> failwith "solve_simple_identifier: unexpected env"
   in
 
-  oenv |> Option.map (fun e -> solve e)
+  oenv |> List.map solve
 
 
 and try_to_complete_env env ctx attr =
@@ -1177,10 +1187,11 @@ and instantiate_function_templates menv arg_types ext_env ctx attr =
                                 s_meta_var_name temp_env ctx attr
       in
       let ty_env = match opt_meta_var with
-        | Some v -> v
-        | None ->
+        | [] ->
            (*TODO change to exception *)
            failwith "template parameter is not found"
+        | [v] -> v
+        | _ -> failwith "[ICE]"
       in
       ty_env
     in
@@ -1218,7 +1229,7 @@ and instantiate_function_templates menv arg_types ext_env ctx attr =
                                 s_name temp_env ctx attr
       in
       let (ty, uni_id) = match opt_meta_var with
-        | Some (ty, Some {Env.er = Env.MetaVariable (uni_id); _}) -> (ty, uni_id)
+        | [(ty, Some {Env.er = Env.MetaVariable (uni_id); _})] -> (ty, uni_id)
         | _ -> failwith ""
       in
       if Type.has_same_class ty ctx.sc_tsets.ts_type_type then

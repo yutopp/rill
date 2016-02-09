@@ -5,6 +5,11 @@ type checked_state =
   | Checking
   | Complete
 
+type module_privacy =
+  | ModPublic
+  | ModPrivate
+
+
 module Kind =
   struct
     type t =
@@ -52,7 +57,8 @@ type 'ast env_t = {
  and 'ast name_env_mapping = (string, 'ast env_t) Hashtbl.t
 
  and 'ast lookup_table_t = {
-   scope            : 'ast name_env_mapping;
+   scope                    : 'ast name_env_mapping;
+   mutable imported_mods    : ('ast env_t * module_privacy) list;
  }
 
  and 'ast multiset_record = {
@@ -71,9 +77,12 @@ type 'ast env_t = {
  }
 
 
+ (*
+  *
+  *)
  and module_record = {
-   mod_name         : string;
    mod_pkg_names    : string list;
+   mod_name         : string;
  }
 
 
@@ -136,7 +145,7 @@ let get_env_record env =
   let { er = er; _ } = env in
   er
 
-let get_lookup_record e =
+let get_lookup_table e =
   let { er = er; _ } = e in
   match er with
   | Root (r) -> r
@@ -147,7 +156,7 @@ let get_lookup_record e =
   | _ -> failwith "has no lookup table"
 
 let get_symbol_table e =
-  let lt = get_lookup_record e in
+  let lt = get_lookup_table e in
   lt.scope
 
 
@@ -168,22 +177,61 @@ let parent_env e =
 
 (* *)
 let find_on_env e name =
-  let t = get_symbol_table e in
-  try
-    Some (Hashtbl.find t name)
-  with
-    Not_found -> None
+  let lt = get_lookup_table e in
+  Hashtbl.find_option lt.scope name
+
+let rec find_all_on_env ?(checked_env=[]) e name =
+  if List.mem e.env_id checked_env then
+    failwith "[ERR] recursive package search";
+
+  match find_on_env e name with
+  | Some e -> [e]
+  | None ->
+     begin
+       let lt = get_lookup_table e in
+       (* find from import tables *)
+       let search_module envs (mod_env, priv) =
+         match priv with
+         | ModPrivate ->
+            begin
+              match find_on_env mod_env name with
+              | Some e -> e :: envs
+              | None -> envs
+            end
+         | ModPublic ->
+            begin
+              let res =
+                find_all_on_env ~checked_env:(e.env_id::checked_env) mod_env name
+              in
+              res @ envs
+            end
+       in
+       List.fold_left search_module [] lt.imported_mods
+     end
 
 (*  *)
-let rec lookup e name =
-  let target = find_on_env e name in
+(*let rec lookup e name =
+  let target = find_all_on_env e name in
   match target with
-    Some _ as te -> te
-  | None -> if is_root e then
-              None
+  | [] -> if is_root e then
+            failwith "[ICE] cannot find on root env"
+          else
+            let penv = parent_env e in
+            if is_root penv then
+              []
             else
-              let penv = parent_env e in
               lookup penv name
+  | xs -> xs*)
+let rec lookup e name =
+  let target = find_all_on_env e name in
+  match target with
+  | [] -> if is_root e then
+            failwith "[ICE] cannot find on root env"
+          else
+            let penv = parent_env e in
+            lookup penv name
+  | xs -> xs
+
 
 (*  *)
 let add_inner_env target_env name e =
@@ -194,6 +242,7 @@ let add_inner_env target_env name e =
 let empty_lookup_table ?(init=8) () =
   {
     scope = Hashtbl.create init;
+    imported_mods = [];
   }
 
 let create_env parent_env er =
