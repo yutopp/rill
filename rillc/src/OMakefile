@@ -143,4 +143,5 @@ PROGRAM = rillc
 #
 clean:
     rm -f *~ *.opt *.cmi *.cmx *.cmxa *.o *.omc *.a *.out *.s *.bc *.log *.cache $(PROGRAM) \
-          parser.ml parser.mli lexer.ml *.conflicts *.automaton
+		parser.ml parser.mli tokens.ml tokens.mli lexer.ml \
+		*.conflicts *.automaton
