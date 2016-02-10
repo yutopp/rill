@@ -7,6 +7,7 @@ type type_info = TAst.ast Env.type_info_t
 
 type 'env ctx_t = {
   sc_root_env       : 'env;
+  mutable sc_builtin_m_env  : 'env option;
 
   sc_module_bag         : 'env Module_info.Bag.t;
   sc_module_search_dirs : string list;
@@ -77,74 +78,6 @@ module FuncMatchLevel =
   end
 
 
-let make_default_env () =
-  Env.make_root_env ()
-
-let make_default_context root_env module_search_dirs =
-  let type_gen = Type.Generator.default () in
-  let uni_map = Unification.empty () in
-  let ctfe_engine = Ctfe_engine.initialize type_gen uni_map in
-
-  let tsets = {
-    ts_type_gen = type_gen;
-
-    ts_type_type = Type.undef_ty;
-    ts_void_type = Type.undef_ty;
-    ts_int_type = Type.undef_ty;
-  } in
-  let ctx = {
-    sc_root_env = root_env;
-
-    sc_module_search_dirs = module_search_dirs;
-    sc_module_bag = Module_info.Bag.empty ();
-
-    sc_ctfe_engine = ctfe_engine;
-    sc_tsets = tsets;
-    sc_unification_ctx = uni_map;
-  } in
-
-  let create_builtin_class name inner_name =
-    let env = Env.create_env root_env (
-                               Env.Class (Env.empty_lookup_table ~init:0 (),
-                                          {
-                                            Env.cls_name = name;
-                                            Env.cls_detail = Env.ClsUndef;
-                                          })
-                             ) in
-    let node = TAst.BuiltinClass (inner_name, Some env) in
-    complete_env env node;
-    env
-  in
-  let register_builtin_type name inner_name setter =
-    let id_name = Nodes.Pure name in
-    let cenv = create_builtin_class id_name inner_name in
-    Env.add_inner_env root_env name cenv;
-    let (ty, _) = Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
-                                               (Type.UniqueTy {
-                                                    Type.ty_cenv = cenv;
-                                                  })
-    in
-    setter ty
-  in
-
-  register_builtin_type "type" "__type_type"
-                        (fun ty -> ctx.sc_tsets.ts_type_type <- ty);
-
-  register_builtin_type "void" "__type_void"
-                        (fun ty -> ctx.sc_tsets.ts_void_type <- ty);
-  register_builtin_type "int" "__type_int"
-                        (fun ty -> ctx.sc_tsets.ts_int_type <- ty);
-  ctx
-
-
-let make_default_state system_libs_dirs user_srcs_dirs =
-  let module_search_dirs = system_libs_dirs @ user_srcs_dirs in
-
-  let env = make_default_env () in
-  let ctx = make_default_context env module_search_dirs in
-  (env, ctx)
-
-
 let rec solve_forward_refs ?(meta_variables=[])
                            ?(opt_attr=None)
                            node parent_env (ctx:TAst.ast Env.env_t ctx_t) =
@@ -167,6 +100,7 @@ let rec solve_forward_refs ?(meta_variables=[])
        let lt = Env.get_lookup_table parent_env in
        lt.Env.imported_mods <- (mod_env, Env.ModPrivate) :: lt.Env.imported_mods;
 
+       (* remove import statements *)
        TAst.EmptyStmt
      end
 
@@ -374,30 +308,30 @@ and load_module_by_filepath ?(def_mod_info=None) filepath ctx =
 and load_module pkg_names mod_name ctx =
   let mod_env = Module_info.Bag.search_module ctx.sc_module_bag
                                               pkg_names mod_name in
-  let _ = match mod_env with
-    | Some r -> failwith ""
-    | None -> ()
-  in
+  match mod_env with
+    | Some r -> r (* return cache module *)
+    | None ->
+       begin
+         let pp dirs dir_name =
+           let exist dir =
+             let dir_name = Filename.concat dir dir_name in
+             Sys.file_exists dir_name
+           in
+           try [Filename.concat (List.find exist dirs) dir_name] with
+           | Not_found -> []
+         in
+         let target_dirs = List.fold_left pp ctx.sc_module_search_dirs pkg_names in
+         let target_dir = match target_dirs with
+           | [dir] -> dir
+           | [] -> failwith "[ERR] package not found"
+           | _ -> failwith "[ICE]"
+         in
+         Printf.printf "import from = %s\n" target_dir;
+         let filepath = Filename.concat target_dir mod_name ^ ".rill" in
 
-  let pp dirs dir_name =
-    let exist dir =
-      let dir_name = Filename.concat dir dir_name in
-      Sys.file_exists dir_name
-    in
-    try [Filename.concat (List.find exist dirs) dir_name] with
-    | Not_found -> []
-  in
-  let target_dirs = List.fold_left pp ctx.sc_module_search_dirs pkg_names in
-  let target_dir = match target_dirs with
-    | [dir] -> dir
-    | [] -> failwith "[ERR] package not found"
-    | _ -> failwith "[ICE]"
-  in
-  Printf.printf "import from = %s\n" target_dir;
-  let filepath = Filename.concat target_dir mod_name ^ ".rill" in
-
-  load_module_by_filepath ~def_mod_info:(Some (pkg_names, mod_name))
-                          filepath ctx
+         load_module_by_filepath ~def_mod_info:(Some (pkg_names, mod_name))
+                                 filepath ctx
+       end
 
 
 let rec construct_env node parent_env ctx opt_chain_attr =
@@ -850,23 +784,14 @@ and solve_identifier ?(do_rec_search=true) id_node env ctx attr =
   match id_node with
   | Ast.Id (name, _) ->
      begin
-       let tmp = solve_simple_identifier ~do_rec_search:do_rec_search name env ctx attr in
-       match tmp with
-       | [] -> None
-       | [x] -> Some x
-       | _ -> failwith "[ICE] not implemented"
+       solve_simple_identifier ~do_rec_search:do_rec_search name env ctx attr
      end
   | _ -> failwith "unsupported ID type"
 
-and solve_simple_identifier
-      ?(do_rec_search=true) name search_base_env ctx attr : (type_info * 'env option) list =
-  let name_s = Nodes.string_of_id_string name in
-  Printf.printf "-> finding identitifer = %s : rec = %b\n" name_s do_rec_search;
-  let oenv = if do_rec_search then
-               Env.lookup search_base_env name_s
-             else
-               Env.find_all_on_env search_base_env name_s
-  in
+and solve_simple_identifier ?(do_rec_search=true)
+                            name search_base_env ctx attr
+    : (type_info * 'env option) option =
+
   (*Env.print env;*)
 
   (* Class is a value of type, thus returns "type" of type, and corresponding env.
@@ -878,7 +803,7 @@ and solve_simple_identifier
     (ctx.sc_tsets.ts_type_type, Some cenv)
   in
 
-  let solve (env : 'env) : (type_info * 'env option) =
+  let solve (prev_ty,prev_opt_env) env : (type_info * 'env option) =
     let { Env.er = env_r; _ } = env in
     match env_r with
     | Env.MultiSet (record) ->
@@ -958,7 +883,16 @@ and solve_simple_identifier
     | _ -> failwith "solve_simple_identifier: unexpected env"
   in
 
-  oenv |> List.map solve
+  let name_s = Nodes.string_of_id_string name in
+  Printf.printf "-> finding identitifer = %s : rec = %b\n" name_s do_rec_search;
+  let oenv = if do_rec_search then
+               Env.lookup search_base_env name_s
+             else
+               Env.find_all_on_env search_base_env name_s
+  in
+  match oenv with
+  | [] -> None
+  | envs -> Some (List.fold_left solve (Type.undef_ty, None) envs)
 
 
 and try_to_complete_env env ctx attr =
@@ -1187,11 +1121,10 @@ and instantiate_function_templates menv arg_types ext_env ctx attr =
                                 s_meta_var_name temp_env ctx attr
       in
       let ty_env = match opt_meta_var with
-        | [] ->
+        | Some v -> v
+        | None ->
            (*TODO change to exception *)
            failwith "template parameter is not found"
-        | [v] -> v
-        | _ -> failwith "[ICE]"
       in
       ty_env
     in
@@ -1229,7 +1162,7 @@ and instantiate_function_templates menv arg_types ext_env ctx attr =
                                 s_name temp_env ctx attr
       in
       let (ty, uni_id) = match opt_meta_var with
-        | [(ty, Some {Env.er = Env.MetaVariable (uni_id); _})] -> (ty, uni_id)
+        | Some (ty, Some {Env.er = Env.MetaVariable (uni_id); _}) -> (ty, uni_id)
         | _ -> failwith ""
       in
       if Type.has_same_class ty ctx.sc_tsets.ts_type_type then
@@ -1477,30 +1410,110 @@ and select_member_element ?(universal_search=false) recv_ty t_id env ctx attr =
      end
 
 and get_builtin_int_type ctx =
-  ctx.sc_tsets.ts_int_type
-    (*
-  let ty = ctx.sc_tsets.ts_int_type in
-  match Type.type_sort ctx.sc_tsets.ts_int_type with
+  let preset_ty = ctx.sc_tsets.ts_int_type in
+  match Type.type_sort !preset_ty with
   | Type.Undef ->
      begin
        let res =
-         solve_simple_identifier ~do_rec_search:false (Nodes.Pure "int") ctx.sc_root_env ctx None
+         solve_simple_identifier ~do_rec_search:false
+                                 (Nodes.Pure "int")
+                                 (Option.get ctx.sc_builtin_m_env) ctx None
        in
        match res with
-       | Some (ty, Some c_env) when ty = ctx.sc_tsets.ts_type_type ->
+       | Some (ty, Some c_env) when ty == ctx.sc_tsets.ts_type_type ->
           begin
             try_to_complete_env c_env ctx None;
-            failwith "Yo"
+            let (prim_ty, _) =
+              Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
+                                           (Type.UniqueTy {
+                                                Type.ty_cenv = c_env;
+                                              })
+            in
+            preset_ty := prim_ty;
+            prim_ty
           end
        | _ -> failwith "[ICE]"
      end
-  | _ -> ty
-     *)
+  | Type.UniqueTy _ -> !preset_ty
+  | _ -> failwith "[ICE]"
 
 
 and analyze ?(meta_variables=[]) ?(opt_attr=None) node env ctx =
   let snode = solve_forward_refs ~meta_variables:meta_variables node env ctx in
   construct_env snode env ctx opt_attr
+
+
+let make_default_env () =
+  Env.make_root_env ()
+
+let make_default_context root_env module_search_dirs =
+  let type_gen = Type.Generator.default () in
+  let uni_map = Unification.empty () in
+  let ctfe_engine = Ctfe_engine.initialize type_gen uni_map in
+
+  let tsets = {
+    ts_type_gen = type_gen;
+
+    ts_type_type = Type.undef_ty;
+    ts_void_type = Type.undef_ty;
+    ts_int_type = ref Type.undef_ty;
+  } in
+  let ctx = {
+    sc_root_env = root_env;
+    sc_builtin_m_env = None;
+
+    sc_module_search_dirs = module_search_dirs;
+    sc_module_bag = Module_info.Bag.empty ();
+
+    sc_ctfe_engine = ctfe_engine;
+    sc_tsets = tsets;
+    sc_unification_ctx = uni_map;
+  } in
+
+  let create_builtin_class name inner_name =
+    let env = Env.create_env root_env (
+                               Env.Class (Env.empty_lookup_table ~init:0 (),
+                                          {
+                                            Env.cls_name = name;
+                                            Env.cls_detail = Env.ClsUndef;
+                                          })
+                             ) in
+    let node = TAst.BuiltinClass (inner_name, Some env) in
+    complete_env env node;
+    env
+  in
+  let register_builtin_type name inner_name setter =
+    let id_name = Nodes.Pure name in
+    let cenv = create_builtin_class id_name inner_name in
+    Env.add_inner_env root_env name cenv;
+    let (ty, _) = Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
+                                               (Type.UniqueTy {
+                                                    Type.ty_cenv = cenv;
+                                                  })
+    in
+    setter ty
+  in
+
+  (**)
+  let builtin_mod_e = load_module ["core"] "builtin" ctx in
+  ctx.sc_builtin_m_env <- Some builtin_mod_e;
+
+  register_builtin_type "type" "__type_type"
+                        (fun ty -> ctx.sc_tsets.ts_type_type <- ty);
+
+  register_builtin_type "void" "__type_void"
+                        (fun ty -> ctx.sc_tsets.ts_void_type <- ty);
+  (*register_builtin_type "int" "__type_int"
+                        (fun ty -> ctx.sc_tsets.ts_int_type <- ty);*)
+  ctx
+
+
+let make_default_state system_libs_dirs user_srcs_dirs =
+  let module_search_dirs = system_libs_dirs @ user_srcs_dirs in
+
+  let env = make_default_env () in
+  let ctx = make_default_context env module_search_dirs in
+  (env, ctx)
 
 
 let analyze_module mod_env ctx =

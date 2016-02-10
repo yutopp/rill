@@ -6,7 +6,7 @@ type 'env type_sets_t = {
   (* buildin primitive types *)
   mutable ts_type_type      : 'env type_info;
   mutable ts_void_type      : 'env type_info;
-  mutable ts_int_type       : 'env type_info;
+  ts_int_type       : 'env type_info ref;
 }
 
 

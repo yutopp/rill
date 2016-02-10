@@ -120,6 +120,25 @@ let rec code_generate ~bb node ctx =
           end
      end
 
+  | TAst.ExternClassDefStmt (
+        name, extern_cname, Some env
+      ) ->
+     begin
+       if Ctx.is_env_defined ctx env then () else
+       begin
+         if Ctx.is_env_defined ctx env then ();
+
+         let ty = try Ctx.find_builtin_type ctx extern_cname with
+                  | Not_found ->
+                     failwith (Printf.sprintf "[ICE] builtin class \"%s\" is not found"
+                                              extern_cname)
+         in
+         Ctx.bind_env_to_type ctx env ty;
+
+         Ctx.mark_env_as_defined ctx env
+       end
+     end
+
   | TAst.VariableDefStmt (rv, TAst.VarInit (var_init), Some env) ->
      if Ctx.is_env_defined ctx env then () else
      begin
@@ -405,7 +424,7 @@ let inject_builtins ctx =
   register_builtin_type "__type_type" (L.i64_type ctx.ir_context);
 
   register_builtin_type "__type_void" (L.void_type ctx.ir_context);
-  register_builtin_type "__type_int" (L.i32_type ctx.ir_context);
+  register_builtin_type "__builtin_type_int" (L.i32_type ctx.ir_context);
 
 
   let add_int_int args ctx =
