@@ -370,7 +370,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
 
        (* infer return type *)
        (* TODO: implement *)
-       let return_type = ctx.sc_tsets.ts_void_type in
+       let return_type = get_builtin_void_type ctx in
 
        (* body *)
        let nbody = analyze_inner body env ctx opt_attr in
@@ -413,7 +413,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
 
        (* determine return type *)
        (* TODO: implement *)
-       let return_type = ctx.sc_tsets.ts_void_type in
+       let return_type = get_builtin_int_type ctx in
 
        (* TODO: fix *)
        let is_builtin = match opt_attr with
@@ -562,8 +562,6 @@ let rec construct_env node parent_env ctx opt_chain_attr =
      TAst.ExprStmt node
 
   | TAst.EmptyStmt -> node
-
-  | TAst.BuiltinClass _ -> node
 
   | _ ->
      begin
@@ -1418,13 +1416,19 @@ and select_member_element ?(universal_search=false) recv_ty t_id env ctx attr =
      end
 
 and get_builtin_int_type ctx =
-  let preset_ty = ctx.sc_tsets.ts_int_type in
+  get_builtin_type_info ctx.sc_tsets.ts_int_type_holder "int" ctx
+
+and get_builtin_void_type ctx =
+  get_builtin_type_info ctx.sc_tsets.ts_void_type_holder "void" ctx
+
+(* *)
+and get_builtin_type_info preset_ty name ctx =
   match Type.type_sort !preset_ty with
   | Type.Undef ->
      begin
        let res =
          solve_simple_identifier ~do_rec_search:false
-                                 (Nodes.Pure "int")
+                                 (Nodes.Pure name)
                                  (Option.get ctx.sc_builtin_m_env) ctx None
        in
        match res with
@@ -1459,12 +1463,36 @@ let make_default_context root_env module_search_dirs =
   let uni_map = Unification.empty () in
   let ctfe_engine = Ctfe_engine.initialize type_gen uni_map in
 
+  let create_builtin_class name inner_name =
+    let env = Env.create_env root_env (
+                               Env.Class (Env.empty_lookup_table ~init:0 (),
+                                          {
+                                            Env.cls_name = name;
+                                            Env.cls_detail = Env.ClsUndef;
+                                          })
+                             ) in
+    let node = TAst.ExternClassDefStmt (name, inner_name, Some env) in
+    complete_env env node;
+    env
+  in
+  let register_builtin_type name inner_name =
+    let id_name = Nodes.Pure name in
+    let cenv = create_builtin_class id_name inner_name in
+    Env.add_inner_env root_env name cenv;
+    let (ty, _) = Type.Generator.generate_type type_gen
+                                               (Type.UniqueTy {
+                                                    Type.ty_cenv = cenv;
+                                                  })
+    in
+    ty
+  in
+
   let tsets = {
     ts_type_gen = type_gen;
+    ts_type_type = register_builtin_type "type" "__builtin_type_type";
 
-    ts_type_type = Type.undef_ty;
-    ts_void_type = Type.undef_ty;
-    ts_int_type = ref Type.undef_ty;
+    ts_void_type_holder = ref Type.undef_ty;
+    ts_int_type_holder = ref Type.undef_ty;
   } in
   let ctx = {
     sc_root_env = root_env;
@@ -1478,41 +1506,10 @@ let make_default_context root_env module_search_dirs =
     sc_unification_ctx = uni_map;
   } in
 
-  let create_builtin_class name inner_name =
-    let env = Env.create_env root_env (
-                               Env.Class (Env.empty_lookup_table ~init:0 (),
-                                          {
-                                            Env.cls_name = name;
-                                            Env.cls_detail = Env.ClsUndef;
-                                          })
-                             ) in
-    let node = TAst.BuiltinClass (inner_name, Some env) in
-    complete_env env node;
-    env
-  in
-  let register_builtin_type name inner_name setter =
-    let id_name = Nodes.Pure name in
-    let cenv = create_builtin_class id_name inner_name in
-    Env.add_inner_env root_env name cenv;
-    let (ty, _) = Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
-                                               (Type.UniqueTy {
-                                                    Type.ty_cenv = cenv;
-                                                  })
-    in
-    setter ty
-  in
-
   (**)
   let builtin_mod_e = load_module ["core"] "builtin" ctx in
   ctx.sc_builtin_m_env <- Some builtin_mod_e;
 
-  register_builtin_type "type" "__type_type"
-                        (fun ty -> ctx.sc_tsets.ts_type_type <- ty);
-
-  register_builtin_type "void" "__type_void"
-                        (fun ty -> ctx.sc_tsets.ts_void_type <- ty);
-  (*register_builtin_type "int" "__type_int"
-                        (fun ty -> ctx.sc_tsets.ts_int_type <- ty);*)
   ctx
 
 

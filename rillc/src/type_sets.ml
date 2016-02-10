@@ -9,12 +9,12 @@
 type 'env type_info = 'env Type.info_t
 
 type 'env type_sets_t = {
-  ts_type_gen               : 'env Type.Generator.t;
+  ts_type_gen       : 'env Type.Generator.t;
+  ts_type_type      : 'env type_info;
 
   (* buildin primitive types *)
-  mutable ts_type_type      : 'env type_info;
-  mutable ts_void_type      : 'env type_info;
-  ts_int_type       : 'env type_info ref;
+  ts_void_type_holder   : 'env type_info ref;
+  ts_int_type_holder    : 'env type_info ref;
 }
 
 

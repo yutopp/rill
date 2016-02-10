@@ -1,7 +1,16 @@
 extern def print_int(v: int):void = "rill_print";
 
+
 #[builtin]
-extern def operator+(:int, :int) :int = "__builtin_op_binary_+_int_int";
+extern class type = "__builtin_type_type"
+
+
+#[builtin]
+extern class void = "__builtin_type_void"
+
 
 #[builtin]
 extern class int = "__builtin_type_int"
+
+#[builtin]
+extern def operator+(:int, :int) :int = "__builtin_op_binary_+_int_int";

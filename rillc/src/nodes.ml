@@ -80,9 +80,6 @@ module Make (Ctx : NodeContextType) =
       | PrevPassNode of pctx_t
 
       | GenericCall of string * ast list * ctx_t
-      | BuiltinClass of string * ctx_t
-
-      | DefinedModule
 
      (* id * value *)
      and param_init_t = string option * value_init_t

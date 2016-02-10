@@ -164,21 +164,6 @@ let rec code_generate ~bb node ctx =
 
   | TAst.EmptyStmt -> ()
 
-  | TAst.BuiltinClass (builtin_name, Some env) ->
-     if Ctx.is_env_defined ctx env then () else
-     begin
-       if Ctx.is_env_defined ctx env then ();
-
-       let ty = try Ctx.find_builtin_type ctx builtin_name with
-                | Not_found ->
-                   failwith (Printf.sprintf "[ICE] builtin class \"%s\" is not found"
-                                            builtin_name)
-       in
-       Ctx.bind_env_to_type ctx env ty;
-
-       Ctx.mark_env_as_defined ctx env
-     end
-
   | _ -> failwith "cannot generate : statement"
 
 and code_generate_as_value ?(bb=None) node ctx =
@@ -429,9 +414,9 @@ let inject_builtins ctx =
   (* type is represented as int64 in this context.
    * It donates ID of type in the type generator
    *)
-  register_builtin_type "__type_type" (L.i64_type ctx.ir_context);
+  register_builtin_type "__builtin_type_type" (L.i64_type ctx.ir_context);
 
-  register_builtin_type "__type_void" (L.void_type ctx.ir_context);
+  register_builtin_type "__builtin_type_void" (L.void_type ctx.ir_context);
   register_builtin_type "__builtin_type_int" (L.i32_type ctx.ir_context);
 
 
