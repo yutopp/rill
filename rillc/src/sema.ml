@@ -8,7 +8,6 @@
 
 open Batteries
 open Type_sets
-open Errors
 
 module TAst = Tagged_ast
 
