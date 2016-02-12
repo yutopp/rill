@@ -119,6 +119,9 @@ FILES[] =
    syntax
    env
    sema
+   sema_predef
+   sema_forward_ref
+   sema_construct_env
    codegen
    codegen_llvm
    type
