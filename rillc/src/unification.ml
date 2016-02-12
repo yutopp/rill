@@ -15,13 +15,10 @@ type 'ty chain_t =
   | Link of id_t
   | Val of 'ty
 
-type 'ty type_map_t = (id_t, 'ty chain_t) Hashtbl.t
-type 'ty value_map_t = (id_t, ('ty Ctfe_value.t) chain_t) Hashtbl.t
-
-type 'ty t = {
+type ('ty, 'v) t = {
   mutable fresh_id  : id_t;
-  type_map          : 'ty type_map_t;
-  value_map         : 'ty value_map_t
+  type_map          : (id_t, 'ty chain_t) Hashtbl.t;
+  value_map         : (id_t, 'v chain_t) Hashtbl.t;
 }
 
 
@@ -83,12 +80,18 @@ let link ?(debug_s="") holder mapping uni_id_a uni_id_b =
      end
   | _ -> failwith "[ICE] link"
 
-let update ?(debug_s="") holder mapping uni_id ty =
+let update ?(debug_s="") holder mapping uni_id v =
   Printf.printf "@%s@ update %d\n" debug_s uni_id;
   let (term_id, cur_val) = search_until_terminal ~debug_s:debug_s mapping uni_id in
   match cur_val with
-  | Undef | Val _ -> Hashtbl.replace mapping term_id (Val ty)
+  | Undef | Val _ -> Hashtbl.replace mapping term_id (Val v)
   | _ -> failwith "[ICE] update"
+
+let get_as holder mapping uni_id =
+  let (_, cur_val) = search_until_terminal mapping uni_id in
+  match cur_val with
+  | Val v -> v
+  | _ -> failwith "[ICE] get_as"
 
 
 let search_type_until_terminal holder uni_id =
@@ -107,5 +110,8 @@ let search_value_until_terminal holder uni_id =
 let link_value holder uni_id_a uni_id_b =
   link ~debug_s:"value" holder holder.value_map uni_id_a uni_id_b
 
-let update_value holder uni_id ty =
-  update ~debug_s:"value" holder holder.value_map uni_id ty
+let update_value holder uni_id v =
+  update ~debug_s:"value" holder holder.value_map uni_id v
+
+let get_as_value holder uni_id =
+  get_as holder holder.value_map uni_id

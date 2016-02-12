@@ -14,7 +14,8 @@ type 'env type_sets_t = {
 
   (* buildin primitive types *)
   ts_void_type_holder   : 'env type_info ref;
-  ts_int_type_holder    : 'env type_info ref;
+  ts_int32_type_holder  : 'env type_info ref;
+  ts_array_type_holder  : 'env type_info ref;
 }
 
 

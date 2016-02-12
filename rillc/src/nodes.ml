@@ -65,6 +65,7 @@ module Make (Ctx : NodeContextType) =
        * values
        *)
       | Id of id_string * ctx_t
+      | InstantiatedId of id_string * ast list * ctx_t
       | Int32Lit of int
       | StringLit of string
       | BoolLit of bool

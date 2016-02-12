@@ -125,8 +125,9 @@ parameter_variable_initializer_unit:
 
 (**)
 template_parameter_variables_decl_list:
-                NOT LPAREN
-                separated_list(COMMA, template_parameter_variable_declaration)
+                NOT
+                LPAREN
+                separated_nonempty_list(COMMA, template_parameter_variable_declaration)
                 RPAREN { Ast.TemplateParamsList $3 }
 
 template_parameter_variable_declaration:
@@ -241,8 +242,19 @@ variable_initializer_unit:
 (**)
 argument_list:
                 LPAREN
-                separated_list(COMMA, assign_expression)
-                RPAREN { $2 }
+                l = separated_list(COMMA, assign_expression)
+                RPAREN { l }
+
+template_argument_list:
+                NOT
+                LPAREN
+                l = separated_nonempty_list(COMMA, assign_expression)
+                RPAREN
+                { l }
+
+        |       NOT
+                v = primary_value
+                { [v] }
 
 (**)
 expression_statement:
@@ -360,6 +372,33 @@ primary_value:
 
 
 (**)
+rel_id:         rel_id_as_s { Ast.Id ($1, ()) }
+
+rel_template_instance_id:
+                rel_id_as_s template_argument_list
+                { Ast.InstantiatedId ($1, $2, ()) }
+
+rel_generic_id:
+                rel_id { $1 }
+        |       rel_template_instance_id { $1 }
+
+(* TODO: implement root_generic_id *)
+
+generic_id:
+                rel_generic_id { $1 }
+
+
+(**)
+rel_id_has_no_op_as_raw:
+                ID { $1 }
+
+rel_id_has_no_op_as_s:
+                rel_id_has_no_op_as_raw { Nodes.Pure ($1) }
+
+rel_id_as_s:
+                binary_operator_as_s { $1 }
+        |       unary_operator_as_s { $1 }
+        |       rel_id_has_no_op_as_s { $1 }
 
 binary_operator_as_raw:
                 PLUS { $1 }
@@ -379,33 +418,8 @@ unary_operator_as_s:
                     match $3 with
                     | "pre" -> Nodes.UnaryPreOp ($2)
                     | "post" -> Nodes.UnaryPostOp ($2)
-                    | _ -> failwith "~~~"
+                    | _ -> failwith "[ICE] ..."
                 }
-
-rel_id_has_no_op_as_raw:
-                ID { $1 }
-
-rel_id_has_no_op_as_s:
-                rel_id_has_no_op_as_raw { Nodes.Pure ($1) }
-
-rel_id_as_s:
-                binary_operator_as_s { $1 }
-        |       unary_operator_as_s { $1 }
-        |       rel_id_has_no_op_as_s { $1 }
-
-
-(*
-rel_id_has_no_op:
-                     rel_id_has_no_op_as_s { Ast.Id ($1, ()) }
-*)
-rel_id:         rel_id_as_s { Ast.Id ($1, ()) }
-
-
-rel_generic_id:
-                rel_id { $1 }
-
-generic_id:
-                rel_id { $1 }
 
 
 (**)

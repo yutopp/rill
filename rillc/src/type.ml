@@ -11,12 +11,15 @@ type 'env info_t = {
   ti_sort   : 'env type_sort_t;
 }
 
+ and 'env ctfe_val_t = ('env info_t) Ctfe_value.t
+
  and 'env type_sort_t =
     UniqueTy of 'env normal_type_t
-  | ClassSetTy of 'env
-  | FunctionSetTy of 'env
+  | ClassSetTy of 'env * 'env ctfe_val_t list
+  | FunctionSetTy of 'env * 'env ctfe_val_t list
   | Undef
-  | NotDetermined of int (*Unification.id_t*) * 'env info_t Unification.t
+  | NotDetermined of Unification.id_t
+                     * ('env info_t, 'env info_t Ctfe_value.t) Unification.t
 
  and 'env normal_type_t = {
    ty_cenv  : 'env;
@@ -38,12 +41,18 @@ let is_unique_ty ty =
     UniqueTy _ -> true
   | _ -> false
 
+let is_undef ty =
+  match type_sort ty with
+    Undef -> true
+  | _ -> false
+
+
 let has_same_class lhs rhs =
   match (type_sort lhs, type_sort rhs) with
   | (UniqueTy lhs_ty_r, UniqueTy rhs_ty_r) ->
      lhs_ty_r.ty_cenv == rhs_ty_r.ty_cenv (* compare envs by reference *)
-  | (ClassSetTy lhs_e, ClassSetTy rhs_e) -> lhs_e = rhs_e
-  | (FunctionSetTy lhs_e, FunctionSetTy rhs_e) -> lhs_e = rhs_e
+  | (ClassSetTy (lhs_e, _), ClassSetTy (rhs_e, _)) -> lhs_e = rhs_e
+  | (FunctionSetTy (lhs_e, _), FunctionSetTy (rhs_e, _)) -> lhs_e = rhs_e
   | _ -> false
 
 
@@ -55,6 +64,13 @@ let is_same lhs rhs =
        has_same_class lhs rhs
      end
   | _ -> failwith "not supported"
+
+
+let is_class_set ty =
+  let ts = type_sort ty in
+  match ts with
+  | ClassSetTy _ -> true
+  | _ -> false
 
 
 let as_unique ty =

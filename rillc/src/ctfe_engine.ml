@@ -54,21 +54,32 @@ let initialize type_gen uni_map =
 
 let invoke_function engine fname ret_ty type_sets =
   let open Ctypes in
+  let call_by_type fn_ty =
+    let jit_f =
+         LE.get_function_address fname (Foreign.funptr fn_ty)
+                                 engine.exec_engine
+    in
+    jit_f ()
+  in
+
   match ret_ty with
   | ty when Type.has_same_class ty type_sets.ts_type_type ->
      begin
        let cfunc_ty = Ctypes.void @-> returning Ctypes.int64_t in
-       let jit_f =
-         LE.get_function_address fname
-                                 (Foreign.funptr cfunc_ty)
-                                 engine.exec_engine
-       in
-       let ret_val = jit_f () in
+       let ret_val = call_by_type cfunc_ty in
        Printf.printf "=========> %s\n" (Int64.to_string ret_val);
 
        let ty =
          Type.Generator.find_type_by_cache_id type_sets.ts_type_gen ret_val in
-       Type ty
+       Ctfe_value.Type ty
+     end
+
+  | ty when Type.has_same_class ty !(type_sets.ts_int32_type_holder) ->
+     begin
+       let cfunc_ty = Ctypes.void @-> returning Ctypes.int32_t in
+       let ret_val = call_by_type cfunc_ty in
+
+       Ctfe_value.Int32 ret_val
      end
 
   | _ ->

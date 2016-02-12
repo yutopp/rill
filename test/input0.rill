@@ -1,24 +1,9 @@
 def main() {
-    val a: int = 10 + 20;
-
-    // val arr = [1, 2, 3];
-
-    print_int(a);
-    val b = a + 10;
-    print_int(b);
-    hoge(10);
-
-    tempfunc(b+10);
-}
-
-def hoge(a : int) {
-    print_int(a);
-    print_int(a+1);
-}
-
-def tempfunc!(T)(a : T) {
-    print_int(a+100);
-    print_int(a+200);
+    temp!(100)(10);
+    temp!(10)(10);
 }
 
 import core.builtin;
+
+def temp!(N: int32, T)(yo: T) {
+}

@@ -128,6 +128,8 @@ FILES[] =
    ctfe_exn
    unification
    module_info
+   builtin_info
+   mangle
 
 #
 PROGRAM = rillc

@@ -25,12 +25,7 @@ module Kind =
       | Class
       | Function
       | Variable
-      | MultiSet of t
   end
-
-type builtin_t =
-    TypeTy
-  | Int32Ty
 
 
 (* used for id of environments *)
@@ -41,6 +36,7 @@ let id_counter = ref @@ Num.num_of_int 0
 type 'ast env_t = {
    env_id           : id_t;
    parent_env       : 'ast env_t option;
+   module_env       : 'ast env_t option;
    er               : 'ast env_record_t;
    mutable state    : checked_state;
 
@@ -58,9 +54,9 @@ type 'ast env_t = {
   | Variable of 'ast variable_record
 
   | Temporary of 'ast lookup_table_t
-  | MetaVariable of int (*Unification.id_t*)
+  | MetaVariable of Unification.id_t
 
- and 'ast type_info_t = ('ast env_t) Type.info_t
+ and 'ast type_info_t = 'ast env_t Type.info_t
 
  and 'ast name_env_mapping = (string, 'ast env_t) Hashtbl.t
 
@@ -75,6 +71,8 @@ type 'ast env_t = {
 
    mutable ms_normal_instances      : 'ast env_t list;
    mutable ms_template_instances    : 'ast env_t list;
+
+   ms_instanced_args_memo           : (string, 'ast env_t) Hashtbl.t;
  }
 
 
@@ -98,10 +96,13 @@ type 'ast env_t = {
   *
   *)
  and 'ast function_record = {
-   fn_name                  : Nodes.id_string;
-   mutable fn_param_types   : 'ast type_info_t list;
-   mutable fn_return_type   : 'ast type_info_t;
-   mutable fn_detail        : 'ast function_record_var;
+   fn_name                      : Nodes.id_string;
+   mutable fn_mangled           : string option;
+
+   mutable fn_templare_var_ids  : Unification.id_t list;
+   mutable fn_param_types       : 'ast type_info_t list;
+   mutable fn_return_type       : 'ast type_info_t;
+   mutable fn_detail            : 'ast function_record_var;
  }
  and 'ast function_record_var =
    | FnRecordNormal of 'ast function_record_normal
@@ -138,6 +139,7 @@ type 'ast env_t = {
   *)
  and 'ast class_record = {
    cls_name             : Nodes.id_string;
+   mutable cls_mangled  : string option;
    mutable cls_detail   : 'ast class_record_var;
  }
  and 'ast class_record_var =
@@ -218,7 +220,7 @@ let rec find_all_on_env ?(checked_env=[]) e name =
      end
 
 (*  *)
-(*let rec lookup e name =
+let rec lookup e name =
   let target = find_all_on_env e name in
   match target with
   | [] -> if is_root e then
@@ -229,15 +231,6 @@ let rec find_all_on_env ?(checked_env=[]) e name =
               []
             else
               lookup penv name
-  | xs -> xs*)
-let rec lookup e name =
-  let target = find_all_on_env e name in
-  match target with
-  | [] -> if is_root e then
-            failwith "[ICE] cannot find on root env"
-          else
-            let penv = parent_env e in
-            lookup penv name
   | xs -> xs
 
 
@@ -256,9 +249,15 @@ let empty_lookup_table ?(init=8) () =
 let create_env parent_env er =
   let cur_id = !id_counter in
   Num.incr_num id_counter;
+
+  let opt_mod_env = match parent_env.er with
+    | Module _ -> Some parent_env
+    | _ -> parent_env.module_env
+  in
   {
     env_id = cur_id;
     parent_env = Some parent_env;
+    module_env = opt_mod_env;
     er = er;
     state = InComplete;
     rel_node = None;
@@ -297,10 +296,21 @@ let make_root_env () =
   {
     env_id = cur_id;
     parent_env = None;
+    module_env = None;
     er = Root (tbl);
     state = Complete;
     rel_node = None;
   }
+
+
+module ModuleOp =
+  struct
+    let get_record env =
+      let er = get_env_record env in
+      match er with
+      | Module (_, r) -> r
+      | _ -> failwith "ModuleOp.get_record : not module"
+  end
 
 
 module MultiSetOp =
@@ -308,9 +318,11 @@ module MultiSetOp =
     let find_or_add env name k =
       let oe = find_on_env env name in
       match oe with
-      (* *)
+      (* Found *)
       | Some ({ er = (MultiSet { ms_kind = k; _ }); _} as e) ->
          e
+      | Some _ -> failwith "[ERR] suitable multienv is not found"
+
       (* *)
       | None ->
          let e = create_env env (MultiSet {
@@ -318,10 +330,10 @@ module MultiSetOp =
                                      ms_templates = [];
                                      ms_normal_instances = [];
                                      ms_template_instances = [];
+                                     ms_instanced_args_memo = Hashtbl.create 0
                                    }) in
          add_inner_env env name e;
          e
-      | _ -> failwith "multienv is not found"
 
     let get_record env =
       let er = get_env_record env in
@@ -433,6 +445,18 @@ let print env =
          f nindent
        end
 
+    | MultiSet r ->
+       begin
+         let kind_s = function
+           | Kind.Module -> "module"
+           | Kind.Class -> "class"
+           | Kind.Function -> "function"
+           | Kind.Variable -> "variable"
+         in
+         printf "%sMultiSet - %s\n" indent (kind_s r.ms_kind);
+         f nindent;
+       end
+
     | _ -> failwith "print: unsupported env"
   in
   let rec dig env f =
@@ -447,3 +471,9 @@ let print env =
     end
   in
   dig env (fun _ -> ())
+
+
+let get_full_module_name e =
+  let mod_env = Option.get e.module_env in
+  let mr = ModuleOp.get_record mod_env in
+  mr.mod_pkg_names @ [mr.mod_name]

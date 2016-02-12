@@ -26,7 +26,8 @@ module TAst = Codegen.TAst
 
 type env_t = TAst.t Env.env_t
 type type_info_t = env_t Type.info_t
-type ctx_t = (env_t, type_info_t)  Ctx.t
+type ctfe_val_t = type_info_t Ctfe_value.t
+type ctx_t = (env_t, type_info_t, ctfe_val_t) Ctx.t
 type type_gen_t = env_t Type.Generator.t
 
 
@@ -47,7 +48,7 @@ let rec code_generate ~bb node ctx =
      end
 
   | TAst.FunctionDefStmt (
-        name, TAst.ParamsList (params), _, body, opt_attr, Some env
+        _, TAst.ParamsList (params), _, body, opt_attr, Some env
       ) ->
      if Ctx.is_env_defined ctx env then () else
      begin
@@ -66,7 +67,7 @@ let rec code_generate ~bb node ctx =
        let f_ty = L.function_type llret_ty llparam_tys in
 
        (* declare function *)
-       let name = Nodes.string_of_id_string name in (*TODO: use the value in the env*)
+       let name = fenv_r.Env.fn_mangled |> Option.get in
        let f = L.declare_function name f_ty ctx.ir_module in
        Ctx.bind_env_to_val ctx env f;
 
@@ -103,7 +104,7 @@ let rec code_generate ~bb node ctx =
      end
 
   | TAst.ExternFunctionDefStmt (
-        name, TAst.ParamsList (params), _, extern_fname, opt_attr, Some env
+        _, TAst.ParamsList (params), _, extern_fname, opt_attr, Some env
       ) ->
      if Ctx.is_env_defined ctx env then () else
      begin
@@ -311,6 +312,7 @@ and code_generate_as_value ?(bb=None) node ctx =
                               end
                            | _-> failwith "[ICE] codegen_llvm : type"
                          end
+                      | _ -> failwith "Unsupported value"
                     end
                  | _ -> raise Ctfe_exn.Meta_var_un_evaluatable
                end
@@ -414,11 +416,13 @@ let inject_builtins ctx =
   (* type is represented as int64 in this context.
    * It donates ID of type in the type generator
    *)
-  register_builtin_type "__builtin_type_type" (L.i64_type ctx.ir_context);
+  begin
+    let open Builtin_info in
+    register_builtin_type type_type_i.internal_name (L.i64_type ctx.ir_context);
 
-  register_builtin_type "__builtin_type_void" (L.void_type ctx.ir_context);
-  register_builtin_type "__builtin_type_int" (L.i32_type ctx.ir_context);
-
+    register_builtin_type void_type_i.internal_name (L.void_type ctx.ir_context);
+    register_builtin_type int32_type_i.internal_name (L.i32_type ctx.ir_context);
+  end;
 
   let add_int_int args ctx =
     assert (Array.length args = 2);

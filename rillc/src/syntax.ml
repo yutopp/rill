@@ -6,11 +6,11 @@
  * http://www.boost.org/LICENSE_1_0.txt)
  *)
 
-let make_lexedbuf_from_file filename =
-  let input_ch = BatIO.to_input_channel (Batteries.File.open_in filename) in
-  Lexing.from_channel input_ch
 
-let make_ast lexedbuf full_filepath pkg_names mod_name =
+let make_lexedbuf_from_input input =
+  input |> BatIO.to_input_channel |> Lexing.from_channel
+
+let make_ast full_filepath pkg_names mod_name lexedbuf =
   let module P = Parser.Make(struct
                               let full_filepath = full_filepath
                               let package_names = pkg_names
@@ -35,5 +35,7 @@ let make_ast lexedbuf full_filepath pkg_names mod_name =
      exit (-2)
 
 let make_ast_from_file ~default_pkg_names ~default_mod_name full_filepath =
-  let lexedbuf = make_lexedbuf_from_file full_filepath in
-  make_ast lexedbuf full_filepath default_pkg_names default_mod_name
+  Batteries.File.with_file_in full_filepath
+                              (fun input -> input
+                                            |> make_lexedbuf_from_input
+                                            |> make_ast full_filepath default_pkg_names default_mod_name)
