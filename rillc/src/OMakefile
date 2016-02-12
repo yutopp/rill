@@ -122,7 +122,7 @@ FILES[] =
    sema_predef
    sema_forward_ref
    sema_construct_env
-   codegen
+   codegen_context
    codegen_llvm
    type
    type_sets

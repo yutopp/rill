@@ -21,8 +21,8 @@ module CodeGeneratorType =
 
     type 'ctx builtin_f_t = (ir_value_t array -> 'ctx -> ir_value_t)
   end
-module Ctx = Codegen.Context.Make(CodeGeneratorType)
-module TAst = Codegen.TAst
+module Ctx = Codegen_context.Make(CodeGeneratorType)
+module TAst = Tagged_ast
 
 type env_t = TAst.t Env.env_t
 type type_info_t = env_t Type.info_t
@@ -312,6 +312,11 @@ and code_generate_as_value ?(bb=None) node ctx =
                               end
                            | _-> failwith "[ICE] codegen_llvm : type"
                          end
+
+                      | Ctfe_value.Int32 i32 ->
+                         L.const_of_int64 (L.i32_type ctx.ir_context)
+                                          (Int32.to_int64 i32)
+                                          false (* not signed *)
                       | _ -> failwith "Unsupported value"
                     end
                  | _ -> raise Ctfe_exn.Meta_var_un_evaluatable
@@ -431,13 +436,11 @@ let inject_builtins ctx =
   register_builtin_func "__builtin_op_binary_+_int_int" add_int_int
 
 
-let generate node =
-  let ctx = make_default_context () in
+let generate node ctx =
   inject_builtins ctx;
 
   code_generate ~bb:None node ctx;
-  L.dump_module ctx.Ctx.ir_module;
-  ctx
+  L.dump_module ctx.Ctx.ir_module
 
 
 exception FailedToWriteBitcode

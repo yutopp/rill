@@ -1,9 +1,11 @@
 def main() {
-    temp!(100)(10);
-    temp!(10)(10);
+    temp!(100)(1);
+    temp!(10)(2);
 }
 
 import core.builtin;
 
 def temp!(N: int32, T)(yo: T) {
+    print_int(N+10);
+    print_int(yo+10);
 }

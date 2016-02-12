@@ -31,11 +31,15 @@ let () =
   Printf.printf "===== PHASE = CODEGEN\n";
   flush_all ();
 
-  let module M = (Codegen_llvm : Codegen.GENERATOR_TYPE) in
+  let module Codegen = Codegen_llvm in
 
-  let c_ctx = M.generate sem_ast in
+  let code_ctx =
+    Codegen.make_default_context ~opt_uni_map:(Some ctx.Sema.sc_unification_ctx)
+                                 ()
+  in
+  Codegen.generate sem_ast code_ctx;
   let tmp_stdlib_path = "./stdlib/lib/rillstd-rt.a" in (* TODO: fix *)
-  M.create_executable c_ctx tmp_stdlib_path "a.out";
+  Codegen.create_executable code_ctx tmp_stdlib_path "a.out";
 
   Printf.printf "===== PHASE = FINISHED\n";
   flush_all ();
