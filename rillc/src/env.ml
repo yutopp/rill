@@ -99,7 +99,7 @@ type 'ast env_t = {
    fn_name                      : Nodes.id_string;
    mutable fn_mangled           : string option;
 
-   mutable fn_templare_var_ids  : Unification.id_t list;
+   mutable fn_template_vals     : ('ast type_info_t Ctfe_value.t) list;
    mutable fn_param_types       : 'ast type_info_t list;
    mutable fn_return_type       : 'ast type_info_t;
    mutable fn_detail            : 'ast function_record_var;
@@ -140,7 +140,9 @@ type 'ast env_t = {
  and 'ast class_record = {
    cls_name             : Nodes.id_string;
    mutable cls_mangled  : string option;
-   mutable cls_detail   : 'ast class_record_var;
+
+   mutable cls_template_vals    : ('ast type_info_t Ctfe_value.t) list;
+   mutable cls_detail           : 'ast class_record_var;
  }
  and 'ast class_record_var =
    | ClsRecordExtern of class_record_extern

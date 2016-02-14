@@ -54,17 +54,13 @@ let complete_function_env env node s_name param_types return_type detail_r ctx =
     | s when s = Builtin_info.entrypoint_name ->
        begin
          (* TODO: check param_types and return_type *)
-         r.Env.fn_mangled <- Some "main"
+         r.Env.fn_mangled <- Some Builtin_info.entrypoint_name
        end
     | _ ->
        begin
-         let template_vars =
-           r.Env.fn_templare_var_ids
-           |> List.map (Unification.get_as_value ctx.sc_unification_ctx)
-         in
          let mangled =
            Mangle.s_of_function (Env.get_full_module_name env) s_name
-                                template_vars
+                                r.Env.fn_template_vals
                                 param_types return_type
                                 ctx.sc_tsets
          in

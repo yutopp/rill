@@ -263,7 +263,7 @@ expression_statement:
 
 (**)
 id_expression:
-                rel_id { $1 }
+                conditional_expression { $1 }
 
 
 expression:

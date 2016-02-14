@@ -18,12 +18,14 @@ type 'env info_t = {
   | ClassSetTy of 'env * 'env ctfe_val_t list
   | FunctionSetTy of 'env * 'env ctfe_val_t list
   | Undef
-  | NotDetermined of Unification.id_t
-                     * ('env info_t, 'env info_t Ctfe_value.t) Unification.t
+  | NotDetermined of Unification.id_t * 'env ctfe_val_t list
+
 
  and 'env normal_type_t = {
-   ty_cenv  : 'env;
+   ty_cenv              : 'env;
+   ty_template_args     : 'env ctfe_val_t list;
  }
+
 
 and type_id_ref_t = int64   (* type id is represented by int64 *)
 module IdType = Int64
@@ -120,8 +122,7 @@ module Generator =
         ti_sort = ty_s;
       } in
       Hashtbl.add gen.cache_table tid ty;
-
-      (ty, tid)
+      ty
 
     let find_type_by_cache_id gen t_id =
       try Hashtbl.find gen.cache_table t_id with

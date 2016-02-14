@@ -9,4 +9,4 @@
 type 'ty t =
   | Type of 'ty
   | Int32 of int32
-  | Undef of Unification.id_t * ('ty, 'ty t) Unification.t
+  | Undef of Unification.id_t

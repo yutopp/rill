@@ -27,6 +27,7 @@ let make_default_context root_env module_search_dirs =
                                           {
                                             Env.cls_name = name;
                                             Env.cls_mangled = None;
+                                            Env.cls_template_vals = [];
                                             Env.cls_detail = Env.ClsUndef;
                                           })
                              ) in
@@ -38,12 +39,11 @@ let make_default_context root_env module_search_dirs =
     let id_name = Nodes.Pure name in
     let cenv = create_builtin_class id_name inner_name in
     Env.add_inner_env root_env name cenv;
-    let (ty, _) = Type.Generator.generate_type type_gen
-                                               (Type.UniqueTy {
-                                                    Type.ty_cenv = cenv;
-                                                  })
-    in
-    ty
+    let ty_r = {
+      Type.ty_cenv = cenv;
+      Type.ty_template_args = [];
+    } in
+    Type.Generator.generate_type type_gen (Type.UniqueTy ty_r)
   in
 
   let open Builtin_info in

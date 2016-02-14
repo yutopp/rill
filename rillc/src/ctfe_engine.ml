@@ -144,9 +144,8 @@ let execute engine expr_node expr_ty type_sets =
       ctfe_val
     end
   with
-  | Ctfe_exn.Meta_var_un_evaluatable ->
+  | Ctfe_exn.Meta_var_un_evaluatable uni_id ->
      begin
        L.delete_function f;
-
-       failwith "Meta_var_un_evaluatable"
+       Ctfe_value.Undef uni_id
      end

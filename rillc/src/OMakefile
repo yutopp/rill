@@ -80,7 +80,7 @@ if $(not $(OCAMLFIND_EXISTS))
 #
 # Various options
 #
-OCAMLFLAGS    += -g
+OCAMLFLAGS    += -g -bin-annot
 # OCAMLCFLAGS   +=
 # OCAMLOPTFLAGS +=
 # OCAML_LINK_FLAGS +=
@@ -147,6 +147,7 @@ PROGRAM = rillc
 ########################################################################
 #
 clean:
-    rm -f *~ *.opt *.cmi *.cmx *.cmxa *.o *.omc *.a *.out *.s *.bc *.log *.cache $(PROGRAM) \
+    rm -f *~ *.opt *.cmi *.cmx *.cmt *.cmti *.cmxa *.omc \
+		*.o *.a *.out *.s *.bc *.log *.cache $(PROGRAM) \
 		parser.ml parser.mli tokens.ml tokens.mli lexer.ml \
 		*.conflicts *.automaton

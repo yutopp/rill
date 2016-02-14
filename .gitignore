@@ -16,6 +16,8 @@ s.sh
 
 *.omc
 *.cmi
+*.cmt
+*.cmti
 *.cmx
 *.o
 

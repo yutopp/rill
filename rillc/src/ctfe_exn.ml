@@ -6,4 +6,4 @@
  * http://www.boost.org/LICENSE_1_0.txt)
  *)
 
-exception Meta_var_un_evaluatable
+exception Meta_var_un_evaluatable of Unification.id_t

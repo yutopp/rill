@@ -222,7 +222,8 @@ let rec construct_env node parent_env ctx opt_chain_attr =
      end
 
   | TAst.ExprStmt (TAst.PrevPassNode e) ->
-     let (node, ty) = analyze_expr e parent_env ctx opt_chain_attr in
+     let (node, ty) = analyze_expr ~making_placeholder:false
+                                   e parent_env ctx opt_chain_attr in
      TAst.ExprStmt node
 
   | TAst.EmptyStmt -> node
@@ -233,7 +234,8 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        failwith "construct_env: unsupported node or nodes have no valid env"
      end
 
-and analyze_expr node parent_env ctx attr : ('node * type_info_t)=
+and analyze_expr ?(making_placeholder=false)
+                 node parent_env ctx attr : ('node * type_info_t) =
   match node with
   | Ast.BinaryOpExpr (lhs, op, rhs) ->
      begin
@@ -269,7 +271,8 @@ and analyze_expr node parent_env ctx attr : ('node * type_info_t)=
   | Ast.CallExpr (reciever, args) ->
      begin
        let (rec_node, rec_type_info) =
-         analyze_expr reciever parent_env ctx attr
+         analyze_expr ~making_placeholder:making_placeholder
+                      reciever parent_env ctx attr
        in
 
        let eargs = evaluate_invocation_args args parent_env ctx attr in
@@ -300,8 +303,11 @@ and analyze_expr node parent_env ctx attr : ('node * type_info_t)=
   | (Ast.Id (name, _) as id_node)
   | (Ast.InstantiatedId (name, _, _) as id_node) ->
      begin
-       (* WIP *)
-       let (ty, trg_env) = match solve_identifier id_node parent_env ctx attr with
+       let res =
+         solve_identifier ~making_placeholder:making_placeholder
+                          id_node parent_env ctx attr
+       in
+       let (ty, trg_env) = match res with
            Some v -> v
          | None ->
             (* TODO: change to exception *)
@@ -324,15 +330,18 @@ and analyze_expr node parent_env ctx attr : ('node * type_info_t)=
 
   | Ast.ArrayLit (elems) ->
      begin
-       let (n_nodes, n_tys) = elems
-                          |> List.map (fun e -> analyze_expr e parent_env ctx attr)
-                          |> List.split
+       let (n_nodes, n_tys) =
+         elems
+         |> List.map (fun e -> analyze_expr ~making_placeholder:making_placeholder
+                                            e parent_env ctx attr)
+         |> List.split
        in
+       (* TODO: fix, calc undelying types and convert them *)
+       let elem_ty = List.hd n_tys in   (* TODO: fix *)
+
        let n_array = TAst.ArrayLit (n_nodes) in
-       let n_array_ty = List.hd n_tys in
-       let tyty = get_builtin_array_type n_array_ty 10 ctx in
-       ignore tyty;
-       (n_array, n_array_ty)
+       let array_ty = get_builtin_array_type elem_ty (List.length elems) ctx in
+       (n_array, array_ty)
      end
 
   | _ ->
@@ -458,13 +467,17 @@ and check_id_is_defined_uniquely env id =
   | None -> ()
 
 
-and solve_identifier ?(do_rec_search=true) id_node env ctx attr =
+and solve_identifier ?(do_rec_search=true)
+                     ?(making_placeholder=false)
+                     id_node env ctx attr =
   match id_node with
   | Ast.Id (name, _) ->
      solve_simple_identifier ~do_rec_search:do_rec_search
+                             ~making_placeholder:making_placeholder
                              name env ctx attr
   | Ast.InstantiatedId (name, template_args, _) ->
      begin
+       Printf.printf "$$$$$ Ast.InstantiatedId\n";
        let (evaled_t_args, _) =
          template_args
          |> List.map (fun e -> eval_expr_as_ctfe e env ctx attr)
@@ -472,12 +485,14 @@ and solve_identifier ?(do_rec_search=true) id_node env ctx attr =
        in
        solve_simple_identifier ~do_rec_search:do_rec_search
                                ~template_args:evaled_t_args
+                               ~making_placeholder:making_placeholder
                                name env ctx attr
      end
   | _ -> failwith "unsupported ID type"
 
 and solve_simple_identifier ?(do_rec_search=true)
                             ?(template_args=[])
+                            ?(making_placeholder=false)
                             name search_base_env ctx attr
     : (type_info_t * 'env option) option =
   (*Env.print env;*)
@@ -491,6 +506,7 @@ and solve_simple_identifier ?(do_rec_search=true)
     (ctx.sc_tsets.ts_type_type, Some cenv)
   in
 
+  (* TODO: implement merging *)
   let solve (prev_ty, prev_opt_env) env : (type_info_t * 'env option) =
     let { Env.er = env_r; _ } = env in
     match env_r with
@@ -503,31 +519,62 @@ and solve_simple_identifier ?(do_rec_search=true)
                * some instances (specialized). Thus, type may be unclear...
                *)
               if List.length record.Env.ms_templates <> 0 then
-                let (ty, _) =
-                  Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
-                                               (Type.ClassSetTy (env, template_args))
-                in
-                (ty, Some env)
-              else
-                let num_of_candiates =
-                  List.length record.Env.ms_normal_instances
-                in
-                match num_of_candiates with
-                | 1 ->
-                   let single_cenv = List.hd record.Env.ms_normal_instances in
-                   single_type_id_node name single_cenv attr
-                | n when n >= 1 ->
-                   let (ty, _) =
+                match template_args with
+                | [] ->
+                   let ty =
                      Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
                                                   (Type.ClassSetTy (env, template_args))
                    in
                    (ty, Some env)
+                | xs ->
+                   if making_placeholder then
+                     begin
+                       let uni_id =
+                         Unification.generate_uni_id ctx.sc_unification_ctx in
+                       Unification.update_type ctx.sc_unification_ctx
+                                               uni_id ctx.sc_tsets.ts_type_type;
+                       let ty =
+                         Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
+                                                      (Type.ClassSetTy (env, template_args))
+                       in
+                       Unification.update_value ctx.sc_unification_ctx
+                                                uni_id (Ctfe_value.Type ty);
+
+                       let ty =
+                         Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
+                                                      (Type.NotDetermined (
+                                                           uni_id,
+                                                           template_args)
+                                                      )
+                       in
+                       (ty, Some env)
+                     end
+                   else
+                     begin
+                       let instances =
+                         instantiate_class_templates env xs
+                                                     search_base_env ctx attr
+                       in
+                       match instances with
+                       | [e] -> (ctx.sc_tsets.ts_type_type, Some e)
+                       | _ -> failwith "[ERR]"
+                     end
+
+              else begin
+                if (List.length template_args <> 0) then
+                  failwith "[ERR] there is no template class";
+
+                match List.length record.Env.ms_normal_instances with
+                | 1 ->
+                   let single_cenv = List.hd record.Env.ms_normal_instances in
+                   single_type_id_node name single_cenv attr
                 | _ -> failwith "[ICE] unexpected : class / multi-set"
+              end
             end
          | Env.Kind.Function ->
             begin
               (* functions will be overloaded *)
-              let (ty, _) =
+              let ty =
                 Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
                                              (Type.FunctionSetTy (env, template_args))
               in
@@ -560,10 +607,12 @@ and solve_simple_identifier ?(do_rec_search=true)
          | (Unification.Val ty) ->
             (ty, Some env)
          | (Unification.Undef) ->
-            let (ty, _) =
+            let ty =
               Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
                                            (Type.NotDetermined (
-                                                uni_id, ctx.sc_unification_ctx))
+                                                uni_id,
+                                                template_args)
+                                           )
             in
             (ty, Some env)
          | _ -> failwith "[ICE] meta ver"
@@ -615,12 +664,18 @@ and is_type_convertible_to src_ty dist_ty =
   end
 
 
-and resolve_type expr env ctx attr =
-  let (ty, _) = resolve_type_with_node expr env ctx attr in
+and resolve_type ?(making_placeholder=false) expr env ctx attr =
+  let (ty, _) =
+    resolve_type_with_node ~making_placeholder:making_placeholder
+                           expr env ctx attr
+  in
   ty
 
-and resolve_type_with_node expr env ctx attr =
-  let (ctfe_val, nexpr) = eval_expr_as_ctfe expr env ctx attr in
+and resolve_type_with_node ?(making_placeholder=false) expr env ctx attr =
+  let (ctfe_val, nexpr) =
+    eval_expr_as_ctfe ~making_placeholder:making_placeholder
+                      expr env ctx attr
+  in
   let ty = match ctfe_val with
     | Ctfe_value.Type ty -> ty
     | _ -> failwith "This expression must be type"
@@ -628,17 +683,24 @@ and resolve_type_with_node expr env ctx attr =
   (ty, nexpr)
 
 
-and eval_expr_as_ctfe expr env ctx attr =
-  Printf.printf "-> eval_expr_as_ctfe : begin ; \n";
-  let (nexpr, type_of_expr) = analyze_expr expr env ctx attr in
-  if not (Type.is_unique_ty type_of_expr) then
-    failwith "[ICE] : non unique type";
-
-  (*TAst.print nexpr;*)
+and eval_expr_as_ctfe ?(making_placeholder=false) expr env ctx attr =
+  Printf.printf "----> eval_expr_as_ctfe : begin ; \n";
+  let (nexpr, type_of_expr) =
+    analyze_expr ~making_placeholder:making_placeholder
+                 expr env ctx attr
+  in
   let ctfe_val =
-    Ctfe_engine.execute ctx.sc_ctfe_engine nexpr type_of_expr ctx.sc_tsets in
+    match Type.type_sort type_of_expr with
+    | Type.UniqueTy _ ->
+       Ctfe_engine.execute ctx.sc_ctfe_engine nexpr type_of_expr ctx.sc_tsets
 
-  Printf.printf "<- eval_expr_as_ctfe : end\n";
+    | Type.NotDetermined _ ->
+       Ctfe_value.Type type_of_expr
+
+    | _ -> failwith "[ICE] eval_expr_as_ctfe : couldn't resolve"
+  in
+
+  Printf.printf "<---- eval_expr_as_ctfe : end\n";
   (ctfe_val, nexpr)
 
 
@@ -700,7 +762,7 @@ and solve_function_overload arg_types tamplate_args mset_env ext_env ctx attr =
          | _ ->
             begin
               let instanced_envs =
-                instantiate_function_templates mset_env arg_types [] ext_env ctx attr
+                instantiate_function_templates mset_env [] arg_types ext_env ctx attr
               in
 
               let (instanced_f_level, instanced_fs_and_args) =
@@ -720,7 +782,7 @@ and solve_function_overload arg_types tamplate_args mset_env ext_env ctx attr =
   | _ ->
      begin
        let instanced_envs =
-         instantiate_function_templates mset_env arg_types tamplate_args
+         instantiate_function_templates mset_env tamplate_args arg_types
                                         ext_env ctx attr
        in
 
@@ -784,134 +846,12 @@ and find_suitable_functions f_candidates arg_types ext_env ctx attr =
     (level, fs_and_args)
 
 
-and instantiate_function_templates menv arg_types template_args ext_env ctx attr =
-  let mset_record = Env.MultiSetOp.get_record menv in
+and instantiate_function_templates menv template_args arg_types ext_env ctx attr =
   let instantiate t_env_record =
-    Printf.printf "&& start instantiation\n";
-    let template_params =
-      match t_env_record.Env.tl_params with
-      | TAst.PrevPassNode (Ast.TemplateParamsList params) -> params
-      | _ -> failwith "[ICE] unexpected template params"
+    let (temp_env, meta_var_names, uni_ids) =
+      prepare_instantiate_template t_env_record template_args
+                                   ext_env ctx attr
     in
-
-    (* In this context, value of MetaVar is treated as TYPE *)
-
-    let (meta_var_names, meta_var_inits) =
-      List.split template_params
-    in
-
-    (* temporary environment for evalutate meta variables.
-     * DO NOT append this env to the parent_env.
-     *)
-    let temp_env =
-      Env.create_env ext_env (Env.Temporary (Env.empty_lookup_table ())) in
-
-    (* generate meta variables which have no value and no type *)
-    let generate_meta_var name =
-      let uni_id =
-        Unification.generate_uni_id ctx.sc_unification_ctx in
-      let e = Env.create_env temp_env (Env.MetaVariable uni_id) in
-      (uni_id, e)
-    in
-    let (uni_ids, meta_envs) =
-      List.map generate_meta_var meta_var_names
-      |> List.split
-    in
-    (* declare *)
-    List.iter2 (fun n e -> Env.add_inner_env temp_env n e)
-               meta_var_names meta_envs;
-
-    (* let *)
-    let get_meta_var_ty_env meta_var_name =
-      let s_meta_var_name = Nodes.Pure meta_var_name in
-      let opt_meta_var =
-        solve_simple_identifier ~do_rec_search:false
-                                s_meta_var_name temp_env ctx attr
-      in
-      let ty_env = match opt_meta_var with
-        | Some v -> v
-        | None ->
-           (*TODO change to exception *)
-           failwith "template parameter is not found"
-      in
-      ty_env
-    in
-    let meta_vars_ty_env = List.map get_meta_var_ty_env meta_var_names in
-
-    (* set types of meta var *)
-    let set_meta_var_type (var_ty, env) opt_init =
-      match opt_init with
-      (* :U *)
-      | Some (Some ty_expr, None) ->
-         begin
-           let ty = resolve_type ty_expr temp_env ctx None in
-           unify_type var_ty ty
-         end
-      (* = V *)
-      | Some (None, Some value) -> failwith "not supported"
-      (* :U = V *)
-      | Some (Some ty, Some value) -> failwith "not supported"
-      | Some (None, None) -> failwith "[ICE] unexpected"
-
-      | None ->
-         begin
-           match Type.type_sort var_ty with
-           | Type.NotDetermined (uni_t_id, uni_map) ->
-              begin
-                (* unify *)
-                unify_type var_ty ctx.sc_tsets.ts_type_type;
-              end
-           | _ -> failwith "not implemented 01"
-         end
-    in
-    List.iter2 set_meta_var_type meta_vars_ty_env meta_var_inits;
-
-    Printf.printf "== PRINT META VARIABLES (after type set)\n";
-    List.iter (fun c -> print_meta_var c ctx) uni_ids;
-
-    let set_default_value (name, _)=
-      let s_name = Nodes.Pure name in
-      let opt_meta_var =
-        solve_simple_identifier ~do_rec_search:false
-                                s_name temp_env ctx attr
-      in
-      let (ty, uni_id) = match opt_meta_var with
-        | Some (ty, Some {Env.er = Env.MetaVariable (uni_id)}) -> (ty, uni_id)
-        | _ -> failwith ""
-      in
-      if Type.has_same_class ty ctx.sc_tsets.ts_type_type then
-        begin
-          let (ud_ty, _) =
-            Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
-                                         (Type.NotDetermined (
-                                              uni_id,
-                                              ctx.sc_unification_ctx))
-          in
-          let type_val = Ctfe_value.Type ud_ty in
-          Unification.update_value ctx.sc_unification_ctx uni_id type_val;
-          type_val
-        end
-      else
-        let undef_val = Ctfe_value.Undef (uni_id, ctx.sc_unification_ctx) in
-        Unification.update_value ctx.sc_unification_ctx uni_id undef_val;
-        undef_val
-    in
-    let template_params_default_values =
-      template_params |> List.map set_default_value
-    in
-
-    Printf.printf "== PRINT META VARIABLES (after default value set)\n";
-    List.iter (fun c -> print_meta_var c ctx) uni_ids;
-
-    Printf.printf "\nREACHED / set_default_value\n";
-
-
-    (* match values by template args *)
-    Enum.iter2 (unify_arg_value ctx)
-               (List.enum template_params_default_values)
-               (List.enum template_args);
-
-    (* TODO: assign default template parameter values *)
 
     (* match valuse by arg types *)
     let inner_node = t_env_record.Env.tl_inner_node in
@@ -926,13 +866,15 @@ and instantiate_function_templates menv arg_types template_args ext_env ctx attr
     in
     let get_param_type (_, init) =
       match init with
-      | (Some ty_node, _) -> resolve_type ty_node temp_env ctx attr
+      | (Some ty_node, _) -> resolve_type ~making_placeholder:true
+                                          ty_node temp_env ctx attr
       | _ -> failwith "not implemented / param nodes"
     in
+    Printf.printf "\n      getting param types =============- \n";
     let param_types = List.map get_param_type parameters in
 
     List.iter print_type param_types;
-    Printf.printf "\nREACHED / param_types\n";
+    Printf.printf "\n      REACHED / param_types\n";
 
     let params_type_value = List.map (fun x -> Ctfe_value.Type x) param_types in
     let args_type_value = List.map (fun x -> Ctfe_value.Type x) arg_types in
@@ -940,81 +882,29 @@ and instantiate_function_templates menv arg_types template_args ext_env ctx attr
                (List.enum params_type_value)
                (List.enum args_type_value);
 
-    Printf.printf "\nREACHED / unify_arg_type\n";
+    Printf.printf "\n      REACHED / unify_arg_type =============- \n";
     List.iter (fun c -> print_meta_var c ctx) uni_ids;
 
-    let normalize_meta_var uni_id =
-      let normalize_uni_value uni_id =
-        let (last_uni_id, c) =
-          Unification.search_value_until_terminal ctx.sc_unification_ctx uni_id
-        in
-        match c with
-        | Unification.Val v ->
-           begin
-             match v with
-             | Ctfe_value.Undef _ -> failwith "[ERR] not resolved"
-             | _ -> Unification.update_value ctx.sc_unification_ctx uni_id v
-           end
-        | _ -> failwith "[ERR] not resolved"
-      in
-      let normalize_uni_type uni_id =
-        let (last_uni_id, c) =
-          Unification.search_type_until_terminal ctx.sc_unification_ctx uni_id
-        in
-        match c with
-        | Unification.Val v ->
-           Unification.update_type ctx.sc_unification_ctx uni_id v
-        | _ -> failwith "[ERR] not resolved"
-      in
-
-      normalize_uni_type uni_id;
-      normalize_uni_value uni_id
-    in
-    List.iter normalize_meta_var uni_ids;
-
-    let mangled_sym =
-      uni_ids
-      |> List.map (Unification.get_as_value ctx.sc_unification_ctx)
-      |> (fun x -> Mangle.s_of_template_args x ctx.sc_tsets)
-    in
-    String.print stdout mangled_sym;
-
-    let cache = Hashtbl.find_option mset_record.Env.ms_instanced_args_memo mangled_sym in
-    match cache with
-    | Some e -> e   (* DO NOTHING, because this template is already generated *)
-    | None ->
-       begin
-         let mvs = List.combine meta_var_names uni_ids in
-
-         (**)
-         let env_parent = Option.get menv.Env.parent_env in
-         let n_ast = analyze ~meta_variables:mvs inner_node env_parent ctx in
-
-         let i_env = match n_ast with
-           | TAst.FunctionDefStmt (_, _, _, _, _, Some e)
-           | TAst.ExternFunctionDefStmt (_, _, _, _, _, Some e) -> e
-           | _ -> failwith "[ICE]"
-         in
-
-         Hashtbl.add mset_record.Env.ms_instanced_args_memo mangled_sym i_env;
-         i_env
-       end
+    (**)
+    complate_template_instance menv t_env_record
+                               meta_var_names uni_ids
+                               ctx attr
   in
+  let mset_record = Env.MultiSetOp.get_record menv in
   List.map instantiate mset_record.Env.ms_templates
 
 
-and unify_type lhs rhs =
+and unify_type ctx lhs rhs =
+  let uni_map = ctx.sc_unification_ctx in
   match (lhs, rhs) with
-  | ({Type.ti_sort = Type.NotDetermined (lhs_uni_t_id, lhs_uni_map)},
-     {Type.ti_sort = Type.NotDetermined (rhs_uni_t_id, rhs_uni_map)}) ->
+  | ({Type.ti_sort = Type.NotDetermined (lhs_uni_t_id, _)},
+     {Type.ti_sort = Type.NotDetermined (rhs_uni_t_id, _)}) ->
      begin
-       assert (lhs_uni_map == rhs_uni_map); (* same instance *)
-       let uni_map = lhs_uni_map in
        Unification.link_type uni_map lhs_uni_t_id rhs_uni_t_id
      end
   | (({Type.ti_sort = (Type.UniqueTy _)} as ty),
-     {Type.ti_sort = Type.NotDetermined (uni_t_id, uni_map)})
-  | ({Type.ti_sort = Type.NotDetermined (uni_t_id, uni_map)},
+     {Type.ti_sort = Type.NotDetermined (uni_t_id, _)})
+  | ({Type.ti_sort = Type.NotDetermined (uni_t_id, _)},
      ({Type.ti_sort = (Type.UniqueTy _)} as ty))
     ->
      begin
@@ -1023,22 +913,34 @@ and unify_type lhs rhs =
   | _ -> failwith "[ICE] unify_type"
 
 
-and unify_type_value lhs rhs =
+and unify_type_value ctx lhs rhs =
+  let uni_map = ctx.sc_unification_ctx in
   match (lhs, rhs) with
-  | ({Type.ti_sort = Type.NotDetermined (lhs_uni_t_id, lhs_uni_map)},
-     {Type.ti_sort = Type.NotDetermined (rhs_uni_t_id, rhs_uni_map)}) ->
+  | ({Type.ti_sort = Type.NotDetermined (lhs_uni_t_id, _)},
+     {Type.ti_sort = Type.NotDetermined (rhs_uni_t_id, _)}) ->
      begin
-       assert (lhs_uni_map == rhs_uni_map); (* same instance *)
        Printf.printf "!! unify_type_value(T/T) / %d = %d\n" lhs_uni_t_id rhs_uni_t_id;
-       let uni_map = lhs_uni_map in
        Unification.link_value uni_map lhs_uni_t_id rhs_uni_t_id
      end
-  | (({Type.ti_sort = (Type.UniqueTy _)} as ty),
-     {Type.ti_sort = Type.NotDetermined (uni_t_id, uni_map)})
-  | ({Type.ti_sort = Type.NotDetermined (uni_t_id, uni_map)}
-    , ({Type.ti_sort = (Type.UniqueTy _)} as ty)) ->
+  | (({Type.ti_sort = (Type.UniqueTy ty_r)} as ty),
+     {Type.ti_sort = Type.NotDetermined (uni_t_id, holder_args)})
+  | ({Type.ti_sort = Type.NotDetermined (uni_t_id, holder_args)}
+    , ({Type.ti_sort = (Type.UniqueTy ty_r)} as ty)) ->
      begin
-       Printf.printf "!! unify_type_value(T|V) / %d -> value\n" uni_t_id;
+       let {
+         (*Type.ty_cenv = cenv;*)
+         Type.ty_template_args = args;
+       } = ty_r in
+       Printf.printf "!! unify_type_value(T|V) / %d -> value [%d, %d]\n"
+                     uni_t_id
+                     (List.length args)
+                     (List.length holder_args);
+
+       (* TODO: support variadic args *)
+       Enum.iter2 (unify_arg_value ctx)
+                  (List.enum args)
+                  (List.enum holder_args);
+
        Unification.update_value uni_map uni_t_id (Ctfe_value.Type ty)
      end
   | (({Type.ti_sort = (Type.UniqueTy _)} as lhs_ty),
@@ -1050,7 +952,9 @@ and unify_type_value lhs rhs =
 
   | (lhs, rhs) ->
      begin
+       Printf.printf "lhs==\n";
        print_type lhs;
+       Printf.printf "rhs==\n";
        print_type rhs;
        failwith "[ICE] unify_value_type"
      end
@@ -1060,13 +964,13 @@ and unify_arg_value ctx lhs rhs =
   match (lhs, rhs) with
   | (Ctfe_value.Type lhs_ty, Ctfe_value.Type rhs_ty) ->
      begin
-       unify_type_value lhs_ty rhs_ty
+       unify_type_value ctx lhs_ty rhs_ty
      end
-  | (Ctfe_value.Undef (uni_id, uni_map), Ctfe_value.Int32 i32)
-  | (Ctfe_value.Int32 i32, Ctfe_value.Undef (uni_id, uni_map)) ->
+  | (Ctfe_value.Undef uni_id, Ctfe_value.Int32 i32)
+  | (Ctfe_value.Int32 i32, Ctfe_value.Undef uni_id) ->
      begin
        Printf.printf "!! unify_meta_value(T|V) / %d -> value\n" uni_id;
-       Unification.update_value uni_map uni_id (Ctfe_value.Int32 i32)
+       Unification.update_value ctx.sc_unification_ctx uni_id (Ctfe_value.Int32 i32)
      end
   | _ -> failwith "[ICE] not implemented"
 
@@ -1086,7 +990,7 @@ and print_type ty =
   | Type.FunctionSetTy _ -> Printf.printf "function set\n"
   | Type.ClassSetTy _ -> Printf.printf "class set\n"
   | Type.Undef -> Printf.printf "@undef@\n"
-  | Type.NotDetermined (uni_id, uni_map) ->
+  | Type.NotDetermined (uni_id, _) ->
      begin
        Printf.printf "@not determined [%d]\n" uni_id
      end
@@ -1173,186 +1077,222 @@ and select_member_element ?(universal_search=false) recv_ty t_id env ctx attr =
          None
      end
 
-and instantiate_class_templates menv template_args ctx ext_env attr =
-  ()
-    (*
-  let mset_record = Env.MultiSetOp.get_record menv in
-  let instantiate t_env_record =
-    Printf.printf "&& start instantiation\n";
-    let template_params =
-      match t_env_record.Env.tl_params with
-      | TAst.PrevPassNode (Ast.TemplateParamsList params) -> params
-      | _ -> failwith "[ICE] unexpected template params"
-    in
 
-    (* In this context, value of MetaVar is treated as TYPE *)
+and prepare_instantiate_template t_env_record template_args ext_env ctx attr =
+  Printf.printf "\n-----\n&& start instantiation = %s\n-----\n\n"
+                (Nodes.string_of_id_string t_env_record.Env.tl_name);
 
-    let (meta_var_names, meta_var_inits) =
-      List.split template_params
-    in
-
-    (* temporary environment for evalutate meta variables *)
-    let temp_env =
-      Env.create_env ext_env (Env.Temporary (Env.empty_lookup_table ())) in
-
-    (* generate meta variables which have no value and no type *)
-    let generate_meta_var name =
-      let uni_id =
-        Unification.generate_uni_id ctx.sc_unification_ctx in
-      let e = Env.create_env temp_env (Env.MetaVariable uni_id) in
-      (uni_id, e)
-    in
-    let (uni_ids, meta_envs) =
-      List.map generate_meta_var meta_var_names
-      |> List.split
-    in
-    (* declare *)
-    List.iter2 (fun n e -> Env.add_inner_env temp_env n e)
-               meta_var_names meta_envs;
-
-    (* let *)
-    let get_meta_var_ty_env meta_var_name =
-      let s_meta_var_name = Nodes.Pure meta_var_name in
-      let opt_meta_var =
-        solve_simple_identifier ~do_rec_search:false
-                                s_meta_var_name temp_env ctx attr
-      in
-      let ty_env = match opt_meta_var with
-        | Some v -> v
-        | None ->
-           (*TODO change to exception *)
-           failwith "template parameter is not found"
-      in
-      ty_env
-    in
-    let meta_vars_ty_env = List.map get_meta_var_ty_env meta_var_names in
-
-    (* set types of meta var *)
-    let set_meta_var_type (ty, env) opt_init =
-      match opt_init with
-      (* :U *)
-      | Some (Some ty, None) -> failwith "not supported"
-      (* = V *)
-      | Some (None, Some value) -> failwith "not supported"
-      (* :U = V *)
-      | Some (Some ty, Some value) -> failwith "not supported"
-      | Some (None, None) -> failwith "[ICE] unexpected"
-
-      | None ->
-         begin
-           match Type.type_sort ty with
-           | Type.NotDetermined (uni_t_id, uni_map) ->
-              begin
-                (* unify *)
-                unify_type ty ctx.sc_tsets.ts_type_type;
-              end
-           | _ -> failwith "not implemented 01"
-         end
-    in
-    List.iter2 set_meta_var_type meta_vars_ty_env meta_var_inits;
-
-
-    let set_default_value (name, _)=
-      let s_name = Nodes.Pure name in
-      let opt_meta_var =
-        solve_simple_identifier ~do_rec_search:false
-                                s_name temp_env ctx attr
-      in
-      let (ty, uni_id) = match opt_meta_var with
-        | Some (ty, Some {Env.er = Env.MetaVariable (uni_id); _}) -> (ty, uni_id)
-        | _ -> failwith ""
-      in
-      if Type.has_same_class ty ctx.sc_tsets.ts_type_type then
-        begin
-          let (ud_ty, _) =
-            Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
-                                         (Type.NotDetermined (
-                                              uni_id,
-                                              ctx.sc_unification_ctx))
-          in
-          let type_val = Ctfe_value.Type ud_ty in
-          Unification.update_value ctx.sc_unification_ctx uni_id type_val
-        end
-      else
-        failwith "not implemented / inst"
-    in
-    template_params |> List.iter set_default_value;
-
-    List.iter (fun c -> print_meta_var c ctx) uni_ids;
-
-    Printf.printf "\nREACHED / set_default_value\n";
-
-    (* TODO: implement match values by template args *)
-
-    (* match valuse by arg types *)
-    let inner_node = t_env_record.Env.tl_inner_node in
-    let inner_node = match inner_node with
-      | TAst.PrevPassNode n -> n
-      | _ -> failwith ""
-    in
-    let parameters = match inner_node with
-      | Ast.FunctionDefStmt (_, Ast.ParamsList params, _, _, _, _) -> params
-      | Ast.ExternFunctionDefStmt (_, Ast.ParamsList params, _, _, _, _) -> params
-      | _ -> failwith ""
-    in
-    let get_param_type (_, init) =
-      match init with
-      | (Some ty_node, _) -> resolve_type ty_node temp_env ctx attr
-      | _ -> failwith "not implemented / param nodes"
-    in
-    let param_types = List.map get_param_type parameters in
-
-    List.iter print_type param_types;
-    Printf.printf "\nREACHED / param_types\n";
-
-    let params_ = List.map (fun x -> Ctfe_value.Type x) param_types in
-    let args_ = List.map (fun x -> Ctfe_value.Type x) arg_types in
-    List.iter2 unify_arg_type params_ args_;
-
-    Printf.printf "\nREACHED / unify_arg_type\n";
-
-
-    let normalize_meta_var uni_id =
-      let normalize_uni_value uni_id =
-        let (last_uni_id, c) =
-          Unification.search_value_until_terminal ctx.sc_unification_ctx uni_id
-        in
-        match c with
-        | Unification.Val v ->
-           Unification.update_value ctx.sc_unification_ctx uni_id v
-        | _ -> failwith "[ERR] not resolved"
-      in
-      let normalize_uni_type uni_id =
-        let (last_uni_id, c) =
-          Unification.search_type_until_terminal ctx.sc_unification_ctx uni_id
-        in
-        match c with
-        | Unification.Val v ->
-           Unification.update_type ctx.sc_unification_ctx uni_id v
-        | _ -> failwith "[ERR] not resolved"
-      in
-
-      normalize_uni_value uni_id;
-      normalize_uni_type uni_id
-    in
-    List.iter normalize_meta_var uni_ids;
-
-    let make_mv_set name uni_id =
-      let mv = Env.MetaVariable uni_id in
-      (name, mv)
-    in
-    let mvs = List.map2 make_mv_set meta_var_names uni_ids in
-
-    (**)
-    let env_parent = Option.get menv.Env.parent_env in
-    let _ = analyze ~meta_variables:mvs inner_node env_parent ctx in
-
-    ()
+  let template_params =
+    match t_env_record.Env.tl_params with
+    | TAst.PrevPassNode (Ast.TemplateParamsList params) -> params
+    | _ -> failwith "[ICE] unexpected template params"
   in
-  List.iter instantiate mset_record.Env.ms_templates
-     *)
 
-and get_builtin_int_type ?(bits=32) ?(signed=true) ctx =
+  (* In this context, value of MetaVar is treated as TYPE *)
+
+  let (meta_var_names, meta_var_inits) =
+    List.split template_params
+  in
+
+  (* temporary environment for evalutate meta variables.
+   * DO NOT append this env to the parent_env.
+   *)
+  let temp_env =
+    Env.create_env ext_env (Env.Temporary (Env.empty_lookup_table ())) in
+
+  (* generate meta variables which have no value and no type *)
+  let generate_meta_var name =
+    let uni_id =
+      Unification.generate_uni_id ctx.sc_unification_ctx in
+    let e = Env.create_env temp_env (Env.MetaVariable uni_id) in
+    (uni_id, e)
+  in
+  let (uni_ids, meta_envs) =
+    List.map generate_meta_var meta_var_names
+    |> List.split
+  in
+  (* declare *)
+  List.iter2 (fun n e -> Env.add_inner_env temp_env n e)
+             meta_var_names meta_envs;
+
+  (* let *)
+  let get_meta_var_ty_env meta_var_name =
+    let s_meta_var_name = Nodes.Pure meta_var_name in
+    let opt_meta_var =
+      solve_simple_identifier ~do_rec_search:false
+                              s_meta_var_name temp_env ctx attr
+    in
+    let ty_env = match opt_meta_var with
+      | Some v -> v
+      | None ->
+         (*TODO change to exception *)
+         failwith "template parameter is not found"
+    in
+    ty_env
+  in
+
+  (* set types of meta var *)
+  let set_meta_var_type (var_ty, env) opt_init =
+    match opt_init with
+    (* :U *)
+    | Some (Some ty_expr, None) ->
+       let ty = resolve_type ty_expr temp_env ctx None in
+       unify_type ctx var_ty ty
+
+    (* = V *)
+    | Some (None, Some value) -> failwith "not supported"
+    (* :U = V *)
+    | Some (Some ty, Some value) -> failwith "not supported"
+    | Some (None, None) -> failwith "[ICE] unexpected"
+
+    | None ->
+       begin
+         match Type.type_sort var_ty with
+         | Type.NotDetermined (uni_t_id, _) ->
+            unify_type ctx var_ty ctx.sc_tsets.ts_type_type;
+
+         | _ -> failwith "not implemented 01"
+       end
+  in
+  let meta_vars_ty_env = List.map get_meta_var_ty_env meta_var_names in
+  List.iter2 set_meta_var_type meta_vars_ty_env meta_var_inits;
+
+  Printf.printf "== PRINT META VARIABLES (after type set)\n";
+  List.iter (fun c -> print_meta_var c ctx) uni_ids;
+
+  let set_default_value meta_var =
+    let (ty, uni_id) = match meta_var with
+      | (ty, Some {Env.er = Env.MetaVariable (uni_id)}) -> (ty, uni_id)
+      | _ -> failwith ""
+    in
+    if Type.has_same_class ty ctx.sc_tsets.ts_type_type then
+      begin
+        let ud_ty =
+          Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
+                                       (Type.NotDetermined (
+                                            uni_id,
+                                            [])
+                                       )
+        in
+        let type_val = Ctfe_value.Type ud_ty in
+        Unification.update_value ctx.sc_unification_ctx uni_id type_val;
+        type_val
+      end
+    else
+      let undef_val = Ctfe_value.Undef uni_id in
+      Unification.update_value ctx.sc_unification_ctx uni_id undef_val;
+      undef_val
+  in
+  let template_params_default_values =
+    meta_var_names
+    |> List.map get_meta_var_ty_env
+    |> List.map set_default_value
+  in
+
+  Printf.printf "== PRINT META VARIABLES (after default value set)\n";
+  List.iter (fun c -> print_meta_var c ctx) uni_ids;
+
+  Printf.printf "\nREACHED / set_default_value\n";
+
+  Printf.printf "len(template_params_default_values) = %d\n"
+                (List.length template_params_default_values);
+  Printf.printf "len(template_args) = %d\n"
+                (List.length template_args);
+
+  (* match values by template args *)
+  Enum.iter2 (unify_arg_value ctx)
+             (List.enum template_params_default_values)
+             (List.enum template_args);
+
+  Printf.printf "\nREACHED / unify_arg_value\n";
+
+  (* TODO: assign default template parameter values *)
+  (temp_env, meta_var_names, uni_ids)
+
+and complate_template_instance ?(making_placeholder=false)
+                               menv t_env_record meta_var_names uni_ids ctx attr =
+  let normalize_meta_var uni_id =
+    let normalize_uni_value uni_id =
+      let (last_uni_id, c) =
+        Unification.search_value_until_terminal ctx.sc_unification_ctx uni_id
+      in
+      match c with
+      | Unification.Val v ->
+         begin
+           match v with
+           | Ctfe_value.Undef _ -> failwith "[ERR] not resolved"
+           | _ -> Unification.update_value ctx.sc_unification_ctx uni_id v
+         end
+      | _ -> failwith "[ERR] not resolved"
+    in
+    let normalize_uni_type uni_id =
+      let (last_uni_id, c) =
+        Unification.search_type_until_terminal ctx.sc_unification_ctx uni_id
+      in
+      match c with
+      | Unification.Val v ->
+         Unification.update_type ctx.sc_unification_ctx uni_id v
+      | _ -> failwith "[ERR] not resolved"
+    in
+
+    normalize_uni_type uni_id;
+    normalize_uni_value uni_id
+  in
+  List.iter normalize_meta_var uni_ids;
+
+  let mangled_sym =
+    uni_ids
+    |> List.map (Unification.get_as_value ctx.sc_unification_ctx)
+    |> (fun x -> Mangle.s_of_template_args x ctx.sc_tsets)
+  in
+  String.print stdout mangled_sym;
+
+  let mset_record = Env.MultiSetOp.get_record menv in
+  let inner_node = match t_env_record.Env.tl_inner_node with
+    | TAst.PrevPassNode n -> n
+    | _ -> failwith ""
+  in
+
+  let cache = Hashtbl.find_option mset_record.Env.ms_instanced_args_memo mangled_sym in
+  match cache with
+  | Some env -> env (* DO NOTHING, because this template is already generated *)
+  | None ->
+     begin
+       let mvs = List.combine meta_var_names uni_ids in
+
+       (**)
+       let env_parent = Option.get menv.Env.parent_env in
+       let n_ast = analyze ~meta_variables:mvs inner_node env_parent ctx in
+
+       let i_env = match n_ast with
+         | TAst.FunctionDefStmt (_, _, _, _, _, Some e)
+         | TAst.ExternFunctionDefStmt (_, _, _, _, _, Some e) -> e
+         | TAst.ExternClassDefStmt (_, _, Some e) -> e
+         | _ -> failwith "[ICE]"
+       in
+
+       Hashtbl.add mset_record.Env.ms_instanced_args_memo mangled_sym i_env;
+       i_env
+     end
+
+
+(* XXX: should ext_env be parent env of menv...? *)
+and instantiate_class_templates menv template_args ext_env ctx attr =
+  let instantiate t_env_record =
+    let (temp_env, meta_var_names, uni_ids) =
+      prepare_instantiate_template t_env_record template_args
+                                   ext_env ctx attr
+    in
+    complate_template_instance menv t_env_record
+                               meta_var_names uni_ids
+                               ctx attr
+  in
+  let mset_record = Env.MultiSetOp.get_record menv in
+  List.map instantiate mset_record.Env.ms_templates
+
+
+and get_builtin_int_type ?(bits=32) ?(signed=true)
+                         ctx : 'env type_info =
   let ty = match bits with
     | 32 -> if signed then
               !(ctx.sc_tsets.ts_int32_type_holder)
@@ -1363,26 +1303,43 @@ and get_builtin_int_type ?(bits=32) ?(signed=true) ctx =
   assert (not @@ Type.is_undef ty);
   ty
 
-and get_builtin_void_type ctx =
+and get_builtin_void_type ctx : 'env type_info =
   let ty = !(ctx.sc_tsets.ts_void_type_holder) in
   assert (not @@ Type.is_undef ty);
   ty
 
-and get_builtin_array_type ty len ctx =
-  let ty = !(ctx.sc_tsets.ts_array_type_holder) in
-  assert (not @@ Type.is_undef ty);
+and get_builtin_array_type elem_ty len ctx : 'env type_info =
+  let arr_ty = !(ctx.sc_tsets.ts_array_type_holder) in
+  assert (not @@ Type.is_undef arr_ty);
+
+  Printf.printf "========= Array Element\n";
+  print_type elem_ty;
+
+  let ty = match Type.type_sort arr_ty with
+    | Type.ClassSetTy (menv, _) ->
+       begin
+         let template_args = [Ctfe_value.Type elem_ty;
+                              Ctfe_value.Int32 (Int32.of_int len)
+                             ] in
+         let ext_env = Option.get menv.Env.parent_env in
+         let instances =
+           instantiate_class_templates menv template_args
+                                       ext_env ctx None
+         in
+         match instances with
+         | [e] ->
+            let ty_r = {
+              Type.ty_cenv = e;
+              Type.ty_template_args = template_args;
+            } in
+            Type.Generator.generate_type ctx.sc_tsets.ts_type_gen (Type.UniqueTy ty_r)
+
+         | _ -> failwith "[ICE] unexpected array instances"
+       end
+    | _ -> failwith "[ICE] unexpected"
+  in
   print_type ty;
-
-  match Type.type_sort ty with
-  | Type.ClassSetTy (menv, _) ->
-     begin
-       let args = [Ctfe_value.Type ty, Ctfe_value.Int32 (Int32.of_int len)] in
-       let ext_env = Option.get menv.Env.parent_env in
-       ignore @@ instantiate_class_templates menv args ctx ext_env None;
-       failwith "YoyO"
-     end
-  | _ -> failwith "[ICE] unexpected"
-
+  ty
 
 (* *)
 and cache_builtin_type_info preset_ty name ctx =
@@ -1400,11 +1357,13 @@ and cache_builtin_type_info preset_ty name ctx =
        (* pure type *)
        | Some (ty, Some c_env) when ty == ctx.sc_tsets.ts_type_type ->
           begin
-            let (prim_ty, _) =
+            let ty_r = {
+              Type.ty_cenv = c_env;
+              Type.ty_template_args = [];
+            } in
+            let prim_ty =
               Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
-                                           (Type.UniqueTy {
-                                                Type.ty_cenv = c_env;
-                                              })
+                                           (Type.UniqueTy ty_r)
             in
             preset_ty := prim_ty;
           end

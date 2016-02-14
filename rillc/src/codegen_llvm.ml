@@ -137,10 +137,16 @@ let rec code_generate ~bb node ctx =
        begin
          if Ctx.is_env_defined ctx env then ();
 
-         let ty = try Ctx.find_builtin_type ctx extern_cname with
-                  | Not_found ->
-                     failwith (Printf.sprintf "[ICE] builtin class \"%s\" is not found"
-                                              extern_cname)
+         let ty_gen = try Ctx.find_builtin_type ctx extern_cname with
+                      | Not_found ->
+                         failwith (Printf.sprintf "[ICE] builtin class \"%s\" is not found"
+                                                  extern_cname)
+         in
+         let ty = match ty_gen with
+           | Ctx.Const ty -> ty
+           | Ctx.Gen f ->
+              let cenv_r = Env.ClassOp.get_record env in
+              f cenv_r.Env.cls_template_vals
          in
          Ctx.bind_env_to_type ctx env ty;
 
@@ -230,6 +236,19 @@ and code_generate_as_value ?(bb=None) node ctx =
        L.const_int (L.i32_type ctx.ir_context) v
      end
 
+  | TAst.ArrayLit (elems) ->
+     begin
+       (* XXX: adhoc implementation, fix it *)
+       let ll_elems =
+         elems
+         |> List.map (fun n -> code_generate_as_value ~bb:bb n ctx)
+         |> Array.of_list
+       in
+       let llty = L.type_of ll_elems.(0) in
+
+       L.const_array (L.array_type llty (Array.length ll_elems)) ll_elems
+     end
+
   | TAst.Id (name, Some rel_env) ->
      begin
        let { Env.er = er; _ } = rel_env in
@@ -256,12 +275,14 @@ and code_generate_as_value ?(bb=None) node ctx =
             match ctx.type_generator with
             | Some gen ->
                begin
-                 let (_, itype_id) =
-                   Type.Generator.generate_type gen (Type.UniqueTy
-                                                       {
-                                                         Type.ty_cenv = rel_env;
-                                                       })
+                 let ty_r = {
+                   Type.ty_cenv = rel_env;
+                   Type.ty_template_args = r.Env.cls_template_vals;
+                 } in
+                 let ty =
+                   Type.Generator.generate_type gen (Type.UniqueTy ty_r)
                  in
+                 let itype_id = Option.get ty.Type.ti_id in
                  Printf.printf "##### type_id = %s\n" (Int64.to_string itype_id);
 
                  (* return the internal typeid as a type *)
@@ -308,7 +329,7 @@ and code_generate_as_value ?(bb=None) node ctx =
                                    L.const_of_int64 (L.i64_type ctx.ir_context)
                                                     tid
                                                     Type.is_type_id_signed
-                                | None -> failwith "[ICE] codegen_llvm : nontermin"
+                                | None -> failwith "[ICE] codegen_llvm : has no type_id"
                               end
                            | _-> failwith "[ICE] codegen_llvm : type"
                          end
@@ -317,14 +338,17 @@ and code_generate_as_value ?(bb=None) node ctx =
                          L.const_of_int64 (L.i32_type ctx.ir_context)
                                           (Int32.to_int64 i32)
                                           false (* not signed *)
-                      | _ -> failwith "Unsupported value"
+
+                      | Ctfe_value.Undef ud_uni_id ->
+                         raise @@ Ctfe_exn.Meta_var_un_evaluatable ud_uni_id
+
                     end
-                 | _ -> raise Ctfe_exn.Meta_var_un_evaluatable
+                 | _ -> raise @@ Ctfe_exn.Meta_var_un_evaluatable uni_id
                end
             | None ->
                begin
                  Env.print rel_env;
-                 failwith "[ICE] TAst.Id: meta variable in RUNTIME"
+                 failwith "[ICE] codegen_llvm : TAst.Id / meta variable in RUNTIME"
                end
           end
 
@@ -382,7 +406,6 @@ and lltype_of_typeinfo ~bb ty ctx =
   let open Ctx in
   let {
     Type.ty_cenv = cenv;
-    _
   } = Type.as_unique ty in
   let ll_ty = find_type_from_env_with_force_generation ~bb:bb ctx cenv in
   ll_ty
@@ -423,10 +446,35 @@ let inject_builtins ctx =
    *)
   begin
     let open Builtin_info in
-    register_builtin_type type_type_i.internal_name (L.i64_type ctx.ir_context);
+    register_builtin_type type_type_i.internal_name
+                          (Ctx.Const (L.i64_type ctx.ir_context));
 
-    register_builtin_type void_type_i.internal_name (L.void_type ctx.ir_context);
-    register_builtin_type int32_type_i.internal_name (L.i32_type ctx.ir_context);
+    register_builtin_type void_type_i.internal_name
+                          (Ctx.Const (L.void_type ctx.ir_context));
+    register_builtin_type int32_type_i.internal_name
+                          (Ctx.Const (L.i32_type ctx.ir_context));
+
+    register_builtin_type array_type_i.internal_name
+                          (Ctx.Gen (
+                               fun args ->
+                               begin
+                                 assert (List.length args = 2);
+                                 let ty_ct_val = List.nth args 0 in
+                                 let len_ct_val = List.nth args 1 in
+                                 let ty_val = match ty_ct_val with
+                                   | Ctfe_value.Type ty -> ty
+                                   | _ -> failwith "[ICE]"
+                                 in
+                                 let len_val = match len_ct_val with
+                                   | Ctfe_value.Int32 i32 -> i32
+                                   | _ -> failwith "[ICE]"
+                                 in
+                                 (* TODO: fix *)
+                                 let llty = lltype_of_typeinfo ~bb:None ty_val ctx in
+                                 let len = Int32.to_int len_val in
+                                 L.array_type llty len
+                               end
+                             ));
   end;
 
   let add_int_int args ctx =

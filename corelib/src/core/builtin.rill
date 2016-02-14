@@ -17,4 +17,4 @@ extern def operator+(:int32, :int32) :int32 = "__builtin_op_binary_+_int_int";
 
 
 #[builtin]
-extern class array!(T, N:int32) = "__way"
+extern class array!(T, N:int32) = "__builtin_array_type"

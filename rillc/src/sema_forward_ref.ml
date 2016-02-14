@@ -18,7 +18,8 @@ let rec solve_forward_refs ?(meta_variables=[])
     let meta_e = Env.MetaVariable uni_id in
     let e = Env.create_env env meta_e in
     Env.add_inner_env env name e;
-    uni_id
+
+    Unification.get_as_value ctx.sc_unification_ctx uni_id
   in
   match node with
   | Ast.StatementList (nodes) ->
@@ -46,7 +47,7 @@ let rec solve_forward_refs ?(meta_variables=[])
        let fenv_r = {
          Env.fn_name = name;
          Env.fn_mangled = None;
-         Env.fn_templare_var_ids = [];
+         Env.fn_template_vals = [];
          Env.fn_param_types = [];
          Env.fn_return_type = Type.undef_ty;
          Env.fn_detail = Env.FnUndef;
@@ -57,8 +58,8 @@ let rec solve_forward_refs ?(meta_variables=[])
                                        fenv_r)
                                  ) in
        (* declare meta variables if exist *)
-       let uni_ids = List.map (declare_meta_var fenv) meta_variables in
-       fenv_r.Env.fn_templare_var_ids <- uni_ids;
+       let template_vals = List.map (declare_meta_var fenv) meta_variables in
+       fenv_r.Env.fn_template_vals <- template_vals;
 
        let _ = if in_template then
                  Env.MultiSetOp.add_template_instances base_env fenv
@@ -86,7 +87,7 @@ let rec solve_forward_refs ?(meta_variables=[])
        let fenv_r = {
          Env.fn_name = name;
          Env.fn_mangled = None;
-         Env.fn_templare_var_ids = [];
+         Env.fn_template_vals = [];
          Env.fn_param_types = [];
          Env.fn_return_type = Type.undef_ty;
          Env.fn_detail = Env.FnUndef;
@@ -97,8 +98,8 @@ let rec solve_forward_refs ?(meta_variables=[])
                                        fenv_r)
                                  ) in
        (* declare meta variables if exist *)
-       let uni_ids = List.map (declare_meta_var fenv) meta_variables in
-       fenv_r.Env.fn_templare_var_ids <- uni_ids;
+       let template_vals = List.map (declare_meta_var fenv) meta_variables in
+       fenv_r.Env.fn_template_vals <- template_vals;
 
        let _ = if in_template then
                  Env.MultiSetOp.add_template_instances base_env fenv
@@ -123,15 +124,20 @@ let rec solve_forward_refs ?(meta_variables=[])
        let name_s = Nodes.string_of_id_string name in
        (* accept multiple definition for specialization *)
        let base_env = Env.MultiSetOp.find_or_add parent_env name_s Env.Kind.Class in
+       let cenv_r = {
+         Env.cls_name = name;
+         Env.cls_mangled = Some "int32";    (* XXX *)
+         Env.cls_template_vals = [];
+         Env.cls_detail = Env.ClsUndef;
+       } in
        let cenv = Env.create_env parent_env (
                                    Env.Class (
                                        Env.empty_lookup_table ~init:0 (),
-                                       {
-                                         Env.cls_name = name;
-                                         Env.cls_mangled = Some "int32";    (* XXX *)
-                                         Env.cls_detail = Env.ClsUndef;
-                                       })
+                                       cenv_r)
                                  ) in
+       (* declare meta variables if exist *)
+       let template_vals = List.map (declare_meta_var cenv) meta_variables in
+       cenv_r.Env.cls_template_vals <- template_vals;
 
        let _ = if in_template then
                  Env.MultiSetOp.add_template_instances base_env cenv
@@ -156,10 +162,8 @@ let rec solve_forward_refs ?(meta_variables=[])
        let name_s = Nodes.string_of_id_string name in
        let base_kind = match inner_node with
          | Ast.FunctionDefStmt _
-         | Ast.ExternFunctionDefStmt _ ->
-            Env.Kind.Function
-         | Ast.ExternClassDefStmt _ ->
-            Env.Kind.Class
+         | Ast.ExternFunctionDefStmt _ -> Env.Kind.Function
+         | Ast.ExternClassDefStmt _ -> Env.Kind.Class
          | _ ->
             begin
               failwith "[ICE] template of this statement is not supported."

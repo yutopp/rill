@@ -27,6 +27,10 @@ module Make (Cgt : CONTEXT_TYPE) =
       end
     module IdSet = Set.Make(IdOrderedType)
 
+    type 'ty builtin_gen_t =
+      | Const of Cgt.ir_type_t
+      | Gen of ('ty Ctfe_value.t list -> Cgt.ir_type_t)
+
     type ('env, 'ty, 'v) t = {
       mutable ir_context        : Cgt.ir_context_t;
       mutable ir_builder        : Cgt.ir_builder_t;
@@ -35,7 +39,7 @@ module Make (Cgt : CONTEXT_TYPE) =
       env_to_val_tbl            : (Env.id_t, Cgt.ir_value_t) Hashtbl.t;
       env_to_type_tbl           : (Env.id_t, Cgt.ir_type_t) Hashtbl.t;
 
-      name_to_builtin_type_tbl  : (string, Cgt.ir_type_t) Hashtbl.t;
+      name_to_builtin_type_tbl  : (string, 'ty builtin_gen_t) Hashtbl.t;
       name_to_builtin_func_tbl  : (string, (('env, 'ty, 'v) t) Cgt.builtin_f_t) Hashtbl.t;
 
       mutable defined_env       : IdSet.t;

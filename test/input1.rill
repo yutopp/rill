@@ -1,0 +1,32 @@
+def main() {
+    val a: int32 = 10 + 20;
+
+    print_int(a);
+    val b = a + 10;
+    print_int(b);
+    hoge(10);
+
+    tempfunc(b+10);
+
+    temp!(100)(1);
+    temp!(10)(2);
+
+    val yo = [1, 2, 3];
+}
+
+import core.builtin;
+
+def hoge(a : int32) {
+    print_int(a);
+    print_int(a+1);
+}
+
+def temp!(N: int32, T)(yo: T) {
+    print_int(N+10);
+    print_int(yo+10);
+}
+
+def tempfunc!(T)(a : T) {
+    print_int(a+100);
+    print_int(a+200);
+}
