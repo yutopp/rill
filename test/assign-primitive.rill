@@ -1,0 +1,5 @@
+def main(): void
+{
+    val mutable a = 10;
+    a = 20;
+}

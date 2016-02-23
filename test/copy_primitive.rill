@@ -1,0 +1,18 @@
+void main()
+{
+    val a = 10;
+    val const b = 20;
+    val mutable c = 30;
+
+    val a1 = a;
+    val const a2 = a;
+    val mutable a3 = a;
+
+    val b1 = b;
+    val const b2 = b;
+    val mutable b3 = b;
+
+    val c1 = c;
+    val const c2 = c;
+    val mutable c3 = c;
+}

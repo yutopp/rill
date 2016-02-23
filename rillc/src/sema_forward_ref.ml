@@ -27,13 +27,13 @@ let rec solve_forward_refs ?(meta_variables=[])
      TAst.StatementList tagged_nodes
 
   | Ast.ExprStmt ast -> TAst.ExprStmt (TAst.PrevPassNode ast)
+  | Ast.ScopeStmt ast -> TAst.ScopeStmt (TAst.PrevPassNode ast)
 
   | Ast.ImportStmt (pkg_names, mod_name, _) ->
      begin
        let mod_env = load_module pkg_names mod_name ctx in
 
-       let lt = Env.get_lookup_table parent_env in
-       lt.Env.imported_mods <- (mod_env, Env.ModPrivate) :: lt.Env.imported_mods;
+       Env.import_module parent_env mod_env;
 
        (* remove import statements *)
        TAst.EmptyStmt
@@ -119,6 +119,42 @@ let rec solve_forward_refs ?(meta_variables=[])
        node
      end
 
+  | Ast.ClassDefStmt (name, body, None, _) ->
+     begin
+       let name_s = Nodes.string_of_id_string name in
+       (* accept multiple definition for specialization *)
+       let base_env = Env.MultiSetOp.find_or_add parent_env name_s Env.Kind.Class in
+       let cenv_r = {
+         Env.cls_name = name;
+         Env.cls_mangled = None;
+         Env.cls_template_vals = [];
+         Env.cls_detail = Env.ClsUndef;
+       } in
+       let cenv = Env.create_env parent_env (
+                                   Env.Class (
+                                       Env.empty_lookup_table (),
+                                       cenv_r)
+                                 ) in
+       (* declare meta variables if exist *)
+       let template_vals = List.map (declare_meta_var cenv) meta_variables in
+       cenv_r.Env.cls_template_vals <- template_vals;
+
+       let _ = if in_template then
+                 Env.MultiSetOp.add_template_instances base_env cenv
+               else
+                 Env.MultiSetOp.add_normal_instances base_env cenv
+       in
+
+       let node = TAst.ClassDefStmt (
+                      name,
+                      TAst.PrevPassNode body,
+                      opt_attr,
+                      Some cenv
+                    ) in
+       Env.update_rel_ast cenv node;
+       node
+     end
+
   | Ast.ExternClassDefStmt (name, extern_cname, _) ->
      begin
        let name_s = Nodes.string_of_id_string name in
@@ -154,8 +190,8 @@ let rec solve_forward_refs ?(meta_variables=[])
        node
      end
 
-  | Ast.VariableDefStmt (rv, v, _) ->
-     TAst.VariableDefStmt (rv, TAst.PrevPassNode v, None)
+  | Ast.VariableDefStmt (v, _) ->
+     TAst.VariableDefStmt (TAst.PrevPassNode v, None)
 
   | Ast.TemplateStmt (name, template_params, inner_node) ->
      begin
@@ -243,6 +279,9 @@ and load_module_by_filepath ?(def_mod_info=None) filepath ctx =
                                   pkg_names mod_name env
        in
        ignore mod_id;
+
+       (* import builtins for all modules, if the builtin modules loaded *)
+       Option.may (fun bm -> Env.import_module env bm) ctx.sc_builtin_m_env;
 
        (* solve forward references *)
        let res_node = solve_forward_refs inner env ctx in

@@ -16,10 +16,8 @@ let rec s_of_ctfe_val value tset =
 
 
 and s_of_type ty =
-  let {
-    Type.ty_cenv = c_env;
-  } = Type.as_unique ty
-  in
+  let c_env = Type.as_unique ty in
+
   let cr = Env.ClassOp.get_record c_env in
   let symbol = Option.get cr.Env.cls_mangled in
   Printf.sprintf "T%d%s" (String.length symbol) symbol

@@ -22,10 +22,10 @@ let string_of_id_string id_s =
   | UnaryPostOp s -> "op_unary_post_" ^ s
   | BinaryOp s -> string_of_binary_op s
 
-
 module type NodeContextType =
   sig
     type 'a current_ctx_t
+    type 'a term_ctx_t
     type 'a prev_ctx_t
   end
 
@@ -39,13 +39,17 @@ module Make (Ctx : NodeContextType) =
        *)
       | StatementList of ast list
       | ExprStmt of ast
+      | ScopeStmt of ast
       | ImportStmt of (string list * string * ctx_t)
       (* name, params, return_type?, body, attribute?, _ *)
-      | FunctionDefStmt of id_string * ast * ast option * ast * attr_tbl_t option *ctx_t
+      | FunctionDefStmt of id_string * ast * ast option * ast * attr_tbl_t option * ctx_t
       (* name, params, return_type, function name(TODO: change to AST), attribute?, _ *)
       | ExternFunctionDefStmt of id_string * ast * ast * string * attr_tbl_t option * ctx_t
+      (* name, body, attribute?, _ *)
+      | ClassDefStmt of id_string * ast * attr_tbl_t option * ctx_t
       | ExternClassDefStmt of id_string * string * ctx_t
-      | VariableDefStmt of Type.Attr.ref_val * ast * ctx_t (* ref/val, init, _ *)
+      (* VarInit, _ *)
+      | VariableDefStmt of ast * ctx_t
       (* name, template params, inner node *)
       | TemplateStmt of id_string * ast * ast
       | EmptyStmt
@@ -61,15 +65,17 @@ module Make (Ctx : NodeContextType) =
       | SubscriptingExpr of ast * ast option
       | CallExpr of ast * ast list
 
+      | StatementTraitsExpr of string * ast
+
       (*
        * values
        *)
       | Id of id_string * ctx_t
       | InstantiatedId of id_string * ast list * ctx_t
-      | Int32Lit of int
-      | StringLit of string
-      | BoolLit of bool
-      | ArrayLit of ast list
+      | Int32Lit of int * term_ctx_t
+      | StringLit of string * term_ctx_t
+      | BoolLit of bool * term_ctx_t
+      | ArrayLit of ast list * term_ctx_t
 
       (* error *)
       | Error
@@ -80,14 +86,15 @@ module Make (Ctx : NodeContextType) =
       | VarInit of var_init_t
       | PrevPassNode of pctx_t
 
-      | GenericCall of string * ast list * ctx_t
+      | GenericCall of string * ast list * term_ctx_t * ctx_t
+      | GetAddress of ast
 
-     (* id * value *)
-     and param_init_t = string option * value_init_t
-     (* id * value *)
+     (* attr * id? * value *)
+     and param_init_t = Type_attr.attr_t * string option * value_init_t
+     (* id * value? *)
      and template_param_init_t = string * value_init_t option
-     (* *)
-     and var_init_t = string * value_init_t
+     (* attr * id * value *)
+     and var_init_t = Type_attr.attr_t * string * value_init_t
 
      (* type * default value *)
      and value_init_t = ast option * ast option
@@ -95,6 +102,7 @@ module Make (Ctx : NodeContextType) =
      and attr_tbl_t = (string, ast option) Hashtbl.t
 
      and ctx_t = ast Ctx.current_ctx_t
+     and term_ctx_t = ast Ctx.term_ctx_t
      and pctx_t = ast Ctx.prev_ctx_t
 
 

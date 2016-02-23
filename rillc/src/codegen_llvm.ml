@@ -58,7 +58,7 @@ let rec code_generate ~bb node ctx =
 
        let llparam_tys =
          fenv_r.Env.fn_param_types
-         |> List.map (fun t -> lltype_of_typeinfo ~bb:bb t ctx)
+         |> List.map (fun t -> lltype_of_typeinfo_ac ~bb:bb t ctx)
          |> Array.of_list
        in
        let llret_ty = lltype_of_typeinfo ~bb:bb fenv_r.Env.fn_return_type ctx in
@@ -114,12 +114,18 @@ let rec code_generate ~bb node ctx =
        | true -> () (* DO NOTHING *)
        | false ->
           begin
-            (* TODO: fix fix fix fix *)
-            let i32_ty = L.i32_type ctx.ir_context in
-            let void_ty = L.void_type ctx.ir_context in
+            (* *)
+            let fenv_r = Env.FunctionOp.get_record env in
 
-            (* int -> void *)
-            let f_ty = L.function_type void_ty [|i32_ty|] in
+            let llparam_tys =
+              fenv_r.Env.fn_param_types
+              |> List.map (fun t -> lltype_of_typeinfo_ac ~bb:bb t ctx)
+              |> Array.of_list
+            in
+            let llret_ty = lltype_of_typeinfo ~bb:bb fenv_r.Env.fn_return_type ctx in
+
+            (* type of function *)
+            let f_ty = L.function_type llret_ty llparam_tys in
 
             let llvm_func = L.declare_function extern_fname f_ty ctx.ir_module in
 
@@ -154,17 +160,20 @@ let rec code_generate ~bb node ctx =
        end
      end
 
-  | TAst.VariableDefStmt (rv, TAst.VarInit (var_init), Some env) ->
+  | TAst.VariableDefStmt (TAst.VarInit (var_init), Some env) ->
      if Ctx.is_env_defined ctx env then () else
      begin
-       if Ctx.is_env_defined ctx env then ();
+       let venv = Env.VariableOp.get_record env in
+       let var_type = venv.Env.var_type in
 
-       let (var_name, (_, opt_init_expr)) = var_init in
+       let (_, _, (_, opt_init_expr)) = var_init in
        let init_expr = Option.get opt_init_expr in
-       let llvm_val = code_generate_as_value ~bb:bb init_expr ctx in
-       Ctx.bind_env_to_val ctx env llvm_val;
 
-       L.set_value_name var_name llvm_val;
+       let (llvm_val_raw, expr_ty) = code_generate_as_value ~bb:bb init_expr ctx in
+       let llval = adjust_llval_form ~bb:bb var_type expr_ty llvm_val_raw ctx in
+
+       L.set_value_name venv.Env.var_name llval;
+       Ctx.bind_env_to_val ctx env llval;
 
        Ctx.mark_env_as_defined ctx env
      end
@@ -173,80 +182,93 @@ let rec code_generate ~bb node ctx =
 
   | _ -> failwith "cannot generate : statement"
 
-and code_generate_as_value ?(bb=None) node ctx =
+and code_generate_as_value ?(bb=None) node ctx : (L.llvalue * 'env Type.info_t)=
   let open Ctx in
   match node with
-  | TAst.GenericCall (name, args, Some env) ->
+  | TAst.GenericCall (name, args, ret_ty, Some env) ->
      begin
-       let llargs = args
-                    |> List.map (fun n -> code_generate_as_value ~bb:bb n ctx)
-                    |> Array.of_list in
-       let { Env.er = er; _ } = env in
-       let llval = match er with
-         | Env.Function (_, r) ->
-            begin
-              let {
-                Env.fn_name = fn_name;
-                Env.fn_detail = detail;
-                _
-              } = r in
-              let fn_s_name = Nodes.string_of_id_string fn_name in
-              match detail with
-              (* normal function *)
-              | Env.FnRecordNormal _ ->
-                 begin
-                   Printf.printf "gen value: debug / function %s\n" fn_s_name;
-                   let f = find_val_from_env_with_force_generation ~bb:bb ctx env in
-                   L.build_call f llargs "" ctx.ir_builder
-                 end
-              (* extern function *)
-              | Env.FnRecordExtern {
-                  Env.fn_e_name = extern_name;
-                  Env.fn_e_is_builtin = is_builtin;
-                } ->
-                 begin
-                   (* TODO: fix *)
-                   match is_builtin with
-                   | true ->
-                      begin
-                        Printf.printf "gen value: debug / builtin %s = \"%s\"\n"
-                                      fn_s_name extern_name; flush_all ();
+       let f_er = Env.FunctionOp.get_record env in
+       let {
+         Env.fn_name = fn_name;
+         Env.fn_detail = detail;
+         Env.fn_param_types = param_tys;
+       } = f_er in
 
-                        let builtin_gen_f = Ctx.find_builtin_func ctx extern_name in
-                        builtin_gen_f llargs ctx
-                      end
-                   | false ->
-                      begin
-                        Printf.printf "gen value: debug / extern  %s = \"%s\"\n"
-                                      fn_s_name extern_name; flush_all ();
-                        let extern_f =
-                          find_val_from_env_with_force_generation ~bb:bb ctx env in
-                        L.build_call extern_f llargs "" ctx.ir_builder
-                      end
-                 end
-              | Env.FnUndef -> failwith "[ICE] codegen: undefined function record"
-            end
-         | _ -> failwith @@ "[ICE] codegen; function lhs id " ^ name
+       let (llvals, tys) = args
+                           |> List.map (fun n -> code_generate_as_value ~bb:bb n ctx)
+                           |> List.split
        in
-       llval
+       let conv_funcs =
+         List.map2 (fun t s -> adjust_llval_form ~bb:bb t s) param_tys tys
+       in
+       (* TODO: conv *)
+       let llargs = List.map2 (fun f v -> f v ctx) conv_funcs llvals
+                    |> Array.of_list
+       in
+
+       let fn_s_name = Nodes.string_of_id_string fn_name in
+       let llval = match detail with
+         (* normal function *)
+         | Env.FnRecordNormal _ ->
+            begin
+              Printf.printf "gen value: debug / function %s\n" fn_s_name;
+              let f = find_val_from_env_with_force_generation ~bb:bb ctx env in
+              L.build_call f llargs "" ctx.ir_builder
+            end
+         (* extern function *)
+         | Env.FnRecordExtern {
+               Env.fn_e_name = extern_name;
+               Env.fn_e_is_builtin = is_builtin;
+             } ->
+            begin
+              (* TODO: fix *)
+              match is_builtin with
+              | true ->
+                 begin
+                   Printf.printf "gen value: debug / builtin %s = \"%s\"\n"
+                                 fn_s_name extern_name; flush_all ();
+
+                   let builtin_gen_f = Ctx.find_builtin_func ctx extern_name in
+                   builtin_gen_f llargs ctx
+                 end
+              | false ->
+                 begin
+                   Printf.printf "gen value: debug / extern  %s = \"%s\"\n"
+                                 fn_s_name extern_name; flush_all ();
+                   let extern_f =
+                     find_val_from_env_with_force_generation ~bb:bb ctx env in
+                   L.build_call extern_f llargs "" ctx.ir_builder
+                 end
+            end
+         | Env.FnUndef -> failwith "[ICE] codegen: undefined function record"
+       in
+       (llval, ret_ty)
      end
 
-  | TAst.Int32Lit (v) ->
+  | TAst.BoolLit (v, lit_ty) ->
      begin
-       L.const_int (L.i32_type ctx.ir_context) v
+       let llval = L.const_int (L.i1_type ctx.ir_context) (if v then 1 else 0) in
+       (llval, lit_ty)
      end
 
-  | TAst.ArrayLit (elems) ->
+  | TAst.Int32Lit (v, lit_ty) ->
+     begin
+       let llval = L.const_int (L.i32_type ctx.ir_context) v in
+       (llval, lit_ty)
+     end
+
+  | TAst.ArrayLit (elems, lit_ty) ->
      begin
        (* XXX: adhoc implementation, fix it *)
-       let ll_elems =
+       let (ll_elems, tys) =
          elems
          |> List.map (fun n -> code_generate_as_value ~bb:bb n ctx)
-         |> Array.of_list
+         |> List.split
        in
-       let llty = L.type_of ll_elems.(0) in
+       let llty = lltype_of_typeinfo ~bb:bb lit_ty ctx in
 
-       L.const_array (L.array_type llty (Array.length ll_elems)) ll_elems
+       let llval = L.const_array llty (Array.of_list ll_elems) in
+       (llval, lit_ty)
      end
 
   | TAst.Id (name, Some rel_env) ->
@@ -266,29 +288,34 @@ and code_generate_as_value ?(bb=None) node ctx =
        | Env.Variable (r) ->
           begin
             Printf.printf "variable\n";
-            try Ctx.find_val_from_env ctx rel_env with
-            | Not_found -> failwith "[ICE] variable env is not found"
+            let llval = try Ctx.find_val_from_env ctx rel_env with
+                        | Not_found -> failwith "[ICE] variable env is not found"
+            in
+            let ty = r.Env.var_type in
+            (llval, ty)
           end
 
        | Env.Class (_, r) ->
           begin
-            match ctx.type_generator with
-            | Some gen ->
+            match ctx.type_sets with
+            | Some tsets ->
                begin
-                 let ty_r = {
-                   Type.ty_cenv = rel_env;
-                   Type.ty_template_args = r.Env.cls_template_vals;
-                 } in
                  let ty =
-                   Type.Generator.generate_type gen (Type.UniqueTy ty_r)
+                   Type.Generator.generate_type tsets.Type_sets.ts_type_gen
+                                                (Type.UniqueTy rel_env)
+                                                r.Env.cls_template_vals
+                                                Type_attr.undef
                  in
                  let itype_id = Option.get ty.Type.ti_id in
                  Printf.printf "##### type_id = %s\n" (Int64.to_string itype_id);
 
                  (* return the internal typeid as a type *)
-                 L.const_of_int64 (L.i64_type ctx.ir_context)
-                                  itype_id
-                                  Type.is_type_id_signed
+                 let llval = L.const_of_int64 (L.i64_type ctx.ir_context)
+                                              itype_id
+                                              Type.is_type_id_signed
+                 in
+                 let ty = tsets.Type_sets.ts_type_type in
+                 (llval, ty)
                end
             | None ->
                begin
@@ -303,53 +330,57 @@ and code_generate_as_value ?(bb=None) node ctx =
        (* regards all values are NOT references *)
        | Env.MetaVariable (uni_id) ->
           begin
-            match ctx.uni_map with
-            | Some uni_map ->
+            let fail_f () =
+              failwith "[ICE] codegen_llvm : TAst.Id / meta variable in RUNTIME"
+            in
+            let uni_map = Option.default_delayed fail_f ctx.uni_map in
+            let tsets = Option.default_delayed fail_f ctx.type_sets in
+
+            Printf.printf "LLVM codegen Env.MetaVariable = %d\n" uni_id;
+            let (_, c) = Unification.search_value_until_terminal uni_map uni_id in
+            match c with
+            | Unification.Val v ->
                begin
-                 Printf.printf "LLVM codegen Env.MetaVariable = %d\n" uni_id;
-                 let (_, c) = Unification.search_value_until_terminal uni_map uni_id in
-                 match c with
-                 | Unification.Val v ->
+                 match v with
+                 | Ctfe_value.Type (ty) ->
                     begin
-                      match v with
-                      | Ctfe_value.Type (ty) ->
+                      let {
+                        Type.ti_id = opt_tid;
+                        Type.ti_sort = ty_sort;
+                      } = ty in
+                      match ty_sort with
+                      | Type.UniqueTy _
+                      | Type.NotDetermined _ ->
                          begin
-                           let {
-                             Type.ti_id = opt_tid;
-                             Type.ti_sort = ty_sort;
-                             _
-                           } = ty in
-                           match ty_sort with
-                           | Type.UniqueTy _
-                           | Type.NotDetermined _ ->
-                              begin
-                                match opt_tid with
-                                | Some tid ->
-                                   (* return the internal typeid as a type *)
-                                   L.const_of_int64 (L.i64_type ctx.ir_context)
-                                                    tid
-                                                    Type.is_type_id_signed
-                                | None -> failwith "[ICE] codegen_llvm : has no type_id"
-                              end
-                           | _-> failwith "[ICE] codegen_llvm : type"
+                           match opt_tid with
+                           | Some tid ->
+                              (* return the internal typeid as a type *)
+                              let llval =
+                                L.const_of_int64 (L.i64_type ctx.ir_context)
+                                                 tid
+                                                 Type.is_type_id_signed
+                              in
+                              let ty = tsets.Type_sets.ts_type_type in
+                              (llval, ty)
+                           | None -> failwith "[ICE] codegen_llvm : has no type_id"
                          end
-
-                      | Ctfe_value.Int32 i32 ->
-                         L.const_of_int64 (L.i32_type ctx.ir_context)
-                                          (Int32.to_int64 i32)
-                                          false (* not signed *)
-
-                      | Ctfe_value.Undef ud_uni_id ->
-                         raise @@ Ctfe_exn.Meta_var_un_evaluatable ud_uni_id
-
+                      | _-> failwith "[ICE] codegen_llvm : type"
                     end
-                 | _ -> raise @@ Ctfe_exn.Meta_var_un_evaluatable uni_id
+
+                 | Ctfe_value.Int32 i32 ->
+                    let llval =
+                      L.const_of_int64 (L.i32_type ctx.ir_context)
+                                       (Int32.to_int64 i32)
+                                       false (* not signed *)
+                    in
+                    let ty = !(tsets.Type_sets.ts_int32_type_holder) in
+                    (llval, ty)
+
+                 | Ctfe_value.Undef ud_uni_id ->
+                    raise @@ Ctfe_exn.Meta_var_un_evaluatable ud_uni_id
+
                end
-            | None ->
-               begin
-                 Env.print rel_env;
-                 failwith "[ICE] codegen_llvm : TAst.Id / meta variable in RUNTIME"
-               end
+            | _ -> raise @@ Ctfe_exn.Meta_var_un_evaluatable uni_id
           end
 
        | _ ->
@@ -404,15 +435,60 @@ and find_type_from_env_with_force_generation ~bb ctx env =
 
 and lltype_of_typeinfo ~bb ty ctx =
   let open Ctx in
-  let {
-    Type.ty_cenv = cenv;
-  } = Type.as_unique ty in
+  let cenv = Type.as_unique ty in
   let ll_ty = find_type_from_env_with_force_generation ~bb:bb ctx cenv in
   ll_ty
 
+and lltype_of_typeinfo_ac ~bb ty ctx =
+  let ll_ty = lltype_of_typeinfo ~bb:bb ty ctx in
+  if is_address_representation ty then
+    L.pointer_type ll_ty
+  else
+    ll_ty
+
+and is_address_representation ty =
+  let {
+    Type_attr.ta_ref_val = rv;
+    Type_attr.ta_mut = mut;
+  } = ty.Type.ti_attr in
+  match rv with
+  | Type_attr.XRef -> false (* TODO: check whether object is heavy *)
+  | Type_attr.Ref ->
+     begin
+       match mut with
+       | Type_attr.Mutable -> true
+       | Type_attr.Const
+       | Type_attr.Immutable -> false    (* TODO: check whether object is heavy *)
+       | _ -> failwith "[ICE] Unexpected : mut"
+     end
+  | Type_attr.Val ->
+     begin
+       match mut with
+       | Type_attr.Mutable -> true
+       | Type_attr.Const
+       | Type_attr.Immutable -> false    (* TODO: check whether object is heavy *)
+       | _ -> failwith "[ICE] Unexpected : mut"
+     end
+  | _ -> failwith "[ICE] Unexpected : rv"
+
+and adjust_llval_form ~bb trg_ty src_ty llval ctx =
+  let open Ctx in
+  Printf.printf "%b, %b\n"
+                (is_address_representation trg_ty)
+                (is_address_representation src_ty);
+  match (is_address_representation trg_ty, is_address_representation src_ty) with
+  | (true, true)
+  | (false, false) -> llval
+  | (true, false) ->
+     let llty = lltype_of_typeinfo ~bb:bb trg_ty ctx in
+     let v = L.build_alloca llty "" ctx.ir_builder in
+     let _ = L.build_store llval v ctx.ir_builder in
+     v
+  | (false, true) ->
+     L.build_load llval "" ctx.ir_builder
 
 
-let make_default_context ?(opt_type_gen=None) ?(opt_uni_map=None) () =
+let make_default_context ?(opt_type_sets=None) ?(opt_uni_map=None) () =
   let ir_context = L.global_context () in
   let ir_builder = L.builder ir_context in
   let ir_module = L.create_module ir_context "Rill" in
@@ -421,7 +497,7 @@ let make_default_context ?(opt_type_gen=None) ?(opt_uni_map=None) () =
     ~ir_context:ir_context
     ~ir_builder:ir_builder
     ~ir_module:ir_module
-    ~type_generator:opt_type_gen
+    ~type_sets:opt_type_sets
     ~uni_map:opt_uni_map
 
 
@@ -451,6 +527,8 @@ let inject_builtins ctx =
 
     register_builtin_type void_type_i.internal_name
                           (Ctx.Const (L.void_type ctx.ir_context));
+    register_builtin_type bool_type_i.internal_name
+                          (Ctx.Const (L.i1_type ctx.ir_context));
     register_builtin_type int32_type_i.internal_name
                           (Ctx.Const (L.i32_type ctx.ir_context));
 

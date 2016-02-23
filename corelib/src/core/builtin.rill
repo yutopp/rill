@@ -1,5 +1,9 @@
+// TODO: move to
 extern def print_int(v: int32):void = "rill_print";
 
+// TODO: implement by macro
+extern def assert(:bool): void = "rill_assert";
+extern def assert_not(:bool): void = "rill_assert_not";
 
 #[builtin]
 extern class type = "__builtin_type_type"
@@ -7,6 +11,10 @@ extern class type = "__builtin_type_type"
 
 #[builtin]
 extern class void = "__builtin_void_type"
+
+
+#[builtin]
+extern class bool = "__builtin_bool_type"
 
 
 #[builtin]

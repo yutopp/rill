@@ -17,9 +17,7 @@ let make_default_env () =
   Env.make_root_env ()
 
 let make_default_context root_env module_search_dirs =
-  let type_gen = Type.Generator.default () in
-  let uni_map = Unification.empty () in
-  let ctfe_engine = Ctfe_engine.initialize type_gen uni_map in
+    let type_gen = Type.Generator.default () in
 
   let create_builtin_class name inner_name =
     let env = Env.create_env root_env (
@@ -39,11 +37,14 @@ let make_default_context root_env module_search_dirs =
     let id_name = Nodes.Pure name in
     let cenv = create_builtin_class id_name inner_name in
     Env.add_inner_env root_env name cenv;
-    let ty_r = {
-      Type.ty_cenv = cenv;
-      Type.ty_template_args = [];
-    } in
-    Type.Generator.generate_type type_gen (Type.UniqueTy ty_r)
+
+    Type.Generator.generate_type type_gen
+                                 (Type.UniqueTy cenv)
+                                 []
+                                 {
+                                   Type_attr.ta_ref_val = Type_attr.Val;
+                                   Type_attr.ta_mut = Type_attr.Immutable;
+                                 }
   in
 
   let open Builtin_info in
@@ -53,9 +54,13 @@ let make_default_context root_env module_search_dirs =
                                          type_type_i.internal_name;
 
     ts_void_type_holder = ref Type.undef_ty;
+    ts_bool_type_holder = ref Type.undef_ty;
     ts_int32_type_holder = ref Type.undef_ty;
     ts_array_type_holder = ref Type.undef_ty;
   } in
+
+  let uni_map = Unification.empty () in
+  let ctfe_engine = Ctfe_engine.initialize tsets uni_map in
   let ctx = {
     sc_root_env = root_env;
     sc_builtin_m_env = None;
@@ -75,6 +80,11 @@ let make_default_context root_env module_search_dirs =
   (* cache void type *)
   cache_builtin_type_info tsets.ts_void_type_holder
                           void_type_i.external_name
+                          ctx;
+
+  (* cache bool type *)
+  cache_builtin_type_info tsets.ts_bool_type_holder
+                          bool_type_i.external_name
                           ctx;
 
   (* cache int type *)

@@ -43,14 +43,14 @@ module Make (Cgt : CONTEXT_TYPE) =
       name_to_builtin_func_tbl  : (string, (('env, 'ty, 'v) t) Cgt.builtin_f_t) Hashtbl.t;
 
       mutable defined_env       : IdSet.t;
-      type_generator            : 'env Type.Generator.t option;
+      type_sets                 : 'env Type_sets.type_sets_t option;
       uni_map                   : ('ty, 'v) Unification.t option;
     }
 
     let init ~ir_context
              ~ir_builder
              ~ir_module
-             ~type_generator
+             ~type_sets
              ~uni_map =
       {
         ir_context = ir_context;
@@ -64,7 +64,7 @@ module Make (Cgt : CONTEXT_TYPE) =
         name_to_builtin_func_tbl = Hashtbl.create 32;
 
         defined_env = IdSet.empty;
-        type_generator = type_generator;
+        type_sets = type_sets;
         uni_map = uni_map;
       }
 

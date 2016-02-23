@@ -29,8 +29,11 @@
                         KEYWORD_CLASS
                         KEYWORD_VAL
                         KEYWORD_REF
+                        KEYWORD_IMMUTABLE
+                        KEYWORD_CONST
+                        KEYWORD_MUTABLE
                         KEYWORD_EXTERN
                         KEYWORD_OPERATOR
                         KEYWORD_IMPORT
-
+                        KEYWORD_UU_STMT_TRAITS
 %%

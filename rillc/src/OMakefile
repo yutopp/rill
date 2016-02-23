@@ -125,6 +125,7 @@ FILES[] =
    codegen_context
    codegen_llvm
    type
+   type_attr
    type_sets
    ctfe_engine
    ctfe_value

@@ -32,17 +32,22 @@ rule token = parse
 
   | "//"                { oneline_comment lexbuf }
 
+  | "__statement_traits"{ KEYWORD_UU_STMT_TRAITS }
   | "operator"          { KEYWORD_OPERATOR }
   | "import"            { KEYWORD_IMPORT }
   | "def"               { KEYWORD_DEF }
   | "class"             { KEYWORD_CLASS }
   | "val"               { KEYWORD_VAL }
   | "ref"               { KEYWORD_REF }
+  | "immutable"         { KEYWORD_IMMUTABLE }
+  | "const"             { KEYWORD_CONST }
+  | "mutable"           { KEYWORD_MUTABLE }
   | "extern"            { KEYWORD_EXTERN }
-  | "=>"                { FAT_ARROW }
 
   | "true"              { LIT_TRUE }
   | "false"             { LIT_FALSE }
+
+  | "=>"                { FAT_ARROW }
 
   (* string state *)
   | '"'                 { Buffer.clear _lex_string_lit_buffer;

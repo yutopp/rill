@@ -70,6 +70,43 @@ let complete_function_env env node s_name param_types return_type detail_r ctx =
 
   complete_env env node
 
+let complete_class_env env node s_name detail_r ctx =
+  let r = Env.ClassOp.get_record env in
+  r.Env.cls_detail <- detail_r;
+
+  let mangled =
+    (*Mangle.s_of_function (Env.get_full_module_name env) s_name
+                         r.Env.fn_template_vals
+                         param_types return_type
+                         ctx.sc_tsets*)
+    ""
+  in
+  r.Env.cls_mangled <- Some mangled;
+
+  complete_env env node
+
+
+let assert_valid_type ty =
+  let open Type_attr in
+  let {
+    ta_ref_val = rv;
+    ta_mut = mut;
+  } = ty.Type.ti_attr in
+  assert (rv <> RefValUndef);
+  assert (mut <> MutUndef)
+
+
+let as_ret_ty ty ctx =
+  let open Type_attr in
+  match ty.Type.ti_attr with
+  | { ta_ref_val = Val; } ->
+     (* update val to xref *)
+     Type.Generator.update_attr_r ctx.sc_tsets.ts_type_gen
+                                  ty
+                                  { ty.Type.ti_attr with ta_ref_val = XRef }
+  | _ -> ty
+
+
 
 module FuncMatchLevel =
   struct

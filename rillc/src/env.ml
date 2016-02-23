@@ -52,8 +52,8 @@ type 'ast env_t = {
   | Function of 'ast lookup_table_t * 'ast function_record
   | Class of 'ast lookup_table_t * 'ast class_record
   | Variable of 'ast variable_record
+  | Scope of 'ast lookup_table_t
 
-  | Temporary of 'ast lookup_table_t
   | MetaVariable of Unification.id_t
 
  and 'ast type_info_t = 'ast env_t Type.info_t
@@ -164,7 +164,7 @@ let get_lookup_table e =
   | Module (r, _) -> r
   | Function (r, _) -> r
   | Class (r, _) -> r
-  | Temporary (r) -> r
+  | Scope (r) -> r
   | _ -> failwith "has no lookup table"
 
 let get_symbol_table e =
@@ -240,6 +240,11 @@ let rec lookup e name =
 let add_inner_env target_env name e =
   let t = get_symbol_table target_env in
   Hashtbl.add t name e
+
+
+let import_module ?(privacy=ModPrivate) env mod_env =
+  let lt = get_lookup_table env in
+  lt.imported_mods <- (mod_env, privacy) :: lt.imported_mods
 
 
 let empty_lookup_table ?(init=8) () =
@@ -436,9 +441,9 @@ let print env =
          print_table lt.scope indent;
          f nindent;
        end
-    | Temporary _ ->
+    | Scope _ ->
        begin
-         printf "%sTemporary\n" indent;
+         printf "%Scope\n" indent;
          f nindent
        end
     | MetaVariable uni_id ->

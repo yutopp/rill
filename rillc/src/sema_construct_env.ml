@@ -23,6 +23,21 @@ let rec construct_env node parent_env ctx opt_chain_attr =
      let tagged_nodes = nodes |> List.map f in
      TAst.StatementList tagged_nodes
 
+  | TAst.ExprStmt (TAst.PrevPassNode e) ->
+     let (node, ty) = analyze_expr ~making_placeholder:false
+                                   e parent_env ctx opt_chain_attr in
+     TAst.ExprStmt node
+
+  | TAst.ScopeStmt (block) ->
+     begin
+       let scope_env =
+         Env.create_env parent_env (Env.Scope (Env.empty_lookup_table ()))
+       in
+       let nblock = analyze_inner block scope_env ctx opt_chain_attr in
+       let node = TAst.ScopeStmt (nblock) in
+       node
+     end
+
   | TAst.FunctionDefStmt (
         name, params_node, opt_ret_type, body, opt_attr, Some env
       ) ->
@@ -79,8 +94,15 @@ let rec construct_env node parent_env ctx opt_chain_attr =
          prepare_params env node params_node ctx opt_attr in
 
        (* determine return type *)
-       (* TODO: implement *)
-       let return_type = get_builtin_int_type ctx in
+       let var_attr = {
+         Type_attr.ta_ref_val = Type_attr.Val;
+         Type_attr.ta_mut = Type_attr.Mutable;
+       } in
+       let return_type =
+         resolve_type var_attr
+                      (extract_prev_pass_node ret_type)
+                      parent_env ctx opt_attr
+       in
 
        (* TODO: fix *)
        let is_builtin = match opt_attr with
@@ -110,6 +132,37 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        node
      end
 
+  | TAst.ClassDefStmt (
+        name, body, opt_attr, Some env) ->
+     if Env.is_checked env then Env.get_rel_ast env
+     else begin
+       (* TODO: check duplicate *)
+       let name_s = Nodes.string_of_id_string name in
+       Printf.printf "class %s - unchecked\n" name_s;
+       check_env env;
+
+       (* body *)
+       let nbody = analyze_inner body env ctx opt_attr in
+
+       ignore nbody;
+
+       Printf.printf "class %s - complete\n" name_s;
+       let node = TAst.ClassDefStmt (
+                      name,
+                      nbody,
+                      opt_attr,
+                      Some env
+                    ) in
+
+       (* update record *)
+       let detail_r = Env.ClsUndef in
+
+       complete_class_env env node
+                          name_s detail_r
+                          ctx;
+       node
+     end
+
   | TAst.ExternClassDefStmt (
         name, extern_cname, Some env) ->
      if Env.is_checked env then Env.get_rel_ast env
@@ -133,98 +186,106 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        node
      end
 
-  | TAst.VariableDefStmt (rv, v, opt_env) ->
+  (* scoped declare *)
+  | TAst.VariableDefStmt (v, None) ->
      begin
-       match opt_env with
-       | Some env -> failwith "unexpected"
-       | None ->
-          begin
-            let (var_name, init_term) =
-              match extract_prev_pass_node v with
-              | Ast.VarInit vi -> vi
-              | _ -> failwith "unexpected node"
-            in
-            check_id_is_defined_uniquely parent_env var_name;
+       let (var_attr, var_name, init_term) =
+         match extract_prev_pass_node v with
+         | Ast.VarInit vi -> vi
+         | _ -> failwith "unexpected node"
+       in
+       check_id_is_defined_uniquely parent_env var_name;
 
-            let venv = Env.create_env parent_env (
-                                        Env.Variable (
-                                          {
-                                            Env.var_name = var_name;
-                                            Env.var_type = Type.undef_ty;
-                                            Env.var_detail = Env.VarUndef;
-                                          })
-                                      )
-            in
-            Env.add_inner_env parent_env var_name venv;
+       let venv = Env.create_env parent_env (
+                                   Env.Variable (
+                                       {
+                                         Env.var_name = var_name;
+                                         Env.var_type = Type.undef_ty;
+                                         Env.var_detail = Env.VarUndef;
+                                       })
+                                 )
+       in
 
-            let (opt_type, opt_init_value) = init_term in
-            let opt_init_value_res = match opt_init_value with
-              | Some init_value -> Some (analyze_expr init_value parent_env
-                                                      ctx opt_chain_attr)
-              | None -> None
-            in
+       let (opt_type, opt_init_value) = init_term in
+       let opt_init_value_res =
+         opt_init_value
+         |> Option.map (fun n -> analyze_expr n parent_env ctx opt_chain_attr)
+       in
 
-            (* type check for the variable *)
-            let (type_node, value_node, var_ty) = match opt_type with
-              (* variable type is specified *)
-              | Some var_type_node ->
-                 begin
-                   let (var_ty, type_expr) =
-                     resolve_type_with_node var_type_node parent_env ctx opt_chain_attr
-                   in
-                   let res_expr_node = match opt_init_value_res with
-                     | Some (expr_node, expr_ty) ->
-                        begin
-                          let (m_level, m_filter) =
-                            convert_type expr_ty var_ty parent_env ctx opt_chain_attr
-                          in
-                          if m_level = FuncMatchLevel.NoMatch then
-                            failwith "[ERR] cannot conver type";
-                          (* TODO: call filter, call copy/mode ctor *)
-                          expr_node
-                        end
-                     | None ->
-                        begin
-                          (* TODO: implement call defaut constructor *)
-                          failwith "not implemented //"
-                        end
-                   in
-                   (Some type_expr, res_expr_node, var_ty)
-                 end
+       (* type check for the variable *)
+       let (type_node, value_node, var_ty) = match opt_type with
+         (* variable type is specified *)
+         | Some var_type_node ->
+            begin
+              let (expr_ty, type_expr) =
+                resolve_type_with_node var_attr var_type_node
+                                       parent_env ctx opt_chain_attr
+              in
+              let var_ty =
+                Type.Generator.update_attr_r ctx.sc_tsets.ts_type_gen expr_ty
+                                             var_attr
+              in
+              let res_expr_node = match opt_init_value_res with
+                | Some (expr_node, expr_ty) ->
+                   begin
+                     let (m_level, m_filter) =
+                       convert_type var_ty expr_ty parent_env ctx opt_chain_attr
+                     in
+                     if m_level = FuncMatchLevel.NoMatch then
+                       failwith "[ERR] cannot convert type";
+                     (* TODO: call filter, call copy/mode ctor *)
+                     expr_node
+                   end
+                | None ->
+                   begin
+                     (* TODO: implement call defaut constructor *)
+                     failwith "not implemented //"
+                   end
+              in
+              (Some type_expr, res_expr_node, var_ty)
+            end
 
-              (* var_type is infered from initial_value *)
-              | None ->
-                 begin
-                   let (expr_node, expr_ty) = match opt_init_value_res with
-                     | Some v -> v
-                     | None -> failwith "[ERROR] initial value is required";
-                   in
-                   (* TODO: check void value *)
+         (* var_type is infered from initial_value *)
+         | None ->
+            begin
+              let (expr_node, expr_ty) = match opt_init_value_res with
+                | Some v -> v
+                | None -> failwith "[ERROR] initial value is required"; (* TODO: call constructor *)
+              in
+              (* TODO: check void value *)
 
-                   (None, expr_node, expr_ty)
-                 end
-            in
+              let var_ty =
+                Type.Generator.update_attr_r ctx.sc_tsets.ts_type_gen expr_ty
+                                             var_attr
+              in
+              let (m_level, m_filter) =
+                convert_type var_ty expr_ty parent_env ctx opt_chain_attr
+              in
+              if m_level = FuncMatchLevel.NoMatch then
+                failwith "[ERR] cannot convert type";
+              (* TODO: call filter, call copy/mode ctor *)
 
-            let node = TAst.VariableDefStmt (
-                           rv,
-                           TAst.VarInit (var_name, (type_node, Some value_node)),
-                           Some venv
-                         ) in
+              (None, expr_node, var_ty)
+            end
+       in
 
-            let detail_r = Env.VarRecordNormal () in
-            let r = Env.VariableOp.get_record venv in
-            r.Env.var_type <- var_ty;
-            r.Env.var_detail <- detail_r;
 
-            complete_env venv node;
-            node
-          end
+       (* *)
+       Env.add_inner_env parent_env var_name venv;
+
+       let node = TAst.VariableDefStmt (
+                      TAst.VarInit (var_attr, var_name, (type_node, Some value_node)),
+                      Some venv
+                    ) in
+
+       let detail_r = Env.VarRecordNormal () in
+       let r = Env.VariableOp.get_record venv in
+       r.Env.var_type <- var_ty;
+       r.Env.var_detail <- detail_r;
+
+       complete_env venv node;
+       node
      end
-
-  | TAst.ExprStmt (TAst.PrevPassNode e) ->
-     let (node, ty) = analyze_expr ~making_placeholder:false
-                                   e parent_env ctx opt_chain_attr in
-     TAst.ExprStmt node
 
   | TAst.EmptyStmt -> node
 
@@ -241,7 +302,8 @@ and analyze_expr ?(making_placeholder=false)
      begin
        let args = [lhs; rhs] in
        let eargs = evaluate_invocation_args args parent_env ctx attr in
-       let (args_nodes, args_types) = List.split eargs in
+       let (_, args_types) = List.split eargs in
+       List.iter check_is_args_valid args_types;
 
        let opt_fs_and_args =
          find_suitable_operator ~universal_search:true
@@ -249,14 +311,19 @@ and analyze_expr ?(making_placeholder=false)
        match opt_fs_and_args with
        | Some (f_env, conv_filters) ->
           begin
+            let n_eargs = map_conversions conv_filters eargs in
+
+            let f_er = Env.FunctionOp.get_record f_env in
+            let f_ret_ty = as_ret_ty f_er.Env.fn_return_type ctx in
+            assert_valid_type f_ret_ty;
+
             (* Replace BinOpCall to generic FuncCall *)
             let node = TAst.GenericCall (
                            Nodes.string_of_id_string op,
-                           args_nodes,
+                           n_eargs,
+                           f_ret_ty,
                            Some f_env) in
-            (*TODO: extract return type from f_env*)
-            let f_ty = get_builtin_int_type ctx in
-            (node, f_ty)
+            (node, f_ret_ty)
           end
        | None ->
           (* TODO: error message *)
@@ -276,28 +343,71 @@ and analyze_expr ?(making_placeholder=false)
        in
 
        let eargs = evaluate_invocation_args args parent_env ctx attr in
-       let (args_nodes, args_types) = List.split eargs in
+       let (_, args_types) = List.split eargs in
        List.iter check_is_args_valid args_types;
 
-       match Type.type_sort rec_type_info with
-       | Type.FunctionSetTy (menv, template_args) ->
+       let {
+         Type.ti_sort = ty_sort;
+         Type.ti_template_args = template_args;
+       } = rec_type_info in
+       match ty_sort with
+       | Type.FunctionSetTy menv ->
           begin
             (* notmal function call*)
             let (f_env, conv_filters) =
               solve_function_overload args_types template_args
                                       menv parent_env ctx attr
             in
+            let n_eargs = map_conversions conv_filters eargs in
 
-            let { Env.fn_name = fname; _ } = Env.FunctionOp.get_record f_env in
+            let f_er = Env.FunctionOp.get_record f_env in
+            let f_ret_ty = as_ret_ty f_er.Env.fn_return_type ctx in
+            assert_valid_type f_ret_ty;
+
+            let {
+              Env.fn_name = fname;
+            } = Env.FunctionOp.get_record f_env in
             let node = TAst.GenericCall (
                            Nodes.string_of_id_string fname,
-                           args_nodes,
+                           n_eargs,
+                           f_ret_ty,
                            Some f_env) in
-            (*TODO: extract return type from f_env*)
-            let f_ty = get_builtin_int_type ctx in
-            (node, f_ty)
+            (node, f_ret_ty)
           end
        | _ -> failwith "not implemented//" (* TODO: call ctor OR operator() *)
+     end
+
+  | Ast.StatementTraitsExpr (keyword, block) ->
+     begin
+       match keyword with
+       | "semantics" ->
+          begin
+            let ty = get_builtin_bool_type ctx in
+            let ty =
+              Type.Generator.update_attr ctx.sc_tsets.ts_type_gen ty
+                                         Type_attr.XRef
+                                         Type_attr.Immutable
+            in
+            assert_valid_type ty;
+
+            let test () =
+                (* temporary environment for check whether semantics is valid.
+                 * DO NOT append this env to the parent_env.
+                 *)
+              let temp_env =
+                Env.create_env parent_env (Env.Scope (Env.empty_lookup_table ()))
+              in
+              ignore @@
+                analyze ~opt_attr:attr block temp_env ctx;
+              true
+            in
+            let could_compile = try test() with
+                                | _ -> false
+            in
+            let node = TAst.BoolLit (could_compile, ty) in
+            (node, ty)
+          end
+       | _ -> failwith @@ "__statement_traits : not implemented / " ^ keyword
      end
 
   | (Ast.Id (name, _) as id_node)
@@ -313,22 +423,28 @@ and analyze_expr ?(making_placeholder=false)
             (* TODO: change to exception *)
             failwith @@ "id not found : " ^ (Nodes.string_of_id_string name)
        in
+
        (* both of id and instantiated_id will be id node *)
        let node = TAst.Id (name, trg_env) in
-
        (node, ty)
      end
 
-  | Ast.Int32Lit (i) ->
+  | Ast.Int32Lit (i, _) ->
      begin
        (* WIP *)
        let ty = get_builtin_int_type ctx in
-       let node = TAst.Int32Lit i in
+       let ty =
+         Type.Generator.update_attr ctx.sc_tsets.ts_type_gen ty
+                                    Type_attr.XRef
+                                    Type_attr.Immutable
+       in
+       assert_valid_type ty;
+       let node = TAst.Int32Lit (i, ty) in
 
        (node, ty)
      end
 
-  | Ast.ArrayLit (elems) ->
+  | Ast.ArrayLit (elems, _) ->
      begin
        let (n_nodes, n_tys) =
          elems
@@ -336,11 +452,12 @@ and analyze_expr ?(making_placeholder=false)
                                             e parent_env ctx attr)
          |> List.split
        in
-       (* TODO: fix, calc undelying types and convert them *)
-       let elem_ty = List.hd n_tys in   (* TODO: fix *)
+       (* TODO: fix, calc undelying types(and attrs) and convert them *)
+       let elem_ty = List.hd n_tys in
 
-       let n_array = TAst.ArrayLit (n_nodes) in
        let array_ty = get_builtin_array_type elem_ty (List.length elems) ctx in
+       assert_valid_type array_ty;
+       let n_array = TAst.ArrayLit (n_nodes, array_ty) in
        (n_array, array_ty)
      end
 
@@ -358,41 +475,42 @@ and analyze_inner node parent_env ctx opt_chain_attr =
 and extract_prev_pass_node node =
   match node with
   | TAst.PrevPassNode n -> n
-  | _ -> failwith "not prev node"
+  | _ -> failwith "[ICE] not prev node"
 
 
 and prepare_params env func_decl_node params_node ctx attr =
-  match params_node with
-  | TAst.PrevPassNode (Ast.ParamsList ps) ->
-     begin
-       declare_function_params env func_decl_node ps ctx attr
-     end
+  match extract_prev_pass_node params_node with
+  | Ast.ParamsList ps ->
+     declare_function_params env func_decl_node ps ctx attr
+
   | _ -> failwith "check_params / unexpected"
 
-(*
-* if parameter has name, create variable env
-* DO NOT forget to call Env.add_inner_env
-*)
-and make_parameter_env f_env opt_param_name param_ty ctx =
-  let make_env name =
-    let detail_r = Env.VarRecordNormal () in
-    let venv = Env.create_env f_env (
-                                Env.Variable (
-                                    {
-                                      Env.var_name = name;
-                                      Env.var_type = param_ty;
-                                      Env.var_detail = detail_r;
-                                    })
-                              )
-    in
-    Env.update_status venv Env.Complete;
-    venv
-  in
-  opt_param_name |> Option.map make_env
 
 and declare_function_params f_env func_decl_node params ctx attr =
+  (*
+   * if parameter has name, create variable env
+   * DO NOT forget to call Env.add_inner_env
+   *)
+  let make_parameter_env f_env opt_param_name param_ty ctx =
+    let make_env name =
+      let detail_r = Env.VarRecordNormal () in
+      let venv = Env.create_env f_env (
+                                  Env.Variable (
+                                      {
+                                        Env.var_name = name;
+                                        Env.var_type = param_ty;
+                                        Env.var_detail = detail_r;
+                                      })
+                                )
+      in
+      Env.update_status venv Env.Complete;
+      venv
+    in
+    Option.map make_env opt_param_name
+  in
+
   let analyze_param param =
-    let (name, init_part) = param in
+    let (var_attr, var_name, init_part) = param in
     let (param_ty, default_value) = match init_part with
     (* Ex. :int = 10 *)
     | (Some type_expr, Some defalut_val) ->
@@ -403,7 +521,7 @@ and declare_function_params f_env func_decl_node params ctx attr =
     (* Ex. :int *)
     | (Some type_expr, None) ->
        begin
-         let ty = resolve_type type_expr f_env ctx attr in
+         let ty = resolve_type var_attr type_expr f_env ctx attr in
          (ty, None)
        end
 
@@ -420,18 +538,18 @@ and declare_function_params f_env func_decl_node params ctx attr =
     in
 
     let ninit_part = (None, default_value) in   (* type node is no longer necessary *)
-    let nparam = (name, ninit_part) in
+    let nparam : TAst.param_init_t = (var_attr, var_name, ninit_part) in
     (nparam, param_ty)
   in
 
-  let (nparams, param_types) =
+  let (nparams, (param_types: type_info_t list)) =
     params |> List.map analyze_param |> List.split
   in
   match func_decl_node with
   | TAst.FunctionDefStmt _ ->
      begin
        let make_env param ty =
-         let (opt_name, _) = param in
+         let (var_attr, opt_name, _) = param in
          make_parameter_env f_env opt_name ty ctx
        in
        let declare_env param opt_env =
@@ -439,7 +557,7 @@ and declare_function_params f_env func_decl_node params ctx attr =
            let env = Option.get opt_env in
            Env.add_inner_env f_env name env
          in
-         let (opt_name, _) = param in
+         let (var_attr, opt_name, _) = param in
          Option.may declare opt_name
        in
        (* first, make environments *)
@@ -523,29 +641,33 @@ and solve_simple_identifier ?(do_rec_search=true)
                 | [] ->
                    let ty =
                      Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
-                                                  (Type.ClassSetTy (env, template_args))
+                                                  (Type.ClassSetTy env)
+                                                  template_args
+                                                  Type_attr.undef
                    in
                    (ty, Some env)
                 | xs ->
                    if making_placeholder then
                      begin
+                       (* TODO: fix it *)
                        let uni_id =
                          Unification.generate_uni_id ctx.sc_unification_ctx in
                        Unification.update_type ctx.sc_unification_ctx
                                                uni_id ctx.sc_tsets.ts_type_type;
                        let ty =
                          Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
-                                                      (Type.ClassSetTy (env, template_args))
+                                                      (Type.ClassSetTy env)
+                                                      template_args
+                                                      Type_attr.undef
                        in
                        Unification.update_value ctx.sc_unification_ctx
                                                 uni_id (Ctfe_value.Type ty);
 
                        let ty =
                          Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
-                                                      (Type.NotDetermined (
-                                                           uni_id,
-                                                           template_args)
-                                                      )
+                                                      (Type.NotDetermined uni_id)
+                                                      template_args
+                                                      Type_attr.undef
                        in
                        (ty, Some env)
                      end
@@ -576,7 +698,9 @@ and solve_simple_identifier ?(do_rec_search=true)
               (* functions will be overloaded *)
               let ty =
                 Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
-                                             (Type.FunctionSetTy (env, template_args))
+                                             (Type.FunctionSetTy env)
+                                             template_args
+                                             Type_attr.undef
               in
               (ty, Some env)
             end
@@ -590,7 +714,6 @@ and solve_simple_identifier ?(do_rec_search=true)
        begin
          let {
            Env.var_type = var_ty;
-           _
          } = vr in
          (* TODO: check class variable *)
 
@@ -609,10 +732,9 @@ and solve_simple_identifier ?(do_rec_search=true)
          | (Unification.Undef) ->
             let ty =
               Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
-                                           (Type.NotDetermined (
-                                                uni_id,
-                                                template_args)
-                                           )
+                                           (Type.NotDetermined uni_id)
+                                           template_args
+                                           Type_attr.undef
             in
             (ty, Some env)
          | _ -> failwith "[ICE] meta ver"
@@ -649,10 +771,34 @@ and try_to_complete_env env ctx attr =
     ()  (* DO NOTHING *)
 
 
-and convert_type src_ty dist_ty ext_env ctx attr =
-  if Type.is_same src_ty dist_ty then
-    (FuncMatchLevel.ExactMatch, None)
-  else begin
+and convert_type trg_ty src_ty ext_env ctx attr =
+  if Type.is_same trg_ty src_ty then begin
+    let open Type_attr in
+    match (trg_ty.Type.ti_attr, src_ty.Type.ti_attr) with
+    | ({ta_ref_val = Val}, {ta_ref_val = _}) -> (FuncMatchLevel.ExactMatch, None)
+
+    | ({ta_ref_val = Ref; ta_mut = trg_mut},
+       {ta_ref_val = _; ta_mut = src_mut}) ->
+       begin
+         let level = match (trg_mut, src_mut) with
+           | (Immutable, Immutable) -> FuncMatchLevel.ExactMatch
+           | (Immutable, Const)
+           | (Immutable, Mutable) -> FuncMatchLevel.NoMatch
+
+           | (Const, Immutable) -> FuncMatchLevel.QualConv
+           | (Const, Const) -> FuncMatchLevel.ExactMatch
+           | (Const, Mutable) -> FuncMatchLevel.QualConv
+
+           | (Mutable, Immutable)
+           | (Mutable, Const) -> FuncMatchLevel.NoMatch
+           | (Mutable, Mutable) -> FuncMatchLevel.ExactMatch
+           | _ -> failwith "conv"
+         in
+         (level, None)
+       end
+
+    | _ -> failwith ""
+  end else begin
     failwith "convert_type / not implemented"
   end
 
@@ -664,20 +810,21 @@ and is_type_convertible_to src_ty dist_ty =
   end
 
 
-and resolve_type ?(making_placeholder=false) expr env ctx attr =
+and resolve_type ?(making_placeholder=false) var_attr expr env ctx attr =
   let (ty, _) =
     resolve_type_with_node ~making_placeholder:making_placeholder
-                           expr env ctx attr
+                           var_attr expr env ctx attr
   in
   ty
 
-and resolve_type_with_node ?(making_placeholder=false) expr env ctx attr =
+and resolve_type_with_node ?(making_placeholder=false) var_attr expr env ctx attr =
   let (ctfe_val, nexpr) =
     eval_expr_as_ctfe ~making_placeholder:making_placeholder
                       expr env ctx attr
   in
   let ty = match ctfe_val with
-    | Ctfe_value.Type ty -> ty
+    | Ctfe_value.Type ty ->
+       Type.Generator.update_attr_r ctx.sc_tsets.ts_type_gen ty var_attr
     | _ -> failwith "This expression must be type"
   in
   (ty, nexpr)
@@ -721,8 +868,12 @@ and find_suitable_operator ?(universal_search=false)
   in
 
   let check_type_and_solve_overload (callee_f_ty, callee_f_env) =
-    match Type.type_sort callee_f_ty with
-    | Type.FunctionSetTy (menv, template_args) ->
+    let {
+      Type.ti_sort = ty_sort;
+      Type.ti_template_args = template_args;
+    } = callee_f_ty in
+    match ty_sort with
+    | Type.FunctionSetTy menv ->
        solve_function_overload arg_types template_args
                                menv env ctx attr
     | _ -> failwith "[ICE]: operator must be defined as function"
@@ -813,7 +964,7 @@ and find_suitable_functions f_candidates arg_types ext_env ctx attr =
       failwith "[ERR] length of arguments are different~~";
 
     let (match_levels, conv_funcs) =
-      List.map2 (fun s d -> convert_type s d ext_env ctx attr)
+      List.map2 (fun s d -> convert_type d s ext_env ctx attr)
                 arg_types
                 f_record.Env.fn_param_types
       |> List.split
@@ -864,10 +1015,11 @@ and instantiate_function_templates menv template_args arg_types ext_env ctx attr
       | Ast.ExternFunctionDefStmt (_, Ast.ParamsList params, _, _, _, _) -> params
       | _ -> failwith ""
     in
-    let get_param_type (_, init) =
+    let get_param_type (var_attr, _, init) =
       match init with
       | (Some ty_node, _) -> resolve_type ~making_placeholder:true
-                                          ty_node temp_env ctx attr
+                                          var_attr ty_node
+                                          temp_env ctx attr
       | _ -> failwith "not implemented / param nodes"
     in
     Printf.printf "\n      getting param types =============- \n";
@@ -897,17 +1049,21 @@ and instantiate_function_templates menv template_args arg_types ext_env ctx attr
 and unify_type ctx lhs rhs =
   let uni_map = ctx.sc_unification_ctx in
   match (lhs, rhs) with
-  | ({Type.ti_sort = Type.NotDetermined (lhs_uni_t_id, _)},
-     {Type.ti_sort = Type.NotDetermined (rhs_uni_t_id, _)}) ->
+  | ({Type.ti_sort = Type.NotDetermined lhs_uni_t_id;
+      Type.ti_template_args = lhs_template_args},
+     {Type.ti_sort = Type.NotDetermined rhs_uni_t_id;
+      Type.ti_template_args = rhs_template_args}) ->
      begin
+       (* TODO: check lhs_template_args and rhs_template_args *)
        Unification.link_type uni_map lhs_uni_t_id rhs_uni_t_id
      end
   | (({Type.ti_sort = (Type.UniqueTy _)} as ty),
-     {Type.ti_sort = Type.NotDetermined (uni_t_id, _)})
-  | ({Type.ti_sort = Type.NotDetermined (uni_t_id, _)},
+     {Type.ti_sort = Type.NotDetermined uni_t_id})
+  | ({Type.ti_sort = Type.NotDetermined uni_t_id},
      ({Type.ti_sort = (Type.UniqueTy _)} as ty))
     ->
      begin
+       (* TODO: check template args *)
        Unification.update_type uni_map uni_t_id ty
      end
   | _ -> failwith "[ICE] unify_type"
@@ -916,21 +1072,18 @@ and unify_type ctx lhs rhs =
 and unify_type_value ctx lhs rhs =
   let uni_map = ctx.sc_unification_ctx in
   match (lhs, rhs) with
-  | ({Type.ti_sort = Type.NotDetermined (lhs_uni_t_id, _)},
-     {Type.ti_sort = Type.NotDetermined (rhs_uni_t_id, _)}) ->
+  | ({Type.ti_sort = Type.NotDetermined lhs_uni_t_id},
+     {Type.ti_sort = Type.NotDetermined rhs_uni_t_id}) ->
      begin
+       (* TODO: check template args *)
        Printf.printf "!! unify_type_value(T/T) / %d = %d\n" lhs_uni_t_id rhs_uni_t_id;
        Unification.link_value uni_map lhs_uni_t_id rhs_uni_t_id
      end
-  | (({Type.ti_sort = (Type.UniqueTy ty_r)} as ty),
-     {Type.ti_sort = Type.NotDetermined (uni_t_id, holder_args)})
-  | ({Type.ti_sort = Type.NotDetermined (uni_t_id, holder_args)}
-    , ({Type.ti_sort = (Type.UniqueTy ty_r)} as ty)) ->
+  | (({Type.ti_sort = (Type.UniqueTy ty_r); Type.ti_template_args = args} as ty),
+     {Type.ti_sort = Type.NotDetermined uni_t_id; Type.ti_template_args = holder_args})
+  | ({Type.ti_sort = Type.NotDetermined uni_t_id; Type.ti_template_args = holder_args},
+     ({Type.ti_sort = (Type.UniqueTy ty_r); Type.ti_template_args = args} as ty)) ->
      begin
-       let {
-         (*Type.ty_cenv = cenv;*)
-         Type.ty_template_args = args;
-       } = ty_r in
        Printf.printf "!! unify_type_value(T|V) / %d -> value [%d, %d]\n"
                      uni_t_id
                      (List.length args)
@@ -946,6 +1099,7 @@ and unify_type_value ctx lhs rhs =
   | (({Type.ti_sort = (Type.UniqueTy _)} as lhs_ty),
      ({Type.ti_sort = (Type.UniqueTy _)} as rhs_ty)) ->
      begin
+       (* TODO: check template args *)
        if not (is_type_convertible_to rhs_ty lhs_ty) then
          failwith "[ERR] can not convert type"
      end
@@ -977,12 +1131,8 @@ and unify_arg_value ctx lhs rhs =
 
 and print_type ty =
   match Type.type_sort ty with
-  | Type.UniqueTy tr ->
+  | Type.UniqueTy cenv ->
      begin
-       let {
-         Type.ty_cenv = cenv;
-         _
-       } = tr in
        let cls_r = Env.ClassOp.get_record cenv in
        let name = Nodes.string_of_id_string cls_r.Env.cls_name in
        Printf.printf "@==> %s\n" name
@@ -990,7 +1140,7 @@ and print_type ty =
   | Type.FunctionSetTy _ -> Printf.printf "function set\n"
   | Type.ClassSetTy _ -> Printf.printf "class set\n"
   | Type.Undef -> Printf.printf "@undef@\n"
-  | Type.NotDetermined (uni_id, _) ->
+  | Type.NotDetermined uni_id ->
      begin
        Printf.printf "@not determined [%d]\n" uni_id
      end
@@ -1049,8 +1199,7 @@ and prepare_template_params params_node ctx =
 * "some_method"
 *)
 and select_member_element ?(universal_search=false) recv_ty t_id env ctx attr =
-  let recv_ty_r = Type.as_unique recv_ty in
-  let r_cenv = recv_ty_r.Type.ty_cenv in
+  let r_cenv = Type.as_unique recv_ty in
   let opt_ty_ctx = solve_identifier ~do_rec_search:false t_id r_cenv ctx attr in
 
   match opt_ty_ctx with
@@ -1094,11 +1243,11 @@ and prepare_instantiate_template t_env_record template_args ext_env ctx attr =
     List.split template_params
   in
 
-  (* temporary environment for evalutate meta variables.
+  (* temporary environment for evaluate meta variables.
    * DO NOT append this env to the parent_env.
    *)
   let temp_env =
-    Env.create_env ext_env (Env.Temporary (Env.empty_lookup_table ())) in
+    Env.create_env ext_env (Env.Scope (Env.empty_lookup_table ())) in
 
   (* generate meta variables which have no value and no type *)
   let generate_meta_var name =
@@ -1136,7 +1285,11 @@ and prepare_instantiate_template t_env_record template_args ext_env ctx attr =
     match opt_init with
     (* :U *)
     | Some (Some ty_expr, None) ->
-       let ty = resolve_type ty_expr temp_env ctx None in
+       let var_attr = {
+         Type_attr.ta_ref_val = Type_attr.Ref;
+         Type_attr.ta_mut = Type_attr.Immutable;
+       } in
+       let ty = resolve_type var_attr ty_expr temp_env ctx None in
        unify_type ctx var_ty ty
 
     (* = V *)
@@ -1148,7 +1301,7 @@ and prepare_instantiate_template t_env_record template_args ext_env ctx attr =
     | None ->
        begin
          match Type.type_sort var_ty with
-         | Type.NotDetermined (uni_t_id, _) ->
+         | Type.NotDetermined uni_t_id ->
             unify_type ctx var_ty ctx.sc_tsets.ts_type_type;
 
          | _ -> failwith "not implemented 01"
@@ -1169,10 +1322,9 @@ and prepare_instantiate_template t_env_record template_args ext_env ctx attr =
       begin
         let ud_ty =
           Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
-                                       (Type.NotDetermined (
-                                            uni_id,
-                                            [])
-                                       )
+                                       (Type.NotDetermined uni_id)
+                                       []
+                                       Type_attr.undef
         in
         let type_val = Ctfe_value.Type ud_ty in
         Unification.update_value ctx.sc_unification_ctx uni_id type_val;
@@ -1291,6 +1443,11 @@ and instantiate_class_templates menv template_args ext_env ctx attr =
   List.map instantiate mset_record.Env.ms_templates
 
 
+and map_conversions filters eargs =
+  let (exprs, types) = eargs |> List.split in
+  exprs
+
+
 and get_builtin_int_type ?(bits=32) ?(signed=true)
                          ctx : 'env type_info =
   let ty = match bits with
@@ -1308,6 +1465,11 @@ and get_builtin_void_type ctx : 'env type_info =
   assert (not @@ Type.is_undef ty);
   ty
 
+and get_builtin_bool_type ctx : 'env type_info =
+  let ty = !(ctx.sc_tsets.ts_bool_type_holder) in
+  assert (not @@ Type.is_undef ty);
+  ty
+
 and get_builtin_array_type elem_ty len ctx : 'env type_info =
   let arr_ty = !(ctx.sc_tsets.ts_array_type_holder) in
   assert (not @@ Type.is_undef arr_ty);
@@ -1316,7 +1478,7 @@ and get_builtin_array_type elem_ty len ctx : 'env type_info =
   print_type elem_ty;
 
   let ty = match Type.type_sort arr_ty with
-    | Type.ClassSetTy (menv, _) ->
+    | Type.ClassSetTy menv ->
        begin
          let template_args = [Ctfe_value.Type elem_ty;
                               Ctfe_value.Int32 (Int32.of_int len)
@@ -1328,12 +1490,10 @@ and get_builtin_array_type elem_ty len ctx : 'env type_info =
          in
          match instances with
          | [e] ->
-            let ty_r = {
-              Type.ty_cenv = e;
-              Type.ty_template_args = template_args;
-            } in
-            Type.Generator.generate_type ctx.sc_tsets.ts_type_gen (Type.UniqueTy ty_r)
-
+            Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
+                                         (Type.UniqueTy e)
+                                         template_args
+                                         Type_attr.undef
          | _ -> failwith "[ICE] unexpected array instances"
        end
     | _ -> failwith "[ICE] unexpected"
@@ -1357,13 +1517,11 @@ and cache_builtin_type_info preset_ty name ctx =
        (* pure type *)
        | Some (ty, Some c_env) when ty == ctx.sc_tsets.ts_type_type ->
           begin
-            let ty_r = {
-              Type.ty_cenv = c_env;
-              Type.ty_template_args = [];
-            } in
             let prim_ty =
               Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
-                                           (Type.UniqueTy ty_r)
+                                           (Type.UniqueTy c_env)
+                                           []
+                                           Type_attr.undef
             in
             preset_ty := prim_ty;
           end
@@ -1375,7 +1533,7 @@ and cache_builtin_type_info preset_ty name ctx =
           end
 
        (**)
-       | _ -> failwith "[ICE]"
+       | _ -> failwith "[ICE] cache_builtin_type_info: no definition"
      end
 
   (* already defined *)
