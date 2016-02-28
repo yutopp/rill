@@ -29,7 +29,7 @@ let make_default_context root_env module_search_dirs =
                                             Env.cls_detail = Env.ClsUndef;
                                           })
                              ) in
-    let node = TAst.ExternClassDefStmt (name, inner_name, Some env) in
+    let node = TAst.ExternClassDefStmt (name, inner_name, None, Some env) in
     complete_env env node;
     env
   in
@@ -77,7 +77,7 @@ let make_default_context root_env module_search_dirs =
   let builtin_mod_e = load_module ["core"] "builtin" ctx in
   ctx.sc_builtin_m_env <- Some builtin_mod_e;
 
-  (* cache void type *)
+  (* cache void type, ORDER is IMPORTANT! void should be cached at first. *)
   cache_builtin_type_info tsets.ts_void_type_holder
                           void_type_i.external_name
                           ctx;

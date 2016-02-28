@@ -44,11 +44,11 @@ let check_is_args_valid ty =
   (* TODO: implement *)
   ()
 
-let complete_function_env env node s_name param_types return_type detail_r ctx =
+let complete_function_env env node s_name param_types return_type f_detail ctx =
   let r = Env.FunctionOp.get_record env in
   r.Env.fn_param_types <- param_types;
   r.Env.fn_return_type <- return_type;
-  r.Env.fn_detail <- detail_r;
+  r.Env.fn_detail <- f_detail;
 
   let _ = match s_name with
     | s when s = Builtin_info.entrypoint_name ->

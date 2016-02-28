@@ -22,6 +22,7 @@ let string_of_id_string id_s =
   | UnaryPostOp s -> "op_unary_post_" ^ s
   | BinaryOp s -> string_of_binary_op s
 
+
 module type NodeContextType =
   sig
     type 'a current_ctx_t
@@ -47,7 +48,7 @@ module Make (Ctx : NodeContextType) =
       | ExternFunctionDefStmt of id_string * ast * ast * string * attr_tbl_t option * ctx_t
       (* name, body, attribute?, _ *)
       | ClassDefStmt of id_string * ast * attr_tbl_t option * ctx_t
-      | ExternClassDefStmt of id_string * string * ctx_t
+      | ExternClassDefStmt of id_string * string * attr_tbl_t option * ctx_t
       (* VarInit, _ *)
       | VariableDefStmt of ast * ctx_t
       (* name, template params, inner node *)
@@ -87,7 +88,8 @@ module Make (Ctx : NodeContextType) =
       | PrevPassNode of pctx_t
 
       | GenericCall of string * ast list * term_ctx_t * ctx_t
-      | GetAddress of ast
+      (* body, ctx *)
+      | GenericFuncDef of ast option * ctx_t
 
      (* attr * id? * value *)
      and param_init_t = Type_attr.attr_t * string option * value_init_t

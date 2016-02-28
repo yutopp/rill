@@ -155,7 +155,7 @@ let rec solve_forward_refs ?(meta_variables=[])
        node
      end
 
-  | Ast.ExternClassDefStmt (name, extern_cname, _) ->
+  | Ast.ExternClassDefStmt (name, extern_cname, None, _) ->
      begin
        let name_s = Nodes.string_of_id_string name in
        (* accept multiple definition for specialization *)
@@ -184,6 +184,7 @@ let rec solve_forward_refs ?(meta_variables=[])
        let node = TAst.ExternClassDefStmt (
                       name,
                       extern_cname,
+                      opt_attr,
                       Some cenv
                     ) in
        Env.update_rel_ast cenv node;

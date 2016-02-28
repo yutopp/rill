@@ -225,7 +225,7 @@ extern_class_statement_:
                 name = rel_id_as_s
                 ASSIGN
                 body_name = STRING (*string_lit*)
-                { Ast.ExternClassDefStmt (name, body_name, ()) }
+                { Ast.ExternClassDefStmt (name, body_name, None, ()) }
 
 template_extern_class_statement_:
                 KEYWORD_CLASS
@@ -234,7 +234,7 @@ template_extern_class_statement_:
                 ASSIGN
                 body_name = STRING (*string_lit*)
                 {
-                    let inner = Ast.ExternClassDefStmt (name, body_name, ())
+                    let inner = Ast.ExternClassDefStmt (name, body_name, None, ())
                     in
                     Ast.TemplateStmt (name, template_params, inner)
                 }

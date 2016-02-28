@@ -8,7 +8,7 @@
 
 open Batteries
 
-type checked_state =
+type checked_state_t =
     InComplete
   | Checking
   | Complete
@@ -30,7 +30,8 @@ module Kind =
 
 (* used for id of environments *)
 type id_t = Num.num
-let id_counter = ref @@ Num.num_of_int 0
+let id_counter = ref @@ Num.num_of_int 1
+let undef_id = Num.num_of_int 0
 
 
 type 'ast env_t = {
@@ -38,7 +39,7 @@ type 'ast env_t = {
    parent_env       : 'ast env_t option;
    module_env       : 'ast env_t option;
    er               : 'ast env_record_t;
-   mutable state    : checked_state;
+   mutable state    : checked_state_t;
 
    mutable rel_node : 'ast option;
 }
@@ -55,6 +56,8 @@ type 'ast env_t = {
   | Scope of 'ast lookup_table_t
 
   | MetaVariable of Unification.id_t
+
+  | Unknown
 
  and 'ast type_info_t = 'ast env_t Type.info_t
 
@@ -105,17 +108,44 @@ type 'ast env_t = {
    mutable fn_detail            : 'ast function_record_var;
  }
  and 'ast function_record_var =
-   | FnRecordNormal of 'ast function_record_normal
-   | FnRecordExtern of 'ast function_record_extern
+   | FnRecordNormal of function_kind_var * 'ast function_record_normal
+   | FnRecordExternal of function_def_var * function_kind_var * string
+   | FnRecordBuiltin of function_def_var * function_kind_var * string
    | FnUndef
+
+ and function_def_var =
+   | FnDefUserDefined
+   | FnDefDefaulted
+   | FnDefDeleted
+
+ and function_kind_var =
+   | FnKindFree
+   | FnKindMember
+   | FnKindConstructor
+   | FnKindDestructor
+
 
  and 'ast function_record_normal = {
    fn_n_param_envs  : 'ast env_t option list;
  }
 
- and 'ast function_record_extern = {
-   fn_e_name        : string;
-   fn_e_is_builtin  : bool;
+
+ (*
+  *
+  *)
+ and 'ast class_record = {
+   cls_name             : Nodes.id_string;
+   mutable cls_mangled  : string option;
+
+   mutable cls_template_vals    : ('ast type_info_t Ctfe_value.t) list;
+   mutable cls_detail           : 'ast class_record_var;
+ }
+ and 'ast class_record_var =
+   | ClsRecordPrimitive of class_record_extern
+   | ClsUndef
+
+ and class_record_extern = {
+   cls_e_name           : string;
  }
 
 
@@ -134,23 +164,15 @@ type 'ast env_t = {
  and 'ast variable_record_normal = unit (* TODO: implement *)
 
 
- (*
-  *
-  *)
- and 'ast class_record = {
-   cls_name             : Nodes.id_string;
-   mutable cls_mangled  : string option;
-
-   mutable cls_template_vals    : ('ast type_info_t Ctfe_value.t) list;
-   mutable cls_detail           : 'ast class_record_var;
- }
- and 'ast class_record_var =
-   | ClsRecordExtern of class_record_extern
-   | ClsUndef
-
- and class_record_extern = {
-   cls_e_name           : string;
- }
+let undef () =
+  {
+    env_id = undef_id;
+    parent_env = None;
+    module_env = None;
+    er = Unknown;
+    state = InComplete;
+    rel_node = None;
+  }
 
 
 let get_env_record env =
@@ -368,17 +390,17 @@ module FunctionOp =
       match er with
       | Function (_, r) -> r
       | _ -> failwith "FunctionOp.get_record : not function"
-
+(*
     let get_extern_record env =
       let r = get_record env in
       match r.fn_detail with
-      | FnRecordExtern r -> r
-      | _ -> failwith "FunctionOp.get_extern_record : not extern"
+      | FnRecordExternal (d, k, n) -> (d, k, n)
+      | _ -> failwith "FunctionOp.get_extern_record : not extern"*)
 
     let get_normal_record env =
       let r = get_record env in
       match r.fn_detail with
-      | FnRecordNormal r -> r
+      | FnRecordNormal (k, r) -> (k, r)
       | _ -> failwith "FunctionOp.get_extern_record : not normal"
   end
 

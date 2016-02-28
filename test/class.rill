@@ -1,5 +1,19 @@
 def main()
 {
+    val mutable a = int32();
+    print_int(a);
+    val mutable aa = a + 1;
+    val mutable b = int32(aa);
+    print_int(b);
+
+    b = 10;
+    print_int(b);
+
+    b = b + b + b;
+    print_int(b);
+
+    val yo = 0;
+    yo = 10;
 }
 
 class a1

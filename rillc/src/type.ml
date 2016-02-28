@@ -135,6 +135,7 @@ module Generator =
       } in
       update_attr_r gen ty attr
 
+
     let find_type_by_cache_id gen t_id =
       try Hashtbl.find gen.cache_table t_id with
       | Not_found ->

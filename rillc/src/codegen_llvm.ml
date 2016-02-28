@@ -47,76 +47,65 @@ let rec code_generate ~bb node ctx =
        ignore @@ code_generate_as_value ~bb:bb e ctx
      end
 
-  | TAst.FunctionDefStmt (
-        _, TAst.ParamsList (params), _, body, opt_attr, Some env
-      ) ->
+  | TAst.GenericFuncDef (opt_body, Some env) ->
      if Ctx.is_env_defined ctx env then () else
      begin
        (* *)
        let fenv_r = Env.FunctionOp.get_record env in
-       let fenv_nr = Env.FunctionOp.get_normal_record env in
-
-       let llparam_tys =
-         fenv_r.Env.fn_param_types
-         |> List.map (fun t -> lltype_of_typeinfo_ac ~bb:bb t ctx)
-         |> Array.of_list
-       in
-       let llret_ty = lltype_of_typeinfo ~bb:bb fenv_r.Env.fn_return_type ctx in
-
-       (* type of function *)
-       let f_ty = L.function_type llret_ty llparam_tys in
-
-       (* declare function *)
-       let name = fenv_r.Env.fn_mangled |> Option.get in
-       let f = L.declare_function name f_ty ctx.ir_module in
-       Ctx.bind_env_to_val ctx env f;
-
-       (* setup parameters *)
-       let param_envs = fenv_nr.Env.fn_n_param_envs |> Array.of_list in
-       let ll_params = L.params f in
-       assert (Array.length ll_params = Array.length param_envs);
-       let declare_param_var optenv llvar =
-         match optenv with
-         | Some env ->
-            begin
-              let venv = Env.VariableOp.get_record env in
-              let var_name = venv.Env.var_name in
-              L.set_value_name var_name llvar;
-              Ctx.bind_env_to_val ctx env llvar
-            end
-         | None -> ()
-       in
-       Array.iter2 declare_param_var param_envs ll_params;
-
-       (* entry block *)
-       let bb = L.append_block ctx.ir_context "entry" f in
-       L.position_at_end bb ctx.ir_builder;
-
-       (**)
-       code_generate body ctx ~bb:(Some bb);
-
-       (**)
-       ignore (L.build_ret_void ctx.ir_builder);
-
-       Llvm_analysis.assert_valid_function f;
-
-       Ctx.mark_env_as_defined ctx env
-     end
-
-  | TAst.ExternFunctionDefStmt (
-        _, TAst.ParamsList (params), _, extern_fname, opt_attr, Some env
-      ) ->
-     if Ctx.is_env_defined ctx env then () else
-     begin
-       let fr = Env.FunctionOp.get_extern_record env in
-
-       match fr.Env.fn_e_is_builtin with
-       | true -> () (* DO NOTHING *)
-       | false ->
+       match fenv_r.Env.fn_detail with
+       | Env.FnRecordNormal (kind, fenv_d) ->
           begin
-            (* *)
-            let fenv_r = Env.FunctionOp.get_record env in
+            let body = Option.get opt_body in(* *)
 
+            let llparam_tys =
+              fenv_r.Env.fn_param_types
+              |> List.map (fun t -> lltype_of_typeinfo_ac ~bb:bb t ctx)
+              |> Array.of_list
+            in
+            let llret_ty = lltype_of_typeinfo ~bb:bb fenv_r.Env.fn_return_type ctx in
+
+            (* type of function *)
+            let f_ty = L.function_type llret_ty llparam_tys in
+
+            (* declare function *)
+            let name = fenv_r.Env.fn_mangled |> Option.get in
+            let f = L.declare_function name f_ty ctx.ir_module in
+            Ctx.bind_env_to_val ctx env f;
+
+            (* setup parameters *)
+            let param_envs = fenv_d.Env.fn_n_param_envs |> Array.of_list in
+            let ll_params = L.params f in
+            assert (Array.length ll_params = Array.length param_envs);
+            let declare_param_var optenv llvar =
+              match optenv with
+              | Some env ->
+                 begin
+                   let venv = Env.VariableOp.get_record env in
+                   let var_name = venv.Env.var_name in
+                   L.set_value_name var_name llvar;
+                   Ctx.bind_env_to_val ctx env llvar
+                 end
+              | None -> ()
+            in
+            Array.iter2 declare_param_var param_envs ll_params;
+
+            (* entry block *)
+            let bb = L.append_block ctx.ir_context "entry" f in
+            L.position_at_end bb ctx.ir_builder;
+
+            (**)
+            code_generate body ctx ~bb:(Some bb);
+
+            (**)
+            ignore (L.build_ret_void ctx.ir_builder);
+
+            Llvm_analysis.assert_valid_function f;
+
+            Ctx.mark_env_as_defined ctx env
+          end
+
+       | Env.FnRecordExternal (def, kind, extern_fname) ->
+          begin
             let llparam_tys =
               fenv_r.Env.fn_param_types
               |> List.map (fun t -> lltype_of_typeinfo_ac ~bb:bb t ctx)
@@ -133,10 +122,23 @@ let rec code_generate ~bb node ctx =
 
             Ctx.mark_env_as_defined ctx env
           end
+
+       | Env.FnRecordBuiltin (def, kind, name) ->
+          begin
+          end
+
+       | _ -> failwith "[ICE]"
+     end
+
+  | TAst.ClassDefStmt (
+        name, body, opt_attr, Some env
+      ) ->
+     begin
+       ()
      end
 
   | TAst.ExternClassDefStmt (
-        name, extern_cname, Some env
+        name, extern_cname, _, Some env
       ) ->
      begin
        if Ctx.is_env_defined ctx env then () else
@@ -215,31 +217,26 @@ and code_generate_as_value ?(bb=None) node ctx : (L.llvalue * 'env Type.info_t)=
               let f = find_val_from_env_with_force_generation ~bb:bb ctx env in
               L.build_call f llargs "" ctx.ir_builder
             end
-         (* extern function *)
-         | Env.FnRecordExtern {
-               Env.fn_e_name = extern_name;
-               Env.fn_e_is_builtin = is_builtin;
-             } ->
-            begin
-              (* TODO: fix *)
-              match is_builtin with
-              | true ->
-                 begin
-                   Printf.printf "gen value: debug / builtin %s = \"%s\"\n"
-                                 fn_s_name extern_name; flush_all ();
 
-                   let builtin_gen_f = Ctx.find_builtin_func ctx extern_name in
-                   builtin_gen_f llargs ctx
-                 end
-              | false ->
-                 begin
-                   Printf.printf "gen value: debug / extern  %s = \"%s\"\n"
-                                 fn_s_name extern_name; flush_all ();
-                   let extern_f =
-                     find_val_from_env_with_force_generation ~bb:bb ctx env in
-                   L.build_call extern_f llargs "" ctx.ir_builder
-                 end
+         (* external function *)
+         | Env.FnRecordExternal (def, kind, extern_name) ->
+            begin
+              Printf.printf "gen value: debug / extern  %s = \"%s\"\n"
+                            fn_s_name extern_name; flush_all ();
+              let extern_f =
+                find_val_from_env_with_force_generation ~bb:bb ctx env in
+              L.build_call extern_f llargs "" ctx.ir_builder
             end
+
+         | Env.FnRecordBuiltin (def, kind, extern_name) ->
+            begin
+              Printf.printf "gen value: debug / builtin %s = \"%s\"\n"
+                            fn_s_name extern_name; flush_all ();
+
+              let builtin_gen_f = Ctx.find_builtin_func ctx extern_name in
+              builtin_gen_f llargs ctx
+            end
+
          | Env.FnUndef -> failwith "[ICE] codegen: undefined function record"
        in
        (llval, ret_ty)
@@ -559,7 +556,25 @@ let inject_builtins ctx =
     assert (Array.length args = 2);
     L.build_add args.(0) args.(1) "" ctx.Ctx.ir_builder
   in
-  register_builtin_func "__builtin_op_binary_+_int_int" add_int_int
+  register_builtin_func "__builtin_op_binary_+_int_int" add_int_int;
+
+  let add_int_int args ctx =
+    L.const_int (L.i32_type ctx.ir_context) 0
+  in
+  register_builtin_func "default_ctor" add_int_int;
+
+  let add_int_int args ctx =
+    assert (Array.length args = 1);
+    args.(0)
+  in
+  register_builtin_func "copy_ctor" add_int_int;
+
+  let add_int_int args ctx =
+    assert (Array.length args = 2);
+    L.build_store args.(1) args.(0) ctx.Ctx.ir_builder
+  in
+  register_builtin_func "yoyo" add_int_int;
+  ()
 
 
 let generate node ctx =
