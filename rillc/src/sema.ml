@@ -17,29 +17,31 @@ let make_default_env () =
   Env.make_root_env ()
 
 let make_default_context root_env module_search_dirs =
-    let type_gen = Type.Generator.default () in
+  let type_gen = Type.Generator.default () in
 
-  let create_builtin_class name inner_name =
-    let env = Env.create_env root_env (
-                               Env.Class (Env.empty_lookup_table ~init:0 (),
-                                          {
-                                            Env.cls_name = name;
-                                            Env.cls_mangled = None;
-                                            Env.cls_template_vals = [];
-                                            Env.cls_detail = Env.ClsUndef;
-                                          })
-                             ) in
-    let node = TAst.ExternClassDefStmt (name, inner_name, None, Some env) in
-    complete_env env node;
-    env
-  in
   let register_builtin_type name inner_name =
+    let create_builtin_class name inner_name =
+      let env = Env.create_context_env root_env (
+                                         Env.Class (Env.empty_lookup_table ~init:0 (),
+                                                    {
+                                                      Env.cls_name = name;
+                                                      Env.cls_mangled = None;
+                                                      Env.cls_template_vals = [];
+                                                      Env.cls_detail = Env.ClsUndef;
+                                                      Env.cls_traits = None;
+                                                    })
+                                       ) in
+      let node = TAst.ExternClassDefStmt (name, inner_name, None, Some env) in
+      complete_env env node;
+      env
+    in
+
     let id_name = Nodes.Pure name in
     let cenv = create_builtin_class id_name inner_name in
     Env.add_inner_env root_env name cenv;
 
     Type.Generator.generate_type type_gen
-                                 (Type.UniqueTy cenv)
+                                 (Type_info.UniqueTy cenv)
                                  []
                                  {
                                    Type_attr.ta_ref_val = Type_attr.Val;

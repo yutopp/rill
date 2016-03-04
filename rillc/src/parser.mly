@@ -239,6 +239,14 @@ template_extern_class_statement_:
                     Ast.TemplateStmt (name, template_params, inner)
                 }
 
+
+return_statement:
+                KEYWORD_RETURN
+                e = expression?
+                SEMICOLON
+                { Ast.ReturnStmt e }
+
+
 (**)
 program_body_statement:
                 attribute program_body_statement_ { Ast.AttrWrapperStmt ($1, $2) }
@@ -252,6 +260,7 @@ program_body_statement_:
         |       expression_statement { $1 }
         |       variable_declaration_statement { $1 }
         |       program_body_block_statement { $1 }
+        |       return_statement { $1 }
 
 program_body_statements_list:
                 program_body_statement* { Ast.StatementList ($1) }

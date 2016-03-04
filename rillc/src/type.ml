@@ -6,26 +6,8 @@
  * http://www.boost.org/LICENSE_1_0.txt)
  *)
 
-type 'env info_t = {
-  ti_id                 : type_id_ref_t option;
-  ti_sort               : 'env type_sort_t;
-  ti_template_args      : 'env ctfe_val_t list;
-  ti_attr               : Type_attr.attr_t;
-}
-
- and 'env ctfe_val_t = ('env info_t) Ctfe_value.t
-
- and 'env type_sort_t =
-    UniqueTy of 'env
-  | ClassSetTy of 'env
-  | FunctionSetTy of 'env
-  | Undef
-  | NotDetermined of Unification.id_t
-
-
-and type_id_ref_t = int64   (* type id is represented by int64 *)
-module IdType = Int64
-let is_type_id_signed = true
+open Type_info
+type 'e info_t = 'e Type_info.t
 
 
 let type_sort ty =
@@ -141,3 +123,36 @@ module Generator =
       | Not_found ->
          failwith "[ICE] Internal type id is not found"
   end
+
+
+let print ty =
+  let open Type_attr in
+  let s = match ty.ti_attr.ta_ref_val with
+      Ref -> "ref"
+    | Val -> "val"
+    | XRef -> "xref"
+    | _ -> "undef"
+  in
+  Printf.printf "Attr: REF = %s\n" s;
+  let s = match ty.ti_attr.ta_mut with
+      Immutable -> "immutable"
+    | Const -> "const"
+    | Mutable -> "mutable"
+    | _ -> "undef"
+  in
+  Printf.printf "Attr: MUT = %s\n" s;
+
+  match type_sort ty with
+    UniqueTy cenv ->
+     begin
+       let cls_r = Env.ClassOp.get_record cenv in
+       let name = Nodes.string_of_id_string cls_r.Env.cls_name in
+       Printf.printf "@==> %s\n" name
+     end
+  | FunctionSetTy _ -> Printf.printf "function set\n"
+  | ClassSetTy _ -> Printf.printf "class set\n"
+  | Undef -> Printf.printf "@undef@\n"
+  | NotDetermined uni_id ->
+     begin
+       Printf.printf "@not determined [%d]\n" uni_id
+     end

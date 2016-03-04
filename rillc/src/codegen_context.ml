@@ -12,10 +12,7 @@ module type CONTEXT_TYPE =
     type ir_builder_t
     type ir_module_t
 
-    type ir_value_t
-    type ir_type_t
-
-    type 'ctx builtin_f_t
+    type ('ty, 'ctx) value_record_t
   end
 
 module Make (Cgt : CONTEXT_TYPE) =
@@ -27,25 +24,20 @@ module Make (Cgt : CONTEXT_TYPE) =
       end
     module IdSet = Set.Make(IdOrderedType)
 
-    type 'ty builtin_gen_t =
-      | Const of Cgt.ir_type_t
-      | Gen of ('ty Ctfe_value.t list -> Cgt.ir_type_t)
-
     type ('env, 'ty, 'v) t = {
       mutable ir_context        : Cgt.ir_context_t;
       mutable ir_builder        : Cgt.ir_builder_t;
       mutable ir_module         : Cgt.ir_module_t;
 
-      env_to_val_tbl            : (Env.id_t, Cgt.ir_value_t) Hashtbl.t;
-      env_to_type_tbl           : (Env.id_t, Cgt.ir_type_t) Hashtbl.t;
-
-      name_to_builtin_type_tbl  : (string, 'ty builtin_gen_t) Hashtbl.t;
-      name_to_builtin_func_tbl  : (string, (('env, 'ty, 'v) t) Cgt.builtin_f_t) Hashtbl.t;
+      env_to_record_tbl         : (Env.id_t, ('env, 'ty, 'v) value_t) Hashtbl.t;
+      name_to_record_tbl        : (string, ('env, 'ty, 'v) value_t) Hashtbl.t;
 
       mutable defined_env       : IdSet.t;
       type_sets                 : 'env Type_sets.type_sets_t option;
       uni_map                   : ('ty, 'v) Unification.t option;
     }
+     and ('env, 'ty, 'v) value_t = ('ty, (('env, 'ty, 'v) t)) Cgt.value_record_t
+
 
     let init ~ir_context
              ~ir_builder
@@ -57,11 +49,8 @@ module Make (Cgt : CONTEXT_TYPE) =
         ir_builder = ir_builder;
         ir_module = ir_module;
 
-        env_to_val_tbl = Hashtbl.create 64;
-        env_to_type_tbl = Hashtbl.create 64;
-
-        name_to_builtin_type_tbl = Hashtbl.create 32;
-        name_to_builtin_func_tbl = Hashtbl.create 32;
+        env_to_record_tbl = Hashtbl.create 32;
+        name_to_record_tbl = Hashtbl.create 32;
 
         defined_env = IdSet.empty;
         type_sets = type_sets;
@@ -77,33 +66,17 @@ module Make (Cgt : CONTEXT_TYPE) =
 
 
     (**)
-    let bind_env_to_val ctx env value =
-      Hashtbl.add ctx.env_to_val_tbl env.Env.env_id value
+    let bind_val_to_env ctx value env =
+      Hashtbl.add ctx.env_to_record_tbl env.Env.env_id value
 
-    let find_val_from_env ctx env =
-      Hashtbl.find ctx.env_to_val_tbl env.Env.env_id
-
-
-    (**)
-    let bind_env_to_type ctx env ty =
-      Hashtbl.add ctx.env_to_type_tbl env.Env.env_id ty
-
-    let find_type_from_env ctx env =
-      Hashtbl.find ctx.env_to_type_tbl env.Env.env_id
+    let find_val_by_env ctx env =
+      Hashtbl.find ctx.env_to_record_tbl env.Env.env_id
 
 
     (**)
-    let find_builtin_type ctx name =
-      Hashtbl.find ctx.name_to_builtin_type_tbl name
+    let bind_val_to_name ctx value name =
+      Hashtbl.add ctx.name_to_record_tbl name value
 
-    let bind_builtin_type ctx name f =
-      Hashtbl.add ctx.name_to_builtin_type_tbl name f
-
-
-    (**)
-    let find_builtin_func ctx name =
-      Hashtbl.find ctx.name_to_builtin_func_tbl name
-
-    let bind_builtin_func ctx name f =
-      Hashtbl.add ctx.name_to_builtin_func_tbl name f
+    let find_val_by_name ctx name =
+      Hashtbl.find ctx.name_to_record_tbl name
   end

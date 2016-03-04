@@ -41,7 +41,8 @@ module Make (Ctx : NodeContextType) =
       | StatementList of ast list
       | ExprStmt of ast
       | ScopeStmt of ast
-      | ImportStmt of (string list * string * ctx_t)
+      | ReturnStmt of ast option
+      | ImportStmt of string list * string * ctx_t
       (* name, params, return_type?, body, attribute?, _ *)
       | FunctionDefStmt of id_string * ast * ast option * ast * attr_tbl_t option * ctx_t
       (* name, params, return_type, function name(TODO: change to AST), attribute?, _ *)
@@ -87,7 +88,10 @@ module Make (Ctx : NodeContextType) =
       | VarInit of var_init_t
       | PrevPassNode of pctx_t
 
-      | GenericCall of string * ast list * term_ctx_t * ctx_t
+      (* *)
+      | GenericId of id_string * ctx_t
+      (* name, object construction, args, return type, ctx *)
+      | GenericCall of string * storage_t ref * ast list * term_ctx_t * ctx_t
       (* body, ctx *)
       | GenericFuncDef of ast option * ctx_t
 
@@ -107,6 +111,12 @@ module Make (Ctx : NodeContextType) =
      and term_ctx_t = ast Ctx.term_ctx_t
      and pctx_t = ast Ctx.prev_ctx_t
 
+     and storage_t =
+       | StoStack of term_ctx_t
+       | StoHeap
+       | StoGc
+       | StoAgg
+       | StoImm
 
     type t = ast
 

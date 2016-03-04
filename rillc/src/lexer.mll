@@ -43,6 +43,7 @@ rule token = parse
   | "const"             { KEYWORD_CONST }
   | "mutable"           { KEYWORD_MUTABLE }
   | "extern"            { KEYWORD_EXTERN }
+  | "return"            { KEYWORD_RETURN }
 
   | "true"              { LIT_TRUE }
   | "false"             { LIT_FALSE }

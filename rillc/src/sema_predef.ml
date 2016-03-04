@@ -44,10 +44,16 @@ let check_is_args_valid ty =
   (* TODO: implement *)
   ()
 
-let complete_function_env env node s_name param_types return_type f_detail ctx =
+let check_function_env env param_types return_type is_auto_return_type =
   let r = Env.FunctionOp.get_record env in
   r.Env.fn_param_types <- param_types;
   r.Env.fn_return_type <- return_type;
+  r.Env.fn_is_auto_return_type <- is_auto_return_type;
+  Env.update_status env Env.Checking
+
+let complete_function_env env node s_name f_detail ctx =
+  let r = Env.FunctionOp.get_record env in
+
   r.Env.fn_detail <- f_detail;
 
   let _ = match s_name with
@@ -61,7 +67,7 @@ let complete_function_env env node s_name param_types return_type f_detail ctx =
          let mangled =
            Mangle.s_of_function (Env.get_full_module_name env) s_name
                                 r.Env.fn_template_vals
-                                param_types return_type
+                                r.Env.fn_param_types r.Env.fn_return_type
                                 ctx.sc_tsets
          in
          r.Env.fn_mangled <- Some mangled
@@ -70,19 +76,10 @@ let complete_function_env env node s_name param_types return_type f_detail ctx =
 
   complete_env env node
 
-let complete_class_env env node s_name detail_r ctx =
+let complete_class_env env node detail_r traits ctx =
   let r = Env.ClassOp.get_record env in
   r.Env.cls_detail <- detail_r;
-
-  let mangled =
-    (*Mangle.s_of_function (Env.get_full_module_name env) s_name
-                         r.Env.fn_template_vals
-                         param_types return_type
-                         ctx.sc_tsets*)
-    ""
-  in
-  r.Env.cls_mangled <- Some mangled;
-
+  r.Env.cls_traits <- Some traits;
   complete_env env node
 
 
@@ -91,21 +88,9 @@ let assert_valid_type ty =
   let {
     ta_ref_val = rv;
     ta_mut = mut;
-  } = ty.Type.ti_attr in
+  } = ty.Type_info.ti_attr in
   assert (rv <> RefValUndef);
   assert (mut <> MutUndef)
-
-
-let as_ret_ty ty ctx =
-  let open Type_attr in
-  match ty.Type.ti_attr with
-  | { ta_ref_val = Val; } ->
-     (* update val to xref *)
-     Type.Generator.update_attr_r ctx.sc_tsets.ts_type_gen
-                                  ty
-                                  { ty.Type.ti_attr with ta_ref_val = XRef }
-  | _ -> ty
-
 
 
 module FuncMatchLevel =

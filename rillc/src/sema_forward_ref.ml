@@ -12,22 +12,31 @@ open Sema_predef
 
 let rec solve_forward_refs ?(meta_variables=[])
                            ?(opt_attr=None)
-                           node parent_env (ctx:TAst.ast Env.env_t ctx_t) =
+                           node parent_env ctx =
   let in_template = List.length meta_variables > 0 in
   let declare_meta_var env (name, uni_id) =
     let meta_e = Env.MetaVariable uni_id in
-    let e = Env.create_env env meta_e in
+    let e = Env.create_context_env env meta_e in
     Env.add_inner_env env name e;
 
     Unification.get_as_value ctx.sc_unification_ctx uni_id
   in
   match node with
   | Ast.StatementList (nodes) ->
-     let tagged_nodes = nodes |> List.map (fun n -> solve_forward_refs n parent_env ctx) in
+     let tagged_nodes =
+       nodes
+       |> List.map (fun n -> solve_forward_refs n parent_env ctx)
+     in
      TAst.StatementList tagged_nodes
 
-  | Ast.ExprStmt ast -> TAst.ExprStmt (TAst.PrevPassNode ast)
-  | Ast.ScopeStmt ast -> TAst.ScopeStmt (TAst.PrevPassNode ast)
+  | Ast.ExprStmt ast ->
+     TAst.ExprStmt (TAst.PrevPassNode ast)
+
+  | Ast.ScopeStmt ast ->
+     TAst.ScopeStmt (TAst.PrevPassNode ast)
+
+  | Ast.ReturnStmt ast ->
+     TAst.ReturnStmt (Option.map (fun a -> TAst.PrevPassNode a) ast)
 
   | Ast.ImportStmt (pkg_names, mod_name, _) ->
      begin
@@ -50,13 +59,14 @@ let rec solve_forward_refs ?(meta_variables=[])
          Env.fn_template_vals = [];
          Env.fn_param_types = [];
          Env.fn_return_type = Type.undef_ty;
+         Env.fn_is_auto_return_type = true;
          Env.fn_detail = Env.FnUndef;
        } in
-       let fenv = Env.create_env parent_env (
-                                   Env.Function (
-                                       Env.empty_lookup_table (),
-                                       fenv_r)
-                                 ) in
+       let fenv = Env.create_context_env parent_env (
+                                           Env.Function (
+                                               Env.empty_lookup_table (),
+                                               fenv_r)
+                                         ) in
        (* declare meta variables if exist *)
        let template_vals = List.map (declare_meta_var fenv) meta_variables in
        fenv_r.Env.fn_template_vals <- template_vals;
@@ -90,13 +100,14 @@ let rec solve_forward_refs ?(meta_variables=[])
          Env.fn_template_vals = [];
          Env.fn_param_types = [];
          Env.fn_return_type = Type.undef_ty;
+         Env.fn_is_auto_return_type = false;
          Env.fn_detail = Env.FnUndef;
        } in
-       let fenv = Env.create_env parent_env (
-                                   Env.Function (
-                                       Env.empty_lookup_table ~init:0 (),
-                                       fenv_r)
-                                 ) in
+       let fenv = Env.create_context_env parent_env (
+                                           Env.Function (
+                                               Env.empty_lookup_table ~init:0 (),
+                                               fenv_r)
+                                         ) in
        (* declare meta variables if exist *)
        let template_vals = List.map (declare_meta_var fenv) meta_variables in
        fenv_r.Env.fn_template_vals <- template_vals;
@@ -129,12 +140,13 @@ let rec solve_forward_refs ?(meta_variables=[])
          Env.cls_mangled = None;
          Env.cls_template_vals = [];
          Env.cls_detail = Env.ClsUndef;
+         Env.cls_traits = None;
        } in
-       let cenv = Env.create_env parent_env (
-                                   Env.Class (
-                                       Env.empty_lookup_table (),
-                                       cenv_r)
-                                 ) in
+       let cenv = Env.create_context_env parent_env (
+                                           Env.Class (
+                                               Env.empty_lookup_table (),
+                                               cenv_r)
+                                         ) in
        (* declare meta variables if exist *)
        let template_vals = List.map (declare_meta_var cenv) meta_variables in
        cenv_r.Env.cls_template_vals <- template_vals;
@@ -165,12 +177,13 @@ let rec solve_forward_refs ?(meta_variables=[])
          Env.cls_mangled = Some "int32";    (* XXX *)
          Env.cls_template_vals = [];
          Env.cls_detail = Env.ClsUndef;
+         Env.cls_traits = None;
        } in
-       let cenv = Env.create_env parent_env (
-                                   Env.Class (
-                                       Env.empty_lookup_table ~init:0 (),
-                                       cenv_r)
-                                 ) in
+       let cenv = Env.create_context_env parent_env (
+                                           Env.Class (
+                                               Env.empty_lookup_table ~init:0 (),
+                                               cenv_r)
+                                         ) in
        (* declare meta variables if exist *)
        let template_vals = List.map (declare_meta_var cenv) meta_variables in
        cenv_r.Env.cls_template_vals <- template_vals;
@@ -243,6 +256,7 @@ let rec solve_forward_refs ?(meta_variables=[])
        failwith "solve_forward_refs: unsupported node"
      end
 
+
 and load_module_by_filepath ?(def_mod_info=None) filepath ctx =
   let root_env = ctx.sc_root_env in
   let (raw_pkg_names, raw_mod_name) =
@@ -263,13 +277,13 @@ and load_module_by_filepath ?(def_mod_info=None) filepath ctx =
        in
        Option.may check_mod_name def_mod_info;
 
-       let env = Env.create_env root_env (
-                                  Env.Module (Env.empty_lookup_table (),
-                                              {
-                                                Env.mod_name = mod_name;
-                                                Env.mod_pkg_names = pkg_names;
-                                              })
-                                ) in
+       let env = Env.create_context_env root_env (
+                                          Env.Module (Env.empty_lookup_table (),
+                                                      {
+                                                        Env.mod_name = mod_name;
+                                                        Env.mod_pkg_names = pkg_names;
+                                                      })
+                                        ) in
        (* TODO: fix g_name *)
        let g_name = String.concat "." (pkg_names @ [mod_name]) in
        Env.add_inner_env root_env g_name env;

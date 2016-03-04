@@ -37,6 +37,7 @@ let undef_id = Num.num_of_int 0
 type 'ast env_t = {
    env_id           : id_t;
    parent_env       : 'ast env_t option;
+   context_env      : 'ast env_t option;
    module_env       : 'ast env_t option;
    er               : 'ast env_record_t;
    mutable state    : checked_state_t;
@@ -59,7 +60,7 @@ type 'ast env_t = {
 
   | Unknown
 
- and 'ast type_info_t = 'ast env_t Type.info_t
+ and 'ast type_info_t = 'ast env_t Type_info.t
 
  and 'ast name_env_mapping = (string, 'ast env_t) Hashtbl.t
 
@@ -99,16 +100,17 @@ type 'ast env_t = {
   *
   *)
  and 'ast function_record = {
-   fn_name                      : Nodes.id_string;
-   mutable fn_mangled           : string option;
+   fn_name                          : Nodes.id_string;
+   mutable fn_mangled               : string option;
 
-   mutable fn_template_vals     : ('ast type_info_t Ctfe_value.t) list;
-   mutable fn_param_types       : 'ast type_info_t list;
-   mutable fn_return_type       : 'ast type_info_t;
-   mutable fn_detail            : 'ast function_record_var;
+   mutable fn_template_vals         : ('ast type_info_t Ctfe_value.t) list;
+   mutable fn_param_types           : 'ast type_info_t list;
+   mutable fn_return_type           : 'ast type_info_t;
+   mutable fn_is_auto_return_type   : bool;
+   mutable fn_detail                : 'ast function_record_var;
  }
  and 'ast function_record_var =
-   | FnRecordNormal of function_kind_var * 'ast function_record_normal
+   | FnRecordNormal of function_def_var * function_kind_var * 'ast function_record_normal
    | FnRecordExternal of function_def_var * function_kind_var * string
    | FnRecordBuiltin of function_def_var * function_kind_var * string
    | FnUndef
@@ -139,13 +141,19 @@ type 'ast env_t = {
 
    mutable cls_template_vals    : ('ast type_info_t Ctfe_value.t) list;
    mutable cls_detail           : 'ast class_record_var;
+   mutable cls_traits           : class_traits_t option;
  }
  and 'ast class_record_var =
    | ClsRecordPrimitive of class_record_extern
+   | ClsRecordNormal
    | ClsUndef
 
  and class_record_extern = {
    cls_e_name           : string;
+ }
+
+ and class_traits_t = {
+   cls_traits_is_primitive      : bool;
  }
 
 
@@ -161,13 +169,14 @@ type 'ast env_t = {
    | VarRecordNormal of 'ast variable_record_normal
    | VarUndef
 
- and 'ast variable_record_normal = unit (* TODO: implement *)
+ and 'ast variable_record_normal = unit
 
 
 let undef () =
   {
     env_id = undef_id;
     parent_env = None;
+    context_env = None;
     module_env = None;
     er = Unknown;
     state = InComplete;
@@ -275,7 +284,26 @@ let empty_lookup_table ?(init=8) () =
     imported_mods = [];
   }
 
-let create_env parent_env er =
+let create_context_env parent_env er =
+  let cur_id = !id_counter in
+  Num.incr_num id_counter;
+
+  let opt_mod_env = match parent_env.er with
+    | Module _ -> Some parent_env
+    | _ -> parent_env.module_env
+  in
+  let rec e = {
+    env_id = cur_id;
+    parent_env = Some parent_env;
+    context_env = Some e;       (* self reference *)
+    module_env = opt_mod_env;
+    er = er;
+    state = InComplete;
+    rel_node = None;
+  } in
+  e
+
+let create_scoped_env parent_env er =
   let cur_id = !id_counter in
   Num.incr_num id_counter;
 
@@ -286,11 +314,13 @@ let create_env parent_env er =
   {
     env_id = cur_id;
     parent_env = Some parent_env;
+    context_env = parent_env.context_env;
     module_env = opt_mod_env;
     er = er;
     state = InComplete;
     rel_node = None;
   }
+
 
 (**)
 let is_checked e =
@@ -325,6 +355,7 @@ let make_root_env () =
   {
     env_id = cur_id;
     parent_env = None;
+    context_env = None;
     module_env = None;
     er = Root (tbl);
     state = Complete;
@@ -354,13 +385,14 @@ module MultiSetOp =
 
       (* *)
       | None ->
-         let e = create_env env (MultiSet {
-                                     ms_kind = k;
-                                     ms_templates = [];
-                                     ms_normal_instances = [];
-                                     ms_template_instances = [];
-                                     ms_instanced_args_memo = Hashtbl.create 0
-                                   }) in
+         let e = create_scoped_env env
+                                   (MultiSet {
+                                        ms_kind = k;
+                                        ms_templates = [];
+                                        ms_normal_instances = [];
+                                        ms_template_instances = [];
+                                        ms_instanced_args_memo = Hashtbl.create 0
+                                      }) in
          add_inner_env env name e;
          e
 
@@ -400,7 +432,7 @@ module FunctionOp =
     let get_normal_record env =
       let r = get_record env in
       match r.fn_detail with
-      | FnRecordNormal (k, r) -> (k, r)
+      | FnRecordNormal (d, k, r) -> (d, k, r)
       | _ -> failwith "FunctionOp.get_extern_record : not normal"
   end
 
