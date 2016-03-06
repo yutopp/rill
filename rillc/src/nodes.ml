@@ -90,8 +90,8 @@ module Make (Ctx : NodeContextType) =
 
       (* *)
       | GenericId of id_string * ctx_t
-      (* name, object construction, args, return type, ctx *)
-      | GenericCall of string * storage_t ref * ast list * term_ctx_t * ctx_t
+      (* object construction, args, ctx *)
+      | GenericCallExpr of storage_t ref * ast list * ctx_t
       (* body, ctx *)
       | GenericFuncDef of ast option * ctx_t
 

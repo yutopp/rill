@@ -1,6 +1,7 @@
 def main() : void
 {
     val a = a1();
+    val b = yo();
     print_int(1);
 
     return;

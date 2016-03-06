@@ -294,7 +294,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                                  Env.fn_n_param_envs = [];
                                })
          in
-         check_function_env fenv [ty] !(ctx.sc_tsets.ts_void_type_holder) false;
+         check_function_env fenv [] ty false;
          complete_function_env fenv node "this" detail ctx;
 
          Printf.printf "======================================================";
@@ -653,11 +653,9 @@ and analyze_expr ?(making_placeholder=false)
             let f_ret_val_cat = ret_val_category f_ret_ty ctx in
 
             (* Replace BinOpCall to generic FuncCall *)
-            let node = TAst.GenericCall (
-                           Nodes.string_of_id_string op,
+            let node = TAst.GenericCallExpr (
                            ref TAst.StoImm,
                            n_eargs,
-                           f_ret_ty,
                            Some f_env) in
             (node, (f_ret_ty, f_ret_val_cat))
           end
@@ -689,7 +687,7 @@ and analyze_expr ?(making_placeholder=false)
        match ty_sort with
        | Type_info.FunctionSetTy menv ->
           begin
-            (* notmal function call*)
+            (* notmal function call *)
             let (f_env, conv_filters) =
               solve_function_overload args_types template_args
                                       menv parent_env ctx attr
@@ -701,14 +699,21 @@ and analyze_expr ?(making_placeholder=false)
             assert_valid_type f_ret_ty;
             let f_ret_val_cat = ret_val_category f_ret_ty ctx in
 
-            let {
-              Env.fn_name = fname;
-            } = Env.FunctionOp.get_record f_env in
-            let node = TAst.GenericCall (
-                           Nodes.string_of_id_string fname,
-                           (ref TAst.StoImm),
+            let ret_ty_cenv = Type.as_unique f_ret_ty in
+            let cr = Env.ClassOp.get_record ret_ty_cenv in
+            let (ret_ty_sto) = match cr.Env.cls_detail with
+              | Env.ClsRecordPrimitive _ ->
+                 TAst.StoImm
+
+              | Env.ClsRecordNormal ->
+                 TAst.StoStack f_ret_ty
+
+              | _ -> failwith "[ICE]"
+            in
+
+            let node = TAst.GenericCallExpr (
+                           (ref ret_ty_sto),
                            n_eargs,
-                           f_ret_ty,
                            Some f_env) in
             (node, (f_ret_ty, f_ret_val_cat))
           end
@@ -736,7 +741,6 @@ and analyze_expr ?(making_placeholder=false)
               | Some v -> v
               | None -> failwith "constructor not found"
             in
-            ignore ctor_env;
 
             let cr = Env.ClassOp.get_record recv_cenv in
             let (f_conv, f_sto) = match cr.Env.cls_detail with
@@ -746,13 +750,14 @@ and analyze_expr ?(making_placeholder=false)
                                                  ctor_env parent_env ctx attr in
                  let sto = TAst.StoImm in
                  (f, sto)
+
               | Env.ClsRecordNormal ->
                  (* the first argument is prepared for "this" *)
-                 let this_arg = (recv_ty, VCatLValue) in
-                 let f = solve_function_overload (this_arg::args_types) []
+                 let f = solve_function_overload args_types []
                                                  ctor_env parent_env ctx attr in
                  let sto = TAst.StoStack recv_ty in
                  (f, sto)
+
               | _ -> failwith "[ICE]"
             in
             let (f_env, conv_filters) = f_conv in
@@ -762,14 +767,9 @@ and analyze_expr ?(making_placeholder=false)
             let f_ret_ty = f_er.Env.fn_return_type in
             assert_valid_type f_ret_ty;
 
-            let {
-              Env.fn_name = fname;
-            } = Env.FunctionOp.get_record f_env in
-            let node = TAst.GenericCall (
-                           Nodes.string_of_id_string fname,
+            let node = TAst.GenericCallExpr (
                            ref f_sto,
                            n_eargs,
-                           f_ret_ty,
                            Some f_env) in
             (node, (recv_ty, VCatPrValue))
           end

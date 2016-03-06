@@ -15,7 +15,7 @@ type ('ty, 'ctx) record_t =
   | LLType of L.lltype
   | LLTypeGen of ('ty Ctfe_value.t list -> L.lltype)
   | BuiltinFunc of (L.llvalue array -> 'ctx -> L.llvalue)
-  | Nop
+  | TrivialAction
 
 module CodeGeneratorType =
   struct
@@ -71,8 +71,7 @@ let rec code_generate ~bb node ctx =
 
   | TAst.GenericFuncDef (opt_body, Some env) ->
      if Ctx.is_env_defined ctx env then () else
-     begin
-       (* *)
+     begin       (* *)
        let fenv_r = Env.FunctionOp.get_record env in
        match fenv_r.Env.fn_detail with
        | Env.FnRecordNormal (def, kind, fenv_d) ->
@@ -80,13 +79,19 @@ let rec code_generate ~bb node ctx =
             match opt_body with
             | Some body ->
                begin
+                 (* if this class returns non primitive object, add a parameter to recieve the object *)
+                 let returns_heavy_obj =
+                   is_address_representation fenv_r.Env.fn_return_type
+                 in
+
                  let llparam_tys =
-                   fenv_r.Env.fn_param_types
+                   (if returns_heavy_obj then [fenv_r.Env.fn_return_type] else [])
+                   @ fenv_r.Env.fn_param_types
                    |> List.map (fun t -> lltype_of_typeinfo_ac ~bb:bb t ctx)
                    |> Array.of_list
                  in
                  let llret_ty =
-                   if is_address_representation fenv_r.Env.fn_return_type then
+                   if returns_heavy_obj then
                      L.void_type ctx.ir_context
                    else
                      lltype_of_typeinfo ~bb:bb fenv_r.Env.fn_return_type ctx
@@ -101,9 +106,15 @@ let rec code_generate ~bb node ctx =
                  Ctx.bind_val_to_env ctx (LLValue f) env;
 
                  (* setup parameters *)
-                 let param_envs = fenv_d.Env.fn_n_param_envs |> Array.of_list in
-                 let ll_params = L.params f in
-                 assert (Array.length ll_params = Array.length param_envs);
+                 let param_envs = fenv_d.Env.fn_n_param_envs |> List.enum in
+                 let ll_params = L.params f |> Array.enum in
+                 if returns_heavy_obj then begin
+                   let opt_agg = Enum.peek ll_params in
+                   assert (Option.is_some opt_agg);
+                   let agg = Option.get opt_agg in
+                   L.set_value_name "agg.reciever" agg;
+                   Enum.drop 1 ll_params;
+                 end;
                  let declare_param_var optenv llvar =
                    match optenv with
                    | Some env ->
@@ -115,7 +126,7 @@ let rec code_generate ~bb node ctx =
                       end
                    | None -> ()
                  in
-                 Array.iter2 declare_param_var param_envs ll_params;
+                 Enum.iter2 declare_param_var param_envs ll_params;
 
                  (* entry block *)
                  let bb = L.append_block ctx.ir_context "entry" f in
@@ -124,6 +135,8 @@ let rec code_generate ~bb node ctx =
                  (**)
                  code_generate body ctx ~bb:(Some bb);
 
+                 L.dump_value f;
+                 flush_all ();
                  Llvm_analysis.assert_valid_function f;
 
                  Ctx.mark_env_as_defined ctx env
@@ -140,7 +153,7 @@ let rec code_generate ~bb node ctx =
                  in
 
                  let r_value = match kind with
-                   | Env.FnKindConstructor -> Nop
+                   | Env.FnKindConstructor -> TrivialAction
                    | _ -> failwith "[ICE]"
                  in
                  Ctx.bind_val_to_env ctx r_value env;
@@ -223,10 +236,9 @@ let rec code_generate ~bb node ctx =
        let init_expr = Option.get opt_init_expr in
 
        Printf.printf "DEfine: %s\n" venv.Env.var_name;
-       let (llvm_val_raw, expr_ty) = code_generate_as_value ~bb:bb init_expr ctx in
+       let (llval, expr_ty) = code_generate_as_value ~bb:bb init_expr ctx in
        Type.print var_type;
        flush_all ();
-       let llval = adjust_llval_form ~bb:bb var_type expr_ty llvm_val_raw ctx in
 
        L.set_value_name venv.Env.var_name llval;
        Ctx.bind_val_to_env ctx (LLValue llval) env;
@@ -241,16 +253,21 @@ let rec code_generate ~bb node ctx =
 and code_generate_as_value ?(bb=None) node ctx : (L.llvalue * 'env Type.info_t)=
   let open Ctx in
   match node with
-  | TAst.GenericCall (name, storage_ref, args, ret_ty, Some env) ->
+  | TAst.GenericCallExpr (storage_ref, args, Some env) ->
      begin
        let f_er = Env.FunctionOp.get_record env in
        let {
          Env.fn_name = fn_name;
          Env.fn_detail = detail;
          Env.fn_param_types = param_tys;
+         Env.fn_return_type = ret_ty;
        } = f_er in
 
-       let eval_args () =
+       let returns_heavy_obj =
+         is_address_representation ret_ty
+       in
+
+       let eval_args param_types =
          (* normal arguments *)
          let (llvals, tys) =
            args
@@ -272,7 +289,7 @@ and code_generate_as_value ?(bb=None) node ctx : (L.llvalue * 'env Type.info_t)=
            | _ -> (ignore llvals; ignore tys; failwith "")
          in
          let conv_funcs =
-           List.map2 (fun t s -> adjust_llval_form ~bb:bb t s) param_tys tys
+           List.map2 (fun t s -> adjust_llval_form ~bb:bb t s) param_types tys
          in
          (* TODO: conv *)
          let llargs = List.map2 (fun f v -> f v ctx) conv_funcs llvals
@@ -284,25 +301,53 @@ and code_generate_as_value ?(bb=None) node ctx : (L.llvalue * 'env Type.info_t)=
        let fn_s_name = Nodes.string_of_id_string fn_name in
        let llval = match detail with
          (* normal function *)
-         | Env.FnRecordNormal _ ->
+         | Env.FnRecordNormal (_, kind, _) ->
             begin
-              Printf.printf "gen value: debug / function %s\n" fn_s_name;
+              Printf.printf "gen value: debug / function normal %s\n" fn_s_name;
+
               let r_value = force_target_generation ~bb:bb ctx env in
               match r_value with
               | LLValue f ->
-                 let llargs = eval_args () in
-                 L.build_call f llargs "" ctx.ir_builder
-              | Nop ->
+                 begin
+                   match kind with
+                   | Env.FnKindFree ->
+                      begin
+                        match returns_heavy_obj with
+                        | false ->
+                           let llargs = eval_args param_tys in
+                           L.build_call f llargs "" ctx.ir_builder
+                        | true ->
+                           let param_tys = ret_ty :: param_tys in
+                           let llargs = eval_args param_tys in
+                           let _ = L.build_call f llargs "" ctx.ir_builder in
+                           assert (Array.length llargs > 0);
+                           llargs.(0)
+                      end
+
+                   | Env.FnKindConstructor ->
+                      begin
+                        failwith ""
+                      end
+
+                   | Env.FnKindMember ->
+                      begin
+                        failwith ""
+                      end
+
+                   | _ -> failwith "[ICE]"
+                 end
+
+              | TrivialAction ->
                  begin
                    match !storage_ref with
                    | TAst.StoStack (ty) ->
                       begin
                         let llty = lltype_of_typeinfo ~bb:bb ty ctx in
-                        let v = L.build_alloca llty "" ctx.ir_builder in
-                        v
+                        L.build_alloca llty "" ctx.ir_builder
                       end
                    | _ -> failwith "[ICE]"
-              end
+                 end
+
               | _ -> failwith "[ICE]"
             end
 
@@ -311,7 +356,7 @@ and code_generate_as_value ?(bb=None) node ctx : (L.llvalue * 'env Type.info_t)=
             begin
               Printf.printf "gen value: debug / extern  %s = \"%s\"\n"
                             fn_s_name extern_name; flush_all ();
-              let llargs = eval_args () in
+              let llargs = eval_args param_tys in
               let extern_f =
                 find_llval_by_env_with_force_generation ~bb:bb ctx env
               in
@@ -323,7 +368,7 @@ and code_generate_as_value ?(bb=None) node ctx : (L.llvalue * 'env Type.info_t)=
               Printf.printf "gen value: debug / builtin %s = \"%s\"\n"
                             fn_s_name extern_name;
               flush_all ();
-              let llargs = eval_args () in
+              let llargs = eval_args param_tys in
               Array.iter L.dump_value llargs;
 
               let v_record = Ctx.find_val_by_name ctx extern_name in

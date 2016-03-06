@@ -9,7 +9,7 @@ extern def assert_not(:bool): void = "rill_assert_not";
 extern class type = "__builtin_type_type"
 
 
-#[builtin, novalue]
+#[builtin, primitive, novalue]
 extern class void = "__builtin_void_type"
 
 
