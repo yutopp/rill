@@ -111,6 +111,7 @@ type 'ast env_t = {
  }
  and 'ast function_record_var =
    | FnRecordNormal of function_def_var * function_kind_var * 'ast function_record_normal
+   | FnRecordTrivial of function_def_var * function_kind_var
    | FnRecordExternal of function_def_var * function_kind_var * string
    | FnRecordBuiltin of function_def_var * function_kind_var * string
    | FnUndef
@@ -123,6 +124,9 @@ type 'ast env_t = {
  and function_kind_var =
    | FnKindFree
    | FnKindMember
+   | FnKindDefaultConstructor
+   | FnKindCopyConstructor
+   | FnKindMoveConstructor
    | FnKindConstructor
    | FnKindDestructor
 
@@ -142,6 +146,9 @@ type 'ast env_t = {
    mutable cls_template_vals    : ('ast type_info_t Ctfe_value.t) list;
    mutable cls_detail           : 'ast class_record_var;
    mutable cls_traits           : class_traits_t option;
+
+   mutable cls_member_vars      : 'ast env_t list;
+   mutable cls_member_funcs     : 'ast env_t list;
  }
  and 'ast class_record_var =
    | ClsRecordPrimitive of class_record_extern
@@ -422,18 +429,26 @@ module FunctionOp =
       match er with
       | Function (_, r) -> r
       | _ -> failwith "FunctionOp.get_record : not function"
-(*
-    let get_extern_record env =
-      let r = get_record env in
-      match r.fn_detail with
-      | FnRecordExternal (d, k, n) -> (d, k, n)
-      | _ -> failwith "FunctionOp.get_extern_record : not extern"*)
 
-    let get_normal_record env =
-      let r = get_record env in
-      match r.fn_detail with
-      | FnRecordNormal (d, k, r) -> (d, k, r)
-      | _ -> failwith "FunctionOp.get_extern_record : not normal"
+    let get_kind env =
+      let er = get_record env in
+      match er.fn_detail with
+      | FnRecordNormal (_, kind, _) -> kind
+      | FnRecordTrivial (_, kind) -> kind
+      | FnRecordExternal (_, kind, _) -> kind
+      | FnRecordBuiltin (_, kind, _) -> kind
+      | _ -> failwith ""
+
+    let empty_record name =
+      {
+        fn_name = Nodes.Pure name;
+        fn_mangled = None;
+        fn_template_vals = [];
+        fn_param_types = [];
+        fn_return_type = Type_info.undef_ty;
+        fn_is_auto_return_type = false;
+        fn_detail = FnUndef;
+      }
   end
 
 
@@ -444,6 +459,17 @@ module ClassOp =
       match er with
       | Class (_, r) -> r
       | _ -> failwith "ClassOp.get_record : not class"
+
+    let empty_record name =
+      {
+         cls_name = name;
+         cls_mangled = None;
+         cls_template_vals = [];
+         cls_detail = ClsUndef;
+         cls_traits = None;
+         cls_member_vars = [];
+         cls_member_funcs = [];
+      }
   end
 
 
@@ -454,6 +480,13 @@ module VariableOp =
       match er with
       | Variable (r) -> r
       | _ -> failwith "VariableOp.get_record : not function"
+
+    let empty_record name =
+      {
+        var_name = name;
+        var_type = Type_info.undef_ty;
+        var_detail = VarUndef;
+      }
   end
 
 

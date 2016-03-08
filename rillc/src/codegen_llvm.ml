@@ -76,89 +76,87 @@ let rec code_generate ~bb node ctx =
        match fenv_r.Env.fn_detail with
        | Env.FnRecordNormal (def, kind, fenv_d) ->
           begin
-            match opt_body with
-            | Some body ->
-               begin
-                 (* if this class returns non primitive object, add a parameter to recieve the object *)
-                 let returns_heavy_obj =
-                   is_address_representation fenv_r.Env.fn_return_type
-                 in
+            let body = Option.get opt_body in
+            (* if this class returns non primitive object, add a parameter to recieve the object *)
+            let returns_heavy_obj =
+              is_address_representation fenv_r.Env.fn_return_type
+            in
 
-                 let llparam_tys =
-                   (if returns_heavy_obj then [fenv_r.Env.fn_return_type] else [])
-                   @ fenv_r.Env.fn_param_types
-                   |> List.map (fun t -> lltype_of_typeinfo_ac ~bb:bb t ctx)
-                   |> Array.of_list
-                 in
-                 let llret_ty =
-                   if returns_heavy_obj then
-                     L.void_type ctx.ir_context
-                   else
-                     lltype_of_typeinfo ~bb:bb fenv_r.Env.fn_return_type ctx
-                 in
+            let llparam_tys =
+              (if returns_heavy_obj then [fenv_r.Env.fn_return_type] else [])
+              @ fenv_r.Env.fn_param_types
+              |> List.map (fun t -> lltype_of_typeinfo_ac ~bb:bb t ctx)
+              |> Array.of_list
+            in
+            let llret_ty =
+              if returns_heavy_obj then
+                L.void_type ctx.ir_context
+              else
+                lltype_of_typeinfo ~bb:bb fenv_r.Env.fn_return_type ctx
+            in
 
-                 (* type of function *)
-                 let f_ty = L.function_type llret_ty llparam_tys in
+            (* type of function *)
+            let f_ty = L.function_type llret_ty llparam_tys in
 
-                 (* declare function *)
-                 let name = fenv_r.Env.fn_mangled |> Option.get in
-                 let f = L.declare_function name f_ty ctx.ir_module in
-                 Ctx.bind_val_to_env ctx (LLValue f) env;
+            (* declare function *)
+            let name = fenv_r.Env.fn_mangled |> Option.get in
+            let f = L.declare_function name f_ty ctx.ir_module in
+            Ctx.bind_val_to_env ctx (LLValue f) env;
 
-                 (* setup parameters *)
-                 let param_envs = fenv_d.Env.fn_n_param_envs |> List.enum in
-                 let ll_params = L.params f |> Array.enum in
-                 if returns_heavy_obj then begin
-                   let opt_agg = Enum.peek ll_params in
-                   assert (Option.is_some opt_agg);
-                   let agg = Option.get opt_agg in
-                   L.set_value_name "agg.reciever" agg;
-                   Enum.drop 1 ll_params;
-                 end;
-                 let declare_param_var optenv llvar =
-                   match optenv with
-                   | Some env ->
-                      begin
-                        let venv = Env.VariableOp.get_record env in
-                        let var_name = venv.Env.var_name in
-                        L.set_value_name var_name llvar;
-                        Ctx.bind_val_to_env ctx (LLValue llvar) env
-                      end
-                   | None -> ()
-                 in
-                 Enum.iter2 declare_param_var param_envs ll_params;
+            (* setup parameters *)
+            let param_envs = fenv_d.Env.fn_n_param_envs |> List.enum in
+            let ll_params = L.params f |> Array.enum in
+            if returns_heavy_obj then begin
+                                     let opt_agg = Enum.peek ll_params in
+                                     assert (Option.is_some opt_agg);
+                                     let agg = Option.get opt_agg in
+                                     L.set_value_name "agg.reciever" agg;
+                                     Enum.drop 1 ll_params;
+                                   end;
+            let declare_param_var optenv llvar =
+              match optenv with
+              | Some env ->
+                 begin
+                   let venv = Env.VariableOp.get_record env in
+                   let var_name = venv.Env.var_name in
+                   L.set_value_name var_name llvar;
+                   Ctx.bind_val_to_env ctx (LLValue llvar) env
+                 end
+              | None -> ()
+            in
+            Enum.iter2 declare_param_var param_envs ll_params;
 
-                 (* entry block *)
-                 let bb = L.append_block ctx.ir_context "entry" f in
-                 L.position_at_end bb ctx.ir_builder;
+            (* entry block *)
+            let bb = L.append_block ctx.ir_context "entry" f in
+            L.position_at_end bb ctx.ir_builder;
 
-                 (**)
-                 code_generate body ctx ~bb:(Some bb);
+            (**)
+            code_generate body ctx ~bb:(Some bb);
 
-                 L.dump_value f;
-                 flush_all ();
-                 Llvm_analysis.assert_valid_function f;
+            L.dump_value f;
+            flush_all ();
+            Llvm_analysis.assert_valid_function f;
 
-                 Ctx.mark_env_as_defined ctx env
-               end
+            Ctx.mark_env_as_defined ctx env
+          end
 
-            | None ->
-               begin
-                 (* trivial *)
-                 let _ = match def with
-                   | Env.FnDefDefaulted -> ()   (* ACCEPT *)
-                   | Env.FnDefDeleted
-                   | Env.FnDefUserDefined ->
-                      failwith "[ICE]"
-                 in
+       | Env.FnRecordTrivial (def, kind) ->
+          begin
+            let _ = match def with
+              | Env.FnDefDefaulted -> ()   (* ACCEPT *)
+              | Env.FnDefDeleted
+              | Env.FnDefUserDefined -> failwith "[ICE]"
+            in
 
-                 let r_value = match kind with
-                   | Env.FnKindConstructor -> TrivialAction
-                   | _ -> failwith "[ICE]"
-                 in
-                 Ctx.bind_val_to_env ctx r_value env;
-                 Ctx.mark_env_as_defined ctx env
-               end
+            let r_value = match kind with
+              | Env.FnKindDefaultConstructor
+              | Env.FnKindCopyConstructor
+              | Env.FnKindMoveConstructor
+              | Env.FnKindConstructor -> TrivialAction
+              | _ -> failwith "[ICE]"
+            in
+            Ctx.bind_val_to_env ctx r_value env;
+            Ctx.mark_env_as_defined ctx env
           end
 
        | Env.FnRecordExternal (def, kind, extern_fname) ->
@@ -193,10 +191,25 @@ let rec code_generate ~bb node ctx =
       ) ->
      if Ctx.is_env_defined ctx env then () else
      begin
-       let struct_ty =
-         L.struct_type ctx.Ctx.ir_context
-                       [||]
+       let cenv_r = Env.ClassOp.get_record env in
+
+       (* define member variables *)
+       let get_member_type env =
+         let r = Env.VariableOp.get_record env in
+         let llty = lltype_of_typeinfo ~bb:bb r.Env.var_type ctx in
+         llty
        in
+       let member_lltypes =
+         List.map get_member_type cenv_r.Env.cls_member_vars
+       in
+
+       let struct_ty =
+         L.named_struct_type ctx.Ctx.ir_context
+                             (Option.get cenv_r.Env.cls_mangled)
+       in
+       L.struct_set_body struct_ty (Array.of_list member_lltypes)
+                         false (* not packed *);
+
        Ctx.bind_val_to_env ctx (LLType struct_ty) env;
 
        Ctx.mark_env_as_defined ctx env
@@ -337,17 +350,69 @@ and code_generate_as_value ?(bb=None) node ctx : (L.llvalue * 'env Type.info_t)=
                    | _ -> failwith "[ICE]"
                  end
 
-              | TrivialAction ->
-                 begin
-                   match !storage_ref with
-                   | TAst.StoStack (ty) ->
-                      begin
-                        let llty = lltype_of_typeinfo ~bb:bb ty ctx in
-                        L.build_alloca llty "" ctx.ir_builder
-                      end
-                   | _ -> failwith "[ICE]"
-                 end
+              | _ -> failwith "[ICE]"
+            end
 
+         | Env.FnRecordTrivial (def, kind) ->
+            begin
+              Printf.printf "gen value: debug / function trivial %s\n" fn_s_name;
+
+              let r_value = force_target_generation ~bb:bb ctx env in
+              let _ = match r_value with
+                | TrivialAction -> ()
+                | _ -> failwith "[ICE]"
+              in
+
+              let new_obj = match !storage_ref with
+                | TAst.StoStack (ty) ->
+                   begin
+                     let llty = lltype_of_typeinfo ~bb:bb ty ctx in
+                     L.build_alloca llty "" ctx.ir_builder
+                   end
+                | _ -> failwith "[ICE]"
+              in
+
+              match kind with
+              | Env.FnKindDefaultConstructor -> new_obj
+              | Env.FnKindCopyConstructor
+              | Env.FnKindMoveConstructor ->
+                 begin
+                   assert (List.length args = 1);
+                   let rhs = List.hd args in
+                   let (llrhs, _) = code_generate_as_value ~bb:bb rhs ctx in
+                   let f = L.function_type (L.void_type ctx.ir_context)
+                                           [|L.pointer_type (L.i8_type ctx.ir_context);
+                                             L.pointer_type (L.i8_type ctx.ir_context);
+                                             (L.i32_type ctx.ir_context);
+                                             (L.i32_type ctx.ir_context);
+                                             (L.i1_type ctx.ir_context);
+                                            |]
+                   in
+                   let memcpy = L.declare_function "llvm.memcpy.p0i8.p0i8.i32"
+                                                   f ctx.ir_module in
+                   L.dump_value memcpy;
+                   L.dump_value llrhs;
+
+                   let src = L.build_bitcast llrhs
+                                             (L.pointer_type (L.i8_type ctx.ir_context))
+                                             ""
+                                             ctx.ir_builder
+                   in
+                   let trg = L.build_bitcast new_obj
+                                             (L.pointer_type (L.i8_type ctx.ir_context))
+                                             ""
+                                             ctx.ir_builder
+                   in
+
+                   L.build_call memcpy [|trg;
+                                         src;
+                                         L.const_int (L.i32_type ctx.ir_context) 4;
+                                         L.const_int (L.i32_type ctx.ir_context) 4;
+                                         L.const_int (L.i1_type ctx.ir_context) 0
+                                        |]
+                                ""
+                                ctx.ir_builder
+                 end
               | _ -> failwith "[ICE]"
             end
 

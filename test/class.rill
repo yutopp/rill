@@ -4,11 +4,13 @@ def main() : void
     val b = yo();
     print_int(1);
 
+    a1(a);
     return;
 }
 
 class a1
 {
+    val a: int32;
 }
 
 class a2

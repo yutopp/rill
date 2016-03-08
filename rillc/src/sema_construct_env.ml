@@ -52,10 +52,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
 
   | TAst.ReturnStmt opt_e ->
      begin
-       let context_env = Option.get parent_env.Env.context_env in
-       let r = Env.FunctionOp.get_record context_env in
-
-       let (opt_expr, ty_cat) = match opt_e with
+       let (opt_expr, expr_ty_cat) = match opt_e with
          | Some (TAst.PrevPassNode e) ->
             begin
               let (expr, ty_cat) =
@@ -73,39 +70,49 @@ let rec construct_env node parent_env ctx opt_chain_attr =
          | _ -> failwith "[ICE]"
        in
 
-       match r.Env.fn_is_auto_return_type with
+       let ctx_env = Option.get parent_env.Env.context_env in
+       let ctx_env_r = Env.FunctionOp.get_record ctx_env in
+
+       match ctx_env_r.Env.fn_is_auto_return_type with
        | true ->
           (* return type will be inferenced *)
           begin
-            let (expr_ty, expr_val_cat) = ty_cat in
+            let (expr_ty, expr_val_cat) = expr_ty_cat in
 
-            let cur_ret_ty = r.Env.fn_return_type in
+            let cur_ret_ty = ctx_env_r.Env.fn_return_type in
             let ret_ty = match Type.type_sort cur_ret_ty with
               | Type_info.Undef ->
                  begin
-                   r.Env.fn_return_type <- expr_ty;
+                   (* TODO: check type attrbutes *)
+                   ctx_env_r.Env.fn_return_type <- expr_ty;
+                   expr_ty
                  end
 
               | Type_info.UniqueTy _ ->
                  begin
-                   failwith "not implemented"
+                   if Type.has_same_class cur_ret_ty expr_ty then
+                     expr_ty
+                   else
+                     failwith "[ERR]: return type must be same"
                  end
 
               | _ -> failwith "[ICE]"
             in
 
-            ignore expr_ty; ignore expr_val_cat;
-            ignore ret_ty;
+            let make_ret_expr expr =
+              adjust_expr_for_type ret_ty expr expr_ty_cat parent_env ctx opt_chain_attr
+            in
+            let opt_ret_expr = Option.map make_ret_expr opt_expr in
 
             (* TODO: call copy/move ctor *)
-            let node = TAst.ReturnStmt opt_expr in
+            let node = TAst.ReturnStmt opt_ret_expr in
             node
           end
 
        (* return type is already defined *)
        | false ->
           begin
-            let ret_ty = r.Env.fn_return_type in
+            let ret_ty = ctx_env_r.Env.fn_return_type in
             ignore ret_ty;
 
             (* TODO: check type of ty, call copy/move ctor *)
@@ -141,7 +148,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
          | None ->
             begin
               (* needs return type inference *)
-              (Type.undef_ty, true)
+              (Type_info.undef_ty, true)
             end
          | _ -> failwith "[ICE]"
        in
@@ -242,7 +249,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        r.Env.cls_mangled <- Some mangled;
 
        (* body *)
-       let nbody = analyze_inner body env ctx opt_attr in
+       let nbody = construct_env body env ctx opt_attr in
 
        (* check class characteristics *)
 
@@ -269,15 +276,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
           * if there are no user defined constructor.
           * However, some conditions make it as deleted *)
          let base_env = Env.MultiSetOp.find_or_add env ctor_name Env.Kind.Function in
-         let fenv_r = {
-           Env.fn_name = Nodes.Pure ctor_name;
-           Env.fn_mangled = None;
-           Env.fn_template_vals = [];
-           Env.fn_param_types = [];
-           Env.fn_return_type = Type.undef_ty;
-           Env.fn_is_auto_return_type = false;
-           Env.fn_detail = Env.FnUndef;
-         } in
+         let fenv_r = Env.FunctionOp.empty_record ctor_name in
          let fenv = Env.create_context_env env (
                                              Env.Function (
                                                  Env.empty_lookup_table (),
@@ -285,16 +284,43 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                                            ) in
          Env.MultiSetOp.add_normal_instances base_env fenv;
          let node = TAst.GenericFuncDef (None, Some fenv) in
-         Type.print ty;
-         Type.print (get_builtin_void_type ctx);
+
          let detail =
-           Env.FnRecordNormal (Env.FnDefDefaulted,
-                               Env.FnKindConstructor,
-                               {
-                                 Env.fn_n_param_envs = [];
-                               })
+           Env.FnRecordTrivial (Env.FnDefDefaulted,
+                                Env.FnKindDefaultConstructor)
          in
          check_function_env fenv [] ty false;
+         complete_function_env fenv node "this" detail ctx;
+
+
+         (* Type of rhs *)
+         let ts = Type_info.UniqueTy env in
+         let cr = Env.ClassOp.get_record env in
+         let template_args = cr.Env.cls_template_vals in
+         let attr = {
+           Type_attr.ta_ref_val = Type_attr.Ref;
+           Type_attr.ta_mut = Type_attr.Const;
+         } in
+         let rty =
+           Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
+                                        ts template_args attr
+         in
+
+         let base_env = Env.MultiSetOp.find_or_add env ctor_name Env.Kind.Function in
+         let fenv_r = Env.FunctionOp.empty_record ctor_name in
+         let fenv = Env.create_context_env env (
+                                             Env.Function (
+                                                 Env.empty_lookup_table (),
+                                                 fenv_r)
+                                           ) in
+         Env.MultiSetOp.add_normal_instances base_env fenv;
+         let node = TAst.GenericFuncDef (None, Some fenv) in
+
+         let detail =
+           Env.FnRecordTrivial (Env.FnDefDefaulted,
+                               Env.FnKindCopyConstructor)
+         in
+         check_function_env fenv [rty] ty false;
          complete_function_env fenv node "this" detail ctx;
 
          Printf.printf "======================================================";
@@ -397,7 +423,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
            Env.fn_mangled = None;
            Env.fn_template_vals = [];
            Env.fn_param_types = [];
-           Env.fn_return_type = Type.undef_ty;
+           Env.fn_return_type = Type_info.undef_ty;
            Env.fn_is_auto_return_type = false;
            Env.fn_detail = Env.FnUndef;
          } in
@@ -412,7 +438,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
          Type.print (get_builtin_void_type ctx);
          let detail =
            Env.FnRecordBuiltin (Env.FnDefDefaulted,
-                                Env.FnKindConstructor,
+                                Env.FnKindDefaultConstructor,
                                 "default_ctor")
          in
          check_function_env fenv [] !(ctx.sc_tsets.ts_void_type_holder) false;
@@ -433,15 +459,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
 
          (* implicit copy constructor for primitive *)
          let base_env = Env.MultiSetOp.find_or_add env ctor_name Env.Kind.Function in
-         let fenv_r = {
-           Env.fn_name = Nodes.Pure ctor_name;
-           Env.fn_mangled = None;
-           Env.fn_template_vals = [];
-           Env.fn_param_types = [];
-           Env.fn_return_type = Type.undef_ty;
-           Env.fn_is_auto_return_type = false;
-           Env.fn_detail = Env.FnUndef;
-         } in
+         let fenv_r = Env.FunctionOp.empty_record ctor_name in
          let fenv = Env.create_context_env env (
                                              Env.Function (
                                                  Env.empty_lookup_table (),
@@ -451,7 +469,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
          let node = TAst.GenericFuncDef (None, Some fenv) in
          let detail =
            Env.FnRecordBuiltin (Env.FnDefDefaulted,
-                                Env.FnKindConstructor,
+                                Env.FnKindCopyConstructor,
                                 "copy_ctor")
          in
          check_function_env fenv [rty]! (ctx.sc_tsets.ts_void_type_holder) false;
@@ -465,7 +483,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
            Env.fn_mangled = None;
            Env.fn_template_vals = [];
            Env.fn_param_types = [];
-           Env.fn_return_type = Type.undef_ty;
+           Env.fn_return_type = Type_info.undef_ty;
            Env.fn_is_auto_return_type = false;
            Env.fn_detail = Env.FnUndef;
          } in
@@ -478,7 +496,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
          let node = TAst.GenericFuncDef (None, Some fenv) in
          let detail =
            Env.FnRecordBuiltin (Env.FnDefDefaulted,
-                                Env.FnKindConstructor,
+                                Env.FnKindMember,
                                 "yoyo")
          in
          check_function_env fenv [ty; rty] !(ctx.sc_tsets.ts_void_type_holder) false;
@@ -517,6 +535,38 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        node
      end
 
+  (* *)
+  | TAst.MemberVariableDefStmt (v, Some env) ->
+     begin
+       (* TODO: implement *)
+       let (var_attr, var_name, init_term) =
+         match extract_prev_pass_node v with
+         | Ast.VarInit vi -> vi
+         | _ -> failwith "unexpected node"
+       in
+       let (opt_type, opt_init_value) = init_term in
+       let var_ty = match opt_type with
+         | Some var_type_node ->
+            begin
+              let (expr_ty, type_expr) =
+                resolve_type_with_node var_attr var_type_node
+                                       parent_env ctx opt_chain_attr
+              in
+              let var_ty =
+                Type.Generator.update_attr_r ctx.sc_tsets.ts_type_gen expr_ty
+                                             var_attr
+              in
+              var_ty
+            end
+         | None -> failwith "[ERR] type spec is required in class decl"
+       in
+
+       let r = Env.VariableOp.get_record env in
+       r.Env.var_type <- var_ty;
+
+       node
+     end
+
   (* scoped declare *)
   | TAst.VariableDefStmt (v, None) ->
      begin
@@ -527,13 +577,9 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        in
        check_id_is_defined_uniquely parent_env var_name;
 
+       let venv_r = Env.VariableOp.empty_record var_name in
        let venv = Env.create_context_env parent_env (
-                                           Env.Variable (
-                                               {
-                                                 Env.var_name = var_name;
-                                                 Env.var_type = Type.undef_ty;
-                                                 Env.var_detail = Env.VarUndef;
-                                               })
+                                           Env.Variable (venv_r)
                                          )
        in
 
@@ -599,7 +645,6 @@ let rec construct_env node parent_env ctx opt_chain_attr =
               (None, expr_node, var_ty)
             end
        in
-
 
        (* *)
        Env.add_inner_env parent_env var_name venv;
@@ -701,13 +746,9 @@ and analyze_expr ?(making_placeholder=false)
 
             let ret_ty_cenv = Type.as_unique f_ret_ty in
             let cr = Env.ClassOp.get_record ret_ty_cenv in
-            let (ret_ty_sto) = match cr.Env.cls_detail with
-              | Env.ClsRecordPrimitive _ ->
-                 TAst.StoImm
-
-              | Env.ClsRecordNormal ->
-                 TAst.StoStack f_ret_ty
-
+            let ret_ty_sto = match cr.Env.cls_detail with
+              | Env.ClsRecordPrimitive _ -> TAst.StoImm
+              | Env.ClsRecordNormal -> TAst.StoStack f_ret_ty
               | _ -> failwith "[ICE]"
             in
 
@@ -735,28 +776,24 @@ and analyze_expr ?(making_placeholder=false)
             (* call constructor *)
             (* TODO: take into account op call *)
             let ctor_name = Nodes.Pure "this" in
-            let res = solve_simple_identifier ~do_rec_search:false
-                                              ctor_name recv_cenv ctx attr in
+            let res = solve_basic_identifier ~do_rec_search:false
+                                             ctor_name recv_cenv ctx attr in
             let (_, ctor_env) = match res with
               | Some v -> v
               | None -> failwith "constructor not found"
             in
-
+            let f_conv =
+              solve_function_overload args_types []
+                                      ctor_env parent_env ctx attr
+            in
             let cr = Env.ClassOp.get_record recv_cenv in
-            let (f_conv, f_sto) = match cr.Env.cls_detail with
+            let f_sto = match cr.Env.cls_detail with
               | Env.ClsRecordPrimitive _ ->
-                 (* do NOT insert "this" into arguments when call primitive constructor *)
-                 let f = solve_function_overload args_types []
-                                                 ctor_env parent_env ctx attr in
-                 let sto = TAst.StoImm in
-                 (f, sto)
+                 TAst.StoImm
 
               | Env.ClsRecordNormal ->
                  (* the first argument is prepared for "this" *)
-                 let f = solve_function_overload args_types []
-                                                 ctor_env parent_env ctx attr in
-                 let sto = TAst.StoStack recv_ty in
-                 (f, sto)
+                 TAst.StoStack recv_ty
 
               | _ -> failwith "[ICE]"
             in
@@ -992,9 +1029,9 @@ and solve_identifier ?(do_rec_search=true)
   =
   match id_node with
   | Ast.Id (name, _) ->
-     solve_simple_identifier ~do_rec_search:do_rec_search
-                             ~making_placeholder:making_placeholder
-                             name env ctx attr
+     solve_basic_identifier ~do_rec_search:do_rec_search
+                            ~making_placeholder:making_placeholder
+                            name env ctx attr
   | Ast.InstantiatedId (name, template_args, _) ->
      begin
        Printf.printf "$$$$$ Ast.InstantiatedId\n";
@@ -1003,17 +1040,17 @@ and solve_identifier ?(do_rec_search=true)
          |> List.map (fun e -> eval_expr_as_ctfe e env ctx attr)
          |> List.split
        in
-       solve_simple_identifier ~do_rec_search:do_rec_search
-                               ~template_args:evaled_t_args
-                               ~making_placeholder:making_placeholder
-                               name env ctx attr
+       solve_basic_identifier ~do_rec_search:do_rec_search
+                              ~template_args:evaled_t_args
+                              ~making_placeholder:making_placeholder
+                              name env ctx attr
      end
   | _ -> failwith "unsupported ID type"
 
-and solve_simple_identifier ?(do_rec_search=true)
-                            ?(template_args=[])
-                            ?(making_placeholder=false)
-                            name search_base_env ctx attr
+and solve_basic_identifier ?(do_rec_search=true)
+                           ?(template_args=[])
+                           ?(making_placeholder=false)
+                           name search_base_env ctx attr
     : (type_info_t * 'env) option =
   (*Env.print env;*)
 
@@ -1155,7 +1192,7 @@ and solve_simple_identifier ?(do_rec_search=true)
   in
   match oenv with
   | [] -> None
-  | envs -> Some (List.fold_left solve (Type.undef_ty, Env.undef ()) envs)
+  | envs -> Some (List.fold_left solve (Type_info.undef_ty, Env.undef ()) envs)
 
 
 and try_to_complete_env env ctx =
@@ -1177,9 +1214,75 @@ and try_to_complete_env env ctx =
 and convert_type trg_ty src_ty_cat ext_env ctx attr =
   let (src_ty, src_val_cat) = src_ty_cat in
   if Type.is_same trg_ty src_ty then begin
+    (* same type *)
     let open Type_attr in
     match (trg_ty.Type_info.ti_attr, src_ty.Type_info.ti_attr) with
-    | ({ta_ref_val = Val}, {ta_ref_val = _}) -> (FuncMatchLevel.ExactMatch, None)
+    | ({ta_ref_val = Val}, {ta_ref_val = _}) ->
+       begin
+         (* copy val/ref to value *)
+         let cenv = Type.as_unique trg_ty in
+         let ctor_name = Nodes.Pure "this" in
+         let res = solve_basic_identifier ~do_rec_search:false
+                                                 ctor_name cenv ctx attr in
+         let (_, ctor_env) = match res with
+           | Some v -> v
+           | None -> failwith "constructor not found"
+         in
+         let m_r = Env.MultiSetOp.get_record ctor_env in
+         (* m_r.Env.ms_kind *)
+         let ctor_fenvs = m_r.Env.ms_normal_instances in
+
+         let select_move_ctor env =
+           let kind = Env.FunctionOp.get_kind env in
+           match kind with
+           | Env.FnKindMoveConstructor -> Some env
+           | _ -> None
+         in
+         let select_copy_ctor env =
+           let kind = Env.FunctionOp.get_kind env in
+           match kind with
+           | Env.FnKindCopyConstructor -> Some env
+           | _ -> None
+         in
+
+         let f = match src_val_cat with
+           | Value_category.VCatPrValue ->
+              begin
+                (* movable *)
+                Printf.printf "-> %s / %d\n"
+                              (Nodes.string_of_id_string (Env.ClassOp.get_record cenv).Env.cls_name)
+                              (List.length ctor_fenvs);
+                List.iter (fun e -> begin
+                                   let kind = Env.FunctionOp.get_kind e in
+                                   let s = match kind with
+                                     | Env.FnKindDefaultConstructor -> "default constructor"
+                                     | Env.FnKindCopyConstructor -> "copy constructor"
+                                     | Env.FnKindMoveConstructor -> "moce constructor"
+                                     | Env.FnKindConstructor -> "constructor"
+                                     | Env.FnKindDestructor -> "destructor"
+                                     | Env.FnKindFree -> "free"
+                                     | Env.FnKindMember -> "member"
+                                   in
+                                   Printf.printf "%s\n" s
+                                 end) ctor_fenvs;
+                let mv_funcs = List.filter_map select_move_ctor ctor_fenvs in
+                match List.length mv_funcs with
+                | 1 -> List.hd mv_funcs
+                | 0 ->
+                   begin
+                     (* copy *)
+                     let cp_funcs = List.filter_map select_copy_ctor ctor_fenvs in
+                     match List.length cp_funcs with
+                     | 1 -> List.hd cp_funcs
+                     | 0 -> failwith "[ERR] no move / copy ctors"
+                     | n -> failwith "[ERR] many copy ctors"
+                   end
+                | n -> failwith "[ERR] many move ctors"
+              end
+           | _ -> failwith ""
+         in
+         (FuncMatchLevel.ExactMatch, Some f)
+       end
 
     | ({ta_ref_val = Ref; ta_mut = trg_mut},
        {ta_ref_val = _; ta_mut = src_mut}) ->
@@ -1213,6 +1316,27 @@ and is_type_convertible_to src_ty dist_ty =
   else begin
     failwith "is_type_convertible_to / not implemented"
   end
+
+
+and adjust_expr_for_type trg_ty src_expr src_ty_cat ext_env ctx attr =
+  let (m_level, m_filter) =
+    convert_type trg_ty src_ty_cat ext_env ctx attr
+  in
+  if m_level = FuncMatchLevel.NoMatch then
+    failwith "[ERR] cannot convert type";
+
+  match m_filter with
+  | Some f_env ->
+     let cenv = Type.as_unique trg_ty in
+     let cr = Env.ClassOp.get_record cenv in
+     let sto = match cr.Env.cls_detail with
+       | Env.ClsRecordPrimitive _ -> TAst.StoImm
+       | Env.ClsRecordNormal -> TAst.StoStack trg_ty
+       | _ -> failwith "[ICE]"
+     in
+     TAst.GenericCallExpr (ref sto, [src_expr], Some f_env)
+
+  | None -> src_expr
 
 
 and resolve_type ?(making_placeholder=false) ty_attr expr env ctx attr =
@@ -1684,8 +1808,8 @@ and prepare_instantiate_template t_env_record template_args ext_env ctx attr =
   let get_meta_var_ty_env meta_var_name =
     let s_meta_var_name = Nodes.Pure meta_var_name in
     let opt_meta_var =
-      solve_simple_identifier ~do_rec_search:false
-                              s_meta_var_name temp_env ctx attr
+      solve_basic_identifier ~do_rec_search:false
+                             s_meta_var_name temp_env ctx attr
     in
     let ty_env = match opt_meta_var with
       | Some v -> v
@@ -1925,9 +2049,9 @@ and cache_builtin_type_info preset_ty name ctx =
   | Type_info.Undef ->
      begin
        let res =
-         solve_simple_identifier ~do_rec_search:false
-                                 (Nodes.Pure name)
-                                 (Option.get ctx.sc_builtin_m_env) ctx None
+         solve_basic_identifier ~do_rec_search:false
+                                (Nodes.Pure name)
+                                (Option.get ctx.sc_builtin_m_env) ctx None
        in
        match res with
        (* pure type *)
@@ -1959,6 +2083,7 @@ and cache_builtin_type_info preset_ty name ctx =
 
   (* already defined *)
   | _ -> ()
+
 
 
 and analyze ?(meta_variables=[]) ?(opt_attr=None) node env ctx =

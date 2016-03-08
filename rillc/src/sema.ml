@@ -21,15 +21,10 @@ let make_default_context root_env module_search_dirs =
 
   let register_builtin_type name inner_name =
     let create_builtin_class name inner_name =
+      let env_r = Env.ClassOp.empty_record name in
       let env = Env.create_context_env root_env (
                                          Env.Class (Env.empty_lookup_table ~init:0 (),
-                                                    {
-                                                      Env.cls_name = name;
-                                                      Env.cls_mangled = None;
-                                                      Env.cls_template_vals = [];
-                                                      Env.cls_detail = Env.ClsUndef;
-                                                      Env.cls_traits = None;
-                                                    })
+                                                    env_r)
                                        ) in
       let node = TAst.ExternClassDefStmt (name, inner_name, None, Some env) in
       complete_env env node;
@@ -55,10 +50,10 @@ let make_default_context root_env module_search_dirs =
     ts_type_type = register_builtin_type type_type_i.external_name
                                          type_type_i.internal_name;
 
-    ts_void_type_holder = ref Type.undef_ty;
-    ts_bool_type_holder = ref Type.undef_ty;
-    ts_int32_type_holder = ref Type.undef_ty;
-    ts_array_type_holder = ref Type.undef_ty;
+    ts_void_type_holder = ref Type_info.undef_ty;
+    ts_bool_type_holder = ref Type_info.undef_ty;
+    ts_int32_type_holder = ref Type_info.undef_ty;
+    ts_array_type_holder = ref Type_info.undef_ty;
   } in
 
   let uni_map = Unification.empty () in

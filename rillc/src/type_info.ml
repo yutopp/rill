@@ -26,3 +26,12 @@ type 'env t = {
   | FunctionSetTy of 'env
   | Undef
   | NotDetermined of Unification.id_t
+
+
+let undef_ty =
+  {
+    ti_id = None;
+    ti_sort = Undef;
+    ti_template_args = [];
+    ti_attr = Type_attr.undef;
+  }

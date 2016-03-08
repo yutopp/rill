@@ -57,15 +57,6 @@ let as_unique ty =
   | _ -> failwith "as_unique: not unique"
 
 
-let undef_ty =
-  {
-    ti_id = None;
-    ti_sort = Undef;
-    ti_template_args = [];
-    ti_attr = Type_attr.undef;
-  }
-
-
 module Generator =
   struct
     type 'env id_record_table_t =

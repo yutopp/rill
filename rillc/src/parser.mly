@@ -185,16 +185,37 @@ class_body_statement:
         |       class_body_statement_ { $1 }
 
 class_body_statement_:
-                (*  block_statement
-                * | variable_declaration_statement
-                * | control_flow_statement
-                * | return_statement
-                * | expression_statement
-                *)
-                empty_statement { $1 }
+                member_variable_declaration_statement { $1 }
+        |       empty_statement { $1 }
 
 class_body_statements_list:
                 class_body_statement* { Ast.StatementList ($1) }
+
+
+member_variable_declaration_statement:
+                member_variable_declararion SEMICOLON
+                {
+                    Ast.MemberVariableDefStmt ($1, ())
+                }
+
+member_variable_declararion:
+                member_variable_initializer_unit
+                {
+                    Ast.VarInit $1
+                }
+
+(* TODO: change rel_id_has_no_op_as_raw to generic_rel_id_has_no_op to support template variables *)
+member_variable_initializer_unit:
+                member_variable_decl_introducer
+                rel_id_has_no_op_as_raw
+                value_initializer_unit { ($1, $2, $3) }
+
+member_variable_decl_introducer:
+                rv = rv_attr_val
+                mut = mut_attr
+                { { Type_attr.ta_ref_val = rv;
+                    Type_attr.ta_mut = mut; }
+                }
 
 
 (**)
@@ -279,16 +300,12 @@ type_specifier:
 
 
 (**)
-variable_decl_introducer:
-                rv = rv_attr_force
-                mut = mut_attr
-                { { Type_attr.ta_ref_val = rv;
-                    Type_attr.ta_mut = mut; }
-                }
-
 rv_attr_force:
                 KEYWORD_VAL { Type_attr.Val }
         |       KEYWORD_REF { Type_attr.Ref }
+
+rv_attr_val:
+                KEYWORD_VAL { Type_attr.Val }
 
 rv_attr:
                 { Type_attr.Ref }   (* default *)
@@ -313,7 +330,6 @@ variable_declaration_statement:
 variable_declararion:
                 variable_initializer_unit
                 {
-                    (*let (rv, name, v) = $1 in*)
                     Ast.VarInit $1
                 }
 
@@ -322,6 +338,13 @@ variable_initializer_unit:
                 variable_decl_introducer
                 rel_id_has_no_op_as_raw
                 value_initializer_unit { ($1, $2, $3) }
+
+variable_decl_introducer:
+                rv = rv_attr_force
+                mut = mut_attr
+                { { Type_attr.ta_ref_val = rv;
+                    Type_attr.ta_mut = mut; }
+                }
 
 
 (**)

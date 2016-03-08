@@ -52,6 +52,7 @@ module Make (Ctx : NodeContextType) =
       | ExternClassDefStmt of id_string * string * attr_tbl_t option * ctx_t
       (* VarInit, _ *)
       | VariableDefStmt of ast * ctx_t
+      | MemberVariableDefStmt of ast * ctx_t
       (* name, template params, inner node *)
       | TemplateStmt of id_string * ast * ast
       | EmptyStmt

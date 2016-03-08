@@ -58,7 +58,7 @@ let rec solve_forward_refs ?(meta_variables=[])
          Env.fn_mangled = None;
          Env.fn_template_vals = [];
          Env.fn_param_types = [];
-         Env.fn_return_type = Type.undef_ty;
+         Env.fn_return_type = Type_info.undef_ty;
          Env.fn_is_auto_return_type = true;
          Env.fn_detail = Env.FnUndef;
        } in
@@ -99,7 +99,7 @@ let rec solve_forward_refs ?(meta_variables=[])
          Env.fn_mangled = None;
          Env.fn_template_vals = [];
          Env.fn_param_types = [];
-         Env.fn_return_type = Type.undef_ty;
+         Env.fn_return_type = Type_info.undef_ty;
          Env.fn_is_auto_return_type = false;
          Env.fn_detail = Env.FnUndef;
        } in
@@ -135,13 +135,7 @@ let rec solve_forward_refs ?(meta_variables=[])
        let name_s = Nodes.string_of_id_string name in
        (* accept multiple definition for specialization *)
        let base_env = Env.MultiSetOp.find_or_add parent_env name_s Env.Kind.Class in
-       let cenv_r = {
-         Env.cls_name = name;
-         Env.cls_mangled = None;
-         Env.cls_template_vals = [];
-         Env.cls_detail = Env.ClsUndef;
-         Env.cls_traits = None;
-       } in
+       let cenv_r = Env.ClassOp.empty_record name in
        let cenv = Env.create_context_env parent_env (
                                            Env.Class (
                                                Env.empty_lookup_table (),
@@ -157,9 +151,17 @@ let rec solve_forward_refs ?(meta_variables=[])
                  Env.MultiSetOp.add_normal_instances base_env cenv
        in
 
+       (* class members are forward referencable *)
+       let nbody = solve_forward_refs ~opt_attr:opt_attr body cenv ctx in
+
+       (* members are appended to head,
+        * thus reverse them in order to make them declared order *)
+       cenv_r.Env.cls_member_vars <- List.rev cenv_r.Env.cls_member_vars;
+       cenv_r.Env.cls_member_funcs <- List.rev cenv_r.Env.cls_member_funcs;
+
        let node = TAst.ClassDefStmt (
                       name,
-                      TAst.PrevPassNode body,
+                      nbody,
                       opt_attr,
                       Some cenv
                     ) in
@@ -172,13 +174,7 @@ let rec solve_forward_refs ?(meta_variables=[])
        let name_s = Nodes.string_of_id_string name in
        (* accept multiple definition for specialization *)
        let base_env = Env.MultiSetOp.find_or_add parent_env name_s Env.Kind.Class in
-       let cenv_r = {
-         Env.cls_name = name;
-         Env.cls_mangled = Some "int32";    (* XXX *)
-         Env.cls_template_vals = [];
-         Env.cls_detail = Env.ClsUndef;
-         Env.cls_traits = None;
-       } in
+       let cenv_r = Env.ClassOp.empty_record name in
        let cenv = Env.create_context_env parent_env (
                                            Env.Class (
                                                Env.empty_lookup_table ~init:0 (),
@@ -201,6 +197,28 @@ let rec solve_forward_refs ?(meta_variables=[])
                       Some cenv
                     ) in
        Env.update_rel_ast cenv node;
+       node
+     end
+
+  | Ast.MemberVariableDefStmt (v, _) ->
+     begin
+       let parent_cenv_r = Env.ClassOp.get_record parent_env in
+
+       let (_, var_name, _) =
+         match v with
+         | Ast.VarInit vi -> vi
+         | _ -> failwith "unexpected node"
+       in
+
+       let var_r = Env.VariableOp.empty_record var_name in
+       let venv = Env.create_context_env parent_env (
+                                           Env.Variable (var_r)
+                                         )
+       in
+       Env.add_inner_env parent_env var_name venv;
+       parent_cenv_r.Env.cls_member_vars <- venv :: parent_cenv_r.Env.cls_member_vars;
+
+       let node = TAst.MemberVariableDefStmt (TAst.PrevPassNode v, Some venv) in
        node
      end
 
