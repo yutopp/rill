@@ -776,13 +776,6 @@ let inject_builtins ctx =
   (*
    * Builtin functions
    *)
-  let () =
-    let add_int_int args ctx =
-      assert (Array.length args = 2);
-      L.build_add args.(0) args.(1) "" ctx.Ctx.ir_builder
-    in
-    register_builtin_func "__builtin_op_binary_+_int_int" add_int_int;
-  in
 
   (* for int32 *)
   let () =
@@ -808,13 +801,21 @@ let inject_builtins ctx =
       register_builtin_func
         (make_builtin_copy_ctor_name int32_type_i.internal_name) f
     in
-    let () =
+    let () = (* copy assign *)
       let f args ctx =
         assert (Array.length args = 2);
         L.build_store args.(1) args.(0) ctx.Ctx.ir_builder
       in
       register_builtin_func
         (make_builtin_copy_assign_name int32_type_i.internal_name) f
+    in
+
+    let () = (* +(int, int) *)
+    let f args ctx =
+      assert (Array.length args = 2);
+      L.build_add args.(0) args.(1) "" ctx.Ctx.ir_builder
+    in
+    register_builtin_func "__builtin_op_binary_+_int_int" f;
     in
     ()
   in
