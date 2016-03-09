@@ -29,15 +29,20 @@ and s_of_template_args args tset =
   Printf.sprintf "_T%d%s" (List.length ts) s
 
 
+and s_of_string s =
+  Printf.sprintf "%d%s" (String.length s) s
+
+
 and s_of_symbol sym =
-  Printf.sprintf "%d%s" (String.length sym) sym
+  let s = Nodes.string_of_id_string sym in
+  s_of_string s
 
 
-and s_of_function full_module_name name
+and s_of_function full_module_name id_name
                   template_args args_types return_type
                   tset =
-  let s_mod_name = full_module_name |> List.map s_of_symbol |> String.concat "" in
-  let s_name = name |> s_of_symbol in
+  let s_mod_name = full_module_name |> List.map s_of_string |> String.concat "" in
+  let s_name = id_name |> s_of_symbol in
   let s_targs = s_of_template_args template_args tset in
   let s_args_tys = args_types |> List.map s_of_type |> String.concat "" in
   let s_ret_ty = return_type |> s_of_type in

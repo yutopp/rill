@@ -48,13 +48,12 @@ let rec solve_forward_refs ?(meta_variables=[])
        TAst.EmptyStmt
      end
 
-  | Ast.FunctionDefStmt (name, params, opt_ret_type, body, None, _) ->
+  | Ast.FunctionDefStmt (id_name, params, opt_ret_type, body, None, _) ->
      begin
-       let name_s = Nodes.string_of_id_string name in
        (* accept multiple definition for overload *)
-       let base_env = Env.MultiSetOp.find_or_add parent_env name_s Env.Kind.Function in
+       let base_env = Env.MultiSetOp.find_or_add parent_env id_name Env.Kind.Function in
        let fenv_r = {
-         Env.fn_name = name;
+         Env.fn_name = id_name;
          Env.fn_mangled = None;
          Env.fn_template_vals = [];
          Env.fn_param_types = [];
@@ -78,7 +77,7 @@ let rec solve_forward_refs ?(meta_variables=[])
        in
 
        let node = TAst.FunctionDefStmt (
-                      name,
+                      id_name,
                       TAst.PrevPassNode params,
                       Option.map (fun x -> TAst.PrevPassNode x) opt_ret_type,
                       TAst.PrevPassNode body,
@@ -89,13 +88,12 @@ let rec solve_forward_refs ?(meta_variables=[])
        node
      end
 
-  | Ast.ExternFunctionDefStmt (name, params, ret_type, extern_fname, None, _) ->
+  | Ast.ExternFunctionDefStmt (id_name, params, ret_type, extern_fname, None, _) ->
      begin
-       let name_s = Nodes.string_of_id_string name in
        (* accept multiple definition for overload *)
-       let base_env = Env.MultiSetOp.find_or_add parent_env name_s Env.Kind.Function in
+       let base_env = Env.MultiSetOp.find_or_add parent_env id_name Env.Kind.Function in
        let fenv_r = {
-         Env.fn_name = name;
+         Env.fn_name = id_name;
          Env.fn_mangled = None;
          Env.fn_template_vals = [];
          Env.fn_param_types = [];
@@ -119,7 +117,7 @@ let rec solve_forward_refs ?(meta_variables=[])
        in
 
        let node = TAst.ExternFunctionDefStmt (
-                      name,
+                      id_name,
                       TAst.PrevPassNode params,
                       TAst.PrevPassNode ret_type,
                       extern_fname,
@@ -130,12 +128,11 @@ let rec solve_forward_refs ?(meta_variables=[])
        node
      end
 
-  | Ast.ClassDefStmt (name, body, None, _) ->
+  | Ast.ClassDefStmt (id_name, body, None, _) ->
      begin
-       let name_s = Nodes.string_of_id_string name in
        (* accept multiple definition for specialization *)
-       let base_env = Env.MultiSetOp.find_or_add parent_env name_s Env.Kind.Class in
-       let cenv_r = Env.ClassOp.empty_record name in
+       let base_env = Env.MultiSetOp.find_or_add parent_env id_name Env.Kind.Class in
+       let cenv_r = Env.ClassOp.empty_record id_name in
        let cenv = Env.create_context_env parent_env (
                                            Env.Class (
                                                Env.empty_lookup_table (),
@@ -160,7 +157,7 @@ let rec solve_forward_refs ?(meta_variables=[])
        cenv_r.Env.cls_member_funcs <- List.rev cenv_r.Env.cls_member_funcs;
 
        let node = TAst.ClassDefStmt (
-                      name,
+                      id_name,
                       nbody,
                       opt_attr,
                       Some cenv
@@ -169,12 +166,11 @@ let rec solve_forward_refs ?(meta_variables=[])
        node
      end
 
-  | Ast.ExternClassDefStmt (name, extern_cname, None, _) ->
+  | Ast.ExternClassDefStmt (id_name, extern_cname, None, _) ->
      begin
-       let name_s = Nodes.string_of_id_string name in
        (* accept multiple definition for specialization *)
-       let base_env = Env.MultiSetOp.find_or_add parent_env name_s Env.Kind.Class in
-       let cenv_r = Env.ClassOp.empty_record name in
+       let base_env = Env.MultiSetOp.find_or_add parent_env id_name Env.Kind.Class in
+       let cenv_r = Env.ClassOp.empty_record id_name in
        let cenv = Env.create_context_env parent_env (
                                            Env.Class (
                                                Env.empty_lookup_table ~init:0 (),
@@ -191,7 +187,7 @@ let rec solve_forward_refs ?(meta_variables=[])
        in
 
        let node = TAst.ExternClassDefStmt (
-                      name,
+                      id_name,
                       extern_cname,
                       opt_attr,
                       Some cenv
@@ -225,9 +221,8 @@ let rec solve_forward_refs ?(meta_variables=[])
   | Ast.VariableDefStmt (v, _) ->
      TAst.VariableDefStmt (TAst.PrevPassNode v, None)
 
-  | Ast.TemplateStmt (name, template_params, inner_node) ->
+  | Ast.TemplateStmt (id_name, template_params, inner_node) ->
      begin
-       let name_s = Nodes.string_of_id_string name in
        let base_kind = match inner_node with
          | Ast.FunctionDefStmt _
          | Ast.ExternFunctionDefStmt _ -> Env.Kind.Function
@@ -238,10 +233,10 @@ let rec solve_forward_refs ?(meta_variables=[])
             end
        in
        let base_env =
-         Env.MultiSetOp.find_or_add parent_env name_s base_kind
+         Env.MultiSetOp.find_or_add parent_env id_name base_kind
        in
        let template_env_r = {
-         Env.tl_name = name;
+         Env.tl_name = id_name;
          Env.tl_params = TAst.PrevPassNode template_params;
          Env.tl_inner_node = TAst.PrevPassNode inner_node;
        } in

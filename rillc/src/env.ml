@@ -382,7 +382,8 @@ module ModuleOp =
 
 module MultiSetOp =
   struct
-    let find_or_add env name k =
+    let find_or_add env id_name k =
+      let name = Nodes.string_of_id_string id_name in
       let oe = find_on_env env name in
       match oe with
       (* Found *)
@@ -439,9 +440,9 @@ module FunctionOp =
       | FnRecordBuiltin (_, kind, _) -> kind
       | _ -> failwith ""
 
-    let empty_record name =
+    let empty_record id_name =
       {
-        fn_name = Nodes.Pure name;
+        fn_name = id_name;
         fn_mangled = None;
         fn_template_vals = [];
         fn_param_types = [];

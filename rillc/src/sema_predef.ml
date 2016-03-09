@@ -51,13 +51,13 @@ let check_function_env env param_types return_type is_auto_return_type =
   r.Env.fn_is_auto_return_type <- is_auto_return_type;
   Env.update_status env Env.Checking
 
-let complete_function_env env node s_name f_detail ctx =
+let complete_function_env env node id_name f_detail ctx =
   let r = Env.FunctionOp.get_record env in
 
   r.Env.fn_detail <- f_detail;
 
-  let _ = match s_name with
-    | s when s = Builtin_info.entrypoint_name ->
+  let _ = match id_name with
+    | s when s = Nodes.Pure Builtin_info.entrypoint_name ->
        begin
          (* TODO: check param_types and return_type *)
          r.Env.fn_mangled <- Some Builtin_info.entrypoint_name
@@ -65,7 +65,7 @@ let complete_function_env env node s_name f_detail ctx =
     | _ ->
        begin
          let mangled =
-           Mangle.s_of_function (Env.get_full_module_name env) s_name
+           Mangle.s_of_function (Env.get_full_module_name env) id_name
                                 r.Env.fn_template_vals
                                 r.Env.fn_param_types r.Env.fn_return_type
                                 ctx.sc_tsets

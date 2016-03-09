@@ -165,7 +165,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
          Env.fn_n_param_envs = param_venvs;
        } in
 
-       complete_function_env env node name_s
+       complete_function_env env node name
                              (Env.FnRecordNormal (Env.FnDefUserDefined,
                                                   Env.FnKindFree,
                                                   detail_r))
@@ -218,7 +218,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                                             Env.FnKindFree,
                                             extern_fname)
        in
-       complete_function_env env node name_s record ctx;
+       complete_function_env env node name record ctx;
 
        node
      end
@@ -246,77 +246,35 @@ let rec construct_env node parent_env ctx opt_chain_attr =
 
        (* check class characteristics *)
 
-       (* collect member varibles *)
+       (* collect member variables *)
        (* TODO: implement *)
 
        let define_ctor () =
-         (* Type of reciever *)
-         let ts = Type_info.UniqueTy env in
-         let cr = Env.ClassOp.get_record env in
-         let template_args = cr.Env.cls_template_vals in
-         let attr = {
-           Type_attr.ta_ref_val = Type_attr.Ref;
-           Type_attr.ta_mut = Type_attr.Mutable;
-         } in
-         let ty =
-           Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
-                                        ts template_args attr
-         in
-
-         let ctor_name = "this" in
+         let ty = make_class_type env Type_attr.Ref Type_attr.Mutable ctx in
 
          (* implicit default constructor is defined as defaulted,
           * if there are no user defined constructor.
           * However, some conditions make it as deleted *)
-         let base_env = Env.MultiSetOp.find_or_add env ctor_name Env.Kind.Function in
-         let fenv_r = Env.FunctionOp.empty_record ctor_name in
-         let fenv = Env.create_context_env env (
-                                             Env.Function (
-                                                 Env.empty_lookup_table (),
-                                                 fenv_r)
-                                           ) in
-         Env.MultiSetOp.add_normal_instances base_env fenv;
+         let fenv = declare_incomple_ctor env in
          let node = TAst.GenericFuncDef (None, Some fenv) in
-
          let detail =
            Env.FnRecordTrivial (Env.FnDefDefaulted,
                                 Env.FnKindDefaultConstructor)
          in
          check_function_env fenv [] ty false;
-         complete_function_env fenv node "this" detail ctx;
+         complete_function_env fenv node ctor_name detail ctx;
 
 
-         (* Type of rhs *)
-         let ts = Type_info.UniqueTy env in
-         let cr = Env.ClassOp.get_record env in
-         let template_args = cr.Env.cls_template_vals in
-         let attr = {
-           Type_attr.ta_ref_val = Type_attr.Ref;
-           Type_attr.ta_mut = Type_attr.Const;
-         } in
-         let rty =
-           Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
-                                        ts template_args attr
-         in
-
-         let base_env = Env.MultiSetOp.find_or_add env ctor_name Env.Kind.Function in
-         let fenv_r = Env.FunctionOp.empty_record ctor_name in
-         let fenv = Env.create_context_env env (
-                                             Env.Function (
-                                                 Env.empty_lookup_table (),
-                                                 fenv_r)
-                                           ) in
-         Env.MultiSetOp.add_normal_instances base_env fenv;
+         (* copy ctor *)
+         let rhs_ty = make_class_type env Type_attr.Ref Type_attr.Const ctx in
+         let fenv = declare_incomple_ctor env in
          let node = TAst.GenericFuncDef (None, Some fenv) in
-
          let detail =
            Env.FnRecordTrivial (Env.FnDefDefaulted,
                                Env.FnKindCopyConstructor)
          in
-         check_function_env fenv [rty] ty false;
-         complete_function_env fenv node "this" detail ctx;
-
-         Printf.printf "======================================================";
+         check_function_env fenv [rhs_ty] ty false;
+         complete_function_env fenv node ctor_name detail ctx;
        in
        define_ctor ();
 
@@ -394,111 +352,12 @@ let rec construct_env node parent_env ctx opt_chain_attr =
 
        Printf.printf "is_novalue : %b \n" is_novalue;
 
-       let define_ctor () =
-         (* Type of reciever *)
-         let ts = Type_info.UniqueTy env in
-         let cr = Env.ClassOp.get_record env in
-         let template_args = cr.Env.cls_template_vals in
-         let attr = {
-           Type_attr.ta_ref_val = Type_attr.Ref;
-           Type_attr.ta_mut = Type_attr.Mutable;
-         } in
-         let ty =
-           Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
-                                        ts template_args attr
-         in
-
-         let ctor_name = "this" in
-         (* FIXME: implicit default constructor for primitive *)
-         let base_env = Env.MultiSetOp.find_or_add env ctor_name Env.Kind.Function in
-         let fenv_r = {
-           Env.fn_name = Nodes.Pure ctor_name;
-           Env.fn_mangled = None;
-           Env.fn_template_vals = [];
-           Env.fn_param_types = [];
-           Env.fn_return_type = Type_info.undef_ty;
-           Env.fn_is_auto_return_type = false;
-           Env.fn_detail = Env.FnUndef;
-         } in
-         let fenv = Env.create_context_env env (
-                                             Env.Function (
-                                                 Env.empty_lookup_table (),
-                                                 fenv_r)
-                                           ) in
-         Env.MultiSetOp.add_normal_instances base_env fenv;
-         let node = TAst.GenericFuncDef (None, Some fenv) in
-         Type.print ty;
-         Type.print (get_builtin_void_type ctx);
-         let detail =
-           Env.FnRecordBuiltin (Env.FnDefDefaulted,
-                                Env.FnKindDefaultConstructor,
-                                (Builtin_info.make_builtin_default_ctor_name extern_cname))
-         in
-         check_function_env fenv [] ty false;
-         complete_function_env fenv node "this" detail ctx;
-
-         (* Type of rhs *)
-         let ts = Type_info.UniqueTy env in
-         let cr = Env.ClassOp.get_record env in
-         let template_args = cr.Env.cls_template_vals in
-         let attr = {
-           Type_attr.ta_ref_val = Type_attr.Ref;
-           Type_attr.ta_mut = Type_attr.Const;
-         } in
-         let rty =
-           Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
-                                        ts template_args attr
-         in
-
-         (* implicit copy constructor for primitive *)
-         let base_env = Env.MultiSetOp.find_or_add env ctor_name Env.Kind.Function in
-         let fenv_r = Env.FunctionOp.empty_record ctor_name in
-         let fenv = Env.create_context_env env (
-                                             Env.Function (
-                                                 Env.empty_lookup_table (),
-                                                 fenv_r)
-                                           ) in
-         Env.MultiSetOp.add_normal_instances base_env fenv;
-         let node = TAst.GenericFuncDef (None, Some fenv) in
-         let detail =
-           Env.FnRecordBuiltin (Env.FnDefDefaulted,
-                                Env.FnKindCopyConstructor,
-                                (Builtin_info.make_builtin_copy_ctor_name extern_cname))
-         in
-         check_function_env fenv [rty] ty false;
-         complete_function_env fenv node "this" detail ctx;
-
-         let op_name = (Nodes.string_of_id_string @@ Nodes.BinaryOp "=") in
-         (* implicit copy assignments for primitive *)
-         let base_env = Env.MultiSetOp.find_or_add env op_name Env.Kind.Function in
-         let fenv_r = {
-           Env.fn_name = Nodes.BinaryOp "=";
-           Env.fn_mangled = None;
-           Env.fn_template_vals = [];
-           Env.fn_param_types = [];
-           Env.fn_return_type = Type_info.undef_ty;
-           Env.fn_is_auto_return_type = false;
-           Env.fn_detail = Env.FnUndef;
-         } in
-         let fenv = Env.create_context_env env (
-                                             Env.Function (
-                                                 Env.empty_lookup_table (),
-                                                 fenv_r)
-                                           ) in
-         Env.MultiSetOp.add_normal_instances base_env fenv;
-         let node = TAst.GenericFuncDef (None, Some fenv) in
-         let detail =
-           Env.FnRecordBuiltin (Env.FnDefDefaulted,
-                                Env.FnKindMember,
-                                (Builtin_info.make_builtin_copy_assign_name extern_cname))
-         in
-         check_function_env fenv [ty; rty] !(ctx.sc_tsets.ts_void_type_holder) false;
-         complete_function_env fenv node op_name detail ctx;
-
-         Printf.printf "======================================================";
+       let define_special_members () =
+         define_trivial_default_ctor_for_builtin env extern_cname ctx;
+         define_trivial_copy_ctor_for_builtin env extern_cname ctx;
+         define_trivial_copy_assign_for_builtin env extern_cname ctx
        in
-       if not is_novalue then
-         define_ctor ();
+       if not is_novalue then define_special_members ();
 
        (* update record *)
        let detail_r = Env.ClsRecordPrimitive {
@@ -1971,8 +1830,98 @@ and instantiate_class_templates menv template_args ext_env ctx attr =
 
 
 and map_conversions filters eargs =
-  let (exprs, types) = eargs |> List.split in
+  let (exprs, expr_type_cats) = eargs |> List.split in
+
   exprs
+
+
+and ctor_name = Nodes.Pure "this"
+and assign_name = Nodes.BinaryOp "="
+
+and make_class_type cenv rv mut ctx =
+  let cr = Env.ClassOp.get_record cenv in
+  let template_args = cr.Env.cls_template_vals in
+  let attr = {
+    Type_attr.ta_ref_val = rv;
+    Type_attr.ta_mut = mut;
+  } in
+  let ts = Type_info.UniqueTy cenv in
+  Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
+                               ts template_args attr
+
+
+and declare_incomple_ctor cenv =
+  let base_env = Env.MultiSetOp.find_or_add cenv ctor_name Env.Kind.Function in
+  let fenv_r = Env.FunctionOp.empty_record ctor_name in
+
+  let fenv = Env.create_context_env cenv (
+                                      Env.Function (
+                                          Env.empty_lookup_table ~init:0 (),
+                                          fenv_r)
+                                    ) in
+  Env.MultiSetOp.add_normal_instances base_env fenv;
+  fenv
+
+and declare_incomple_assign cenv =
+  let base_env = Env.MultiSetOp.find_or_add cenv assign_name Env.Kind.Function in
+  let fenv_r = Env.FunctionOp.empty_record assign_name in
+
+  let fenv = Env.create_context_env cenv (
+                                      Env.Function (
+                                          Env.empty_lookup_table ~init:0 (),
+                                          fenv_r)
+                                    ) in
+  Env.MultiSetOp.add_normal_instances base_env fenv;
+  fenv
+
+and define_trivial_default_ctor_for_builtin cenv extern_cname ctx =
+  let ty = make_class_type cenv Type_attr.Ref Type_attr.Mutable ctx in
+  let fenv = declare_incomple_ctor cenv in
+
+  let detail =
+    Env.FnRecordBuiltin (Env.FnDefDefaulted,
+                         Env.FnKindDefaultConstructor,
+                         (Builtin_info.make_builtin_default_ctor_name extern_cname))
+  in
+  (* interface of default constructor: void -> TYPE *)
+  check_function_env fenv [] ty false;
+
+  let node = TAst.GenericFuncDef (None, Some fenv) in
+  complete_function_env fenv node ctor_name detail ctx
+
+
+and define_trivial_copy_ctor_for_builtin cenv extern_cname ctx =
+  let ty = make_class_type cenv Type_attr.Ref Type_attr.Mutable ctx in
+  let rhs_ty = make_class_type cenv Type_attr.Ref Type_attr.Const ctx in
+  let fenv = declare_incomple_ctor cenv in
+
+  let detail =
+    Env.FnRecordBuiltin (Env.FnDefDefaulted,
+                         Env.FnKindCopyConstructor,
+                         (Builtin_info.make_builtin_copy_ctor_name extern_cname))
+  in
+  (* interface of default constructor: TYPE -> TYPE *)
+  check_function_env fenv [rhs_ty] ty false;
+
+  let node = TAst.GenericFuncDef (None, Some fenv) in
+  complete_function_env fenv node ctor_name detail ctx
+
+
+and define_trivial_copy_assign_for_builtin cenv extern_cname ctx =
+  let ty = make_class_type cenv Type_attr.Ref Type_attr.Mutable ctx in
+  let rhs_ty = make_class_type cenv Type_attr.Ref Type_attr.Const ctx in
+  let fenv = declare_incomple_assign cenv in
+
+  let detail =
+    Env.FnRecordBuiltin (Env.FnDefDefaulted,
+                         Env.FnKindMember,
+                         (Builtin_info.make_builtin_copy_assign_name extern_cname))
+  in
+  (* interface of default constructor: TYPE -> TYPE -> void *)
+  check_function_env fenv [ty; rhs_ty] !(ctx.sc_tsets.ts_void_type_holder) false;
+
+  let node = TAst.GenericFuncDef (None, Some fenv) in
+  complete_function_env fenv node assign_name detail ctx
 
 
 and get_builtin_int_type ?(bits=32) ?(signed=true)
