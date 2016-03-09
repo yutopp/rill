@@ -525,18 +525,18 @@ and analyze_expr ?(making_placeholder=false)
      begin
        let args = [lhs; rhs] in
        let eargs = evaluate_invocation_args args parent_env ctx attr in
-       let (_, args_types_cats) = List.split eargs in
+       let (arg_exprs, arg_types_cats) = List.split eargs in
        (*List.iter check_is_args_valid args_types_cats;*)
 
        (*List.iter print_type args_types;*)
        let op_id = Ast.Id (op, ()) in
        let opt_fs_and_args =
          find_suitable_operator ~universal_search:true
-                                op_id args_types_cats node parent_env ctx attr in
+                                op_id arg_types_cats node parent_env ctx attr in
        match opt_fs_and_args with
        | Some (f_env, conv_filters) ->
           begin
-            let n_eargs = map_conversions conv_filters eargs in
+            let n_eargs = map_conversions conv_filters arg_exprs parent_env ctx in
 
             let f_er = Env.FunctionOp.get_record f_env in
             let f_ret_ty = f_er.Env.fn_return_type in
@@ -569,8 +569,8 @@ and analyze_expr ?(making_placeholder=false)
        in
 
        let eargs = evaluate_invocation_args args parent_env ctx attr in
-       let (_, args_types) = List.split eargs in
-       List.iter check_is_args_valid args_types;
+       let (arg_exprs, arg_types_cats) = List.split eargs in
+       (*List.iter check_is_args_valid args_types;*)
 
        let {
          Type_info.ti_sort = ty_sort;
@@ -581,10 +581,10 @@ and analyze_expr ?(making_placeholder=false)
           begin
             (* notmal function call *)
             let (f_env, conv_filters) =
-              solve_function_overload args_types template_args
+              solve_function_overload arg_types_cats template_args
                                       menv parent_env ctx attr
             in
-            let n_eargs = map_conversions conv_filters eargs in
+            let n_eargs = map_conversions conv_filters arg_exprs parent_env ctx in
 
             let f_er = Env.FunctionOp.get_record f_env in
             let f_ret_ty = f_er.Env.fn_return_type in
@@ -624,13 +624,13 @@ and analyze_expr ?(making_placeholder=false)
               | None -> failwith "constructor not found"
             in
             let f_conv =
-              solve_function_overload args_types []
+              solve_function_overload arg_types_cats []
                                       ctor_env parent_env ctx attr
             in
             let f_sto = suitable_storage recv_ty in
 
             let (f_env, conv_filters) = f_conv in
-            let n_eargs = map_conversions conv_filters eargs in
+            let n_eargs = map_conversions conv_filters arg_exprs parent_env ctx in
 
             let f_er = Env.FunctionOp.get_record f_env in
             let f_ret_ty = f_er.Env.fn_return_type in
@@ -1107,7 +1107,7 @@ and convert_type trg_ty src_ty_cat ext_env ctx attr =
                 | n -> failwith "[ERR] many copy ctors"
               end
          in
-         (FuncMatchLevel.ExactMatch, Some f)
+         (FuncMatchLevel.ExactMatch, Some (trg_ty, f))
        end
 
     | ({ta_ref_val = Ref; ta_mut = trg_mut},
@@ -1169,6 +1169,16 @@ and suitable_storage ?(exit_scope=false) trg_ty =
   | _ -> failwith "[ICE]"
 
 
+and apply_conv_filter ?(exit_scope=false)
+                      filter expr ext_env ctx =
+  match filter with
+  | Some (trg_ty, f_env) ->
+     let sto = suitable_storage ~exit_scope:exit_scope trg_ty in
+     (* TODO: use default arguments *)
+     TAst.GenericCallExpr (ref sto, [expr], Some ext_env, Some f_env)
+  | None -> expr
+
+
 and adjust_expr_for_type ?(exit_scope=false)
                          trg_ty src_expr src_ty_cat ext_env ctx attr =
   let (m_level, m_filter) =
@@ -1177,12 +1187,7 @@ and adjust_expr_for_type ?(exit_scope=false)
   if m_level = FuncMatchLevel.NoMatch then
     failwith "[ERR] cannot convert type";
 
-  match m_filter with
-  | Some f_env ->
-     let sto = suitable_storage ~exit_scope:exit_scope trg_ty in
-     TAst.GenericCallExpr (ref sto, [src_expr], Some ext_env, Some f_env)
-
-  | None -> src_expr
+  apply_conv_filter ~exit_scope:exit_scope m_filter src_expr ext_env ctx
 
 
 and resolve_type ?(making_placeholder=false) ty_attr expr env ctx attr =
@@ -1829,10 +1834,11 @@ and instantiate_class_templates menv template_args ext_env ctx attr =
   List.map instantiate mset_record.Env.ms_templates
 
 
-and map_conversions filters eargs =
-  let (exprs, expr_type_cats) = eargs |> List.split in
-
-  exprs
+and map_conversions filters arg_exprs ext_env ctx =
+  let f filter expr =
+    apply_conv_filter filter expr ext_env ctx
+  in
+  List.map2 f filters arg_exprs
 
 
 and ctor_name = Nodes.Pure "this"
