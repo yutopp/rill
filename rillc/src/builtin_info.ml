@@ -44,3 +44,21 @@ let array_type_i = {
  *
  *)
 let entrypoint_name = "main"
+
+
+(*
+ *)
+let make_builtin_default_ctor_name base =
+  base ^ "_default_ctor"
+
+let make_builtin_copy_ctor_name base =
+  base ^ "_copy_ctor"
+
+let make_builtin_move_ctor_name base =
+  base ^ "_move_ctor"
+
+let make_builtin_copy_assign_name base =
+  base ^ "_copy_assign"
+
+let make_builtin_move_assign_name base =
+  base ^ "_move_assign"

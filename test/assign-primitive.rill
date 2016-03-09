@@ -1,4 +1,4 @@
-def main()
+def main(): void
 {
     val mutable a = int32();
     print_int(a);
@@ -17,4 +17,6 @@ def main()
     assert_not(__statement_traits(semantics, {
         yo = 10;
     }));
+
+    return;
 }

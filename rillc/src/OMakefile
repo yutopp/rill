@@ -124,6 +124,7 @@ FILES[] =
    sema_construct_env
    codegen_context
    codegen_llvm
+   codegen_llvm_intrinsics
    type
    type_attr
    type_sets

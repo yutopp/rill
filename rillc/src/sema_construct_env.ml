@@ -73,14 +73,14 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        let ctx_env = Option.get parent_env.Env.context_env in
        let ctx_env_r = Env.FunctionOp.get_record ctx_env in
 
-       match ctx_env_r.Env.fn_is_auto_return_type with
-       | true ->
-          (* return type will be inferenced *)
-          begin
-            let (expr_ty, expr_val_cat) = expr_ty_cat in
+       let ret_ty = match ctx_env_r.Env.fn_is_auto_return_type with
+         | true ->
+            (* return type will be inferenced *)
+            begin
+              let (expr_ty, expr_val_cat) = expr_ty_cat in
 
-            let cur_ret_ty = ctx_env_r.Env.fn_return_type in
-            let ret_ty = match Type.type_sort cur_ret_ty with
+              let cur_ret_ty = ctx_env_r.Env.fn_return_type in
+              match Type.type_sort cur_ret_ty with
               | Type_info.Undef ->
                  begin
                    (* TODO: check type attrbutes *)
@@ -97,28 +97,21 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                  end
 
               | _ -> failwith "[ICE]"
-            in
-
-            let make_ret_expr expr =
-              adjust_expr_for_type ret_ty expr expr_ty_cat parent_env ctx opt_chain_attr
-            in
-            let opt_ret_expr = Option.map make_ret_expr opt_expr in
-
-            (* TODO: call copy/move ctor *)
-            let node = TAst.ReturnStmt opt_ret_expr in
-            node
           end
 
-       (* return type is already defined *)
-       | false ->
-          begin
-            let ret_ty = ctx_env_r.Env.fn_return_type in
-            ignore ret_ty;
+         (* return type is already defined *)
+         | false -> ctx_env_r.Env.fn_return_type
+       in
 
-            (* TODO: check type of ty, call copy/move ctor *)
-            let node = TAst.ReturnStmt opt_expr in
-            node
-          end
+       let make_ret_expr expr =
+         adjust_expr_for_type ~exit_scope:true
+                              ret_ty expr expr_ty_cat parent_env ctx opt_chain_attr
+       in
+       let opt_ret_expr = Option.map make_ret_expr opt_expr in
+
+       (* TODO: call copy/move ctor *)
+       let node = TAst.ReturnStmt opt_ret_expr in
+       node
      end
 
   | TAst.FunctionDefStmt (
@@ -439,9 +432,9 @@ let rec construct_env node parent_env ctx opt_chain_attr =
          let detail =
            Env.FnRecordBuiltin (Env.FnDefDefaulted,
                                 Env.FnKindDefaultConstructor,
-                                "default_ctor")
+                                (Builtin_info.make_builtin_default_ctor_name extern_cname))
          in
-         check_function_env fenv [] !(ctx.sc_tsets.ts_void_type_holder) false;
+         check_function_env fenv [] ty false;
          complete_function_env fenv node "this" detail ctx;
 
          (* Type of rhs *)
@@ -470,9 +463,9 @@ let rec construct_env node parent_env ctx opt_chain_attr =
          let detail =
            Env.FnRecordBuiltin (Env.FnDefDefaulted,
                                 Env.FnKindCopyConstructor,
-                                "copy_ctor")
+                                (Builtin_info.make_builtin_copy_ctor_name extern_cname))
          in
-         check_function_env fenv [rty]! (ctx.sc_tsets.ts_void_type_holder) false;
+         check_function_env fenv [rty] ty false;
          complete_function_env fenv node "this" detail ctx;
 
          let op_name = (Nodes.string_of_id_string @@ Nodes.BinaryOp "=") in
@@ -497,7 +490,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
          let detail =
            Env.FnRecordBuiltin (Env.FnDefDefaulted,
                                 Env.FnKindMember,
-                                "yoyo")
+                                (Builtin_info.make_builtin_copy_assign_name extern_cname))
          in
          check_function_env fenv [ty; rty] !(ctx.sc_tsets.ts_void_type_holder) false;
          complete_function_env fenv node op_name detail ctx;
@@ -603,15 +596,10 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                                              var_attr
               in
               let res_expr_node = match opt_init_value_res with
-                | Some (expr_node, expr_ty) ->
+                | Some (expr_node, expr_ty_cat) ->
                    begin
-                     let (m_level, m_filter) =
-                       convert_type var_ty expr_ty parent_env ctx opt_chain_attr
-                     in
-                     if m_level = FuncMatchLevel.NoMatch then
-                       failwith "[ERR] cannot convert type";
-                     (* TODO: call filter, call copy/mode ctor *)
-                     expr_node
+                     adjust_expr_for_type var_ty expr_node expr_ty_cat
+                                          parent_env ctx opt_chain_attr
                    end
                 | None ->
                    begin
@@ -630,19 +618,18 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                 | None -> failwith "[ERROR] initial value is required"; (* TODO: call constructor *)
               in
               (* TODO: check void value *)
-              let (expr_ty, expr_val_cat) = expr_ty_cat in
+              let (expr_ty, _) = expr_ty_cat in
               let var_ty =
                 Type.Generator.update_attr_r ctx.sc_tsets.ts_type_gen expr_ty
                                              var_attr
               in
-              let (m_level, m_filter) =
-                convert_type var_ty expr_ty_cat parent_env ctx opt_chain_attr
+              let conved_node =
+                adjust_expr_for_type var_ty expr_node expr_ty_cat
+                                     parent_env ctx opt_chain_attr
               in
-              if m_level = FuncMatchLevel.NoMatch then
-                failwith "[ERR] cannot convert type";
-              (* TODO: call filter, call copy/mode ctor *)
-
-              (None, expr_node, var_ty)
+              (*ignore conved_node;
+              let conved_node = expr_node in*)
+              (None, conved_node, var_ty)
             end
        in
 
@@ -701,6 +688,7 @@ and analyze_expr ?(making_placeholder=false)
             let node = TAst.GenericCallExpr (
                            ref TAst.StoImm,
                            n_eargs,
+                           Some parent_env,
                            Some f_env) in
             (node, (f_ret_ty, f_ret_val_cat))
           end
@@ -743,18 +731,12 @@ and analyze_expr ?(making_placeholder=false)
             let f_ret_ty = f_er.Env.fn_return_type in
             assert_valid_type f_ret_ty;
             let f_ret_val_cat = ret_val_category f_ret_ty ctx in
-
-            let ret_ty_cenv = Type.as_unique f_ret_ty in
-            let cr = Env.ClassOp.get_record ret_ty_cenv in
-            let ret_ty_sto = match cr.Env.cls_detail with
-              | Env.ClsRecordPrimitive _ -> TAst.StoImm
-              | Env.ClsRecordNormal -> TAst.StoStack f_ret_ty
-              | _ -> failwith "[ICE]"
-            in
+            let ret_ty_sto = suitable_storage f_ret_ty in
 
             let node = TAst.GenericCallExpr (
                            (ref ret_ty_sto),
                            n_eargs,
+                           Some parent_env,
                            Some f_env) in
             (node, (f_ret_ty, f_ret_val_cat))
           end
@@ -786,17 +768,8 @@ and analyze_expr ?(making_placeholder=false)
               solve_function_overload args_types []
                                       ctor_env parent_env ctx attr
             in
-            let cr = Env.ClassOp.get_record recv_cenv in
-            let f_sto = match cr.Env.cls_detail with
-              | Env.ClsRecordPrimitive _ ->
-                 TAst.StoImm
+            let f_sto = suitable_storage recv_ty in
 
-              | Env.ClsRecordNormal ->
-                 (* the first argument is prepared for "this" *)
-                 TAst.StoStack recv_ty
-
-              | _ -> failwith "[ICE]"
-            in
             let (f_env, conv_filters) = f_conv in
             let n_eargs = map_conversions conv_filters eargs in
 
@@ -807,6 +780,7 @@ and analyze_expr ?(making_placeholder=false)
             let node = TAst.GenericCallExpr (
                            ref f_sto,
                            n_eargs,
+                           Some parent_env,
                            Some f_env) in
             (node, (recv_ty, VCatPrValue))
           end
@@ -1248,23 +1222,7 @@ and convert_type trg_ty src_ty_cat ext_env ctx attr =
          let f = match src_val_cat with
            | Value_category.VCatPrValue ->
               begin
-                (* movable *)
-                Printf.printf "-> %s / %d\n"
-                              (Nodes.string_of_id_string (Env.ClassOp.get_record cenv).Env.cls_name)
-                              (List.length ctor_fenvs);
-                List.iter (fun e -> begin
-                                   let kind = Env.FunctionOp.get_kind e in
-                                   let s = match kind with
-                                     | Env.FnKindDefaultConstructor -> "default constructor"
-                                     | Env.FnKindCopyConstructor -> "copy constructor"
-                                     | Env.FnKindMoveConstructor -> "moce constructor"
-                                     | Env.FnKindConstructor -> "constructor"
-                                     | Env.FnKindDestructor -> "destructor"
-                                     | Env.FnKindFree -> "free"
-                                     | Env.FnKindMember -> "member"
-                                   in
-                                   Printf.printf "%s\n" s
-                                 end) ctor_fenvs;
+                (* movable, thus lookup move ctor first *)
                 let mv_funcs = List.filter_map select_move_ctor ctor_fenvs in
                 match List.length mv_funcs with
                 | 1 -> List.hd mv_funcs
@@ -1279,7 +1237,16 @@ and convert_type trg_ty src_ty_cat ext_env ctx attr =
                    end
                 | n -> failwith "[ERR] many move ctors"
               end
-           | _ -> failwith ""
+
+           | Value_category.VCatLValue ->
+              begin
+                (* copy *)
+                let cp_funcs = List.filter_map select_copy_ctor ctor_fenvs in
+                match List.length cp_funcs with
+                | 1 -> List.hd cp_funcs
+                | 0 -> failwith "[ERR] no copy ctors"
+                | n -> failwith "[ERR] many copy ctors"
+              end
          in
          (FuncMatchLevel.ExactMatch, Some f)
        end
@@ -1318,7 +1285,33 @@ and is_type_convertible_to src_ty dist_ty =
   end
 
 
-and adjust_expr_for_type trg_ty src_expr src_ty_cat ext_env ctx attr =
+and suitable_storage ?(exit_scope=false) trg_ty =
+  let cenv = Type.as_unique trg_ty in
+  let cr = Env.ClassOp.get_record cenv in
+  match cr.Env.cls_detail with
+  | Env.ClsRecordPrimitive _ ->
+     begin
+       let {
+         Type_attr.ta_mut = mut
+       } = trg_ty.Type_info.ti_attr in
+       match mut with
+       | Type_attr.Immutable
+       | Type_attr.Const -> TAst.StoImm
+       | Type_attr.Mutable -> TAst.StoStack trg_ty
+       | _ -> failwith "[ICE]"
+     end
+
+  | Env.ClsRecordNormal ->
+     if exit_scope then
+       TAst.StoAgg
+     else
+       TAst.StoStack trg_ty
+
+  | _ -> failwith "[ICE]"
+
+
+and adjust_expr_for_type ?(exit_scope=false)
+                         trg_ty src_expr src_ty_cat ext_env ctx attr =
   let (m_level, m_filter) =
     convert_type trg_ty src_ty_cat ext_env ctx attr
   in
@@ -1327,14 +1320,8 @@ and adjust_expr_for_type trg_ty src_expr src_ty_cat ext_env ctx attr =
 
   match m_filter with
   | Some f_env ->
-     let cenv = Type.as_unique trg_ty in
-     let cr = Env.ClassOp.get_record cenv in
-     let sto = match cr.Env.cls_detail with
-       | Env.ClsRecordPrimitive _ -> TAst.StoImm
-       | Env.ClsRecordNormal -> TAst.StoStack trg_ty
-       | _ -> failwith "[ICE]"
-     in
-     TAst.GenericCallExpr (ref sto, [src_expr], Some f_env)
+     let sto = suitable_storage ~exit_scope:exit_scope trg_ty in
+     TAst.GenericCallExpr (ref sto, [src_expr], Some ext_env, Some f_env)
 
   | None -> src_expr
 

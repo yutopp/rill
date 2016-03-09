@@ -449,6 +449,16 @@ module FunctionOp =
         fn_is_auto_return_type = false;
         fn_detail = FnUndef;
       }
+
+    let string_of_kind kind =
+      match kind with
+      | FnKindDefaultConstructor -> "default constructor"
+      | FnKindCopyConstructor -> "copy constructor"
+      | FnKindMoveConstructor -> "moce constructor"
+      | FnKindConstructor -> "constructor"
+      | FnKindDestructor -> "destructor"
+      | FnKindFree -> "free"
+      | FnKindMember -> "member"
   end
 
 

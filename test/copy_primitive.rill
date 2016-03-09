@@ -1,4 +1,4 @@
-void main()
+def main(): void
 {
     val a = 10;
     val const b = 20;
@@ -15,4 +15,6 @@ void main()
     val c1 = c;
     val const c2 = c;
     val mutable c3 = c;
+
+    return;
 }

@@ -11,6 +11,7 @@ module type CONTEXT_TYPE =
     type ir_context_t
     type ir_builder_t
     type ir_module_t
+    type ir_intrinsics
 
     type ('ty, 'ctx) value_record_t
   end
@@ -28,6 +29,7 @@ module Make (Cgt : CONTEXT_TYPE) =
       mutable ir_context        : Cgt.ir_context_t;
       mutable ir_builder        : Cgt.ir_builder_t;
       mutable ir_module         : Cgt.ir_module_t;
+      intrinsics                : Cgt.ir_intrinsics;
 
       env_to_record_tbl         : (Env.id_t, ('env, 'ty, 'v) value_t) Hashtbl.t;
       name_to_record_tbl        : (string, ('env, 'ty, 'v) value_t) Hashtbl.t;
@@ -42,12 +44,14 @@ module Make (Cgt : CONTEXT_TYPE) =
     let init ~ir_context
              ~ir_builder
              ~ir_module
+             ~ir_intrinsics
              ~type_sets
              ~uni_map =
       {
         ir_context = ir_context;
         ir_builder = ir_builder;
         ir_module = ir_module;
+        intrinsics = ir_intrinsics;
 
         env_to_record_tbl = Hashtbl.create 32;
         name_to_record_tbl = Hashtbl.create 32;

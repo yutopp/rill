@@ -22,6 +22,7 @@ module CodeGeneratorType =
     type ir_context_t = L.llcontext
     type ir_builder_t = L.llbuilder
     type ir_module_t = L.llmodule
+    type ir_intrinsics = Codegen_llvm_intrinsics.t
 
     type ('ty, 'ctx) value_record_t = ('ty, 'ctx) record_t
   end
@@ -34,9 +35,30 @@ type ctfe_val_t = type_info_t Ctfe_value.t
 type ctx_t = (env_t, type_info_t, ctfe_val_t) Ctx.t
 type type_gen_t = env_t Type.Generator.t
 
+let agg_recever_name = "agg.reciever"
+
+
+let make_default_context ?(opt_type_sets=None) ?(opt_uni_map=None) () =
+  let ir_context = L.global_context () in
+  let ir_module = L.create_module ir_context "Rill" in
+  let ir_builder = L.builder ir_context in
+
+  let ir_intrinsics =
+    Codegen_llvm_intrinsics.declare_intrinsics ir_context ir_module
+  in
+
+  Ctx.init
+    ~ir_context:ir_context
+    ~ir_builder:ir_builder
+    ~ir_module:ir_module
+    ~ir_intrinsics:ir_intrinsics
+    ~type_sets:opt_type_sets
+    ~uni_map:opt_uni_map
+
 
 let rec code_generate ~bb node ctx =
   let open Ctx in
+  let open Codegen_llvm_intrinsics in
   match node with
   | TAst.Module (inner, pkg_names, mod_name, base_dir, _) ->
      begin
@@ -110,7 +132,7 @@ let rec code_generate ~bb node ctx =
                                      let opt_agg = Enum.peek ll_params in
                                      assert (Option.is_some opt_agg);
                                      let agg = Option.get opt_agg in
-                                     L.set_value_name "agg.reciever" agg;
+                                     L.set_value_name agg_recever_name agg;
                                      Enum.drop 1 ll_params;
                                    end;
             let declare_param_var optenv llvar =
@@ -248,7 +270,7 @@ let rec code_generate ~bb node ctx =
        let (_, _, (_, opt_init_expr)) = var_init in
        let init_expr = Option.get opt_init_expr in
 
-       Printf.printf "DEfine: %s\n" venv.Env.var_name;
+       Printf.printf "Define variable: %s\n" venv.Env.var_name;
        let (llval, expr_ty) = code_generate_as_value ~bb:bb init_expr ctx in
        Type.print var_type;
        flush_all ();
@@ -265,8 +287,9 @@ let rec code_generate ~bb node ctx =
 
 and code_generate_as_value ?(bb=None) node ctx : (L.llvalue * 'env Type.info_t)=
   let open Ctx in
+  let open Codegen_llvm_intrinsics in
   match node with
-  | TAst.GenericCallExpr (storage_ref, args, Some env) ->
+  | TAst.GenericCallExpr (storage_ref, args, Some call_on_env, Some env) ->
      begin
        let f_er = Env.FunctionOp.get_record env in
        let {
@@ -288,16 +311,16 @@ and code_generate_as_value ?(bb=None) node ctx : (L.llvalue * 'env Type.info_t)=
            |> List.split
          in
          (* special arguments *)
-         let (llvals, tys) = match !storage_ref with
+         let (llvals, tys, param_types) = match !storage_ref with
            | TAst.StoStack (ty) ->
               begin
                 let llty = lltype_of_typeinfo ~bb:bb ty ctx in
                 let v = L.build_alloca llty "" ctx.ir_builder in
-                (v::llvals), (ty::tys)
+                (v::llvals), (ty::tys), (ty::param_types)
               end
 
            | TAst.StoImm ->
-              (llvals, tys)
+              (llvals, tys, param_types)
 
            | _ -> (ignore llvals; ignore tys; failwith "")
          in
@@ -330,7 +353,6 @@ and code_generate_as_value ?(bb=None) node ctx : (L.llvalue * 'env Type.info_t)=
                            let llargs = eval_args param_tys in
                            L.build_call f llargs "" ctx.ir_builder
                         | true ->
-                           let param_tys = ret_ty :: param_tys in
                            let llargs = eval_args param_tys in
                            let _ = L.build_call f llargs "" ctx.ir_builder in
                            assert (Array.length llargs > 0);
@@ -369,6 +391,17 @@ and code_generate_as_value ?(bb=None) node ctx : (L.llvalue * 'env Type.info_t)=
                      let llty = lltype_of_typeinfo ~bb:bb ty ctx in
                      L.build_alloca llty "" ctx.ir_builder
                    end
+                | TAst.StoAgg ->
+                   begin
+                     let ctx_env = Option.get call_on_env.Env.context_env in
+                     Env.print ctx_env;
+                     let ll_fval =
+                       find_llval_by_env_with_force_generation ~bb:bb ctx ctx_env
+                     in
+                     let agg = L.param ll_fval 0 in
+                     assert (L.value_name agg = agg_recever_name);
+                     agg
+                   end
                 | _ -> failwith "[ICE]"
               in
 
@@ -380,38 +413,10 @@ and code_generate_as_value ?(bb=None) node ctx : (L.llvalue * 'env Type.info_t)=
                    assert (List.length args = 1);
                    let rhs = List.hd args in
                    let (llrhs, _) = code_generate_as_value ~bb:bb rhs ctx in
-                   let f = L.function_type (L.void_type ctx.ir_context)
-                                           [|L.pointer_type (L.i8_type ctx.ir_context);
-                                             L.pointer_type (L.i8_type ctx.ir_context);
-                                             (L.i32_type ctx.ir_context);
-                                             (L.i32_type ctx.ir_context);
-                                             (L.i1_type ctx.ir_context);
-                                            |]
+                   let _ = ctx.intrinsics.memcpy_i32 new_obj llrhs
+                                                     4 4 false ctx.ir_builder
                    in
-                   let memcpy = L.declare_function "llvm.memcpy.p0i8.p0i8.i32"
-                                                   f ctx.ir_module in
-                   L.dump_value memcpy;
-                   L.dump_value llrhs;
-
-                   let src = L.build_bitcast llrhs
-                                             (L.pointer_type (L.i8_type ctx.ir_context))
-                                             ""
-                                             ctx.ir_builder
-                   in
-                   let trg = L.build_bitcast new_obj
-                                             (L.pointer_type (L.i8_type ctx.ir_context))
-                                             ""
-                                             ctx.ir_builder
-                   in
-
-                   L.build_call memcpy [|trg;
-                                         src;
-                                         L.const_int (L.i32_type ctx.ir_context) 4;
-                                         L.const_int (L.i32_type ctx.ir_context) 4;
-                                         L.const_int (L.i1_type ctx.ir_context) 0
-                                        |]
-                                ""
-                                ctx.ir_builder
+                   new_obj
                  end
               | _ -> failwith "[ICE]"
             end
@@ -635,13 +640,13 @@ and find_llval_by_env_with_force_generation ~bb ctx env =
   let v_record = force_target_generation ~bb:bb ctx env in
   match v_record with
   | LLValue v -> v
-  | _ -> failwith "[ICE]"
+  | _ -> failwith "[ICE] / find_llval_by_env_with_force_generation"
 
 and find_lltype_by_env_with_force_generation ~bb ctx env =
   let v_record = force_target_generation ~bb:bb ctx env in
   match v_record with
   | LLType t -> t
-  | _ -> failwith "[ICE]"
+  | _ -> failwith "[ICE] / find_lltype_by_env_with_force_generation"
 
 
 and lltype_of_typeinfo ~bb ty ctx =
@@ -697,6 +702,7 @@ and adjust_llval_form ~bb trg_ty src_ty llval ctx =
   Printf.printf "is_pointer rep?  trg: %b, src: %b\n"
                 (is_address_representation trg_ty)
                 (is_address_representation src_ty);
+  L.dump_value llval;
   flush_all ();
   match (is_address_representation trg_ty, is_address_representation src_ty) with
   | (true, true)
@@ -708,19 +714,6 @@ and adjust_llval_form ~bb trg_ty src_ty llval ctx =
      v
   | (false, true) ->
      L.build_load llval "" ctx.ir_builder
-
-
-let make_default_context ?(opt_type_sets=None) ?(opt_uni_map=None) () =
-  let ir_context = L.global_context () in
-  let ir_builder = L.builder ir_context in
-  let ir_module = L.create_module ir_context "Rill" in
-
-  Ctx.init
-    ~ir_context:ir_context
-    ~ir_builder:ir_builder
-    ~ir_module:ir_module
-    ~type_sets:opt_type_sets
-    ~uni_map:opt_uni_map
 
 
 let regenerate_module ctx =
@@ -744,6 +737,9 @@ let inject_builtins ctx =
    *)
   begin
     let open Builtin_info in
+    (*
+     * Builtin types
+     *)
     register_builtin_type type_type_i.internal_name
                           (LLType (L.i64_type ctx.ir_context));
 
@@ -777,31 +773,51 @@ let inject_builtins ctx =
                              ));
   end;
 
-  let add_int_int args ctx =
-    assert (Array.length args = 2);
-    L.build_add args.(0) args.(1) "" ctx.Ctx.ir_builder
+  (*
+   * Builtin functions
+   *)
+  let () =
+    let add_int_int args ctx =
+      assert (Array.length args = 2);
+      L.build_add args.(0) args.(1) "" ctx.Ctx.ir_builder
+    in
+    register_builtin_func "__builtin_op_binary_+_int_int" add_int_int;
   in
-  register_builtin_func "__builtin_op_binary_+_int_int" add_int_int;
 
-  let add_int_int args ctx =
-    L.const_int (L.i32_type ctx.ir_context) 0
+  (* for int32 *)
+  let () =
+    let open Builtin_info in
+    let () = (* default constructor *)
+      let f args ctx =
+        let v = L.const_int (L.i32_type ctx.ir_context) 0 in
+        match Array.length args with
+        | 1 -> let _ = L.build_store v args.(0) ctx.ir_builder in args.(0)
+        | 0 -> v
+        | _ -> failwith ""
+      in
+      register_builtin_func
+        (make_builtin_default_ctor_name int32_type_i.internal_name) f
+    in
+    let () = (* copy constructor *)
+      let f args ctx =
+        match Array.length args with
+        | 2 -> let _ = L.build_store args.(1) args.(0) ctx.ir_builder in args.(0)
+        | 1 -> args.(0)
+        | _ -> failwith ""
+      in
+      register_builtin_func
+        (make_builtin_copy_ctor_name int32_type_i.internal_name) f
+    in
+    let () =
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_store args.(1) args.(0) ctx.Ctx.ir_builder
+      in
+      register_builtin_func
+        (make_builtin_copy_assign_name int32_type_i.internal_name) f
+    in
+    ()
   in
-  register_builtin_func "default_ctor" add_int_int;
-
-  let add_int_int args ctx =
-    assert (Array.length args = 1);
-    Printf.printf "copy_ctor\n";
-    Array.iter L.dump_value args;
-    flush_all ();
-    args.(0)
-  in
-  register_builtin_func "copy_ctor" add_int_int;
-
-  let add_int_int args ctx =
-    assert (Array.length args = 2);
-    L.build_store args.(1) args.(0) ctx.Ctx.ir_builder
-  in
-  register_builtin_func "yoyo" add_int_int;
   ()
 
 
