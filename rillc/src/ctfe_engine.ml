@@ -32,13 +32,13 @@ module JITCounter =
   end
 
 
-let initialize type_gen uni_map =
+let initialize type_sets uni_map =
   if not (LE.initialize ()) then
     failwith "[ICE] Couldn't initialize LLVM backend";
 
   let module CgCtx = Codegen_llvm.Ctx in
   let codegen_ctx =
-    Codegen_llvm.make_default_context ~opt_type_gen:(Some type_gen)
+    Codegen_llvm.make_default_context ~opt_type_sets:(Some type_sets)
                                       ~opt_uni_map:(Some uni_map)
                                       ()
   in
@@ -120,7 +120,7 @@ let execute engine expr_node expr_ty type_sets =
   (* generate a LLVM value from the expression *)
   try
     begin
-      let expr_llval =
+      let (expr_llval, _) =
         Codegen_llvm.code_generate_as_value ~bb:(Some bb) expr_node engine.cg_ctx in
       ignore @@ L.build_ret expr_llval ir_builder;
 

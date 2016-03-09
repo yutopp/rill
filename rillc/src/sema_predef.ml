@@ -44,14 +44,20 @@ let check_is_args_valid ty =
   (* TODO: implement *)
   ()
 
-let complete_function_env env node s_name param_types return_type detail_r ctx =
+let check_function_env env param_types return_type is_auto_return_type =
   let r = Env.FunctionOp.get_record env in
   r.Env.fn_param_types <- param_types;
   r.Env.fn_return_type <- return_type;
-  r.Env.fn_detail <- detail_r;
+  r.Env.fn_is_auto_return_type <- is_auto_return_type;
+  Env.update_status env Env.Checking
 
-  let _ = match s_name with
-    | s when s = Builtin_info.entrypoint_name ->
+let complete_function_env env node id_name f_detail ctx =
+  let r = Env.FunctionOp.get_record env in
+
+  r.Env.fn_detail <- f_detail;
+
+  let _ = match id_name with
+    | s when s = Nodes.Pure Builtin_info.entrypoint_name ->
        begin
          (* TODO: check param_types and return_type *)
          r.Env.fn_mangled <- Some Builtin_info.entrypoint_name
@@ -59,9 +65,9 @@ let complete_function_env env node s_name param_types return_type detail_r ctx =
     | _ ->
        begin
          let mangled =
-           Mangle.s_of_function (Env.get_full_module_name env) s_name
+           Mangle.s_of_function (Env.get_full_module_name env) id_name
                                 r.Env.fn_template_vals
-                                param_types return_type
+                                r.Env.fn_param_types r.Env.fn_return_type
                                 ctx.sc_tsets
          in
          r.Env.fn_mangled <- Some mangled
@@ -69,6 +75,22 @@ let complete_function_env env node s_name param_types return_type detail_r ctx =
   in
 
   complete_env env node
+
+let complete_class_env env node detail_r traits ctx =
+  let r = Env.ClassOp.get_record env in
+  r.Env.cls_detail <- detail_r;
+  r.Env.cls_traits <- Some traits;
+  complete_env env node
+
+
+let assert_valid_type ty =
+  let open Type_attr in
+  let {
+    ta_ref_val = rv;
+    ta_mut = mut;
+  } = ty.Type_info.ti_attr in
+  assert (rv <> RefValUndef);
+  assert (mut <> MutUndef)
 
 
 module FuncMatchLevel =

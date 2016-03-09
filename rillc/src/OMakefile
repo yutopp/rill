@@ -124,11 +124,15 @@ FILES[] =
    sema_construct_env
    codegen_context
    codegen_llvm
+   codegen_llvm_intrinsics
    type
+   type_attr
    type_sets
+   type_info
    ctfe_engine
    ctfe_value
    ctfe_exn
+   value_category
    unification
    module_info
    builtin_info

@@ -8,7 +8,7 @@
 
 open Batteries
 
-type checked_state =
+type checked_state_t =
     InComplete
   | Checking
   | Complete
@@ -30,15 +30,17 @@ module Kind =
 
 (* used for id of environments *)
 type id_t = Num.num
-let id_counter = ref @@ Num.num_of_int 0
+let id_counter = ref @@ Num.num_of_int 1
+let undef_id = Num.num_of_int 0
 
 
 type 'ast env_t = {
    env_id           : id_t;
    parent_env       : 'ast env_t option;
+   context_env      : 'ast env_t option;
    module_env       : 'ast env_t option;
    er               : 'ast env_record_t;
-   mutable state    : checked_state;
+   mutable state    : checked_state_t;
 
    mutable rel_node : 'ast option;
 }
@@ -52,11 +54,13 @@ type 'ast env_t = {
   | Function of 'ast lookup_table_t * 'ast function_record
   | Class of 'ast lookup_table_t * 'ast class_record
   | Variable of 'ast variable_record
+  | Scope of 'ast lookup_table_t
 
-  | Temporary of 'ast lookup_table_t
   | MetaVariable of Unification.id_t
 
- and 'ast type_info_t = 'ast env_t Type.info_t
+  | Unknown
+
+ and 'ast type_info_t = 'ast env_t Type_info.t
 
  and 'ast name_env_mapping = (string, 'ast env_t) Hashtbl.t
 
@@ -96,26 +100,67 @@ type 'ast env_t = {
   *
   *)
  and 'ast function_record = {
-   fn_name                      : Nodes.id_string;
-   mutable fn_mangled           : string option;
+   fn_name                          : Nodes.id_string;
+   mutable fn_mangled               : string option;
 
-   mutable fn_template_vals     : ('ast type_info_t Ctfe_value.t) list;
-   mutable fn_param_types       : 'ast type_info_t list;
-   mutable fn_return_type       : 'ast type_info_t;
-   mutable fn_detail            : 'ast function_record_var;
+   mutable fn_template_vals         : ('ast type_info_t Ctfe_value.t) list;
+   mutable fn_param_types           : 'ast type_info_t list;
+   mutable fn_return_type           : 'ast type_info_t;
+   mutable fn_is_auto_return_type   : bool;
+   mutable fn_detail                : 'ast function_record_var;
  }
  and 'ast function_record_var =
-   | FnRecordNormal of 'ast function_record_normal
-   | FnRecordExtern of 'ast function_record_extern
+   | FnRecordNormal of function_def_var * function_kind_var * 'ast function_record_normal
+   | FnRecordTrivial of function_def_var * function_kind_var
+   | FnRecordExternal of function_def_var * function_kind_var * string
+   | FnRecordBuiltin of function_def_var * function_kind_var * string
    | FnUndef
+
+ and function_def_var =
+   | FnDefUserDefined
+   | FnDefDefaulted
+   | FnDefDeleted
+
+ and function_kind_var =
+   | FnKindFree
+   | FnKindMember
+   | FnKindDefaultConstructor
+   | FnKindCopyConstructor
+   | FnKindMoveConstructor
+   | FnKindConstructor
+   | FnKindDestructor
+
 
  and 'ast function_record_normal = {
    fn_n_param_envs  : 'ast env_t option list;
  }
 
- and 'ast function_record_extern = {
-   fn_e_name        : string;
-   fn_e_is_builtin  : bool;
+
+ (*
+  *
+  *)
+ and 'ast class_record = {
+   cls_name             : Nodes.id_string;
+   mutable cls_mangled  : string option;
+
+   mutable cls_template_vals    : ('ast type_info_t Ctfe_value.t) list;
+   mutable cls_detail           : 'ast class_record_var;
+   mutable cls_traits           : class_traits_t option;
+
+   mutable cls_member_vars      : 'ast env_t list;
+   mutable cls_member_funcs     : 'ast env_t list;
+ }
+ and 'ast class_record_var =
+   | ClsRecordPrimitive of class_record_extern
+   | ClsRecordNormal
+   | ClsUndef
+
+ and class_record_extern = {
+   cls_e_name           : string;
+ }
+
+ and class_traits_t = {
+   cls_traits_is_primitive      : bool;
  }
 
 
@@ -131,26 +176,19 @@ type 'ast env_t = {
    | VarRecordNormal of 'ast variable_record_normal
    | VarUndef
 
- and 'ast variable_record_normal = unit (* TODO: implement *)
+ and 'ast variable_record_normal = unit
 
 
- (*
-  *
-  *)
- and 'ast class_record = {
-   cls_name             : Nodes.id_string;
-   mutable cls_mangled  : string option;
-
-   mutable cls_template_vals    : ('ast type_info_t Ctfe_value.t) list;
-   mutable cls_detail           : 'ast class_record_var;
- }
- and 'ast class_record_var =
-   | ClsRecordExtern of class_record_extern
-   | ClsUndef
-
- and class_record_extern = {
-   cls_e_name           : string;
- }
+let undef () =
+  {
+    env_id = undef_id;
+    parent_env = None;
+    context_env = None;
+    module_env = None;
+    er = Unknown;
+    state = InComplete;
+    rel_node = None;
+  }
 
 
 let get_env_record env =
@@ -164,7 +202,7 @@ let get_lookup_table e =
   | Module (r, _) -> r
   | Function (r, _) -> r
   | Class (r, _) -> r
-  | Temporary (r) -> r
+  | Scope (r) -> r
   | _ -> failwith "has no lookup table"
 
 let get_symbol_table e =
@@ -242,13 +280,37 @@ let add_inner_env target_env name e =
   Hashtbl.add t name e
 
 
+let import_module ?(privacy=ModPrivate) env mod_env =
+  let lt = get_lookup_table env in
+  lt.imported_mods <- (mod_env, privacy) :: lt.imported_mods
+
+
 let empty_lookup_table ?(init=8) () =
   {
     scope = Hashtbl.create init;
     imported_mods = [];
   }
 
-let create_env parent_env er =
+let create_context_env parent_env er =
+  let cur_id = !id_counter in
+  Num.incr_num id_counter;
+
+  let opt_mod_env = match parent_env.er with
+    | Module _ -> Some parent_env
+    | _ -> parent_env.module_env
+  in
+  let rec e = {
+    env_id = cur_id;
+    parent_env = Some parent_env;
+    context_env = Some e;       (* self reference *)
+    module_env = opt_mod_env;
+    er = er;
+    state = InComplete;
+    rel_node = None;
+  } in
+  e
+
+let create_scoped_env parent_env er =
   let cur_id = !id_counter in
   Num.incr_num id_counter;
 
@@ -259,11 +321,13 @@ let create_env parent_env er =
   {
     env_id = cur_id;
     parent_env = Some parent_env;
+    context_env = parent_env.context_env;
     module_env = opt_mod_env;
     er = er;
     state = InComplete;
     rel_node = None;
   }
+
 
 (**)
 let is_checked e =
@@ -298,6 +362,7 @@ let make_root_env () =
   {
     env_id = cur_id;
     parent_env = None;
+    context_env = None;
     module_env = None;
     er = Root (tbl);
     state = Complete;
@@ -317,7 +382,8 @@ module ModuleOp =
 
 module MultiSetOp =
   struct
-    let find_or_add env name k =
+    let find_or_add env id_name k =
+      let name = Nodes.string_of_id_string id_name in
       let oe = find_on_env env name in
       match oe with
       (* Found *)
@@ -327,13 +393,14 @@ module MultiSetOp =
 
       (* *)
       | None ->
-         let e = create_env env (MultiSet {
-                                     ms_kind = k;
-                                     ms_templates = [];
-                                     ms_normal_instances = [];
-                                     ms_template_instances = [];
-                                     ms_instanced_args_memo = Hashtbl.create 0
-                                   }) in
+         let e = create_scoped_env env
+                                   (MultiSet {
+                                        ms_kind = k;
+                                        ms_templates = [];
+                                        ms_normal_instances = [];
+                                        ms_template_instances = [];
+                                        ms_instanced_args_memo = Hashtbl.create 0
+                                      }) in
          add_inner_env env name e;
          e
 
@@ -364,17 +431,35 @@ module FunctionOp =
       | Function (_, r) -> r
       | _ -> failwith "FunctionOp.get_record : not function"
 
-    let get_extern_record env =
-      let r = get_record env in
-      match r.fn_detail with
-      | FnRecordExtern r -> r
-      | _ -> failwith "FunctionOp.get_extern_record : not extern"
+    let get_kind env =
+      let er = get_record env in
+      match er.fn_detail with
+      | FnRecordNormal (_, kind, _) -> kind
+      | FnRecordTrivial (_, kind) -> kind
+      | FnRecordExternal (_, kind, _) -> kind
+      | FnRecordBuiltin (_, kind, _) -> kind
+      | _ -> failwith ""
 
-    let get_normal_record env =
-      let r = get_record env in
-      match r.fn_detail with
-      | FnRecordNormal r -> r
-      | _ -> failwith "FunctionOp.get_extern_record : not normal"
+    let empty_record id_name =
+      {
+        fn_name = id_name;
+        fn_mangled = None;
+        fn_template_vals = [];
+        fn_param_types = [];
+        fn_return_type = Type_info.undef_ty;
+        fn_is_auto_return_type = false;
+        fn_detail = FnUndef;
+      }
+
+    let string_of_kind kind =
+      match kind with
+      | FnKindDefaultConstructor -> "default constructor"
+      | FnKindCopyConstructor -> "copy constructor"
+      | FnKindMoveConstructor -> "moce constructor"
+      | FnKindConstructor -> "constructor"
+      | FnKindDestructor -> "destructor"
+      | FnKindFree -> "free"
+      | FnKindMember -> "member"
   end
 
 
@@ -385,6 +470,17 @@ module ClassOp =
       match er with
       | Class (_, r) -> r
       | _ -> failwith "ClassOp.get_record : not class"
+
+    let empty_record name =
+      {
+         cls_name = name;
+         cls_mangled = None;
+         cls_template_vals = [];
+         cls_detail = ClsUndef;
+         cls_traits = None;
+         cls_member_vars = [];
+         cls_member_funcs = [];
+      }
   end
 
 
@@ -395,6 +491,13 @@ module VariableOp =
       match er with
       | Variable (r) -> r
       | _ -> failwith "VariableOp.get_record : not function"
+
+    let empty_record name =
+      {
+        var_name = name;
+        var_type = Type_info.undef_ty;
+        var_detail = VarUndef;
+      }
   end
 
 
@@ -436,9 +539,9 @@ let print env =
          print_table lt.scope indent;
          f nindent;
        end
-    | Temporary _ ->
+    | Scope _ ->
        begin
-         printf "%sTemporary\n" indent;
+         printf "%Scope\n" indent;
          f nindent
        end
     | MetaVariable uni_id ->

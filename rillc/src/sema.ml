@@ -18,32 +18,30 @@ let make_default_env () =
 
 let make_default_context root_env module_search_dirs =
   let type_gen = Type.Generator.default () in
-  let uni_map = Unification.empty () in
-  let ctfe_engine = Ctfe_engine.initialize type_gen uni_map in
 
-  let create_builtin_class name inner_name =
-    let env = Env.create_env root_env (
-                               Env.Class (Env.empty_lookup_table ~init:0 (),
-                                          {
-                                            Env.cls_name = name;
-                                            Env.cls_mangled = None;
-                                            Env.cls_template_vals = [];
-                                            Env.cls_detail = Env.ClsUndef;
-                                          })
-                             ) in
-    let node = TAst.ExternClassDefStmt (name, inner_name, Some env) in
-    complete_env env node;
-    env
-  in
   let register_builtin_type name inner_name =
+    let create_builtin_class name inner_name =
+      let env_r = Env.ClassOp.empty_record name in
+      let env = Env.create_context_env root_env (
+                                         Env.Class (Env.empty_lookup_table ~init:0 (),
+                                                    env_r)
+                                       ) in
+      let node = TAst.ExternClassDefStmt (name, inner_name, None, Some env) in
+      complete_env env node;
+      env
+    in
+
     let id_name = Nodes.Pure name in
     let cenv = create_builtin_class id_name inner_name in
     Env.add_inner_env root_env name cenv;
-    let ty_r = {
-      Type.ty_cenv = cenv;
-      Type.ty_template_args = [];
-    } in
-    Type.Generator.generate_type type_gen (Type.UniqueTy ty_r)
+
+    Type.Generator.generate_type type_gen
+                                 (Type_info.UniqueTy cenv)
+                                 []
+                                 {
+                                   Type_attr.ta_ref_val = Type_attr.Val;
+                                   Type_attr.ta_mut = Type_attr.Immutable;
+                                 }
   in
 
   let open Builtin_info in
@@ -52,10 +50,14 @@ let make_default_context root_env module_search_dirs =
     ts_type_type = register_builtin_type type_type_i.external_name
                                          type_type_i.internal_name;
 
-    ts_void_type_holder = ref Type.undef_ty;
-    ts_int32_type_holder = ref Type.undef_ty;
-    ts_array_type_holder = ref Type.undef_ty;
+    ts_void_type_holder = ref Type_info.undef_ty;
+    ts_bool_type_holder = ref Type_info.undef_ty;
+    ts_int32_type_holder = ref Type_info.undef_ty;
+    ts_array_type_holder = ref Type_info.undef_ty;
   } in
+
+  let uni_map = Unification.empty () in
+  let ctfe_engine = Ctfe_engine.initialize tsets uni_map in
   let ctx = {
     sc_root_env = root_env;
     sc_builtin_m_env = None;
@@ -72,9 +74,14 @@ let make_default_context root_env module_search_dirs =
   let builtin_mod_e = load_module ["core"] "builtin" ctx in
   ctx.sc_builtin_m_env <- Some builtin_mod_e;
 
-  (* cache void type *)
+  (* cache void type, ORDER is IMPORTANT! void should be cached at first. *)
   cache_builtin_type_info tsets.ts_void_type_holder
                           void_type_i.external_name
+                          ctx;
+
+  (* cache bool type *)
+  cache_builtin_type_info tsets.ts_bool_type_holder
+                          bool_type_i.external_name
                           ctx;
 
   (* cache int type *)

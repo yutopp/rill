@@ -9,6 +9,7 @@
 module AstContext =
   struct
     type 'a current_ctx_t = ('a Env.env_t) option
+    type 'a term_ctx_t = 'a Env.env_t Type.info_t
     type 'a prev_ctx_t = Ast.ast
   end
 

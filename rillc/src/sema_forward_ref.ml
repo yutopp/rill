@@ -12,51 +12,60 @@ open Sema_predef
 
 let rec solve_forward_refs ?(meta_variables=[])
                            ?(opt_attr=None)
-                           node parent_env (ctx:TAst.ast Env.env_t ctx_t) =
+                           node parent_env ctx =
   let in_template = List.length meta_variables > 0 in
   let declare_meta_var env (name, uni_id) =
     let meta_e = Env.MetaVariable uni_id in
-    let e = Env.create_env env meta_e in
+    let e = Env.create_context_env env meta_e in
     Env.add_inner_env env name e;
 
     Unification.get_as_value ctx.sc_unification_ctx uni_id
   in
   match node with
   | Ast.StatementList (nodes) ->
-     let tagged_nodes = nodes |> List.map (fun n -> solve_forward_refs n parent_env ctx) in
+     let tagged_nodes =
+       nodes
+       |> List.map (fun n -> solve_forward_refs n parent_env ctx)
+     in
      TAst.StatementList tagged_nodes
 
-  | Ast.ExprStmt ast -> TAst.ExprStmt (TAst.PrevPassNode ast)
+  | Ast.ExprStmt ast ->
+     TAst.ExprStmt (TAst.PrevPassNode ast)
+
+  | Ast.ScopeStmt ast ->
+     TAst.ScopeStmt (TAst.PrevPassNode ast)
+
+  | Ast.ReturnStmt ast ->
+     TAst.ReturnStmt (Option.map (fun a -> TAst.PrevPassNode a) ast)
 
   | Ast.ImportStmt (pkg_names, mod_name, _) ->
      begin
        let mod_env = load_module pkg_names mod_name ctx in
 
-       let lt = Env.get_lookup_table parent_env in
-       lt.Env.imported_mods <- (mod_env, Env.ModPrivate) :: lt.Env.imported_mods;
+       Env.import_module parent_env mod_env;
 
        (* remove import statements *)
        TAst.EmptyStmt
      end
 
-  | Ast.FunctionDefStmt (name, params, opt_ret_type, body, None, _) ->
+  | Ast.FunctionDefStmt (id_name, params, opt_ret_type, body, None, _) ->
      begin
-       let name_s = Nodes.string_of_id_string name in
        (* accept multiple definition for overload *)
-       let base_env = Env.MultiSetOp.find_or_add parent_env name_s Env.Kind.Function in
+       let base_env = Env.MultiSetOp.find_or_add parent_env id_name Env.Kind.Function in
        let fenv_r = {
-         Env.fn_name = name;
+         Env.fn_name = id_name;
          Env.fn_mangled = None;
          Env.fn_template_vals = [];
          Env.fn_param_types = [];
-         Env.fn_return_type = Type.undef_ty;
+         Env.fn_return_type = Type_info.undef_ty;
+         Env.fn_is_auto_return_type = true;
          Env.fn_detail = Env.FnUndef;
        } in
-       let fenv = Env.create_env parent_env (
-                                   Env.Function (
-                                       Env.empty_lookup_table (),
-                                       fenv_r)
-                                 ) in
+       let fenv = Env.create_context_env parent_env (
+                                           Env.Function (
+                                               Env.empty_lookup_table (),
+                                               fenv_r)
+                                         ) in
        (* declare meta variables if exist *)
        let template_vals = List.map (declare_meta_var fenv) meta_variables in
        fenv_r.Env.fn_template_vals <- template_vals;
@@ -68,7 +77,7 @@ let rec solve_forward_refs ?(meta_variables=[])
        in
 
        let node = TAst.FunctionDefStmt (
-                      name,
+                      id_name,
                       TAst.PrevPassNode params,
                       Option.map (fun x -> TAst.PrevPassNode x) opt_ret_type,
                       TAst.PrevPassNode body,
@@ -79,24 +88,24 @@ let rec solve_forward_refs ?(meta_variables=[])
        node
      end
 
-  | Ast.ExternFunctionDefStmt (name, params, ret_type, extern_fname, None, _) ->
+  | Ast.ExternFunctionDefStmt (id_name, params, ret_type, extern_fname, None, _) ->
      begin
-       let name_s = Nodes.string_of_id_string name in
        (* accept multiple definition for overload *)
-       let base_env = Env.MultiSetOp.find_or_add parent_env name_s Env.Kind.Function in
+       let base_env = Env.MultiSetOp.find_or_add parent_env id_name Env.Kind.Function in
        let fenv_r = {
-         Env.fn_name = name;
+         Env.fn_name = id_name;
          Env.fn_mangled = None;
          Env.fn_template_vals = [];
          Env.fn_param_types = [];
-         Env.fn_return_type = Type.undef_ty;
+         Env.fn_return_type = Type_info.undef_ty;
+         Env.fn_is_auto_return_type = false;
          Env.fn_detail = Env.FnUndef;
        } in
-       let fenv = Env.create_env parent_env (
-                                   Env.Function (
-                                       Env.empty_lookup_table ~init:0 (),
-                                       fenv_r)
-                                 ) in
+       let fenv = Env.create_context_env parent_env (
+                                           Env.Function (
+                                               Env.empty_lookup_table ~init:0 (),
+                                               fenv_r)
+                                         ) in
        (* declare meta variables if exist *)
        let template_vals = List.map (declare_meta_var fenv) meta_variables in
        fenv_r.Env.fn_template_vals <- template_vals;
@@ -108,7 +117,7 @@ let rec solve_forward_refs ?(meta_variables=[])
        in
 
        let node = TAst.ExternFunctionDefStmt (
-                      name,
+                      id_name,
                       TAst.PrevPassNode params,
                       TAst.PrevPassNode ret_type,
                       extern_fname,
@@ -119,22 +128,54 @@ let rec solve_forward_refs ?(meta_variables=[])
        node
      end
 
-  | Ast.ExternClassDefStmt (name, extern_cname, _) ->
+  | Ast.ClassDefStmt (id_name, body, None, _) ->
      begin
-       let name_s = Nodes.string_of_id_string name in
        (* accept multiple definition for specialization *)
-       let base_env = Env.MultiSetOp.find_or_add parent_env name_s Env.Kind.Class in
-       let cenv_r = {
-         Env.cls_name = name;
-         Env.cls_mangled = Some "int32";    (* XXX *)
-         Env.cls_template_vals = [];
-         Env.cls_detail = Env.ClsUndef;
-       } in
-       let cenv = Env.create_env parent_env (
-                                   Env.Class (
-                                       Env.empty_lookup_table ~init:0 (),
-                                       cenv_r)
-                                 ) in
+       let base_env = Env.MultiSetOp.find_or_add parent_env id_name Env.Kind.Class in
+       let cenv_r = Env.ClassOp.empty_record id_name in
+       let cenv = Env.create_context_env parent_env (
+                                           Env.Class (
+                                               Env.empty_lookup_table (),
+                                               cenv_r)
+                                         ) in
+       (* declare meta variables if exist *)
+       let template_vals = List.map (declare_meta_var cenv) meta_variables in
+       cenv_r.Env.cls_template_vals <- template_vals;
+
+       let _ = if in_template then
+                 Env.MultiSetOp.add_template_instances base_env cenv
+               else
+                 Env.MultiSetOp.add_normal_instances base_env cenv
+       in
+
+       (* class members are forward referencable *)
+       let nbody = solve_forward_refs ~opt_attr:opt_attr body cenv ctx in
+
+       (* members are appended to head,
+        * thus reverse them in order to make them declared order *)
+       cenv_r.Env.cls_member_vars <- List.rev cenv_r.Env.cls_member_vars;
+       cenv_r.Env.cls_member_funcs <- List.rev cenv_r.Env.cls_member_funcs;
+
+       let node = TAst.ClassDefStmt (
+                      id_name,
+                      nbody,
+                      opt_attr,
+                      Some cenv
+                    ) in
+       Env.update_rel_ast cenv node;
+       node
+     end
+
+  | Ast.ExternClassDefStmt (id_name, extern_cname, None, _) ->
+     begin
+       (* accept multiple definition for specialization *)
+       let base_env = Env.MultiSetOp.find_or_add parent_env id_name Env.Kind.Class in
+       let cenv_r = Env.ClassOp.empty_record id_name in
+       let cenv = Env.create_context_env parent_env (
+                                           Env.Class (
+                                               Env.empty_lookup_table ~init:0 (),
+                                               cenv_r)
+                                         ) in
        (* declare meta variables if exist *)
        let template_vals = List.map (declare_meta_var cenv) meta_variables in
        cenv_r.Env.cls_template_vals <- template_vals;
@@ -146,20 +187,42 @@ let rec solve_forward_refs ?(meta_variables=[])
        in
 
        let node = TAst.ExternClassDefStmt (
-                      name,
+                      id_name,
                       extern_cname,
+                      opt_attr,
                       Some cenv
                     ) in
        Env.update_rel_ast cenv node;
        node
      end
 
-  | Ast.VariableDefStmt (rv, v, _) ->
-     TAst.VariableDefStmt (rv, TAst.PrevPassNode v, None)
-
-  | Ast.TemplateStmt (name, template_params, inner_node) ->
+  | Ast.MemberVariableDefStmt (v, _) ->
      begin
-       let name_s = Nodes.string_of_id_string name in
+       let parent_cenv_r = Env.ClassOp.get_record parent_env in
+
+       let (_, var_name, _) =
+         match v with
+         | Ast.VarInit vi -> vi
+         | _ -> failwith "unexpected node"
+       in
+
+       let var_r = Env.VariableOp.empty_record var_name in
+       let venv = Env.create_context_env parent_env (
+                                           Env.Variable (var_r)
+                                         )
+       in
+       Env.add_inner_env parent_env var_name venv;
+       parent_cenv_r.Env.cls_member_vars <- venv :: parent_cenv_r.Env.cls_member_vars;
+
+       let node = TAst.MemberVariableDefStmt (TAst.PrevPassNode v, Some venv) in
+       node
+     end
+
+  | Ast.VariableDefStmt (v, _) ->
+     TAst.VariableDefStmt (TAst.PrevPassNode v, None)
+
+  | Ast.TemplateStmt (id_name, template_params, inner_node) ->
+     begin
        let base_kind = match inner_node with
          | Ast.FunctionDefStmt _
          | Ast.ExternFunctionDefStmt _ -> Env.Kind.Function
@@ -170,10 +233,10 @@ let rec solve_forward_refs ?(meta_variables=[])
             end
        in
        let base_env =
-         Env.MultiSetOp.find_or_add parent_env name_s base_kind
+         Env.MultiSetOp.find_or_add parent_env id_name base_kind
        in
        let template_env_r = {
-         Env.tl_name = name;
+         Env.tl_name = id_name;
          Env.tl_params = TAst.PrevPassNode template_params;
          Env.tl_inner_node = TAst.PrevPassNode inner_node;
        } in
@@ -206,6 +269,7 @@ let rec solve_forward_refs ?(meta_variables=[])
        failwith "solve_forward_refs: unsupported node"
      end
 
+
 and load_module_by_filepath ?(def_mod_info=None) filepath ctx =
   let root_env = ctx.sc_root_env in
   let (raw_pkg_names, raw_mod_name) =
@@ -226,13 +290,13 @@ and load_module_by_filepath ?(def_mod_info=None) filepath ctx =
        in
        Option.may check_mod_name def_mod_info;
 
-       let env = Env.create_env root_env (
-                                  Env.Module (Env.empty_lookup_table (),
-                                              {
-                                                Env.mod_name = mod_name;
-                                                Env.mod_pkg_names = pkg_names;
-                                              })
-                                ) in
+       let env = Env.create_context_env root_env (
+                                          Env.Module (Env.empty_lookup_table (),
+                                                      {
+                                                        Env.mod_name = mod_name;
+                                                        Env.mod_pkg_names = pkg_names;
+                                                      })
+                                        ) in
        (* TODO: fix g_name *)
        let g_name = String.concat "." (pkg_names @ [mod_name]) in
        Env.add_inner_env root_env g_name env;
@@ -243,6 +307,9 @@ and load_module_by_filepath ?(def_mod_info=None) filepath ctx =
                                   pkg_names mod_name env
        in
        ignore mod_id;
+
+       (* import builtins for all modules, if the builtin modules loaded *)
+       Option.may (fun bm -> Env.import_module env bm) ctx.sc_builtin_m_env;
 
        (* solve forward references *)
        let res_node = solve_forward_refs inner env ctx in

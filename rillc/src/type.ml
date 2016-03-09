@@ -6,30 +6,8 @@
  * http://www.boost.org/LICENSE_1_0.txt)
  *)
 
-type 'env info_t = {
-  ti_id     : type_id_ref_t option;
-  ti_sort   : 'env type_sort_t;
-}
-
- and 'env ctfe_val_t = ('env info_t) Ctfe_value.t
-
- and 'env type_sort_t =
-    UniqueTy of 'env normal_type_t
-  | ClassSetTy of 'env * 'env ctfe_val_t list
-  | FunctionSetTy of 'env * 'env ctfe_val_t list
-  | Undef
-  | NotDetermined of Unification.id_t * 'env ctfe_val_t list
-
-
- and 'env normal_type_t = {
-   ty_cenv              : 'env;
-   ty_template_args     : 'env ctfe_val_t list;
- }
-
-
-and type_id_ref_t = int64   (* type id is represented by int64 *)
-module IdType = Int64
-let is_type_id_signed = true
+open Type_info
+type 'e info_t = 'e Type_info.t
 
 
 let type_sort ty =
@@ -51,10 +29,8 @@ let is_undef ty =
 
 let has_same_class lhs rhs =
   match (type_sort lhs, type_sort rhs) with
-  | (UniqueTy lhs_ty_r, UniqueTy rhs_ty_r) ->
-     lhs_ty_r.ty_cenv == rhs_ty_r.ty_cenv (* compare envs by reference *)
-  | (ClassSetTy (lhs_e, _), ClassSetTy (rhs_e, _)) -> lhs_e = rhs_e
-  | (FunctionSetTy (lhs_e, _), FunctionSetTy (rhs_e, _)) -> lhs_e = rhs_e
+  | (UniqueTy lhs_e, UniqueTy rhs_e) ->
+     lhs_e == rhs_e (* compare envs by reference *)
   | _ -> false
 
 
@@ -77,15 +53,8 @@ let is_class_set ty =
 
 let as_unique ty =
   match type_sort ty with
-    UniqueTy r -> r
+    UniqueTy c_env -> c_env
   | _ -> failwith "as_unique: not unique"
-
-
-let undef_ty =
-  {
-    ti_id = None;
-    ti_sort = Undef;
-  }
 
 
 module Generator =
@@ -114,15 +83,31 @@ module Generator =
                     (IdType.to_string new_id) (IdType.to_string gen.gen_fresh_id);
       new_id
 
-    let generate_type gen ty_s =
+    let generate_type gen type_sort template_args ty_attr =
       (* TODO: implement cache *)
       let tid = make_fresh_id gen in
       let ty = {
         ti_id = Some tid;
-        ti_sort = ty_s;
+        ti_sort = type_sort;
+        ti_template_args = template_args;
+        ti_attr = ty_attr;
       } in
       Hashtbl.add gen.cache_table tid ty;
       ty
+
+    let register_type gen ty =
+      generate_type gen ty.ti_sort ty.ti_template_args ty.ti_attr
+
+    let update_attr_r gen ty attr =
+      register_type gen { ty with ti_attr = attr; }
+
+    let update_attr gen ty at_rv at_mut =
+      let attr = {
+        Type_attr.ta_ref_val = at_rv;
+        Type_attr.ta_mut = at_mut;
+      } in
+      update_attr_r gen ty attr
+
 
     let find_type_by_cache_id gen t_id =
       try Hashtbl.find gen.cache_table t_id with
@@ -131,9 +116,34 @@ module Generator =
   end
 
 
-module Attr =
-  struct
-    type ref_val =
-        Ref
-      | Val
-  end
+let print ty =
+  let open Type_attr in
+  let s = match ty.ti_attr.ta_ref_val with
+      Ref -> "ref"
+    | Val -> "val"
+    | XRef -> "xref"
+    | _ -> "undef"
+  in
+  Printf.printf "Attr: REF = %s\n" s;
+  let s = match ty.ti_attr.ta_mut with
+      Immutable -> "immutable"
+    | Const -> "const"
+    | Mutable -> "mutable"
+    | _ -> "undef"
+  in
+  Printf.printf "Attr: MUT = %s\n" s;
+
+  match type_sort ty with
+    UniqueTy cenv ->
+     begin
+       let cls_r = Env.ClassOp.get_record cenv in
+       let name = Nodes.string_of_id_string cls_r.Env.cls_name in
+       Printf.printf "@==> %s\n" name
+     end
+  | FunctionSetTy _ -> Printf.printf "function set\n"
+  | ClassSetTy _ -> Printf.printf "class set\n"
+  | Undef -> Printf.printf "@undef@\n"
+  | NotDetermined uni_id ->
+     begin
+       Printf.printf "@not determined [%d]\n" uni_id
+     end
