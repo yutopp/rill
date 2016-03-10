@@ -212,7 +212,7 @@ member_variable_initializer_unit:
 
 member_variable_decl_introducer:
                 rv = rv_attr_val
-                mut = mut_attr
+                mut = mut_attr_mutable_def
                 { { Type_attr.ta_ref_val = rv;
                     Type_attr.ta_mut = mut; }
                 }
@@ -318,6 +318,10 @@ mut_attr_force:
 
 mut_attr:
                 { Type_attr.Const } (* default *)
+        |       mut_attr_force { $1 }
+
+mut_attr_mutable_def:
+                { Type_attr.Mutable } (* default *)
         |       mut_attr_force { $1 }
 
 
@@ -459,7 +463,7 @@ unary_expression:
 postfix_expression:
                 primary_expression { $1 }
         |       postfix_expression DOT rel_generic_id
-                { Ast.ElementSelectionExpr ($1, $3) }
+                { Ast.ElementSelectionExpr ($1, $3, ()) }
         |       postfix_expression LBRACKET expression? RBRACKET
                 { Ast.SubscriptingExpr ($1, $3) }
         |       traits_expression { $1 }

@@ -518,6 +518,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
      end
 
 and analyze_expr ?(making_placeholder=false)
+                 ?(enable_ufcs=false)
                  node parent_env ctx attr
     : ('node * (type_info_t * Value_category.t)) =
   match node with
@@ -565,11 +566,14 @@ and analyze_expr ?(making_placeholder=false)
      begin
        let (recv_node, (recv_type_info, recv_val_cat)) =
          analyze_expr ~making_placeholder:making_placeholder
+                      ~enable_ufcs:true
                       reciever parent_env ctx attr
        in
 
-       let eargs = evaluate_invocation_args args parent_env ctx attr in
-       let (arg_exprs, arg_types_cats) = List.split eargs in
+       let (arg_exprs, arg_types_cats) =
+         evaluate_invocation_args args parent_env ctx attr
+         |> List.split
+       in
        (*List.iter check_is_args_valid args_types;*)
 
        let {
@@ -577,9 +581,17 @@ and analyze_expr ?(making_placeholder=false)
          Type_info.ti_template_args = template_args;
        } = recv_type_info in
        match ty_sort with
+       (* normal function call *)
        | Type_info.FunctionSetTy menv ->
           begin
-            (* notmal function call *)
+            (* consider nested expr *)
+            let (arg_exprs, arg_types_cats) = match recv_node with
+              | TAst.NestedExpr (lhs_node, lhs_ty, lhs_val_cat, _, _) ->
+                 let args = lhs_node :: arg_exprs in
+                 let ty_cats = (lhs_ty, lhs_val_cat) :: arg_types_cats in
+                 (args, ty_cats)
+              | _ -> (arg_exprs, arg_types_cats)
+            in
             let (f_env, conv_filters) =
               solve_function_overload arg_types_cats template_args
                                       menv parent_env ctx attr
@@ -600,6 +612,7 @@ and analyze_expr ?(making_placeholder=false)
             (node, (f_ret_ty, f_ret_val_cat))
           end
 
+       (* constructor / operator call *)
        | Type_info.UniqueTy type_cenv ->
           begin
             (* type_cenv will be Type *)
@@ -616,7 +629,6 @@ and analyze_expr ?(making_placeholder=false)
 
             (* call constructor *)
             (* TODO: take into account op call *)
-            let ctor_name = Nodes.Pure "this" in
             let res = solve_basic_identifier ~do_rec_search:false
                                              ctor_name recv_cenv ctx attr in
             let (_, ctor_env) = match res with
@@ -645,6 +657,34 @@ and analyze_expr ?(making_placeholder=false)
           end
 
        | _ -> failwith "not implemented//" (* TODO: call ctor OR operator() *)
+     end
+
+  | Ast.ElementSelectionExpr (lhs, rhs, _) ->
+     begin
+       let (lhs_node, (lhs_ty, lhs_val_cat)) =
+         analyze_expr ~making_placeholder:making_placeholder
+                      lhs parent_env ctx attr
+       in
+
+       match Type.type_sort lhs_ty with
+       | Type_info.UniqueTy lhs_type_cenv ->
+          begin
+            let opt_rhs_ty_node =
+              select_member_element ~universal_search:enable_ufcs
+                                    lhs_ty rhs parent_env ctx attr
+            in
+            match opt_rhs_ty_node with
+            | Some (rhs_ty, rhs_env) ->
+               let node = TAst.NestedExpr (lhs_node, lhs_ty, lhs_val_cat,
+                                           rhs_ty, Some rhs_env) in
+               let prop_ty = propagate_type_attrs rhs_ty lhs_ty ctx in
+               (node, (prop_ty, VCatLValue))
+
+            | None ->
+               failwith "[ERR] member is not found"
+          end
+
+       | _ -> failwith "[ICE]"
      end
 
   | Ast.StatementTraitsExpr (keyword, block) ->
@@ -973,7 +1013,10 @@ and solve_basic_identifier ?(do_rec_search=true)
                 Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
                                              (Type_info.FunctionSetTy env)
                                              template_args
-                                             Type_attr.undef
+                                             {
+                                               Type_attr.ta_mut = Type_attr.Immutable;
+                                               Type_attr.ta_ref_val = Type_attr.Ref;
+                                             }
               in
               (ty, env)
             end
@@ -1054,7 +1097,6 @@ and convert_type trg_ty src_ty_cat ext_env ctx attr =
        begin
          (* copy val/ref to value *)
          let cenv = Type.as_unique trg_ty in
-         let ctor_name = Nodes.Pure "this" in
          let res = solve_basic_identifier ~do_rec_search:false
                                                  ctor_name cenv ctx attr in
          let (_, ctor_env) = match res with
@@ -1592,6 +1634,7 @@ and prepare_template_params params_node ctx =
 and select_member_element ?(universal_search=false)
                           recv_ty t_id env ctx attr =
   let recv_cenv = Type.as_unique recv_ty in
+  Env.print recv_cenv;
   let opt_ty_ctx = solve_identifier ~do_rec_search:false
                                     t_id recv_cenv ctx attr in
 
@@ -1616,6 +1659,23 @@ and select_member_element ?(universal_search=false)
        end else
          None
      end
+
+
+and propagate_type_attrs dest_ty src_ty ctx =
+  let open Type_attr in
+  let {
+    Type_info.ti_attr = dest_attr;
+  } = dest_ty in
+  let {
+    Type_info.ti_attr = src_attr;
+  } = src_ty in
+
+  let n_mut = mut_strong dest_attr.ta_mut src_attr.ta_mut in
+  Type.Generator.update_attr_r ctx.sc_tsets.ts_type_gen
+                               dest_ty
+                               { dest_attr with
+                                 ta_mut = n_mut;
+                               }
 
 
 and prepare_instantiate_template t_env_record template_args ext_env ctx attr =

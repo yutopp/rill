@@ -34,3 +34,19 @@ let undef = {
   ta_ref_val = RefValUndef;
   ta_mut = MutUndef;
 }
+
+
+let int_of_mut m = match m with
+  | Immutable -> 0
+  | Const -> 1
+  | Mutable -> 2
+  | _ -> failwith ""
+
+let mut_of_int n = match n with
+  | 0 -> Immutable
+  | 1 -> Const
+  | 2 -> Mutable
+  | _ -> failwith ""
+
+let mut_strong a b =
+  mut_of_int (min (int_of_mut a) (int_of_mut b))

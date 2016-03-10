@@ -14,6 +14,7 @@ type ('ty, 'ctx) record_t =
   | LLValue of L.llvalue
   | LLType of L.lltype
   | LLTypeGen of ('ty Ctfe_value.t list -> L.lltype)
+  | ElemIndex of int
   | BuiltinFunc of (L.llvalue array -> 'ctx -> L.llvalue)
   | TrivialAction
 
@@ -58,7 +59,6 @@ let make_default_context ?(opt_type_sets=None) ?(opt_uni_map=None) () =
 
 let rec code_generate ~bb node ctx =
   let open Ctx in
-  let open Codegen_llvm_intrinsics in
   match node with
   | TAst.Module (inner, pkg_names, mod_name, base_dir, _) ->
      begin
@@ -215,14 +215,16 @@ let rec code_generate ~bb node ctx =
      begin
        let cenv_r = Env.ClassOp.get_record env in
 
-       (* define member variables *)
-       let get_member_type env =
-         let r = Env.VariableOp.get_record env in
-         let llty = lltype_of_typeinfo ~bb:bb r.Env.var_type ctx in
-         llty
-       in
        let member_lltypes =
-         List.map get_member_type cenv_r.Env.cls_member_vars
+         (* define member variables *)
+         let get_member_type index env =
+           Ctx.bind_val_to_env ctx (ElemIndex index) env;
+
+           let r = Env.VariableOp.get_record env in
+           let llty = lltype_of_typeinfo ~bb:bb r.Env.var_type ctx in
+           llty
+         in
+         List.mapi get_member_type cenv_r.Env.cls_member_vars
        in
 
        let struct_ty =
@@ -287,7 +289,6 @@ let rec code_generate ~bb node ctx =
 
 and code_generate_as_value ?(bb=None) node ctx : (L.llvalue * 'env Type.info_t)=
   let open Ctx in
-  let open Codegen_llvm_intrinsics in
   match node with
   | TAst.GenericCallExpr (storage_ref, args, Some call_on_env, Some env) ->
      begin
@@ -377,6 +378,7 @@ and code_generate_as_value ?(bb=None) node ctx : (L.llvalue * 'env Type.info_t)=
 
          | Env.FnRecordTrivial (def, kind) ->
             begin
+              let open Codegen_llvm_intrinsics in
               Printf.printf "gen value: debug / function trivial %s\n" fn_s_name;
 
               let r_value = force_target_generation ~bb:bb ctx env in
@@ -452,6 +454,21 @@ and code_generate_as_value ?(bb=None) node ctx : (L.llvalue * 'env Type.info_t)=
          | Env.FnUndef -> failwith "[ICE] codegen: undefined function record"
        in
        (llval, ret_ty)
+     end
+
+  | TAst.NestedExpr (lhs_node, lhs_ty, lhs_val_cat, rhs_ty, Some rhs_env) ->
+     begin
+       let (ll_lhs, _) = code_generate_as_value ~bb:bb lhs_node ctx in
+
+       let v_record = try Ctx.find_val_by_env ctx rhs_env with
+                      | Not_found -> failwith "[ICE] variable env is not found"
+       in
+       let index = match v_record with
+         | ElemIndex i -> i
+         | _ -> failwith "[ICE]"
+       in
+       let llelem = L.build_struct_gep ll_lhs index "" ctx.ir_builder in
+       (llelem, rhs_ty)
      end
 
   | TAst.BoolLit (v, lit_ty) ->

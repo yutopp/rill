@@ -64,7 +64,7 @@ module Make (Ctx : NodeContextType) =
       | BinaryOpExpr of ast * id_string * ast
       | UnaryOpExpr of string * ast
 
-      | ElementSelectionExpr of ast * ast
+      | ElementSelectionExpr of ast * ast * ctx_t
       | SubscriptingExpr of ast * ast option
       | CallExpr of ast * ast list
 
@@ -95,6 +95,7 @@ module Make (Ctx : NodeContextType) =
       | GenericCallExpr of storage_t ref * ast list * ctx_t * ctx_t
       (* body, ctx *)
       | GenericFuncDef of ast option * ctx_t
+      | NestedExpr of ast * term_ctx_t * Value_category.t * term_ctx_t * ctx_t
 
      (* attr * id? * value *)
      and param_init_t = Type_attr.attr_t * string option * value_init_t
@@ -175,7 +176,7 @@ module Make (Ctx : NodeContextType) =
            print_string (string_of_id_string op); print expr
          end*)
 
-      | ElementSelectionExpr (recv, sel) ->
+      | ElementSelectionExpr (recv, sel, _) ->
          begin
            print recv; print_string "."; print sel
          end
