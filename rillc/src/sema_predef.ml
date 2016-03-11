@@ -76,10 +76,17 @@ let complete_function_env env node id_name f_detail ctx =
 
   complete_env env node
 
-let complete_class_env env node detail_r traits ctx =
+
+let complete_class_env env node id_name c_detail traits ctx =
   let r = Env.ClassOp.get_record env in
-  r.Env.cls_detail <- detail_r;
+  r.Env.cls_detail <- c_detail;
   r.Env.cls_traits <- Some traits;
+
+  let mangled =
+    Mangle.s_of_id_string (Env.get_full_module_name env) id_name
+  in
+  r.Env.cls_mangled <- Some mangled;
+
   complete_env env node
 
 

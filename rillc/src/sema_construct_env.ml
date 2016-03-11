@@ -304,15 +304,6 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        let name_s = Nodes.string_of_id_string name in
        Printf.printf "class %s - unchecked\n" name_s;
        check_env env;
-       let mangled =
-         (*Mangle.s_of_function (Env.get_full_module_name env) s_name
-                         r.Env.fn_template_vals
-                         param_types return_type
-                         ctx.sc_tsets*)
-         ""
-       in
-       let r = Env.ClassOp.get_record env in
-       r.Env.cls_mangled <- Some mangled;
 
        (* body *)
        let nbody = construct_env body env ctx opt_attr in
@@ -381,7 +372,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        let traits = {
          Env.cls_traits_is_primitive = is_primitive;
        } in
-       complete_class_env env node detail_r traits ctx;
+       complete_class_env env node name detail_r traits ctx;
        node
      end
 
@@ -456,7 +447,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
          Env.cls_traits_is_primitive = is_primitive;
        } in
 
-       complete_class_env env node detail_r traits ctx;
+       complete_class_env env node name detail_r traits ctx;
        node
      end
 
@@ -598,33 +589,9 @@ and analyze_expr ?(making_placeholder=false)
   | Ast.BinaryOpExpr (lhs, op, rhs) ->
      begin
        let args = [lhs; rhs] in
-       let eargs = evaluate_invocation_args args parent_env ctx attr in
-       let (arg_exprs, arg_types_cats) = List.split eargs in
-       (*List.iter check_is_args_valid args_types_cats;*)
-
-       (*List.iter print_type args_types;*)
-       let op_id = Ast.Id (op, ()) in
-       let opt_fs_and_args =
-         find_suitable_operator ~universal_search:true
-                                op_id arg_types_cats node parent_env ctx attr in
-       match opt_fs_and_args with
-       | Some (f_env, conv_filters) ->
-          begin
-            let n_eargs = map_conversions conv_filters arg_exprs parent_env ctx in
-
-            let f_er = Env.FunctionOp.get_record f_env in
-            let f_ret_ty = f_er.Env.fn_return_type in
-            assert_valid_type f_ret_ty;
-            let f_ret_val_cat = ret_val_category f_ret_ty ctx in
-
-            (* Replace BinOpCall to generic FuncCall *)
-            let node = TAst.GenericCallExpr (
-                           ref TAst.StoImm,
-                           n_eargs,
-                           Some parent_env,
-                           Some f_env) in
-            (node, (f_ret_ty, f_ret_val_cat))
-          end
+       let res = analyze_operator op args parent_env ctx attr in
+       match res with
+       | Some v -> v
        | None ->
           (* TODO: error message *)
           failwith "binary operator is not found"
@@ -632,7 +599,13 @@ and analyze_expr ?(making_placeholder=false)
 
   | Ast.UnaryOpExpr (op, expr) ->
      begin
-       failwith "u op"
+       let args = [expr] in
+       let res = analyze_operator op args parent_env ctx attr in
+       match res with
+       | Some v -> v
+       | None ->
+          (* TODO: error message *)
+          failwith "unary operator is not found"
      end
 
   | Ast.CallExpr (reciever, args) ->
@@ -827,6 +800,21 @@ and analyze_expr ?(making_placeholder=false)
        (node, (ty, VCatPrValue))
      end
 
+  | Ast.BoolLit (b, _) ->
+     begin
+       (* WIP *)
+       let ty = get_builtin_bool_type ctx in
+       let ty =
+         Type.Generator.update_attr ctx.sc_tsets.ts_type_gen ty
+                                    Type_attr.Val
+                                    Type_attr.Immutable
+       in
+       assert_valid_type ty;
+       let node = TAst.BoolLit (b, ty) in
+
+       (node, (ty, VCatPrValue))
+     end
+
   | Ast.ArrayLit (elems, _) ->
      begin
        let (n_nodes, n_types_cats) =
@@ -850,6 +838,35 @@ and analyze_expr ?(making_placeholder=false)
        Ast.print node;
        failwith "analyze_expr: unsupported node"
      end
+
+
+and analyze_operator op args parent_env ctx attr =
+  let eargs = evaluate_invocation_args args parent_env ctx attr in
+  let (arg_exprs, arg_types_cats) = List.split eargs in
+  (*List.iter check_is_args_valid args_types_cats;*)
+
+  (*List.iter print_type args_types;*)
+  let op_id = Ast.Id (op, ()) in
+  let opt_fs_and_args =
+    find_suitable_operator ~universal_search:true
+                           op_id arg_types_cats parent_env ctx attr in
+  let analyze (f_env, conv_filters) =
+    let n_eargs = map_conversions conv_filters arg_exprs parent_env ctx in
+
+    let f_er = Env.FunctionOp.get_record f_env in
+    let f_ret_ty = f_er.Env.fn_return_type in
+    assert_valid_type f_ret_ty;
+    let f_ret_val_cat = ret_val_category f_ret_ty ctx in
+
+    (* Replace BinOpCall to generic FuncCall *)
+    let node = TAst.GenericCallExpr (
+                   ref TAst.StoImm,
+                   n_eargs,
+                   Some parent_env,
+                   Some f_env) in
+    (node, (f_ret_ty, f_ret_val_cat))
+  in
+  Option.map analyze opt_fs_and_args
 
 
 and analyze_inner node parent_env ctx opt_chain_attr =
@@ -1228,8 +1245,10 @@ and convert_type trg_ty src_ty_cat ext_env ctx attr =
        end
 
     | _ -> failwith ""
+
   end else begin
-    failwith "convert_type / not implemented"
+    (* TODO: implement type conversion *)
+    (FuncMatchLevel.NoMatch, None)
   end
 
 and is_type_convertible_to src_ty dist_ty =
@@ -1353,7 +1372,7 @@ and evaluate_invocation_arg expr env ctx attr =
 
 
 and find_suitable_operator ?(universal_search=false)
-                           op_name_id arg_types_cats expr env ctx attr =
+                           op_name_id arg_types_cats env ctx attr =
   let (arg_types, arg_val_cats) = List.split arg_types_cats in
   let opt_callee_function_info =
     select_member_element ~universal_search:universal_search

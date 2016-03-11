@@ -1,0 +1,13 @@
+def main(): void
+{
+    f(1);
+    f(false);
+
+    1.f();
+    false.f();
+
+    return;
+}
+
+def f(i: int32): void { return; }
+def f(i: bool): void { return; }

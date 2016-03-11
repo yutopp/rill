@@ -63,7 +63,7 @@ module Make (Ctx : NodeContextType) =
        * expressions
        *)
       | BinaryOpExpr of ast * id_string * ast
-      | UnaryOpExpr of string * ast
+      | UnaryOpExpr of id_string * ast
 
       | ElementSelectionExpr of ast * ast * ctx_t
       | SubscriptingExpr of ast * ast option

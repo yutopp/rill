@@ -2,9 +2,15 @@
 #include <cassert>
 
 extern "C"
-void rill_print(int const v)
+void rill_print_int(int const v)
 {
     std::cout << "rill/std/print_int = " << v << std::endl;
+}
+
+extern "C"
+void rill_print_bool(bool const v)
+{
+    std::cout << "rill/std/print_bool = " << v << std::endl;
 }
 
 extern "C"

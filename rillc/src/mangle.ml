@@ -20,13 +20,16 @@ and s_of_type ty =
 
   let cr = Env.ClassOp.get_record c_env in
   let symbol = Option.get cr.Env.cls_mangled in
-  Printf.sprintf "T%d%s" (String.length symbol) symbol
+  Printf.sprintf "T%s" symbol
 
 
 and s_of_template_args args tset =
-  let ts = args |> List.map @@ fun x -> s_of_ctfe_val x tset in
-  let s = String.concat "" ts in
-  Printf.sprintf "_T%d%s" (List.length ts) s
+  match List.length args with
+  | 0 -> ""
+  | n ->
+     let ts = args |> List.map (fun x -> s_of_ctfe_val x tset) in
+     let s = String.concat "" ts in
+     Printf.sprintf "_T%d_%s" n s
 
 
 and s_of_string s =
@@ -38,12 +41,17 @@ and s_of_symbol sym =
   s_of_string s
 
 
+and s_of_id_string full_module_name id_name =
+  let s_mod_name = full_module_name |> List.map s_of_string |> String.concat "" in
+  let s_name = id_name |> s_of_symbol in
+  Printf.sprintf "%s%s" s_mod_name s_name
+
+
 and s_of_function full_module_name id_name
                   template_args args_types return_type
                   tset =
-  let s_mod_name = full_module_name |> List.map s_of_string |> String.concat "" in
-  let s_name = id_name |> s_of_symbol in
+  let s_sym = s_of_id_string full_module_name id_name in
   let s_targs = s_of_template_args template_args tset in
   let s_args_tys = args_types |> List.map s_of_type |> String.concat "" in
   let s_ret_ty = return_type |> s_of_type in
-  Printf.sprintf "_Rill_%s%s%sF%sZ%s" s_mod_name s_name s_targs s_args_tys s_ret_ty
+  Printf.sprintf "_Rill_%s%sF%sZ%s" s_sym s_targs s_args_tys s_ret_ty

@@ -1,5 +1,7 @@
 // TODO: move to
-extern def print_int(v: int32): void = "rill_print";
+extern def print(v: int32): void = "rill_print_int";
+extern def print(v: bool): void = "rill_print_bool";
+extern def print_int(v: int32): void = "rill_print_int";
 
 // TODO: implement by macro
 extern def assert(:bool): void = "rill_assert";
@@ -20,9 +22,49 @@ extern class bool = "__builtin_bool_type"
 #[builtin, primitive]
 extern class int32 = "__builtin_int32_type"
 
+// TODO: implement attributes scope
 #[builtin]
 extern def operator+(:int32, :int32): int32 = "__builtin_op_binary_+_int_int";
-
+#[builtin]
+extern def operator-(:int32, :int32): int32 = "__builtin_op_binary_-_int_int";
+#[builtin]
+extern def operator*(:int32, :int32): int32 = "__builtin_op_binary_*_int_int";
+#[builtin]
+extern def operator/(:int32, :int32): int32 = "__builtin_op_binary_/_int_int";
+#[builtin]
+extern def operator%(:int32, :int32): int32 = "__builtin_op_binary_%_int_int";
+#[builtin]
+extern def operator<(:int32, :int32): bool = "__builtin_op_binary_<_int_int";
+#[builtin]
+extern def operator>(:int32, :int32): bool = "__builtin_op_binary_>_int_int";
+#[builtin]
+extern def operator|(:int32, :int32): int32 = "__builtin_op_binary_|_int_int";
+#[builtin]
+extern def operator^(:int32, :int32): int32 = "__builtin_op_binary_^_int_int";
+#[builtin]
+extern def operator&(:int32, :int32): int32 = "__builtin_op_binary_&_int_int";
+#[builtin]
+extern def operator>=(:int32, :int32): bool = "__builtin_op_binary_>=_int_int";
+#[builtin]
+extern def operator<=(:int32, :int32): bool = "__builtin_op_binary_<=_int_int";
+#[builtin]
+extern def operator<<(:int32, :int32): int32 = "__builtin_op_binary_<<_int_int";
+#[builtin]
+extern def operator>>(:int32, :int32): int32 = "__builtin_op_binary_>>_int_int";
+#[builtin]
+extern def operator==(:int32, :int32): bool = "__builtin_op_binary_==_int_int";
+#[builtin]
+extern def operator!=(:int32, :int32): bool = "__builtin_op_binary_!=_int_int";
+def operator pre++(ref mutable i: int32): void
+{
+    i = i + 1;
+    return;
+}
+def operator pre--(ref mutable i:int32): void
+{
+    i = i - 1;
+    return;
+}
 
 #[builtin]
 extern class array!(T, N:int32) = "__builtin_array_type"

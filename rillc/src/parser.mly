@@ -488,7 +488,12 @@ mul_div_rem_expression:
 
 unary_expression:
                 postfix_expression { $1 }
-        |       MINUS postfix_expression { Ast.UnaryOpExpr("-", $2) }
+        |       op = MINUS postfix_expression
+                { Ast.UnaryOpExpr( Nodes.UnaryPreOp op, $2) }
+        |       op = INCREMENT postfix_expression
+                { Ast.UnaryOpExpr( Nodes.UnaryPreOp op, $2) }
+        |       op = DECREMENT postfix_expression
+                { Ast.UnaryOpExpr( Nodes.UnaryPreOp op, $2) }
 
 
 postfix_expression:
@@ -558,10 +563,27 @@ rel_id_as_s:
 
 binary_operator_as_raw:
                 PLUS { $1 }
+        |       MINUS { $1 }
+        |       TIMES { $1 }
+        |       DIV { $1 }
+        |       MOD { $1 }
+        |       GT { $1 }
+        |       GTE { $1 }
+        |       LT { $1 }
+        |       LTE { $1 }
+        |       LSHIFT { $1 }
+        |       RSHIFT { $1 }
+        |       EQUALS { $1 }
+        |       NOT_EQUALS { $1 }
+        |       LOGICAL_OR { $1 }
+        |       LOGICAL_AND { $1 }
+        |       BITWISE_AND { $1 }
+        |       BITWISE_OR { $1 }
+        |       BITWISE_XOR { $1 }
 
 binary_operator_as_s:
                 KEYWORD_OPERATOR
-                binary_operator_as_raw { Nodes.BinaryOp ($2) }
+                op = binary_operator_as_raw { Nodes.BinaryOp (op) }
 
 unary_operator_as_raw:
                 INCREMENT { $1 }
@@ -569,11 +591,12 @@ unary_operator_as_raw:
 
 unary_operator_as_s:
                 KEYWORD_OPERATOR
-                unary_operator_as_raw ID
+                order = ID
+                op = unary_operator_as_raw
                 {
-                    match $3 with
-                    | "pre" -> Nodes.UnaryPreOp ($2)
-                    | "post" -> Nodes.UnaryPostOp ($2)
+                    match order with
+                    | "pre" -> Nodes.UnaryPreOp (op)
+                    | "post" -> Nodes.UnaryPostOp (op)
                     | _ -> failwith "[ICE] ..."
                 }
 

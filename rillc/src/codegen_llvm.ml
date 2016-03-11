@@ -129,6 +129,7 @@ let rec code_generate ~bb node ctx =
 
             (* setup parameters *)
             let param_envs = fenv_d.Env.fn_n_param_envs |> List.enum in
+            L.dump_value f; flush_all ();
             let ll_params = L.params f |> Array.enum in
             if returns_heavy_obj then begin
                                      let opt_agg = Enum.peek ll_params in
@@ -795,19 +796,18 @@ let inject_builtins ctx =
    * Builtin functions
    *)
 
-  (* for int32 *)
-  let () =
+  let define_special_members builtin_info init =
     let open Builtin_info in
     let () = (* default constructor *)
       let f args ctx =
-        let v = L.const_int (L.i32_type ctx.ir_context) 0 in
+        let v = init in
         match Array.length args with
         | 1 -> let _ = L.build_store v args.(0) ctx.ir_builder in args.(0)
         | 0 -> v
         | _ -> failwith ""
       in
       register_builtin_func
-        (make_builtin_default_ctor_name int32_type_i.internal_name) f
+        (make_builtin_default_ctor_name builtin_info.internal_name) f
     in
     let () = (* copy constructor *)
       let f args ctx =
@@ -817,7 +817,7 @@ let inject_builtins ctx =
         | _ -> failwith ""
       in
       register_builtin_func
-        (make_builtin_copy_ctor_name int32_type_i.internal_name) f
+        (make_builtin_copy_ctor_name builtin_info.internal_name) f
     in
     let () = (* copy assign *)
       let f args ctx =
@@ -825,16 +825,138 @@ let inject_builtins ctx =
         L.build_store args.(1) args.(0) ctx.Ctx.ir_builder
       in
       register_builtin_func
-        (make_builtin_copy_assign_name int32_type_i.internal_name) f
+        (make_builtin_copy_assign_name builtin_info.internal_name) f
     in
+    ()
+  in
 
-    let () = (* +(int, int) *)
-    let f args ctx =
-      assert (Array.length args = 2);
-      L.build_add args.(0) args.(1) "" ctx.Ctx.ir_builder
+  (* for int32 *)
+  let () =
+    let open Builtin_info in
+    let init = L.const_int (L.i32_type ctx.ir_context) 0 in
+    define_special_members int32_type_i init;
+
+    let () = (* +(:int, :int): int *)
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_add args.(0) args.(1) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func "__builtin_op_binary_+_int_int" f
     in
-    register_builtin_func "__builtin_op_binary_+_int_int" f;
+    let () = (* -(:int, :int): int *)
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_sub args.(0) args.(1) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func "__builtin_op_binary_-_int_int" f
     in
+    let () = (* *(:int, :int): int *)
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_mul args.(0) args.(1) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func "__builtin_op_binary_*_int_int" f
+    in
+    let () = (* /(:int, :int): int *)
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_sdiv args.(0) args.(1) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func "__builtin_op_binary_/_int_int" f
+    in
+    let () = (* %(:int, :int): int *)
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_srem args.(0) args.(1) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func "__builtin_op_binary_%_int_int" f
+    in
+    let () = (* <(:int, :int): bool *)
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_icmp L.Icmp.Slt args.(0) args.(1) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func "__builtin_op_binary_<_int_int" f
+    in
+    let () = (* >(:int, :int): bool *)
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_icmp L.Icmp.Sgt args.(0) args.(1) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func "__builtin_op_binary_>_int_int" f
+    in
+    let () = (* |(:int, :int): int *)
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_or args.(0) args.(1) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func "__builtin_op_binary_|_int_int" f
+    in
+    let () = (* ^(:int, :int): int *)
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_xor args.(0) args.(1) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func "__builtin_op_binary_^_int_int" f
+    in
+    let () = (* &(:int, :int): int *)
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_and args.(0) args.(1) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func "__builtin_op_binary_&_int_int" f
+    in
+    let () = (* <=(:int, :int): bool *)
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_icmp L.Icmp.Sge args.(0) args.(1) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func "__builtin_op_binary_<=_int_int" f
+    in
+    let () = (* >=(:int, :int): bool *)
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_icmp L.Icmp.Sge args.(0) args.(1) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func "__builtin_op_binary_>=_int_int" f
+    in
+    let () = (* <<(:int, :int): int *)
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_shl args.(0) args.(1) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func "__builtin_op_binary_<<_int_int" f
+    in
+    let () = (* >>(:int, :int): int *)
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_lshr args.(0) args.(1) "" ctx.Ctx.ir_builder    (* zero ext(logical) *)
+      in
+      register_builtin_func "__builtin_op_binary_>>_int_int" f
+    in
+    let () = (* ==(:int, :int): bool *)
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_icmp L.Icmp.Eq args.(0) args.(1) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func "__builtin_op_binary_==_int_int" f
+    in
+    let () = (* !=(:int, :int): bool *)
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_icmp L.Icmp.Ne args.(0) args.(1) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func "__builtin_op_binary_!=_int_int" f
+    in
+    ()
+
+  in
+
+  (* for bool *)
+  let () =
+    let open Builtin_info in
+    let init = L.const_int (L.i1_type ctx.ir_context) 0 in
+    define_special_members bool_type_i init;
     ()
   in
   ()
