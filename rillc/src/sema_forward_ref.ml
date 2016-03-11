@@ -13,14 +13,6 @@ open Sema_predef
 let rec solve_forward_refs ?(meta_variables=[])
                            ?(opt_attr=None)
                            node parent_env ctx =
-  let in_template = List.length meta_variables > 0 in
-  let declare_meta_var env (name, uni_id) =
-    let meta_e = Env.MetaVariable uni_id in
-    let e = Env.create_context_env env meta_e in
-    Env.add_inner_env env name e;
-
-    Unification.get_as_value ctx.sc_unification_ctx uni_id
-  in
   match node with
   | Ast.StatementList (nodes) ->
      let tagged_nodes =
@@ -50,31 +42,7 @@ let rec solve_forward_refs ?(meta_variables=[])
 
   | Ast.FunctionDefStmt (id_name, params, opt_ret_type, body, None, _) ->
      begin
-       (* accept multiple definition for overload *)
-       let base_env = Env.MultiSetOp.find_or_add parent_env id_name Env.Kind.Function in
-       let fenv_r = {
-         Env.fn_name = id_name;
-         Env.fn_mangled = None;
-         Env.fn_template_vals = [];
-         Env.fn_param_types = [];
-         Env.fn_return_type = Type_info.undef_ty;
-         Env.fn_is_auto_return_type = true;
-         Env.fn_detail = Env.FnUndef;
-       } in
-       let fenv = Env.create_context_env parent_env (
-                                           Env.Function (
-                                               Env.empty_lookup_table (),
-                                               fenv_r)
-                                         ) in
-       (* declare meta variables if exist *)
-       let template_vals = List.map (declare_meta_var fenv) meta_variables in
-       fenv_r.Env.fn_template_vals <- template_vals;
-
-       let _ = if in_template then
-                 Env.MultiSetOp.add_template_instances base_env fenv
-               else
-                 Env.MultiSetOp.add_normal_instances base_env fenv
-       in
+       let fenv = declare_pre_function id_name meta_variables parent_env ctx in
 
        let node = TAst.FunctionDefStmt (
                       id_name,
@@ -88,33 +56,25 @@ let rec solve_forward_refs ?(meta_variables=[])
        node
      end
 
+  | Ast.MemberFunctionDefStmt (id_name, params, opt_ret_type, body, None, _) ->
+     begin
+       let fenv = declare_pre_function id_name meta_variables parent_env ctx in
+
+       let node = TAst.MemberFunctionDefStmt (
+                      id_name,
+                      TAst.PrevPassNode params,
+                      Option.map (fun x -> TAst.PrevPassNode x) opt_ret_type,
+                      TAst.PrevPassNode body,
+                      opt_attr,
+                      Some fenv
+                    ) in
+       Env.update_rel_ast fenv node;
+       node
+     end
+
   | Ast.ExternFunctionDefStmt (id_name, params, ret_type, extern_fname, None, _) ->
      begin
-       (* accept multiple definition for overload *)
-       let base_env = Env.MultiSetOp.find_or_add parent_env id_name Env.Kind.Function in
-       let fenv_r = {
-         Env.fn_name = id_name;
-         Env.fn_mangled = None;
-         Env.fn_template_vals = [];
-         Env.fn_param_types = [];
-         Env.fn_return_type = Type_info.undef_ty;
-         Env.fn_is_auto_return_type = false;
-         Env.fn_detail = Env.FnUndef;
-       } in
-       let fenv = Env.create_context_env parent_env (
-                                           Env.Function (
-                                               Env.empty_lookup_table ~init:0 (),
-                                               fenv_r)
-                                         ) in
-       (* declare meta variables if exist *)
-       let template_vals = List.map (declare_meta_var fenv) meta_variables in
-       fenv_r.Env.fn_template_vals <- template_vals;
-
-       let _ = if in_template then
-                 Env.MultiSetOp.add_template_instances base_env fenv
-               else
-                 Env.MultiSetOp.add_normal_instances base_env fenv
-       in
+       let fenv = declare_pre_function id_name meta_variables parent_env ctx in
 
        let node = TAst.ExternFunctionDefStmt (
                       id_name,
@@ -130,23 +90,8 @@ let rec solve_forward_refs ?(meta_variables=[])
 
   | Ast.ClassDefStmt (id_name, body, None, _) ->
      begin
-       (* accept multiple definition for specialization *)
-       let base_env = Env.MultiSetOp.find_or_add parent_env id_name Env.Kind.Class in
-       let cenv_r = Env.ClassOp.empty_record id_name in
-       let cenv = Env.create_context_env parent_env (
-                                           Env.Class (
-                                               Env.empty_lookup_table (),
-                                               cenv_r)
-                                         ) in
-       (* declare meta variables if exist *)
-       let template_vals = List.map (declare_meta_var cenv) meta_variables in
-       cenv_r.Env.cls_template_vals <- template_vals;
-
-       let _ = if in_template then
-                 Env.MultiSetOp.add_template_instances base_env cenv
-               else
-                 Env.MultiSetOp.add_normal_instances base_env cenv
-       in
+       let cenv = declare_pre_class id_name meta_variables parent_env ctx in
+       let cenv_r = Env.ClassOp.get_record cenv in
 
        (* class members are forward referencable *)
        let nbody = solve_forward_refs ~opt_attr:opt_attr body cenv ctx in
@@ -168,23 +113,7 @@ let rec solve_forward_refs ?(meta_variables=[])
 
   | Ast.ExternClassDefStmt (id_name, extern_cname, None, _) ->
      begin
-       (* accept multiple definition for specialization *)
-       let base_env = Env.MultiSetOp.find_or_add parent_env id_name Env.Kind.Class in
-       let cenv_r = Env.ClassOp.empty_record id_name in
-       let cenv = Env.create_context_env parent_env (
-                                           Env.Class (
-                                               Env.empty_lookup_table ~init:0 (),
-                                               cenv_r)
-                                         ) in
-       (* declare meta variables if exist *)
-       let template_vals = List.map (declare_meta_var cenv) meta_variables in
-       cenv_r.Env.cls_template_vals <- template_vals;
-
-       let _ = if in_template then
-                 Env.MultiSetOp.add_template_instances base_env cenv
-               else
-                 Env.MultiSetOp.add_normal_instances base_env cenv
-       in
+       let cenv = declare_pre_class id_name meta_variables parent_env ctx in
 
        let node = TAst.ExternClassDefStmt (
                       id_name,
@@ -225,6 +154,7 @@ let rec solve_forward_refs ?(meta_variables=[])
      begin
        let base_kind = match inner_node with
          | Ast.FunctionDefStmt _
+         | Ast.MemberFunctionDefStmt _
          | Ast.ExternFunctionDefStmt _ -> Env.Kind.Function
          | Ast.ExternClassDefStmt _ -> Env.Kind.Class
          | _ ->
@@ -348,3 +278,55 @@ and load_module pkg_names mod_name ctx =
          load_module_by_filepath ~def_mod_info:(Some (pkg_names, mod_name))
                                  filepath ctx
        end
+
+
+and declare_meta_var env ctx (name, uni_id) =
+  let meta_e = Env.MetaVariable uni_id in
+  let e = Env.create_context_env env meta_e in
+  Env.add_inner_env env name e;
+
+  Unification.get_as_value ctx.sc_unification_ctx uni_id
+
+
+and declare_pre_function id_name meta_variables parent_env ctx =
+  (* accept multiple definition for overload *)
+  let base_env = Env.MultiSetOp.find_or_add parent_env id_name Env.Kind.Function in
+  let fenv_r = Env.FunctionOp.empty_record id_name in
+  let fenv = Env.create_context_env parent_env (
+                                      Env.Function (
+                                          Env.empty_lookup_table (),
+                                          fenv_r)
+                                    ) in
+  (* declare meta variables if exist *)
+  let template_vals = List.map (declare_meta_var fenv ctx) meta_variables in
+  fenv_r.Env.fn_template_vals <- template_vals;
+
+  let in_template = List.length meta_variables > 0 in
+  let _ = if in_template then
+            Env.MultiSetOp.add_template_instances base_env fenv
+          else
+            Env.MultiSetOp.add_normal_instances base_env fenv
+  in
+  fenv
+
+
+and declare_pre_class id_name meta_variables parent_env ctx =
+  (* accept multiple definition for specialization *)
+  let base_env = Env.MultiSetOp.find_or_add parent_env id_name Env.Kind.Class in
+  let cenv_r = Env.ClassOp.empty_record id_name in
+  let cenv = Env.create_context_env parent_env (
+                                      Env.Class (
+                                          Env.empty_lookup_table (),
+                                          cenv_r)
+                                    ) in
+  (* declare meta variables if exist *)
+  let template_vals = List.map (declare_meta_var cenv ctx) meta_variables in
+  cenv_r.Env.cls_template_vals <- template_vals;
+
+  let in_template = List.length meta_variables > 0 in
+  let _ = if in_template then
+            Env.MultiSetOp.add_template_instances base_env cenv
+          else
+            Env.MultiSetOp.add_normal_instances base_env cenv
+  in
+  cenv

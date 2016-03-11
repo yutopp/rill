@@ -111,6 +111,36 @@ function_lambda_block:
                 expr = expression
                 { Ast.ExprStmt expr }
 
+
+member_function_declaration_statement:
+                member_function_decl_statement_ { $1 }
+        |       template_member_function_decl_statement_ { $1 }
+
+member_function_decl_statement_:
+                KEYWORD_DEF
+                name = rel_id_as_s
+                params = parameter_variables_decl_list
+                ret_type = type_specifier?
+                body = function_decl_body_block
+                {
+                    Ast.MemberFunctionDefStmt (name, params, ret_type, body, None, ())
+                }
+
+template_member_function_decl_statement_:
+                KEYWORD_DEF
+                name = rel_id_as_s
+                template_params = template_parameter_variables_decl_list
+                params = parameter_variables_decl_list
+                ret_type = type_specifier?
+                body = function_decl_body_block
+                {
+                    let inner =
+                      Ast.MemberFunctionDefStmt (name, params, ret_type, body, None, ())
+                    in
+                    Ast.TemplateStmt (name, template_params, inner)
+                }
+
+
 (**)
 parameter_variables_decl_list:
                 LPAREN
@@ -186,6 +216,7 @@ class_body_statement:
 
 class_body_statement_:
                 member_variable_declaration_statement { $1 }
+        |       member_function_declaration_statement { $1 }
         |       empty_statement { $1 }
 
 class_body_statements_list:

@@ -125,7 +125,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
 
        (* check parameters *)
        let (params, param_types, param_venvs) =
-         prepare_params env node params_node ctx opt_attr in
+         prepare_params env [] params_node ctx opt_attr in
 
        (* check body and check return type *)
        let (ret_type, is_auto) = match opt_ret_type with
@@ -173,6 +173,79 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        node
      end
 
+  | TAst.MemberFunctionDefStmt (
+        name, params_node, opt_ret_type, body, opt_attr, Some env
+      ) ->
+     if Env.is_checked env then Env.get_rel_ast env
+     else begin
+       (* TODO: check duplicate *)
+       let name_s = Nodes.string_of_id_string name in
+       Printf.printf "member function %s - unchecked\n" name_s;
+
+       let ctx_env = Option.get parent_env.Env.context_env in
+
+       (* prepare "this" *)(* TODO: consider member qual *)
+       let this_param =
+         let attr = {
+           Type_attr.ta_ref_val = Type_attr.Ref;
+           Type_attr.ta_mut = Type_attr.Mutable;
+         } in
+         let this_ty = make_class_type ctx_env
+                                       Type_attr.Ref Type_attr.Mutable
+                                       ctx in
+         ((attr, Some "this", (None, None)), this_ty)
+       in
+
+       (* check parameters *)
+       let (params, param_types, param_venvs) =
+         prepare_params env [this_param] params_node ctx opt_attr in
+
+       (* check body and check return type *)
+       let (ret_type, is_auto) = match opt_ret_type with
+         | Some (TAst.PrevPassNode ret_ty_expr) ->
+            begin
+              let tmp = { (* TODO: fix *)
+                Type_attr.ta_ref_val = Type_attr.Val;
+                Type_attr.ta_mut = Type_attr.Immutable;
+              } in
+              let ret_ty = resolve_type tmp ret_ty_expr parent_env ctx opt_attr in
+              (ret_ty, false)
+            end
+         | None ->
+            begin
+              (* needs return type inference *)
+              (Type_info.undef_ty, true)
+            end
+         | _ -> failwith "[ICE]"
+       in
+       check_function_env env param_types ret_type is_auto;
+
+       (* analyze body *)
+       let nbody = analyze_inner body env ctx opt_attr in
+
+       let fr = Env.FunctionOp.get_record env in
+       let _ = match Type.type_sort fr.Env.fn_return_type with
+         | Type_info.UniqueTy _ -> ()
+         | _ -> failwith @@ "[ERR] type couldn't be determined / " ^
+                              (Nodes.string_of_id_string name)
+       in
+
+       Printf.printf "function %s - complete\n" name_s;
+       let node = TAst.GenericFuncDef (Some nbody, Some env) in
+
+       (* update record *)
+       let detail_r = {
+         Env.fn_n_param_envs = param_venvs;
+       } in
+
+       complete_function_env env node name
+                             (Env.FnRecordNormal (Env.FnDefUserDefined,
+                                                  Env.FnKindFree,
+                                                  detail_r))
+                             ctx;
+       node
+       end
+
   | TAst.ExternFunctionDefStmt (
         name, params_node, ret_type, extern_fname, opt_attr, Some env) ->
      if Env.is_checked env then Env.get_rel_ast env
@@ -184,7 +257,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
 
        (* check parameters *)
        let (params, param_types, _) =
-         prepare_params env node params_node ctx opt_attr in
+         prepare_params env [] params_node ctx opt_attr in
 
        (* determine return type *)
        let default_attr = {
@@ -789,40 +862,9 @@ and extract_prev_pass_node node =
   | _ -> failwith "[ICE] not prev node"
 
 
-and prepare_params env func_decl_node params_node ctx attr =
-  match extract_prev_pass_node params_node with
-  | Ast.ParamsList ps ->
-     declare_function_params env func_decl_node ps ctx attr
-
-  | _ -> failwith "check_params / unexpected"
-
-
-and declare_function_params f_env func_decl_node params ctx attr =
-  (*
-   * if parameter has name, create variable env
-   * DO NOT forget to call Env.add_inner_env
-   *)
-  let make_parameter_env f_env opt_param_name param_ty ctx =
-    let make_env name =
-      let detail_r = Env.VarRecordNormal () in
-      let venv = Env.create_scoped_env f_env (
-                                         Env.Variable (
-                                             {
-                                               Env.var_name = name;
-                                               Env.var_type = param_ty;
-                                               Env.var_detail = detail_r;
-                                             })
-                                       )
-      in
-      Env.update_status venv Env.Complete;
-      venv
-    in
-    Option.map make_env opt_param_name
-  in
-
-  let analyze_param param =
-    let (var_attr, var_name, init_part) = param in
-    let (param_ty, default_value) = match init_part with
+and analyze_param f_env param ctx attr =
+  let (var_attr, var_name, init_part) = param in
+  let (param_ty, default_value) = match init_part with
     (* Ex. :int = 10 *)
     | (Some type_expr, Some defalut_val) ->
        begin
@@ -846,47 +888,59 @@ and declare_function_params f_env func_decl_node params ctx attr =
     | _ ->
        (* TODO: change to exception *)
        failwith "type or default value is required"
-    in
-
-    let ninit_part = (None, default_value) in   (* type node is no longer necessary *)
-    let nparam : TAst.param_init_t = (var_attr, var_name, ninit_part) in
-    (nparam, param_ty)
   in
 
+  let ninit_part = (None, default_value) in   (* type node is no longer necessary *)
+  let nparam: TAst.param_init_t = (var_attr, var_name, ninit_part) in
+  (nparam, param_ty)
+
+and make_parameter_venv f_env param_name param_ty ctx =
+  let venv_r = {
+    Env.var_name = param_name;
+    Env.var_type = param_ty;
+    Env.var_detail = Env.VarRecordNormal ();
+  } in
+  let venv = Env.create_context_env f_env (
+                                      Env.Variable (venv_r)
+                                    )
+  in
+  Env.update_status venv Env.Complete;
+  (param_name, venv)
+
+
+and prepare_params env special_params params_node ctx attr =
+  match extract_prev_pass_node params_node with
+  | Ast.ParamsList ps ->
+     declare_function_params env special_params ps ctx attr
+
+  | _ -> failwith "check_params / unexpected"
+
+
+and declare_function_params f_env special_params params ctx attr =
+  let make_env param ty =
+    let (_, opt_name, _) = param in
+    opt_name |> Option.map (fun name -> make_parameter_venv f_env name ty ctx)
+  in
+  let declare_env (name, venv) =
+    Env.add_inner_env f_env name venv;
+    venv
+  in
+
+  (* analyze parameters *)
   let (nparams, (param_types: type_info_t list)) =
-    params |> List.map analyze_param |> List.split
+    special_params @ (params
+                      |> List.map (fun p -> analyze_param f_env p ctx attr))
+    |> List.split
   in
-  match func_decl_node with
-  | TAst.FunctionDefStmt _ ->
-     begin
-       let make_env param ty =
-         let (var_attr, opt_name, _) = param in
-         make_parameter_env f_env opt_name ty ctx
-       in
-       let declare_env param opt_env =
-         let declare name =
-           let env = Option.get opt_env in
-           Env.add_inner_env f_env name env
-         in
-         let (var_attr, opt_name, _) = param in
-         Option.may declare opt_name
-       in
-       (* first, make environments *)
-       let param_envs = List.map2 make_env params param_types in
-       (* add var envs to fenv (declare) *)
-       List.iter2 declare_env params param_envs;
 
-       (* TODO: support functions that have recievers. ex, member function (this/self) *)
-       (nparams, param_types, param_envs)
-     end
+  (* first, make all of environments.
+   * next declare them into the function env *)
+  let param_envs =
+    List.map2 make_env nparams param_types
+    |> List.map (Option.map declare_env)
+  in
 
-  | TAst.ExternFunctionDefStmt _ ->
-     begin
-       (*params*)
-       (nparams, param_types, [])
-     end
-
-  | _ -> failwith "declare_function_params: not supported"
+  (nparams, param_types, param_envs)
 
 
 and check_id_is_defined_uniquely env id =

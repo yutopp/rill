@@ -1,0 +1,17 @@
+def main() : void
+{
+    ref mutable a = a1();
+    a.yo();
+    print_int(a.a);
+
+    return;
+}
+
+class a1
+{
+    val a: int32;
+    def yo(): void {
+        this.a = 10;
+        return;
+    }
+}

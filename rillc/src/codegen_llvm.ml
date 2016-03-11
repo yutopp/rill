@@ -93,7 +93,9 @@ let rec code_generate ~bb node ctx =
 
   | TAst.GenericFuncDef (opt_body, Some env) ->
      if Ctx.is_env_defined ctx env then () else
-     begin       (* *)
+     begin
+       Ctx.mark_env_as_defined ctx env;
+
        let fenv_r = Env.FunctionOp.get_record env in
        match fenv_r.Env.fn_detail with
        | Env.FnRecordNormal (def, kind, fenv_d) ->
@@ -159,7 +161,7 @@ let rec code_generate ~bb node ctx =
             flush_all ();
             Llvm_analysis.assert_valid_function f;
 
-            Ctx.mark_env_as_defined ctx env
+
           end
 
        | Env.FnRecordTrivial (def, kind) ->
@@ -178,7 +180,6 @@ let rec code_generate ~bb node ctx =
               | _ -> failwith "[ICE]"
             in
             Ctx.bind_val_to_env ctx r_value env;
-            Ctx.mark_env_as_defined ctx env
           end
 
        | Env.FnRecordExternal (def, kind, extern_fname) ->
@@ -196,8 +197,6 @@ let rec code_generate ~bb node ctx =
             let llvm_func = L.declare_function extern_fname f_ty ctx.ir_module in
 
             Ctx.bind_val_to_env ctx (LLValue llvm_func) env;
-
-            Ctx.mark_env_as_defined ctx env
           end
 
        | Env.FnRecordBuiltin (def, kind, name) ->
@@ -213,6 +212,8 @@ let rec code_generate ~bb node ctx =
       ) ->
      if Ctx.is_env_defined ctx env then () else
      begin
+       Ctx.mark_env_as_defined ctx env;
+
        let cenv_r = Env.ClassOp.get_record env in
 
        let member_lltypes =
@@ -236,31 +237,30 @@ let rec code_generate ~bb node ctx =
 
        Ctx.bind_val_to_env ctx (LLType struct_ty) env;
 
-       Ctx.mark_env_as_defined ctx env
+       (* body *)
+       code_generate ~bb:bb body ctx
      end
 
   | TAst.ExternClassDefStmt (
         name, extern_cname, _, Some env
       ) ->
+     if Ctx.is_env_defined ctx env then () else
      begin
-       if Ctx.is_env_defined ctx env then () else
-       begin
-         let b_value = try Ctx.find_val_by_name ctx extern_cname with
-                       | Not_found ->
-                          failwith (Printf.sprintf "[ICE] builtin class \"%s\" is not found"
-                                                   extern_cname)
-         in
-         let ty = match b_value with
-           | LLType ty -> ty
-           | LLTypeGen f ->
-              let cenv_r = Env.ClassOp.get_record env in
-              f cenv_r.Env.cls_template_vals
-           | _ -> failwith ""
-         in
-         Ctx.bind_val_to_env ctx (LLType ty) env;
+       Ctx.mark_env_as_defined ctx env;
 
-         Ctx.mark_env_as_defined ctx env
-       end
+       let b_value = try Ctx.find_val_by_name ctx extern_cname with
+                     | Not_found ->
+                        failwith (Printf.sprintf "[ICE] builtin class \"%s\" is not found"
+                                                 extern_cname)
+       in
+       let ty = match b_value with
+         | LLType ty -> ty
+         | LLTypeGen f ->
+            let cenv_r = Env.ClassOp.get_record env in
+            f cenv_r.Env.cls_template_vals
+         | _ -> failwith ""
+       in
+       Ctx.bind_val_to_env ctx (LLType ty) env;
      end
 
   | TAst.VariableDefStmt (TAst.VarInit (var_init), Some env) ->
@@ -283,6 +283,7 @@ let rec code_generate ~bb node ctx =
        Ctx.mark_env_as_defined ctx env
      end
 
+  | TAst.MemberVariableDefStmt _ -> ()
   | TAst.EmptyStmt -> ()
 
   | _ -> failwith "cannot generate : statement"

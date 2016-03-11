@@ -45,6 +45,7 @@ module Make (Ctx : NodeContextType) =
       | ImportStmt of string list * string * ctx_t
       (* name, params, return_type?, body, attribute?, _ *)
       | FunctionDefStmt of id_string * ast * ast option * ast * attr_tbl_t option * ctx_t
+      | MemberFunctionDefStmt of id_string * ast * ast option * ast * attr_tbl_t option * ctx_t
       (* name, params, return_type, function name(TODO: change to AST), attribute?, _ *)
       | ExternFunctionDefStmt of id_string * ast * ast * string * attr_tbl_t option * ctx_t
       (* name, body, attribute?, _ *)
