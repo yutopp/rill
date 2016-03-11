@@ -1,0 +1,18 @@
+def main() {
+    val a = [1, 2, 3];
+    Yo([1, 2, 3]);
+}
+
+import core.builtin;
+
+def Yo!(N:int32, T)(a: array!(T, N)) {
+    print_int(N);
+}
+
+//def Yo!(T)(a: T) {
+//}
+
+//def aaa(T)(a: T) {}
+//def aaa(T, N:int32)(a: array!(T, N)) {}
+//class A!(T, U: T) {}
+//def aaa(T, U:T)(a: A!(T, U)) {}

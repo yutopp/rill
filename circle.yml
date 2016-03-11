@@ -7,22 +7,17 @@ dependencies:
     - "~/docker"
   override:
     - docker info
-    - docker images
-    - if [[ -e ~/docker/image.tar ]]; then docker load -i ~/docker/image.tar; fi
-    - docker build -t yutopp/testing-env-for-rill ./circleci
-    - mkdir -p ~/docker; docker save yutopp/testing-env-for-rill > ~/docker/image.tar
+    - if [ -e ~/docker/cacheimg.tar ]; then docker load < ~/docker/cacheimg.tar; fi
+    - docker build -t yutopp/rill-build-env ./test
+    - mkdir -p ~/docker
+    - docker save yutopp/rill-build-env > ~/docker/cacheimg.tar
 
 test:
   override:
     - ls -la
     - >
-      docker run -v $(pwd):/rill_root -v $CIRCLE_ARTIFACTS:/artifacts yutopp/testing-env-for-rill /usr/bin/bash -c
-      "
-      cd /rill_root;
-      mkdir build;
-      cd build;
-      cmake ../. -DCMAKE_BUILD_TYPE=Debug -DRUN_TEST=ON &&
-      make -j8 &&
-      make test &&
-      ruby ../test/run_integration_test.rb
-      "
+      docker run
+      -v $(pwd):/cibase
+      -v $CIRCLE_ARTIFACTS:/artifacts
+      yutopp/rill-build-env
+      /usr/bin/bash ./test/run.sh

@@ -1,6 +1,0 @@
-def main(): int
-{
-    val a: int;
-    a.p();
-    return 0;
-}

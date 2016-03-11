@@ -1,0 +1,28 @@
+// TODO: move to
+extern def print_int(v: int32): void = "rill_print";
+
+// TODO: implement by macro
+extern def assert(:bool): void = "rill_assert";
+extern def assert_not(:bool): void = "rill_assert_not";
+
+#[builtin, primitive]
+extern class type = "__builtin_type_type"
+
+
+#[builtin, primitive, novalue]
+extern class void = "__builtin_void_type"
+
+
+#[builtin, primitive]
+extern class bool = "__builtin_bool_type"
+
+
+#[builtin, primitive]
+extern class int32 = "__builtin_int32_type"
+
+#[builtin]
+extern def operator+(:int32, :int32): int32 = "__builtin_op_binary_+_int_int";
+
+
+#[builtin]
+extern class array!(T, N:int32) = "__builtin_array_type"

@@ -10,3 +10,18 @@ Gemfile.lock
 vendor
 
 s.sh
+
+.omakedb
+.omakedb.lock
+
+*.omc
+*.cmi
+*.cmt
+*.cmti
+*.cmx
+*.o
+
+*.bc
+
+.gdb_history
+peda-session-*

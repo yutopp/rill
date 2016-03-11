@@ -1,0 +1,35 @@
+def main() : void
+{
+    val a = a1();
+    val b = yo();
+    print_int(1);
+
+    a1(a);
+    yo_val(a);
+    yo_ref(a);
+
+    return;
+}
+
+class a1
+{
+    val a: int32;
+}
+
+class a2
+{
+}
+
+def yo() {
+    {
+        return a1();
+    }
+}
+
+def yo_val(val a: a1): void {
+    return;
+}
+
+def yo_ref(a: a1): void {
+    return;
+}

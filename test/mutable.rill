@@ -1,0 +1,73 @@
+def main(): void
+{
+    val immutable i = 10;
+    val const c = 20;
+    val mutable m = 30;
+
+
+    //
+    // value <- value tests
+    //
+
+    assert(__statement_traits(semantics, {
+        val immutable v1 = i;
+        val immutable v2 = c;
+        val immutable v3 = m;
+    }));
+
+    assert(__statement_traits(semantics, {
+        val const v1 = i;
+        val const v2 = c;
+        val const v3 = m;
+    }));
+
+    assert(__statement_traits(semantics, {
+        val mutable v1 = i;
+        val mutable v2 = c;
+        val mutable v3 = m;
+    }));
+
+
+    //
+    // ref <- tests
+    //
+
+    // ref immutable <- val immutable: OK
+    assert(__statement_traits(semantics, {
+        ref immutable r = i;
+    }));
+    // ref immutable <- val const: NG
+    assert_not(__statement_traits(semantics, {
+        ref immutable r = c;
+    }));
+    // ref immutable <- val mutable: NG
+    assert_not(__statement_traits(semantics, {
+        ref immutable r = m;
+    }));
+
+    // ref const <- val immutable: OK
+    assert(__statement_traits(semantics, {
+        ref const r = i;
+    }));
+    // ref const <- val const: OK
+    assert(__statement_traits(semantics, {
+        ref const r = c;
+    }));
+    // ref const <- val mutable: OK
+    assert(__statement_traits(semantics, {
+        ref const r = m;
+    }));
+
+    // ref mutable <- val immutable: NG
+    assert_not(__statement_traits(semantics, {
+        ref mutable r = i;
+    }));
+    // ref mutable <- val const: NG
+    assert_not(__statement_traits(semantics, {
+        ref mutable r = c;
+    }));
+    // ref mutable <- val mutable: OK
+    assert(__statement_traits(semantics, {
+        ref mutable r = m;
+    }));
+}
