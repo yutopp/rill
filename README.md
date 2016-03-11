@@ -2,10 +2,19 @@
 
 *This repository is heavely under development...*
 
+![chi-](http://yutopp.net/image/chi-.png "Bun")
+[![Circle CI](https://circleci.com/gh/yutopp/rill.png?style=badge)](https://circleci.com/gh/yutopp/rill)
+
 Rill is a programming language for java sparrow.  
 This repository contains the implementation of Rill language.
 
 Rill is designed for systems programming.
+
+## Influences
++ Freedom of C++
++ Compiletime features, UFCS, modules of Dlang
++ Resource management of Rust
++ Macros of Scala
 
 
 # How to build
