@@ -52,19 +52,22 @@ let rec construct_env node parent_env ctx opt_chain_attr =
 
   | TAst.ReturnStmt opt_e ->
      begin
-       let (opt_expr, expr_ty_cat) = match opt_e with
+       let (opt_expr, expr_aux) = match opt_e with
          | Some (TAst.PrevPassNode e) ->
             begin
-              let (expr, ty_cat) =
+              let (expr, aux) =
                 analyze_expr ~making_placeholder:false
                              e parent_env ctx opt_chain_attr
               in
-              (Some expr, ty_cat)
+              (Some expr, aux)
           end
 
          | None ->
             begin
-              (None, (get_builtin_void_type ctx, Value_category.VCatPrValue))
+              let ty = get_builtin_void_type ctx in
+              let val_cat = Value_category.VCatPrValue in
+              let lt = Env.get_scope_lifetime parent_env in
+              (None, (ty, val_cat, lt))
             end
 
          | _ -> failwith "[ICE]"
@@ -77,7 +80,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
          | true ->
             (* return type will be inferenced *)
             begin
-              let (expr_ty, expr_val_cat) = expr_ty_cat in
+              let (expr_ty, expr_val_cat, expr_lt) = expr_aux in
 
               let cur_ret_ty = ctx_env_r.Env.fn_return_type in
               match Type.type_sort cur_ret_ty with
@@ -105,7 +108,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
 
        let make_ret_expr expr =
          adjust_expr_for_type ~exit_scope:true
-                              ret_ty expr expr_ty_cat parent_env ctx opt_chain_attr
+                              ret_ty expr expr_aux parent_env ctx opt_chain_attr
        in
        let opt_ret_expr = Option.map make_ret_expr opt_expr in
 
@@ -536,18 +539,18 @@ let rec construct_env node parent_env ctx opt_chain_attr =
          (* var_type is infered from initial_value *)
          | None ->
             begin
-              let (expr_node, expr_ty_cat) = match opt_init_value_res with
+              let (expr_node, expr_aux) = match opt_init_value_res with
                 | Some v -> v
                 | None -> failwith "[ERROR] initial value is required"; (* TODO: call constructor *)
               in
               (* TODO: check void value *)
-              let (expr_ty, _) = expr_ty_cat in
+              let (expr_ty, _, _) = expr_aux in
               let var_ty =
                 Type.Generator.update_attr_r ctx.sc_tsets.ts_type_gen expr_ty
                                              var_attr
               in
               let conved_node =
-                adjust_expr_for_type var_ty expr_node expr_ty_cat
+                adjust_expr_for_type var_ty expr_node expr_aux
                                      parent_env ctx opt_chain_attr
               in
               (*ignore conved_node;
@@ -584,7 +587,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
 and analyze_expr ?(making_placeholder=false)
                  ?(enable_ufcs=false)
                  node parent_env ctx attr
-    : ('node * (type_info_t * Value_category.t)) =
+    : ('node * (type_info_t * Value_category.t * Lifetime.t)) =
   match node with
   | Ast.BinaryOpExpr (lhs, op, rhs) ->
      begin
@@ -610,13 +613,13 @@ and analyze_expr ?(making_placeholder=false)
 
   | Ast.CallExpr (reciever, args) ->
      begin
-       let (recv_node, (recv_type_info, recv_val_cat)) =
+       let (recv_node, (recv_type_info, recv_val_cat, recv_lt)) =
          analyze_expr ~making_placeholder:making_placeholder
                       ~enable_ufcs:true
                       reciever parent_env ctx attr
        in
 
-       let (arg_exprs, arg_types_cats) =
+       let (arg_exprs, arg_auxs) =
          evaluate_invocation_args args parent_env ctx attr
          |> List.split
        in
@@ -632,11 +635,11 @@ and analyze_expr ?(making_placeholder=false)
           begin
             (* consider nested expr *)
             let (arg_exprs, arg_types_cats) = match recv_node with
-              | TAst.NestedExpr (lhs_node, lhs_ty, lhs_val_cat, _, _) ->
+              | TAst.NestedExpr (lhs_node, lhs_aux, _, _) ->
                  let args = lhs_node :: arg_exprs in
-                 let ty_cats = (lhs_ty, lhs_val_cat) :: arg_types_cats in
-                 (args, ty_cats)
-              | _ -> (arg_exprs, arg_types_cats)
+                 let arg_auxs = lhs_aux :: arg_auxs in
+                 (args, arg_auxs)
+              | _ -> (arg_exprs, arg_auxs)
             in
             let (f_env, conv_filters) =
               solve_function_overload arg_types_cats template_args
@@ -648,14 +651,15 @@ and analyze_expr ?(making_placeholder=false)
             let f_ret_ty = f_er.Env.fn_return_type in
             assert_valid_type f_ret_ty;
             let f_ret_val_cat = ret_val_category f_ret_ty ctx in
-            let ret_ty_sto = suitable_storage f_ret_ty in
+            let f_ret_lt = Env.get_scope_lifetime parent_env in (* TODO: fix *)
 
+            let ret_ty_sto = suitable_storage f_ret_ty in
             let node = TAst.GenericCallExpr (
                            (ref ret_ty_sto),
                            n_eargs,
                            Some parent_env,
                            Some f_env) in
-            (node, (f_ret_ty, f_ret_val_cat))
+            (node, (f_ret_ty, f_ret_val_cat, f_ret_lt))
           end
 
        (* constructor / operator call *)
@@ -682,7 +686,7 @@ and analyze_expr ?(making_placeholder=false)
               | None -> failwith "constructor not found"
             in
             let f_conv =
-              solve_function_overload arg_types_cats []
+              solve_function_overload arg_auxs []
                                       ctor_env parent_env ctx attr
             in
             let f_sto = suitable_storage recv_ty in
@@ -693,13 +697,14 @@ and analyze_expr ?(making_placeholder=false)
             let f_er = Env.FunctionOp.get_record f_env in
             let f_ret_ty = f_er.Env.fn_return_type in
             assert_valid_type f_ret_ty;
+            let f_ret_lt = Env.get_scope_lifetime parent_env in (* TODO: fix *)
 
             let node = TAst.GenericCallExpr (
                            ref f_sto,
                            n_eargs,
                            Some parent_env,
                            Some f_env) in
-            (node, (recv_ty, VCatPrValue))
+            (node, (recv_ty, VCatPrValue, f_ret_lt))
           end
 
        | _ -> failwith "not implemented//" (* TODO: call ctor OR operator() *)
@@ -707,24 +712,25 @@ and analyze_expr ?(making_placeholder=false)
 
   | Ast.ElementSelectionExpr (lhs, rhs, _) ->
      begin
-       let (lhs_node, (lhs_ty, lhs_val_cat)) =
+       let (lhs_node, lhs_aux) =
          analyze_expr ~making_placeholder:making_placeholder
                       lhs parent_env ctx attr
        in
 
+       let (lhs_ty, _, _) = lhs_aux in
        match Type.type_sort lhs_ty with
        | Type_info.UniqueTy lhs_type_cenv ->
           begin
             let opt_rhs_ty_node =
               select_member_element ~universal_search:enable_ufcs
-                                    lhs_ty rhs parent_env ctx attr
+                                    lhs_aux rhs parent_env ctx attr
             in
             match opt_rhs_ty_node with
             | Some (rhs_ty, rhs_env) ->
-               let node = TAst.NestedExpr (lhs_node, lhs_ty, lhs_val_cat,
-                                           rhs_ty, Some rhs_env) in
+               let node = TAst.NestedExpr (lhs_node, lhs_aux, rhs_ty, Some rhs_env) in
                let prop_ty = propagate_type_attrs rhs_ty lhs_ty ctx in
-               (node, (prop_ty, VCatLValue))
+               let lt = Env.get_scope_lifetime parent_env in (* TODO: fix *)
+               (node, (prop_ty, VCatLValue, lt))
 
             | None ->
                failwith "[ERR] member is not found"
@@ -761,7 +767,7 @@ and analyze_expr ?(making_placeholder=false)
                                 | _ -> false
             in
             let node = TAst.BoolLit (could_compile, ty) in
-            (node, (ty, VCatPrValue))
+            (node, (ty, VCatPrValue, Env.get_scope_lifetime parent_env))
           end
        | _ -> failwith @@ "__statement_traits : not implemented / " ^ keyword
      end
@@ -782,7 +788,7 @@ and analyze_expr ?(making_placeholder=false)
 
        (* both of id and instantiated_id will be id node *)
        let node = TAst.GenericId (name, Some trg_env) in
-       (node, (ty, VCatLValue))
+       (node, (ty, VCatLValue, Env.get_scope_lifetime parent_env))
      end
 
   | Ast.Int32Lit (i, _) ->
@@ -797,7 +803,7 @@ and analyze_expr ?(making_placeholder=false)
        assert_valid_type ty;
        let node = TAst.Int32Lit (i, ty) in
 
-       (node, (ty, VCatPrValue))
+       (node, (ty, VCatPrValue, Env.get_scope_lifetime parent_env))
      end
 
   | Ast.BoolLit (b, _) ->
@@ -812,25 +818,26 @@ and analyze_expr ?(making_placeholder=false)
        assert_valid_type ty;
        let node = TAst.BoolLit (b, ty) in
 
-       (node, (ty, VCatPrValue))
+       (node, (ty, VCatPrValue, Env.get_scope_lifetime parent_env))
      end
 
   | Ast.ArrayLit (elems, _) ->
      begin
-       let (n_nodes, n_types_cats) =
+       let (n_nodes, n_auxs) =
          elems
          |> List.map (fun e -> analyze_expr ~making_placeholder:making_placeholder
                                             e parent_env ctx attr)
          |> List.split
        in
-       let (n_types, n_val_cats) = List.split n_types_cats in
+       let n_types = List.map (fun t -> Tuple3.first t) n_auxs in
        (* TODO: fix, calc undelying types(and attrs) and convert them *)
        let elem_ty = List.hd n_types in
 
        let array_ty = get_builtin_array_type elem_ty (List.length elems) ctx in
        assert_valid_type array_ty;
        let n_array = TAst.ArrayLit (n_nodes, array_ty) in
-       (n_array, (array_ty, VCatPrValue))   (* TODO: FIX *)
+       (* TODO: FIX *)
+       (n_array, (array_ty, VCatPrValue, Env.get_scope_lifetime parent_env))
      end
 
   | _ ->
@@ -842,14 +849,14 @@ and analyze_expr ?(making_placeholder=false)
 
 and analyze_operator op args parent_env ctx attr =
   let eargs = evaluate_invocation_args args parent_env ctx attr in
-  let (arg_exprs, arg_types_cats) = List.split eargs in
+  let (arg_exprs, arg_auxs) = List.split eargs in
   (*List.iter check_is_args_valid args_types_cats;*)
 
   (*List.iter print_type args_types;*)
   let op_id = Ast.Id (op, ()) in
   let opt_fs_and_args =
     find_suitable_operator ~universal_search:true
-                           op_id arg_types_cats parent_env ctx attr in
+                           op_id arg_auxs parent_env ctx attr in
   let analyze (f_env, conv_filters) =
     let n_eargs = map_conversions conv_filters arg_exprs parent_env ctx in
 
@@ -857,6 +864,7 @@ and analyze_operator op args parent_env ctx attr =
     let f_ret_ty = f_er.Env.fn_return_type in
     assert_valid_type f_ret_ty;
     let f_ret_val_cat = ret_val_category f_ret_ty ctx in
+    let f_lt = Env.get_scope_lifetime parent_env in (* TODO: fix *)
 
     (* Replace BinOpCall to generic FuncCall *)
     let node = TAst.GenericCallExpr (
@@ -864,7 +872,7 @@ and analyze_operator op args parent_env ctx attr =
                    n_eargs,
                    Some parent_env,
                    Some f_env) in
-    (node, (f_ret_ty, f_ret_val_cat))
+    (node, (f_ret_ty, f_ret_val_cat, f_lt))
   in
   Option.map analyze opt_fs_and_args
 
@@ -1158,8 +1166,8 @@ and try_to_complete_env env ctx =
     ()  (* DO NOTHING *)
 
 
-and convert_type trg_ty src_ty_cat ext_env ctx attr =
-  let (src_ty, src_val_cat) = src_ty_cat in
+and convert_type trg_ty src_aux ext_env ctx attr =
+  let (src_ty, src_val_cat, src_lt) = src_aux in
   if Type.is_same trg_ty src_ty then begin
     (* same type *)
     let open Type_attr in
@@ -1295,9 +1303,9 @@ and apply_conv_filter ?(exit_scope=false)
 
 
 and adjust_expr_for_type ?(exit_scope=false)
-                         trg_ty src_expr src_ty_cat ext_env ctx attr =
+                         trg_ty src_expr src_auxs ext_env ctx attr =
   let (m_level, m_filter) =
-    convert_type trg_ty src_ty_cat ext_env ctx attr
+    convert_type trg_ty src_auxs ext_env ctx attr
   in
   if m_level = FuncMatchLevel.NoMatch then
     failwith "[ERR] cannot convert type";
@@ -1337,12 +1345,12 @@ and extract_ctfe_val_as_type ty_attr ctfe_val ctx =
 
 and eval_expr_as_ctfe ?(making_placeholder=false) expr env ctx attr =
   Printf.printf "----> eval_expr_as_ctfe : begin ; \n";
-  let (nexpr, (type_of_expr, val_cat)) =
+  let (nexpr, (expr_type, expr_val_cat, expr_lt)) =
     analyze_expr ~making_placeholder:making_placeholder
                  expr env ctx attr
   in
   let v = eval_texpr_as_ctfe ~making_placeholder:making_placeholder
-                             nexpr type_of_expr
+                             nexpr expr_type
                              env ctx attr
   in
   (v, nexpr)
@@ -1372,11 +1380,10 @@ and evaluate_invocation_arg expr env ctx attr =
 
 
 and find_suitable_operator ?(universal_search=false)
-                           op_name_id arg_types_cats env ctx attr =
-  let (arg_types, arg_val_cats) = List.split arg_types_cats in
+                           op_name_id arg_auxs env ctx attr =
   let opt_callee_function_info =
     select_member_element ~universal_search:universal_search
-                          (List.hd arg_types) op_name_id env ctx attr
+                          (List.hd arg_auxs) op_name_id env ctx attr
   in
 
   let check_type_and_solve_overload (callee_f_ty, callee_f_env) =
@@ -1386,7 +1393,7 @@ and find_suitable_operator ?(universal_search=false)
     } = callee_f_ty in
     match ty_sort with
     | Type_info.FunctionSetTy menv ->
-       solve_function_overload arg_types_cats template_args
+       solve_function_overload arg_auxs template_args
                                menv env ctx attr
     | _ -> failwith "[ICE]: operator must be defined as function"
   in
@@ -1396,8 +1403,7 @@ and find_suitable_operator ?(universal_search=false)
 
 
 (* returns Env of function *)
-and solve_function_overload arg_types_cats tamplate_args mset_env ext_env ctx attr =
-  let (arg_types, arg_val_cats) = List.split arg_types_cats in
+and solve_function_overload arg_auxs tamplate_args mset_env ext_env ctx attr =
   let mset_record = match mset_env.Env.er with
     | Env.MultiSet r -> r
     | _ -> Env.print mset_env;
@@ -1412,7 +1418,7 @@ and solve_function_overload arg_types_cats tamplate_args mset_env ext_env ctx at
        begin
          let (normal_f_level, normal_fs_and_args) =
            find_suitable_functions mset_record.Env.ms_normal_instances
-                                   arg_types_cats
+                                   arg_auxs
                                    ext_env ctx attr
          in
          Printf.printf "!! normal function candidates = %s / %d\n"
@@ -1427,11 +1433,11 @@ and solve_function_overload arg_types_cats tamplate_args mset_env ext_env ctx at
          | _ ->
             begin
               let instanced_envs =
-                instantiate_function_templates mset_env [] arg_types ext_env ctx attr
+                instantiate_function_templates mset_env [] arg_auxs ext_env ctx attr
               in
 
               let (instanced_f_level, instanced_fs_and_args) =
-                find_suitable_functions instanced_envs arg_types_cats ext_env ctx attr
+                find_suitable_functions instanced_envs arg_auxs ext_env ctx attr
               in
               Printf.printf "!! instanced function candidates = %s / %d\n"
                             (FuncMatchLevel.to_string instanced_f_level)
@@ -1447,11 +1453,11 @@ and solve_function_overload arg_types_cats tamplate_args mset_env ext_env ctx at
   | _ ->
      begin
        let instanced_envs =
-         instantiate_function_templates mset_env tamplate_args arg_types
+         instantiate_function_templates mset_env tamplate_args arg_auxs
                                         ext_env ctx attr
        in
 
-       find_suitable_functions instanced_envs arg_types_cats ext_env ctx attr
+       find_suitable_functions instanced_envs arg_auxs ext_env ctx attr
      end
   in
 
@@ -1465,7 +1471,7 @@ and solve_function_overload arg_types_cats tamplate_args mset_env ext_env ctx at
   List.hd fs_and_args
 
 
-and find_suitable_functions f_candidates arg_types ext_env ctx attr =
+and find_suitable_functions f_candidates arg_auxs ext_env ctx attr =
   Printf.printf "number of candidates = %d\n" (List.length f_candidates);
 
   let calc_match_level f_env =
@@ -1474,13 +1480,13 @@ and find_suitable_functions f_candidates arg_types ext_env ctx attr =
 
     (* check number of args *)
     (* TODO: support dynamic variadic args *)
-    if (List.length f_record.Env.fn_param_types <> List.length arg_types) then
+    if (List.length f_record.Env.fn_param_types <> List.length arg_auxs) then
       (FuncMatchLevel.NoMatch, Env.undef (), [])
 
     else begin
       let (match_levels, conv_funcs) =
         List.map2 (fun s d -> convert_type d s ext_env ctx attr)
-                  arg_types
+                  arg_auxs
                   f_record.Env.fn_param_types
         |> List.split
       in
@@ -1514,7 +1520,7 @@ and find_suitable_functions f_candidates arg_types ext_env ctx attr =
     (level, fs_and_args)
 
 
-and instantiate_function_templates menv template_args arg_types ext_env ctx attr =
+and instantiate_function_templates menv template_args arg_auxs ext_env ctx attr =
   let instantiate t_env_record =
     let (temp_env, meta_var_names, uni_ids) =
       prepare_instantiate_template t_env_record template_args
@@ -1546,7 +1552,11 @@ and instantiate_function_templates menv template_args arg_types ext_env ctx attr
     Printf.printf "\n      REACHED / param_types\n";
 
     let params_type_value = List.map (fun x -> Ctfe_value.Type x) param_types in
-    let args_type_value = List.map (fun x -> Ctfe_value.Type x) arg_types in
+    let args_type_value =
+      arg_auxs
+      |> List.map (fun t -> let (ty, cat, lt) = t in ty)
+      |> List.map (fun x -> Ctfe_value.Type x)
+    in
     Enum.iter2 (unify_arg_value ctx)
                (List.enum params_type_value)
                (List.enum args_type_value);
@@ -1705,7 +1715,8 @@ and prepare_template_params params_node ctx =
 * "some_method"
 *)
 and select_member_element ?(universal_search=false)
-                          recv_ty t_id env ctx attr =
+                          recv_aux t_id env ctx attr =
+  let (recv_ty, _, _) = recv_aux in
   let recv_cenv = Type.as_unique recv_ty in
   Env.print recv_cenv;
   let opt_ty_ctx = solve_identifier ~do_rec_search:false

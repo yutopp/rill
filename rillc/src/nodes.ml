@@ -96,7 +96,7 @@ module Make (Ctx : NodeContextType) =
       | GenericCallExpr of storage_t ref * ast list * ctx_t * ctx_t
       (* body, ctx *)
       | GenericFuncDef of ast option * ctx_t
-      | NestedExpr of ast * term_ctx_t * Value_category.t * term_ctx_t * ctx_t
+      | NestedExpr of ast * (term_ctx_t * Value_category.t * Lifetime.t) * term_ctx_t * ctx_t
 
      (* attr * id? * value *)
      and param_init_t = Type_attr.attr_t * string option * value_init_t

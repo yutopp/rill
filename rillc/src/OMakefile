@@ -118,6 +118,7 @@ FILES[] =
    tokens
    syntax
    env
+   env_system
    sema
    sema_predef
    sema_forward_ref
@@ -137,6 +138,7 @@ FILES[] =
    module_info
    builtin_info
    mangle
+   lifetime
 
 #
 PROGRAM = rillc

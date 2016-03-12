@@ -7,6 +7,7 @@
  *)
 
 open Batteries
+open Env_system
 
 type checked_state_t =
     InComplete
@@ -28,17 +29,12 @@ module Kind =
   end
 
 
-(* used for id of environments *)
-type id_t = Num.num
-let id_counter = ref @@ Num.num_of_int 1
-let undef_id = Num.num_of_int 0
-
-
 type 'ast env_t = {
-   env_id           : id_t;
+   env_id           : EnvId.t;
    parent_env       : 'ast env_t option;
    context_env      : 'ast env_t option;
    module_env       : 'ast env_t option;
+   nest_level       : NestLevel.t;
    er               : 'ast env_record_t;
    mutable state    : checked_state_t;
 
@@ -185,6 +181,7 @@ let undef () =
     parent_env = None;
     context_env = None;
     module_env = None;
+    nest_level = NestLevel.zero;
     er = Unknown;
     state = InComplete;
     rel_node = None;
@@ -195,9 +192,8 @@ let get_env_record env =
   let { er = er; _ } = env in
   er
 
-let get_lookup_table e =
-  let { er = er; _ } = e in
-  match er with
+let get_lookup_table env =
+  match get_env_record env with
   | Root (r) -> r
   | Module (r, _) -> r
   | Function (r, _) -> r
@@ -205,10 +201,17 @@ let get_lookup_table e =
   | Scope (r) -> r
   | _ -> failwith "has no lookup table"
 
-let get_symbol_table e =
-  let lt = get_lookup_table e in
+let get_symbol_table env =
+  let lt = get_lookup_table env in
   lt.scope
 
+
+let get_scope_lifetime env =
+  let ctx_env = match env.context_env with
+      Some e -> e
+    | None -> failwith ""
+  in
+  (ctx_env.env_id, env.nest_level)
 
 let is_root e =
   let { er = er; _ } = e in
@@ -291,9 +294,10 @@ let empty_lookup_table ?(init=8) () =
     imported_mods = [];
   }
 
+(* create an env as new context.
+ * it will be used for functions, classes and so on... *)
 let create_context_env parent_env er =
-  let cur_id = !id_counter in
-  Num.incr_num id_counter;
+  let cur_id = generate_new_env_id () in
 
   let opt_mod_env = match parent_env.er with
     | Module _ -> Some parent_env
@@ -304,15 +308,17 @@ let create_context_env parent_env er =
     parent_env = Some parent_env;
     context_env = Some e;       (* self reference *)
     module_env = opt_mod_env;
+    nest_level = NestLevel.add parent_env.nest_level NestLevel.one;
     er = er;
     state = InComplete;
     rel_node = None;
   } in
   e
 
+(* create an env which is a part of the parent_env.
+ * it will be used for block, if_scope and so on... *)
 let create_scoped_env parent_env er =
-  let cur_id = !id_counter in
-  Num.incr_num id_counter;
+  let cur_id = generate_new_env_id () in
 
   let opt_mod_env = match parent_env.er with
     | Module _ -> Some parent_env
@@ -323,6 +329,7 @@ let create_scoped_env parent_env er =
     parent_env = Some parent_env;
     context_env = parent_env.context_env;
     module_env = opt_mod_env;
+    nest_level = NestLevel.add parent_env.nest_level NestLevel.one;
     er = er;
     state = InComplete;
     rel_node = None;
@@ -357,13 +364,13 @@ let get_rel_ast e =
 (**)
 let make_root_env () =
   let tbl = empty_lookup_table () in
-  let cur_id = !id_counter in
-  Num.incr_num id_counter;
+  let cur_id = generate_new_env_id () in
   {
     env_id = cur_id;
     parent_env = None;
     context_env = None;
     module_env = None;
+    nest_level = NestLevel.zero;
     er = Root (tbl);
     state = Complete;
     rel_node = None;

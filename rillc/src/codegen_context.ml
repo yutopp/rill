@@ -18,12 +18,12 @@ module type CONTEXT_TYPE =
 
 module Make (Cgt : CONTEXT_TYPE) =
   struct
-    module IdOrderedType =
+    module EnvIdOrderedType =
       struct
-        type t = Env.id_t
-        let compare = Num.compare_num
+        type t = Env_system.EnvId.t
+        let compare = Env_system.EnvId.compare
       end
-    module IdSet = Set.Make(IdOrderedType)
+    module IdSet = Set.Make(EnvIdOrderedType)
 
     type ('env, 'ty, 'v) t = {
       mutable ir_context        : Cgt.ir_context_t;
@@ -31,7 +31,7 @@ module Make (Cgt : CONTEXT_TYPE) =
       mutable ir_module         : Cgt.ir_module_t;
       intrinsics                : Cgt.ir_intrinsics;
 
-      env_to_record_tbl         : (Env.id_t, ('env, 'ty, 'v) value_t) Hashtbl.t;
+      env_to_record_tbl         : (EnvIdOrderedType.t, ('env, 'ty, 'v) value_t) Hashtbl.t;
       name_to_record_tbl        : (string, ('env, 'ty, 'v) value_t) Hashtbl.t;
 
       mutable defined_env       : IdSet.t;

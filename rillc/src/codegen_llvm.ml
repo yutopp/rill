@@ -458,7 +458,7 @@ and code_generate_as_value ?(bb=None) node ctx : (L.llvalue * 'env Type.info_t)=
        (llval, ret_ty)
      end
 
-  | TAst.NestedExpr (lhs_node, lhs_ty, lhs_val_cat, rhs_ty, Some rhs_env) ->
+  | TAst.NestedExpr (lhs_node, _, rhs_ty, Some rhs_env) ->
      begin
        let (ll_lhs, _) = code_generate_as_value ~bb:bb lhs_node ctx in
 
