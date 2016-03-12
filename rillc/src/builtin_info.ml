@@ -39,6 +39,11 @@ let array_type_i = {
   mangled_name = "";
 }
 
+let raw_ptr_type_i = {
+  external_name = "raw_ptr";
+  internal_name = "__builtin_raw_ptr_type";
+  mangled_name = "";
+}
 
 (*
  *

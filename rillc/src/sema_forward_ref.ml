@@ -156,6 +156,7 @@ let rec solve_forward_refs ?(meta_variables=[])
          | Ast.FunctionDefStmt _
          | Ast.MemberFunctionDefStmt _
          | Ast.ExternFunctionDefStmt _ -> Env.Kind.Function
+         | Ast.ClassDefStmt _
          | Ast.ExternClassDefStmt _ -> Env.Kind.Class
          | _ ->
             begin
@@ -167,8 +168,8 @@ let rec solve_forward_refs ?(meta_variables=[])
        in
        let template_env_r = {
          Env.tl_name = id_name;
-         Env.tl_params = TAst.PrevPassNode template_params;
-         Env.tl_inner_node = TAst.PrevPassNode inner_node;
+         Env.tl_params = TAst.NotInstantiatedNode (template_params, None);
+         Env.tl_inner_node = TAst.NotInstantiatedNode (inner_node, opt_attr);
        } in
        let base_env_r = Env.MultiSetOp.get_record base_env in
        base_env_r.Env.ms_templates <- template_env_r :: base_env_r.Env.ms_templates;

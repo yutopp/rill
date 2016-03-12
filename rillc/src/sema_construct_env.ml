@@ -821,8 +821,19 @@ and analyze_expr ?(making_placeholder=false)
        (node, (ty, VCatPrValue, Env.get_scope_lifetime parent_env))
      end
 
+  | Ast.StringLit (str, _) ->
+     begin
+       let elem_ty = get_builtin_bool_type ctx in   (* TODO: fix *)
+       let ptr_ty = get_builtin_raw_ptr_type elem_ty ctx in
+       assert_valid_type ptr_ty;
+
+       let n_ptr = TAst.StringLit (str, ptr_ty) in
+       (n_ptr, (ptr_ty, VCatPrValue, Env.get_scope_lifetime parent_env))
+     end
+
   | Ast.ArrayLit (elems, _) ->
      begin
+       (* evaluate all elementes *)
        let (n_nodes, n_auxs) =
          elems
          |> List.map (fun e -> analyze_expr ~making_placeholder:making_placeholder
@@ -1768,7 +1779,7 @@ and prepare_instantiate_template t_env_record template_args ext_env ctx attr =
 
   let template_params =
     match t_env_record.Env.tl_params with
-    | TAst.PrevPassNode (Ast.TemplateParamsList params) -> params
+    | TAst.NotInstantiatedNode (Ast.TemplateParamsList params, None) -> params
     | _ -> failwith "[ICE] unexpected template params"
   in
 
@@ -1935,9 +1946,9 @@ and complate_template_instance ?(making_placeholder=false)
   String.print stdout mangled_sym;
 
   let mset_record = Env.MultiSetOp.get_record menv in
-  let inner_node = match t_env_record.Env.tl_inner_node with
-    | TAst.PrevPassNode n -> n
-    | _ -> failwith ""
+  let (inner_node, inner_attr) = match t_env_record.Env.tl_inner_node with
+    | TAst.NotInstantiatedNode (n, a) -> (n, a)
+    | _ -> failwith "[ICE] unexpected not instantiated node"
   in
 
   let cache = Hashtbl.find_option mset_record.Env.ms_instanced_args_memo mangled_sym in
@@ -1949,7 +1960,11 @@ and complate_template_instance ?(making_placeholder=false)
 
        (**)
        let env_parent = Option.get menv.Env.parent_env in
-       let n_ast = analyze ~meta_variables:mvs inner_node env_parent ctx in
+       let n_ast =
+         analyze ~meta_variables:mvs
+                 ~opt_attr:inner_attr
+                 inner_node env_parent ctx
+       in
 
        let i_env = match n_ast with
          | TAst.FunctionDefStmt (_, _, _, _, _, Some e)
@@ -2096,6 +2111,40 @@ and get_builtin_bool_type ctx : 'env type_info =
   assert (not @@ Type.is_undef ty);
   ty
 
+and get_builtin_raw_ptr_type elem_ty ctx : 'env type_info =
+  let raw_ptr_ty = !(ctx.sc_tsets.ts_raw_ptr_type_holder) in
+  assert (not @@ Type.is_undef raw_ptr_ty);
+
+  Printf.printf "========= RawPtr Element\n";
+  Type.print elem_ty;
+
+  let ty = match Type.type_sort raw_ptr_ty with
+    | Type_info.ClassSetTy menv ->
+       begin
+         let template_args = [Ctfe_value.Type elem_ty] in
+         let ext_env = Option.get menv.Env.parent_env in
+         let instances =
+           instantiate_class_templates menv template_args
+                                       ext_env ctx None
+         in
+         match instances with
+         | [e] ->
+            (* default qual *)
+            let default_ty_attr = {
+              Type_attr.ta_ref_val = Type_attr.Val;
+              Type_attr.ta_mut = Type_attr.Const;
+            } in
+            Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
+                                         (Type_info.UniqueTy e)
+                                         template_args
+                                         default_ty_attr
+         | _ -> failwith "[ICE] unexpected array instances"
+       end
+    | _ -> failwith "[ICE] unexpected"
+  in
+  Type.print ty;
+  ty
+
 and get_builtin_array_type elem_ty len ctx : 'env type_info =
   let arr_ty = !(ctx.sc_tsets.ts_array_type_holder) in
   assert (not @@ Type.is_undef arr_ty);
@@ -2175,6 +2224,7 @@ and cache_builtin_type_info preset_ty name ctx =
 and analyze ?(meta_variables=[]) ?(opt_attr=None) node env ctx =
   let snode =
     solve_forward_refs ~meta_variables:meta_variables
+                       ~opt_attr:opt_attr
                        node env ctx
   in
   construct_env snode env ctx opt_attr

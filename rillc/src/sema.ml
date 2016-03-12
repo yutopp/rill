@@ -54,6 +54,7 @@ let make_default_context root_env module_search_dirs =
     ts_bool_type_holder = ref Type_info.undef_ty;
     ts_int32_type_holder = ref Type_info.undef_ty;
     ts_array_type_holder = ref Type_info.undef_ty;
+    ts_raw_ptr_type_holder = ref Type_info.undef_ty;
   } in
 
   let uni_map = Unification.empty () in
@@ -92,6 +93,11 @@ let make_default_context root_env module_search_dirs =
   (* cache array type *)
   cache_builtin_type_info tsets.ts_array_type_holder
                           array_type_i.external_name
+                          ctx;
+
+  (* cache array type *)
+  cache_builtin_type_info tsets.ts_raw_ptr_type_holder
+                          raw_ptr_type_i.external_name
                           ctx;
   ctx
 

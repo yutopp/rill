@@ -1,6 +1,7 @@
 // TODO: move to
 extern def print(v: int32): void = "rill_print_int";
 extern def print(v: bool): void = "rill_print_bool";
+extern def print(v: raw_ptr!(bool)): void = "rill_print_string";
 extern def print_int(v: int32): void = "rill_print_int";
 
 // TODO: implement by macro
@@ -68,3 +69,6 @@ def operator pre--(ref mutable i:int32): void
 
 #[builtin]
 extern class array!(T, N:int32) = "__builtin_array_type"
+
+#[builtin, primitive]
+extern class raw_ptr!(T) = "__builtin_raw_ptr_type"

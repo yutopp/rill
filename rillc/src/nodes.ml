@@ -89,6 +89,7 @@ module Make (Ctx : NodeContextType) =
       | TemplateParamsList of template_param_init_t list
       | VarInit of var_init_t
       | PrevPassNode of pctx_t
+      | NotInstantiatedNode of pctx_t * attr_tbl_t option
 
       (* *)
       | GenericId of id_string * ctx_t

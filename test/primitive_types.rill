@@ -27,5 +27,10 @@ def main(): void
         val a = true;
     }
 
+    {
+        val s = "Yo! Bunchou language!!";
+        s.print();
+    }
+
     return;
 }

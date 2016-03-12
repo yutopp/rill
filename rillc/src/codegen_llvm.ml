@@ -160,9 +160,8 @@ let rec code_generate ~bb node ctx =
 
             L.dump_value f;
             flush_all ();
+
             Llvm_analysis.assert_valid_function f;
-
-
           end
 
        | Env.FnRecordTrivial (def, kind) ->
@@ -196,6 +195,9 @@ let rec code_generate ~bb node ctx =
             let f_ty = L.function_type llret_ty llparam_tys in
 
             let llvm_func = L.declare_function extern_fname f_ty ctx.ir_module in
+
+            L.dump_value llvm_func;
+            flush_all ();
 
             Ctx.bind_val_to_env ctx (LLValue llvm_func) env;
           end
@@ -485,6 +487,12 @@ and code_generate_as_value ?(bb=None) node ctx : (L.llvalue * 'env Type.info_t)=
        (llval, lit_ty)
      end
 
+  | TAst.StringLit (str, lit_ty) ->
+     begin
+       let llval = L.build_global_stringptr str "" ctx.ir_builder in
+       (llval, lit_ty)
+     end
+
   | TAst.ArrayLit (elems, lit_ty) ->
      begin
        (* XXX: adhoc implementation, fix it *)
@@ -769,6 +777,25 @@ let inject_builtins ctx =
     register_builtin_type int32_type_i.internal_name
                           (LLType (L.i32_type ctx.ir_context));
 
+    register_builtin_type raw_ptr_type_i.internal_name
+                          (LLTypeGen (
+                               fun args ->
+                               begin
+                                 assert (List.length args = 1);
+                                 (* TODO: fix *)
+                                 (*
+                                 let ty_ct_val = List.nth args 0 in
+                                 let ty_val = match ty_ct_val with
+                                   | Ctfe_value.Type ty -> ty
+                                   | _ -> failwith "[ICE]"
+                                 in
+                                 let llty = lltype_of_typeinfo ~bb:None ty_val ctx in
+                                  *)
+                                 let elem_ty = L.i8_type ctx.ir_context in
+                                 L.pointer_type elem_ty
+                               end
+                             ));
+
     register_builtin_type array_type_i.internal_name
                           (LLTypeGen (
                                fun args ->
@@ -957,6 +984,14 @@ let inject_builtins ctx =
     let open Builtin_info in
     let init = L.const_int (L.i1_type ctx.ir_context) 0 in
     define_special_members bool_type_i init;
+    ()
+  in
+
+  (* for ptr *)
+  let () =
+    let open Builtin_info in
+    let init = L.const_int (L.i1_type ctx.ir_context) 0 in
+    define_special_members raw_ptr_type_i init;
     ()
   in
   ()
