@@ -44,7 +44,8 @@ rule token = parse
   | "mutable"           { KEYWORD_MUTABLE }
   | "extern"            { KEYWORD_EXTERN }
   | "return"            { KEYWORD_RETURN }
-
+  | "new"               { KEYWORD_NEW }
+  | "delete"            { KEYWORD_DELETE }
   | "true"              { LIT_TRUE }
   | "false"             { LIT_FALSE }
 

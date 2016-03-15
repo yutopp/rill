@@ -1,0 +1,7 @@
+def main(): void
+{
+    val runtime a = 10;
+    val a: +mut int = 10
+    f!(a)
+    10.yo();
+}

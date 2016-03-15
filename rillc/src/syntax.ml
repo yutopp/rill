@@ -34,8 +34,10 @@ let make_ast full_filepath pkg_names mod_name lexedbuf =
      Printf.eprintf "At offset %d / line: %d -- syntax error.\n%!" bpos (start_pos.pos_lnum);
      exit (-2)
 
-let make_ast_from_file ~default_pkg_names ~default_mod_name full_filepath =
-  Batteries.File.with_file_in full_filepath
-                              (fun input -> input
-                                            |> make_lexedbuf_from_input
-                                            |> make_ast full_filepath default_pkg_names default_mod_name)
+let make_ast_from_file ~default_pkg_names ~default_mod_name filepath =
+  let make_ast_from_input input =
+    input
+    |> make_lexedbuf_from_input
+    |> make_ast filepath default_pkg_names default_mod_name
+  in
+  Batteries.File.with_file_in filepath make_ast_from_input

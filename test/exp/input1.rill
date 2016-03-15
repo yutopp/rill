@@ -1,4 +1,4 @@
-def main() {
+def main(): void {
     val a: int32 = 10 + 20;
 
     print_int(a);
@@ -12,21 +12,27 @@ def main() {
     temp!(10)(2);
 
     val yo = [1, 2, 3];
+
+    return;
 }
 
-import core.builtin;
-
-def hoge(a : int32) {
+def hoge(a : int32):void {
     print_int(a);
     print_int(a+1);
+
+    return;
 }
 
-def temp!(N: int32, T)(yo: T) {
+def temp!(N: int32, T)(yo: T):void {
     print_int(N+10);
     print_int(yo+10);
+
+    return;
 }
 
-def tempfunc!(T)(a : T) {
+def tempfunc!(T)(a : T):void {
     print_int(a+100);
     print_int(a+200);
+
+    return;
 }

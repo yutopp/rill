@@ -41,12 +41,8 @@ module Make (Cgt : CONTEXT_TYPE) =
      and ('env, 'ty, 'v) value_t = ('ty, (('env, 'ty, 'v) t)) Cgt.value_record_t
 
 
-    let init ~ir_context
-             ~ir_builder
-             ~ir_module
-             ~ir_intrinsics
-             ~type_sets
-             ~uni_map =
+    let init ~ir_context ~ir_builder ~ir_module ~ir_intrinsics
+             ~type_sets ~uni_map =
       {
         ir_context = ir_context;
         ir_builder = ir_builder;

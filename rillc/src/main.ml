@@ -9,14 +9,30 @@
 open Batteries
 
 type compile_options_t = {
-  mutable input_files   : string list;
-  mutable output_file   : string;
+  mutable input_files       : string list;
+  mutable output_file       : string;
+
+  mutable system_import_dir_core    : string;
+  mutable system_import_dir_std     : string;
+  mutable system_import_dirs        : string list;
+
+  mutable user_import_dirs          : string list;
+
+  mutable system_default_link_option    : string
 }
 
 let empty () =
   {
     input_files = [];
     output_file = "a.out";
+
+    system_import_dir_core = "./corelib/src";
+    system_import_dir_std  = "./stdlib/src";
+    system_import_dirs = [];
+
+    user_import_dirs = [];
+
+    system_default_link_option = "-L./stdlib/lib -lrillstd-rt"
   }
 
 
@@ -25,29 +41,53 @@ let () =
   Printexc.record_backtrace true;
 
   (* Compile Option *)
-  let co = empty() in
+  let co = empty () in
 
-  let usagemsg = "Usage: semicaml [filename] <options>\n"; in
+  let usagemsg = "Usage: rillc [filename] <options>\n"; in
   let speclist = [
-    ("-o", Arg.String (fun s -> co.output_file <- s), " specify output file name");
+    ("-o",
+     Arg.String (fun s -> co.output_file <- s),
+     " specify output file name");
+    ("--system-lib-core",
+     Arg.String (fun s -> co.system_import_dir_core <- s),
+     " specify core system lib directory");
+    ("--system-lib-std",
+     Arg.String (fun s -> co.system_import_dir_std <- s),
+     " specify std system lib directory");
+    ("--system-lib",
+     Arg.String (fun s -> co.system_import_dirs <- s :: co.system_import_dirs),
+     " specify system libs directory");
+    ("-I",
+     Arg.String (fun s -> co.user_import_dirs <- s :: co.user_import_dirs),
+     " specify modules directory");
+    ("--system-default-link-option",
+     Arg.String (fun s -> co.system_default_link_option <- s),
+     " system default link option");
   ] in
   Arg.parse speclist (fun s -> (co.input_files <- s :: co.input_files)) usagemsg;
-  List.print (String.print) stdout co.input_files;
-
-  assert (List.length co.input_files = 1);
 
   let system_libs_dirs = [
-    "./corelib/src";
-    "./stdlib/src"
-  ] in
+    co.system_import_dir_core;
+    co.system_import_dir_std;
+  ] @ List.rev co.system_import_dirs in
 
-  let module_search_dirs = [
-  ] in
+  let module_search_dirs = List.rev co.user_import_dirs in
   let cur_dir = Sys.getcwd () in
   let module_search_dirs = cur_dir :: module_search_dirs in
 
+  let filepaths =
+    let f filename =
+      if Filename.is_relative filename then
+        Filename.concat cur_dir filename
+      else
+        filename
+    in
+    List.map f co.input_files
+  in
+
   (* TODO: fix *)
-  let filename = Filename.concat cur_dir (List.hd co.input_files) in
+  assert (List.length co.input_files = 1);
+  let filename = List.hd filepaths in
 
   Printf.printf "===== PHASE = ANALYZE SEMANTICS\n";
   flush_all ();
@@ -65,8 +105,9 @@ let () =
                                  ()
   in
   Codegen.generate sem_ast code_ctx;
-  let tmp_stdlib_path = "./stdlib/lib/rillstd-rt.a" in (* TODO: fix *)
-  Codegen.create_executable code_ctx tmp_stdlib_path "a.out";
+  Codegen.create_executable code_ctx co.system_default_link_option "a.out";
 
   Printf.printf "===== PHASE = FINISHED\n";
   flush_all ();
+
+  exit 0

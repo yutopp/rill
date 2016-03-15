@@ -121,7 +121,7 @@ let execute engine expr_node expr_ty type_sets =
   try
     begin
       let (expr_llval, _) =
-        Codegen_llvm.code_generate_as_value ~bb:(Some bb) expr_node engine.cg_ctx in
+        Codegen_llvm.generate_code_for_value ~bb:(Some bb) expr_node engine.cg_ctx in
       ignore @@ L.build_ret expr_llval ir_builder;
 
       Llvm_analysis.assert_valid_function f;

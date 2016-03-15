@@ -1,0 +1,19 @@
+def main(): void
+{
+    val immutable a = 10;
+//    val const b = 20;
+//    val mutable c = 30;
+    val const b = a;
+    //print(b);
+    f(a);
+//    f(b);
+//    f(c);
+
+    return;
+}
+
+def f(val v: int32): void { return; }
+
+//def f!(T)(val v: T): void {
+//    return;
+//}

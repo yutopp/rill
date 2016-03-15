@@ -1,0 +1,9 @@
+def main(): void
+{
+    val immutable a = 10;
+    f(a);
+
+    return;
+}
+
+def f(val v: int32): void { return; }

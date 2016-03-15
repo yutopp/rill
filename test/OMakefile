@@ -22,19 +22,73 @@
 # Phony targets are scoped, so you probably want to declare them first.
 #
 
-.PHONY: all install clean
+.PHONY: clean test_all
 
 
 ########################################################################
-# Subdirectories.
-# You may want to include some subdirectories in this project.
-# If so, define the subdirectory targets and uncomment this section.
+# OCaml configuration.
+# Delete this section if you are not building OCaml files.
 #
 
-.SUBDIRS: rillc corelib stdlib test
+################################################
+# Configuration.  You may want to modify any of these configuration
+# variables.
+#
+
+#
+# This project requires ocamlfind (default - false).
+#
+USE_OCAMLFIND = true
+
+#
+OCAMLPACKS[] =
+   batteries
+
+#
+if $(not $(OCAMLFIND_EXISTS))
+   eprintln(This project requires ocamlfind, but is was not found.)
+   eprintln(You need to install ocamlfind and run "omake --configure".)
+   exit 1
+
+#
+# Include path
+#
+# OCAMLINCLUDES +=
+
+
+#
+# Various options
+#
+# OCAMLFLAGS    +=
+# OCAMLCFLAGS   +=
+# OCAMLOPTFLAGS +=
+# OCAML_LINK_FLAGS +=
+# OCAML_BYTE_LINK_FLAGS +=
+# OCAML_NATIVE_LINK_FLAGS +=
+
+
+################################################
+# Build an OCaml program
+#
+
+FILES[] =
+   run_tests
+
+#
+PROGRAM = run_tests
+# OCAML_LIBS +=
+# OCAML_CLIBS +=
+# OCAML_OTHER_LIBS +=
+# OCAML_LIB_FLAGS +=
+#
+
+build_runner: $(OCamlProgram $(PROGRAM), $(FILES))
 
 
 ########################################################################
 #
+test_all: $(PROGRAM)
+	./$(PROGRAM)
+
 clean:
-    rm -f *~ *.opt *.cmi *.cmx *.cmxa *.o *.omc *.a *.out *.s *.bc *.log *.cache
+	rm -f *~ *.opt *.cmi *.cmx *.o *.omc *.log *.cache $(PROGRAM)

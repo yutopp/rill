@@ -70,4 +70,6 @@ def main(): void
     assert(__statement_traits(semantics, {
         ref mutable r = m;
     }));
+
+    return;
 }

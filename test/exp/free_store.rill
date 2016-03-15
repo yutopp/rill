@@ -1,0 +1,4 @@
+def main(): void
+{
+    val p = int.new(10);
+}

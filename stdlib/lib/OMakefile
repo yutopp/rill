@@ -48,7 +48,7 @@ LIBFILES[] =
    runtime
 
 
-LIB = rillstd-rt
+LIB = librillstd-rt
 
 # INCLUDES +=
 # LIBS =

@@ -9,7 +9,6 @@
 open Batteries
 open Type_sets
 
-
 module TAst = Tagged_ast
 
 type type_info_t = TAst.ast Env.type_info_t
@@ -44,17 +43,22 @@ let check_is_args_valid ty =
   (* TODO: implement *)
   ()
 
+
 let check_function_env env param_types return_type is_auto_return_type =
   let r = Env.FunctionOp.get_record env in
   r.Env.fn_param_types <- param_types;
   r.Env.fn_return_type <- return_type;
   r.Env.fn_is_auto_return_type <- is_auto_return_type;
-  Env.update_status env Env.Checking
+  check_env env
 
 let complete_function_env env node id_name f_detail ctx =
   let r = Env.FunctionOp.get_record env in
 
   r.Env.fn_detail <- f_detail;
+
+  let m = (Env.get_full_module_name env) |> String.concat "." in
+  Printf.printf "Complete function -> %s.%s\n" m (Nodes.string_of_id_string id_name);
+  Type.print r.Env.fn_return_type;
 
   let _ = match id_name with
     | s when s = Nodes.Pure Builtin_info.entrypoint_name ->
@@ -73,20 +77,24 @@ let complete_function_env env node id_name f_detail ctx =
          r.Env.fn_mangled <- Some mangled
        end
   in
-
   complete_env env node
 
 
-let complete_class_env env node id_name c_detail traits ctx =
+let check_class_env env ctx =
+  let r = Env.ClassOp.get_record env in
+  let id_name = r.Env.cls_name in
+  let template_args = r.Env.cls_template_vals in
+  let mangled =
+    Mangle.s_of_class (Env.get_full_module_name env)
+                      id_name template_args ctx.sc_tsets
+  in
+  r.Env.cls_mangled <- Some mangled;
+  check_env env
+
+let complete_class_env env node c_detail traits ctx =
   let r = Env.ClassOp.get_record env in
   r.Env.cls_detail <- c_detail;
   r.Env.cls_traits <- Some traits;
-
-  let mangled =
-    Mangle.s_of_id_string (Env.get_full_module_name env) id_name
-  in
-  r.Env.cls_mangled <- Some mangled;
-
   complete_env env node
 
 

@@ -79,8 +79,6 @@ module Generator =
       if new_id = IdType.max_int then
         failwith "[ICE] Internal type id is reached to max id...";
       gen.gen_fresh_id <- IdType.succ gen.gen_fresh_id; (* update fresh id *)
-      Printf.printf "debug / typeid = new %s / cur %s\n"
-                    (IdType.to_string new_id) (IdType.to_string gen.gen_fresh_id);
       new_id
 
     let generate_type gen type_sort template_args ty_attr =

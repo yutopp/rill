@@ -139,6 +139,7 @@ FILES[] =
    builtin_info
    mangle
    lifetime
+   meta_level
 
 #
 PROGRAM = rillc

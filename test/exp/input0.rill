@@ -1,12 +1,14 @@
-def main() {
+def main():void {
     val a = [1, 2, 3];
     Yo([1, 2, 3]);
+    return;
 }
 
 import core.builtin;
 
-def Yo!(N:int32, T)(a: array!(T, N)) {
+def Yo!(N:int32, T)(a: array!(T, N)): void {
     print_int(N);
+    return;
 }
 
 //def Yo!(T)(a: T) {

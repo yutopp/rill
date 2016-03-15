@@ -1,8 +1,9 @@
 def main() : void
 {
     a1().yo();
-    ref mutable a = a1();
-    a.a = 10;
+    val mutable a = a1();
+    ref mutable ar = a;
+    ar.a = 10;
     print_int(a.a);
     val b = a;
     a.a = 20;

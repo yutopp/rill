@@ -57,32 +57,32 @@ let make_default_context ?(opt_type_sets=None) ?(opt_uni_map=None) () =
     ~uni_map:opt_uni_map
 
 
-let rec code_generate ~bb node ctx =
+let rec generate_code ~bb node ctx =
   let open Ctx in
   match node with
   | TAst.Module (inner, pkg_names, mod_name, base_dir, _) ->
      begin
-       code_generate ~bb:bb inner ctx
+       generate_code ~bb:bb inner ctx
      end
 
   | TAst.StatementList (nodes) ->
-     nodes |> List.iter @@ fun n -> code_generate ~bb:bb n ctx
+     nodes |> List.iter @@ fun n -> generate_code ~bb:bb n ctx
 
   | TAst.ExprStmt e ->
      begin
-       ignore @@ code_generate_as_value ~bb:bb e ctx
+       ignore @@ generate_code_for_value ~bb:bb e ctx
      end
 
   | TAst.ScopeStmt (stmts) ->
      begin
-       code_generate ~bb:bb stmts ctx
+       generate_code ~bb:bb stmts ctx
      end
 
   | TAst.ReturnStmt (opt_e) ->
      begin
        match opt_e with
        | Some e ->
-          let (llval, ty) = code_generate_as_value ~bb:bb e ctx in
+          let (llval, ty) = generate_code_for_value ~bb:bb e ctx in
           ignore @@ if is_address_representation ty then
                       L.build_ret_void ctx.ir_builder
                     else
@@ -109,7 +109,7 @@ let rec code_generate ~bb node ctx =
             let llparam_tys =
               (if returns_heavy_obj then [fenv_r.Env.fn_return_type] else [])
               @ fenv_r.Env.fn_param_types
-              |> List.map (fun t -> lltype_of_typeinfo_ac ~bb:bb t ctx)
+              |> List.map (fun t -> lltype_of_typeinfo_param ~bb:bb t ctx)
               |> Array.of_list
             in
             let llret_ty =
@@ -127,17 +127,40 @@ let rec code_generate ~bb node ctx =
             let f = L.declare_function name f_ty ctx.ir_module in
             Ctx.bind_val_to_env ctx (LLValue f) env;
 
+            (* entry block *)
+            let bb = L.append_block ctx.ir_context "entry" f in
+            L.position_at_end bb ctx.ir_builder;
+
             (* setup parameters *)
             let param_envs = fenv_d.Env.fn_n_param_envs |> List.enum in
-            L.dump_value f; flush_all ();
-            let ll_params = L.params f |> Array.enum in
+            let raw_ll_params = L.params f |> Array.enum in
             if returns_heavy_obj then begin
-                                     let opt_agg = Enum.peek ll_params in
+                                     (* set name of reciever *)
+                                     let opt_agg = Enum.peek raw_ll_params in
                                      assert (Option.is_some opt_agg);
                                      let agg = Option.get opt_agg in
                                      L.set_value_name agg_recever_name agg;
-                                     Enum.drop 1 ll_params;
+                                     (* remove the implicit parameter from ENUM *)
+                                     Enum.drop 1 raw_ll_params;
                                    end;
+            (* adjust type specialized by params to normal type forms *)
+            let adjust_param_type (ty, llval) =
+              let should_param_be_address = is_address_representation ty in
+              let actual_param_rep = is_address_representation_param ty in
+              match (should_param_be_address, actual_param_rep) with
+              | (true, false) ->
+                 let llty = lltype_of_typeinfo ~bb:(Some bb) ty ctx in
+                 let v = L.build_alloca llty "" ctx.ir_builder in
+                 let _ = L.build_store llval v ctx.ir_builder in
+                 v
+              | (true, true)
+              | (false, false) -> llval
+              | _ -> failwith "[ICE]"
+            in
+            let ll_params =
+              Enum.combine ((List.enum fenv_r.Env.fn_param_types), raw_ll_params)
+              |> Enum.map adjust_param_type
+            in
             let declare_param_var optenv llvar =
               match optenv with
               | Some env ->
@@ -152,11 +175,10 @@ let rec code_generate ~bb node ctx =
             Enum.iter2 declare_param_var param_envs ll_params;
 
             (* entry block *)
-            let bb = L.append_block ctx.ir_context "entry" f in
             L.position_at_end bb ctx.ir_builder;
 
             (**)
-            code_generate body ctx ~bb:(Some bb);
+            generate_code body ctx ~bb:(Some bb);
 
             L.dump_value f;
             flush_all ();
@@ -186,7 +208,7 @@ let rec code_generate ~bb node ctx =
           begin
             let llparam_tys =
               fenv_r.Env.fn_param_types
-              |> List.map (fun t -> lltype_of_typeinfo_ac ~bb:bb t ctx)
+              |> List.map (fun t -> lltype_of_typeinfo_param ~bb:bb t ctx)
               |> Array.of_list
             in
             let llret_ty = lltype_of_typeinfo ~bb:bb fenv_r.Env.fn_return_type ctx in
@@ -241,7 +263,7 @@ let rec code_generate ~bb node ctx =
        Ctx.bind_val_to_env ctx (LLType struct_ty) env;
 
        (* body *)
-       code_generate ~bb:bb body ctx
+       generate_code ~bb:bb body ctx
      end
 
   | TAst.ExternClassDefStmt (
@@ -276,7 +298,7 @@ let rec code_generate ~bb node ctx =
        let init_expr = Option.get opt_init_expr in
 
        Printf.printf "Define variable: %s\n" venv.Env.var_name;
-       let (llval, expr_ty) = code_generate_as_value ~bb:bb init_expr ctx in
+       let (llval, expr_ty) = generate_code_for_value ~bb:bb init_expr ctx in
        Type.print var_type;
        flush_all ();
 
@@ -291,7 +313,7 @@ let rec code_generate ~bb node ctx =
 
   | _ -> failwith "cannot generate : statement"
 
-and code_generate_as_value ?(bb=None) node ctx : (L.llvalue * 'env Type.info_t)=
+and generate_code_for_value ?(bb=None) node ctx : (L.llvalue * 'env Type.info_t) =
   let open Ctx in
   match node with
   | TAst.GenericCallExpr (storage_ref, args, Some call_on_env, Some env) ->
@@ -312,7 +334,7 @@ and code_generate_as_value ?(bb=None) node ctx : (L.llvalue * 'env Type.info_t)=
          (* normal arguments *)
          let (llvals, tys) =
            args
-           |> List.map (fun n -> code_generate_as_value ~bb:bb n ctx)
+           |> List.map (fun n -> generate_code_for_value ~bb:bb n ctx)
            |> List.split
          in
          (* special arguments *)
@@ -330,9 +352,9 @@ and code_generate_as_value ?(bb=None) node ctx : (L.llvalue * 'env Type.info_t)=
            | _ -> (ignore llvals; ignore tys; failwith "")
          in
          let conv_funcs =
-           List.map2 (fun t s -> adjust_llval_form ~bb:bb t s) param_types tys
+           let f t s = adjust_arg_llval_form ~bb:bb t s in
+           List.map2 f param_types tys
          in
-         (* TODO: conv *)
          let llargs = List.map2 (fun f v -> f v ctx) conv_funcs llvals
                       |> Array.of_list
          in
@@ -418,7 +440,7 @@ and code_generate_as_value ?(bb=None) node ctx : (L.llvalue * 'env Type.info_t)=
                  begin
                    assert (List.length args = 1);
                    let rhs = List.hd args in
-                   let (llrhs, _) = code_generate_as_value ~bb:bb rhs ctx in
+                   let (llrhs, _) = generate_code_for_value ~bb:bb rhs ctx in
                    let _ = ctx.intrinsics.memcpy_i32 new_obj llrhs
                                                      4 4 false ctx.ir_builder
                    in
@@ -462,7 +484,7 @@ and code_generate_as_value ?(bb=None) node ctx : (L.llvalue * 'env Type.info_t)=
 
   | TAst.NestedExpr (lhs_node, _, rhs_ty, Some rhs_env) ->
      begin
-       let (ll_lhs, _) = code_generate_as_value ~bb:bb lhs_node ctx in
+       let (ll_lhs, _) = generate_code_for_value ~bb:bb lhs_node ctx in
 
        let v_record = try Ctx.find_val_by_env ctx rhs_env with
                       | Not_found -> failwith "[ICE] variable env is not found"
@@ -498,7 +520,7 @@ and code_generate_as_value ?(bb=None) node ctx : (L.llvalue * 'env Type.info_t)=
        (* XXX: adhoc implementation, fix it *)
        let (ll_elems, tys) =
          elems
-         |> List.map (fun n -> code_generate_as_value ~bb:bb n ctx)
+         |> List.map (fun n -> generate_code_for_value ~bb:bb n ctx)
          |> List.split
        in
        let llty = lltype_of_typeinfo ~bb:bb lit_ty ctx in
@@ -540,11 +562,15 @@ and code_generate_as_value ?(bb=None) node ctx : (L.llvalue * 'env Type.info_t)=
             match ctx.type_sets with
             | Some tsets ->
                begin
+                 let ty_attr_val_default = {
+                   Type_attr.ta_ref_val = Type_attr.Val;
+                   Type_attr.ta_mut = Type_attr.Const;
+                 } in
                  let ty =
                    Type.Generator.generate_type tsets.Type_sets.ts_type_gen
                                                 (Type_info.UniqueTy rel_env)
                                                 r.Env.cls_template_vals
-                                                Type_attr.undef
+                                                ty_attr_val_default
                  in
                  let itype_id = Option.get ty.Type_info.ti_id in
                  Printf.printf "##### type_id = %s\n" (Int64.to_string itype_id);
@@ -570,11 +596,11 @@ and code_generate_as_value ?(bb=None) node ctx : (L.llvalue * 'env Type.info_t)=
        (* regards all values are NOT references *)
        | Env.MetaVariable (uni_id) ->
           begin
-            let fail_f () =
-              failwith "[ICE] codegen_llvm : TAst.Id / meta variable in RUNTIME"
+            let fail_f tag () =
+              failwith ("[ICE] codegen_llvm : TAst.Id / meta variable in NORMAL PHASE? " ^ tag)
             in
-            let uni_map = Option.default_delayed fail_f ctx.uni_map in
-            let tsets = Option.default_delayed fail_f ctx.type_sets in
+            let uni_map = Option.default_delayed (fail_f "uni") ctx.uni_map in
+            let tsets = Option.default_delayed (fail_f "tset") ctx.type_sets in
 
             Printf.printf "LLVM codegen Env.MetaVariable = %d\n" uni_id;
             let (_, c) = Unification.search_value_until_terminal uni_map uni_id in
@@ -633,8 +659,8 @@ and code_generate_as_value ?(bb=None) node ctx : (L.llvalue * 'env Type.info_t)=
   | _ -> failwith "cannot generate : as value"
 
 
-and code_generate_by_interrupt ~bb:bb node ctx =
-  code_generate ~bb:bb node ctx;
+and generate_code_by_interrupt ~bb:bb node ctx =
+  generate_code ~bb:bb node ctx;
   (* Restore position *)
   bb |> Option.may (fun bb -> L.position_at_end bb ctx.Ctx.ir_builder)
 
@@ -652,7 +678,7 @@ and force_target_generation ~bb ctx env =
               failwith "[ICE] force_target_generation: there is no rel node"
             end
        in
-       code_generate_by_interrupt ~bb:bb node ctx;
+       generate_code_by_interrupt ~bb:bb node ctx;
 
        (* retry *)
        try Ctx.find_val_by_env ctx env with
@@ -682,20 +708,20 @@ and lltype_of_typeinfo ~bb ty ctx =
   let ll_ty = find_lltype_by_env_with_force_generation ~bb:bb ctx cenv in
   ll_ty
 
-and lltype_of_typeinfo_ac ~bb ty ctx =
+and lltype_of_typeinfo_param ~bb ty ctx =
   let ll_ty = lltype_of_typeinfo ~bb:bb ty ctx in
-  if is_address_representation ty then
+  if is_address_representation_param ty then
     L.pointer_type ll_ty
   else
     ll_ty
 
 
-and is_heavy_class ty =
-  match Type.type_sort ty with
-  | Type_info.UniqueTy cenv ->
-     begin
-     end
-  | _ -> failwith "[ICE] / is_heavy_class"
+and is_primitive ty =
+  let cenv = Type.as_unique ty in
+  let cr = Env.ClassOp.get_record cenv in
+  let traits = Option.get cr.Env.cls_traits in
+  traits.Env.cls_traits_is_primitive
+
 
 (**)
 and is_address_representation ty =
@@ -712,26 +738,24 @@ and is_address_representation ty =
        | Type_attr.Const
        | Type_attr.Immutable ->
           begin
-            let cenv = Type.as_unique ty in
-            let cr = Env.ClassOp.get_record cenv in
-            let traits = Option.get cr.Env.cls_traits in
-            if traits.Env.cls_traits_is_primitive then
-              false
-            else
-              true
+            (* if type is primitive, it will not be represented by address *)
+            not (is_primitive ty)
           end
        | _ -> failwith "[ICE] Unexpected : mut"
      end
   | _ -> failwith "[ICE] Unexpected : rv"
 
-and adjust_llval_form ~bb trg_ty src_ty llval ctx =
+and is_address_representation_param ty =
+  let {
+    Type_attr.ta_ref_val = rv;
+  } = ty.Type_info.ti_attr in
+  match rv with
+  | Type_attr.Val when is_primitive ty -> false
+  | _ -> is_address_representation ty
+
+and adjust_llval_form' ~bb trg_ty trg_chkf src_ty src_chkf llval ctx =
   let open Ctx in
-  Printf.printf "is_pointer rep?  trg: %b, src: %b\n"
-                (is_address_representation trg_ty)
-                (is_address_representation src_ty);
-  L.dump_value llval;
-  flush_all ();
-  match (is_address_representation trg_ty, is_address_representation src_ty) with
+  match (trg_chkf trg_ty, src_chkf src_ty) with
   | (true, true)
   | (false, false) -> llval
   | (true, false) ->
@@ -741,6 +765,39 @@ and adjust_llval_form ~bb trg_ty src_ty llval ctx =
      v
   | (false, true) ->
      L.build_load llval "" ctx.ir_builder
+
+and adjust_llval_form ~bb trg_ty src_ty llval ctx =
+  Type.print trg_ty;
+  Type.print src_ty;
+  Printf.printf "is_pointer rep?  trg: %b, src: %b\n src = "
+                (is_address_representation trg_ty)
+                (is_address_representation src_ty);
+  flush_all ();
+  L.dump_value llval;
+  flush_all ();
+
+  let trg_check_f = is_address_representation in
+  let src_check_f = is_address_representation in
+  adjust_llval_form' ~bb trg_ty trg_check_f src_ty src_check_f llval ctx
+
+and adjust_arg_llval_form ~bb trg_ty src_ty llval ctx =
+  if is_primitive trg_ty then
+    begin
+      Type.print trg_ty;
+      Type.print src_ty;
+      Printf.printf "is_pointer_arg rep?  trg: %b, src: %b\n src = "
+                    (is_address_representation_param trg_ty)
+                    (is_address_representation src_ty);
+      flush_all ();
+      L.dump_value llval;
+      flush_all ();
+
+      let trg_check_f = is_address_representation_param in
+      let src_check_f = is_address_representation in
+      adjust_llval_form' ~bb trg_ty trg_check_f src_ty src_check_f llval ctx
+    end
+  else
+    adjust_llval_form ~bb:bb trg_ty src_ty llval ctx
 
 
 let regenerate_module ctx =
@@ -752,11 +809,11 @@ let inject_builtins ctx =
   let open Ctx in
   let register_builtin_type name record =
     Ctx.bind_val_to_name ctx record name;
-    Printf.printf "debug / registerd builtin type = \"%s\"\n" name
+    (*Printf.printf "debug / registerd builtin type = \"%s\"\n" name*)
   in
   let register_builtin_func name f =
     Ctx.bind_val_to_name ctx (BuiltinFunc f) name;
-    Printf.printf "debug / registerd builtin func = \"%s\"\n" name
+    (*Printf.printf "debug / registerd builtin func = \"%s\"\n" name*)
   in
 
   (* type is represented as int64 in this context.
@@ -1000,7 +1057,7 @@ let inject_builtins ctx =
 let generate node ctx =
   inject_builtins ctx;
 
-  code_generate ~bb:None node ctx;
+  generate_code ~bb:None node ctx;
   L.dump_module ctx.Ctx.ir_module
 
 
@@ -1008,7 +1065,7 @@ exception FailedToWriteBitcode
 exception FailedToBuildBitcode
 exception FailedToBuildExecutable
 
-let create_executable ctx lib_name out_name =
+let create_executable ctx link_options out_name =
   let open Ctx in
 
   let basic_name = try Filename.chop_extension out_name with Invalid_argument _ -> out_name in
@@ -1021,10 +1078,14 @@ let create_executable ctx lib_name out_name =
   (* build bitcode and output object file *)
   let bin_name = basic_name ^ ".o" in
   let sc = Sys.command (Printf.sprintf "llc %s -filetype=obj -o %s " (Filename.quote bitcode_name) (Filename.quote bin_name)) in
+  flush_all ();
   if sc <> 0 then raise FailedToBuildBitcode;
 
   (* output executable *)
-  let sc = Sys.command (Printf.sprintf "g++ %s %s -o %s" (Filename.quote bin_name) (Filename.quote lib_name) (Filename.quote out_name)) in
+  let cmd = Printf.sprintf "g++ %s %s -o %s" (Filename.quote bin_name) link_options (Filename.quote out_name) in
+  Printf.printf "cmd = %s\n" cmd; flush_all ();
+  let sc = Sys.command cmd in
+  flush_all ();
   (*let sc = Sys.command (Printf.sprintf "gcc %s -o %s" (Filename.quote bin_name) (Filename.quote out_name)) in*)
   if sc <> 0 then raise FailedToBuildExecutable;
   ()

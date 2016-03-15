@@ -207,9 +207,10 @@ and load_module_by_filepath ?(def_mod_info=None) filepath ctx =
     Option.default ([], filepath |> Filename.basename |> Filename.chop_extension)
                    def_mod_info
   in
-  let mod_ast = Syntax.make_ast_from_file ~default_pkg_names:raw_pkg_names
-                                          ~default_mod_name:raw_mod_name
-                                          filepath
+  let mod_ast =
+    Syntax.make_ast_from_file ~default_pkg_names:raw_pkg_names
+                              ~default_mod_name:raw_mod_name
+                              filepath
   in
 
   match mod_ast with
@@ -260,11 +261,11 @@ and load_module pkg_names mod_name ctx =
     | None ->
        begin
          let pp dirs dir_name =
-           let exist dir =
+           let dir_exists dir =
              let dir_name = Filename.concat dir dir_name in
              Sys.file_exists dir_name
            in
-           try [Filename.concat (List.find exist dirs) dir_name] with
+           try [Filename.concat (List.find dir_exists dirs) dir_name] with
            | Not_found -> []
          in
          let target_dirs = List.fold_left pp ctx.sc_module_search_dirs pkg_names in

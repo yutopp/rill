@@ -17,10 +17,25 @@ let rec s_of_ctfe_val value tset =
 
 and s_of_type ty =
   let c_env = Type.as_unique ty in
-
   let cr = Env.ClassOp.get_record c_env in
+  Printf.printf "%s\n" (Nodes.string_of_id_string cr.Env.cls_name);
   let symbol = Option.get cr.Env.cls_mangled in
-  Printf.sprintf "T%s" symbol
+
+  let ta = ty.Type_info.ti_attr in
+  let rv_s = match ta.Type_attr.ta_ref_val with
+    | Type_attr.Val -> "v"
+    | Type_attr.Ref -> "r"
+    | Type_attr.XRef -> "x"
+    | _ -> failwith ("Mangle.s_of_type / has no rv : " ^ symbol)
+  in
+  let mut_s = match ta.Type_attr.ta_mut with
+    | Type_attr.Immutable -> "i"
+    | Type_attr.Const -> "c"
+    | Type_attr.Mutable -> "m"
+    | _ -> failwith ("Mangle.s_of_type / has no mut : " ^ symbol)
+  in
+
+  Printf.sprintf "T%s%s%s" rv_s mut_s symbol
 
 
 and s_of_template_args args tset =
@@ -45,6 +60,12 @@ and s_of_id_string full_module_name id_name =
   let s_mod_name = full_module_name |> List.map s_of_string |> String.concat "" in
   let s_name = id_name |> s_of_symbol in
   Printf.sprintf "%s%s" s_mod_name s_name
+
+
+and s_of_class full_module_name id_name template_args tset =
+  let s_sym = s_of_id_string full_module_name id_name in
+  let s_targs = s_of_template_args template_args tset in
+  Printf.sprintf "C%s%s" s_sym s_targs
 
 
 and s_of_function full_module_name id_name

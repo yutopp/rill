@@ -68,7 +68,8 @@ module Make (Ctx : NodeContextType) =
       | ElementSelectionExpr of ast * ast * ctx_t
       | SubscriptingExpr of ast * ast option
       | CallExpr of ast * ast list
-
+      | NewExpr of ast
+      | DeleteExpr of ast
       | StatementTraitsExpr of string * ast
 
       (*
@@ -97,7 +98,10 @@ module Make (Ctx : NodeContextType) =
       | GenericCallExpr of storage_t ref * ast list * ctx_t * ctx_t
       (* body, ctx *)
       | GenericFuncDef of ast option * ctx_t
-      | NestedExpr of ast * (term_ctx_t * Value_category.t * Lifetime.t) * term_ctx_t * ctx_t
+      | NestedExpr of ast * term_aux_t * term_ctx_t * ctx_t
+
+
+     and term_aux_t =  (term_ctx_t * Value_category.t * Lifetime.t * Meta_level.t)
 
      (* attr * id? * value *)
      and param_init_t = Type_attr.attr_t * string option * value_init_t
@@ -173,10 +177,10 @@ module Make (Ctx : NodeContextType) =
            print lhs; print_string (string_of_id_string op); print rhs
          end
 
-      (*| UnaryOpExpr (op, expr) ->
+      | UnaryOpExpr (op, expr) ->
          begin
            print_string (string_of_id_string op); print expr
-         end*)
+         end
 
       | ElementSelectionExpr (recv, sel, _) ->
          begin
@@ -194,7 +198,116 @@ module Make (Ctx : NodeContextType) =
          begin
            print_string "id{"; print_string (string_of_id_string name); print_string "}"
          end
-
-      | _ ->
-         print_string "unknown\n"
+      | ScopeStmt _ ->
+         begin
+           print_string "scope"
+         end
+      | ReturnStmt _ ->
+         begin
+           print_string "return"
+         end
+      | ImportStmt _ ->
+         begin
+           print_string "import"
+         end
+      | MemberFunctionDefStmt _ ->
+         begin
+           print_string "member function"
+         end
+      | ClassDefStmt _ ->
+         begin
+           print_string "class def"
+         end
+      | ExternClassDefStmt _ ->
+         begin
+           print_string "extern class def"
+         end
+      | MemberVariableDefStmt _ ->
+         begin
+           print_string "member variable def"
+         end
+      | TemplateStmt _ ->
+         begin
+           print_string "template"
+         end
+      | AttrWrapperStmt _ ->
+         begin
+           print_string "attr wrapper"
+         end
+      | SubscriptingExpr _ ->
+         begin
+           print_string "sub scripting"
+         end
+      | NewExpr _ ->
+         begin
+           print_string "new"
+         end
+      | DeleteExpr _ ->
+         begin
+           print_string "delete"
+         end
+      | StatementTraitsExpr _ ->
+         begin
+           print_string "stmt traits"
+         end
+      | InstantiatedId _ ->
+         begin
+           print_string "InstantiatedId"
+         end
+      | Int32Lit _ ->
+         begin
+           print_string "Int32Lit"
+         end
+      | BoolLit _ ->
+         begin
+           print_string "BoolLit"
+         end
+      | StringLit _ ->
+         begin
+           print_string "StringLit"
+         end
+      | ArrayLit _ ->
+         begin
+           print_string "ArrayLit"
+         end
+      | Error ->
+         begin
+           print_string "Error"
+         end
+      | ParamsList _ ->
+         begin
+           print_string "ParamsList"
+         end
+      | TemplateParamsList _ ->
+         begin
+           print_string "TemplateParamsList"
+         end
+      | VarInit _ ->
+         begin
+           print_string "VarInit"
+         end
+      | PrevPassNode _ ->
+         begin
+           print_string "PrevPassNode"
+         end
+      | NotInstantiatedNode _ ->
+         begin
+           print_string "NotInstantiatedNode"
+         end
+      | GenericId _ ->
+         begin
+           print_string "GenericId"
+         end
+      | GenericCallExpr _ ->
+         begin
+           print_string "GenericCallExpr"
+         end
+      | GenericFuncDef _ ->
+         begin
+           print_string "GenericFuncDef"
+         end
+      | NestedExpr _ ->
+         begin
+           print_string "NestedExpr"
+         end
   end

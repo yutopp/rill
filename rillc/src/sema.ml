@@ -95,7 +95,7 @@ let make_default_context root_env module_search_dirs =
                           array_type_i.external_name
                           ctx;
 
-  (* cache array type *)
+  (* cache pointer type *)
   cache_builtin_type_info tsets.ts_raw_ptr_type_holder
                           raw_ptr_type_i.external_name
                           ctx;

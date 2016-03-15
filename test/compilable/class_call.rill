@@ -1,6 +1,6 @@
 def main() : void
 {
-    ref mutable a = a1();
+    val mutable a = a1();
     a.yo();
     print_int(a.a);
 
