@@ -6,3 +6,4 @@ eval `opam config env`
 ls -la
 
 omake
+omake test_all
