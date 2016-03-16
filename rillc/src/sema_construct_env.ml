@@ -325,7 +325,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        (* TODO: implement *)
 
        let define_ctor () =
-         let ty = make_class_type env Type_attr.Val Type_attr.Mutable ctx in
+         let ty = make_class_type env Type_attr.Val Type_attr.Const ctx in
 
          (* implicit default constructor is defined as defaulted,
           * if there are no user defined constructor.
@@ -1210,6 +1210,10 @@ and try_to_complete_env env ctx =
 
 and convert_type trg_ty src_aux ext_env ctx attr =
   let (src_ty, src_val_cat, src_lt, src_ml) = src_aux in
+  Printf.printf "convert_type\n";
+  Type.print trg_ty;
+  Type.print src_ty;
+
   if Type.is_same trg_ty src_ty then begin
     (* same type *)
     let open Type_attr in
@@ -1288,11 +1292,32 @@ and convert_type trg_ty src_aux ext_env ctx attr =
        end
 
     | ({ta_ref_val = Ref; ta_mut = trg_mut},
-       {ta_ref_val = _; ta_mut = src_mut}) ->
+       {ta_ref_val = Ref; ta_mut = src_mut}) ->
        begin
          let level = match (trg_mut, src_mut) with
            | (Immutable, Immutable) -> FuncMatchLevel.ExactMatch
            | (Immutable, Const)
+           | (Immutable, Mutable) -> FuncMatchLevel.NoMatch
+
+           | (Const, Immutable) -> FuncMatchLevel.QualConv
+           | (Const, Const) -> FuncMatchLevel.ExactMatch
+           | (Const, Mutable) -> FuncMatchLevel.QualConv
+
+           | (Mutable, Immutable)
+           | (Mutable, Const) -> FuncMatchLevel.NoMatch
+           | (Mutable, Mutable) -> FuncMatchLevel.ExactMatch
+
+           | _ -> failwith "conv"
+         in
+         (level, None)
+       end
+
+    | ({ta_ref_val = Ref; ta_mut = trg_mut},
+       {ta_ref_val = Val; ta_mut = src_mut}) ->
+       begin
+         let level = match (trg_mut, src_mut) with
+           | (Immutable, Immutable) -> FuncMatchLevel.ExactMatch
+           | (Immutable, Const) -> FuncMatchLevel.QualConv
            | (Immutable, Mutable) -> FuncMatchLevel.NoMatch
 
            | (Const, Immutable) -> FuncMatchLevel.QualConv
@@ -2084,7 +2109,7 @@ and map_conversions ?(param_passing=false) filters arg_exprs ext_env ctx =
   List.map2 f filters arg_exprs
 
 
-and ctor_name = Nodes.Pure "this"
+and ctor_name = Nodes.Pure "ctor"
 and assign_name = Nodes.BinaryOp "="
 
 and make_class_type cenv rv mut ctx =

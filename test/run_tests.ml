@@ -68,6 +68,9 @@ let run_compilable_test base_dir files ctx =
     flush_all ();
 
     let file_fullpath = Filename.concat base_dir filename in
+
+    let filename_output = Filename.temp_file "rill-run-test-" "-pipe" in
+    let fd = Unix.openfile filename_output [Unix.O_RDWR] 0600 in
     let pid =
       Unix.create_process ctx.compiler_bin [|
                             ctx.compiler_bin;
@@ -76,17 +79,29 @@ let run_compilable_test base_dir files ctx =
                             "--system-lib-std"; "../stdlib/src";
                             "--system-default-link-option"; "-L../stdlib/lib -lrillstd-rt";
                            |]
-                          Unix.stdin Unix.stdout Unix.stderr
+                          Unix.stdin fd fd
     in
+
     let (_, ps) = Unix.waitpid [] pid in
     let is_exited_successfully = match ps with
       | Unix.WEXITED 0 -> true
       | _ -> false
     in
-    flush_all ();
+    Unix.close fd;
 
     let stat = is_exited_successfully in
-
+    if is_failure stat then
+      begin
+        let fd = Unix.openfile filename_output [Unix.O_RDONLY] 0400 in
+        let ch = Unix.in_channel_of_descr fd in
+        let _ = try while true do
+                      let s = IO.nread ch 1024 in
+                      output_string stdout s
+                    done with
+                | IO.No_more_input -> ()
+        in
+        Unix.close fd
+      end;
     Printf.printf "%s\n" (string_of_stat stat);
 
     stat

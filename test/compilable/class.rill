@@ -8,6 +8,14 @@ def main() : void
     yo_val(a);
     yo_ref(a);
 
+    val mutable va1 = a1();
+    val const va2 = a1();
+    val immutable va3 = a1();
+
+    //ref mutable ra1 = a1();
+    ref const ra2 = a1();
+    ref immutable ra3 = a1();
+
     return;
 }
 
