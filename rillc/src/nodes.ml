@@ -40,11 +40,10 @@ module Make (Ctx : NodeContextType) =
        *)
       | StatementList of ast list
       | ExprStmt of ast
-      | ScopeStmt of ast
       | ReturnStmt of ast option
       | ImportStmt of string list * string * ctx_t
-      (* name, params, return_type?, body, attribute?, _ *)
-      | FunctionDefStmt of id_string * ast * ast option * ast * attr_tbl_t option * ctx_t
+      (* name, params, return_type?, instance_cond, body, attribute?, _ *)
+      | FunctionDefStmt of id_string * ast * ast option * ast option * ast * attr_tbl_t option * ctx_t
       | MemberFunctionDefStmt of id_string * ast * ast option * ast * attr_tbl_t option * ctx_t
       (* name, params, return_type, function name(TODO: change to AST), attribute?, _ *)
       | ExternFunctionDefStmt of id_string * ast * ast * string * attr_tbl_t option * ctx_t
@@ -52,7 +51,7 @@ module Make (Ctx : NodeContextType) =
       | ClassDefStmt of id_string * ast * attr_tbl_t option * ctx_t
       | ExternClassDefStmt of id_string * string * attr_tbl_t option * ctx_t
       (* VarInit, _ *)
-      | VariableDefStmt of ast * ctx_t
+      | VariableDefStmt of Meta_level.t * ast * ctx_t
       | MemberVariableDefStmt of ast * ctx_t
       (* name, template params, inner node *)
       | TemplateStmt of id_string * ast * ast
@@ -68,6 +67,8 @@ module Make (Ctx : NodeContextType) =
       | ElementSelectionExpr of ast * ast * ctx_t
       | SubscriptingExpr of ast * ast option
       | CallExpr of ast * ast list
+      | ScopeExpr of ast
+      | IfExpr of ast * ast * ast option
       | NewExpr of ast
       | DeleteExpr of ast
       | StatementTraitsExpr of string * ast
@@ -101,14 +102,15 @@ module Make (Ctx : NodeContextType) =
       | NestedExpr of ast * term_aux_t * term_ctx_t * ctx_t
 
 
-     and term_aux_t =  (term_ctx_t * Value_category.t * Lifetime.t * Meta_level.t)
+     and term_aux_t = (term_ctx_t * Value_category.t * Type_attr.lifetime_t * Meta_level.t)
 
      (* attr * id? * value *)
      and param_init_t = Type_attr.attr_t * string option * value_init_t
      (* id * value? *)
      and template_param_init_t = string * value_init_t option
      (* attr * id * value *)
-     and var_init_t = Type_attr.attr_t * string * value_init_t
+     and var_init_t = var_aux_t * string * value_init_t
+     and var_aux_t = Type_attr.attr_t
 
      (* type * default value *)
      and value_init_t = ast option * ast option
@@ -150,7 +152,7 @@ module Make (Ctx : NodeContextType) =
       | ExprStmt _ ->
          print_string "ExprStmt\n"
 
-      | FunctionDefStmt (id, _, _, statements, _, ctx) ->
+      | FunctionDefStmt (id, _, _, _, statements, _, ctx) ->
          begin
            open_hbox();
            print_string "function def : "; print_string (string_of_id_string id); print_string "\n";
@@ -198,10 +200,7 @@ module Make (Ctx : NodeContextType) =
          begin
            print_string "id{"; print_string (string_of_id_string name); print_string "}"
          end
-      | ScopeStmt _ ->
-         begin
-           print_string "scope"
-         end
+
       | ReturnStmt _ ->
          begin
            print_string "return"
@@ -254,9 +253,9 @@ module Make (Ctx : NodeContextType) =
          begin
            print_string "InstantiatedId"
          end
-      | Int32Lit _ ->
+      | Int32Lit (v, _) ->
          begin
-           print_string "Int32Lit"
+           Printf.printf "Int32Lit %d" v
          end
       | BoolLit _ ->
          begin
@@ -310,4 +309,5 @@ module Make (Ctx : NodeContextType) =
          begin
            print_string "NestedExpr"
          end
+      | _ -> print_string "unknown"
   end

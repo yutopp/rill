@@ -24,9 +24,6 @@ let rec solve_forward_refs ?(meta_variables=[])
   | Ast.ExprStmt ast ->
      TAst.ExprStmt (TAst.PrevPassNode ast)
 
-  | Ast.ScopeStmt ast ->
-     TAst.ScopeStmt (TAst.PrevPassNode ast)
-
   | Ast.ReturnStmt ast ->
      TAst.ReturnStmt (Option.map (fun a -> TAst.PrevPassNode a) ast)
 
@@ -40,7 +37,7 @@ let rec solve_forward_refs ?(meta_variables=[])
        TAst.EmptyStmt
      end
 
-  | Ast.FunctionDefStmt (id_name, params, opt_ret_type, body, None, _) ->
+  | Ast.FunctionDefStmt (id_name, params, opt_ret_type, _, body, None, _) ->
      begin
        let fenv = declare_pre_function id_name meta_variables parent_env ctx in
 
@@ -48,6 +45,7 @@ let rec solve_forward_refs ?(meta_variables=[])
                       id_name,
                       TAst.PrevPassNode params,
                       Option.map (fun x -> TAst.PrevPassNode x) opt_ret_type,
+                      None,
                       TAst.PrevPassNode body,
                       opt_attr,
                       Some fenv
@@ -147,8 +145,8 @@ let rec solve_forward_refs ?(meta_variables=[])
        node
      end
 
-  | Ast.VariableDefStmt (v, _) ->
-     TAst.VariableDefStmt (TAst.PrevPassNode v, None)
+  | Ast.VariableDefStmt (ml, v, _) ->
+     TAst.VariableDefStmt (ml, TAst.PrevPassNode v, None)
 
   | Ast.TemplateStmt (id_name, template_params, inner_node) ->
      begin
@@ -257,7 +255,7 @@ and load_module pkg_names mod_name ctx =
   let mod_env = Module_info.Bag.search_module ctx.sc_module_bag
                                               pkg_names mod_name in
   match mod_env with
-    | Some r -> r (* return cache module *)
+    | Some r -> r (* return cached module *)
     | None ->
        begin
          let pp dirs dir_name =
@@ -271,7 +269,7 @@ and load_module pkg_names mod_name ctx =
          let target_dirs = List.fold_left pp ctx.sc_module_search_dirs pkg_names in
          let target_dir = match target_dirs with
            | [dir] -> dir
-           | [] -> failwith "[ERR] package not found"
+           | [] -> failwith ("[ERR] package not found : " ^ (String.concat "." pkg_names) ^ "." ^ mod_name)
            | _ -> failwith "[ICE]"
          in
          Printf.printf "import from = %s\n" target_dir;

@@ -1,25 +1,12 @@
-// TODO: move to
-extern def print(v: int32): void = "rill_print_int";
-extern def print(v: bool): void = "rill_print_bool";
-extern def print(v: raw_ptr!(bool)): void = "rill_print_string";
-extern def print_int(v: int32): void = "rill_print_int";
+// type and void classes are defined by compiler directly.
 
-// TODO: implement by macro
-extern def assert(:bool): void = "rill_assert";
-extern def assert_not(:bool): void = "rill_assert_not";
-
-#[builtin, primitive]
-extern class type = "__builtin_type_type"
-
-
-#[builtin, primitive, novalue]
-extern class void = "__builtin_void_type"
-
-
+// bool
 #[builtin, primitive]
 extern class bool = "__builtin_bool_type"
+#[builtin]
+extern def operator pre!(:bool): bool = "__builtin_op_unary_pre_!_bool";
 
-
+// int32
 #[builtin, primitive]
 extern class int32 = "__builtin_int32_type"
 
@@ -67,8 +54,10 @@ def operator pre--(ref mutable i:int32): void
     return;
 }
 
+// array
 #[builtin]
 extern class array!(T, N:int32) = "__builtin_array_type"
 
+// raw pointer
 #[builtin, primitive]
 extern class raw_ptr!(T) = "__builtin_raw_ptr_type"

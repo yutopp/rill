@@ -1,0 +1,1891 @@
+program_entry: ID DOT TIMES 
+##
+## Ends in an error in state: 4.
+##
+## separated_nonempty_list(DOT,rel_id_has_no_op_as_raw) -> rel_id_has_no_op_as_raw DOT . separated_nonempty_list(DOT,rel_id_has_no_op_as_raw) [ SHARP SEMICOLON KEYWORD_IMPORT KEYWORD_EXTERN KEYWORD_DEF KEYWORD_CLASS EOF ]
+##
+## The known suffix of the stack is as follows:
+## rel_id_has_no_op_as_raw DOT 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: ID TIMES 
+##
+## Ends in an error in state: 3.
+##
+## separated_nonempty_list(DOT,rel_id_has_no_op_as_raw) -> rel_id_has_no_op_as_raw . [ SHARP SEMICOLON KEYWORD_IMPORT KEYWORD_EXTERN KEYWORD_DEF KEYWORD_CLASS EOF ]
+## separated_nonempty_list(DOT,rel_id_has_no_op_as_raw) -> rel_id_has_no_op_as_raw . DOT separated_nonempty_list(DOT,rel_id_has_no_op_as_raw) [ SHARP SEMICOLON KEYWORD_IMPORT KEYWORD_EXTERN KEYWORD_DEF KEYWORD_CLASS EOF ]
+##
+## The known suffix of the stack is as follows:
+## rel_id_has_no_op_as_raw 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_CLASS ID KEYWORD_RUNTIME TIMES 
+##
+## Ends in an error in state: 277.
+##
+## class_decl_statement_ -> KEYWORD_CLASS rel_id_as_s meta_level . class_decl_body_block [ SHARP SEMICOLON KEYWORD_IMPORT KEYWORD_EXTERN KEYWORD_DEF KEYWORD_CLASS EOF ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_CLASS rel_id_as_s meta_level 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_CLASS ID LBLOCK KEYWORD_DEF ID LPAREN RPAREN COLON ID SEMICOLON 
+##
+## Ends in an error in state: 284.
+##
+## member_function_declaration_statement -> KEYWORD_DEF rel_id_as_s option(template_parameter_variables_decl_list) parameter_variables_decl_list option(type_specifier) . function_decl_body_block [ SHARP SEMICOLON RBLOCK KEYWORD_VAL KEYWORD_DEF ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_DEF rel_id_as_s option(template_parameter_variables_decl_list) parameter_variables_decl_list option(type_specifier) 
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 68, spurious reduction of production rel_id -> rel_id_as_s 
+## In state 72, spurious reduction of production rel_generic_id -> rel_id 
+## In state 73, spurious reduction of production generic_id -> rel_generic_id 
+## In state 88, spurious reduction of production primary_value -> generic_id 
+## In state 74, spurious reduction of production primary_expression -> primary_value 
+## In state 75, spurious reduction of production postfix_expression -> primary_expression 
+## In state 94, spurious reduction of production unary_expression -> postfix_expression 
+## In state 91, spurious reduction of production mul_div_rem_expression -> unary_expression 
+## In state 95, spurious reduction of production add_sub_expression -> mul_div_rem_expression 
+## In state 112, spurious reduction of production shift_expression -> add_sub_expression 
+## In state 92, spurious reduction of production relational_expression -> shift_expression 
+## In state 109, spurious reduction of production equality_expression -> relational_expression 
+## In state 125, spurious reduction of production bitwise_and_expression -> equality_expression 
+## In state 138, spurious reduction of production bitwise_xor_expression -> bitwise_and_expression 
+## In state 130, spurious reduction of production bitwise_or_expression -> bitwise_xor_expression 
+## In state 139, spurious reduction of production logical_and_expression -> bitwise_or_expression 
+## In state 140, spurious reduction of production logical_or_expression -> logical_and_expression 
+## In state 121, spurious reduction of production conditional_expression -> logical_or_expression 
+## In state 168, spurious reduction of production id_expression -> conditional_expression 
+## In state 167, spurious reduction of production type_specifier -> COLON id_expression 
+## In state 264, spurious reduction of production option(type_specifier) -> type_specifier 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_CLASS ID LBLOCK KEYWORD_DEF ID LPAREN RPAREN TIMES 
+##
+## Ends in an error in state: 283.
+##
+## member_function_declaration_statement -> KEYWORD_DEF rel_id_as_s option(template_parameter_variables_decl_list) parameter_variables_decl_list . option(type_specifier) function_decl_body_block [ SHARP SEMICOLON RBLOCK KEYWORD_VAL KEYWORD_DEF ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_DEF rel_id_as_s option(template_parameter_variables_decl_list) parameter_variables_decl_list 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_CLASS ID LBLOCK KEYWORD_DEF ID NOT LPAREN ID RPAREN LOGICAL_OR 
+##
+## Ends in an error in state: 282.
+##
+## member_function_declaration_statement -> KEYWORD_DEF rel_id_as_s option(template_parameter_variables_decl_list) . parameter_variables_decl_list option(type_specifier) function_decl_body_block [ SHARP SEMICOLON RBLOCK KEYWORD_VAL KEYWORD_DEF ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_DEF rel_id_as_s option(template_parameter_variables_decl_list) 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_CLASS ID LBLOCK KEYWORD_DEF ID TIMES 
+##
+## Ends in an error in state: 281.
+##
+## member_function_declaration_statement -> KEYWORD_DEF rel_id_as_s . option(template_parameter_variables_decl_list) parameter_variables_decl_list option(type_specifier) function_decl_body_block [ SHARP SEMICOLON RBLOCK KEYWORD_VAL KEYWORD_DEF ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_DEF rel_id_as_s 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_CLASS ID LBLOCK KEYWORD_DEF TIMES 
+##
+## Ends in an error in state: 280.
+##
+## member_function_declaration_statement -> KEYWORD_DEF . rel_id_as_s option(template_parameter_variables_decl_list) parameter_variables_decl_list option(type_specifier) function_decl_body_block [ SHARP SEMICOLON RBLOCK KEYWORD_VAL KEYWORD_DEF ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_DEF 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_CLASS ID LBLOCK KEYWORD_VAL ID COLON ID RPAREN 
+##
+## Ends in an error in state: 291.
+##
+## member_variable_declaration_statement -> member_variable_declararion . SEMICOLON [ SHARP SEMICOLON RBLOCK KEYWORD_VAL KEYWORD_DEF ]
+##
+## The known suffix of the stack is as follows:
+## member_variable_declararion 
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 68, spurious reduction of production rel_id -> rel_id_as_s 
+## In state 72, spurious reduction of production rel_generic_id -> rel_id 
+## In state 73, spurious reduction of production generic_id -> rel_generic_id 
+## In state 88, spurious reduction of production primary_value -> generic_id 
+## In state 74, spurious reduction of production primary_expression -> primary_value 
+## In state 75, spurious reduction of production postfix_expression -> primary_expression 
+## In state 94, spurious reduction of production unary_expression -> postfix_expression 
+## In state 91, spurious reduction of production mul_div_rem_expression -> unary_expression 
+## In state 95, spurious reduction of production add_sub_expression -> mul_div_rem_expression 
+## In state 112, spurious reduction of production shift_expression -> add_sub_expression 
+## In state 92, spurious reduction of production relational_expression -> shift_expression 
+## In state 109, spurious reduction of production equality_expression -> relational_expression 
+## In state 125, spurious reduction of production bitwise_and_expression -> equality_expression 
+## In state 138, spurious reduction of production bitwise_xor_expression -> bitwise_and_expression 
+## In state 130, spurious reduction of production bitwise_or_expression -> bitwise_xor_expression 
+## In state 139, spurious reduction of production logical_and_expression -> bitwise_or_expression 
+## In state 140, spurious reduction of production logical_or_expression -> logical_and_expression 
+## In state 121, spurious reduction of production conditional_expression -> logical_or_expression 
+## In state 168, spurious reduction of production id_expression -> conditional_expression 
+## In state 167, spurious reduction of production type_specifier -> COLON id_expression 
+## In state 173, spurious reduction of production option(value_initializer_unit_only_value) -> 
+## In state 175, spurious reduction of production value_initializer_unit -> type_specifier option(value_initializer_unit_only_value) 
+## In state 295, spurious reduction of production member_variable_initializer_unit -> member_variable_decl_introducer rel_id_has_no_op_as_raw value_initializer_unit 
+## In state 289, spurious reduction of production member_variable_declararion -> member_variable_initializer_unit 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_CLASS ID LBLOCK KEYWORD_VAL ID TIMES 
+##
+## Ends in an error in state: 294.
+##
+## member_variable_initializer_unit -> member_variable_decl_introducer rel_id_has_no_op_as_raw . value_initializer_unit [ SEMICOLON ]
+##
+## The known suffix of the stack is as follows:
+## member_variable_decl_introducer rel_id_has_no_op_as_raw 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_CLASS ID LBLOCK KEYWORD_VAL KEYWORD_CONST TIMES 
+##
+## Ends in an error in state: 293.
+##
+## member_variable_initializer_unit -> member_variable_decl_introducer . rel_id_has_no_op_as_raw value_initializer_unit [ SEMICOLON ]
+##
+## The known suffix of the stack is as follows:
+## member_variable_decl_introducer 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_CLASS ID LBLOCK KEYWORD_VAL TIMES 
+##
+## Ends in an error in state: 286.
+##
+## member_variable_decl_introducer -> rv_attr_val . mut_attr_mutable_def [ ID ]
+##
+## The known suffix of the stack is as follows:
+## rv_attr_val 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_CLASS ID LBLOCK SEMICOLON TIMES 
+##
+## Ends in an error in state: 302.
+##
+## list(class_body_statement) -> class_body_statement . list(class_body_statement) [ RBLOCK ]
+##
+## The known suffix of the stack is as follows:
+## class_body_statement 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_CLASS ID LBLOCK SHARP LBRACKET RBRACKET TIMES 
+##
+## Ends in an error in state: 304.
+##
+## class_body_statement -> attribute . class_body_statement_ [ SHARP SEMICOLON RBLOCK KEYWORD_VAL KEYWORD_DEF ]
+##
+## The known suffix of the stack is as follows:
+## attribute 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_CLASS ID LBLOCK TIMES 
+##
+## Ends in an error in state: 278.
+##
+## class_body_block -> LBLOCK . class_body_statements_list RBLOCK [ SHARP SEMICOLON KEYWORD_IMPORT KEYWORD_EXTERN KEYWORD_DEF KEYWORD_CLASS EOF ]
+##
+## The known suffix of the stack is as follows:
+## LBLOCK 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_CLASS ID TIMES 
+##
+## Ends in an error in state: 276.
+##
+## class_decl_statement_ -> KEYWORD_CLASS rel_id_as_s . meta_level class_decl_body_block [ SHARP SEMICOLON KEYWORD_IMPORT KEYWORD_EXTERN KEYWORD_DEF KEYWORD_CLASS EOF ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_CLASS rel_id_as_s 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_CLASS TIMES 
+##
+## Ends in an error in state: 275.
+##
+## class_decl_statement_ -> KEYWORD_CLASS . rel_id_as_s meta_level class_decl_body_block [ SHARP SEMICOLON KEYWORD_IMPORT KEYWORD_EXTERN KEYWORD_DEF KEYWORD_CLASS EOF ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_CLASS 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID LPAREN ASSIGN STRING ASSIGN TIMES 
+##
+## Ends in an error in state: 144.
+##
+## assign_expression -> assign_expression ASSIGN . conditional_expression [ SEMICOLON RPAREN RBRACKET COMMA ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## assign_expression ASSIGN 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID LPAREN ASSIGN STRING LBLOCK 
+##
+## Ends in an error in state: 143.
+##
+## assign_expression -> assign_expression . ASSIGN conditional_expression [ SEMICOLON RPAREN RBRACKET COMMA ASSIGN ]
+## expression -> assign_expression . [ SEMICOLON RPAREN RBRACKET COMMA ]
+##
+## The known suffix of the stack is as follows:
+## assign_expression 
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 94, spurious reduction of production unary_expression -> postfix_expression 
+## In state 91, spurious reduction of production mul_div_rem_expression -> unary_expression 
+## In state 95, spurious reduction of production add_sub_expression -> mul_div_rem_expression 
+## In state 112, spurious reduction of production shift_expression -> add_sub_expression 
+## In state 92, spurious reduction of production relational_expression -> shift_expression 
+## In state 109, spurious reduction of production equality_expression -> relational_expression 
+## In state 125, spurious reduction of production bitwise_and_expression -> equality_expression 
+## In state 138, spurious reduction of production bitwise_xor_expression -> bitwise_and_expression 
+## In state 130, spurious reduction of production bitwise_or_expression -> bitwise_xor_expression 
+## In state 139, spurious reduction of production logical_and_expression -> bitwise_or_expression 
+## In state 140, spurious reduction of production logical_or_expression -> logical_and_expression 
+## In state 121, spurious reduction of production conditional_expression -> logical_or_expression 
+## In state 142, spurious reduction of production assign_expression -> conditional_expression 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID LPAREN ASSIGN TIMES 
+##
+## Ends in an error in state: 169.
+##
+## value_initializer_unit_only_value -> ASSIGN . expression [ SEMICOLON RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## ASSIGN 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID LPAREN COLON ID COMMA TIMES 
+##
+## Ends in an error in state: 227.
+##
+## separated_nonempty_list(COMMA,parameter_variable_declaration) -> parameter_variable_declaration COMMA . separated_nonempty_list(COMMA,parameter_variable_declaration) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## parameter_variable_declaration COMMA 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID LPAREN COLON ID RBRACKET 
+##
+## Ends in an error in state: 173.
+##
+## value_initializer_unit -> type_specifier . option(value_initializer_unit_only_value) [ SEMICOLON RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## type_specifier 
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 68, spurious reduction of production rel_id -> rel_id_as_s 
+## In state 72, spurious reduction of production rel_generic_id -> rel_id 
+## In state 73, spurious reduction of production generic_id -> rel_generic_id 
+## In state 88, spurious reduction of production primary_value -> generic_id 
+## In state 74, spurious reduction of production primary_expression -> primary_value 
+## In state 75, spurious reduction of production postfix_expression -> primary_expression 
+## In state 94, spurious reduction of production unary_expression -> postfix_expression 
+## In state 91, spurious reduction of production mul_div_rem_expression -> unary_expression 
+## In state 95, spurious reduction of production add_sub_expression -> mul_div_rem_expression 
+## In state 112, spurious reduction of production shift_expression -> add_sub_expression 
+## In state 92, spurious reduction of production relational_expression -> shift_expression 
+## In state 109, spurious reduction of production equality_expression -> relational_expression 
+## In state 125, spurious reduction of production bitwise_and_expression -> equality_expression 
+## In state 138, spurious reduction of production bitwise_xor_expression -> bitwise_and_expression 
+## In state 130, spurious reduction of production bitwise_or_expression -> bitwise_xor_expression 
+## In state 139, spurious reduction of production logical_and_expression -> bitwise_or_expression 
+## In state 140, spurious reduction of production logical_or_expression -> logical_and_expression 
+## In state 121, spurious reduction of production conditional_expression -> logical_or_expression 
+## In state 168, spurious reduction of production id_expression -> conditional_expression 
+## In state 167, spurious reduction of production type_specifier -> COLON id_expression 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID LPAREN COLON ID SEMICOLON 
+##
+## Ends in an error in state: 226.
+##
+## separated_nonempty_list(COMMA,parameter_variable_declaration) -> parameter_variable_declaration . [ RPAREN ]
+## separated_nonempty_list(COMMA,parameter_variable_declaration) -> parameter_variable_declaration . COMMA separated_nonempty_list(COMMA,parameter_variable_declaration) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## parameter_variable_declaration 
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 68, spurious reduction of production rel_id -> rel_id_as_s 
+## In state 72, spurious reduction of production rel_generic_id -> rel_id 
+## In state 73, spurious reduction of production generic_id -> rel_generic_id 
+## In state 88, spurious reduction of production primary_value -> generic_id 
+## In state 74, spurious reduction of production primary_expression -> primary_value 
+## In state 75, spurious reduction of production postfix_expression -> primary_expression 
+## In state 94, spurious reduction of production unary_expression -> postfix_expression 
+## In state 91, spurious reduction of production mul_div_rem_expression -> unary_expression 
+## In state 95, spurious reduction of production add_sub_expression -> mul_div_rem_expression 
+## In state 112, spurious reduction of production shift_expression -> add_sub_expression 
+## In state 92, spurious reduction of production relational_expression -> shift_expression 
+## In state 109, spurious reduction of production equality_expression -> relational_expression 
+## In state 125, spurious reduction of production bitwise_and_expression -> equality_expression 
+## In state 138, spurious reduction of production bitwise_xor_expression -> bitwise_and_expression 
+## In state 130, spurious reduction of production bitwise_or_expression -> bitwise_xor_expression 
+## In state 139, spurious reduction of production logical_and_expression -> bitwise_or_expression 
+## In state 140, spurious reduction of production logical_or_expression -> logical_and_expression 
+## In state 121, spurious reduction of production conditional_expression -> logical_or_expression 
+## In state 168, spurious reduction of production id_expression -> conditional_expression 
+## In state 167, spurious reduction of production type_specifier -> COLON id_expression 
+## In state 173, spurious reduction of production option(value_initializer_unit_only_value) -> 
+## In state 175, spurious reduction of production value_initializer_unit -> type_specifier option(value_initializer_unit_only_value) 
+## In state 232, spurious reduction of production parameter_variable_initializer_unit -> parameter_variable_decl_introducer option(rel_id_has_no_op_as_raw) value_initializer_unit 
+## In state 225, spurious reduction of production parameter_variable_declaration -> parameter_variable_initializer_unit 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID LPAREN COLON TIMES 
+##
+## Ends in an error in state: 166.
+##
+## type_specifier -> COLON . id_expression [ SEMICOLON RPAREN LBLOCK FAT_ARROW COMMA ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## COLON 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID LPAREN ID TIMES 
+##
+## Ends in an error in state: 231.
+##
+## parameter_variable_initializer_unit -> parameter_variable_decl_introducer option(rel_id_has_no_op_as_raw) . value_initializer_unit [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## parameter_variable_decl_introducer option(rel_id_has_no_op_as_raw) 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID LPAREN KEYWORD_MUTABLE TIMES 
+##
+## Ends in an error in state: 229.
+##
+## parameter_variable_initializer_unit -> parameter_variable_decl_introducer . option(rel_id_has_no_op_as_raw) value_initializer_unit [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## parameter_variable_decl_introducer 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID LPAREN KEYWORD_VAL TIMES 
+##
+## Ends in an error in state: 223.
+##
+## parameter_variable_decl_introducer -> rv_attr . mut_attr [ ID COLON ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## rv_attr 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID LPAREN RPAREN COLON ID SEMICOLON 
+##
+## Ends in an error in state: 265.
+##
+## function_decl_statement -> KEYWORD_DEF rel_id_as_s option(template_parameter_variables_decl_list) parameter_variables_decl_list option(type_specifier) . function_decl_body_block [ SHARP SEMICOLON KEYWORD_IMPORT KEYWORD_EXTERN KEYWORD_DEF KEYWORD_CLASS EOF ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_DEF rel_id_as_s option(template_parameter_variables_decl_list) parameter_variables_decl_list option(type_specifier) 
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 68, spurious reduction of production rel_id -> rel_id_as_s 
+## In state 72, spurious reduction of production rel_generic_id -> rel_id 
+## In state 73, spurious reduction of production generic_id -> rel_generic_id 
+## In state 88, spurious reduction of production primary_value -> generic_id 
+## In state 74, spurious reduction of production primary_expression -> primary_value 
+## In state 75, spurious reduction of production postfix_expression -> primary_expression 
+## In state 94, spurious reduction of production unary_expression -> postfix_expression 
+## In state 91, spurious reduction of production mul_div_rem_expression -> unary_expression 
+## In state 95, spurious reduction of production add_sub_expression -> mul_div_rem_expression 
+## In state 112, spurious reduction of production shift_expression -> add_sub_expression 
+## In state 92, spurious reduction of production relational_expression -> shift_expression 
+## In state 109, spurious reduction of production equality_expression -> relational_expression 
+## In state 125, spurious reduction of production bitwise_and_expression -> equality_expression 
+## In state 138, spurious reduction of production bitwise_xor_expression -> bitwise_and_expression 
+## In state 130, spurious reduction of production bitwise_or_expression -> bitwise_xor_expression 
+## In state 139, spurious reduction of production logical_and_expression -> bitwise_or_expression 
+## In state 140, spurious reduction of production logical_or_expression -> logical_and_expression 
+## In state 121, spurious reduction of production conditional_expression -> logical_or_expression 
+## In state 168, spurious reduction of production id_expression -> conditional_expression 
+## In state 167, spurious reduction of production type_specifier -> COLON id_expression 
+## In state 264, spurious reduction of production option(type_specifier) -> type_specifier 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID LPAREN RPAREN FAT_ARROW STRING RPAREN 
+##
+## Ends in an error in state: 271.
+##
+## function_decl_body_block -> function_lambda_block . SEMICOLON [ SHARP SEMICOLON RBLOCK KEYWORD_VAL KEYWORD_IMPORT KEYWORD_EXTERN KEYWORD_DEF KEYWORD_CLASS EOF ]
+##
+## The known suffix of the stack is as follows:
+## function_lambda_block 
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 94, spurious reduction of production unary_expression -> postfix_expression 
+## In state 91, spurious reduction of production mul_div_rem_expression -> unary_expression 
+## In state 95, spurious reduction of production add_sub_expression -> mul_div_rem_expression 
+## In state 112, spurious reduction of production shift_expression -> add_sub_expression 
+## In state 92, spurious reduction of production relational_expression -> shift_expression 
+## In state 109, spurious reduction of production equality_expression -> relational_expression 
+## In state 125, spurious reduction of production bitwise_and_expression -> equality_expression 
+## In state 138, spurious reduction of production bitwise_xor_expression -> bitwise_and_expression 
+## In state 130, spurious reduction of production bitwise_or_expression -> bitwise_xor_expression 
+## In state 139, spurious reduction of production logical_and_expression -> bitwise_or_expression 
+## In state 140, spurious reduction of production logical_or_expression -> logical_and_expression 
+## In state 121, spurious reduction of production conditional_expression -> logical_or_expression 
+## In state 142, spurious reduction of production assign_expression -> conditional_expression 
+## In state 143, spurious reduction of production expression -> assign_expression 
+## In state 270, spurious reduction of production function_lambda_block -> FAT_ARROW expression 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID LPAREN RPAREN FAT_ARROW TIMES 
+##
+## Ends in an error in state: 269.
+##
+## function_lambda_block -> FAT_ARROW . expression [ SEMICOLON ]
+##
+## The known suffix of the stack is as follows:
+## FAT_ARROW 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID LPAREN RPAREN LBLOCK KEYWORD_RETURN STRING RPAREN 
+##
+## Ends in an error in state: 157.
+##
+## return_statement -> KEYWORD_RETURN option(expression) . SEMICOLON [ STRING SHARP SEMICOLON RBLOCK MINUS LPAREN LIT_TRUE LIT_FALSE LBRACKET LBLOCK KEYWORD_VAL KEYWORD_UU_STMT_TRAITS KEYWORD_RETURN KEYWORD_REF KEYWORD_OPERATOR KEYWORD_NEW KEYWORD_DELETE INT INCREMENT ID DECREMENT ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_RETURN option(expression) 
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 94, spurious reduction of production unary_expression -> postfix_expression 
+## In state 91, spurious reduction of production mul_div_rem_expression -> unary_expression 
+## In state 95, spurious reduction of production add_sub_expression -> mul_div_rem_expression 
+## In state 112, spurious reduction of production shift_expression -> add_sub_expression 
+## In state 92, spurious reduction of production relational_expression -> shift_expression 
+## In state 109, spurious reduction of production equality_expression -> relational_expression 
+## In state 125, spurious reduction of production bitwise_and_expression -> equality_expression 
+## In state 138, spurious reduction of production bitwise_xor_expression -> bitwise_and_expression 
+## In state 130, spurious reduction of production bitwise_or_expression -> bitwise_xor_expression 
+## In state 139, spurious reduction of production logical_and_expression -> bitwise_or_expression 
+## In state 140, spurious reduction of production logical_or_expression -> logical_and_expression 
+## In state 121, spurious reduction of production conditional_expression -> logical_or_expression 
+## In state 142, spurious reduction of production assign_expression -> conditional_expression 
+## In state 143, spurious reduction of production expression -> assign_expression 
+## In state 141, spurious reduction of production option(expression) -> expression 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID LPAREN RPAREN LBLOCK KEYWORD_RETURN TIMES 
+##
+## Ends in an error in state: 34.
+##
+## return_statement -> KEYWORD_RETURN . option(expression) SEMICOLON [ STRING SHARP SEMICOLON RBLOCK MINUS LPAREN LIT_TRUE LIT_FALSE LBRACKET LBLOCK KEYWORD_VAL KEYWORD_UU_STMT_TRAITS KEYWORD_RETURN KEYWORD_REF KEYWORD_OPERATOR KEYWORD_NEW KEYWORD_DELETE INT INCREMENT ID DECREMENT ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_RETURN 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID LPAREN RPAREN LBLOCK KEYWORD_VAL ID COLON STRING RPAREN 
+##
+## Ends in an error in state: 162.
+##
+## variable_declaration_statement -> variable_declararion . SEMICOLON [ STRING SHARP SEMICOLON RBLOCK MINUS LPAREN LIT_TRUE LIT_FALSE LBRACKET LBLOCK KEYWORD_VAL KEYWORD_UU_STMT_TRAITS KEYWORD_RETURN KEYWORD_REF KEYWORD_OPERATOR KEYWORD_NEW KEYWORD_DELETE INT INCREMENT ID DECREMENT ]
+##
+## The known suffix of the stack is as follows:
+## variable_declararion 
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 94, spurious reduction of production unary_expression -> postfix_expression 
+## In state 91, spurious reduction of production mul_div_rem_expression -> unary_expression 
+## In state 95, spurious reduction of production add_sub_expression -> mul_div_rem_expression 
+## In state 112, spurious reduction of production shift_expression -> add_sub_expression 
+## In state 92, spurious reduction of production relational_expression -> shift_expression 
+## In state 109, spurious reduction of production equality_expression -> relational_expression 
+## In state 125, spurious reduction of production bitwise_and_expression -> equality_expression 
+## In state 138, spurious reduction of production bitwise_xor_expression -> bitwise_and_expression 
+## In state 130, spurious reduction of production bitwise_or_expression -> bitwise_xor_expression 
+## In state 139, spurious reduction of production logical_and_expression -> bitwise_or_expression 
+## In state 140, spurious reduction of production logical_or_expression -> logical_and_expression 
+## In state 121, spurious reduction of production conditional_expression -> logical_or_expression 
+## In state 168, spurious reduction of production id_expression -> conditional_expression 
+## In state 167, spurious reduction of production type_specifier -> COLON id_expression 
+## In state 173, spurious reduction of production option(value_initializer_unit_only_value) -> 
+## In state 175, spurious reduction of production value_initializer_unit -> type_specifier option(value_initializer_unit_only_value) 
+## In state 172, spurious reduction of production variable_initializer_unit -> variable_decl_introducer rel_id_has_no_op_as_raw value_initializer_unit 
+## In state 160, spurious reduction of production variable_declararion -> variable_initializer_unit 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID LPAREN RPAREN LBLOCK KEYWORD_VAL ID TIMES 
+##
+## Ends in an error in state: 165.
+##
+## variable_initializer_unit -> variable_decl_introducer rel_id_has_no_op_as_raw . value_initializer_unit [ SEMICOLON ]
+##
+## The known suffix of the stack is as follows:
+## variable_decl_introducer rel_id_has_no_op_as_raw 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID LPAREN RPAREN LBLOCK KEYWORD_VAL KEYWORD_MUTABLE GTE 
+##
+## Ends in an error in state: 181.
+##
+## variable_decl_introducer -> rv_attr_force mut_attr . meta_level [ ID ]
+##
+## The known suffix of the stack is as follows:
+## rv_attr_force mut_attr 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID LPAREN RPAREN LBLOCK KEYWORD_VAL KEYWORD_RUNTIME TIMES 
+##
+## Ends in an error in state: 164.
+##
+## variable_initializer_unit -> variable_decl_introducer . rel_id_has_no_op_as_raw value_initializer_unit [ SEMICOLON ]
+##
+## The known suffix of the stack is as follows:
+## variable_decl_introducer 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID LPAREN RPAREN LBLOCK KEYWORD_VAL TIMES 
+##
+## Ends in an error in state: 176.
+##
+## variable_decl_introducer -> rv_attr_force . mut_attr meta_level [ ID ]
+##
+## The known suffix of the stack is as follows:
+## rv_attr_force 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID LPAREN RPAREN LBLOCK LBLOCK TIMES 
+##
+## Ends in an error in state: 31.
+##
+## program_body_block_statement -> LBLOCK . program_body_statements_list RBLOCK [ STRING SHARP SEMICOLON RPAREN RBLOCK MINUS LPAREN LIT_TRUE LIT_FALSE LBRACKET LBLOCK KEYWORD_VAL KEYWORD_UU_STMT_TRAITS KEYWORD_RETURN KEYWORD_REF KEYWORD_OPERATOR KEYWORD_NEW KEYWORD_DELETE INT INCREMENT ID DECREMENT ]
+##
+## The known suffix of the stack is as follows:
+## LBLOCK 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID LPAREN RPAREN LBLOCK SEMICOLON TIMES 
+##
+## Ends in an error in state: 191.
+##
+## list(program_body_statement) -> program_body_statement . list(program_body_statement) [ RBLOCK ]
+##
+## The known suffix of the stack is as follows:
+## program_body_statement 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID LPAREN RPAREN LBLOCK SHARP LBRACKET RBRACKET TIMES 
+##
+## Ends in an error in state: 198.
+##
+## program_body_statement -> attribute . program_body_statement_ [ STRING SHARP SEMICOLON RBLOCK MINUS LPAREN LIT_TRUE LIT_FALSE LBRACKET LBLOCK KEYWORD_VAL KEYWORD_UU_STMT_TRAITS KEYWORD_RETURN KEYWORD_REF KEYWORD_OPERATOR KEYWORD_NEW KEYWORD_DELETE INT INCREMENT ID DECREMENT ]
+##
+## The known suffix of the stack is as follows:
+## attribute 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID LPAREN RPAREN LBLOCK STRING RPAREN 
+##
+## Ends in an error in state: 195.
+##
+## expression_statement -> expression . SEMICOLON [ STRING SHARP SEMICOLON RBLOCK MINUS LPAREN LIT_TRUE LIT_FALSE LBRACKET LBLOCK KEYWORD_VAL KEYWORD_UU_STMT_TRAITS KEYWORD_RETURN KEYWORD_REF KEYWORD_OPERATOR KEYWORD_NEW KEYWORD_DELETE INT INCREMENT ID DECREMENT ]
+##
+## The known suffix of the stack is as follows:
+## expression 
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 94, spurious reduction of production unary_expression -> postfix_expression 
+## In state 91, spurious reduction of production mul_div_rem_expression -> unary_expression 
+## In state 95, spurious reduction of production add_sub_expression -> mul_div_rem_expression 
+## In state 112, spurious reduction of production shift_expression -> add_sub_expression 
+## In state 92, spurious reduction of production relational_expression -> shift_expression 
+## In state 109, spurious reduction of production equality_expression -> relational_expression 
+## In state 125, spurious reduction of production bitwise_and_expression -> equality_expression 
+## In state 138, spurious reduction of production bitwise_xor_expression -> bitwise_and_expression 
+## In state 130, spurious reduction of production bitwise_or_expression -> bitwise_xor_expression 
+## In state 139, spurious reduction of production logical_and_expression -> bitwise_or_expression 
+## In state 140, spurious reduction of production logical_or_expression -> logical_and_expression 
+## In state 121, spurious reduction of production conditional_expression -> logical_or_expression 
+## In state 142, spurious reduction of production assign_expression -> conditional_expression 
+## In state 143, spurious reduction of production expression -> assign_expression 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID LPAREN RPAREN LBLOCK TIMES 
+##
+## Ends in an error in state: 266.
+##
+## function_body_block -> LBLOCK . program_body_statements_list RBLOCK [ SHARP SEMICOLON RBLOCK KEYWORD_VAL KEYWORD_IMPORT KEYWORD_EXTERN KEYWORD_DEF KEYWORD_CLASS EOF ]
+##
+## The known suffix of the stack is as follows:
+## LBLOCK 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID LPAREN RPAREN TIMES 
+##
+## Ends in an error in state: 263.
+##
+## function_decl_statement -> KEYWORD_DEF rel_id_as_s option(template_parameter_variables_decl_list) parameter_variables_decl_list . option(type_specifier) function_decl_body_block [ SHARP SEMICOLON KEYWORD_IMPORT KEYWORD_EXTERN KEYWORD_DEF KEYWORD_CLASS EOF ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_DEF rel_id_as_s option(template_parameter_variables_decl_list) parameter_variables_decl_list 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID LPAREN TIMES 
+##
+## Ends in an error in state: 220.
+##
+## parameter_variables_decl_list -> LPAREN . loption(separated_nonempty_list(COMMA,parameter_variable_declaration)) RPAREN [ LBLOCK FAT_ARROW COLON ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID NOT LPAREN ID COLON ID SEMICOLON 
+##
+## Ends in an error in state: 244.
+##
+## separated_nonempty_list(COMMA,template_parameter_variable_declaration) -> template_parameter_variable_declaration . [ RPAREN ]
+## separated_nonempty_list(COMMA,template_parameter_variable_declaration) -> template_parameter_variable_declaration . COMMA separated_nonempty_list(COMMA,template_parameter_variable_declaration) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## template_parameter_variable_declaration 
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 68, spurious reduction of production rel_id -> rel_id_as_s 
+## In state 72, spurious reduction of production rel_generic_id -> rel_id 
+## In state 73, spurious reduction of production generic_id -> rel_generic_id 
+## In state 88, spurious reduction of production primary_value -> generic_id 
+## In state 74, spurious reduction of production primary_expression -> primary_value 
+## In state 75, spurious reduction of production postfix_expression -> primary_expression 
+## In state 94, spurious reduction of production unary_expression -> postfix_expression 
+## In state 91, spurious reduction of production mul_div_rem_expression -> unary_expression 
+## In state 95, spurious reduction of production add_sub_expression -> mul_div_rem_expression 
+## In state 112, spurious reduction of production shift_expression -> add_sub_expression 
+## In state 92, spurious reduction of production relational_expression -> shift_expression 
+## In state 109, spurious reduction of production equality_expression -> relational_expression 
+## In state 125, spurious reduction of production bitwise_and_expression -> equality_expression 
+## In state 138, spurious reduction of production bitwise_xor_expression -> bitwise_and_expression 
+## In state 130, spurious reduction of production bitwise_or_expression -> bitwise_xor_expression 
+## In state 139, spurious reduction of production logical_and_expression -> bitwise_or_expression 
+## In state 140, spurious reduction of production logical_or_expression -> logical_and_expression 
+## In state 121, spurious reduction of production conditional_expression -> logical_or_expression 
+## In state 168, spurious reduction of production id_expression -> conditional_expression 
+## In state 167, spurious reduction of production type_specifier -> COLON id_expression 
+## In state 173, spurious reduction of production option(value_initializer_unit_only_value) -> 
+## In state 175, spurious reduction of production value_initializer_unit -> type_specifier option(value_initializer_unit_only_value) 
+## In state 248, spurious reduction of production option(value_initializer_unit) -> value_initializer_unit 
+## In state 249, spurious reduction of production template_parameter_variable_initializer_unit -> rel_id_has_no_op_as_raw option(value_initializer_unit) 
+## In state 243, spurious reduction of production template_parameter_variable_declaration -> template_parameter_variable_initializer_unit 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID NOT LPAREN ID COMMA TIMES 
+##
+## Ends in an error in state: 245.
+##
+## separated_nonempty_list(COMMA,template_parameter_variable_declaration) -> template_parameter_variable_declaration COMMA . separated_nonempty_list(COMMA,template_parameter_variable_declaration) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## template_parameter_variable_declaration COMMA 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID NOT LPAREN ID RPAREN LOGICAL_OR 
+##
+## Ends in an error in state: 262.
+##
+## function_decl_statement -> KEYWORD_DEF rel_id_as_s option(template_parameter_variables_decl_list) . parameter_variables_decl_list option(type_specifier) function_decl_body_block [ SHARP SEMICOLON KEYWORD_IMPORT KEYWORD_EXTERN KEYWORD_DEF KEYWORD_CLASS EOF ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_DEF rel_id_as_s option(template_parameter_variables_decl_list) 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID NOT LPAREN ID TIMES 
+##
+## Ends in an error in state: 247.
+##
+## template_parameter_variable_initializer_unit -> rel_id_has_no_op_as_raw . option(value_initializer_unit) [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## rel_id_has_no_op_as_raw 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID NOT LPAREN TIMES 
+##
+## Ends in an error in state: 242.
+##
+## template_parameter_variables_decl_list -> NOT LPAREN . separated_nonempty_list(COMMA,template_parameter_variable_declaration) RPAREN [ LPAREN KEYWORD_RUNTIME KEYWORD_ONLY_RUNTIME KEYWORD_ONLY_META KEYWORD_META ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## NOT LPAREN 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID NOT TIMES 
+##
+## Ends in an error in state: 241.
+##
+## template_parameter_variables_decl_list -> NOT . LPAREN separated_nonempty_list(COMMA,template_parameter_variable_declaration) RPAREN [ LPAREN KEYWORD_RUNTIME KEYWORD_ONLY_RUNTIME KEYWORD_ONLY_META KEYWORD_META ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## NOT 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF ID TIMES 
+##
+## Ends in an error in state: 261.
+##
+## function_decl_statement -> KEYWORD_DEF rel_id_as_s . option(template_parameter_variables_decl_list) parameter_variables_decl_list option(type_specifier) function_decl_body_block [ SHARP SEMICOLON KEYWORD_IMPORT KEYWORD_EXTERN KEYWORD_DEF KEYWORD_CLASS EOF ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_DEF rel_id_as_s 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF KEYWORD_OPERATOR ID TIMES 
+##
+## Ends in an error in state: 47.
+##
+## unary_operator_as_s -> KEYWORD_OPERATOR ID . unary_operator_as_raw [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS NOT MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK KEYWORD_RUNTIME KEYWORD_ONLY_RUNTIME KEYWORD_ONLY_META KEYWORD_META GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_OPERATOR ID 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF KEYWORD_OPERATOR STRING 
+##
+## Ends in an error in state: 35.
+##
+## binary_operator_as_s -> KEYWORD_OPERATOR . binary_operator_as_raw [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS NOT MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK KEYWORD_RUNTIME KEYWORD_ONLY_RUNTIME KEYWORD_ONLY_META KEYWORD_META GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+## unary_operator_as_s -> KEYWORD_OPERATOR . ID unary_operator_as_raw [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS NOT MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK KEYWORD_RUNTIME KEYWORD_ONLY_RUNTIME KEYWORD_ONLY_META KEYWORD_META GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_OPERATOR 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_DEF TIMES 
+##
+## Ends in an error in state: 260.
+##
+## function_decl_statement -> KEYWORD_DEF . rel_id_as_s option(template_parameter_variables_decl_list) parameter_variables_decl_list option(type_specifier) function_decl_body_block [ SHARP SEMICOLON KEYWORD_IMPORT KEYWORD_EXTERN KEYWORD_DEF KEYWORD_CLASS EOF ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_DEF 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_EXTERN KEYWORD_CLASS ID ASSIGN TIMES 
+##
+## Ends in an error in state: 255.
+##
+## extern_class_statement -> KEYWORD_CLASS rel_id_as_s option(template_parameter_variables_decl_list) meta_level ASSIGN . STRING [ SHARP SEMICOLON KEYWORD_IMPORT KEYWORD_EXTERN KEYWORD_DEF KEYWORD_CLASS EOF ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_CLASS rel_id_as_s option(template_parameter_variables_decl_list) meta_level ASSIGN 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_EXTERN KEYWORD_CLASS ID KEYWORD_RUNTIME TIMES 
+##
+## Ends in an error in state: 254.
+##
+## extern_class_statement -> KEYWORD_CLASS rel_id_as_s option(template_parameter_variables_decl_list) meta_level . ASSIGN STRING [ SHARP SEMICOLON KEYWORD_IMPORT KEYWORD_EXTERN KEYWORD_DEF KEYWORD_CLASS EOF ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_CLASS rel_id_as_s option(template_parameter_variables_decl_list) meta_level 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_EXTERN KEYWORD_CLASS ID NOT LPAREN ID RPAREN TIMES 
+##
+## Ends in an error in state: 253.
+##
+## extern_class_statement -> KEYWORD_CLASS rel_id_as_s option(template_parameter_variables_decl_list) . meta_level ASSIGN STRING [ SHARP SEMICOLON KEYWORD_IMPORT KEYWORD_EXTERN KEYWORD_DEF KEYWORD_CLASS EOF ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_CLASS rel_id_as_s option(template_parameter_variables_decl_list) 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_EXTERN KEYWORD_CLASS ID TIMES 
+##
+## Ends in an error in state: 240.
+##
+## extern_class_statement -> KEYWORD_CLASS rel_id_as_s . option(template_parameter_variables_decl_list) meta_level ASSIGN STRING [ SHARP SEMICOLON KEYWORD_IMPORT KEYWORD_EXTERN KEYWORD_DEF KEYWORD_CLASS EOF ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_CLASS rel_id_as_s 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_EXTERN KEYWORD_CLASS TIMES 
+##
+## Ends in an error in state: 239.
+##
+## extern_class_statement -> KEYWORD_CLASS . rel_id_as_s option(template_parameter_variables_decl_list) meta_level ASSIGN STRING [ SHARP SEMICOLON KEYWORD_IMPORT KEYWORD_EXTERN KEYWORD_DEF KEYWORD_CLASS EOF ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_CLASS 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_EXTERN KEYWORD_DEF ID LPAREN RPAREN COLON ID ASSIGN TIMES 
+##
+## Ends in an error in state: 237.
+##
+## extern_function_statement -> KEYWORD_DEF rel_id_as_s parameter_variables_decl_list type_specifier ASSIGN . STRING [ SHARP SEMICOLON KEYWORD_IMPORT KEYWORD_EXTERN KEYWORD_DEF KEYWORD_CLASS EOF ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_DEF rel_id_as_s parameter_variables_decl_list type_specifier ASSIGN 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_EXTERN KEYWORD_DEF ID LPAREN RPAREN COLON ID SEMICOLON 
+##
+## Ends in an error in state: 236.
+##
+## extern_function_statement -> KEYWORD_DEF rel_id_as_s parameter_variables_decl_list type_specifier . ASSIGN STRING [ SHARP SEMICOLON KEYWORD_IMPORT KEYWORD_EXTERN KEYWORD_DEF KEYWORD_CLASS EOF ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_DEF rel_id_as_s parameter_variables_decl_list type_specifier 
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 68, spurious reduction of production rel_id -> rel_id_as_s 
+## In state 72, spurious reduction of production rel_generic_id -> rel_id 
+## In state 73, spurious reduction of production generic_id -> rel_generic_id 
+## In state 88, spurious reduction of production primary_value -> generic_id 
+## In state 74, spurious reduction of production primary_expression -> primary_value 
+## In state 75, spurious reduction of production postfix_expression -> primary_expression 
+## In state 94, spurious reduction of production unary_expression -> postfix_expression 
+## In state 91, spurious reduction of production mul_div_rem_expression -> unary_expression 
+## In state 95, spurious reduction of production add_sub_expression -> mul_div_rem_expression 
+## In state 112, spurious reduction of production shift_expression -> add_sub_expression 
+## In state 92, spurious reduction of production relational_expression -> shift_expression 
+## In state 109, spurious reduction of production equality_expression -> relational_expression 
+## In state 125, spurious reduction of production bitwise_and_expression -> equality_expression 
+## In state 138, spurious reduction of production bitwise_xor_expression -> bitwise_and_expression 
+## In state 130, spurious reduction of production bitwise_or_expression -> bitwise_xor_expression 
+## In state 139, spurious reduction of production logical_and_expression -> bitwise_or_expression 
+## In state 140, spurious reduction of production logical_or_expression -> logical_and_expression 
+## In state 121, spurious reduction of production conditional_expression -> logical_or_expression 
+## In state 168, spurious reduction of production id_expression -> conditional_expression 
+## In state 167, spurious reduction of production type_specifier -> COLON id_expression 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_EXTERN KEYWORD_DEF ID LPAREN RPAREN TIMES 
+##
+## Ends in an error in state: 235.
+##
+## extern_function_statement -> KEYWORD_DEF rel_id_as_s parameter_variables_decl_list . type_specifier ASSIGN STRING [ SHARP SEMICOLON KEYWORD_IMPORT KEYWORD_EXTERN KEYWORD_DEF KEYWORD_CLASS EOF ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_DEF rel_id_as_s parameter_variables_decl_list 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_EXTERN KEYWORD_DEF ID TIMES 
+##
+## Ends in an error in state: 219.
+##
+## extern_function_statement -> KEYWORD_DEF rel_id_as_s . parameter_variables_decl_list type_specifier ASSIGN STRING [ SHARP SEMICOLON KEYWORD_IMPORT KEYWORD_EXTERN KEYWORD_DEF KEYWORD_CLASS EOF ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_DEF rel_id_as_s 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_EXTERN KEYWORD_DEF TIMES 
+##
+## Ends in an error in state: 218.
+##
+## extern_function_statement -> KEYWORD_DEF . rel_id_as_s parameter_variables_decl_list type_specifier ASSIGN STRING [ SHARP SEMICOLON KEYWORD_IMPORT KEYWORD_EXTERN KEYWORD_DEF KEYWORD_CLASS EOF ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_DEF 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_EXTERN TIMES 
+##
+## Ends in an error in state: 217.
+##
+## extern_statement -> KEYWORD_EXTERN . extern_statement_ [ SHARP SEMICOLON KEYWORD_IMPORT KEYWORD_EXTERN KEYWORD_DEF KEYWORD_CLASS EOF ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_EXTERN 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: KEYWORD_IMPORT TIMES 
+##
+## Ends in an error in state: 215.
+##
+## import_statement -> KEYWORD_IMPORT . separated_nonempty_list(DOT,rel_id_has_no_op_as_raw) [ SHARP SEMICOLON KEYWORD_IMPORT KEYWORD_EXTERN KEYWORD_DEF KEYWORD_CLASS EOF ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_IMPORT 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SEMICOLON TIMES 
+##
+## Ends in an error in state: 310.
+##
+## list(top_level_statement) -> top_level_statement . list(top_level_statement) [ EOF ]
+##
+## The known suffix of the stack is as follows:
+## top_level_statement 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN DECREMENT STRING STRING 
+##
+## Ends in an error in state: 82.
+##
+## postfix_expression -> postfix_expression . DOT rel_generic_id [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+## postfix_expression -> postfix_expression . LBRACKET option(expression) RBRACKET [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+## postfix_expression -> postfix_expression . argument_list [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+## unary_expression -> DECREMENT postfix_expression . [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LOGICAL_OR LOGICAL_AND LBLOCK GTE GT FAT_ARROW EQUALS DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## DECREMENT postfix_expression 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN DECREMENT TIMES 
+##
+## Ends in an error in state: 81.
+##
+## unary_expression -> DECREMENT . postfix_expression [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LOGICAL_OR LOGICAL_AND LBLOCK GTE GT FAT_ARROW EQUALS DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## DECREMENT 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN ID NOT LPAREN TIMES 
+##
+## Ends in an error in state: 70.
+##
+## template_argument_list -> NOT LPAREN . separated_nonempty_list(COMMA,assign_expression) RPAREN [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## NOT LPAREN 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN ID NOT TIMES 
+##
+## Ends in an error in state: 69.
+##
+## template_argument_list -> NOT . LPAREN separated_nonempty_list(COMMA,assign_expression) RPAREN [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+## template_argument_list -> NOT . primary_value [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## NOT 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN ID STRING 
+##
+## Ends in an error in state: 68.
+##
+## rel_id -> rel_id_as_s . [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+## rel_template_instance_id -> rel_id_as_s . template_argument_list [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## rel_id_as_s 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN INCREMENT STRING STRING 
+##
+## Ends in an error in state: 79.
+##
+## postfix_expression -> postfix_expression . DOT rel_generic_id [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+## postfix_expression -> postfix_expression . LBRACKET option(expression) RBRACKET [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+## postfix_expression -> postfix_expression . argument_list [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+## unary_expression -> INCREMENT postfix_expression . [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LOGICAL_OR LOGICAL_AND LBLOCK GTE GT FAT_ARROW EQUALS DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## INCREMENT postfix_expression 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN INCREMENT TIMES 
+##
+## Ends in an error in state: 78.
+##
+## unary_expression -> INCREMENT . postfix_expression [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LOGICAL_OR LOGICAL_AND LBLOCK GTE GT FAT_ARROW EQUALS DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## INCREMENT 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN KEYWORD_DELETE STRING STRING 
+##
+## Ends in an error in state: 76.
+##
+## postfix_expression -> postfix_expression . DOT rel_generic_id [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+## postfix_expression -> postfix_expression . LBRACKET option(expression) RBRACKET [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+## postfix_expression -> postfix_expression . argument_list [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+## unary_expression -> KEYWORD_DELETE postfix_expression . [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LOGICAL_OR LOGICAL_AND LBLOCK GTE GT FAT_ARROW EQUALS DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_DELETE postfix_expression 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN KEYWORD_DELETE TIMES 
+##
+## Ends in an error in state: 71.
+##
+## unary_expression -> KEYWORD_DELETE . postfix_expression [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LOGICAL_OR LOGICAL_AND LBLOCK GTE GT FAT_ARROW EQUALS DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_DELETE 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN KEYWORD_NEW STRING STRING 
+##
+## Ends in an error in state: 156.
+##
+## postfix_expression -> postfix_expression . DOT rel_generic_id [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+## postfix_expression -> postfix_expression . LBRACKET option(expression) RBRACKET [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+## postfix_expression -> postfix_expression . argument_list [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+## unary_expression -> KEYWORD_NEW postfix_expression . [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LOGICAL_OR LOGICAL_AND LBLOCK GTE GT FAT_ARROW EQUALS DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_NEW postfix_expression 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN KEYWORD_NEW TIMES 
+##
+## Ends in an error in state: 59.
+##
+## unary_expression -> KEYWORD_NEW . postfix_expression [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LOGICAL_OR LOGICAL_AND LBLOCK GTE GT FAT_ARROW EQUALS DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_NEW 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN KEYWORD_UU_STMT_TRAITS LPAREN ID COMMA LBLOCK RBLOCK TIMES 
+##
+## Ends in an error in state: 201.
+##
+## statement_traits_expression -> KEYWORD_UU_STMT_TRAITS LPAREN rel_id_has_no_op_as_raw COMMA program_body_block_statement . RPAREN [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_UU_STMT_TRAITS LPAREN rel_id_has_no_op_as_raw COMMA program_body_block_statement 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN KEYWORD_UU_STMT_TRAITS LPAREN ID COMMA TIMES 
+##
+## Ends in an error in state: 30.
+##
+## statement_traits_expression -> KEYWORD_UU_STMT_TRAITS LPAREN rel_id_has_no_op_as_raw COMMA . program_body_block_statement RPAREN [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_UU_STMT_TRAITS LPAREN rel_id_has_no_op_as_raw COMMA 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN KEYWORD_UU_STMT_TRAITS LPAREN ID TIMES 
+##
+## Ends in an error in state: 29.
+##
+## statement_traits_expression -> KEYWORD_UU_STMT_TRAITS LPAREN rel_id_has_no_op_as_raw . COMMA program_body_block_statement RPAREN [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_UU_STMT_TRAITS LPAREN rel_id_has_no_op_as_raw 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN KEYWORD_UU_STMT_TRAITS LPAREN TIMES 
+##
+## Ends in an error in state: 28.
+##
+## statement_traits_expression -> KEYWORD_UU_STMT_TRAITS LPAREN . rel_id_has_no_op_as_raw COMMA program_body_block_statement RPAREN [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_UU_STMT_TRAITS LPAREN 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN KEYWORD_UU_STMT_TRAITS TIMES 
+##
+## Ends in an error in state: 27.
+##
+## statement_traits_expression -> KEYWORD_UU_STMT_TRAITS . LPAREN rel_id_has_no_op_as_raw COMMA program_body_block_statement RPAREN [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## KEYWORD_UU_STMT_TRAITS 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN LBRACKET STRING COMMA TIMES 
+##
+## Ends in an error in state: 207.
+##
+## separated_nonempty_list(COMMA,expression) -> expression COMMA . separated_nonempty_list(COMMA,expression) [ RBRACKET ]
+##
+## The known suffix of the stack is as follows:
+## expression COMMA 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN LBRACKET STRING SEMICOLON 
+##
+## Ends in an error in state: 206.
+##
+## separated_nonempty_list(COMMA,expression) -> expression . [ RBRACKET ]
+## separated_nonempty_list(COMMA,expression) -> expression . COMMA separated_nonempty_list(COMMA,expression) [ RBRACKET ]
+##
+## The known suffix of the stack is as follows:
+## expression 
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 94, spurious reduction of production unary_expression -> postfix_expression 
+## In state 91, spurious reduction of production mul_div_rem_expression -> unary_expression 
+## In state 95, spurious reduction of production add_sub_expression -> mul_div_rem_expression 
+## In state 112, spurious reduction of production shift_expression -> add_sub_expression 
+## In state 92, spurious reduction of production relational_expression -> shift_expression 
+## In state 109, spurious reduction of production equality_expression -> relational_expression 
+## In state 125, spurious reduction of production bitwise_and_expression -> equality_expression 
+## In state 138, spurious reduction of production bitwise_xor_expression -> bitwise_and_expression 
+## In state 130, spurious reduction of production bitwise_or_expression -> bitwise_xor_expression 
+## In state 139, spurious reduction of production logical_and_expression -> bitwise_or_expression 
+## In state 140, spurious reduction of production logical_or_expression -> logical_and_expression 
+## In state 121, spurious reduction of production conditional_expression -> logical_or_expression 
+## In state 142, spurious reduction of production assign_expression -> conditional_expression 
+## In state 143, spurious reduction of production expression -> assign_expression 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN LBRACKET TIMES 
+##
+## Ends in an error in state: 26.
+##
+## array_literal -> LBRACKET . loption(separated_nonempty_list(COMMA,expression)) RBRACKET [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN LPAREN STRING SEMICOLON 
+##
+## Ends in an error in state: 209.
+##
+## primary_expression -> LPAREN expression . RPAREN [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN expression 
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 94, spurious reduction of production unary_expression -> postfix_expression 
+## In state 91, spurious reduction of production mul_div_rem_expression -> unary_expression 
+## In state 95, spurious reduction of production add_sub_expression -> mul_div_rem_expression 
+## In state 112, spurious reduction of production shift_expression -> add_sub_expression 
+## In state 92, spurious reduction of production relational_expression -> shift_expression 
+## In state 109, spurious reduction of production equality_expression -> relational_expression 
+## In state 125, spurious reduction of production bitwise_and_expression -> equality_expression 
+## In state 138, spurious reduction of production bitwise_xor_expression -> bitwise_and_expression 
+## In state 130, spurious reduction of production bitwise_or_expression -> bitwise_xor_expression 
+## In state 139, spurious reduction of production logical_and_expression -> bitwise_or_expression 
+## In state 140, spurious reduction of production logical_or_expression -> logical_and_expression 
+## In state 121, spurious reduction of production conditional_expression -> logical_or_expression 
+## In state 142, spurious reduction of production assign_expression -> conditional_expression 
+## In state 143, spurious reduction of production expression -> assign_expression 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN LPAREN TIMES 
+##
+## Ends in an error in state: 23.
+##
+## primary_expression -> LPAREN . expression RPAREN [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN MINUS STRING STRING 
+##
+## Ends in an error in state: 211.
+##
+## postfix_expression -> postfix_expression . DOT rel_generic_id [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+## postfix_expression -> postfix_expression . LBRACKET option(expression) RBRACKET [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+## postfix_expression -> postfix_expression . argument_list [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+## unary_expression -> MINUS postfix_expression . [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LOGICAL_OR LOGICAL_AND LBLOCK GTE GT FAT_ARROW EQUALS DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## MINUS postfix_expression 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN MINUS TIMES 
+##
+## Ends in an error in state: 22.
+##
+## unary_expression -> MINUS . postfix_expression [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LOGICAL_OR LOGICAL_AND LBLOCK GTE GT FAT_ARROW EQUALS DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## MINUS 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN STRING BITWISE_AND TIMES 
+##
+## Ends in an error in state: 133.
+##
+## bitwise_and_expression -> bitwise_and_expression BITWISE_AND . equality_expression [ SEMICOLON RPAREN RBRACKET LOGICAL_OR LOGICAL_AND LBLOCK FAT_ARROW COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## bitwise_and_expression BITWISE_AND 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN STRING BITWISE_OR TIMES 
+##
+## Ends in an error in state: 136.
+##
+## bitwise_or_expression -> bitwise_or_expression BITWISE_OR . bitwise_xor_expression [ SEMICOLON RPAREN RBRACKET LOGICAL_OR LOGICAL_AND LBLOCK FAT_ARROW COMMA BITWISE_OR ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## bitwise_or_expression BITWISE_OR 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN STRING BITWISE_XOR TIMES 
+##
+## Ends in an error in state: 131.
+##
+## bitwise_xor_expression -> bitwise_xor_expression BITWISE_XOR . bitwise_and_expression [ SEMICOLON RPAREN RBRACKET LOGICAL_OR LOGICAL_AND LBLOCK FAT_ARROW COMMA BITWISE_XOR BITWISE_OR ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## bitwise_xor_expression BITWISE_XOR 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN STRING DIV TIMES 
+##
+## Ends in an error in state: 100.
+##
+## mul_div_rem_expression -> mul_div_rem_expression DIV . unary_expression [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LOGICAL_OR LOGICAL_AND LBLOCK GTE GT FAT_ARROW EQUALS DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## mul_div_rem_expression DIV 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN STRING DOT TIMES 
+##
+## Ends in an error in state: 83.
+##
+## postfix_expression -> postfix_expression DOT . rel_generic_id [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## postfix_expression DOT 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN STRING EQUALS TIMES 
+##
+## Ends in an error in state: 128.
+##
+## equality_expression -> equality_expression EQUALS . relational_expression [ SEMICOLON RPAREN RBRACKET NOT_EQUALS LOGICAL_OR LOGICAL_AND LBLOCK FAT_ARROW EQUALS COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## equality_expression EQUALS 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN STRING GT TIMES 
+##
+## Ends in an error in state: 117.
+##
+## relational_expression -> relational_expression GT . shift_expression [ SEMICOLON RPAREN RBRACKET NOT_EQUALS LTE LT LOGICAL_OR LOGICAL_AND LBLOCK GTE GT FAT_ARROW EQUALS COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## relational_expression GT 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN STRING GTE TIMES 
+##
+## Ends in an error in state: 115.
+##
+## relational_expression -> relational_expression GTE . shift_expression [ SEMICOLON RPAREN RBRACKET NOT_EQUALS LTE LT LOGICAL_OR LOGICAL_AND LBLOCK GTE GT FAT_ARROW EQUALS COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## relational_expression GTE 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN STRING LBRACKET STRING COMMA 
+##
+## Ends in an error in state: 119.
+##
+## postfix_expression -> postfix_expression LBRACKET option(expression) . RBRACKET [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## postfix_expression LBRACKET option(expression) 
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 94, spurious reduction of production unary_expression -> postfix_expression 
+## In state 91, spurious reduction of production mul_div_rem_expression -> unary_expression 
+## In state 95, spurious reduction of production add_sub_expression -> mul_div_rem_expression 
+## In state 112, spurious reduction of production shift_expression -> add_sub_expression 
+## In state 92, spurious reduction of production relational_expression -> shift_expression 
+## In state 109, spurious reduction of production equality_expression -> relational_expression 
+## In state 125, spurious reduction of production bitwise_and_expression -> equality_expression 
+## In state 138, spurious reduction of production bitwise_xor_expression -> bitwise_and_expression 
+## In state 130, spurious reduction of production bitwise_or_expression -> bitwise_xor_expression 
+## In state 139, spurious reduction of production logical_and_expression -> bitwise_or_expression 
+## In state 140, spurious reduction of production logical_or_expression -> logical_and_expression 
+## In state 121, spurious reduction of production conditional_expression -> logical_or_expression 
+## In state 142, spurious reduction of production assign_expression -> conditional_expression 
+## In state 143, spurious reduction of production expression -> assign_expression 
+## In state 141, spurious reduction of production option(expression) -> expression 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN STRING LBRACKET TIMES 
+##
+## Ends in an error in state: 80.
+##
+## postfix_expression -> postfix_expression LBRACKET . option(expression) RBRACKET [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## postfix_expression LBRACKET 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN STRING LOGICAL_AND TIMES 
+##
+## Ends in an error in state: 124.
+##
+## logical_and_expression -> logical_and_expression LOGICAL_AND . bitwise_or_expression [ SEMICOLON RPAREN RBRACKET LOGICAL_OR LOGICAL_AND LBLOCK FAT_ARROW COMMA ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## logical_and_expression LOGICAL_AND 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN STRING LOGICAL_OR TIMES 
+##
+## Ends in an error in state: 122.
+##
+## logical_or_expression -> logical_or_expression LOGICAL_OR . logical_and_expression [ SEMICOLON RPAREN RBRACKET LOGICAL_OR LBLOCK FAT_ARROW COMMA ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## logical_or_expression LOGICAL_OR 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN STRING LPAREN STRING COMMA TIMES 
+##
+## Ends in an error in state: 150.
+##
+## separated_nonempty_list(COMMA,assign_expression) -> assign_expression COMMA . separated_nonempty_list(COMMA,assign_expression) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## assign_expression COMMA 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN STRING LPAREN STRING SEMICOLON 
+##
+## Ends in an error in state: 149.
+##
+## assign_expression -> assign_expression . ASSIGN conditional_expression [ RPAREN COMMA ASSIGN ]
+## separated_nonempty_list(COMMA,assign_expression) -> assign_expression . [ RPAREN ]
+## separated_nonempty_list(COMMA,assign_expression) -> assign_expression . COMMA separated_nonempty_list(COMMA,assign_expression) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## assign_expression 
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 94, spurious reduction of production unary_expression -> postfix_expression 
+## In state 91, spurious reduction of production mul_div_rem_expression -> unary_expression 
+## In state 95, spurious reduction of production add_sub_expression -> mul_div_rem_expression 
+## In state 112, spurious reduction of production shift_expression -> add_sub_expression 
+## In state 92, spurious reduction of production relational_expression -> shift_expression 
+## In state 109, spurious reduction of production equality_expression -> relational_expression 
+## In state 125, spurious reduction of production bitwise_and_expression -> equality_expression 
+## In state 138, spurious reduction of production bitwise_xor_expression -> bitwise_and_expression 
+## In state 130, spurious reduction of production bitwise_or_expression -> bitwise_xor_expression 
+## In state 139, spurious reduction of production logical_and_expression -> bitwise_or_expression 
+## In state 140, spurious reduction of production logical_or_expression -> logical_and_expression 
+## In state 121, spurious reduction of production conditional_expression -> logical_or_expression 
+## In state 142, spurious reduction of production assign_expression -> conditional_expression 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN STRING LPAREN TIMES 
+##
+## Ends in an error in state: 77.
+##
+## argument_list -> LPAREN . loption(separated_nonempty_list(COMMA,assign_expression)) RPAREN [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN STRING LSHIFT TIMES 
+##
+## Ends in an error in state: 107.
+##
+## shift_expression -> shift_expression LSHIFT . add_sub_expression [ SEMICOLON RSHIFT RPAREN RBRACKET NOT_EQUALS LTE LT LSHIFT LOGICAL_OR LOGICAL_AND LBLOCK GTE GT FAT_ARROW EQUALS COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## shift_expression LSHIFT 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN STRING LT TIMES 
+##
+## Ends in an error in state: 113.
+##
+## relational_expression -> relational_expression LT . shift_expression [ SEMICOLON RPAREN RBRACKET NOT_EQUALS LTE LT LOGICAL_OR LOGICAL_AND LBLOCK GTE GT FAT_ARROW EQUALS COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## relational_expression LT 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN STRING LTE TIMES 
+##
+## Ends in an error in state: 110.
+##
+## relational_expression -> relational_expression LTE . shift_expression [ SEMICOLON RPAREN RBRACKET NOT_EQUALS LTE LT LOGICAL_OR LOGICAL_AND LBLOCK GTE GT FAT_ARROW EQUALS COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## relational_expression LTE 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN STRING MINUS TIMES 
+##
+## Ends in an error in state: 105.
+##
+## add_sub_expression -> add_sub_expression MINUS . mul_div_rem_expression [ SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MINUS LTE LT LSHIFT LOGICAL_OR LOGICAL_AND LBLOCK GTE GT FAT_ARROW EQUALS COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## add_sub_expression MINUS 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN STRING MOD TIMES 
+##
+## Ends in an error in state: 98.
+##
+## mul_div_rem_expression -> mul_div_rem_expression MOD . unary_expression [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LOGICAL_OR LOGICAL_AND LBLOCK GTE GT FAT_ARROW EQUALS DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## mul_div_rem_expression MOD 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN STRING NOT_EQUALS TIMES 
+##
+## Ends in an error in state: 126.
+##
+## equality_expression -> equality_expression NOT_EQUALS . relational_expression [ SEMICOLON RPAREN RBRACKET NOT_EQUALS LOGICAL_OR LOGICAL_AND LBLOCK FAT_ARROW EQUALS COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## equality_expression NOT_EQUALS 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN STRING PLUS TIMES 
+##
+## Ends in an error in state: 103.
+##
+## add_sub_expression -> add_sub_expression PLUS . mul_div_rem_expression [ SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MINUS LTE LT LSHIFT LOGICAL_OR LOGICAL_AND LBLOCK GTE GT FAT_ARROW EQUALS COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## add_sub_expression PLUS 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN STRING RSHIFT TIMES 
+##
+## Ends in an error in state: 93.
+##
+## shift_expression -> shift_expression RSHIFT . add_sub_expression [ SEMICOLON RSHIFT RPAREN RBRACKET NOT_EQUALS LTE LT LSHIFT LOGICAL_OR LOGICAL_AND LBLOCK GTE GT FAT_ARROW EQUALS COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## shift_expression RSHIFT 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN STRING SEMICOLON 
+##
+## Ends in an error in state: 16.
+##
+## separated_nonempty_list(COMMA,attribute_pair) -> attribute_pair . [ RBRACKET ]
+## separated_nonempty_list(COMMA,attribute_pair) -> attribute_pair . COMMA separated_nonempty_list(COMMA,attribute_pair) [ RBRACKET ]
+##
+## The known suffix of the stack is as follows:
+## attribute_pair 
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 94, spurious reduction of production unary_expression -> postfix_expression 
+## In state 91, spurious reduction of production mul_div_rem_expression -> unary_expression 
+## In state 95, spurious reduction of production add_sub_expression -> mul_div_rem_expression 
+## In state 112, spurious reduction of production shift_expression -> add_sub_expression 
+## In state 92, spurious reduction of production relational_expression -> shift_expression 
+## In state 109, spurious reduction of production equality_expression -> relational_expression 
+## In state 125, spurious reduction of production bitwise_and_expression -> equality_expression 
+## In state 138, spurious reduction of production bitwise_xor_expression -> bitwise_and_expression 
+## In state 130, spurious reduction of production bitwise_or_expression -> bitwise_xor_expression 
+## In state 139, spurious reduction of production logical_and_expression -> bitwise_or_expression 
+## In state 140, spurious reduction of production logical_or_expression -> logical_and_expression 
+## In state 121, spurious reduction of production conditional_expression -> logical_or_expression 
+## In state 212, spurious reduction of production attribute_value -> ASSIGN conditional_expression 
+## In state 214, spurious reduction of production option(attribute_value) -> attribute_value 
+## In state 213, spurious reduction of production attribute_pair -> attribute_key option(attribute_value) 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN STRING STRING 
+##
+## Ends in an error in state: 94.
+##
+## postfix_expression -> postfix_expression . DOT rel_generic_id [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+## postfix_expression -> postfix_expression . LBRACKET option(expression) RBRACKET [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+## postfix_expression -> postfix_expression . argument_list [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LPAREN LOGICAL_OR LOGICAL_AND LBRACKET LBLOCK GTE GT FAT_ARROW EQUALS DOT DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+## unary_expression -> postfix_expression . [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LOGICAL_OR LOGICAL_AND LBLOCK GTE GT FAT_ARROW EQUALS DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## postfix_expression 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN STRING TIMES TIMES 
+##
+## Ends in an error in state: 96.
+##
+## mul_div_rem_expression -> mul_div_rem_expression TIMES . unary_expression [ TIMES SEMICOLON RSHIFT RPAREN RBRACKET PLUS NOT_EQUALS MOD MINUS LTE LT LSHIFT LOGICAL_OR LOGICAL_AND LBLOCK GTE GT FAT_ARROW EQUALS DIV COMMA BITWISE_XOR BITWISE_OR BITWISE_AND ASSIGN ]
+##
+## The known suffix of the stack is as follows:
+## mul_div_rem_expression TIMES 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID ASSIGN TIMES 
+##
+## Ends in an error in state: 20.
+##
+## attribute_value -> ASSIGN . conditional_expression [ RBRACKET COMMA ]
+##
+## The known suffix of the stack is as follows:
+## ASSIGN 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID COMMA TIMES 
+##
+## Ends in an error in state: 17.
+##
+## separated_nonempty_list(COMMA,attribute_pair) -> attribute_pair COMMA . separated_nonempty_list(COMMA,attribute_pair) [ RBRACKET ]
+##
+## The known suffix of the stack is as follows:
+## attribute_pair COMMA 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET ID TIMES 
+##
+## Ends in an error in state: 19.
+##
+## attribute_pair -> attribute_key . option(attribute_value) [ RBRACKET COMMA ]
+##
+## The known suffix of the stack is as follows:
+## attribute_key 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET RBRACKET TIMES 
+##
+## Ends in an error in state: 318.
+##
+## top_level_statement -> attribute . top_level_statement_ [ SHARP SEMICOLON KEYWORD_IMPORT KEYWORD_EXTERN KEYWORD_DEF KEYWORD_CLASS EOF ]
+##
+## The known suffix of the stack is as follows:
+## attribute 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP LBRACKET TIMES 
+##
+## Ends in an error in state: 11.
+##
+## attribute -> SHARP LBRACKET . loption(separated_nonempty_list(COMMA,attribute_pair)) RBRACKET [ STRING SEMICOLON MINUS LPAREN LIT_TRUE LIT_FALSE LBRACKET LBLOCK KEYWORD_VAL KEYWORD_UU_STMT_TRAITS KEYWORD_RETURN KEYWORD_REF KEYWORD_OPERATOR KEYWORD_NEW KEYWORD_IMPORT KEYWORD_EXTERN KEYWORD_DELETE KEYWORD_DEF KEYWORD_CLASS INT INCREMENT ID DECREMENT ]
+##
+## The known suffix of the stack is as follows:
+## SHARP LBRACKET 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: SHARP TIMES 
+##
+## Ends in an error in state: 10.
+##
+## attribute -> SHARP . LBRACKET loption(separated_nonempty_list(COMMA,attribute_pair)) RBRACKET [ STRING SEMICOLON MINUS LPAREN LIT_TRUE LIT_FALSE LBRACKET LBLOCK KEYWORD_VAL KEYWORD_UU_STMT_TRAITS KEYWORD_RETURN KEYWORD_REF KEYWORD_OPERATOR KEYWORD_NEW KEYWORD_IMPORT KEYWORD_EXTERN KEYWORD_DELETE KEYWORD_DEF KEYWORD_CLASS INT INCREMENT ID DECREMENT ]
+##
+## The known suffix of the stack is as follows:
+## SHARP 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program_entry: TIMES 
+##
+## Ends in an error in state: 0.
+##
+## program_entry' -> . program_entry [ # ]
+##
+## The known suffix of the stack is as follows:
+## 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+

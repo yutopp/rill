@@ -1,8 +1,10 @@
+import std.stdio;
+
 def main() : void
 {
     val a = a1();
     val b = yo();
-    print_int(1);
+    print(1);
 
     a1(a);
     yo_val(a);
@@ -31,7 +33,7 @@ class a2
 def yo() {
     {
         return a1();
-    }
+    };
 }
 
 def yo_val(val a: a1): void {

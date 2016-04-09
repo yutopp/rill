@@ -95,14 +95,26 @@ OCAMLFLAGS    += -g -bin-annot
 # and .mly files.
 #
 MENHIR_FLAGS_BASE = --infer -v
-MENHIR_FLAGS	= $(MENHIR_FLAGS_BASE) --only-tokens
+MENHIR_FLAGS	  = $(MENHIR_FLAGS_BASE) --only-tokens
 MenhirMulti(tokens, tokens)
 OCamlGeneratedFiles(tokens.ml)
 
-MENHIR_FLAGS	= $(MENHIR_FLAGS_BASE) --external-tokens Tokens
+MENHIR_FLAGS	  = $(MENHIR_FLAGS_BASE) --external-tokens Tokens
 MenhirMulti(parser, tokens parser)
-OCamlGeneratedFiles(parser.ml lexer.ml)
+OCamlGeneratedFiles(parser.ml)
 
+#syntax.messages:
+#    $(MENHIR) --list-errors --base parser.mly parser.mly tokens.mly > syntax.messages
+
+#parser_messages.ml: syntax.messages
+#    cp syntax.messages syntax.messages.pre
+#    $(MENHIR) --update-errors syntax.messages.pre --base parser.mly parser.mly tokens.mly > syntax.messages
+#    $(MENHIR) --compile-errors syntax.messages --base parser.mly parser.mly tokens.mly > parser_messages.ml
+
+parser_messages.ml:
+    touch parser_messages.ml
+
+OCamlGeneratedFiles(lexer.ml)
 
 ################################################
 # Build an OCaml program
@@ -116,6 +128,7 @@ FILES[] =
    lexer
    parser
    tokens
+   parser_messages
    syntax
    env
    env_system
@@ -157,4 +170,5 @@ clean:
     rm -f *~ *.opt *.cmi *.cmx *.cmt *.cmti *.cmxa *.omc \
 		*.o *.a *.out *.s *.bc *.log *.cache $(PROGRAM) \
 		parser.ml parser.mli tokens.ml tokens.mli lexer.ml \
+		parser_messages.ml syntax.messages.pre \
 		*.conflicts *.automaton

@@ -30,15 +30,16 @@ module Kind =
 
 
 type 'ast env_t = {
-   env_id           : EnvId.t;
-   parent_env       : 'ast env_t option;
-   context_env      : 'ast env_t option;
-   module_env       : 'ast env_t option;
-   nest_level       : NestLevel.t;
-   er               : 'ast env_record_t;
-   mutable state    : checked_state_t;
-
-   mutable rel_node : 'ast option;
+   env_id               : EnvId.t;
+   parent_env           : 'ast env_t option;
+   context_env          : 'ast env_t option;
+   module_env           : 'ast env_t option;
+   nest_level           : NestLevel.t;
+   er                   : 'ast env_record_t;
+   mutable state        : checked_state_t;
+   mutable closed       : bool;
+   mutable meta_level   : Meta_level.t;
+   mutable rel_node     : 'ast option;
 }
 
  and 'ast env_record_t =
@@ -184,6 +185,8 @@ let undef () =
     nest_level = NestLevel.zero;
     er = Unknown;
     state = InComplete;
+    closed = false;
+    meta_level = Meta_level.Meta;
     rel_node = None;
   }
 
@@ -211,7 +214,7 @@ let get_scope_lifetime env =
       Some e -> e
     | None -> failwith ""
   in
-  (ctx_env.env_id, env.nest_level)
+  Type_attr.Scoped (ctx_env.env_id, env.nest_level)
 
 let is_root e =
   let { er = er; _ } = e in
@@ -263,7 +266,7 @@ let rec find_all_on_env ?(checked_env=[]) e name =
      end
 
 (*  *)
-let rec lookup e name =
+(*let rec lookup e name =
   let target = find_all_on_env e name in
   match target with
   | [] -> if is_root e then
@@ -275,7 +278,16 @@ let rec lookup e name =
             else
               lookup penv name
   | xs -> xs
-
+ *)
+let rec lookup e name =
+  let target = find_all_on_env e name in
+  match target with
+  | [] -> if is_root e then
+            []
+          else
+            let penv = parent_env e in
+            lookup penv name
+  | xs -> xs
 
 (*  *)
 let add_inner_env target_env name e =
@@ -311,6 +323,8 @@ let create_context_env parent_env er =
     nest_level = NestLevel.add parent_env.nest_level NestLevel.one;
     er = er;
     state = InComplete;
+    closed = false;
+    meta_level = Meta_level.Meta;
     rel_node = None;
   } in
   e
@@ -332,6 +346,8 @@ let create_scoped_env parent_env er =
     nest_level = NestLevel.add parent_env.nest_level NestLevel.one;
     er = er;
     state = InComplete;
+    closed = false;
+    meta_level = Meta_level.Meta;
     rel_node = None;
   }
 
@@ -373,6 +389,8 @@ let make_root_env () =
     nest_level = NestLevel.zero;
     er = Root (tbl);
     state = Complete;
+    closed = false;
+    meta_level = Meta_level.Meta;
     rel_node = None;
   }
 

@@ -101,8 +101,8 @@ let () =
   let module Codegen = Codegen_llvm in
 
   let code_ctx =
-    Codegen.make_default_context ~opt_uni_map:(Some ctx.Sema.sc_unification_ctx)
-                                 ()
+    Codegen.make_default_context ~type_sets:ctx.Sema.sc_tsets
+                                 ~uni_map:ctx.Sema.sc_unification_ctx
   in
   Codegen.generate sem_ast code_ctx;
   Codegen.create_executable code_ctx co.system_default_link_option "a.out";

@@ -91,21 +91,30 @@ let check_class_env env ctx =
   r.Env.cls_mangled <- Some mangled;
   check_env env
 
-let complete_class_env env node c_detail traits ctx =
+let complete_class_env env node c_detail traits =
   let r = Env.ClassOp.get_record env in
   r.Env.cls_detail <- c_detail;
   r.Env.cls_traits <- Some traits;
   complete_env env node
 
 
-let assert_valid_type ty =
+let is_valid_type ty =
   let open Type_attr in
   let {
     ta_ref_val = rv;
     ta_mut = mut;
   } = ty.Type_info.ti_attr in
-  assert (rv <> RefValUndef);
-  assert (mut <> MutUndef)
+  (rv <> RefValUndef) && (mut <> MutUndef)
+
+let assert_valid_type ty =
+  assert (is_valid_type ty)
+
+
+let rec split_aux auxs = match auxs with
+  | [] -> ([], [], [], [])
+  | (termc, vc, lt, ml) :: xs ->
+     let (ts, vs, ls, ms) = split_aux xs in
+     (termc::ts, vc::vs, lt::ls, ml::ms)
 
 
 module FuncMatchLevel =
@@ -149,3 +158,13 @@ module FuncMatchLevel =
       | ImplicitConv    -> "ImplicitConv"
       | NoMatch         -> "NoMatch"
   end
+
+
+let ctor_name = Nodes.Pure "ctor"
+let assign_name = Nodes.BinaryOp "="
+
+(* default qual *)
+let default_ty_attr = {
+  Type_attr.ta_ref_val = Type_attr.Val;
+  Type_attr.ta_mut = Type_attr.Const;
+}

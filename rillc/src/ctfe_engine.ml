@@ -38,9 +38,8 @@ let initialize type_sets uni_map =
 
   let module CgCtx = Codegen_llvm.Ctx in
   let codegen_ctx =
-    Codegen_llvm.make_default_context ~opt_type_sets:(Some type_sets)
-                                      ~opt_uni_map:(Some uni_map)
-                                      ()
+    Codegen_llvm.make_default_context ~type_sets:type_sets
+                                      ~uni_map:uni_map
   in
   Codegen_llvm.inject_builtins codegen_ctx;
 
@@ -74,6 +73,14 @@ let invoke_function engine fname ret_ty type_sets =
        Ctfe_value.Type ty
      end
 
+  | ty when Type.has_same_class ty !(type_sets.ts_bool_type_holder) ->
+     begin
+       let cfunc_ty = Ctypes.void @-> returning Ctypes.bool in
+       let ret_val = call_by_type cfunc_ty in
+
+       Ctfe_value.Bool ret_val
+     end
+
   | ty when Type.has_same_class ty !(type_sets.ts_int32_type_holder) ->
      begin
        let cfunc_ty = Ctypes.void @-> returning Ctypes.int32_t in
@@ -84,7 +91,7 @@ let invoke_function engine fname ret_ty type_sets =
 
   | _ ->
      begin
-       failwith "this type is not supported"
+       failwith "[ICE] this type is not supported"
      end
 
 
@@ -97,7 +104,7 @@ let execute engine expr_node expr_ty type_sets =
   LE.add_module engine.cg_ctx.CgCtx.ir_module engine.exec_engine;
 
   (* generate a new module to define a temporary function for CTFE *)
-  Codegen_llvm.regenerate_module engine.cg_ctx;
+  (*Codegen_llvm.regenerate_module engine.cg_ctx;*)
 
   (* alias *)
   let ir_ctx = engine.cg_ctx.CgCtx.ir_context in
@@ -105,7 +112,7 @@ let execute engine expr_node expr_ty type_sets =
   let ir_builder = engine.cg_ctx.CgCtx.ir_builder in
 
   (**)
-  let expr_llty = Codegen_llvm.lltype_of_typeinfo ~bb:None expr_ty engine.cg_ctx in
+  let expr_llty = Codegen_llvm.lltype_of_typeinfo expr_ty engine.cg_ctx in
 
   (**)
   let tmp_expr_fname = JITCounter.generate_fresh_name () in
@@ -121,7 +128,7 @@ let execute engine expr_node expr_ty type_sets =
   try
     begin
       let (expr_llval, _) =
-        Codegen_llvm.generate_code_for_value ~bb:(Some bb) expr_node engine.cg_ctx in
+        Codegen_llvm.generate_code expr_node engine.cg_ctx in
       ignore @@ L.build_ret expr_llval ir_builder;
 
       Llvm_analysis.assert_valid_function f;
@@ -137,7 +144,7 @@ let execute engine expr_node expr_ty type_sets =
        * However, the module will be used until next time.
        *)
       LE.remove_module ir_mod engine.exec_engine;
-      L.dump_module engine.cg_ctx.CgCtx.ir_module;   (* debug *)
+      (*L.dump_module engine.cg_ctx.CgCtx.ir_module;   (* debug *)*)
 
       L.delete_function f;
 
@@ -149,3 +156,7 @@ let execute engine expr_node expr_ty type_sets =
        L.delete_function f;
        Ctfe_value.Undef uni_id
      end
+
+
+let register_metavar engine ctfe_val env =
+  Codegen_llvm.register_metaval ctfe_val env engine.cg_ctx

@@ -1,0 +1,14 @@
+import std.stdio;
+import std.assert;
+
+def main() {
+    ref a = fib(10);
+    assert( a == 55 );
+    a.print();
+}
+
+def fib(v: int32): int32 {
+    return if ( v == 0 ) 0
+           else if ( v == 1 ) 1
+           else fib(v-1) + fib(v-2);
+}

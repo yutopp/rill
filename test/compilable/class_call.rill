@@ -1,8 +1,10 @@
+import std.stdio;
+
 def main() : void
 {
     val mutable a = a1();
     a.yo();
-    print_int(a.a);
+    print(a.a);
 
     return;
 }

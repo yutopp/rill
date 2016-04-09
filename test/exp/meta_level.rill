@@ -1,7 +1,17 @@
+import std.stdio;
+
 def main(): void
 {
-    val runtime a = 10;
-    val a: +mut int = 10
-    f!(a)
-    10.yo();
+    meta val a = 10;
+    hoge!(a)();
+    //val a onlymeta = 10;
+
+    return;
+}
+
+def hoge!(N:int32)(): void
+{
+    meta val a = N + 10;
+    print(a);
+    return;
 }

@@ -46,6 +46,14 @@ rule token = parse
   | "return"            { KEYWORD_RETURN }
   | "new"               { KEYWORD_NEW }
   | "delete"            { KEYWORD_DELETE }
+  | "onlymeta"          { KEYWORD_ONLY_META }
+  | "meta"              { KEYWORD_META }
+  | "runtime"           { KEYWORD_RUNTIME }
+  | "onlyruntime"       { KEYWORD_ONLY_RUNTIME }
+  | "if"                { KEYWORD_IF }
+  | "else"              { KEYWORD_ELSE }
+  | "when"              { KEYWORD_WHEN }
+
   | "true"              { LIT_TRUE }
   | "false"             { LIT_FALSE }
 

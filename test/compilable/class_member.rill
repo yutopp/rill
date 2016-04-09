@@ -1,16 +1,18 @@
+import std.stdio;
+
 def main() : void
 {
     a1().yo();
     val mutable a = a1();
     ref mutable ar = a;
     ar.a = 10;
-    print_int(a.a);
+    print(a.a);
     val b = a;
     a.a = 20;
-    print_int(b.a);
+    print(b.a);
     val c = b.a;
-    print_int(c);
-    print_int(a.a);
+    print(c);
+    print(a.a);
 
     return;
 }
@@ -23,5 +25,5 @@ class a1
 def yo(c:a1) {
     {
         return a1();
-    }
+    };
 }

@@ -1,3 +1,5 @@
+import std.assert;
+
 def main(): void
 {
     val immutable i = 10;
@@ -37,11 +39,11 @@ def main(): void
         ref immutable r = i;
     }));
     // ref immutable <- val const: NG
-    assert_not(__statement_traits(semantics, {
+    assert(!__statement_traits(semantics, {
         ref immutable r = c;
     }));
     // ref immutable <- val mutable: NG
-    assert_not(__statement_traits(semantics, {
+    assert(!__statement_traits(semantics, {
         ref immutable r = m;
     }));
 
@@ -59,11 +61,11 @@ def main(): void
     }));
 
     // ref mutable <- val immutable: NG
-    assert_not(__statement_traits(semantics, {
+    assert(!__statement_traits(semantics, {
         ref mutable r = i;
     }));
     // ref mutable <- val const: NG
-    assert_not(__statement_traits(semantics, {
+    assert(!__statement_traits(semantics, {
         ref mutable r = c;
     }));
     // ref mutable <- val mutable: OK

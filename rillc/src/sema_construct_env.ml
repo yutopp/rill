@@ -12,6 +12,7 @@ open Value_category
 open Sema_predef
 open Sema_forward_ref
 
+exception Instantiation_failed
 
 let ret_val_category ty ctx =
   let open Type_attr in
@@ -30,16 +31,27 @@ let rec construct_env node parent_env ctx opt_chain_attr =
      end
 
   | TAst.StatementList (nodes) ->
-     let f n = construct_env n parent_env ctx opt_chain_attr in
-     let tagged_nodes = nodes |> List.map f in
-     TAst.StatementList tagged_nodes
+     let nodes, last =
+       let ce n = construct_env n parent_env ctx opt_chain_attr in
+       let rec p nodes = match nodes with
+         | [] -> [], get_void_aux ctx
+         | [x] -> let n, s = ce x in [n], s
+         | x :: xs ->
+            let n, _ = ce x in
+            let ns, ls = p xs in
+            (n :: ns), ls
+       in
+       p nodes
+     in
+
+     TAst.StatementList nodes, last
 
   | TAst.ExprStmt (TAst.PrevPassNode e) ->
-     let (node, ty) = analyze_expr ~making_placeholder:false
+     let (node, aux) = analyze_expr ~making_placeholder:false
                                    e parent_env ctx opt_chain_attr in
-     TAst.ExprStmt node
+     TAst.ExprStmt node, aux
 
-  | TAst.ScopeStmt (block) ->
+(*  | TAst.ScopeStmt (block) ->
      begin
        let scope_env =
          Env.create_scoped_env parent_env
@@ -49,6 +61,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        let node = TAst.ScopeStmt (nblock) in
        node
      end
+ *)
 
   | TAst.ReturnStmt opt_e ->
      begin
@@ -111,21 +124,28 @@ let rec construct_env node parent_env ctx opt_chain_attr =
          | false -> ctx_env_r.Env.fn_return_type
        in
 
+       (**)
+       parent_env.Env.closed <- true;
+
+       (**)
        let make_ret_expr expr =
-         adjust_expr_for_type ~exit_scope:true
-                              ret_ty expr expr_aux parent_env ctx opt_chain_attr
+         let (node, _) =
+           adjust_expr_for_type ~exit_scope:true
+                                ret_ty expr expr_aux parent_env ctx opt_chain_attr
+         in
+         node
        in
        let opt_ret_expr = Option.map make_ret_expr opt_expr in
 
-       (* TODO: call copy/move ctor *)
        let node = TAst.ReturnStmt opt_ret_expr in
-       node
+       node, get_void_aux ctx
      end
 
   | TAst.FunctionDefStmt (
-        name, params_node, opt_ret_type, body, opt_attr, Some env
+        name, params_node, opt_ret_type, opt_cond, body, opt_attr, Some env
       ) ->
-     if Env.is_checked env then Env.get_rel_ast env
+     let void_t = get_void_aux ctx in
+     if Env.is_checked env then Env.get_rel_ast env, void_t
      else begin
        (* TODO: check duplicate *)
        let name_s = Nodes.string_of_id_string name in
@@ -163,6 +183,16 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        let fr = Env.FunctionOp.get_record env in
        let _ = match Type.type_sort fr.Env.fn_return_type with
          | Type_info.UniqueTy _ -> ()
+         | Type_info.Undef ->
+            begin
+              (* if type is not determined, it should be void *)
+              let default_ty_attr = {
+                Type_attr.ta_ref_val = Type_attr.Val;
+                Type_attr.ta_mut = Type_attr.Const;
+              } in
+              let void_ty = get_builtin_void_type default_ty_attr ctx in
+              fr.Env.fn_return_type <- void_ty;
+            end
          | _ -> failwith @@ "[ERR] type couldn't be determined / " ^
                               (Nodes.string_of_id_string name)
        in
@@ -180,13 +210,14 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                                                   Env.FnKindFree,
                                                   detail_r))
                              ctx;
-       node
+       node, void_t
      end
 
   | TAst.MemberFunctionDefStmt (
         name, params_node, opt_ret_type, body, opt_attr, Some env
       ) ->
-     if Env.is_checked env then Env.get_rel_ast env
+     let void_t = get_void_aux ctx in
+     if Env.is_checked env then Env.get_rel_ast env, void_t
      else begin
        (* TODO: check duplicate *)
        let name_s = Nodes.string_of_id_string name in
@@ -255,12 +286,13 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                                                   Env.FnKindFree,
                                                   detail_r))
                              ctx;
-       node
+       node, void_t
        end
 
   | TAst.ExternFunctionDefStmt (
         name, params_node, ret_type, extern_fname, opt_attr, Some env) ->
-     if Env.is_checked env then Env.get_rel_ast env
+     let void_t = get_void_aux ctx in
+     if Env.is_checked env then Env.get_rel_ast env, void_t
      else begin
        (* TODO: check duplicate *)
        let name_s = Nodes.string_of_id_string name in
@@ -304,12 +336,13 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        in
        complete_function_env env node name record ctx;
 
-       node
+       node, void_t
      end
 
   | TAst.ClassDefStmt (
         name, body, opt_attr, Some env) ->
-     if Env.is_checked env then Env.get_rel_ast env
+     let void_t = get_void_aux ctx in
+     if Env.is_checked env then Env.get_rel_ast env, void_t
      else begin
        (* TODO: check duplicate *)
        let name_s = Nodes.string_of_id_string name in
@@ -317,7 +350,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        check_class_env env ctx;
 
        (* body *)
-       let nbody = construct_env body env ctx opt_attr in
+       let (nbody, _) = construct_env body env ctx opt_attr in
 
        (* check class characteristics *)
 
@@ -383,13 +416,14 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        let traits = {
          Env.cls_traits_is_primitive = is_primitive;
        } in
-       complete_class_env env node detail_r traits ctx;
-       node
+       complete_class_env env node detail_r traits;
+       node, void_t
      end
 
   | TAst.ExternClassDefStmt (
         name, extern_cname, opt_attr, Some env) ->
-     if Env.is_checked env then Env.get_rel_ast env
+     let void_t = get_void_aux ctx in
+     if Env.is_checked env then Env.get_rel_ast env, void_t
      else begin
        (* TODO: check duplicate *)
        let name_s = Nodes.string_of_id_string name in
@@ -449,8 +483,8 @@ let rec construct_env node parent_env ctx opt_chain_attr =
          Env.cls_traits_is_primitive = is_primitive;
        } in
 
-       complete_class_env env node detail_r traits ctx;
-       node
+       complete_class_env env node detail_r traits;
+       node, void_t
      end
 
   (* *)
@@ -482,11 +516,11 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        let r = Env.VariableOp.get_record env in
        r.Env.var_type <- var_ty;
 
-       node
+       node, get_void_aux ctx
      end
 
   (* scoped declare *)
-  | TAst.VariableDefStmt (v, None) ->
+  | TAst.VariableDefStmt (var_metalevel, v, None) ->
      begin
        let (var_attr, var_name, init_term) =
          match extract_prev_pass_node v with
@@ -520,7 +554,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                 Type.Generator.update_attr_r ctx.sc_tsets.ts_type_gen expr_ty
                                              var_attr
               in
-              let res_expr_node = match opt_init_value_res with
+              let (res_expr_node, res_ml) = match opt_init_value_res with
                 | Some (expr_node, expr_ty_cat) ->
                    begin
                      adjust_expr_for_type var_ty expr_node expr_ty_cat
@@ -544,25 +578,44 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                 | None -> failwith "[ERROR] initial value is required";
               in
               (* TODO: check void value *)
-              let (expr_ty, _, _, _) = expr_aux in
+              let (expr_ty, _, _, expr_ml) = expr_aux in
               let var_ty =
                 Type.Generator.update_attr_r ctx.sc_tsets.ts_type_gen expr_ty
                                              var_attr
               in
-              let conved_node =
+              (* TODO: if var has meta level, qual must be immutable/const val *)
+              let (conved_node, (_, _, _, conved_ml)) =
                 adjust_expr_for_type var_ty expr_node expr_aux
                                      parent_env ctx opt_chain_attr
               in
-              (*ignore conved_node;
-              let conved_node = expr_node in*)
-              (None, conved_node, var_ty)
+              if not (Meta_level.is_convertiable_to conved_ml var_metalevel) then
+                failwith "[ERR] couldn't convert meta level";
+
+              let mled_node = match var_metalevel with
+                | Meta_level.OnlyMeta
+                | Meta_level.Meta ->
+                   begin
+                     (* TODO: check whether the variable is ctfeable.
+                      * Ex. it must have trivial destructor *)
+                     let ctfe_v =
+                       eval_texpr_as_ctfe conved_node var_ty var_metalevel
+                                          parent_env ctx opt_chain_attr
+                     in
+                     Ctfe_engine.register_metavar ctx.sc_ctfe_engine ctfe_v venv;
+                     tnode_of_ctfe_val ctfe_v ctx
+                   end
+                | _ -> conved_node
+              in
+
+              (None, mled_node, var_ty)
             end
        in
 
-       (* *)
+       (* register the variable to the environments *)
        Env.add_inner_env parent_env var_name venv;
 
        let node = TAst.VariableDefStmt (
+                      var_metalevel,
                       TAst.VarInit (var_attr, var_name, (type_node, Some value_node)),
                       Some venv
                     ) in
@@ -573,10 +626,10 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        r.Env.var_detail <- detail_r;
 
        complete_env venv node;
-       node
+       node, get_void_aux ctx
      end
 
-  | TAst.EmptyStmt -> node
+  | TAst.EmptyStmt -> node, get_void_aux ctx
 
   | _ ->
      begin
@@ -618,11 +671,14 @@ and analyze_expr ?(making_placeholder=false)
                       reciever parent_env ctx attr
        in
 
-       let (arg_exprs, arg_auxs) =
+       let eargs =
          evaluate_invocation_args args parent_env ctx attr
-         |> List.split
        in
+       let (arg_exprs, arg_auxs) = eargs |> List.split in
        (*List.iter check_is_args_valid args_types;*)
+
+       let (_, _, _, arg_metalevels) = split_aux arg_auxs in
+       let args_bottom_ml = Meta_level.calc_bottom arg_metalevels in
 
        let {
          Type_info.ti_sort = ty_sort;
@@ -633,7 +689,7 @@ and analyze_expr ?(making_placeholder=false)
        | Type_info.FunctionSetTy menv ->
           begin
             (* consider nested expr *)
-            let (arg_exprs, arg_types_cats) = match recv_node with
+            let (arg_exprs, arg_auxs) = match recv_node with
               | TAst.NestedExpr (lhs_node, lhs_aux, _, _) ->
                  let args = lhs_node :: arg_exprs in
                  let arg_auxs = lhs_aux :: arg_auxs in
@@ -641,25 +697,28 @@ and analyze_expr ?(making_placeholder=false)
               | _ -> (arg_exprs, arg_auxs)
             in
             let (f_env, conv_filters) =
-              solve_function_overload arg_types_cats template_args
+              solve_function_overload arg_auxs template_args
                                       menv parent_env ctx attr
             in
+            let args = List.combine arg_exprs arg_auxs in
             let n_eargs =
               map_conversions ~param_passing:true
-                              conv_filters arg_exprs parent_env ctx
+                              conv_filters args parent_env ctx
             in
+            let (n_earg_exprs, _) = n_eargs |> List.split in
 
             let f_er = Env.FunctionOp.get_record f_env in
             let f_ret_ty = f_er.Env.fn_return_type in
-            assert_valid_type f_ret_ty;
+            if not (is_valid_type f_ret_ty) then
+              failwith "[ERR] type of this function is not determined";
             let f_ret_val_cat = ret_val_category f_ret_ty ctx in
             let f_ret_lt = Env.get_scope_lifetime parent_env in (* TODO: fix *)
-            let f_ret_ml = Meta_level.Runtime in (* TODO: fix *)
+            let f_ret_ml = args_bottom_ml in (* TODO: fix *)
 
             let ret_ty_sto = suitable_storage f_ret_ty ctx in
             let node = TAst.GenericCallExpr (
                            (ref ret_ty_sto),
-                           n_eargs,
+                           n_earg_exprs,
                            Some parent_env,
                            Some f_env) in
             (node, (f_ret_ty, f_ret_val_cat, f_ret_lt, f_ret_ml))
@@ -670,7 +729,7 @@ and analyze_expr ?(making_placeholder=false)
           begin
             (* type_cenv will be Type *)
             let recv_ty =
-              resolve_texpr_type recv_node recv_type_info
+              resolve_texpr_type recv_node recv_type_info recv_ml
                                  parent_env ctx attr
             in
             let recv_cenv = Type.as_unique recv_ty in
@@ -695,8 +754,9 @@ and analyze_expr ?(making_placeholder=false)
             let (f_env, conv_filters) = f_conv in
             let n_eargs =
               map_conversions ~param_passing:true
-                              conv_filters arg_exprs parent_env ctx
+                              conv_filters eargs parent_env ctx
             in
+            let (n_earg_exprs, _) = n_eargs |> List.split in
 
             let f_er = Env.FunctionOp.get_record f_env in
             let f_ret_ty = f_er.Env.fn_return_type in
@@ -707,7 +767,7 @@ and analyze_expr ?(making_placeholder=false)
 
             let node = TAst.GenericCallExpr (
                            ref f_sto,
-                           n_eargs,
+                           n_earg_exprs,
                            Some parent_env,
                            Some f_env) in
             (node, (recv_ty, VCatPrValue, f_ret_lt, f_ret_ml))
@@ -787,7 +847,7 @@ and analyze_expr ?(making_placeholder=false)
                                 | _ -> false
             in
             let node = TAst.BoolLit (could_compile, ty) in
-            (node, (ty, VCatPrValue, Env.get_scope_lifetime parent_env, Meta_level.Runtime))
+            (node, (ty, VCatPrValue, Env.get_scope_lifetime parent_env, Meta_level.Meta))
           end
        | _ -> failwith @@ "__statement_traits : not implemented / " ^ keyword
      end
@@ -805,9 +865,8 @@ and analyze_expr ?(making_placeholder=false)
             (* TODO: change to exception *)
             failwith @@ "id not found : " ^ (Nodes.string_of_id_string name)
        in
-
        let lt = Env.get_scope_lifetime parent_env in (* TODO: fix *)
-       let ml = Meta_level.Runtime in (* TODO: fix *)
+       let ml = trg_env.Env.meta_level in
 
        (* both of id and instantiated_id will be id node *)
        let node = TAst.GenericId (name, Some trg_env) in
@@ -878,6 +937,58 @@ and analyze_expr ?(making_placeholder=false)
        (n_array, (array_ty, VCatPrValue, Env.get_scope_lifetime parent_env, Meta_level.Meta))
      end
 
+  | Ast.ScopeExpr (block) ->
+     begin
+       let scope_env =
+         Env.create_scoped_env parent_env
+                               (Env.Scope (Env.empty_lookup_table ()))
+       in
+       let (nblock, aux) = analyze_t block scope_env ctx in
+       let node = TAst.ScopeExpr (nblock) in
+       (node, aux)
+     end
+
+  | Ast.IfExpr (cond_expr, then_expr, opt_else_expr) ->
+     begin
+       let scope_env =
+         Env.create_scoped_env parent_env
+                               (Env.Scope (Env.empty_lookup_table ()))
+       in
+
+       let (n_cond_expr, cond_aux) = analyze_expr cond_expr scope_env ctx attr in
+
+       let bool_ty = get_builtin_bool_type default_ty_attr ctx in
+       let (conved_cond_node, conved_auxs) =
+         adjust_expr_for_type bool_ty n_cond_expr cond_aux
+                              scope_env ctx attr
+       in
+
+       let then_scope_env =
+         Env.create_scoped_env scope_env
+                               (Env.Scope (Env.empty_lookup_table ()))
+       in
+       let (nthen_expr, then_aux) = analyze_expr then_expr then_scope_env ctx attr in
+
+       let (opt_else_expr, else_aux) = match opt_else_expr with
+         | Some else_expr ->
+            let else_scope_env =
+              Env.create_scoped_env scope_env
+                                    (Env.Scope (Env.empty_lookup_table ()))
+            in
+            let (e, aux) = analyze_expr else_expr else_scope_env ctx attr in
+            (Some e, aux)
+         | None -> (None, get_void_aux ctx)
+       in
+
+       let (then_ty, _, _, _) = then_aux in
+       let (else_ty, _, _, _) = else_aux in
+       if not (Type.is_same then_ty else_ty) then
+         failwith "[ERR]";
+
+       let node = TAst.IfExpr (conved_cond_node, nthen_expr, opt_else_expr) in
+       (node, then_aux)
+     end
+
   | _ ->
      begin
        Ast.print node;
@@ -890,6 +1001,9 @@ and analyze_operator op args parent_env ctx attr =
   let (arg_exprs, arg_auxs) = List.split eargs in
   (*List.iter check_is_args_valid args_types_cats;*)
 
+  let (_, _, _, arg_metalevels) = split_aux arg_auxs in
+  let args_bottom_ml = Meta_level.calc_bottom arg_metalevels in
+
   (*List.iter print_type args_types;*)
   let op_id = Ast.Id (op, ()) in
   let opt_fs_and_args =
@@ -898,20 +1012,21 @@ and analyze_operator op args parent_env ctx attr =
   let analyze (f_env, conv_filters) =
     let n_eargs =
       map_conversions ~param_passing:true
-                      conv_filters arg_exprs parent_env ctx
+                      conv_filters eargs parent_env ctx
     in
+    let (n_earg_exprs, _) = n_eargs |> List.split in
 
     let f_er = Env.FunctionOp.get_record f_env in
     let f_ret_ty = f_er.Env.fn_return_type in
     assert_valid_type f_ret_ty;
     let f_ret_val_cat = ret_val_category f_ret_ty ctx in
     let f_lt = Env.get_scope_lifetime parent_env in (* TODO: fix *)
-    let f_ml = Meta_level.Runtime in (* TODO: fix *)
+    let f_ml = args_bottom_ml in (* TODO: fix *)
 
     (* Replace BinOpCall to generic FuncCall *)
     let node = TAst.GenericCallExpr (
                    ref TAst.StoImm,
-                   n_eargs,
+                   n_earg_exprs,
                    Some parent_env,
                    Some f_env) in
     (node, (f_ret_ty, f_ret_val_cat, f_lt, f_ml))
@@ -1398,7 +1513,7 @@ and suitable_storage ?(exit_scope=false)
 
 and apply_conv_filter ?(exit_scope=false)
                       ?(param_passing=false)
-                      filter expr ext_env ctx =
+                      filter expr expr_aux ext_env ctx =
   match filter with
   | Some (trg_ty, f_env) ->
      let sto = suitable_storage
@@ -1407,23 +1522,29 @@ and apply_conv_filter ?(exit_scope=false)
                  trg_ty
                  ctx
      in
+     let (_, _, _, expr_ml) = expr_aux in
      (* TODO: use default arguments *)
-     TAst.GenericCallExpr (ref sto, [expr], Some ext_env, Some f_env)
-  | None -> expr
+     let node = TAst.GenericCallExpr (ref sto, [expr], Some ext_env, Some f_env) in
+     let lt = Env.get_scope_lifetime ext_env in (* TODO: fix *)
+     let ml = expr_ml in (* TODO: fix *)
+     let aux = (trg_ty, VCatPrValue, lt, ml) in
+     (node, aux)
+
+  | None -> (expr, expr_aux)
 
 
 and adjust_expr_for_type ?(exit_scope=false)
                          ?(param_passing=false)
-                         trg_ty src_expr src_auxs ext_env ctx attr =
-  let (m_level, m_filter) =
-    convert_type trg_ty src_auxs ext_env ctx attr
+                         trg_ty src_expr src_aux ext_env ctx attr =
+  let (match_level, m_filter) =
+    convert_type trg_ty src_aux ext_env ctx attr
   in
-  if m_level = FuncMatchLevel.NoMatch then
+  if match_level = FuncMatchLevel.NoMatch then
     failwith "[ERR] cannot convert type";
 
   apply_conv_filter ~exit_scope:exit_scope
                     ~param_passing:param_passing
-                    m_filter src_expr ext_env ctx
+                    m_filter src_expr src_aux ext_env ctx
 
 
 and resolve_type_with_qual ?(making_placeholder=false) ty_attr (expr:Ast.ast) env ctx attr : type_info_t =
@@ -1437,10 +1558,11 @@ and resolve_type ?(making_placeholder=false) (expr:Ast.ast) env ctx attr : type_
   in
   extract_ctfe_val_as_type ctfe_val
 
-and resolve_texpr_type ?(making_placeholder=false) texpr sem_ty env ctx attr : type_info_t =
+and resolve_texpr_type ?(making_placeholder=false) texpr sem_ty meta_level
+                       env ctx attr : type_info_t =
   let ctfe_val =
     eval_texpr_as_ctfe ~making_placeholder:making_placeholder
-                       texpr sem_ty env ctx attr
+                       texpr sem_ty meta_level env ctx attr
   in
   extract_ctfe_val_as_type ctfe_val
 
@@ -1461,30 +1583,46 @@ and extract_ctfe_val_as_type ctfe_val : type_info_t =
 
 and eval_expr_as_ctfe ?(making_placeholder=false) expr env ctx attr =
   Printf.printf "----> eval_expr_as_ctfe : begin ; \n";
-  let (nexpr, (expr_type, expr_val_cat, expr_lt, expr_ml)) =
+  let (nexpr, (ty, _, _, ml)) =
     analyze_expr ~making_placeholder:making_placeholder
                  expr env ctx attr
   in
   let v = eval_texpr_as_ctfe ~making_placeholder:making_placeholder
-                             nexpr expr_type
+                             nexpr ty ml
                              env ctx attr
   in
   (v, nexpr)
 
-and eval_texpr_as_ctfe ?(making_placeholder=false) texpr sem_ty env ctx attr =
+and eval_texpr_as_ctfe ?(making_placeholder=false)
+                       texpr expr_ty expr_ml
+                       env ctx attr =
+  let _ = match expr_ml with
+    | Meta_level.OnlyRuntime
+    | Meta_level.Runtime ->
+       TAst.print texpr;
+       failwith "[ERR] can not evaluete this value on compile time"
+    | _ -> ()
+  in
+
   let ctfe_val =
-    match Type.type_sort sem_ty with
+    match Type.type_sort expr_ty with
     | Type_info.UniqueTy _ ->
-       Ctfe_engine.execute ctx.sc_ctfe_engine texpr sem_ty ctx.sc_tsets
+       Ctfe_engine.execute ctx.sc_ctfe_engine texpr expr_ty ctx.sc_tsets
 
     | Type_info.NotDetermined _ ->
-       Ctfe_value.Type sem_ty
+       Ctfe_value.Type expr_ty
 
     | _ -> failwith "[ICE] eval_expr_as_ctfe : couldn't resolve"
   in
 
   Printf.printf "<---- eval_expr_as_ctfe : end\n";
   ctfe_val
+
+
+and tnode_of_ctfe_val ctfe_val ctx =
+  match ctfe_val with
+  | Ctfe_value.Int32 v -> TAst.Int32Lit (Int32.to_int v, get_builtin_int_type default_ty_attr ctx)
+  | _ -> failwith ""
 
 
 and evaluate_invocation_args args env ctx attr =
@@ -1572,7 +1710,7 @@ and solve_function_overload arg_auxs tamplate_args mset_env ext_env ctx attr =
          instantiate_function_templates mset_env tamplate_args arg_auxs
                                         ext_env ctx attr
        in
-
+       Printf.printf "%%%%%%%%%%%%%%%% instanced_envs -> %d\n" (List.length instanced_envs);
        find_suitable_functions instanced_envs arg_auxs ext_env ctx attr
      end
   in
@@ -1649,10 +1787,10 @@ and instantiate_function_templates menv template_args arg_auxs ext_env ctx attr 
       | TAst.NotInstantiatedNode (n, _) -> n
       | _ -> failwith "[ICE] unexpected not instantiated node"
     in
-    let parameters = match inner_node with
-      | Ast.FunctionDefStmt (_, Ast.ParamsList params, _, _, _, _) -> params
-      | Ast.MemberFunctionDefStmt (_, Ast.ParamsList params, _, _, _, _) -> params
-      | Ast.ExternFunctionDefStmt (_, Ast.ParamsList params, _, _, _, _) -> params
+    let (parameters, opt_cond) = match inner_node with
+      | Ast.FunctionDefStmt (_, Ast.ParamsList params, _, c, _, _, _) -> (params, c)
+      | Ast.MemberFunctionDefStmt (_, Ast.ParamsList params, _, _, _, _) -> (params, None)
+      | Ast.ExternFunctionDefStmt (_, Ast.ParamsList params, _, _, _, _) -> (params, None)
       | _ -> failwith ""
     in
     let get_param_type (var_attr, _, init) =
@@ -1684,10 +1822,10 @@ and instantiate_function_templates menv template_args arg_auxs ext_env ctx attr 
     (**)
     complate_template_instance menv t_env_record
                                meta_var_names uni_ids
+                               temp_env opt_cond
                                ctx attr
   in
-  let mset_record = Env.MultiSetOp.get_record menv in
-  List.map instantiate mset_record.Env.ms_templates
+  run_instantiate menv instantiate
 
 
 and unify_type ctx lhs rhs =
@@ -1782,6 +1920,7 @@ and unify_arg_value ctx lhs rhs =
 and print_ctfe_value value =
   match value with
   | Ctfe_value.Type ty -> Type.print ty
+  | Ctfe_value.Bool b -> Bool.print stdout b
   | Ctfe_value.Int32 n -> Int32.print stdout n
   | Ctfe_value.Undef _ -> Printf.printf "%%ctfe_val(undef)\n"
 
@@ -1812,11 +1951,11 @@ and prepare_template_params params_node ctx =
          let (meta_var_name, opt_init) = param in
          match opt_init with
          (* :U *)
-         | Some (Some ty, None) -> failwith "not supported"
+         | Some (Some ty, None) -> failwith ":U / not supported"
          (* = V *)
-         | Some (None, Some value) -> failwith "not supported"
+         | Some (None, Some value) -> failwith "= V / not supported"
          (* :U = V *)
-         | Some (Some ty, Some value) -> failwith "not supported"
+         | Some (Some ty, Some value) -> failwith ":U = V / not supported"
          | Some (None, None) -> failwith "[ICE] unexpected"
 
          | None -> (meta_var_name, (ctx.sc_tsets.ts_type_type, None))
@@ -1945,9 +2084,9 @@ and prepare_instantiate_template t_env_record template_args ext_env ctx attr =
        unify_type ctx var_ty ty
 
     (* = V *)
-    | Some (None, Some value) -> failwith "not supported"
+    | Some (None, Some value) -> failwith "= V / not supported"
     (* :U = V *)
-    | Some (Some ty, Some value) -> failwith "not supported"
+    | Some (Some ty, Some value) -> failwith ":U = V / not supported"
     | Some (None, None) -> failwith "[ICE] unexpected"
 
     | None ->
@@ -2013,8 +2152,11 @@ and prepare_instantiate_template t_env_record template_args ext_env ctx attr =
   (* TODO: assign default template parameter values *)
   (temp_env, meta_var_names, uni_ids)
 
+
 and complate_template_instance ?(making_placeholder=false)
-                               menv t_env_record meta_var_names uni_ids ctx attr =
+                               menv t_env_record meta_var_names uni_ids
+                               temp_env opt_cond
+                               ctx attr =
   let normalize_meta_var uni_id =
     let normalize_uni_value uni_id =
       let (last_uni_id, c) =
@@ -2044,28 +2186,61 @@ and complate_template_instance ?(making_placeholder=false)
   in
   List.iter normalize_meta_var uni_ids;
 
-  let mangled_sym =
-    uni_ids
-    |> List.map (Unification.get_as_value ctx.sc_unification_ctx)
-    |> (fun x -> Mangle.s_of_template_args x ctx.sc_tsets)
-  in
-  String.print stdout mangled_sym;
-
-  let mset_record = Env.MultiSetOp.get_record menv in
   let (inner_node, inner_attr) = match t_env_record.Env.tl_inner_node with
     | TAst.NotInstantiatedNode (n, a) -> (n, a)
     | _ -> failwith "[ICE] unexpected not instantiated node"
   in
 
+  (* cond *)
+  let is_instantiable = match opt_cond with
+    | Some cond ->
+       begin
+         (*let scope_env =
+                Env.create_scoped_env temp_env
+                                      (Env.Scope (Env.empty_lookup_table ()))
+              in*)
+         Printf.printf "--------> is_instantiable\n";
+         Ast.print cond;
+         Printf.printf "--------> is_instantiable\n";
+         flush_all ();
+
+         let scope_env = temp_env in
+         let (n_cond_expr, cond_aux) = analyze_expr cond scope_env ctx attr in
+         let bool_ty = get_builtin_bool_type default_ty_attr ctx in
+         let (conved_cond_node, (_, _, _, cond_ml)) =
+           adjust_expr_for_type bool_ty n_cond_expr cond_aux
+                                scope_env ctx attr
+         in
+         let ctfe_v =
+           eval_texpr_as_ctfe conved_cond_node bool_ty cond_ml
+                              scope_env ctx None
+         in
+         match ctfe_v with
+         | Ctfe_value.Bool b -> b
+         | _ -> failwith "[ICE]"
+       end
+    | None -> true
+  in
+  if not is_instantiable then
+     raise Instantiation_failed;
+
+  let mangled_sym =
+    uni_ids
+    |> List.map (Unification.get_as_value ctx.sc_unification_ctx)
+    |> (fun x -> Mangle.s_of_template_args x ctx.sc_tsets)
+  in
+  Printf.printf "try instance -> %s\n" mangled_sym;
+
+  let mset_record = Env.MultiSetOp.get_record menv in
   let cache = Hashtbl.find_option mset_record.Env.ms_instanced_args_memo mangled_sym in
   match cache with
   | Some env -> env (* DO NOTHING, because this template is already generated *)
   | None ->
      begin
        let mvs = List.combine meta_var_names uni_ids in
-
-       (**)
        let env_parent = Option.get menv.Env.parent_env in
+
+       (* instantiate! *)
        let n_ast =
          analyze ~meta_variables:mvs
                  ~opt_attr:inner_attr
@@ -2073,15 +2248,13 @@ and complate_template_instance ?(making_placeholder=false)
        in
 
        let i_env = match n_ast with
-         | TAst.FunctionDefStmt (_, _, _, _, _, Some e)
-         | TAst.MemberFunctionDefStmt (_, _, _, _, _, Some e)
-         | TAst.ExternFunctionDefStmt (_, _, _, _, _, Some e)
          | TAst.GenericFuncDef (_, Some e)
          | TAst.ClassDefStmt (_, _, _, Some e)
          | TAst.ExternClassDefStmt (_, _, _, Some e) -> e
          | _ -> TAst.print n_ast; failwith "[ICE] complete template / cache"
        in
 
+       (* memoize *)
        Hashtbl.add mset_record.Env.ms_instanced_args_memo mangled_sym i_env;
        i_env
      end
@@ -2096,21 +2269,29 @@ and instantiate_class_templates menv template_args ext_env ctx attr =
     in
     complate_template_instance menv t_env_record
                                meta_var_names uni_ids
+                               temp_env None
                                ctx attr
   in
-  let mset_record = Env.MultiSetOp.get_record menv in
-  List.map instantiate mset_record.Env.ms_templates
+  run_instantiate menv instantiate
 
 
-and map_conversions ?(param_passing=false) filters arg_exprs ext_env ctx =
-  let f filter expr =
-    apply_conv_filter ~param_passing:param_passing filter expr ext_env ctx
+and run_instantiate menv f =
+  let instantiate_wrapper f tenv =
+    match f tenv with
+    | exception Instantiation_failed -> None
+    | x -> Some x
   in
-  List.map2 f filters arg_exprs
+  let mset_record = Env.MultiSetOp.get_record menv in
+  List.filter_map (instantiate_wrapper f) mset_record.Env.ms_templates
 
 
-and ctor_name = Nodes.Pure "ctor"
-and assign_name = Nodes.BinaryOp "="
+and map_conversions ?(param_passing=false) filters args ext_env ctx =
+  let f filter arg =
+    let (expr, aux) = arg in
+    apply_conv_filter ~param_passing:param_passing filter expr aux ext_env ctx
+  in
+  List.map2 f filters args
+
 
 and make_class_type cenv rv mut ctx =
   let cr = Env.ClassOp.get_record cenv in
@@ -2197,7 +2378,7 @@ and define_trivial_copy_assign_for_builtin cenv extern_cname ctx =
                          (Builtin_info.make_builtin_copy_assign_name extern_cname))
   in
   (* interface of default constructor: TYPE -> TYPE -> void *)
-  check_function_env fenv [ty; rhs_ty] !(ctx.sc_tsets.ts_void_type_holder) false;
+  check_function_env fenv [ty; rhs_ty] ctx.sc_tsets.ts_void_type false;
 
   let node = TAst.GenericFuncDef (None, Some fenv) in
   complete_function_env fenv node assign_name detail ctx
@@ -2215,9 +2396,7 @@ and get_builtin_int_type ?(bits=32) ?(signed=true) attr ctx : 'env type_info =
   ty
 
 and get_builtin_void_type attr ctx : 'env type_info =
-  let ty = !(ctx.sc_tsets.ts_void_type_holder) in
-  assert (not @@ Type.is_undef ty);
-  ty
+  ctx.sc_tsets.ts_void_type
 
 and get_builtin_bool_type attr ctx : 'env type_info =
   let ty = !(ctx.sc_tsets.ts_bool_type_holder) in
@@ -2301,11 +2480,6 @@ and cache_builtin_type_info preset_ty name ctx =
        (* pure type *)
        | Some (ty, c_env) when ty == ctx.sc_tsets.ts_type_type ->
           begin
-            (* default qual *)
-            let default_ty_attr = {
-              Type_attr.ta_ref_val = Type_attr.Val;
-              Type_attr.ta_mut = Type_attr.Const;
-            } in
             let prim_ty =
               Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
                                            (Type_info.UniqueTy c_env)
@@ -2346,9 +2520,21 @@ and get_storage_ref n =
  *)
 
 and analyze ?(meta_variables=[]) ?(opt_attr=None) node env ctx =
+  let (node, _) = analyze_t ~meta_variables:meta_variables
+                            ~opt_attr:opt_attr
+                            node env ctx
+  in
+  node
+
+and analyze_t ?(meta_variables=[]) ?(opt_attr=None) node env ctx =
   let snode =
     solve_forward_refs ~meta_variables:meta_variables
                        ~opt_attr:opt_attr
                        node env ctx
   in
   construct_env snode env ctx opt_attr
+
+
+and get_void_aux ctx =
+  let ty = get_builtin_void_type default_ty_attr ctx in
+  (ty, VCatPrValue, Type_attr.Static, Meta_level.Meta)

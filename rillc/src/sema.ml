@@ -19,15 +19,26 @@ let make_default_env () =
 let make_default_context root_env module_search_dirs =
   let type_gen = Type.Generator.default () in
 
-  let register_builtin_type name inner_name =
+  let register_builtin_type name inner_name meta_level =
     let create_builtin_class name inner_name =
       let env_r = Env.ClassOp.empty_record name in
+      env_r.Env.cls_mangled <- Some inner_name;
+
       let env = Env.create_context_env root_env (
                                          Env.Class (Env.empty_lookup_table ~init:0 (),
                                                     env_r)
                                        ) in
+      env.Env.meta_level <- meta_level;
+
       let node = TAst.ExternClassDefStmt (name, inner_name, None, Some env) in
-      complete_env env node;
+
+      let detail_r = Env.ClsRecordPrimitive {
+                         Env.cls_e_name = inner_name;
+                       } in
+      let traits = {
+         Env.cls_traits_is_primitive = true;
+       } in
+      complete_class_env env node detail_r traits;
       env
     in
 
@@ -48,9 +59,12 @@ let make_default_context root_env module_search_dirs =
   let tsets = {
     ts_type_gen = type_gen;
     ts_type_type = register_builtin_type type_type_i.external_name
-                                         type_type_i.internal_name;
+                                         type_type_i.internal_name
+                                         Meta_level.OnlyMeta;
+    ts_void_type = register_builtin_type void_type_i.external_name
+                                         void_type_i.internal_name
+                                         Meta_level.Meta;
 
-    ts_void_type_holder = ref Type_info.undef_ty;
     ts_bool_type_holder = ref Type_info.undef_ty;
     ts_int32_type_holder = ref Type_info.undef_ty;
     ts_array_type_holder = ref Type_info.undef_ty;
@@ -75,17 +89,12 @@ let make_default_context root_env module_search_dirs =
   let builtin_mod_e = load_module ["core"] "builtin" ctx in
   ctx.sc_builtin_m_env <- Some builtin_mod_e;
 
-  (* cache void type, ORDER is IMPORTANT! void should be cached at first. *)
-  cache_builtin_type_info tsets.ts_void_type_holder
-                          void_type_i.external_name
-                          ctx;
-
   (* cache bool type *)
   cache_builtin_type_info tsets.ts_bool_type_holder
                           bool_type_i.external_name
                           ctx;
 
-  (* cache int type *)
+  (* cache int32 type *)
   cache_builtin_type_info tsets.ts_int32_type_holder
                           int32_type_i.external_name
                           ctx;
@@ -112,4 +121,5 @@ let make_default_state system_libs_dirs user_srcs_dirs =
 
 let analyze_module mod_env ctx =
   let mod_node = Option.get mod_env.Env.rel_node in
-  construct_env mod_node ctx.sc_root_env ctx None
+  let (node, _) = construct_env mod_node ctx.sc_root_env ctx None in
+  node

@@ -21,7 +21,7 @@ type mut_t =
 type lifetime_t =
     Static
   | ThreadLocal
-  | Scoped
+  | Scoped of Lifetime.t
   | LifetimeUndef
 
 type attr_t = {

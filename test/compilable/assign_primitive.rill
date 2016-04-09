@@ -1,20 +1,23 @@
+import std.stdio;
+import std.assert;
+
 def main(): void
 {
     val mutable a = int32();
-    print_int(a);
+    print(a);
     val mutable aa = a + 1;
     val mutable b = int32(aa);
-    print_int(b);
+    print(b);
 
     b = 10;
-    print_int(b);
+    print(b);
 
     b = b + b + b;
-    print_int(b);
+    print(b);
 
     // cannot assign a value to the immutable val
     val yo = 0;
-    assert_not(__statement_traits(semantics, {
+    assert(!__statement_traits(semantics, {
         yo = 10;
     }));
 

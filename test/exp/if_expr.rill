@@ -1,0 +1,8 @@
+import std.stdio;
+
+def main() {
+    val res1 = if (true) 10 else { val a = 20; a + 5; };
+    val res2 = if (false) 10 else { val mutable a = 20; a = a + 5; val b = a; b; };
+    res1.print();
+    res2.print();
+}

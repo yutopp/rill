@@ -1,3 +1,5 @@
+import std.stdio;
+
 def main(): void
 {
     {
@@ -22,15 +24,15 @@ def main(): void
         a.print();
         --a;
         a.print();
-    }
+    };
     {
         val a = true;
-    }
+    };
 
     {
         val s = "Yo! Bunchou language!!";
         s.print();
-    }
+    };
 
     return;
 }

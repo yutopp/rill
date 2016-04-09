@@ -1,0 +1,3 @@
+extern def print(v: int32): void = "rill_print_int";
+extern def print(v: bool): void = "rill_print_bool";
+extern def print(v: raw_ptr!(bool)): void = "rill_print_string";

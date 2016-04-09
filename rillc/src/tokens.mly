@@ -39,4 +39,11 @@
                         KEYWORD_UU_STMT_TRAITS
                         KEYWORD_NEW
                         KEYWORD_DELETE
+                        KEYWORD_ONLY_META
+                        KEYWORD_META
+                        KEYWORD_RUNTIME
+                        KEYWORD_ONLY_RUNTIME
+                        KEYWORD_IF
+                        KEYWORD_ELSE
+                        KEYWORD_WHEN
 %%

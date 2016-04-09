@@ -9,4 +9,5 @@
 type 'ty t =
   | Type of 'ty
   | Int32 of int32
+  | Bool of bool
   | Undef of Unification.id_t

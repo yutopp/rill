@@ -34,9 +34,11 @@ module Make (Cgt : CONTEXT_TYPE) =
       env_to_record_tbl         : (EnvIdOrderedType.t, ('env, 'ty, 'v) value_t) Hashtbl.t;
       name_to_record_tbl        : (string, ('env, 'ty, 'v) value_t) Hashtbl.t;
 
+      env_to_meta_record_tbl    : (EnvIdOrderedType.t, ('env, 'ty, 'v) value_t) Hashtbl.t;
+
       mutable defined_env       : IdSet.t;
-      type_sets                 : 'env Type_sets.type_sets_t option;
-      uni_map                   : ('ty, 'v) Unification.t option;
+      type_sets                 : 'env Type_sets.type_sets_t;
+      uni_map                   : ('ty, 'v) Unification.t;
     }
      and ('env, 'ty, 'v) value_t = ('ty, (('env, 'ty, 'v) t)) Cgt.value_record_t
 
@@ -51,6 +53,8 @@ module Make (Cgt : CONTEXT_TYPE) =
 
         env_to_record_tbl = Hashtbl.create 32;
         name_to_record_tbl = Hashtbl.create 32;
+
+        env_to_meta_record_tbl = Hashtbl.create 32;
 
         defined_env = IdSet.empty;
         type_sets = type_sets;
@@ -79,4 +83,12 @@ module Make (Cgt : CONTEXT_TYPE) =
 
     let find_val_by_name ctx name =
       Hashtbl.find ctx.name_to_record_tbl name
+
+
+    (**)
+    let bind_metaval_to_env ctx value env =
+      Hashtbl.add ctx.env_to_meta_record_tbl env.Env.env_id value
+
+    let find_metaval_by_env ctx env =
+      Hashtbl.find ctx.env_to_meta_record_tbl env.Env.env_id
   end

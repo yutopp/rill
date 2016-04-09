@@ -7,8 +7,17 @@
  *)
 
 %parameter <Mi : Module_info.INFO_TYPE>
+%start <Ast.t> program_entry
 
-%start <Ast.t>          program_entry
+%nonassoc IFX
+%nonassoc KEYWORD_ELSE
+
+%{
+    let templatefy name node opt_tparams =
+        match opt_tparams with
+        | Some tparams -> Ast.TemplateStmt (name, tparams, node)
+        | None -> node
+%}
 
 %%
 
@@ -67,34 +76,22 @@ import_statement:
                     Ast.ImportStmt (pkg_names, mod_name, ())
                 }
 
+
 function_decl_statement:
-                function_decl_statement_ { $1 }
-        |       template_function_decl_statement_ { $1 }
-
-function_decl_statement_:
                 KEYWORD_DEF
                 name = rel_id_as_s
+                opt_tparams = template_parameter_variables_decl_list?
                 params = parameter_variables_decl_list
                 ret_type = type_specifier?
+                t_cond = when_cond?
                 body = function_decl_body_block
                 {
-                    Ast.FunctionDefStmt (name, params, ret_type, body, None, ())
+                    let n = Ast.FunctionDefStmt (name, params, ret_type, t_cond, body, None, ()) in
+                    templatefy name n opt_tparams
                 }
 
-template_function_decl_statement_:
-                KEYWORD_DEF
-                name = rel_id_as_s
-                template_params = template_parameter_variables_decl_list
-                params = parameter_variables_decl_list
-                ret_type = type_specifier?
-                body = function_decl_body_block
-                {
-                    let inner =
-                      Ast.FunctionDefStmt (name, params, ret_type, body, None, ())
-                    in
-                    Ast.TemplateStmt (name, template_params, inner)
-                }
-
+when_cond:
+                KEYWORD_WHEN expression { $2 }
 
 function_decl_body_block:
                 function_body_block             { $1 }
@@ -113,31 +110,15 @@ function_lambda_block:
 
 
 member_function_declaration_statement:
-                member_function_decl_statement_ { $1 }
-        |       template_member_function_decl_statement_ { $1 }
-
-member_function_decl_statement_:
                 KEYWORD_DEF
                 name = rel_id_as_s
+                opt_tparams = template_parameter_variables_decl_list?
                 params = parameter_variables_decl_list
                 ret_type = type_specifier?
                 body = function_decl_body_block
                 {
-                    Ast.MemberFunctionDefStmt (name, params, ret_type, body, None, ())
-                }
-
-template_member_function_decl_statement_:
-                KEYWORD_DEF
-                name = rel_id_as_s
-                template_params = template_parameter_variables_decl_list
-                params = parameter_variables_decl_list
-                ret_type = type_specifier?
-                body = function_decl_body_block
-                {
-                    let inner =
-                      Ast.MemberFunctionDefStmt (name, params, ret_type, body, None, ())
-                    in
-                    Ast.TemplateStmt (name, template_params, inner)
+                    let n = Ast.MemberFunctionDefStmt (name, params, ret_type, body, None, ()) in
+                    templatefy name n opt_tparams
                 }
 
 
@@ -150,8 +131,12 @@ parameter_variables_decl_list:
 parameter_variable_decl_introducer:
                 rv = rv_attr
                 mut = mut_attr
-                { { Type_attr.ta_ref_val = rv;
-                    Type_attr.ta_mut = mut; }
+                {
+                    let attr = {
+                        Type_attr.ta_ref_val = rv;
+                        Type_attr.ta_mut = mut;
+                    } in
+                    attr
                 }
 
 parameter_variable_declaration:
@@ -174,7 +159,8 @@ template_parameter_variable_declaration:
                 template_parameter_variable_initializer_unit { $1 }
 
 template_parameter_variable_initializer_unit:
-                rel_id_has_no_op_as_raw value_initializer_unit? { ($1, $2) }
+                rel_id_has_no_op_as_raw
+                value_initializer_unit? { ($1, $2) }
 
 
 (*
@@ -198,6 +184,7 @@ class_decl_statement:
 class_decl_statement_:
                 KEYWORD_CLASS
                 name = rel_id_as_s
+                ml = meta_level
                 body = class_decl_body_block
                 { Ast.ClassDefStmt (name, body, None, () )}
 
@@ -244,8 +231,12 @@ member_variable_initializer_unit:
 member_variable_decl_introducer:
                 rv = rv_attr_val
                 mut = mut_attr_mutable_def
-                { { Type_attr.ta_ref_val = rv;
-                    Type_attr.ta_mut = mut; }
+                {
+                    let attr = {
+                        Type_attr.ta_ref_val = rv;
+                        Type_attr.ta_mut = mut;
+                    } in
+                    attr
                 }
 
 
@@ -267,30 +258,17 @@ extern_function_statement:
                 STRING (*string_lit*)
                 { Ast.ExternFunctionDefStmt ($2, $3, $4, $6, None, ()) }
 
-
 extern_class_statement:
-                extern_class_statement_ { $1 }
-        |       template_extern_class_statement_ { $1 }
-
-extern_class_statement_:
                 KEYWORD_CLASS
                 name = rel_id_as_s
-                ASSIGN
-                body_name = STRING (*string_lit*)
-                { Ast.ExternClassDefStmt (name, body_name, None, ()) }
-
-template_extern_class_statement_:
-                KEYWORD_CLASS
-                name = rel_id_as_s
-                template_params = template_parameter_variables_decl_list
+                opt_tparams = template_parameter_variables_decl_list?
+                ml = meta_level
                 ASSIGN
                 body_name = STRING (*string_lit*)
                 {
-                    let inner = Ast.ExternClassDefStmt (name, body_name, None, ())
-                    in
-                    Ast.TemplateStmt (name, template_params, inner)
+                    let n = Ast.ExternClassDefStmt (name, body_name, None, ()) in
+                    templatefy name n opt_tparams
                 }
-
 
 return_statement:
                 KEYWORD_RETURN
@@ -305,24 +283,13 @@ program_body_statement:
         |       program_body_statement_ { $1 }
 
 program_body_statement_:
-                (*  control_flow_statement
-                * | return_statement
-                *)
                 empty_statement { $1 }
         |       expression_statement { $1 }
         |       variable_declaration_statement { $1 }
-        |       program_body_block_statement { $1 }
         |       return_statement { $1 }
 
 program_body_statements_list:
                 program_body_statement* { Ast.StatementList ($1) }
-
-(**)
-program_body_block_statement:
-                LBLOCK
-                program_body_statements_list
-                RBLOCK
-                { Ast.ScopeStmt $2 }
 
 
 (**)
@@ -356,16 +323,26 @@ mut_attr_mutable_def:
         |       mut_attr_force { $1 }
 
 
+meta_level:
+                { Meta_level.Runtime }  (* default *)
+        |       KEYWORD_ONLY_META       { Meta_level.OnlyMeta }
+        |       KEYWORD_META            { Meta_level.Meta }
+        |       KEYWORD_RUNTIME         { Meta_level.Runtime }
+        |       KEYWORD_ONLY_RUNTIME    { Meta_level.OnlyRuntime }
+
+
 variable_declaration_statement:
-                variable_declararion SEMICOLON
+                meta_level
+                variable_declararion
+                SEMICOLON
                 {
-                    Ast.VariableDefStmt ($1, ())
+                    Ast.VariableDefStmt ($1, $2, ())
                 }
 
 variable_declararion:
-                variable_initializer_unit
+                vi = variable_initializer_unit
                 {
-                    Ast.VarInit $1
+                    Ast.VarInit vi
                 }
 
 (* TODO: change rel_id_has_no_op_as_raw to generic_rel_id_has_no_op to support template variables *)
@@ -377,21 +354,25 @@ variable_initializer_unit:
 variable_decl_introducer:
                 rv = rv_attr_force
                 mut = mut_attr
-                { { Type_attr.ta_ref_val = rv;
-                    Type_attr.ta_mut = mut; }
+                {
+                    let attr = {
+                        Type_attr.ta_ref_val = rv;
+                        Type_attr.ta_mut = mut;
+                    } in
+                    attr
                 }
 
 
 (**)
 argument_list:
                 LPAREN
-                l = separated_list(COMMA, assign_expression)
+                l = separated_list(COMMA, expression)
                 RPAREN { l }
 
 template_argument_list:
                 NOT
                 LPAREN
-                l = separated_nonempty_list(COMMA, assign_expression)
+                l = separated_nonempty_list(COMMA, expression)
                 RPAREN
                 { l }
 
@@ -406,19 +387,29 @@ expression_statement:
 
 (**)
 id_expression:
-                conditional_expression { $1 }
+                logical_or_expression { $1 }
 
 
 expression:
                 assign_expression { $1 }
 
-assign_expression:
-                conditional_expression { $1 }
-        |       assign_expression ASSIGN conditional_expression
-                { Ast.BinaryOpExpr ($1, Nodes.BinaryOp "=", $3) }
-
-conditional_expression:
+assign_expression:  (* right to left *)
                 logical_or_expression { $1 }
+        |       logical_or_expression ASSIGN assign_expression
+                { Ast.BinaryOpExpr ($1, Nodes.BinaryOp "=", $3) }
+        |       if_expression { $1 }
+
+if_expression:
+                KEYWORD_IF
+                LPAREN cond = expression RPAREN
+                then_n = expression %prec IFX
+                { Ast.IfExpr (cond, then_n, None) }
+        |       KEYWORD_IF
+                LPAREN cond = expression RPAREN
+                then_n = expression
+                KEYWORD_ELSE
+                else_n = expression
+                { Ast.IfExpr (cond, then_n, Some else_n) }
 
 logical_or_expression:
                 logical_and_expression { $1 }
@@ -494,10 +485,13 @@ unary_expression:
                 { Ast.UnaryOpExpr( Nodes.UnaryPreOp op, $2) }
         |       op = DECREMENT postfix_expression
                 { Ast.UnaryOpExpr( Nodes.UnaryPreOp op, $2) }
+        |       op = NOT postfix_expression
+                { Ast.UnaryOpExpr( Nodes.UnaryPreOp op, $2) }
         |       KEYWORD_NEW postfix_expression
                 { Ast.NewExpr($2) }
         |       KEYWORD_DELETE postfix_expression
                 { Ast.DeleteExpr($2) }
+
 
 
 postfix_expression:
@@ -518,14 +512,20 @@ statement_traits_expression:
                 LPAREN
                 t = rel_id_has_no_op_as_raw
                 COMMA
-                s = program_body_block_statement
+                s = scope_expression
                 RPAREN
                 { Ast.StatementTraitsExpr (t, s) }
 
 primary_expression:
                 primary_value { $1 }
         |       LPAREN expression RPAREN { $2 }
+        |       scope_expression { $1 }
 
+scope_expression:
+                LBLOCK
+                stmts = program_body_statements_list
+                RBLOCK
+                { Ast.ScopeExpr (stmts) }
 
 (**)
 primary_value:
@@ -592,6 +592,7 @@ binary_operator_as_s:
 unary_operator_as_raw:
                 INCREMENT { $1 }
         |       DECREMENT { $1 }
+        |       NOT { $1 }
 
 unary_operator_as_s:
                 KEYWORD_OPERATOR
@@ -639,4 +640,4 @@ attribute_key:
                 rel_id_has_no_op_as_raw { $1 }
 
 attribute_value:
-                ASSIGN conditional_expression { $2 }
+                ASSIGN logical_or_expression { $2 }
