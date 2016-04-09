@@ -1108,12 +1108,6 @@ let inject_builtins ctx =
     let () = (* ==(:int, :int): bool *)
       let f args ctx =
         assert (Array.length args = 2);
-        Printf.printf "$$$$$$$$$ comparing int\n";
-        flush_all ();
-        L.dump_value args.(0);
-        L.dump_value args.(1);
-        flush_all ();
-
         L.build_icmp L.Icmp.Eq args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func "__builtin_op_binary_==_int_int" f
