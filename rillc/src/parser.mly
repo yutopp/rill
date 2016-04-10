@@ -398,6 +398,7 @@ assign_expression:  (* right to left *)
         |       logical_or_expression ASSIGN assign_expression
                 { Ast.BinaryOpExpr ($1, Nodes.BinaryOp "=", $3) }
         |       if_expression { $1 }
+        |       for_expression { $1 }
 
 if_expression:
                 KEYWORD_IF
@@ -410,6 +411,25 @@ if_expression:
                 KEYWORD_ELSE
                 else_n = expression
                 { Ast.IfExpr (cond, then_n, Some else_n) }
+
+for_expression:
+                KEYWORD_FOR
+                LPAREN
+                opt_decl = variable_declararion?
+                SEMICOLON
+                opt_cond = expression?
+                SEMICOLON
+                opt_inc = expression?
+                RPAREN
+                body = expression
+                {
+                    let opt_decl_stmt = match opt_decl with
+                      | Some decl ->
+                          Some (Ast.VariableDefStmt (Meta_level.Runtime, decl, ()))
+                      | None -> None
+                    in
+                    Ast.ForExpr (opt_decl_stmt, opt_cond, opt_inc, body)
+                }
 
 logical_or_expression:
                 logical_and_expression { $1 }

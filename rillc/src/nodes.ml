@@ -69,6 +69,7 @@ module Make (Ctx : NodeContextType) =
       | CallExpr of ast * ast list
       | ScopeExpr of ast
       | IfExpr of ast * ast * ast option
+      | ForExpr of ast option * ast option * ast option * ast
       | NewExpr of ast
       | DeleteExpr of ast
       | StatementTraitsExpr of string * ast

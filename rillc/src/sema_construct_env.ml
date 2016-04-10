@@ -989,6 +989,46 @@ and analyze_expr ?(making_placeholder=false)
        (node, then_aux)
      end
 
+  | Ast.ForExpr (opt_var_decl, opt_cond, opt_step, body) ->
+     begin
+       let scope_env =
+         Env.create_scoped_env parent_env
+                               (Env.Scope (Env.empty_lookup_table ()))
+       in
+
+       let nopt_var_decl =
+         let f var_decl =
+           analyze var_decl scope_env ctx
+         in
+         Option.map f opt_var_decl
+       in
+
+       let nopt_cond =
+         let f cond =
+           let (nexpr, aux) = analyze_expr cond scope_env ctx attr in
+           nexpr
+         in
+         Option.map f opt_cond
+       in
+
+       let nopt_step =
+         let f step =
+           let (nexpr, aux) = analyze_expr step scope_env ctx attr in
+           nexpr
+         in
+         Option.map f opt_step
+       in
+
+       let body_env =
+         Env.create_scoped_env scope_env
+                               (Env.Scope (Env.empty_lookup_table ()))
+       in
+       let (nbody, body_aux) = analyze_expr body body_env ctx attr in
+
+       let node = TAst.ForExpr (nopt_var_decl, nopt_cond, nopt_step, nbody) in
+       node, get_void_aux ctx
+     end
+
   | _ ->
      begin
        Ast.print node;

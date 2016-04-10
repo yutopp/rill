@@ -1,0 +1,13 @@
+import std.stdio;
+
+def main()
+{
+    val h = read_int32();
+    val w = read_int32();
+    for(val mutable i=0; i<h; ++i) {
+        for(val mutable j=0; j<w; ++j) {
+                "#".print();
+        };
+        "".println();
+    };
+}

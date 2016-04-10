@@ -1,3 +1,7 @@
 extern def print(v: int32): void = "rill_print_int";
 extern def print(v: bool): void = "rill_print_bool";
 extern def print(v: raw_ptr!(bool)): void = "rill_print_string";
+extern def println(v: raw_ptr!(bool)): void = "rill_println_string";
+
+extern def read_int32(): int32 = "rill_read_int32";
+//extern def read_string(): int32 = "rill_read_int32";

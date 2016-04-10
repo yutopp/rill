@@ -51,6 +51,7 @@ rule token = parse
   | "runtime"           { KEYWORD_RUNTIME }
   | "onlyruntime"       { KEYWORD_ONLY_RUNTIME }
   | "if"                { KEYWORD_IF }
+  | "for"               { KEYWORD_FOR }
   | "else"              { KEYWORD_ELSE }
   | "when"              { KEYWORD_WHEN }
 

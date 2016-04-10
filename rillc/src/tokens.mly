@@ -44,6 +44,7 @@
                         KEYWORD_RUNTIME
                         KEYWORD_ONLY_RUNTIME
                         KEYWORD_IF
+                        KEYWORD_FOR
                         KEYWORD_ELSE
                         KEYWORD_WHEN
 %%

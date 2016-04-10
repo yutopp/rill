@@ -680,6 +680,50 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
        (llret, then_ty)
      end
 
+  | TAst.ForExpr (opt_decl, opt_cond, opt_step, body) ->
+     begin
+       let ip =  L.insertion_block ctx.Ctx.ir_builder in
+       let bip = L.insert_block ctx.ir_context "loop_begin" ip in
+       let sip = L.insert_block ctx.ir_context "loop_step" ip in
+       let eip = L.insert_block ctx.ir_context "loop_end" ip in
+       L.move_block_after ip bip;
+       L.move_block_after bip sip;
+       L.move_block_after sip eip;
+
+       let _ = match opt_decl with
+         | Some decl -> ignore @@ generate_code decl ctx
+         | None -> ()
+       in
+
+       let _ = L.build_br bip ctx.ir_builder in
+       L.position_at_end bip ctx.Ctx.ir_builder;
+
+       let _ = match opt_cond with
+         | Some cond ->
+            begin
+              let (llcond, _) = generate_code cond ctx in
+              ignore @@ L.build_cond_br llcond sip eip ctx.ir_builder;
+              L.position_at_end sip ctx.Ctx.ir_builder;
+            end
+         | None -> L.remove_block sip;
+       in
+
+       ignore @@ generate_code body ctx;
+
+       let _ = match opt_step with
+         | Some step ->
+            begin
+              ignore @@  generate_code step ctx
+            end
+         | None -> ();
+       in
+
+       ignore @@ L.build_br bip ctx.ir_builder;
+       L.position_at_end eip ctx.Ctx.ir_builder;
+
+       void_val
+     end
+
   | _ -> failwith "cannot generate : node"
 
 
