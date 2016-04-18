@@ -1,4 +1,4 @@
 def main(): void
 {
-    val p = int.new(10);
+    val p = int32.new();
 }

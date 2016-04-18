@@ -507,11 +507,6 @@ unary_expression:
                 { Ast.UnaryOpExpr( Nodes.UnaryPreOp op, $2) }
         |       op = NOT postfix_expression
                 { Ast.UnaryOpExpr( Nodes.UnaryPreOp op, $2) }
-        |       KEYWORD_NEW postfix_expression
-                { Ast.NewExpr($2) }
-        |       KEYWORD_DELETE postfix_expression
-                { Ast.DeleteExpr($2) }
-
 
 
 postfix_expression:

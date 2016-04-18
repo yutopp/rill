@@ -696,11 +696,12 @@ and analyze_expr ?(making_placeholder=false)
                  (args, arg_auxs)
               | _ -> (arg_exprs, arg_auxs)
             in
+            let args = List.combine arg_exprs arg_auxs in
             let (f_env, conv_filters) =
-              solve_function_overload arg_auxs template_args
+              solve_function_overload args template_args
                                       menv parent_env ctx attr
             in
-            let args = List.combine arg_exprs arg_auxs in
+
             let n_eargs =
               map_conversions ~param_passing:true
                               conv_filters args parent_env ctx
@@ -739,12 +740,12 @@ and analyze_expr ?(making_placeholder=false)
             (* TODO: take into account op call *)
             let res = solve_basic_identifier ~do_rec_search:false
                                              ctor_name recv_cenv ctx attr in
-            let (_, ctor_env) = match res with
+            let (_, ctor_env, _) = match res with
               | Some v -> v
               | None -> failwith "constructor not found"
             in
             let f_conv =
-              solve_function_overload arg_auxs []
+              solve_function_overload eargs []
                                       ctor_env parent_env ctx attr
             in
 
@@ -792,7 +793,7 @@ and analyze_expr ?(making_placeholder=false)
                                     lhs_aux rhs parent_env ctx attr
             in
             match opt_rhs_ty_node with
-            | Some (rhs_ty, rhs_env) ->
+            | Some (rhs_ty, rhs_env, rhs_ml) ->
                let node = TAst.NestedExpr (lhs_node, lhs_aux, rhs_ty, Some rhs_env) in
                let prop_ty = propagate_type_attrs rhs_ty lhs_ty ctx in
                let lt = Env.get_scope_lifetime parent_env in (* TODO: fix *)
@@ -859,14 +860,15 @@ and analyze_expr ?(making_placeholder=false)
          solve_identifier ~making_placeholder:making_placeholder
                           id_node parent_env ctx attr
        in
-       let (ty, trg_env) = match res with
+       let (ty, trg_env, ml) = match res with
            Some v -> v
          | None ->
             (* TODO: change to exception *)
             failwith @@ "id not found : " ^ (Nodes.string_of_id_string name)
        in
        let lt = Env.get_scope_lifetime parent_env in (* TODO: fix *)
-       let ml = trg_env.Env.meta_level in
+
+       Printf.printf "= %s - %s\n" (Nodes.string_of_id_string name) (Meta_level.to_string ml);
 
        (* both of id and instantiated_id will be id node *)
        let node = TAst.GenericId (name, Some trg_env) in
@@ -1048,7 +1050,7 @@ and analyze_operator op args parent_env ctx attr =
   let op_id = Ast.Id (op, ()) in
   let opt_fs_and_args =
     find_suitable_operator ~universal_search:true
-                           op_id arg_auxs parent_env ctx attr in
+                           op_id eargs parent_env ctx attr in
   let analyze (f_env, conv_filters) =
     let n_eargs =
       map_conversions ~param_passing:true
@@ -1181,6 +1183,7 @@ and solve_identifier ?(do_rec_search=true)
      solve_basic_identifier ~do_rec_search:do_rec_search
                             ~making_placeholder:making_placeholder
                             name env ctx attr
+
   | Ast.InstantiatedId (name, template_args, _) ->
      begin
        Printf.printf "$$$$$ Ast.InstantiatedId\n";
@@ -1194,26 +1197,27 @@ and solve_identifier ?(do_rec_search=true)
                               ~making_placeholder:making_placeholder
                               name env ctx attr
      end
+
   | _ -> failwith "unsupported ID type"
 
 and solve_basic_identifier ?(do_rec_search=true)
                            ?(template_args=[])
                            ?(making_placeholder=false)
                            name search_base_env ctx attr
-    : (type_info_t * 'env) option =
-  (*Env.print env;*)
+    : (type_info_t * 'env * Meta_level.t) option =
+  let type_ty = ctx.sc_tsets.ts_type_type in
+  let ty_cenv = Type.as_unique type_ty in
 
   (* Class is a value of type, thus returns "type" of type, and corresponding env.
    * Ex, "int" -> { type: type, value: int }
    *)
   let single_type_id_node name cenv =
     try_to_complete_env cenv ctx;
-
-    (ctx.sc_tsets.ts_type_type, cenv)
+    (type_ty, cenv, ty_cenv.Env.meta_level)
   in
 
   (* TODO: implement merging *)
-  let solve (prev_ty, prev_opt_env) env : (type_info_t * 'option) =
+  let solve (prev_ty, prev_opt_env, _) env : (type_info_t * 'env * Meta_level.t) =
     let { Env.er = env_r; _ } = env in
     match env_r with
     | Env.MultiSet (record) ->
@@ -1221,8 +1225,8 @@ and solve_basic_identifier ?(do_rec_search=true)
          match record.Env.ms_kind with
          | Env.Kind.Class ->
             begin
-              (* classes will not be overloaded. However, template classes have
-               * some instances (specialized). Thus, type may be unclear...
+              (* classes will not be overloaded. However, template classes may have
+               * some definitions (because of specialization). Thus, type may be unclear...
                *)
               if List.length record.Env.ms_templates <> 0 then
                 match template_args with
@@ -1233,7 +1237,7 @@ and solve_basic_identifier ?(do_rec_search=true)
                                                   template_args
                                                   Type_attr.undef
                    in
-                   (ty, env)
+                   (ty, env, ty_cenv.Env.meta_level)
                 | xs ->
                    if making_placeholder then
                      begin
@@ -1257,7 +1261,7 @@ and solve_basic_identifier ?(do_rec_search=true)
                                                       template_args
                                                       Type_attr.undef
                        in
-                       (ty, env)
+                       (ty, env, ty_cenv.Env.meta_level)
                      end
                    else
                      begin
@@ -1266,8 +1270,8 @@ and solve_basic_identifier ?(do_rec_search=true)
                                                      search_base_env ctx attr
                        in
                        match instances with
-                       | [e] -> (ctx.sc_tsets.ts_type_type, e)
-                       | _ -> failwith "[ERR]"
+                       | [e] -> (type_ty, e, ty_cenv.Env.meta_level)
+                       | _ -> failwith "[ERR] ambiguous definitions"
                      end
 
               else begin
@@ -1294,7 +1298,7 @@ and solve_basic_identifier ?(do_rec_search=true)
                                                Type_attr.ta_ref_val = Type_attr.Ref;
                                              }
               in
-              (ty, env)
+              (ty, env, env.Env.meta_level)
             end
          | _ -> failwith "unexpected env : multi-set kind"
        end
@@ -1309,7 +1313,7 @@ and solve_basic_identifier ?(do_rec_search=true)
          } = vr in
          (* TODO: check class variable *)
 
-         (var_ty, env)
+         (var_ty, env, env.Env.meta_level)
        end
 
     (* returns **type** of MetaVariable, NOT value *)
@@ -1320,7 +1324,7 @@ and solve_basic_identifier ?(do_rec_search=true)
          in
          match c with
          | (Unification.Val ty) ->
-            (ty, env)
+            (ty, env, env.Env.meta_level)
          | (Unification.Undef) ->
             let ty =
               Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
@@ -1328,7 +1332,7 @@ and solve_basic_identifier ?(do_rec_search=true)
                                            template_args
                                            Type_attr.undef
             in
-            (ty, env)
+            (ty, env, env.Env.meta_level)
          | _ -> failwith "[ICE] meta ver"
        end
 
@@ -1344,7 +1348,7 @@ and solve_basic_identifier ?(do_rec_search=true)
   in
   match oenv with
   | [] -> None
-  | envs -> Some (List.fold_left solve (Type_info.undef_ty, Env.undef ()) envs)
+  | envs -> Some (List.fold_left solve (Type_info.undef_ty, Env.undef (), Meta_level.Runtime) envs)
 
 
 and try_to_complete_env env ctx =
@@ -1379,7 +1383,7 @@ and convert_type trg_ty src_aux ext_env ctx attr =
          let cenv = Type.as_unique trg_ty in
          let res = solve_basic_identifier ~do_rec_search:false
                                           ctor_name cenv ctx attr in
-         let (_, ctor_env) = match res with
+         let (_, ctor_env, _) = match res with
            | Some v -> v
            | None -> failwith "constructor not found"
          in
@@ -1674,30 +1678,32 @@ and evaluate_invocation_arg expr env ctx attr =
 
 
 and find_suitable_operator ?(universal_search=false)
-                           op_name_id arg_auxs env ctx attr =
+                           op_name_id eargs env ctx attr =
+  let (_, arg_aux) = List.hd eargs in
   let opt_callee_function_info =
     select_member_element ~universal_search:universal_search
-                          (List.hd arg_auxs) op_name_id env ctx attr
+                          arg_aux op_name_id env ctx attr
   in
 
-  let check_type_and_solve_overload (callee_f_ty, callee_f_env) =
+  let check_type_and_solve_overload (callee_f_ty, callee_f_env, x) =
     let {
       Type_info.ti_sort = ty_sort;
       Type_info.ti_template_args = template_args;
     } = callee_f_ty in
     match ty_sort with
     | Type_info.FunctionSetTy menv ->
-       solve_function_overload arg_auxs template_args
+       solve_function_overload eargs template_args
                                menv env ctx attr
     | _ -> failwith "[ICE]: operator must be defined as function"
   in
   match opt_callee_function_info with
-    Some v -> Some (check_type_and_solve_overload v)
+    Some info -> Some (check_type_and_solve_overload info)
   | None -> None
 
 
 (* returns Env of function *)
-and solve_function_overload arg_auxs tamplate_args mset_env ext_env ctx attr =
+and solve_function_overload eargs tamplate_args mset_env ext_env ctx attr =
+  let (args, arg_auxs) = List.split eargs in
   let mset_record = match mset_env.Env.er with
     | Env.MultiSet r -> r
     | _ -> Env.print mset_env;
@@ -1705,6 +1711,34 @@ and solve_function_overload arg_auxs tamplate_args mset_env ext_env ctx attr =
   in
   if mset_record.Env.ms_kind <> Env.Kind.Function then
     failwith "[ICE] solve_function_overload : sort of menv must be function.";
+
+  (* move the sequence of onlymeta args to template args *)
+  (*let (_, onlymeta_args_num) =
+    let f (hdf, num) arg_aux =
+      if not hdf then
+        let (_, _, _, ml) = arg_aux in
+        Printf.printf "%s\n" (Meta_level.to_string ml);
+        match ml with
+        | Meta_level.OnlyMeta -> (hdf, num + 1)
+        | _ -> (true, num)
+      else
+        (hdf, num)
+    in
+    List.fold_left f (false, 0) arg_auxs
+  in
+  let (meta_args, eargs) = List.split_at onlymeta_args_num eargs in
+  let evaled_meta_args =
+    let f earg =
+      let (arg, (ty, _, _, ml)) = earg in
+      eval_texpr_as_ctfe arg ty ml ext_env ctx None
+    in
+    List.map f meta_args
+  in
+  let tamplate_args = evaled_meta_args @ tamplate_args in
+
+  let (args, arg_auxs) = List.split eargs in
+  Printf.printf "^^^^^^^^^^^^^^^^^^^^^^^ %d\n" onlymeta_args_num;
+   *)
 
   let (f_level, fs_and_args) = match tamplate_args with
     (* not template arg *)
@@ -1955,8 +1989,6 @@ and unify_arg_value ctx lhs rhs =
   | _ -> failwith "[ICE] not implemented"
 
 
-
-
 and print_ctfe_value value =
   match value with
   | Ctfe_value.Type ty -> Type.print ty
@@ -2011,7 +2043,8 @@ and prepare_template_params params_node ctx =
 * "some_method"
 *)
 and select_member_element ?(universal_search=false)
-                          recv_aux t_id env ctx attr =
+                          recv_aux t_id env ctx attr
+  : (type_info_t * 'env * Meta_level.t) option =
   let (recv_ty, _, _, _) = recv_aux in
   let recv_cenv = Type.as_unique recv_ty in
   Env.print recv_cenv;
@@ -2112,7 +2145,7 @@ and prepare_instantiate_template t_env_record template_args ext_env ctx attr =
   in
 
   (* set types of meta var *)
-  let set_meta_var_type (var_ty, env) opt_init =
+  let set_meta_var_type (var_ty, env, ml) opt_init =
     match opt_init with
     (* :U *)
     | Some (Some ty_expr, None) ->
@@ -2146,7 +2179,7 @@ and prepare_instantiate_template t_env_record template_args ext_env ctx attr =
 
   let set_default_value meta_var =
     let (ty, uni_id) = match meta_var with
-      | (ty, {Env.er = Env.MetaVariable (uni_id)}) -> (ty, uni_id)
+      | (ty, {Env.er = Env.MetaVariable (uni_id)}, ml) -> (ty, uni_id)
       | _ -> failwith ""
     in
     if Type.has_same_class ty ctx.sc_tsets.ts_type_type then
@@ -2198,27 +2231,37 @@ and complate_template_instance ?(making_placeholder=false)
                                temp_env opt_cond
                                ctx attr =
   let normalize_meta_var uni_id =
-    let normalize_uni_value uni_id =
+    let normalize_uni_id uni_id search_f update_f =
       let (last_uni_id, c) =
-        Unification.search_value_until_terminal ctx.sc_unification_ctx uni_id
+        search_f ctx.sc_unification_ctx uni_id
       in
       match c with
       | Unification.Val v ->
-         begin
-           match v with
-           | Ctfe_value.Undef _ -> failwith "[ERR] not resolved"
-           | _ -> Unification.update_value ctx.sc_unification_ctx uni_id v
-         end
+         update_f ctx.sc_unification_ctx uni_id v
       | _ -> failwith "[ERR] not resolved"
     in
+
     let normalize_uni_type uni_id =
-      let (last_uni_id, c) =
-        Unification.search_type_until_terminal ctx.sc_unification_ctx uni_id
+      normalize_uni_id uni_id
+                       Unification.search_type_until_terminal
+                       Unification.update_type
+    in
+    let normalize_uni_value uni_id =
+      let update ctx uni_id v =
+        match v with
+        | Ctfe_value.Undef _ -> failwith "[ERR] not resolved"
+        | Ctfe_value.Type ty ->
+           begin
+             if Type.is_unique_ty ty then
+               Unification.update_value ctx uni_id v
+             else
+               failwith "[ERR] not resolved"
+           end
+        | _ -> Unification.update_value ctx uni_id v
       in
-      match c with
-      | Unification.Val v ->
-         Unification.update_type ctx.sc_unification_ctx uni_id v
-      | _ -> failwith "[ERR] not resolved"
+      normalize_uni_id uni_id
+                       Unification.search_value_until_terminal
+                       update
     in
 
     normalize_uni_type uni_id;
@@ -2239,11 +2282,6 @@ and complate_template_instance ?(making_placeholder=false)
                 Env.create_scoped_env temp_env
                                       (Env.Scope (Env.empty_lookup_table ()))
               in*)
-         Printf.printf "--------> is_instantiable\n";
-         Ast.print cond;
-         Printf.printf "--------> is_instantiable\n";
-         flush_all ();
-
          let scope_env = temp_env in
          let (n_cond_expr, cond_aux) = analyze_expr cond scope_env ctx attr in
          let bool_ty = get_builtin_bool_type default_ty_attr ctx in
@@ -2262,7 +2300,7 @@ and complate_template_instance ?(making_placeholder=false)
     | None -> true
   in
   if not is_instantiable then
-     raise Instantiation_failed;
+    raise Instantiation_failed;
 
   let mangled_sym =
     uni_ids
@@ -2518,7 +2556,7 @@ and cache_builtin_type_info preset_ty name ctx =
        in
        match res with
        (* pure type *)
-       | Some (ty, c_env) when ty == ctx.sc_tsets.ts_type_type ->
+       | Some (ty, c_env, _) when ty == ctx.sc_tsets.ts_type_type ->
           begin
             let prim_ty =
               Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
@@ -2530,7 +2568,7 @@ and cache_builtin_type_info preset_ty name ctx =
           end
 
        (* template class *)
-       | Some (ty, menv) when Type.is_class_set ty ->
+       | Some (ty, menv, _) when Type.is_class_set ty ->
           begin
             preset_ty := ty;
           end

@@ -37,8 +37,6 @@
                         KEYWORD_OPERATOR
                         KEYWORD_IMPORT
                         KEYWORD_UU_STMT_TRAITS
-                        KEYWORD_NEW
-                        KEYWORD_DELETE
                         KEYWORD_ONLY_META
                         KEYWORD_META
                         KEYWORD_RUNTIME

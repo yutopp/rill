@@ -1,5 +1,11 @@
 // type and void classes are defined by compiler directly.
 
+// def sizeof!(T)() =
+
+def new!(T)() {
+    return 0;
+}
+
 // bool
 #[builtin, primitive]
 extern class bool = "__builtin_bool_type"
