@@ -33,8 +33,8 @@ module TAst = Tagged_ast
 type env_t = TAst.t Env.env_t
 type type_info_t = env_t Type.info_t
 type ctfe_val_t = type_info_t Ctfe_value.t
-type ctx_t = (env_t, type_info_t, ctfe_val_t) Ctx.t
 type type_gen_t = env_t Type.Generator.t
+type ctx_t = (env_t, type_info_t, ctfe_val_t) Ctx.t
 
 let agg_recever_name = "agg.reciever"
 

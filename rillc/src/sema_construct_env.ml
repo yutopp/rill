@@ -697,7 +697,7 @@ and analyze_expr ?(making_placeholder=false)
               | _ -> (arg_exprs, arg_auxs)
             in
             let args = List.combine arg_exprs arg_auxs in
-            let (f_env, conv_filters) =
+            let (f_env, conv_filters, args) =
               solve_function_overload args template_args
                                       menv parent_env ctx attr
             in
@@ -752,7 +752,7 @@ and analyze_expr ?(making_placeholder=false)
             (**)
             let f_sto = suitable_storage recv_ty ctx in
 
-            let (f_env, conv_filters) = f_conv in
+            let (f_env, conv_filters, eargs) = f_conv in
             let n_eargs =
               map_conversions ~param_passing:true
                               conv_filters eargs parent_env ctx
@@ -1051,7 +1051,7 @@ and analyze_operator op args parent_env ctx attr =
   let opt_fs_and_args =
     find_suitable_operator ~universal_search:true
                            op_id eargs parent_env ctx attr in
-  let analyze (f_env, conv_filters) =
+  let analyze (f_env, conv_filters, eargs) =
     let n_eargs =
       map_conversions ~param_passing:true
                       conv_filters eargs parent_env ctx
@@ -1367,7 +1367,8 @@ and try_to_complete_env env ctx =
     ()  (* DO NOTHING *)
 
 
-and convert_type trg_ty src_aux ext_env ctx attr =
+and convert_type trg_ty src_arg ext_env ctx attr =
+  let (_, src_aux) = src_arg in
   let (src_ty, src_val_cat, src_lt, src_ml) = src_aux in
   Printf.printf "convert_type\n";
   Type.print trg_ty;
@@ -1409,13 +1410,13 @@ and convert_type trg_ty src_aux ext_env ctx attr =
             * because it will cause infinite loop of to call "convert_type"
             *)
            let funcs = List.filter_map pred ctor_fenvs in
-           let selected = find_suitable_functions funcs [src_aux] ext_env ctx attr in
+           let selected = find_suitable_functions funcs [src_arg] ext_env ctx attr in
            let fns = match selected with
              | (FuncMatchLevel.ExactMatch, fs)
              | (FuncMatchLevel.QualConv, fs) -> fs
              | _ -> []
            in
-           List.map (fun (f, _) -> f) fns
+           List.map (fun (f, _, _) -> f) fns
          in
 
          let f = match src_val_cat with
@@ -1581,7 +1582,7 @@ and adjust_expr_for_type ?(exit_scope=false)
                          ?(param_passing=false)
                          trg_ty src_expr src_aux ext_env ctx attr =
   let (match_level, m_filter) =
-    convert_type trg_ty src_aux ext_env ctx attr
+    convert_type trg_ty (src_expr, src_aux) ext_env ctx attr
   in
   if match_level = FuncMatchLevel.NoMatch then
     failwith "[ERR] cannot convert type";
@@ -1678,7 +1679,8 @@ and evaluate_invocation_arg expr env ctx attr =
 
 
 and find_suitable_operator ?(universal_search=false)
-                           op_name_id eargs env ctx attr =
+                           op_name_id eargs env ctx attr
+  : ('a * 'b * 'c) option =
   let (_, arg_aux) = List.hd eargs in
   let opt_callee_function_info =
     select_member_element ~universal_search:universal_search
@@ -1713,7 +1715,7 @@ and solve_function_overload eargs tamplate_args mset_env ext_env ctx attr =
     failwith "[ICE] solve_function_overload : sort of menv must be function.";
 
   (* move the sequence of onlymeta args to template args *)
-  (*let (_, onlymeta_args_num) =
+  let (_, onlymeta_args_num) =
     let f (hdf, num) arg_aux =
       if not hdf then
         let (_, _, _, ml) = arg_aux in
@@ -1738,15 +1740,14 @@ and solve_function_overload eargs tamplate_args mset_env ext_env ctx attr =
 
   let (args, arg_auxs) = List.split eargs in
   Printf.printf "^^^^^^^^^^^^^^^^^^^^^^^ %d\n" onlymeta_args_num;
-   *)
 
   let (f_level, fs_and_args) = match tamplate_args with
-    (* not template arg *)
+    (* has no template args *)
     | [] ->
        begin
          let (normal_f_level, normal_fs_and_args) =
            find_suitable_functions mset_record.Env.ms_normal_instances
-                                   arg_auxs
+                                   eargs
                                    ext_env ctx attr
          in
          Printf.printf "!! normal function candidates = %s / %d\n"
@@ -1765,7 +1766,7 @@ and solve_function_overload eargs tamplate_args mset_env ext_env ctx attr =
               in
 
               let (instanced_f_level, instanced_fs_and_args) =
-                find_suitable_functions instanced_envs arg_auxs ext_env ctx attr
+                find_suitable_functions instanced_envs eargs ext_env ctx attr
               in
               Printf.printf "!! instanced function candidates = %s / %d\n"
                             (FuncMatchLevel.to_string instanced_f_level)
@@ -1785,7 +1786,7 @@ and solve_function_overload eargs tamplate_args mset_env ext_env ctx attr =
                                         ext_env ctx attr
        in
        Printf.printf "%%%%%%%%%%%%%%%% instanced_envs -> %d\n" (List.length instanced_envs);
-       find_suitable_functions instanced_envs arg_auxs ext_env ctx attr
+       find_suitable_functions instanced_envs eargs ext_env ctx attr
      end
   in
 
@@ -1799,7 +1800,8 @@ and solve_function_overload eargs tamplate_args mset_env ext_env ctx attr =
   List.hd fs_and_args
 
 
-and find_suitable_functions f_candidates arg_auxs ext_env ctx attr =
+and find_suitable_functions f_candidates args ext_env ctx attr
+  : FuncMatchLevel.t * (env_t * conv_filter_t list * earg_t list) list =
   Printf.printf "number of candidates = %d\n" (List.length f_candidates);
 
   let calc_match_level f_env =
@@ -1808,14 +1810,15 @@ and find_suitable_functions f_candidates arg_auxs ext_env ctx attr =
 
     (* check number of args *)
     (* TODO: support dynamic variadic args *)
-    if (List.length f_record.Env.fn_param_types <> List.length arg_auxs) then
-      (FuncMatchLevel.NoMatch, Env.undef (), [])
+    if (List.length f_record.Env.fn_param_types <> List.length args) then
+      (FuncMatchLevel.NoMatch, Env.undef (), [], [])
 
     else begin
       let (match_levels, conv_funcs) =
-        List.map2 (fun s d -> convert_type d s ext_env ctx attr)
-                  arg_auxs
-                  f_record.Env.fn_param_types
+        let conv src_arg trg_ty =
+          convert_type trg_ty src_arg ext_env ctx attr
+        in
+        List.map2 conv args f_record.Env.fn_param_types
         |> List.split
       in
 
@@ -1823,18 +1826,19 @@ and find_suitable_functions f_candidates arg_auxs ext_env ctx attr =
       let total_f_level =
         List.fold_left FuncMatchLevel.bottom FuncMatchLevel.ExactMatch match_levels in
 
-      (total_f_level, f_env, conv_funcs)
+      (total_f_level, f_env, conv_funcs, args)
     end
   in
 
-  let collect (cur_order, fs_and_args) candidate =
-    let (total_f_level, f_env, conv_funcs) = calc_match_level candidate in
+  let collect (cur_order, fs_and_args) candidate
+    : FuncMatchLevel.t * (env_t * conv_filter_t list * earg_t list) list =
+    let (total_f_level, f_env, conv_funcs, args) = calc_match_level candidate in
     if FuncMatchLevel.is_better total_f_level cur_order then
       (* if more better function is found, remake candidates and raise level *)
-      (total_f_level, [(f_env, conv_funcs)])
+      (total_f_level, [(f_env, conv_funcs, args)])
     else if FuncMatchLevel.is_same total_f_level cur_order then
       (* if this function has same match level, add to candicates *)
-      (cur_order, (f_env, conv_funcs) :: fs_and_args)
+      (cur_order, (f_env, conv_funcs, args) :: fs_and_args)
     else
       (* ignore(do NOT append) function which has lower match level *)
       (cur_order, fs_and_args)

@@ -11,8 +11,13 @@ open Type_sets
 
 module TAst = Tagged_ast
 
-type type_info_t = TAst.ast Env.type_info_t
-type ctfe_value_t = type_info_t Ctfe_value.t
+type env_t = TAst.t Env.env_t
+type type_info_t = env_t Type.info_t
+type ctfe_val_t = type_info_t Ctfe_value.t
+type type_gen_t = env_t Type.Generator.t
+
+type conv_filter_t = (type_info_t * env_t) option
+type earg_t = TAst.ast * TAst.term_aux_t
 
 type 'env ctx_t = {
   sc_root_env       : 'env;
@@ -28,7 +33,7 @@ type 'env ctx_t = {
   sc_tsets          : 'env type_sets_t;
 
   (* for template *)
-  sc_unification_ctx    : (type_info_t, ctfe_value_t) Unification.t;
+  sc_unification_ctx    : (type_info_t, ctfe_val_t) Unification.t;
 }
 
 
