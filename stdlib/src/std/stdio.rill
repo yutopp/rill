@@ -8,6 +8,8 @@ extern def print_addr!(T)(v: raw_ptr!(T)): void = "rill_print_addr";
 
 extern def read_int32(): int32 = "rill_read_int32";
 extern def read_char(): uint8 = "rill_read_char";
+
+// experimental !!!!!!!
 extern def read_string_impl(): raw_ptr!(uint8) = "rill_read_string";
 def read_string(): string => string(read_string_impl());
 
