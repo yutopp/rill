@@ -1,0 +1,11 @@
+import std.stdio;
+
+def main(): void
+{
+    {
+        val mutable a = 1;
+        ++a;
+    };
+
+    return;
+}

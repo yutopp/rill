@@ -1,0 +1,9 @@
+import std.stdio;
+
+def main(): void
+{
+    val p = "aiueo";
+    val c = (p+1);
+    val m = *c;
+    m.print();
+}

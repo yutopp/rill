@@ -10,7 +10,7 @@ open Batteries
 module L = Llvm
 
 type t = {
-  memcpy_i32 : L.llvalue -> L.llvalue -> int -> int -> bool -> L.llbuilder -> L.llvalue
+  memcpy_i32 : L.llvalue -> L.llvalue -> int64 -> int64 -> bool -> L.llbuilder -> L.llvalue
 }
 
 let declare_intrinsics llctx llmod =
@@ -38,8 +38,8 @@ let declare_intrinsics llctx llmod =
     in
     L.build_call llmemcpy_i32 [|dest_p;
                                 src_p;
-                                L.const_int (L.i32_type llctx) len;
-                                L.const_int (L.i32_type llctx) align;
+                                L.const_int (L.i32_type llctx) (Int64.to_int len);
+                                L.const_int (L.i32_type llctx) (Int64.to_int align);
                                 L.const_int (L.i1_type llctx) (Bool.to_int is_volatile);
                                |]
                  ""

@@ -1,16 +1,34 @@
 // type and void classes are defined by compiler directly.
 
-// def sizeof!(T)() =
+#[builtin]
+extern def sizeof!(T)() onlymeta: int32 = "__builtin_sizeof";
+
+//
+extern def malloc(:int32): untyped_raw_ptr = "rill_core_malloc";
+extern def free(:untyped_raw_ptr): void = "rill_core_free";
+extern def free!(T)(:raw_ptr!(T)): void = "rill_core_free";
+
+// TODO: fix
+extern def memcpy(:raw_ptr!(uint8), :raw_ptr!(uint8), :int32): void = "rill_core_memcpy";
+extern def memset(:raw_ptr!(uint8), :uint8, :int32): void = "rill_core_memset";
+
+#[builtin]
+extern def unsafe_ptr_cast!(T)(:untyped_raw_ptr): raw_ptr!(T) = "__builtin_unsafe_ptr_cast";
 
 def new!(T)() {
-    return 0;
+    val p = malloc(sizeof!(T)());
+    return p;
 }
 
 // bool
 #[builtin, primitive]
 extern class bool = "__builtin_bool_type"
 #[builtin]
-extern def operator pre!(:bool): bool = "__builtin_op_unary_pre_!_bool";
+extern def operator pre! (:bool): bool = "__builtin_op_unary_pre_!_bool";
+
+// uint8
+#[builtin, primitive]
+extern class uint8 = "__builtin_uint8_type"
 
 // int32
 #[builtin, primitive]
@@ -64,6 +82,19 @@ def operator pre--(ref mutable i:int32): void
 #[builtin]
 extern class array!(T, N:int32) = "__builtin_array_type"
 
+// untyped raw pointer
+#[builtin, primitive]
+extern class untyped_raw_ptr = "__builtin_untyped_raw_ptr_type"
+
 // raw pointer
 #[builtin, primitive]
 extern class raw_ptr!(T) = "__builtin_raw_ptr_type"
+
+#[builtin]
+extern def operator+ !(T)(:raw_ptr!(T), :int32): raw_ptr!(T) = "__builtin_op_binary_+_raw_ptr_int";
+def operator- !(T)(p :raw_ptr!(T), n :int32): raw_ptr!(T) {
+       return p + (0 - n);
+}
+
+#[builtin]
+extern def operator pre* !(T)(:raw_ptr!(T)): T = "__builtin_op_unary_pre_*_raw_ptr";

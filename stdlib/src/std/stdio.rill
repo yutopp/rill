@@ -1,7 +1,58 @@
 extern def print(v: int32): void = "rill_print_int";
 extern def print(v: bool): void = "rill_print_bool";
-extern def print(v: raw_ptr!(bool)): void = "rill_print_string";
-extern def println(v: raw_ptr!(bool)): void = "rill_println_string";
+extern def print(v: uint8): void = "rill_print_char";
+extern def print(v: raw_ptr!(uint8)): void = "rill_print_string";
+extern def println(v: raw_ptr!(uint8)): void = "rill_println_string";
+
+extern def print_addr!(T)(v: raw_ptr!(T)): void = "rill_print_addr";
 
 extern def read_int32(): int32 = "rill_read_int32";
-//extern def read_string(): int32 = "rill_read_int32";
+extern def read_char(): uint8 = "rill_read_char";
+extern def read_string_impl(): raw_ptr!(uint8) = "rill_read_string";
+def read_string(): string => string(read_string_impl());
+
+
+extern def strlen(:raw_ptr!(uint8)): int32 = "rill_strlen";
+
+class string
+{
+    def ctor(s: raw_ptr!(uint8)) {
+        val l = s.strlen();
+        val ptr = malloc(l+1);
+        val ptr2 = ptr.unsafe_ptr_cast!(uint8)();
+
+        memcpy(ptr2, s, l+1);
+
+        this.p = ptr2;
+
+        //"ctor".println();
+        //this.p.println();
+        //this.p.strlen().print();
+        //this.p.print_addr();
+    }
+
+    def insert(c: uint8, index: int32): void {
+        val ptr = malloc(this.p.strlen()+1+1).unsafe_ptr_cast!(uint8)();
+
+        memcpy(ptr, this.p, index);
+        memcpy(ptr+index+1, this.p+index, this.p.strlen()-index+1);
+        //*(ptr+index) = c;
+        memset(ptr+index, c, 1);
+
+        this.p = ptr;
+    }
+
+    def remove(index: int32): void {
+        val ptr = malloc(this.p.strlen()+1-1).unsafe_ptr_cast!(uint8)();
+        memcpy(ptr, this.p, index);
+        memcpy(ptr+index, this.p+index+1, this.p.strlen()-index+1);
+
+        this.p = ptr;
+    }
+
+    val p: raw_ptr!(uint8);
+}
+
+def println(s: string): void {
+    s.p.println();
+}

@@ -106,7 +106,7 @@ function_body_block:
 function_lambda_block:
                 FAT_ARROW
                 expr = expression
-                { Ast.ExprStmt expr }
+                { Ast.ReturnStmt (Some expr) }
 
 
 member_function_declaration_statement:
@@ -251,12 +251,17 @@ extern_statement_:
 
 extern_function_statement:
                 KEYWORD_DEF
-                rel_id_as_s
-                parameter_variables_decl_list
-                type_specifier
+                name = rel_id_as_s
+                opt_tparams = template_parameter_variables_decl_list?
+                params = parameter_variables_decl_list
+                ml = meta_level
+                ret_type = type_specifier
                 ASSIGN
-                STRING (*string_lit*)
-                { Ast.ExternFunctionDefStmt ($2, $3, $4, $6, None, ()) }
+                body_name = STRING (*string_lit*)
+                {
+                    let n = Ast.ExternFunctionDefStmt (name, params, ml, ret_type, body_name, None, ()) in
+                    templatefy name n opt_tparams
+                }
 
 extern_class_statement:
                 KEYWORD_CLASS
@@ -507,7 +512,10 @@ unary_expression:
                 { Ast.UnaryOpExpr( Nodes.UnaryPreOp op, $2) }
         |       op = NOT postfix_expression
                 { Ast.UnaryOpExpr( Nodes.UnaryPreOp op, $2) }
-
+        |       op = TIMES postfix_expression
+                { Ast.UnaryOpExpr( Nodes.UnaryPreOp op, $2) }
+        |       op = BITWISE_AND postfix_expression
+                { Ast.UnaryOpExpr( Nodes.UnaryPreOp op, $2) }
 
 postfix_expression:
                 primary_expression { $1 }
@@ -608,6 +616,8 @@ unary_operator_as_raw:
                 INCREMENT { $1 }
         |       DECREMENT { $1 }
         |       NOT { $1 }
+        |       TIMES { $1 }        (* deref *)
+        |       BITWISE_AND { $1 }  (* address *)
 
 unary_operator_as_s:
                 KEYWORD_OPERATOR

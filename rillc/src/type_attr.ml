@@ -40,13 +40,13 @@ let int_of_mut m = match m with
   | Immutable -> 0
   | Const -> 1
   | Mutable -> 2
-  | _ -> failwith ""
+  | _ -> failwith "int_of_mut"
 
 let mut_of_int n = match n with
   | 0 -> Immutable
   | 1 -> Const
   | 2 -> Mutable
-  | _ -> failwith ""
+  | _ -> failwith "mut_of_int"
 
 let mut_strong a b =
   mut_of_int (min (int_of_mut a) (int_of_mut b))

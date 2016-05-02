@@ -26,6 +26,14 @@ module Kind =
       | Class
       | Function
       | Variable
+      | Other
+
+    let to_string = function
+      | Module -> "module"
+      | Class -> "class"
+      | Function -> "function"
+      | Variable -> "variable"
+      | Other -> "other"
   end
 
 
@@ -107,10 +115,10 @@ type 'ast env_t = {
    mutable fn_detail                : 'ast function_record_var;
  }
  and 'ast function_record_var =
-   | FnRecordNormal of function_def_var * function_kind_var * 'ast function_record_normal
-   | FnRecordTrivial of function_def_var * function_kind_var
-   | FnRecordExternal of function_def_var * function_kind_var * string
-   | FnRecordBuiltin of function_def_var * function_kind_var * string
+   | FnRecordNormal of function_def_var * 'ast function_kind_var * 'ast function_record_normal
+   | FnRecordTrivial of function_def_var * 'ast function_kind_var
+   | FnRecordExternal of function_def_var * 'ast function_kind_var * string
+   | FnRecordBuiltin of function_def_var * 'ast function_kind_var * string
    | FnUndef
 
  and function_def_var =
@@ -118,14 +126,14 @@ type 'ast env_t = {
    | FnDefDefaulted
    | FnDefDeleted
 
- and function_kind_var =
+ and 'ast function_kind_var =
    | FnKindFree
    | FnKindMember
-   | FnKindDefaultConstructor
-   | FnKindCopyConstructor
-   | FnKindMoveConstructor
-   | FnKindConstructor
-   | FnKindDestructor
+   | FnKindDefaultConstructor of 'ast env_t option
+   | FnKindCopyConstructor of 'ast env_t option
+   | FnKindMoveConstructor of 'ast env_t option
+   | FnKindConstructor of 'ast env_t option
+   | FnKindDestructor of 'ast env_t option
 
 
  and 'ast function_record_normal = {
@@ -146,6 +154,9 @@ type 'ast env_t = {
 
    mutable cls_member_vars      : 'ast env_t list;
    mutable cls_member_funcs     : 'ast env_t list;
+
+   mutable cls_size             : int;  (* bytes *)
+   mutable cls_align            : int;  (* bytes *)
  }
  and 'ast class_record_var =
    | ClsRecordPrimitive of class_record_extern
@@ -279,7 +290,24 @@ let rec find_all_on_env ?(checked_env=[]) e name =
               lookup penv name
   | xs -> xs
  *)
-let rec lookup e name =
+let rec kind_of_env e =
+  match get_env_record e with
+  | Root _ -> Kind.Other
+  | Module _ -> Kind.Other
+  | Function _ -> Kind.Function
+  | Class _ -> Kind.Class
+  | Scope _ -> Kind.Other
+  | _ -> failwith ""
+
+
+let rec lookup ?(exclude=[]) e name =
+  let skip e exk =
+    if (kind_of_env e) = exk then
+      if is_root e then e
+      else (parent_env e)
+    else e
+  in
+  let e = List.fold_left skip e exclude in
   let target = find_all_on_env e name in
   match target with
   | [] -> if is_root e then
@@ -322,6 +350,7 @@ let create_context_env parent_env er =
     module_env = opt_mod_env;
     nest_level = NestLevel.add parent_env.nest_level NestLevel.one;
     er = er;
+
     state = InComplete;
     closed = false;
     meta_level = Meta_level.Meta;
@@ -364,7 +393,7 @@ let is_complete e =
   let { state = s; _ } = e in
   s = Complete
 
-
+(**)
 let update_status e ns =
   e.state <- ns
 
@@ -375,6 +404,11 @@ let update_rel_ast e node =
 
 let get_rel_ast e =
   Option.get e.rel_node
+
+
+(**)
+let update_meta_level e ml =
+  e.meta_level <- ml
 
 
 (**)
@@ -478,11 +512,11 @@ module FunctionOp =
 
     let string_of_kind kind =
       match kind with
-      | FnKindDefaultConstructor -> "default constructor"
-      | FnKindCopyConstructor -> "copy constructor"
-      | FnKindMoveConstructor -> "moce constructor"
-      | FnKindConstructor -> "constructor"
-      | FnKindDestructor -> "destructor"
+      | FnKindDefaultConstructor _ -> "default constructor"
+      | FnKindCopyConstructor _ -> "copy constructor"
+      | FnKindMoveConstructor _ -> "moce constructor"
+      | FnKindConstructor _ -> "constructor"
+      | FnKindDestructor _ -> "destructor"
       | FnKindFree -> "free"
       | FnKindMember -> "member"
   end
@@ -505,6 +539,8 @@ module ClassOp =
          cls_traits = None;
          cls_member_vars = [];
          cls_member_funcs = [];
+         cls_size = 0;
+         cls_align = 0;
       }
   end
 
@@ -515,7 +551,7 @@ module VariableOp =
       let er = get_env_record env in
       match er with
       | Variable (r) -> r
-      | _ -> failwith "VariableOp.get_record : not function"
+      | _ -> failwith "VariableOp.get_record : not variable"
 
     let empty_record name =
       {
@@ -577,13 +613,7 @@ let print env =
 
     | MultiSet r ->
        begin
-         let kind_s = function
-           | Kind.Module -> "module"
-           | Kind.Class -> "class"
-           | Kind.Function -> "function"
-           | Kind.Variable -> "variable"
-         in
-         printf "%sMultiSet - %s\n" indent (kind_s r.ms_kind);
+         printf "%sMultiSet - %s\n" indent (Kind.to_string r.ms_kind);
          f nindent;
        end
 

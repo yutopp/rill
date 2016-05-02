@@ -37,8 +37,9 @@ type 'env ctx_t = {
 }
 
 
-let check_env env =
-  Env.update_status env Env.Checking
+let check_env env ml =
+  Env.update_status env Env.Checking;
+  Env.update_meta_level env ml
 
 let complete_env env node =
   Env.update_status env Env.Complete;
@@ -49,12 +50,12 @@ let check_is_args_valid ty =
   ()
 
 
-let check_function_env env param_types return_type is_auto_return_type =
+let check_function_env env param_types ml return_type is_auto_return_type =
   let r = Env.FunctionOp.get_record env in
   r.Env.fn_param_types <- param_types;
   r.Env.fn_return_type <- return_type;
   r.Env.fn_is_auto_return_type <- is_auto_return_type;
-  check_env env
+  check_env env ml
 
 let complete_function_env env node id_name f_detail ctx =
   let r = Env.FunctionOp.get_record env in
@@ -94,7 +95,7 @@ let check_class_env env ctx =
                       id_name template_args ctx.sc_tsets
   in
   r.Env.cls_mangled <- Some mangled;
-  check_env env
+  check_env env Meta_level.Meta
 
 let complete_class_env env node c_detail traits =
   let r = Env.ClassOp.get_record env in

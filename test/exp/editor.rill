@@ -1,0 +1,14 @@
+import std.stdio;
+
+def main(): void
+{
+    val mutable p = read_string();
+
+    val i = read_int32();
+    val c = read_char();
+    p.insert(c, i-1);
+
+    p.remove(read_int32()-1);
+
+    p.println();
+}

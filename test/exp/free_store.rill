@@ -1,4 +1,5 @@
+import std.stdio;
+
 def main(): void
 {
-    val p = int32.new();
 }

@@ -16,10 +16,12 @@ type 'env type_sets_t = {
   ts_void_type      : 'env type_info;
 
   (* buildin primitive types *)
-  ts_bool_type_holder       : 'env type_info ref;
-  ts_int32_type_holder      : 'env type_info ref;
-  ts_array_type_holder      : 'env type_info ref;
-  ts_raw_ptr_type_holder    : 'env type_info ref;
+  ts_bool_type_holder               : 'env type_info ref;
+  ts_uint8_type_holder              : 'env type_info ref;
+  ts_int32_type_holder              : 'env type_info ref;
+  ts_array_type_holder              : 'env type_info ref;
+  ts_untyped_raw_ptr_type_holder    : 'env type_info ref;
+  ts_raw_ptr_type_holder            : 'env type_info ref;
 }
 
 

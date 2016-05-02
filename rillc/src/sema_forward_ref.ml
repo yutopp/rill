@@ -70,13 +70,14 @@ let rec solve_forward_refs ?(meta_variables=[])
        node
      end
 
-  | Ast.ExternFunctionDefStmt (id_name, params, ret_type, extern_fname, None, _) ->
+  | Ast.ExternFunctionDefStmt (id_name, params, ml, ret_type, extern_fname, None, _) ->
      begin
        let fenv = declare_pre_function id_name meta_variables parent_env ctx in
 
        let node = TAst.ExternFunctionDefStmt (
                       id_name,
                       TAst.PrevPassNode params,
+                      ml,
                       TAst.PrevPassNode ret_type,
                       extern_fname,
                       opt_attr,
@@ -142,6 +143,7 @@ let rec solve_forward_refs ?(meta_variables=[])
        parent_cenv_r.Env.cls_member_vars <- venv :: parent_cenv_r.Env.cls_member_vars;
 
        let node = TAst.MemberVariableDefStmt (TAst.PrevPassNode v, Some venv) in
+       Env.update_rel_ast venv node;    (* this node will be updated later... *)
        node
      end
 

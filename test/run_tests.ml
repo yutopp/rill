@@ -77,7 +77,7 @@ let run_compilable_test base_dir files ctx =
                             file_fullpath;
                             "--system-lib-core"; "../corelib/src";
                             "--system-lib-std"; "../stdlib/src";
-                            "--system-default-link-option"; "-L../stdlib/lib -lrillstd-rt";
+                            "--system-default-link-option"; String.concat " " ["-L../stdlib/lib"; "-lrillstd-rt"; "-L../corelib/lib"; "-lrillcore-memory"];
                            |]
                           Unix.stdin fd fd
     in

@@ -32,7 +32,7 @@ let empty () =
 
     user_import_dirs = [];
 
-    system_default_link_option = "-L./stdlib/lib -lrillstd-rt"
+    system_default_link_option = "-L./stdlib/lib -lrillstd-rt -L./corelib/lib -lrillcore-memory"
   }
 
 

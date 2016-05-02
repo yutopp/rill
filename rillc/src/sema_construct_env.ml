@@ -24,6 +24,7 @@ let ret_val_category ty ctx =
 
 
 let rec construct_env node parent_env ctx opt_chain_attr =
+  let void_t = get_void_aux ctx in
   match node with
   | TAst.Module (inner, pkg_names, mod_name, base_dir, Some env) ->
      begin
@@ -156,26 +157,10 @@ let rec construct_env node parent_env ctx opt_chain_attr =
          prepare_params env [] params_node ctx opt_attr in
 
        (* check body and check return type *)
-       let (ret_type, is_auto) = match opt_ret_type with
-         | Some (TAst.PrevPassNode ret_ty_expr) ->
-            begin
-              let tmp = { (* TODO: fix *)
-                Type_attr.ta_ref_val = Type_attr.Val;
-                Type_attr.ta_mut = Type_attr.Immutable;
-              } in
-              let ret_ty =
-                resolve_type_with_qual tmp ret_ty_expr parent_env ctx opt_attr
-              in
-              (ret_ty, false)
-            end
-         | None ->
-            begin
-              (* needs return type inference *)
-              (Type_info.undef_ty, true)
-            end
-         | _ -> failwith "[ICE]"
+       let (ret_type, is_auto) =
+         determine_function_return_type opt_ret_type env ctx opt_attr
        in
-       check_function_env env param_types ret_type is_auto;
+       check_function_env env param_types Meta_level.Meta ret_type is_auto;
 
        (* analyze body *)
        let nbody = analyze_inner body env ctx opt_attr in
@@ -223,74 +208,109 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        let name_s = Nodes.string_of_id_string name in
        Printf.printf "member function %s - unchecked\n" name_s;
 
+       (* class env *)
        let ctx_env = Option.get parent_env.Env.context_env in
 
-       (* prepare "this" *)(* TODO: consider member qual *)
-       let this_param =
-         let attr = {
-           Type_attr.ta_ref_val = Type_attr.Ref;
-           Type_attr.ta_mut = Type_attr.Mutable;
-         } in
-         let this_ty = make_class_type ctx_env
-                                       Type_attr.Ref Type_attr.Mutable
-                                       ctx in
-         ((attr, Some "this", (None, None)), this_ty)
-       in
+       match name with
+       | s when s = ctor_name ->
+          begin
+            (* this function is constructor. TODO: check default/copy/move/other
+             * currently, treat as normal ctor *)
+            let ty = make_class_type ctx_env Type_attr.Val Type_attr.Const ctx in
 
-       (* check parameters *)
-       let (params, param_types, param_venvs) =
-         prepare_params env [this_param] params_node ctx opt_attr in
+            (* check parameters *)
+            let (params, param_types, param_venvs) =
+              prepare_params env [] params_node ctx opt_attr
+            in
+            let _ = match opt_ret_type with
+              | Some _ -> failwith "[ERR] constructor cannot have return type"
+              | None -> ()
+            in
 
-       (* check body and check return type *)
-       let (ret_type, is_auto) = match opt_ret_type with
-         | Some (TAst.PrevPassNode ret_ty_expr) ->
-            begin
-              let tmp = { (* TODO: fix *)
-                Type_attr.ta_ref_val = Type_attr.Val;
-                Type_attr.ta_mut = Type_attr.Immutable;
+            (* interface of normal constructor: params -> TYPE *)
+            check_function_env env param_types Meta_level.Meta ty false;
+
+            (* prepare "this" special var *)(* TODO: consider member qual *)
+            let this_ty = make_class_type ctx_env
+                                          Type_attr.Ref Type_attr.Mutable
+                                          ctx in
+            let (name, this_venv) = make_parameter_venv env "this" this_ty ctx in
+            Env.add_inner_env env name this_venv;
+
+            (* analyze body *)
+            let nbody = analyze_inner body env ctx opt_attr in
+
+            Printf.printf "function %s - complete\n" name_s;
+            let node = TAst.GenericFuncDef (Some nbody, Some env) in
+
+            let detail_r = {
+              Env.fn_n_param_envs = param_venvs;
+            } in
+            let detail =
+              Env.FnRecordNormal (Env.FnDefUserDefined,
+                                  Env.FnKindConstructor (Some this_venv),
+                                  detail_r)
+            in
+            complete_function_env env node ctor_name detail ctx;
+
+            node, void_t
+          end
+
+       | _ ->
+          begin
+            (* prepare "this" *)(* TODO: consider member qual *)
+            let this_param =
+              let attr = {
+                Type_attr.ta_ref_val = Type_attr.Ref;
+                Type_attr.ta_mut = Type_attr.Mutable;
               } in
-              let ret_ty =
-                resolve_type_with_qual tmp ret_ty_expr parent_env ctx opt_attr
-              in
-              (ret_ty, false)
-            end
-         | None ->
-            begin
-              (* needs return type inference *)
-              (Type_info.undef_ty, true)
-            end
-         | _ -> failwith "[ICE]"
-       in
-       check_function_env env param_types ret_type is_auto;
+              let this_ty = make_class_type ctx_env
+                                            Type_attr.Ref Type_attr.Mutable
+                                            ctx in
+              ((attr, Some "this", (None, None)), this_ty)
+            in
 
-       (* analyze body *)
-       let nbody = analyze_inner body env ctx opt_attr in
+            (* check parameters *)
+            let (params, param_types, param_venvs) =
+              prepare_params env [this_param] params_node ctx opt_attr
+            in
 
-       let fr = Env.FunctionOp.get_record env in
-       let _ = match Type.type_sort fr.Env.fn_return_type with
-         | Type_info.UniqueTy _ -> ()
-         | _ -> failwith @@ "[ERR] type couldn't be determined / " ^
-                              (Nodes.string_of_id_string name)
-       in
+            (* check body and check return type *)
+            let (ret_type, is_auto) =
+              determine_function_return_type opt_ret_type env ctx opt_attr
+            in
+            check_function_env env param_types Meta_level.Meta ret_type is_auto;
 
-       Printf.printf "function %s - complete\n" name_s;
-       let node = TAst.GenericFuncDef (Some nbody, Some env) in
+            (* analyze body *)
+            let nbody = analyze_inner body env ctx opt_attr in
 
-       (* update record *)
-       let detail_r = {
-         Env.fn_n_param_envs = param_venvs;
-       } in
+            let fr = Env.FunctionOp.get_record env in
+            let _ = match Type.type_sort fr.Env.fn_return_type with
+              | Type_info.UniqueTy _ -> ()
+              | _ -> failwith @@ "[ERR] type couldn't be determined / " ^
+                                   (Nodes.string_of_id_string name)
+            in
 
-       complete_function_env env node name
-                             (Env.FnRecordNormal (Env.FnDefUserDefined,
-                                                  Env.FnKindFree,
-                                                  detail_r))
-                             ctx;
-       node, void_t
+            Printf.printf "function %s - complete\n" name_s;
+            let node = TAst.GenericFuncDef (Some nbody, Some env) in
+
+            (* update record *)
+            let detail_r = {
+              Env.fn_n_param_envs = param_venvs;
+            } in
+
+            complete_function_env env node name
+                                  (Env.FnRecordNormal (Env.FnDefUserDefined,
+                                                       Env.FnKindMember,
+                                                       detail_r))
+                                  ctx;
+            node, void_t
+          end
        end
 
   | TAst.ExternFunctionDefStmt (
-        name, params_node, ret_type, extern_fname, opt_attr, Some env) ->
+        name, params_node, ml, ret_type, extern_fname, opt_attr, Some env
+      ) ->
      let void_t = get_void_aux ctx in
      if Env.is_checked env then Env.get_rel_ast env, void_t
      else begin
@@ -310,9 +330,9 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        let return_type =
          resolve_type_with_qual default_attr
                                 (extract_prev_pass_node ret_type)
-                                parent_env ctx opt_attr
+                                env ctx opt_attr
        in
-       check_function_env env param_types return_type false;
+       check_function_env env param_types ml return_type false;
 
        (* TODO: fix *)
        let is_builtin = match opt_attr with
@@ -347,16 +367,25 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        (* TODO: check duplicate *)
        let name_s = Nodes.string_of_id_string name in
        Printf.printf "class %s - unchecked\n" name_s;
+
+       (* resolve member variables first *)
+       let cenv_r = Env.ClassOp.get_record env in
+       let _ =
+         let f venv =
+           let node = Env.get_rel_ast venv in
+           ignore (construct_env node env ctx opt_attr)
+         in
+         List.iter f cenv_r.Env.cls_member_vars
+       in
+       (* check! *)
        check_class_env env ctx;
 
        (* body *)
        let (nbody, _) = construct_env body env ctx opt_attr in
 
-       (* check class characteristics *)
+       (* TODO: check class characteristics *)
 
-       (* collect member variables *)
-       (* TODO: implement *)
-
+       (**)
        let define_ctor () =
          let ty = make_class_type env Type_attr.Val Type_attr.Const ctx in
 
@@ -367,11 +396,10 @@ let rec construct_env node parent_env ctx opt_chain_attr =
          let node = TAst.GenericFuncDef (None, Some fenv) in
          let detail =
            Env.FnRecordTrivial (Env.FnDefDefaulted,
-                                Env.FnKindDefaultConstructor)
+                                Env.FnKindDefaultConstructor None)
          in
-         check_function_env fenv [] ty false;
+         check_function_env fenv [] Meta_level.Meta ty false;
          complete_function_env fenv node ctor_name detail ctx;
-
 
          (* copy ctor *)
          let rhs_ty = make_class_type env Type_attr.Ref Type_attr.Const ctx in
@@ -379,9 +407,9 @@ let rec construct_env node parent_env ctx opt_chain_attr =
          let node = TAst.GenericFuncDef (None, Some fenv) in
          let detail =
            Env.FnRecordTrivial (Env.FnDefDefaulted,
-                               Env.FnKindCopyConstructor)
+                               Env.FnKindCopyConstructor None)
          in
-         check_function_env fenv [rhs_ty] ty false;
+         check_function_env fenv [rhs_ty] Meta_level.Meta ty false;
          complete_function_env fenv node ctor_name detail ctx;
        in
        define_ctor ();
@@ -489,10 +517,10 @@ let rec construct_env node parent_env ctx opt_chain_attr =
 
   (* *)
   | TAst.MemberVariableDefStmt (v, Some env) ->
-     begin
+     if Env.is_checked env then Env.get_rel_ast env, void_t
+     else begin
        (* TODO: implement *)
-       let (var_attr, var_name, init_term) =
-         match extract_prev_pass_node v with
+       let (var_attr, var_name, init_term) = match extract_prev_pass_node v with
          | Ast.VarInit vi -> vi
          | _ -> failwith "unexpected node"
        in
@@ -512,11 +540,13 @@ let rec construct_env node parent_env ctx opt_chain_attr =
             end
          | None -> failwith "[ERR] type spec is required in class decl"
        in
+       check_env env Meta_level.Runtime;    (* TODO: fix *)
 
        let r = Env.VariableOp.get_record env in
        r.Env.var_type <- var_ty;
 
-       node, get_void_aux ctx
+       complete_env env node;
+       node, void_t
      end
 
   (* scoped declare *)
@@ -610,6 +640,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
               (None, mled_node, var_ty)
             end
        in
+       check_env venv var_metalevel;
 
        (* register the variable to the environments *)
        Env.add_inner_env parent_env var_name venv;
@@ -684,97 +715,119 @@ and analyze_expr ?(making_placeholder=false)
          Type_info.ti_sort = ty_sort;
          Type_info.ti_template_args = template_args;
        } = recv_type_info in
-       match ty_sort with
-       (* normal function call *)
-       | Type_info.FunctionSetTy menv ->
-          begin
-            (* consider nested expr *)
-            let (arg_exprs, arg_auxs) = match recv_node with
-              | TAst.NestedExpr (lhs_node, lhs_aux, _, _) ->
-                 let args = lhs_node :: arg_exprs in
-                 let arg_auxs = lhs_aux :: arg_auxs in
-                 (args, arg_auxs)
-              | _ -> (arg_exprs, arg_auxs)
-            in
-            let args = List.combine arg_exprs arg_auxs in
-            let (f_env, conv_filters, args) =
-              solve_function_overload args template_args
-                                      menv parent_env ctx attr
-            in
+       let (node, aux, f_ml) = match ty_sort with
+         (* normal function call *)
+         | Type_info.FunctionSetTy menv ->
+            begin
+              (* consider nested expr *)
+              let (arg_exprs, arg_auxs) = match recv_node with
+                | TAst.NestedExpr (lhs_node, lhs_aux, _, _) ->
+                   let args = lhs_node :: arg_exprs in
+                   let arg_auxs = lhs_aux :: arg_auxs in
+                   (args, arg_auxs)
+                | _ -> (arg_exprs, arg_auxs)
+              in
+              let args = List.combine arg_exprs arg_auxs in
+              let (f_env, conv_filters, args) =
+                solve_function_overload args template_args
+                                        menv parent_env ctx attr
+              in
 
-            let n_eargs =
-              map_conversions ~param_passing:true
-                              conv_filters args parent_env ctx
-            in
-            let (n_earg_exprs, _) = n_eargs |> List.split in
+              let n_eargs =
+                map_conversions ~param_passing:true
+                                conv_filters args parent_env ctx
+              in
+              let (n_earg_exprs, _) = n_eargs |> List.split in
 
-            let f_er = Env.FunctionOp.get_record f_env in
-            let f_ret_ty = f_er.Env.fn_return_type in
-            if not (is_valid_type f_ret_ty) then
-              failwith "[ERR] type of this function is not determined";
-            let f_ret_val_cat = ret_val_category f_ret_ty ctx in
-            let f_ret_lt = Env.get_scope_lifetime parent_env in (* TODO: fix *)
-            let f_ret_ml = args_bottom_ml in (* TODO: fix *)
+              let f_er = Env.FunctionOp.get_record f_env in
+              let f_ret_ty = f_er.Env.fn_return_type in
+              if not (is_valid_type f_ret_ty) then
+                failwith "[ERR] type of this function is not determined";
+              let f_ret_val_cat = ret_val_category f_ret_ty ctx in
+              let f_ret_lt = Env.get_scope_lifetime parent_env in (* TODO: fix *)
+              let f_ret_ml = args_bottom_ml in (* TODO: fix, use meta_level of return type *)
 
-            let ret_ty_sto = suitable_storage f_ret_ty ctx in
-            let node = TAst.GenericCallExpr (
-                           (ref ret_ty_sto),
-                           n_earg_exprs,
-                           Some parent_env,
-                           Some f_env) in
-            (node, (f_ret_ty, f_ret_val_cat, f_ret_lt, f_ret_ml))
-          end
+              let f_ml = f_env.Env.meta_level in
 
-       (* constructor / operator call *)
-       | Type_info.UniqueTy type_cenv ->
-          begin
-            (* type_cenv will be Type *)
-            let recv_ty =
-              resolve_texpr_type recv_node recv_type_info recv_ml
-                                 parent_env ctx attr
-            in
-            let recv_cenv = Type.as_unique recv_ty in
-            Env.print recv_cenv;
+              Printf.printf "        FUNCTION %s => %s\n" (Nodes.string_of_id_string f_er.Env.fn_name) (Meta_level.to_string f_ml);
 
-            (* call constructor *)
-            (* TODO: take into account op call *)
-            let res = solve_basic_identifier ~do_rec_search:false
-                                             ctor_name recv_cenv ctx attr in
-            let (_, ctor_env, _) = match res with
-              | Some v -> v
-              | None -> failwith "constructor not found"
-            in
-            let f_conv =
-              solve_function_overload eargs []
-                                      ctor_env parent_env ctx attr
-            in
+              let ret_ty_sto = suitable_storage f_ret_ty ctx in
+              let node = TAst.GenericCallExpr (
+                             (ref ret_ty_sto),
+                             n_earg_exprs,
+                             Some parent_env,
+                             Some f_env) in
+              (node, (f_ret_ty, f_ret_val_cat, f_ret_lt, f_ret_ml), f_ml)
+            end
 
-            (**)
-            let f_sto = suitable_storage recv_ty ctx in
+         (* constructor / operator call *)
+         | Type_info.UniqueTy type_cenv ->
+            begin
+              (* type_cenv will be Type *)
+              let recv_ty =
+                resolve_texpr_type recv_node recv_type_info recv_ml
+                                   parent_env ctx attr
+              in
+              let recv_cenv = Type.as_unique recv_ty in
+              Env.print recv_cenv;
 
-            let (f_env, conv_filters, eargs) = f_conv in
-            let n_eargs =
-              map_conversions ~param_passing:true
-                              conv_filters eargs parent_env ctx
-            in
-            let (n_earg_exprs, _) = n_eargs |> List.split in
+              (* call constructor *)
+              (* TODO: take into account op call *)
+              let res = solve_basic_identifier ~do_rec_search:false
+                                               ctor_name recv_cenv ctx attr in
+              let (_, ctor_env, _) = match res with
+                | Some v -> v
+                | None -> failwith "constructor not found"
+              in
+              let f_conv =
+                solve_function_overload eargs []
+                                        ctor_env parent_env ctx attr
+              in
 
-            let f_er = Env.FunctionOp.get_record f_env in
-            let f_ret_ty = f_er.Env.fn_return_type in
-            assert_valid_type f_ret_ty;
+              (**)
+              let f_sto = suitable_storage recv_ty ctx in
 
-            let f_ret_lt = Env.get_scope_lifetime parent_env in (* TODO: fix *)
-            let f_ret_ml = Meta_level.Runtime in (* TODO: fix *)
+              let (f_env, conv_filters, eargs) = f_conv in
+              let n_eargs =
+                map_conversions ~param_passing:true
+                                conv_filters eargs parent_env ctx
+              in
+              let (n_earg_exprs, _) = n_eargs |> List.split in
 
-            let node = TAst.GenericCallExpr (
-                           ref f_sto,
-                           n_earg_exprs,
-                           Some parent_env,
-                           Some f_env) in
-            (node, (recv_ty, VCatPrValue, f_ret_lt, f_ret_ml))
-          end
+              let f_er = Env.FunctionOp.get_record f_env in
+              let f_ret_ty = f_er.Env.fn_return_type in
+              assert_valid_type f_ret_ty;
 
-       | _ -> failwith "not implemented//" (* TODO: call ctor OR operator() *)
+              let f_ret_lt = Env.get_scope_lifetime parent_env in (* TODO: fix *)
+              let f_ret_ml = Meta_level.Runtime in (* TODO: fix *)
+
+              let f_ml = f_env.Env.meta_level in
+
+              let node = TAst.GenericCallExpr (
+                             ref f_sto,
+                             n_earg_exprs,
+                             Some parent_env,
+                             Some f_env) in
+              (node, (recv_ty, VCatPrValue, f_ret_lt, f_ret_ml), f_ml)
+            end
+
+         | _ -> failwith "not implemented//" (* TODO: call ctor OR operator() *)
+       in
+       let mled_node = match f_ml with
+         | Meta_level.OnlyMeta ->
+           begin
+             (* TODO: check whether the variable is ctfeable.
+              * Ex. it must have trivial destructor *)
+             let (ty, _, _, ret_ml) = aux in
+             let ctfe_v =
+               eval_texpr_as_ctfe node ty ret_ml
+                                  parent_env ctx None
+             in
+             tnode_of_ctfe_val ctfe_v ctx
+           end
+         | _ -> node
+       in
+       (mled_node, aux)
      end
 
   | Ast.ElementSelectionExpr (lhs, rhs, _) ->
@@ -881,7 +934,7 @@ and analyze_expr ?(making_placeholder=false)
          Type_attr.ta_ref_val = Type_attr.Val;
          Type_attr.ta_mut = Type_attr.Immutable;
        } in
-       let ty = get_builtin_int_type attr ctx in
+       let ty = get_builtin_int32_type attr ctx in
        assert_valid_type ty;
        let node = TAst.Int32Lit (i, ty) in
 
@@ -907,7 +960,7 @@ and analyze_expr ?(making_placeholder=false)
          Type_attr.ta_ref_val = Type_attr.Val;
          Type_attr.ta_mut = Type_attr.Immutable;
        } in
-       let elem_ty = get_builtin_bool_type attr ctx in   (* TODO: fix *)
+       let elem_ty = get_builtin_int_type ~bits:8 ~signed:false attr ctx in
        let ptr_ty = get_builtin_raw_ptr_type elem_ty attr ctx in
        assert_valid_type ptr_ty;
 
@@ -946,6 +999,8 @@ and analyze_expr ?(making_placeholder=false)
                                (Env.Scope (Env.empty_lookup_table ()))
        in
        let (nblock, aux) = analyze_t block scope_env ctx in
+       parent_env.Env.closed <- scope_env.Env.closed;
+
        let node = TAst.ScopeExpr (nblock) in
        (node, aux)
      end
@@ -1080,6 +1135,10 @@ and analyze_inner node parent_env ctx opt_chain_attr =
   let pre_node = extract_prev_pass_node node in
   analyze ~opt_attr:opt_chain_attr pre_node parent_env ctx
 
+and pre_analyze_inner node parent_env ctx opt_chain_attr =
+  let pre_node = extract_prev_pass_node node in
+  solve_forward_refs ~opt_attr:opt_chain_attr pre_node parent_env ctx
+
 and extract_prev_pass_node node =
   match node with
   | TAst.PrevPassNode n -> n
@@ -1141,15 +1200,6 @@ and prepare_params env special_params params_node ctx attr =
 
 
 and declare_function_params f_env special_params params ctx attr =
-  let make_env param ty =
-    let (_, opt_name, _) = param in
-    opt_name |> Option.map (fun name -> make_parameter_venv f_env name ty ctx)
-  in
-  let declare_env (name, venv) =
-    Env.add_inner_env f_env name venv;
-    venv
-  in
-
   (* analyze parameters *)
   let (nparams, (param_types: type_info_t list)) =
     special_params @ (params
@@ -1160,6 +1210,14 @@ and declare_function_params f_env special_params params ctx attr =
   (* first, make all of environments.
    * next declare them into the function env *)
   let param_envs =
+    let make_env param ty =
+      let (_, opt_name, _) = param in
+      opt_name |> Option.map (fun name -> make_parameter_venv f_env name ty ctx)
+    in
+    let declare_env (name, venv) =
+      Env.add_inner_env f_env name venv;
+      venv
+    in
     List.map2 make_env nparams param_types
     |> List.map (Option.map declare_env)
   in
@@ -1176,12 +1234,14 @@ and check_id_is_defined_uniquely env id =
 
 and solve_identifier ?(do_rec_search=true)
                      ?(making_placeholder=false)
+                     ?(exclude=[])
                      id_node env ctx attr
   =
   match id_node with
   | Ast.Id (name, _) ->
      solve_basic_identifier ~do_rec_search:do_rec_search
                             ~making_placeholder:making_placeholder
+                            ~exclude:exclude
                             name env ctx attr
 
   | Ast.InstantiatedId (name, template_args, _) ->
@@ -1195,6 +1255,7 @@ and solve_identifier ?(do_rec_search=true)
        solve_basic_identifier ~do_rec_search:do_rec_search
                               ~template_args:evaled_t_args
                               ~making_placeholder:making_placeholder
+                              ~exclude:exclude
                               name env ctx attr
      end
 
@@ -1203,6 +1264,7 @@ and solve_identifier ?(do_rec_search=true)
 and solve_basic_identifier ?(do_rec_search=true)
                            ?(template_args=[])
                            ?(making_placeholder=false)
+                           ?(exclude=[])
                            name search_base_env ctx attr
     : (type_info_t * 'env * Meta_level.t) option =
   let type_ty = ctx.sc_tsets.ts_type_type in
@@ -1308,6 +1370,7 @@ and solve_basic_identifier ?(do_rec_search=true)
 
     | Env.Variable (vr) ->
        begin
+         try_to_complete_env env ctx;
          let {
            Env.var_type = var_ty;
          } = vr in
@@ -1342,7 +1405,7 @@ and solve_basic_identifier ?(do_rec_search=true)
   let name_s = Nodes.string_of_id_string name in
   Printf.printf "-> finding identitifer = %s : rec = %b\n" name_s do_rec_search;
   let oenv = if do_rec_search then
-               Env.lookup search_base_env name_s
+               Env.lookup ~exclude:exclude search_base_env name_s
              else
                Env.find_all_on_env search_base_env name_s
   in
@@ -1362,7 +1425,7 @@ and try_to_complete_env env ctx =
            failwith "? recursice definition is appeared"; (* TODO: exception *)
          ()
        end
-    | None -> failwith "[ICE] try to complete env / "
+    | None -> failwith "[ICE] try to complete env / there is no rel node"
   else
     ()  (* DO NOTHING *)
 
@@ -1395,13 +1458,13 @@ and convert_type trg_ty src_arg ext_env ctx attr =
          let select_move_ctor env =
            let kind = Env.FunctionOp.get_kind env in
            match kind with
-           | Env.FnKindMoveConstructor -> Some env
+           | Env.FnKindMoveConstructor _ -> Some env
            | _ -> None
          in
          let select_copy_ctor env =
            let kind = Env.FunctionOp.get_kind env in
            match kind with
-           | Env.FnKindCopyConstructor -> Some env
+           | Env.FnKindCopyConstructor _ -> Some env
            | _ -> None
          in
 
@@ -1506,6 +1569,27 @@ and is_type_convertible_to src_ty dist_ty =
   else begin
     failwith "is_type_convertible_to / not implemented"
   end
+
+
+and determine_function_return_type opt_ret_type env ctx opt_attr =
+  match opt_ret_type with
+  | Some (TAst.PrevPassNode ret_ty_expr) ->
+     begin
+       let tmp = { (* TODO: fix *)
+         Type_attr.ta_ref_val = Type_attr.Val;
+         Type_attr.ta_mut = Type_attr.Immutable;
+       } in
+       let ret_ty =
+         resolve_type_with_qual tmp ret_ty_expr env ctx opt_attr
+       in
+       (ret_ty, false)
+     end
+  | None ->
+     begin
+       (* needs return type inference *)
+       (Type_info.undef_ty, true)
+     end
+  | _ -> failwith "[ICE]"
 
 
 and suitable_storage ?(exit_scope=false)
@@ -1666,7 +1750,7 @@ and eval_texpr_as_ctfe ?(making_placeholder=false)
 
 and tnode_of_ctfe_val ctfe_val ctx =
   match ctfe_val with
-  | Ctfe_value.Int32 v -> TAst.Int32Lit (Int32.to_int v, get_builtin_int_type default_ty_attr ctx)
+  | Ctfe_value.Int32 v -> TAst.Int32Lit (Int32.to_int v, get_builtin_int32_type default_ty_attr ctx)
   | _ -> failwith ""
 
 
@@ -1868,7 +1952,7 @@ and instantiate_function_templates menv template_args arg_auxs ext_env ctx attr 
     let (parameters, opt_cond) = match inner_node with
       | Ast.FunctionDefStmt (_, Ast.ParamsList params, _, c, _, _, _) -> (params, c)
       | Ast.MemberFunctionDefStmt (_, Ast.ParamsList params, _, _, _, _) -> (params, None)
-      | Ast.ExternFunctionDefStmt (_, Ast.ParamsList params, _, _, _, _) -> (params, None)
+      | Ast.ExternFunctionDefStmt (_, Ast.ParamsList params, _, _, _, _, _) -> (params, None)
       | _ -> failwith ""
     in
     let get_param_type (var_attr, _, init) =
@@ -2071,7 +2155,7 @@ and select_member_element ?(universal_search=false)
        (* second, do universal_search *)
        if universal_search then begin
          (* TODO: exclude class envs *)
-         solve_identifier t_id env ctx attr
+         solve_identifier ~exclude:[Env.Kind.Class] t_id env ctx attr
 
        end else
          None
@@ -2242,7 +2326,7 @@ and complate_template_instance ?(making_placeholder=false)
       match c with
       | Unification.Val v ->
          update_f ctx.sc_unification_ctx uni_id v
-      | _ -> failwith "[ERR] not resolved"
+      | _ -> raise Instantiation_failed (*failwith "[ERR] not resolved"*)
     in
 
     let normalize_uni_type uni_id =
@@ -2253,13 +2337,13 @@ and complate_template_instance ?(making_placeholder=false)
     let normalize_uni_value uni_id =
       let update ctx uni_id v =
         match v with
-        | Ctfe_value.Undef _ -> failwith "[ERR] not resolved"
+        | Ctfe_value.Undef _ -> raise Instantiation_failed (*failwith "[ERR] not resolved"*)
         | Ctfe_value.Type ty ->
            begin
              if Type.is_unique_ty ty then
                Unification.update_value ctx uni_id v
              else
-               failwith "[ERR] not resolved"
+               raise Instantiation_failed (*failwith "[ERR] not resolved"*)
            end
         | _ -> Unification.update_value ctx uni_id v
       in
@@ -2415,15 +2499,16 @@ and define_trivial_default_ctor_for_builtin cenv extern_cname ctx =
   let ty = make_class_type cenv Type_attr.Val Type_attr.Const ctx in
   let fenv = declare_incomple_ctor cenv in
 
-  let detail =
-    Env.FnRecordBuiltin (Env.FnDefDefaulted,
-                         Env.FnKindDefaultConstructor,
-                         (Builtin_info.make_builtin_default_ctor_name extern_cname))
-  in
   (* interface of default constructor: void -> TYPE *)
-  check_function_env fenv [] ty false;
+  check_function_env fenv [] Meta_level.Meta ty false;
 
   let node = TAst.GenericFuncDef (None, Some fenv) in
+
+  let detail =
+    Env.FnRecordBuiltin (Env.FnDefDefaulted,
+                         Env.FnKindDefaultConstructor None,
+                         (Builtin_info.make_builtin_default_ctor_name extern_cname))
+  in
   complete_function_env fenv node ctor_name detail ctx
 
 
@@ -2435,11 +2520,11 @@ and define_trivial_copy_ctor_for_builtin cenv extern_cname ctx =
 
     let detail =
       Env.FnRecordBuiltin (Env.FnDefDefaulted,
-                           Env.FnKindCopyConstructor,
+                           Env.FnKindCopyConstructor None,
                            (Builtin_info.make_builtin_copy_ctor_name extern_cname))
     in
     (* interface of default constructor: TYPE -> TYPE *)
-    check_function_env fenv [rhs_ty] ty false;
+    check_function_env fenv [rhs_ty] Meta_level.Meta ty false;
 
     let node = TAst.GenericFuncDef (None, Some fenv) in
     complete_function_env fenv node ctor_name detail ctx
@@ -2460,28 +2545,35 @@ and define_trivial_copy_assign_for_builtin cenv extern_cname ctx =
                          (Builtin_info.make_builtin_copy_assign_name extern_cname))
   in
   (* interface of default constructor: TYPE -> TYPE -> void *)
-  check_function_env fenv [ty; rhs_ty] ctx.sc_tsets.ts_void_type false;
+  check_function_env fenv [ty; rhs_ty] Meta_level.Meta ctx.sc_tsets.ts_void_type false;
 
   let node = TAst.GenericFuncDef (None, Some fenv) in
   complete_function_env fenv node assign_name detail ctx
 
-
-and get_builtin_int_type ?(bits=32) ?(signed=true) attr ctx : 'env type_info =
-  let ty = match bits with
-    | 32 -> if signed then
-              !(ctx.sc_tsets.ts_int32_type_holder)
-            else
-              failwith "[ICE] get builtin int type"
-    | _ -> failwith "[ICE] unsupported bits size"
-  in
-  assert (not @@ Type.is_undef ty);
-  ty
 
 and get_builtin_void_type attr ctx : 'env type_info =
   ctx.sc_tsets.ts_void_type
 
 and get_builtin_bool_type attr ctx : 'env type_info =
   let ty = !(ctx.sc_tsets.ts_bool_type_holder) in
+  assert (not @@ Type.is_undef ty);
+  ty
+
+and get_builtin_int32_type attr ctx : 'env type_info =
+  get_builtin_int_type ~bits:32 ~signed:true attr ctx
+
+and get_builtin_int_type ~bits ~signed attr ctx : 'env type_info =
+  let ty = match bits with
+    | 8 -> if signed then
+             failwith "[ICE] get builtin int type"
+            else
+              !(ctx.sc_tsets.ts_uint8_type_holder)
+    | 32 -> if signed then
+              !(ctx.sc_tsets.ts_int32_type_holder)
+            else
+              failwith "[ICE] get builtin int type"
+    | _ -> failwith "[ICE] unsupported bits size"
+  in
   assert (not @@ Type.is_undef ty);
   ty
 
@@ -2501,13 +2593,14 @@ and get_builtin_raw_ptr_type elem_ty ptr_attr ctx : 'env type_info =
            instantiate_class_templates menv template_args
                                        ext_env ctx None
          in
-         match instances with
-         | [e] ->
-            Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
-                                         (Type_info.UniqueTy e)
-                                         template_args
-                                         ptr_attr
-         | _ -> failwith "[ICE] unexpected array instances"
+         let cenv = match instances with
+           | [e] -> e
+           | _ -> failwith "[ICE] unexpected array instances"
+         in
+         Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
+                                      (Type_info.UniqueTy cenv)
+                                      template_args
+                                      ptr_attr
        end
     | _ -> failwith "[ICE] unexpected"
   in
@@ -2532,14 +2625,14 @@ and get_builtin_array_type elem_ty len arr_attr ctx : 'env type_info =
            instantiate_class_templates menv template_args
                                        ext_env ctx None
          in
-         match instances with
-         | [e] ->
-            Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
-                                         (Type_info.UniqueTy e)
-                                         template_args
-                                         arr_attr
-
-         | _ -> failwith "[ICE] unexpected array instances"
+         let cenv = match instances with
+           | [e] -> e
+           | _ -> failwith "[ICE] unexpected array instances"
+         in
+         Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
+                                      (Type_info.UniqueTy cenv)
+                                      template_args
+                                      arr_attr
        end
     | _ -> failwith "[ICE] unexpected"
   in
@@ -2547,12 +2640,13 @@ and get_builtin_array_type elem_ty len arr_attr ctx : 'env type_info =
   ty
 
 (* *)
-and cache_builtin_type_info preset_ty name ctx =
-  Printf.printf "get_builtin_type_info = %s\n" name;
+and cache_builtin_type_info preset_ty name opt_layout ctx =
   match Type.type_sort !preset_ty with
   (* not defined yet *)
   | Type_info.Undef ->
      begin
+       Printf.printf "get_builtin_type_info = %s\n" name;
+
        let res =
          solve_basic_identifier ~do_rec_search:false
                                 (Nodes.Pure name)
@@ -2562,6 +2656,13 @@ and cache_builtin_type_info preset_ty name ctx =
        (* pure type *)
        | Some (ty, c_env, _) when ty == ctx.sc_tsets.ts_type_type ->
           begin
+            let _ = match opt_layout with
+              | Some (size, align) ->
+                 let cenv_r = Env.ClassOp.get_record c_env in
+                 cenv_r.Env.cls_size <- size;
+                 cenv_r.Env.cls_align <- align
+              | _ -> ()
+            in
             let prim_ty =
               Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
                                            (Type_info.UniqueTy c_env)

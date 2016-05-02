@@ -1,6 +1,8 @@
 (*
  *
  *)
+type builtin_class_layout = int * int (* bytes of size and align *)
+
 type bulitin_class_info_t = {
   external_name : string;
   internal_name : string;
@@ -27,6 +29,12 @@ let bool_type_i = {
   mangled_name = "b";
 }
 
+let uint8_type_i = {
+  external_name = "uint8";
+  internal_name = "__builtin_uint8_type";
+  mangled_name = "u";
+}
+
 let int32_type_i = {
   external_name = "int32";
   internal_name = "__builtin_int32_type";
@@ -36,6 +44,12 @@ let int32_type_i = {
 let array_type_i = {
   external_name = "array";
   internal_name = "__builtin_array_type";
+  mangled_name = "";
+}
+
+let untyped_raw_ptr_type_i = {
+  external_name = "untyped_raw_ptr";
+  internal_name = "__builtin_untyped_raw_ptr_type";
   mangled_name = "";
 }
 
