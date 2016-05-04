@@ -1,5 +1,5 @@
 import std.stdio;
 
 def main() {
-    "hello world".print();
+    "hello world".println();
 }

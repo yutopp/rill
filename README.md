@@ -29,7 +29,7 @@ eval `opam config env`
 
 
 ## Try
-`omake && rillc/src/rillc && ./a.out`
+`rillc/src/rillc test/compilable/hello_world.rill && ./a.out`
 
 
 # Trouble shoorting
