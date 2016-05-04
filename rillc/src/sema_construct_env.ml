@@ -9,19 +9,13 @@
 open Batteries
 open Type_sets
 open Value_category
-open Sema_predef
+open Sema_definitions
 open Sema_forward_ref
+open Sema_utils
 
 exception Instantiation_failed
 
-let ret_val_category ty ctx =
-  let open Type_attr in
-  match ty.Type_info.ti_attr with
-  | { ta_ref_val = Val; } ->
-     VCatPrValue
-
-  | _ -> VCatLValue
-
+exception Error of string
 
 let rec construct_env node parent_env ctx opt_chain_attr =
   let void_t = get_void_aux ctx in
@@ -33,14 +27,24 @@ let rec construct_env node parent_env ctx opt_chain_attr =
 
   | TAst.StatementList (nodes) ->
      let nodes, last =
-       let ce n = construct_env n parent_env ctx opt_chain_attr in
+       let ce n =
+         try construct_env n parent_env ctx opt_chain_attr
+         with
+         | Error s ->
+            begin
+              Printf.printf "%s\n" s;
+              (TAst.Error, void_t)
+            end
+       in
        let rec p nodes = match nodes with
-         | [] -> [], get_void_aux ctx
+         (* if there are no statements, it is void_type *)
+         | [] -> [], void_t
+         (* if there is only one statement, evaluate it and type is of that *)
          | [x] -> let n, s = ce x in [n], s
          | x :: xs ->
             let n, _ = ce x in
-            let ns, ls = p xs in
-            (n :: ns), ls
+            let ns, last_ty = p xs in
+            (n :: ns), last_ty
        in
        p nodes
      in
@@ -914,10 +918,10 @@ and analyze_expr ?(making_placeholder=false)
                           id_node parent_env ctx attr
        in
        let (ty, trg_env, ml) = match res with
-           Some v -> v
+         | Some v -> v
          | None ->
             (* TODO: change to exception *)
-            failwith @@ "id not found : " ^ (Nodes.string_of_id_string name)
+            raise (Error ("id not found : " ^ (Nodes.string_of_id_string name)))
        in
        let lt = Env.get_scope_lifetime parent_env in (* TODO: fix *)
 

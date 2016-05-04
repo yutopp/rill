@@ -8,7 +8,7 @@
 
 open Batteries
 open Type_sets
-open Sema_predef
+open Sema_definitions
 
 let rec solve_forward_refs ?(meta_variables=[])
                            ?(opt_attr=None)

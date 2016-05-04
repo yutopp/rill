@@ -133,9 +133,10 @@ FILES[] =
    env
    env_system
    sema
-   sema_predef
    sema_forward_ref
    sema_construct_env
+   sema_definitions
+   sema_utils
    codegen_context
    codegen_llvm
    codegen_llvm_intrinsics

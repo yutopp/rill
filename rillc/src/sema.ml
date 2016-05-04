@@ -9,7 +9,7 @@
 open Batteries
 open Type_sets
 
-include Sema_predef
+include Sema_definitions
 include Sema_forward_ref
 include Sema_construct_env
 
@@ -19,55 +19,20 @@ let make_default_env () =
 let make_default_context root_env module_search_dirs =
   let type_gen = Type.Generator.default () in
 
-  let register_builtin_type name inner_name meta_level size align =
-    let create_builtin_class name inner_name =
-      let env_r = Env.ClassOp.empty_record name in
-      env_r.Env.cls_mangled <- Some inner_name;
-      env_r.Env.cls_size <- size;
-      env_r.Env.cls_align <- align;
-
-      let env = Env.create_context_env root_env (
-                                         Env.Class (Env.empty_lookup_table ~init:0 (),
-                                                    env_r)
-                                       ) in
-      env.Env.meta_level <- meta_level;
-
-      let node = TAst.ExternClassDefStmt (name, inner_name, None, Some env) in
-
-      let detail_r = Env.ClsRecordPrimitive {
-                         Env.cls_e_name = inner_name;
-                       } in
-      let traits = {
-        Env.cls_traits_is_primitive = true;
-      } in
-      complete_class_env env node detail_r traits;
-      env
-    in
-
-    let id_name = Nodes.Pure name in
-    let cenv = create_builtin_class id_name inner_name in
-    Env.add_inner_env root_env name cenv;
-
-    Type.Generator.generate_type type_gen
-                                 (Type_info.UniqueTy cenv)
-                                 []
-                                 {
-                                   Type_attr.ta_ref_val = Type_attr.Val;
-                                   Type_attr.ta_mut = Type_attr.Immutable;
-                                 }
-  in
-
+  let open Sema_utils in
   let open Builtin_info in
   let tsets = {
     ts_type_gen = type_gen;
     ts_type_type = register_builtin_type type_type_i.external_name
                                          type_type_i.internal_name
                                          Meta_level.OnlyMeta
-                                         8 8; (* TODO: fix *)
+                                         8 8    (* TODO: fix *)
+                                         root_env type_gen;
     ts_void_type = register_builtin_type void_type_i.external_name
                                          void_type_i.internal_name
                                          Meta_level.Meta
-                                         0 0;
+                                         0 0    (* TODO: fix *)
+                                         root_env type_gen;
 
     ts_bool_type_holder = ref Type_info.undef_ty;
     ts_uint8_type_holder = ref Type_info.undef_ty;
@@ -89,6 +54,7 @@ let make_default_context root_env module_search_dirs =
     sc_ctfe_engine = ctfe_engine;
     sc_tsets = tsets;
     sc_unification_ctx = uni_map;
+    sc_errors = []
   } in
 
   (**)
