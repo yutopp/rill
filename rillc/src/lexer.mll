@@ -31,6 +31,8 @@ rule token = parse
   | newline             { next_line lexbuf; token lexbuf }
 
   | "//"                { oneline_comment lexbuf }
+  | "/*"                { multiline_comment lexbuf }
+  | "/+"                { nested_multiline_comment 0 lexbuf }
 
   | "__statement_traits"{ KEYWORD_UU_STMT_TRAITS }
   | "operator"          { KEYWORD_OPERATOR }
@@ -137,3 +139,19 @@ and oneline_comment = parse
   | newline         { next_line lexbuf; token lexbuf }
   | eof             { EOF }
   | _               { oneline_comment lexbuf }
+
+and multiline_comment = parse
+  | "*/"            { token lexbuf }
+  | eof             { EOF }
+  | _               { multiline_comment lexbuf }
+
+and nested_multiline_comment n = parse
+  | "+/"            {
+                        if n = 0 then
+                          token lexbuf
+                        else
+                          nested_multiline_comment (n-1) lexbuf
+                    }
+  | "/+"            { nested_multiline_comment (n+1) lexbuf }
+  | eof             { EOF }
+  | _               { nested_multiline_comment n lexbuf }
