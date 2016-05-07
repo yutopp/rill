@@ -9,7 +9,7 @@
 module Context =
   struct
     type 'a current_ctx_t = unit
-    type 'a term_ctx_t = unit
+    type 'a term_ctx_t = Nodes.Loc.t
     type 'a prev_ctx_t = unit
   end
 

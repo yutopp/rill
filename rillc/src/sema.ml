@@ -109,4 +109,6 @@ let make_default_state system_libs_dirs user_srcs_dirs =
 let analyze_module mod_env ctx =
   let mod_node = Option.get mod_env.Env.rel_node in
   let (node, _) = construct_env mod_node ctx.sc_root_env ctx None in
-  node
+  match List.length ctx.sc_errors with
+  | 0 -> Some node
+  | _ -> None

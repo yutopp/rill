@@ -13,13 +13,6 @@
   exception UnexpectedToken of char
   exception LexerError of string
 
-  let next_line lexbuf =
-    let pos = lexbuf.lex_curr_p in
-    lexbuf.lex_curr_p <-
-      { pos with pos_bol = lexbuf.lex_curr_pos;
-                 pos_lnum = pos.pos_lnum + 1
-      }
-
   let _lex_string_lit_buffer = Buffer.create 80
 }
 
@@ -28,7 +21,7 @@ let newline = "\r\n" | '\r' | '\n'
 
 rule token = parse
   | blank               { token lexbuf }
-  | newline             { next_line lexbuf; token lexbuf }
+  | newline             { new_line lexbuf; token lexbuf }
 
   | "//"                { oneline_comment lexbuf }
   | "/*"                { multiline_comment lexbuf }
@@ -136,7 +129,7 @@ and read_string_lit buf = parse
   | eof { raise (LexerError ("String is not terminated")) }
 
 and oneline_comment = parse
-  | newline         { next_line lexbuf; token lexbuf }
+  | newline         { new_line lexbuf; token lexbuf }
   | eof             { EOF }
   | _               { oneline_comment lexbuf }
 

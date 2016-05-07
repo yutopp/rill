@@ -93,7 +93,10 @@ let () =
   flush_all ();
   let (env, ctx) = Sema.make_default_state system_libs_dirs module_search_dirs in
   let m = Sema.load_module_by_filepath filename ctx in
-  let sem_ast = Sema.analyze_module m ctx in
+  let sem_ast = match Sema.analyze_module m ctx with
+    | Some node -> node
+    | None -> exit 1
+  in
 
   Printf.printf "===== PHASE = CODEGEN\n";
   flush_all ();

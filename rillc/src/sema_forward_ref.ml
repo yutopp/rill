@@ -218,7 +218,7 @@ and load_module_by_filepath ?(def_mod_info=None) filepath ctx =
      begin
        let check_mod_name (raw_pkg_names, raw_mod_name) =
          if not (pkg_names = raw_pkg_names && mod_name = raw_mod_name) then
-           failwith "[ERR] package/module names are different";
+           raise (Fatal_error "package/module names are different")
        in
        Option.may check_mod_name def_mod_info;
 
@@ -271,7 +271,7 @@ and load_module pkg_names mod_name ctx =
          let target_dirs = List.fold_left pp ctx.sc_module_search_dirs pkg_names in
          let target_dir = match target_dirs with
            | [dir] -> dir
-           | [] -> failwith ("[ERR] package not found : " ^ (String.concat "." pkg_names) ^ "." ^ mod_name)
+           | [] -> raise (Fatal_error ("[ERR] package not found : " ^ (String.concat "." pkg_names) ^ "." ^ mod_name))
            | _ -> failwith "[ICE]"
          in
          Printf.printf "import from = %s\n" target_dir;

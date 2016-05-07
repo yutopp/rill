@@ -45,7 +45,7 @@ let complete_function_env env node id_name f_detail ctx =
   Type.print r.Env.fn_return_type;
 
   let _ = match id_name with
-    | s when s = Nodes.Pure Builtin_info.entrypoint_name ->
+    | Nodes.Pure s when s = Builtin_info.entrypoint_name ->
        begin
          (* TODO: check param_types and return_type *)
          r.Env.fn_mangled <- Some Builtin_info.entrypoint_name
@@ -139,7 +139,16 @@ let register_builtin_type name inner_name meta_level size align
 
 
 let rec split_aux auxs = match auxs with
-  | [] -> ([], [], [], [])
-  | (termc, vc, lt, ml) :: xs ->
-     let (ts, vs, ls, ms) = split_aux xs in
-     (termc::ts, vc::vs, lt::ls, ml::ms)
+  | [] -> ([], [], [], [], [])
+  | (termc, vc, lt, ml, pos) :: xs ->
+     let (ts, vs, ls, ms, ps) = split_aux xs in
+     (termc::ts, vc::vs, lt::ls, ml::ms, pos::ps)
+
+let pos_of_earg earg =
+  let (_, aux) = earg in
+  let (_, _, _, _, pos) = aux in
+  pos
+
+
+let print_error_msg msg ctx =
+  Printf.printf "\nCompilation Error!: %s\n\n" msg;

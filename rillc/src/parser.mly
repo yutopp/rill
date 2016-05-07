@@ -17,6 +17,20 @@
         match opt_tparams with
         | Some tparams -> Ast.TemplateStmt (name, tparams, node)
         | None -> node
+
+    let pos s_pos e_pos =
+        let open Nodes.Loc in
+        let open Lexing in
+        let p = {
+          pos_fname         = Mi.full_filepath;
+          pos_begin_cnum    = s_pos.pos_cnum;
+          pos_begin_lnum    = s_pos.pos_lnum;
+          pos_begin_bol     = s_pos.pos_cnum - s_pos.pos_bol;
+          pos_end_cnum      = e_pos.pos_cnum;
+          pos_end_lnum      = e_pos.pos_lnum;
+          pos_end_bol       = e_pos.pos_cnum - e_pos.pos_bol;
+        } in
+        Some p
 %}
 
 %%
@@ -400,8 +414,12 @@ expression:
 
 assign_expression:  (* right to left *)
                 logical_or_expression { $1 }
-        |       logical_or_expression ASSIGN assign_expression
-                { Ast.BinaryOpExpr ($1, Nodes.BinaryOp "=", $3) }
+        |       logical_or_expression op = ASSIGN assign_expression
+                {
+                    let op_id =
+                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
+                }
         |       if_expression { $1 }
         |       for_expression { $1 }
 
@@ -438,84 +456,180 @@ for_expression:
 
 logical_or_expression:
                 logical_and_expression { $1 }
-        |       logical_or_expression LOGICAL_OR logical_and_expression
-                { Ast.BinaryOpExpr ($1, Nodes.BinaryOp "||", $3) }
+        |       logical_or_expression op = LOGICAL_OR logical_and_expression
+                {
+                    let op_id =
+                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
+                }
 
 logical_and_expression:
                 bitwise_or_expression { $1 }
-        |       logical_and_expression LOGICAL_AND bitwise_or_expression
-                { Ast.BinaryOpExpr ($1, Nodes.BinaryOp "&&", $3) }
+        |       logical_and_expression op = LOGICAL_AND bitwise_or_expression
+                {
+                    let op_id =
+                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
+                }
 
 bitwise_or_expression:
                 bitwise_xor_expression { $1 }
-        |       bitwise_or_expression BITWISE_OR bitwise_xor_expression
-                { Ast.BinaryOpExpr ($1, Nodes.BinaryOp "|", $3) }
+        |       bitwise_or_expression op = BITWISE_OR bitwise_xor_expression
+                {
+                    let op_id =
+                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
+                }
 
 bitwise_xor_expression:
                 bitwise_and_expression { $1 }
-        |       bitwise_xor_expression BITWISE_XOR bitwise_and_expression
-                { Ast.BinaryOpExpr ($1, Nodes.BinaryOp "^", $3) }
+        |       bitwise_xor_expression op = BITWISE_XOR bitwise_and_expression
+                {
+                    let op_id =
+                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
+                }
 
 bitwise_and_expression:
                 equality_expression { $1 }
-        |       bitwise_and_expression BITWISE_AND equality_expression
-                { Ast.BinaryOpExpr ($1, Nodes.BinaryOp "&", $3) }
+        |       bitwise_and_expression op = BITWISE_AND equality_expression
+                {
+                    let op_id =
+                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
+                }
 
 equality_expression:
                 relational_expression { $1 }
-        |       equality_expression EQUALS relational_expression
-                { Ast.BinaryOpExpr ($1, Nodes.BinaryOp "==", $3) }
-        |       equality_expression NOT_EQUALS relational_expression
-                { Ast.BinaryOpExpr ($1, Nodes.BinaryOp "!=", $3) }
+        |       equality_expression op = EQUALS relational_expression
+                {
+                    let op_id =
+                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
+                }
+        |       equality_expression op = NOT_EQUALS relational_expression
+                {
+                    let op_id =
+                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
+                }
 
 relational_expression:
                 shift_expression { $1 }
-        |       relational_expression LTE shift_expression
-                { Ast.BinaryOpExpr ($1, Nodes.BinaryOp "<=", $3) }
-        |       relational_expression LT shift_expression
-                { Ast.BinaryOpExpr ($1, Nodes.BinaryOp "<", $3) }
-        |       relational_expression GTE shift_expression
-                { Ast.BinaryOpExpr ($1, Nodes.BinaryOp ">=", $3) }
-        |       relational_expression GT shift_expression
-                { Ast.BinaryOpExpr ($1, Nodes.BinaryOp ">", $3) }
+        |       relational_expression op = LTE shift_expression
+                {
+                    let op_id =
+                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
+                }
+        |       relational_expression op = LT shift_expression
+                {
+                    let op_id =
+                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
+                }
+        |       relational_expression op = GTE shift_expression
+                {
+                    let op_id =
+                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
+                }
+        |       relational_expression op = GT shift_expression
+                {
+                    let op_id =
+                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
+                }
 
 shift_expression:
                 add_sub_expression { $1 }
-        |       shift_expression LSHIFT add_sub_expression
-                { Ast.BinaryOpExpr ($1, Nodes.BinaryOp "<<", $3) }
-        |       shift_expression RSHIFT add_sub_expression
-                { Ast.BinaryOpExpr ($1, Nodes.BinaryOp ">>", $3) }
+        |       shift_expression op = LSHIFT add_sub_expression
+                {
+                    let op_id =
+                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
+                }
+        |       shift_expression op = RSHIFT add_sub_expression
+                {
+                    let op_id =
+                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
+                }
 
 add_sub_expression:
                 mul_div_rem_expression { $1 }
-        |       add_sub_expression PLUS mul_div_rem_expression
-                { Ast.BinaryOpExpr ($1, Nodes.BinaryOp "+", $3) }
-        |       add_sub_expression MINUS mul_div_rem_expression
-                { Ast.BinaryOpExpr ($1, Nodes.BinaryOp "-", $3) }
+        |       add_sub_expression op = PLUS mul_div_rem_expression
+                {
+                    let op_id =
+                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
+                }
+        |       add_sub_expression op = MINUS mul_div_rem_expression
+                {
+                    let op_id =
+                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
+                }
 
 mul_div_rem_expression:
                 unary_expression { $1 }
-        |       mul_div_rem_expression TIMES unary_expression
-                { Ast.BinaryOpExpr ($1, Nodes.BinaryOp "*", $3) }
-        |       mul_div_rem_expression DIV unary_expression
-                { Ast.BinaryOpExpr ($1, Nodes.BinaryOp "/", $3) }
-        |       mul_div_rem_expression MOD unary_expression
-                { Ast.BinaryOpExpr ($1, Nodes.BinaryOp "%", $3) }
+        |       mul_div_rem_expression op =TIMES unary_expression
+                {
+                    let op_id =
+                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
+                }
+        |       mul_div_rem_expression op =DIV unary_expression
+                {
+                    let op_id =
+                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
+                }
+        |       mul_div_rem_expression op = MOD unary_expression
+                {
+                    let op_id =
+                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
+                }
 
 unary_expression:
                 postfix_expression { $1 }
         |       op = MINUS postfix_expression
-                { Ast.UnaryOpExpr( Nodes.UnaryPreOp op, $2) }
+                {
+                    let op_id =
+                        Ast.Id (Nodes.UnaryPreOp op, pos $startpos(op) $endpos(op)) in
+                    Ast.UnaryOpExpr (op_id, $2, pos $startpos $endpos)
+                }
         |       op = INCREMENT postfix_expression
-                { Ast.UnaryOpExpr( Nodes.UnaryPreOp op, $2) }
+                {
+                    let op_id =
+                        Ast.Id (Nodes.UnaryPreOp op, pos $startpos(op) $endpos(op)) in
+                    Ast.UnaryOpExpr (op_id, $2, pos $startpos $endpos)
+                }
         |       op = DECREMENT postfix_expression
-                { Ast.UnaryOpExpr( Nodes.UnaryPreOp op, $2) }
+                {
+                    let op_id =
+                        Ast.Id (Nodes.UnaryPreOp op, pos $startpos(op) $endpos(op)) in
+                    Ast.UnaryOpExpr (op_id, $2, pos $startpos $endpos)
+                }
         |       op = NOT postfix_expression
-                { Ast.UnaryOpExpr( Nodes.UnaryPreOp op, $2) }
+                {
+                    let op_id =
+                        Ast.Id (Nodes.UnaryPreOp op, pos $startpos(op) $endpos(op)) in
+                    Ast.UnaryOpExpr (op_id, $2, pos $startpos $endpos)
+                }
         |       op = TIMES postfix_expression
-                { Ast.UnaryOpExpr( Nodes.UnaryPreOp op, $2) }
+                {
+                    let op_id =
+                        Ast.Id (Nodes.UnaryPreOp op, pos $startpos(op) $endpos(op)) in
+                    Ast.UnaryOpExpr (op_id, $2, pos $startpos $endpos)
+                }
         |       op = BITWISE_AND postfix_expression
-                { Ast.UnaryOpExpr( Nodes.UnaryPreOp op, $2) }
+                {
+                    let op_id =
+                        Ast.Id (Nodes.UnaryPreOp op, pos $startpos(op) $endpos(op)) in
+                    Ast.UnaryOpExpr (op_id, $2, pos $startpos $endpos)
+                }
 
 postfix_expression:
                 primary_expression { $1 }
@@ -525,7 +639,7 @@ postfix_expression:
                 { Ast.SubscriptingExpr ($1, $3) }
         |       traits_expression { $1 }
         |       postfix_expression argument_list
-                { Ast.CallExpr ($1, $2) }
+                { Ast.CallExpr ($1, $2, pos $startpos $endpos) }
 
 traits_expression:
                 statement_traits_expression { $1 }
@@ -560,11 +674,11 @@ primary_value:
 
 
 (**)
-rel_id:         rel_id_as_s { Ast.Id ($1, ()) }
+rel_id:         rel_id_as_s { Ast.Id ($1, pos $startpos $endpos) }
 
 rel_template_instance_id:
                 rel_id_as_s template_argument_list
-                { Ast.InstantiatedId ($1, $2, ()) }
+                { Ast.InstantiatedId ($1, $2, pos $startpos $endpos) }
 
 rel_generic_id:
                 rel_id { $1 }
@@ -581,7 +695,7 @@ rel_id_has_no_op_as_raw:
                 ID { $1 }
 
 rel_id_has_no_op_as_s:
-                rel_id_has_no_op_as_raw { Nodes.Pure ($1) }
+                rel_id_has_no_op_as_raw { Nodes.Pure $1 }
 
 rel_id_as_s:
                 binary_operator_as_s { $1 }
@@ -610,7 +724,8 @@ binary_operator_as_raw:
 
 binary_operator_as_s:
                 KEYWORD_OPERATOR
-                op = binary_operator_as_raw { Nodes.BinaryOp (op) }
+                op = binary_operator_as_raw
+                { Nodes.BinaryOp op }
 
 unary_operator_as_raw:
                 INCREMENT { $1 }
@@ -625,28 +740,28 @@ unary_operator_as_s:
                 op = unary_operator_as_raw
                 {
                     match order with
-                    | "pre" -> Nodes.UnaryPreOp (op)
-                    | "post" -> Nodes.UnaryPostOp (op)
+                    | "pre" -> Nodes.UnaryPreOp op
+                    | "post" -> Nodes.UnaryPostOp op
                     | _ -> failwith "[ICE] ..."
                 }
 
 
 (**)
 boolean_literal:
-                LIT_TRUE { Ast.BoolLit (true, ()) }
-        |       LIT_FALSE { Ast.BoolLit (false, ()) }
+                LIT_TRUE { Ast.BoolLit (true, pos $startpos $endpos) }
+        |       LIT_FALSE { Ast.BoolLit (false, pos $startpos $endpos) }
 
 numeric_literal:
-                INT { Ast.Int32Lit ($1, ()) }
+                INT { Ast.Int32Lit ($1, pos $startpos $endpos) }
 
 string_literal:
-                STRING { Ast.StringLit ($1, ()) }
+                STRING { Ast.StringLit ($1, pos $startpos $endpos) }
 
 array_literal:
                 LBRACKET
                 elems = separated_list(COMMA, expression)
                 RBRACKET
-                { Ast.ArrayLit (elems, ()) }
+                { Ast.ArrayLit (elems, pos $startpos $endpos) }
 
 (**)
 attribute:

@@ -13,10 +13,29 @@ open Sema_definitions
 open Sema_forward_ref
 open Sema_utils
 
-exception Instantiation_failed
+let rec print_error ?(loc=None) err =
+  match err with
+  | Error.DifferentArgNum (params_num, args_num) ->
+     Printf.printf "%s:\nError: requires %d but given %d\n" (Nodes.Loc.to_string loc) params_num args_num
+  | Error.ConvErr m ->
+     begin
+       Printf.printf "%s:\nError:\n" (Nodes.Loc.to_string loc);
+       let p k (msg, arg_loc) =
+         (* TODO: prinf arg_loc *)
+         Printf.printf "%s: %dth arg %s\n" (Nodes.Loc.to_string arg_loc) k msg
+       in
+       Error.PosMap.iter p m
+     end
+  | Error.NoMatch (errs, loc) ->
+     List.iter (fun err -> print_error ~loc:loc err) errs
 
-exception Error of string
+  | Error.Msg msg ->
+     Printf.printf "%s\n" msg
 
+
+(*
+* this function will raise exceptions. NError or Fatal_error.
+*)
 let rec construct_env node parent_env ctx opt_chain_attr =
   let void_t = get_void_aux ctx in
   match node with
@@ -26,13 +45,14 @@ let rec construct_env node parent_env ctx opt_chain_attr =
      end
 
   | TAst.StatementList (nodes) ->
-     let nodes, last =
+     let (nodes, last_ty) =
        let ce n =
          try construct_env n parent_env ctx opt_chain_attr
          with
-         | Error s ->
+         | NError err ->
             begin
-              Printf.printf "%s\n" s;
+              print_error err;
+              store_error_message "" ctx;
               (TAst.Error, void_t)
             end
        in
@@ -49,12 +69,12 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        p nodes
      in
 
-     TAst.StatementList nodes, last
+     (TAst.StatementList nodes, last_ty)
 
   | TAst.ExprStmt (TAst.PrevPassNode e) ->
      let (node, aux) = analyze_expr ~making_placeholder:false
-                                   e parent_env ctx opt_chain_attr in
-     TAst.ExprStmt node, aux
+                                    e parent_env ctx opt_chain_attr in
+     (TAst.ExprStmt node, aux)
 
 (*  | TAst.ScopeStmt (block) ->
      begin
@@ -90,7 +110,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
               let val_cat = Value_category.VCatPrValue in
               let lt = Env.get_scope_lifetime parent_env in
               let ml = Meta_level.Meta in (* TODO: fix *)
-              (None, (ty, val_cat, lt, ml))
+              (None, (ty, val_cat, lt, ml, Nodes.Loc.dummy))
             end
 
          | _ -> failwith "[ICE]"
@@ -103,7 +123,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
          | true ->
             (* return type will be inferenced *)
             begin
-              let (expr_ty, expr_val_cat, expr_lt, expr_ml) = expr_aux in
+              let (expr_ty, expr_val_cat, expr_lt, expr_ml, expr_loc) = expr_aux in
 
               let cur_ret_ty = ctx_env_r.Env.fn_return_type in
               match Type.type_sort cur_ret_ty with
@@ -143,13 +163,12 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        let opt_ret_expr = Option.map make_ret_expr opt_expr in
 
        let node = TAst.ReturnStmt opt_ret_expr in
-       node, get_void_aux ctx
+       (node, void_t)
      end
 
   | TAst.FunctionDefStmt (
         name, params_node, opt_ret_type, opt_cond, body, opt_attr, Some env
       ) ->
-     let void_t = get_void_aux ctx in
      if Env.is_checked env then Env.get_rel_ast env, void_t
      else begin
        (* TODO: check duplicate *)
@@ -205,7 +224,6 @@ let rec construct_env node parent_env ctx opt_chain_attr =
   | TAst.MemberFunctionDefStmt (
         name, params_node, opt_ret_type, body, opt_attr, Some env
       ) ->
-     let void_t = get_void_aux ctx in
      if Env.is_checked env then Env.get_rel_ast env, void_t
      else begin
        (* TODO: check duplicate *)
@@ -216,7 +234,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        let ctx_env = Option.get parent_env.Env.context_env in
 
        match name with
-       | s when s = ctor_name ->
+       | Nodes.Pure s when s = ctor_name ->
           begin
             (* this function is constructor. TODO: check default/copy/move/other
              * currently, treat as normal ctor *)
@@ -255,7 +273,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                                   Env.FnKindConstructor (Some this_venv),
                                   detail_r)
             in
-            complete_function_env env node ctor_name detail ctx;
+            complete_function_env env node ctor_id_name detail ctx;
 
             node, void_t
           end
@@ -315,7 +333,6 @@ let rec construct_env node parent_env ctx opt_chain_attr =
   | TAst.ExternFunctionDefStmt (
         name, params_node, ml, ret_type, extern_fname, opt_attr, Some env
       ) ->
-     let void_t = get_void_aux ctx in
      if Env.is_checked env then Env.get_rel_ast env, void_t
      else begin
        (* TODO: check duplicate *)
@@ -365,7 +382,6 @@ let rec construct_env node parent_env ctx opt_chain_attr =
 
   | TAst.ClassDefStmt (
         name, body, opt_attr, Some env) ->
-     let void_t = get_void_aux ctx in
      if Env.is_checked env then Env.get_rel_ast env, void_t
      else begin
        (* TODO: check duplicate *)
@@ -403,7 +419,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                                 Env.FnKindDefaultConstructor None)
          in
          check_function_env fenv [] Meta_level.Meta ty false;
-         complete_function_env fenv node ctor_name detail ctx;
+         complete_function_env fenv node ctor_id_name detail ctx;
 
          (* copy ctor *)
          let rhs_ty = make_class_type env Type_attr.Ref Type_attr.Const ctx in
@@ -414,7 +430,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                                Env.FnKindCopyConstructor None)
          in
          check_function_env fenv [rhs_ty] Meta_level.Meta ty false;
-         complete_function_env fenv node ctor_name detail ctx;
+         complete_function_env fenv node ctor_id_name detail ctx;
        in
        define_ctor ();
 
@@ -454,7 +470,6 @@ let rec construct_env node parent_env ctx opt_chain_attr =
 
   | TAst.ExternClassDefStmt (
         name, extern_cname, opt_attr, Some env) ->
-     let void_t = get_void_aux ctx in
      if Env.is_checked env then Env.get_rel_ast env, void_t
      else begin
        (* TODO: check duplicate *)
@@ -611,14 +626,16 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                 (* TODO: call default constructor *)
                 | None -> failwith "[ERROR] initial value is required";
               in
-              (* TODO: check void value *)
-              let (expr_ty, _, _, expr_ml) = expr_aux in
+              let (expr_ty, _, _, expr_ml, _) = expr_aux in
+              if Type.has_same_class expr_ty (get_builtin_void_incomplate_type ctx) then
+                error_msg "rhs is void type";
+
               let var_ty =
                 Type.Generator.update_attr_r ctx.sc_tsets.ts_type_gen expr_ty
                                              var_attr
               in
               (* TODO: if var has meta level, qual must be immutable/const val *)
-              let (conved_node, (_, _, _, conved_ml)) =
+              let (conved_node, (_, _, _, conved_ml, _)) =
                 adjust_expr_for_type var_ty expr_node expr_aux
                                      parent_env ctx opt_chain_attr
               in
@@ -661,7 +678,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        r.Env.var_detail <- detail_r;
 
        complete_env venv node;
-       node, get_void_aux ctx
+       (node, void_t)
      end
 
   | TAst.EmptyStmt -> node, get_void_aux ctx
@@ -675,8 +692,9 @@ let rec construct_env node parent_env ctx opt_chain_attr =
 and analyze_expr ?(making_placeholder=false)
                  ?(enable_ufcs=false)
                  node parent_env ctx attr : ('node * TAst.term_aux_t) =
+  let void_t = get_void_aux ctx in
   match node with
-  | Ast.BinaryOpExpr (lhs, op, rhs) ->
+  | Ast.BinaryOpExpr (lhs, op, rhs, loc) ->
      begin
        let args = [lhs; rhs] in
        let res = analyze_operator op args parent_env ctx attr in
@@ -687,7 +705,7 @@ and analyze_expr ?(making_placeholder=false)
           failwith "binary operator is not found"
      end
 
-  | Ast.UnaryOpExpr (op, expr) ->
+  | Ast.UnaryOpExpr (op, expr, loc) ->
      begin
        let args = [expr] in
        let res = analyze_operator op args parent_env ctx attr in
@@ -698,9 +716,9 @@ and analyze_expr ?(making_placeholder=false)
           failwith "unary operator is not found"
      end
 
-  | Ast.CallExpr (reciever, args) ->
+  | Ast.CallExpr (reciever, args, loc) ->
      begin
-       let (recv_node, (recv_type_info, recv_val_cat, recv_lt, recv_ml)) =
+       let (recv_node, (recv_type_info, recv_val_cat, recv_lt, recv_ml, _)) =
          analyze_expr ~making_placeholder:making_placeholder
                       ~enable_ufcs:true
                       reciever parent_env ctx attr
@@ -712,7 +730,7 @@ and analyze_expr ?(making_placeholder=false)
        let (arg_exprs, arg_auxs) = eargs |> List.split in
        (*List.iter check_is_args_valid args_types;*)
 
-       let (_, _, _, arg_metalevels) = split_aux arg_auxs in
+       let (_, _, _, arg_metalevels, _) = split_aux arg_auxs in
        let args_bottom_ml = Meta_level.calc_bottom arg_metalevels in
 
        let {
@@ -734,7 +752,7 @@ and analyze_expr ?(making_placeholder=false)
               let args = List.combine arg_exprs arg_auxs in
               let (f_env, conv_filters, args) =
                 solve_function_overload args template_args
-                                        menv parent_env ctx attr
+                                        menv parent_env loc ctx attr
               in
 
               let n_eargs =
@@ -750,7 +768,6 @@ and analyze_expr ?(making_placeholder=false)
               let f_ret_val_cat = ret_val_category f_ret_ty ctx in
               let f_ret_lt = Env.get_scope_lifetime parent_env in (* TODO: fix *)
               let f_ret_ml = args_bottom_ml in (* TODO: fix, use meta_level of return type *)
-
               let f_ml = f_env.Env.meta_level in
 
               Printf.printf "        FUNCTION %s => %s\n" (Nodes.string_of_id_string f_er.Env.fn_name) (Meta_level.to_string f_ml);
@@ -761,7 +778,8 @@ and analyze_expr ?(making_placeholder=false)
                              n_earg_exprs,
                              Some parent_env,
                              Some f_env) in
-              (node, (f_ret_ty, f_ret_val_cat, f_ret_lt, f_ret_ml), f_ml)
+              let node_aux = (f_ret_ty, f_ret_val_cat, f_ret_lt, f_ret_ml, loc) in
+              (node, node_aux, f_ml)
             end
 
          (* constructor / operator call *)
@@ -778,14 +796,14 @@ and analyze_expr ?(making_placeholder=false)
               (* call constructor *)
               (* TODO: take into account op call *)
               let res = solve_basic_identifier ~do_rec_search:false
-                                               ctor_name recv_cenv ctx attr in
+                                               ctor_id_name recv_cenv ctx attr in
               let (_, ctor_env, _) = match res with
                 | Some v -> v
                 | None -> failwith "constructor not found"
               in
               let f_conv =
                 solve_function_overload eargs []
-                                        ctor_env parent_env ctx attr
+                                        ctor_env parent_env loc ctx attr
               in
 
               (**)
@@ -812,7 +830,7 @@ and analyze_expr ?(making_placeholder=false)
                              n_earg_exprs,
                              Some parent_env,
                              Some f_env) in
-              (node, (recv_ty, VCatPrValue, f_ret_lt, f_ret_ml), f_ml)
+              (node, (recv_ty, VCatPrValue, f_ret_lt, f_ret_ml, loc), f_ml)
             end
 
          | _ -> failwith "not implemented//" (* TODO: call ctor OR operator() *)
@@ -822,7 +840,7 @@ and analyze_expr ?(making_placeholder=false)
            begin
              (* TODO: check whether the variable is ctfeable.
               * Ex. it must have trivial destructor *)
-             let (ty, _, _, ret_ml) = aux in
+             let (ty, _, _, ret_ml, _) = aux in
              let ctfe_v =
                eval_texpr_as_ctfe node ty ret_ml
                                   parent_env ctx None
@@ -836,12 +854,13 @@ and analyze_expr ?(making_placeholder=false)
 
   | Ast.ElementSelectionExpr (lhs, rhs, _) ->
      begin
+       let loc = None in
        let (lhs_node, lhs_aux) =
          analyze_expr ~making_placeholder:making_placeholder
                       lhs parent_env ctx attr
        in
 
-       let (lhs_ty, _, _, _) = lhs_aux in
+       let (lhs_ty, _, _, _, _) = lhs_aux in
        match Type.type_sort lhs_ty with
        | Type_info.UniqueTy lhs_type_cenv ->
           begin
@@ -855,7 +874,7 @@ and analyze_expr ?(making_placeholder=false)
                let prop_ty = propagate_type_attrs rhs_ty lhs_ty ctx in
                let lt = Env.get_scope_lifetime parent_env in (* TODO: fix *)
                let ml = Meta_level.Runtime in (* TODO: fix *)
-               (node, (prop_ty, VCatLValue, lt, ml))
+               (node, (prop_ty, VCatLValue, lt, ml, loc))
 
             | None ->
                failwith "[ERR] member is not found"
@@ -875,6 +894,7 @@ and analyze_expr ?(making_placeholder=false)
 
   | Ast.StatementTraitsExpr (keyword, block) ->
      begin
+       let loc = None in
        match keyword with
        | "semantics" ->
           begin
@@ -905,13 +925,13 @@ and analyze_expr ?(making_placeholder=false)
                                 | _ -> false
             in
             let node = TAst.BoolLit (could_compile, ty) in
-            (node, (ty, VCatPrValue, Env.get_scope_lifetime parent_env, Meta_level.Meta))
+            (node, (ty, VCatPrValue, Env.get_scope_lifetime parent_env, Meta_level.Meta, loc))
           end
        | _ -> failwith @@ "__statement_traits : not implemented / " ^ keyword
      end
 
-  | (Ast.Id (name, _) as id_node)
-  | (Ast.InstantiatedId (name, _, _) as id_node) ->
+  | (Ast.Id (name, loc) as id_node)
+  | (Ast.InstantiatedId (name, _, loc) as id_node) ->
      begin
        let res =
          solve_identifier ~making_placeholder:making_placeholder
@@ -920,8 +940,7 @@ and analyze_expr ?(making_placeholder=false)
        let (ty, trg_env, ml) = match res with
          | Some v -> v
          | None ->
-            (* TODO: change to exception *)
-            raise (Error ("id not found : " ^ (Nodes.string_of_id_string name)))
+            error_msg ("id not found : " ^ (Nodes.string_of_id_string name))
        in
        let lt = Env.get_scope_lifetime parent_env in (* TODO: fix *)
 
@@ -929,10 +948,10 @@ and analyze_expr ?(making_placeholder=false)
 
        (* both of id and instantiated_id will be id node *)
        let node = TAst.GenericId (name, Some trg_env) in
-       (node, (ty, VCatLValue, lt, ml))
+       (node, (ty, VCatLValue, lt, ml, loc))
      end
 
-  | Ast.Int32Lit (i, _) ->
+  | Ast.Int32Lit (i, loc) ->
      begin
        let attr = {
          Type_attr.ta_ref_val = Type_attr.Val;
@@ -942,10 +961,10 @@ and analyze_expr ?(making_placeholder=false)
        assert_valid_type ty;
        let node = TAst.Int32Lit (i, ty) in
 
-       (node, (ty, VCatPrValue, Env.get_scope_lifetime parent_env, Meta_level.Meta))
+       (node, (ty, VCatPrValue, Env.get_scope_lifetime parent_env, Meta_level.Meta, loc))
      end
 
-  | Ast.BoolLit (b, _) ->
+  | Ast.BoolLit (b, loc) ->
      begin
        let attr = {
          Type_attr.ta_ref_val = Type_attr.Val;
@@ -955,10 +974,10 @@ and analyze_expr ?(making_placeholder=false)
        assert_valid_type ty;
        let node = TAst.BoolLit (b, ty) in
 
-       (node, (ty, VCatPrValue, Env.get_scope_lifetime parent_env, Meta_level.Meta))
+       (node, (ty, VCatPrValue, Env.get_scope_lifetime parent_env, Meta_level.Meta, loc))
      end
 
-  | Ast.StringLit (str, _) ->
+  | Ast.StringLit (str, loc) ->
      begin
        let attr = {
          Type_attr.ta_ref_val = Type_attr.Val;
@@ -969,10 +988,10 @@ and analyze_expr ?(making_placeholder=false)
        assert_valid_type ptr_ty;
 
        let n_ptr = TAst.StringLit (str, ptr_ty) in
-       (n_ptr, (ptr_ty, VCatPrValue, Env.get_scope_lifetime parent_env, Meta_level.Meta))
+       (n_ptr, (ptr_ty, VCatPrValue, Env.get_scope_lifetime parent_env, Meta_level.Meta, loc))
      end
 
-  | Ast.ArrayLit (elems, _) ->
+  | Ast.ArrayLit (elems, loc) ->
      begin
        (* evaluate all elementes *)
        let (n_nodes, n_auxs) =
@@ -981,7 +1000,7 @@ and analyze_expr ?(making_placeholder=false)
                                             e parent_env ctx attr)
          |> List.split
        in
-       let n_types = List.map (fun t -> Tuple4.first t) n_auxs in
+       let n_types = List.map (fun t -> Tuple5.first t) n_auxs in
        (* TODO: fix, calc undelying types(and attrs) and convert them *)
        let elem_ty = List.hd n_types in
 
@@ -993,7 +1012,7 @@ and analyze_expr ?(making_placeholder=false)
        assert_valid_type array_ty;
        let n_array = TAst.ArrayLit (n_nodes, array_ty) in
        (* TODO: FIX *)
-       (n_array, (array_ty, VCatPrValue, Env.get_scope_lifetime parent_env, Meta_level.Meta))
+       (n_array, (array_ty, VCatPrValue, Env.get_scope_lifetime parent_env, Meta_level.Meta, loc))
      end
 
   | Ast.ScopeExpr (block) ->
@@ -1038,11 +1057,11 @@ and analyze_expr ?(making_placeholder=false)
             in
             let (e, aux) = analyze_expr else_expr else_scope_env ctx attr in
             (Some e, aux)
-         | None -> (None, get_void_aux ctx)
+         | None -> (None, void_t)
        in
 
-       let (then_ty, _, _, _) = then_aux in
-       let (else_ty, _, _, _) = else_aux in
+       let (then_ty, _, _, _, _) = then_aux in
+       let (else_ty, _, _, _, _) = else_aux in
        if not (Type.is_same then_ty else_ty) then
          failwith "[ERR]";
 
@@ -1087,7 +1106,7 @@ and analyze_expr ?(making_placeholder=false)
        let (nbody, body_aux) = analyze_expr body body_env ctx attr in
 
        let node = TAst.ForExpr (nopt_var_decl, nopt_cond, nopt_step, nbody) in
-       node, get_void_aux ctx
+       (node, void_t)
      end
 
   | _ ->
@@ -1097,16 +1116,15 @@ and analyze_expr ?(making_placeholder=false)
      end
 
 
-and analyze_operator op args parent_env ctx attr =
+and analyze_operator op_id args parent_env ctx attr =
   let eargs = evaluate_invocation_args args parent_env ctx attr in
   let (arg_exprs, arg_auxs) = List.split eargs in
   (*List.iter check_is_args_valid args_types_cats;*)
 
-  let (_, _, _, arg_metalevels) = split_aux arg_auxs in
+  let (_, _, _, arg_metalevels, _) = split_aux arg_auxs in
   let args_bottom_ml = Meta_level.calc_bottom arg_metalevels in
 
   (*List.iter print_type args_types;*)
-  let op_id = Ast.Id (op, ()) in
   let opt_fs_and_args =
     find_suitable_operator ~universal_search:true
                            op_id eargs parent_env ctx attr in
@@ -1130,7 +1148,7 @@ and analyze_operator op args parent_env ctx attr =
                    n_earg_exprs,
                    Some parent_env,
                    Some f_env) in
-    (node, (f_ret_ty, f_ret_val_cat, f_lt, f_ml))
+    (node, (f_ret_ty, f_ret_val_cat, f_lt, f_ml, None))
   in
   Option.map analyze opt_fs_and_args
 
@@ -1436,7 +1454,7 @@ and try_to_complete_env env ctx =
 
 and convert_type trg_ty src_arg ext_env ctx attr =
   let (_, src_aux) = src_arg in
-  let (src_ty, src_val_cat, src_lt, src_ml) = src_aux in
+  let (src_ty, src_val_cat, src_lt, src_ml, _) = src_aux in
   Printf.printf "convert_type\n";
   Type.print trg_ty;
   Type.print src_ty;
@@ -1450,7 +1468,7 @@ and convert_type trg_ty src_arg ext_env ctx attr =
          (* copy val/ref to value *)
          let cenv = Type.as_unique trg_ty in
          let res = solve_basic_identifier ~do_rec_search:false
-                                          ctor_name cenv ctx attr in
+                                          ctor_id_name cenv ctx attr in
          let (_, ctor_env, _) = match res with
            | Some v -> v
            | None -> failwith "constructor not found"
@@ -1473,14 +1491,14 @@ and convert_type trg_ty src_arg ext_env ctx attr =
          in
 
          let solve_dup_ctor pred =
-           (* NOTICE: copy/move ctors must have a no val paramater at 0th position,
+           (* NOTICE: copy/move ctors must have a ref paramater at 0th position,
             * because it will cause infinite loop of to call "convert_type"
             *)
            let funcs = List.filter_map pred ctor_fenvs in
            let selected = find_suitable_functions funcs [src_arg] ext_env ctx attr in
            let fns = match selected with
-             | (FuncMatchLevel.ExactMatch, fs)
-             | (FuncMatchLevel.QualConv, fs) -> fs
+             | (FuncMatchLevel.ExactMatch, fs, _)
+             | (FuncMatchLevel.QualConv, fs, _) -> fs
              | _ -> []
            in
            List.map (fun (f, _, _) -> f) fns
@@ -1655,12 +1673,12 @@ and apply_conv_filter ?(exit_scope=false)
                  trg_ty
                  ctx
      in
-     let (_, _, _, expr_ml) = expr_aux in
+     let (_, _, _, expr_ml, _) = expr_aux in
      (* TODO: use default arguments *)
      let node = TAst.GenericCallExpr (ref sto, [expr], Some ext_env, Some f_env) in
      let lt = Env.get_scope_lifetime ext_env in (* TODO: fix *)
      let ml = expr_ml in (* TODO: fix *)
-     let aux = (trg_ty, VCatPrValue, lt, ml) in
+     let aux = (trg_ty, VCatPrValue, lt, ml, None) in
      (node, aux)
 
   | None -> (expr, expr_aux)
@@ -1716,7 +1734,7 @@ and extract_ctfe_val_as_type ctfe_val : type_info_t =
 
 and eval_expr_as_ctfe ?(making_placeholder=false) expr env ctx attr =
   Printf.printf "----> eval_expr_as_ctfe : begin ; \n";
-  let (nexpr, (ty, _, _, ml)) =
+  let (nexpr, (ty, _, _, ml, _)) =
     analyze_expr ~making_placeholder:making_placeholder
                  expr env ctx attr
   in
@@ -1783,7 +1801,7 @@ and find_suitable_operator ?(universal_search=false)
     match ty_sort with
     | Type_info.FunctionSetTy menv ->
        solve_function_overload eargs template_args
-                               menv env ctx attr
+                               menv env None ctx attr
     | _ -> failwith "[ICE]: operator must be defined as function"
   in
   match opt_callee_function_info with
@@ -1792,7 +1810,7 @@ and find_suitable_operator ?(universal_search=false)
 
 
 (* returns Env of function *)
-and solve_function_overload eargs tamplate_args mset_env ext_env ctx attr =
+and solve_function_overload eargs tamplate_args mset_env ext_env loc ctx attr =
   let (args, arg_auxs) = List.split eargs in
   let mset_record = match mset_env.Env.er with
     | Env.MultiSet r -> r
@@ -1803,37 +1821,40 @@ and solve_function_overload eargs tamplate_args mset_env ext_env ctx attr =
     failwith "[ICE] solve_function_overload : sort of menv must be function.";
 
   (* move the sequence of onlymeta args to template args *)
-  let (_, onlymeta_args_num) =
-    let f (hdf, num) arg_aux =
-      if not hdf then
-        let (_, _, _, ml) = arg_aux in
-        Printf.printf "%s\n" (Meta_level.to_string ml);
-        match ml with
-        | Meta_level.OnlyMeta -> (hdf, num + 1)
-        | _ -> (true, num)
-      else
-        (hdf, num)
+  let (eargs, tamplate_args) =
+    let (_, onlymeta_args_num) =
+      let f (hdf, num) arg_aux =
+        if not hdf then
+          let (_, _, _, ml, _) = arg_aux in
+          Printf.printf "%s\n" (Meta_level.to_string ml);
+          match ml with
+          | Meta_level.OnlyMeta -> (hdf, num + 1)
+          | _ -> (true, num)
+        else
+          (hdf, num)
+      in
+      List.fold_left f (false, 0) arg_auxs
     in
-    List.fold_left f (false, 0) arg_auxs
-  in
-  let (meta_args, eargs) = List.split_at onlymeta_args_num eargs in
-  let evaled_meta_args =
-    let f earg =
-      let (arg, (ty, _, _, ml)) = earg in
-      eval_texpr_as_ctfe arg ty ml ext_env ctx None
-    in
-    List.map f meta_args
-  in
-  let tamplate_args = evaled_meta_args @ tamplate_args in
+    Printf.printf "^^^^^^^^^^^^^^^^^^^^^^^ %d\n" onlymeta_args_num;
 
+    let (meta_args, eargs) = List.split_at onlymeta_args_num eargs in
+    let evaled_meta_args =
+      let f earg =
+        let (arg, (ty, _, _, ml, _)) = earg in
+        eval_texpr_as_ctfe arg ty ml ext_env ctx None
+      in
+      List.map f meta_args
+    in
+    let template_args = evaled_meta_args @ tamplate_args in
+    (eargs, template_args)
+  in
   let (args, arg_auxs) = List.split eargs in
-  Printf.printf "^^^^^^^^^^^^^^^^^^^^^^^ %d\n" onlymeta_args_num;
 
-  let (f_level, fs_and_args) = match tamplate_args with
+  let (f_level, fs_and_args, errs) = match tamplate_args with
     (* has no template args *)
     | [] ->
        begin
-         let (normal_f_level, normal_fs_and_args) =
+         let (normal_f_level, normal_fs_and_args, nerrs) =
            find_suitable_functions mset_record.Env.ms_normal_instances
                                    eargs
                                    ext_env ctx attr
@@ -1844,7 +1865,7 @@ and solve_function_overload eargs tamplate_args mset_env ext_env ctx attr =
 
          match normal_f_level with
          | FuncMatchLevel.ExactMatch ->
-            (normal_f_level, normal_fs_and_args)
+            (normal_f_level, normal_fs_and_args, [])
 
          (* template functions might have more suitable ones than normal ones *)
          | _ ->
@@ -1853,16 +1874,16 @@ and solve_function_overload eargs tamplate_args mset_env ext_env ctx attr =
                 instantiate_function_templates mset_env [] arg_auxs ext_env ctx attr
               in
 
-              let (instanced_f_level, instanced_fs_and_args) =
+              let (instanced_f_level, instanced_fs_and_args, terrs) =
                 find_suitable_functions instanced_envs eargs ext_env ctx attr
               in
               Printf.printf "!! instanced function candidates = %s / %d\n"
                             (FuncMatchLevel.to_string instanced_f_level)
                             (List.length instanced_fs_and_args);
               if FuncMatchLevel.is_better instanced_f_level normal_f_level then
-                (instanced_f_level, instanced_fs_and_args)
+                (instanced_f_level, instanced_fs_and_args, terrs)
               else
-                (normal_f_level, normal_fs_and_args)
+                (normal_f_level, normal_fs_and_args, nerrs)
             end
      end
 
@@ -1879,17 +1900,17 @@ and solve_function_overload eargs tamplate_args mset_env ext_env ctx attr =
   in
 
   if f_level = FuncMatchLevel.NoMatch then
-    failwith "[ERR] no match";  (* TODO: change to exception *)
+    error (Error.NoMatch (errs, loc));
 
   assert (List.length fs_and_args <> 0);
   if (List.length fs_and_args) > 1 then
-    failwith "[ERR] anbigous";  (* TODO: change to exception *)
+    error_msg "[ERR] anbigous";
 
   List.hd fs_and_args
 
 
 and find_suitable_functions f_candidates args ext_env ctx attr
-  : FuncMatchLevel.t * (env_t * conv_filter_t list * earg_t list) list =
+    : FuncMatchLevel.t * (env_t * conv_filter_t list * earg_t list) list * Error.t list =
   Printf.printf "number of candidates = %d\n" (List.length f_candidates);
 
   let calc_match_level f_env =
@@ -1898,46 +1919,67 @@ and find_suitable_functions f_candidates args ext_env ctx attr
 
     (* check number of args *)
     (* TODO: support dynamic variadic args *)
-    if (List.length f_record.Env.fn_param_types <> List.length args) then
-      (FuncMatchLevel.NoMatch, Env.undef (), [], [])
+    let params_num = List.length f_record.Env.fn_param_types in
+    let args_num = List.length args in
+    if params_num <> args_num then
+      let err = Error.DifferentArgNum (params_num, args_num) in
+      (FuncMatchLevel.NoMatch, f_env, [], args, Some err)
 
     else begin
-      let (match_levels, conv_funcs) =
-        let conv src_arg trg_ty =
-          convert_type trg_ty src_arg ext_env ctx attr
+      let (match_levels, conv_funcs, _, errmap) =
+        let conv src_arg trg_ty (match_levels, conv_funcs, idx, errmap) =
+          let (l, f) = convert_type trg_ty src_arg ext_env ctx attr in
+          let pos = pos_of_earg src_arg in
+          let errmap = match l with
+            | FuncMatchLevel.NoMatch ->
+               begin
+                 let m = match errmap with
+                   | Some (m) -> m
+                   | None -> Error.PosMap.empty
+                 in
+                 let m = Error.PosMap.add idx ("nomatch", pos) m in
+                 Some m
+               end
+            | _ -> errmap
+          in
+          (l::match_levels, f::conv_funcs, (idx+1), errmap)
         in
-        List.map2 conv args f_record.Env.fn_param_types
-        |> List.split
+        List.fold_right2 conv args f_record.Env.fn_param_types ([], [], 0, None)
       in
 
       (* most unmatch level of parameters becomes function match level *)
       let total_f_level =
         List.fold_left FuncMatchLevel.bottom FuncMatchLevel.ExactMatch match_levels in
 
-      (total_f_level, f_env, conv_funcs, args)
+      let err = Option.map (fun m -> Error.ConvErr m) errmap in
+      (total_f_level, f_env, conv_funcs, args, err)
     end
   in
 
-  let collect (cur_order, fs_and_args) candidate
-    : FuncMatchLevel.t * (env_t * conv_filter_t list * earg_t list) list =
-    let (total_f_level, f_env, conv_funcs, args) = calc_match_level candidate in
+  let collect (cur_order, fs_and_args, errs) candidate
+    : FuncMatchLevel.t * (env_t * conv_filter_t list * earg_t list) list * Error.t list =
+    let (total_f_level, f_env, conv_funcs, args, err) = calc_match_level candidate in
+    let errs = match err with
+      | Some e -> e :: errs
+      | None -> errs
+    in
     if FuncMatchLevel.is_better total_f_level cur_order then
       (* if more better function is found, remake candidates and raise level *)
-      (total_f_level, [(f_env, conv_funcs, args)])
+      (total_f_level, [(f_env, conv_funcs, args)], errs)
     else if FuncMatchLevel.is_same total_f_level cur_order then
       (* if this function has same match level, add to candicates *)
-      (cur_order, (f_env, conv_funcs, args) :: fs_and_args)
+      (cur_order, (f_env, conv_funcs, args) :: fs_and_args, errs)
     else
       (* ignore(do NOT append) function which has lower match level *)
-      (cur_order, fs_and_args)
+      (cur_order, fs_and_args, errs)
   in
-  let (level, fs_and_args) =
-    List.fold_left collect (FuncMatchLevel.NoMatch, []) f_candidates in
+  let (level, fs_and_args, errs) =
+    List.fold_left collect (FuncMatchLevel.NoMatch, [], []) f_candidates in
 
   if level = FuncMatchLevel.NoMatch then
-    (level, [])
+    (level, [], errs)
   else
-    (level, fs_and_args)
+    (level, fs_and_args, errs)
 
 
 and instantiate_function_templates menv template_args arg_auxs ext_env ctx attr =
@@ -1975,7 +2017,7 @@ and instantiate_function_templates menv template_args arg_auxs ext_env ctx attr 
     let params_type_value = List.map (fun x -> Ctfe_value.Type x) param_types in
     let args_type_value =
       arg_auxs
-      |> List.map (fun t -> let (ty, cat, lt, ml) = t in ty)
+      |> List.map (fun t -> let (ty, cat, lt, ml, _) = t in ty)
       |> List.map (fun x -> Ctfe_value.Type x)
     in
     Enum.iter2 (unify_arg_value ctx)
@@ -2137,7 +2179,7 @@ and prepare_template_params params_node ctx =
 and select_member_element ?(universal_search=false)
                           recv_aux t_id env ctx attr
   : (type_info_t * 'env * Meta_level.t) option =
-  let (recv_ty, _, _, _) = recv_aux in
+  let (recv_ty, _, _, _, _) = recv_aux in
   let recv_cenv = Type.as_unique recv_ty in
   Env.print recv_cenv;
   let opt_ty_ctx = solve_identifier ~do_rec_search:false
@@ -2377,7 +2419,7 @@ and complate_template_instance ?(making_placeholder=false)
          let scope_env = temp_env in
          let (n_cond_expr, cond_aux) = analyze_expr cond scope_env ctx attr in
          let bool_ty = get_builtin_bool_type default_ty_attr ctx in
-         let (conved_cond_node, (_, _, _, cond_ml)) =
+         let (conved_cond_node, (_, _, _, cond_ml, _)) =
            adjust_expr_for_type bool_ty n_cond_expr cond_aux
                                 scope_env ctx attr
          in
@@ -2476,8 +2518,8 @@ and make_class_type cenv rv mut ctx =
 
 
 and declare_incomple_ctor cenv =
-  let base_env = Env.MultiSetOp.find_or_add cenv ctor_name Env.Kind.Function in
-  let fenv_r = Env.FunctionOp.empty_record ctor_name in
+  let base_env = Env.MultiSetOp.find_or_add cenv ctor_id_name Env.Kind.Function in
+  let fenv_r = Env.FunctionOp.empty_record ctor_id_name in
 
   let fenv = Env.create_context_env cenv (
                                       Env.Function (
@@ -2513,7 +2555,7 @@ and define_trivial_default_ctor_for_builtin cenv extern_cname ctx =
                          Env.FnKindDefaultConstructor None,
                          (Builtin_info.make_builtin_default_ctor_name extern_cname))
   in
-  complete_function_env fenv node ctor_name detail ctx
+  complete_function_env fenv node ctor_id_name detail ctx
 
 
 and define_trivial_copy_ctor_for_builtin cenv extern_cname ctx =
@@ -2531,7 +2573,7 @@ and define_trivial_copy_ctor_for_builtin cenv extern_cname ctx =
     check_function_env fenv [rhs_ty] Meta_level.Meta ty false;
 
     let node = TAst.GenericFuncDef (None, Some fenv) in
-    complete_function_env fenv node ctor_name detail ctx
+    complete_function_env fenv node ctor_id_name detail ctx
   in
   define Type_attr.Immutable;
   define Type_attr.Const;
@@ -2555,8 +2597,12 @@ and define_trivial_copy_assign_for_builtin cenv extern_cname ctx =
   complete_function_env fenv node assign_name detail ctx
 
 
-and get_builtin_void_type attr ctx : 'env type_info =
+and get_builtin_void_incomplate_type ctx : 'env type_info =
   ctx.sc_tsets.ts_void_type
+
+and get_builtin_void_type attr ctx : 'env type_info =
+  let ty = get_builtin_void_incomplate_type ctx in
+  Type.Generator.update_attr_r ctx.sc_tsets.ts_type_gen ty attr
 
 and get_builtin_bool_type attr ctx : 'env type_info =
   let ty = !(ctx.sc_tsets.ts_bool_type_holder) in
@@ -2570,8 +2616,8 @@ and get_builtin_int_type ~bits ~signed attr ctx : 'env type_info =
   let ty = match bits with
     | 8 -> if signed then
              failwith "[ICE] get builtin int type"
-            else
-              !(ctx.sc_tsets.ts_uint8_type_holder)
+           else
+             !(ctx.sc_tsets.ts_uint8_type_holder)
     | 32 -> if signed then
               !(ctx.sc_tsets.ts_int32_type_holder)
             else
@@ -2724,4 +2770,4 @@ and analyze_t ?(meta_variables=[]) ?(opt_attr=None) node env ctx =
 
 and get_void_aux ctx =
   let ty = get_builtin_void_type default_ty_attr ctx in
-  (ty, VCatPrValue, Type_attr.Static, Meta_level.Meta)
+  (ty, VCatPrValue, Type_attr.Static, Meta_level.Meta, None)

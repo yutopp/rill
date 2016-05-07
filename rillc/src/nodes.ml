@@ -6,21 +6,40 @@
  * http://www.boost.org/LICENSE_1_0.txt)
  *)
 
+module Loc = struct
+  type info_t = {
+    pos_fname         : string;
+    pos_begin_cnum    : int;
+    pos_begin_lnum    : int;
+    pos_begin_bol     : int;
+    pos_end_cnum      : int;
+    pos_end_lnum      : int;
+    pos_end_bol       : int;
+  }
+
+  type t = info_t option
+  let dummy = None
+
+  let to_string opt_loc =
+    match opt_loc with
+    | Some loc ->
+       Printf.sprintf "File %s, line %d, charactor %d" loc.pos_fname loc.pos_begin_lnum loc.pos_begin_bol
+    | None -> "Unknown location"
+end
+
+
 type id_string =
     Pure of string
   | UnaryPreOp of string
   | UnaryPostOp of string
   | BinaryOp of string
 
-let string_of_binary_op s =
-  "op_binary_" ^ s
-
 let string_of_id_string id_s =
   match id_s with
   | Pure s -> s
   | UnaryPreOp s -> "op_unary_pre_" ^ s
   | UnaryPostOp s -> "op_unary_post_" ^ s
-  | BinaryOp s -> string_of_binary_op s
+  | BinaryOp s -> "op_binary_" ^ s
 
 
 module type NodeContextType =
@@ -61,12 +80,12 @@ module Make (Ctx : NodeContextType) =
       (*
        * expressions
        *)
-      | BinaryOpExpr of ast * id_string * ast
-      | UnaryOpExpr of id_string * ast
+      | BinaryOpExpr of ast * ast * ast * term_ctx_t    (* lhs * op * rhs *)
+      | UnaryOpExpr of ast * ast * term_ctx_t           (* op * rhs *)
 
       | ElementSelectionExpr of ast * ast * ctx_t
       | SubscriptingExpr of ast * ast option
-      | CallExpr of ast * ast list
+      | CallExpr of ast * ast list * term_ctx_t
       | ScopeExpr of ast
       | IfExpr of ast * ast * ast option
       | ForExpr of ast option * ast option * ast option * ast
@@ -77,8 +96,8 @@ module Make (Ctx : NodeContextType) =
       (*
        * values
        *)
-      | Id of id_string * ctx_t
-      | InstantiatedId of id_string * ast list * ctx_t
+      | Id of id_string * term_ctx_t
+      | InstantiatedId of id_string * ast list * term_ctx_t
       | Int32Lit of int * term_ctx_t
       | StringLit of string * term_ctx_t
       | BoolLit of bool * term_ctx_t
@@ -103,7 +122,7 @@ module Make (Ctx : NodeContextType) =
       | NestedExpr of ast * term_aux_t * term_ctx_t * ctx_t
 
 
-     and term_aux_t = (term_ctx_t * Value_category.t * Type_attr.lifetime_t * Meta_level.t)
+     and term_aux_t = (term_ctx_t * Value_category.t * Type_attr.lifetime_t * Meta_level.t * Loc.t)
 
      (* attr * id? * value *)
      and param_init_t = Type_attr.attr_t * string option * value_init_t
@@ -175,14 +194,14 @@ module Make (Ctx : NodeContextType) =
          end
 
 
-      | BinaryOpExpr (lhs, op, rhs) ->
+      | BinaryOpExpr (lhs, op, rhs, _) ->
          begin
-           print lhs; print_string (string_of_id_string op); print rhs
+           print lhs; print op; print rhs
          end
 
-      | UnaryOpExpr (op, expr) ->
+      | UnaryOpExpr (op, expr, _) ->
          begin
-           print_string (string_of_id_string op); print expr
+           print op; print expr
          end
 
       | ElementSelectionExpr (recv, sel, _) ->
@@ -190,7 +209,7 @@ module Make (Ctx : NodeContextType) =
            print recv; print_string "."; print sel
          end
 
-      | CallExpr (recv, args) ->
+      | CallExpr (recv, args, _) ->
          begin
            print recv; print_string "(\n";
            List.iter (fun arg -> print arg; print_string ",\n") args;

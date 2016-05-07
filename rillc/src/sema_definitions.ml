@@ -19,6 +19,7 @@ type type_gen_t = env_t Type.Generator.t
 type conv_filter_t = (type_info_t * env_t) option
 type earg_t = TAst.ast * TAst.term_aux_t
 
+
 type 'env ctx_t = {
   sc_root_env       : 'env;
   mutable sc_builtin_m_env  : 'env option;
@@ -38,6 +39,32 @@ type 'env ctx_t = {
   (* errors *)
   mutable sc_errors : string list;
 }
+
+let store_error_message msg ctx =
+  ctx.sc_errors <- msg :: ctx.sc_errors
+
+
+exception Instantiation_failed
+
+exception Fatal_error of string
+let fatal_error msg =
+  raise (Fatal_error msg)
+
+module Error = struct
+  module PosMap = Map.Make(Int)
+  type t =
+    | DifferentArgNum of int * int (* num of params * num of args *)
+    | ConvErr of (string * Nodes.Loc.t) PosMap.t
+    | NoMatch of t list * Nodes.Loc.t
+    | Msg of string
+end
+
+exception NError of Error.t
+let error err =
+  raise (NError err)
+
+let error_msg msg =
+  raise (NError (Error.Msg msg))
 
 
 module FuncMatchLevel =
@@ -83,7 +110,9 @@ module FuncMatchLevel =
   end
 
 
-let ctor_name = Nodes.Pure "ctor"
+let ctor_name = "ctor"
+let ctor_id_name = Nodes.Pure ctor_name
+
 let assign_name = Nodes.BinaryOp "="
 
 (* default qual *)
