@@ -16,25 +16,26 @@ let string_of_tdir td = match td with
   | Compilable -> "compilable"
   | Runnable -> "runnable"
 
-
 type context_t = {
   compiler_bin:     string;
 }
 
+type executed_status =
+    Success
+  | Failure of int * string
 
-let is_success x =
-  x = true
+let is_success x = match x with
+  | Success -> true
+  | Failure _ -> false
 
-let is_failure x =
-  x = false
 
-let string_of_stat x =
-  if is_success x then
-    "SUCCESS"
-  else if is_failure x then
-    "FAILURE"
-  else
-    "UNKNOWN"
+let is_failure x = match x with
+  | Success -> false
+  | Failure _ -> true
+
+let string_of_stat x = match x with
+  | Success -> "SUCCESS"
+  | Failure (code, reason) -> Printf.sprintf "FAILURE (%d, %s)" code reason
 
 
 let show_reports files stats =
@@ -82,14 +83,15 @@ let run_compilable_test base_dir files ctx =
                           Unix.stdin fd fd
     in
 
-    let (_, ps) = Unix.waitpid [] pid in
-    let is_exited_successfully = match ps with
-      | Unix.WEXITED 0 -> true
-      | _ -> false
+    let (rpid, ps) = Unix.waitpid [] pid in
+    let stat = match ps with
+      | Unix.WEXITED 0 -> Success
+      | Unix.WEXITED code -> Failure (code, "return code")
+      | Unix.WSIGNALED s -> Failure (s, "signaled")
+      | _ -> Failure (0, "unexpected")
     in
     Unix.close fd;
 
-    let stat = is_exited_successfully in
     if is_failure stat then
       begin
         let fd = Unix.openfile filename_output [Unix.O_RDONLY] 0400 in
