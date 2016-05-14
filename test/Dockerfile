@@ -17,9 +17,8 @@ RUN pacman -S --noconfirm libunistring
 # packages
 RUN opam init
 RUN pacman -S --noconfirm llvm llvm-libs
-RUN ln -s /usr/lib/libLLVM.so.3.7 /usr/lib/libLLVM-3.7.so   # workaround...
 RUN pacman -S --noconfirm python
-RUN opam install omake menhir batteries ctypes-foreign llvm.3.7
+RUN opam install omake menhir batteries ctypes-foreign llvm.3.8
 
 #
 RUN mkdir /cibase
