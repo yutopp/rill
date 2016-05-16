@@ -47,6 +47,9 @@ rule token = parse
   | "for"               { KEYWORD_FOR }
   | "else"              { KEYWORD_ELSE }
   | "when"              { KEYWORD_WHEN }
+  | "pre"               { KEYWORD_PRE }
+  | "post"              { KEYWORD_POST }
+  | "unary"             { KEYWORD_UNARY }
 
   | "true"              { LIT_TRUE }
   | "false"             { LIT_FALSE }
@@ -59,6 +62,7 @@ rule token = parse
                         }
 
   | ['0'-'9']+ as i     { INT (int_of_string i) }
+  | ("0x" ['0'-'9' 'a'-'f' 'A'-'F']+) as i  { INT (int_of_string i) }
 
   | ['a'-'z' 'A'-'Z' '_'] ['a'-'z' 'A'-'Z' '0'-'9' '_']* as s
                         { ID s }
