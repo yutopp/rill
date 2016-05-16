@@ -45,4 +45,7 @@
                         KEYWORD_FOR
                         KEYWORD_ELSE
                         KEYWORD_WHEN
+                        KEYWORD_PRE
+                        KEYWORD_POST
+                        KEYWORD_UNARY
 %%
