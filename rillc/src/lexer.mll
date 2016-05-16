@@ -116,17 +116,17 @@ rule token = parse
 
 and read_string_lit buf = parse
   | '"'             { STRING (Buffer.contents buf) }
-  | '\\' '/'        { Buffer.add_char buf '/'; read_string_lit buf lexbuf }
+  | '\\' '"'        { Buffer.add_char buf '"'; read_string_lit buf lexbuf }
   | '\\' '\\'       { Buffer.add_char buf '\\'; read_string_lit buf lexbuf }
   | '\\' 'n'        { Buffer.add_char buf '\n'; read_string_lit buf lexbuf }
   | '\\' 'r'        { Buffer.add_char buf '\r'; read_string_lit buf lexbuf }
   | '\\' 't'        { Buffer.add_char buf '\t'; read_string_lit buf lexbuf }
+  | '\\' _          { raise (LexerError ("Illegal escape character in string: " ^ Lexing.lexeme lexbuf)) }
   | [^ '"' '\\']+
     { Buffer.add_string buf (Lexing.lexeme lexbuf);
       read_string_lit buf lexbuf
     }
-  | _   { raise (LexerError ("Illegal string character: " ^ Lexing.lexeme lexbuf)) }
-  | eof { raise (LexerError ("String is not terminated")) }
+  | '\\' | eof      { raise (LexerError ("String is not terminated")) }
 
 and oneline_comment = parse
   | newline         { new_line lexbuf; token lexbuf }
