@@ -693,8 +693,11 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
        in
 
        L.position_at_end fip ctx.Ctx.ir_builder;
-       let llret = L.build_phi brs "" ctx.ir_builder in
-       (llret, then_ty)
+       if Type.is_same ctx.type_sets.Type_sets.ts_void_type then_ty then
+         void_val
+       else
+         let llret = L.build_phi brs "" ctx.ir_builder in
+         (llret, then_ty)
      end
 
   | TAst.ForExpr (opt_decl, opt_cond, opt_step, body) ->
