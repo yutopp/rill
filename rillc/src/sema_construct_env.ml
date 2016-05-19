@@ -716,12 +716,12 @@ and analyze_expr ?(making_placeholder=false)
           failwith "unary operator is not found"
      end
 
-  | Ast.CallExpr (reciever, args, loc) ->
+  | Ast.CallExpr (receiver, args, loc) ->
      begin
        let (recv_node, (recv_type_info, recv_val_cat, recv_lt, recv_ml, _)) =
          analyze_expr ~making_placeholder:making_placeholder
                       ~enable_ufcs:true
-                      reciever parent_env ctx attr
+                      receiver parent_env ctx attr
        in
 
        let eargs =

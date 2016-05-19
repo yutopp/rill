@@ -37,7 +37,7 @@ type ctfe_val_t = type_info_t Ctfe_value.t
 type type_gen_t = env_t Type.Generator.t
 type ctx_t = (env_t, type_info_t, ctfe_val_t) Ctx.t
 
-let agg_recever_name = "agg.reciever"
+let agg_recever_name = "agg.receiver"
 
 
 let make_default_context ~type_sets ~uni_map =
@@ -117,7 +117,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
        | Env.FnRecordNormal (def, kind, fenv_d) ->
           begin
             let body = Option.get opt_body in
-            (* if this class returns non primitive object, add a parameter to recieve the object *)
+            (* if this class returns non primitive object, add a parameter to receive the object *)
             let returns_heavy_obj =
               is_address_representation fenv_r.Env.fn_return_type
             in
@@ -152,7 +152,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
             let param_envs = fenv_d.Env.fn_n_param_envs |> List.enum in
             let raw_ll_params = L.params f |> Array.enum in
             if returns_heavy_obj then begin
-                                     (* set name of reciever *)
+                                     (* set name of receiver *)
                                      let opt_agg = Enum.peek raw_ll_params in
                                      assert (Option.is_some opt_agg);
                                      let agg = Option.get opt_agg in
