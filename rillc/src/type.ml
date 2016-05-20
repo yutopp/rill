@@ -114,34 +114,49 @@ module Generator =
   end
 
 
-let print ty =
+let rec to_string ty =
   let open Type_attr in
-  let s = match ty.ti_attr.ta_ref_val with
+  let rv_s = match ty.ti_attr.ta_ref_val with
       Ref -> "ref"
     | Val -> "val"
     | XRef -> "xref"
     | _ -> "undef"
   in
-  Printf.printf "Attr: REF = %s\n" s;
-  let s = match ty.ti_attr.ta_mut with
+  let mut_s = match ty.ti_attr.ta_mut with
       Immutable -> "immutable"
     | Const -> "const"
     | Mutable -> "mutable"
     | _ -> "undef"
   in
-  Printf.printf "Attr: MUT = %s\n" s;
 
-  match type_sort ty with
-    UniqueTy cenv ->
-     begin
-       let cls_r = Env.ClassOp.get_record cenv in
-       let name = Nodes.string_of_id_string cls_r.Env.cls_name in
-       Printf.printf "@==> %s\n" name
-     end
-  | FunctionSetTy _ -> Printf.printf "function set\n"
-  | ClassSetTy _ -> Printf.printf "class set\n"
-  | Undef -> Printf.printf "@undef@\n"
-  | NotDetermined uni_id ->
-     begin
-       Printf.printf "@not determined [%d]\n" uni_id
-     end
+  let base_s = match type_sort ty with
+    | UniqueTy cenv ->
+       begin
+         let cls_r = Env.ClassOp.get_record cenv in
+         let name = Nodes.string_of_id_string cls_r.Env.cls_name in
+         name
+       end
+    | FunctionSetTy _ -> "@function set@"
+    | ClassSetTy _ -> "@class set@"
+    | Undef -> "@undef@"
+    | NotDetermined uni_id -> Printf.sprintf "@not determined(%d)@" uni_id
+  in
+
+  let targs_s = ty.ti_template_args |> List.map to_s_ctfe in
+  let targs_s = if (List.length targs_s > 0)
+                then
+                  Printf.sprintf "!(%s)" (String.concat ", " targs_s)
+                else ""
+  in
+  Printf.sprintf "%s(%s(%s%s))" rv_s mut_s base_s targs_s
+
+
+and to_s_ctfe value =
+  match value with
+  | Ctfe_value.Type ty -> to_string ty
+  | Ctfe_value.Bool b -> string_of_bool b
+  | Ctfe_value.Int32 n -> string_of_int (Int32.to_int n)
+  | Ctfe_value.Undef _ -> "%%ctfe_val(undef)"
+
+let print ty =
+  Printf.printf "%s\n" (to_string ty)

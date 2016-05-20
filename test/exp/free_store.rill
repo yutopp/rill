@@ -2,4 +2,20 @@ import std.stdio;
 
 def main(): void
 {
+    val s = yo(1010,10);
+}
+
+def yo()
+{
+    return 0;
+}
+
+def yo(:uint8)
+{
+    return 0;
+}
+
+def yo(:uint8, :uint8)
+{
+    return 0;
 }

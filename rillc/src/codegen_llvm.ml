@@ -97,7 +97,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
        let _ = match opt_e with
        | Some e ->
           let (llval, ty) = generate_code e ctx in
-          ignore @@ if is_address_representation ty then
+          ignore @@ if is_heavy_object ty then
                       L.build_ret_void ctx.ir_builder
                     else
                       L.build_ret llval ctx.ir_builder
@@ -118,16 +118,14 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
           begin
             let body = Option.get opt_body in
             (* if this class returns non primitive object, add a parameter to recieve the object *)
-            let returns_heavy_obj =
-              is_address_representation fenv_r.Env.fn_return_type
-            in
+            let returns_heavy_obj = is_heavy_object fenv_r.Env.fn_return_type in
             let func_ret_ty =
               if returns_heavy_obj then
                 ctx.type_sets.Type_sets.ts_void_type
               else
                 fenv_r.Env.fn_return_type
             in
-            let llret_ty = lltype_of_typeinfo func_ret_ty ctx in
+            let llret_ty = lltype_of_typeinfo_ret func_ret_ty ctx in
 
             let llparam_tys =
               (if returns_heavy_obj then [fenv_r.Env.fn_return_type] else [])
@@ -223,12 +221,11 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
             void_val
           end
 
-       | Env.FnRecordTrivial (def, kind) ->
+       | Env.FnRecordImplicit (def, kind) ->
           begin
             let _ = match def with
-              | Env.FnDefDefaulted -> ()   (* ACCEPT *)
-              | Env.FnDefDeleted
-              | Env.FnDefUserDefined -> failwith "[ICE]"
+              | Env.FnDefDefaulted true -> ()   (* ACCEPT *)
+              | _ -> failwith "[ICE]"
             in
 
             let r_value = match kind with
@@ -364,9 +361,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
          Env.fn_return_type = ret_ty;
        } = f_er in
 
-       let returns_heavy_obj =
-         is_address_representation ret_ty
-       in
+       let returns_heavy_obj = is_heavy_object ret_ty in
 
        let eval_args param_types =
          (* normal arguments *)
@@ -432,10 +427,10 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
               | _ -> failwith "[ICE]"
             end
 
-         | Env.FnRecordTrivial (def, kind) ->
+         | Env.FnRecordImplicit (def, kind) ->
             begin
               let open Codegen_llvm_intrinsics in
-              Printf.printf "gen value: debug / function trivial %s\n" fn_s_name;
+              Printf.printf "gen value: debug / function implicit %s\n" fn_s_name;
 
               let r_value = force_target_generation ctx env in
               let _ = match r_value with
@@ -551,8 +546,12 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
        (llval, lit_ty)
      end
 
-  | TAst.ArrayLit (elems, lit_ty) ->
+  | TAst.ArrayLit (elems, arr_ty) ->
      begin
+       (* TODO: support static storages *)
+       let arr_llty = lltype_of_typeinfo arr_ty ctx in
+       let arr = L.build_alloca arr_llty "" ctx.ir_builder in
+(*
        (* XXX: adhoc implementation, fix it *)
        let (ll_elems, tys) =
          elems
@@ -561,8 +560,8 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
        in
        let llty = lltype_of_typeinfo lit_ty ctx in
 
-       let llval = L.const_array llty (Array.of_list ll_elems) in
-       (llval, lit_ty)
+       let llval = L.const_array llty (Array.of_list ll_elems) in*)
+       (arr, arr_ty)
      end
 
   | TAst.GenericId (name, Some rel_env) ->
@@ -741,6 +740,20 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
        void_val
      end
 
+  | TAst.CtxNode ty ->
+     begin
+       let itype_id = Option.get ty.Type_info.ti_id in
+       Printf.printf "##### type_id = %s\n" (Int64.to_string itype_id);
+
+       (* return the internal typeid as a type *)
+       let llval = L.const_of_int64 (L.i64_type ctx.ir_context)
+                                    itype_id
+                                    Type_info.is_type_id_signed
+       in
+       let ty = ctx.type_sets.Type_sets.ts_type_type in
+       (llval, ty)
+     end
+
   | _ -> failwith "cannot generate : node"
 
 
@@ -863,13 +876,28 @@ and lltype_of_typeinfo_param ty ctx =
   else
     ll_ty
 
+and lltype_of_typeinfo_ret ty ctx =
+  let ll_ty = lltype_of_typeinfo ty ctx in
+  if is_address_representation ty then
+    L.pointer_type ll_ty
+  else
+    ll_ty
 
 and is_primitive ty =
   let cenv = Type.as_unique ty in
   let cr = Env.ClassOp.get_record cenv in
-  let traits = Option.get cr.Env.cls_traits in
-  traits.Env.cls_traits_is_primitive
+  cr.Env.cls_traits.Env.cls_traits_is_primitive
 
+
+and is_heavy_object ty =
+  let {
+    Type_attr.ta_ref_val = rv;
+    Type_attr.ta_mut = mut;
+  } = ty.Type_info.ti_attr in
+  match rv with
+  | Type_attr.Ref -> false
+  | Type_attr.Val -> is_address_representation ty
+  | _ -> failwith "[ICE] Unexpected : rv"
 
 (**)
 and is_address_representation ty =
@@ -987,27 +1015,23 @@ let inject_builtins ctx =
                           (LLType (L.i8_type ctx.ir_context));
     register_builtin_type int32_type_i.internal_name
                           (LLType (L.i32_type ctx.ir_context));
-    register_builtin_type untyped_raw_ptr_type_i.internal_name
-                          (LLType (L.pointer_type (L.i8_type ctx.ir_context)));
 
     register_builtin_type raw_ptr_type_i.internal_name
                           (LLTypeGen (
                                fun template_args ->
                                begin
                                  assert (List.length template_args = 1);
-                                 (* TODO: fix *)
-                                 (*
-                                 let ty_ct_val = List.nth args 0 in
+                                 let ty_ct_val = List.nth template_args 0 in
                                  let ty_val = match ty_ct_val with
                                    | Ctfe_value.Type ty -> ty
                                    | _ -> failwith "[ICE]"
                                  in
-                                 let llty = lltype_of_typeinfo ~bb:None ty_val ctx in
-                                  *)
-                                 let elem_ty = L.i8_type ctx.ir_context in
+                                 let elem_ty = lltype_of_typeinfo ty_val ctx in
                                  L.pointer_type elem_ty
                                end
                              ));
+    register_builtin_type untyped_raw_ptr_type_i.internal_name
+                          (LLType (L.pointer_type (L.i8_type ctx.ir_context)));
 
     register_builtin_type array_type_i.internal_name
                           (LLTypeGen (
@@ -1058,6 +1082,20 @@ let inject_builtins ctx =
         | Ctfe_value.Type ty -> ty
         | _ -> failwith "[ICE]"
       in
+      let type_s = Type.to_string ty in
+      L.build_global_stringptr type_s "" ctx.ir_builder
+    in
+    register_builtin_template_func "__builtin_stringof" f
+  in
+
+  let () =
+    let f template_args args ctx =
+      assert (List.length template_args = 1);
+      let ty_val = List.nth template_args 0 in
+      let ty = match ty_val with
+        | Ctfe_value.Type ty -> ty
+        | _ -> failwith "[ICE]"
+      in
       let llty = lltype_of_typeinfo ty ctx in
       let llptrty = L.pointer_type llty in
 
@@ -1065,6 +1103,43 @@ let inject_builtins ctx =
       L.build_bitcast args.(0) llptrty "" ctx.ir_builder
     in
     register_builtin_template_func "__builtin_unsafe_ptr_cast" f
+  in
+
+  let () =
+    let f template_args args ctx =
+      assert (List.length template_args = 2);
+      let ty_val = List.nth template_args 0 in
+      let ty = match ty_val with
+        | Ctfe_value.Type ty -> ty
+        | _ -> failwith "[ICE]"
+      in
+      let llty = lltype_of_typeinfo ty ctx in
+      let llptrty = L.pointer_type llty in
+
+      assert (Array.length args = 1);
+
+      L.build_pointercast args.(0) llptrty "" ctx.ir_builder
+    in
+    register_builtin_template_func "__builtin_take_address_from_array" f
+  in
+  let () =
+    let f args ctx =
+      let open Codegen_llvm_intrinsics in
+      assert (Array.length args = 2);
+
+      let to_obj = args.(0) in
+      let from_obj = args.(1) in
+      let size_of = Int64.of_int 8 in   (* TODO: fix fix fix !!!!! *)
+      let align_of = Int64.of_int 0 in
+      let _ =
+        ctx.intrinsics.memcpy_i32 to_obj from_obj
+                                  size_of align_of false ctx.ir_builder
+      in
+      to_obj
+    in
+    let open Builtin_info in
+    register_builtin_func
+      (make_builtin_copy_ctor_name array_type_i.internal_name) f
   in
 
   let define_special_members builtin_info init =
@@ -1101,7 +1176,16 @@ let inject_builtins ctx =
     ()
   in
 
-  (* for int32 *)
+  (*let _ =
+    (* defaulted but not trivial *)
+    let f args ctx =
+      assert (Array.length args = 2);
+      failwith ""
+    in
+    register_builtin_func "__builtin_array_type_copy_ctor" f
+  in*)
+
+  (* for int8 *)
   let () =
     let open Builtin_info in
     let init = L.const_int (L.i8_type ctx.ir_context) 0 in
@@ -1267,12 +1351,21 @@ let inject_builtins ctx =
       register_builtin_func "__builtin_op_binary_+_raw_ptr_int" f
     in
 
-    let () = (* pre* (:raw_ptr!(T)): T *)
-      let f args ctx =
+    let () = (* pre* (:raw_ptr!(T)): ref(T) *)
+      let f template_args args ctx =
+        assert (List.length template_args = 1);
+        let ty_val = List.nth template_args 0 in
+        let ty = match ty_val with
+          | Ctfe_value.Type ty -> ty
+          | _ -> failwith "[ICE]"
+        in
         assert (Array.length args = 1);
-        L.build_load args.(0) "" ctx.ir_builder
+        if is_address_representation ty then
+          args.(0)
+        else
+          L.build_load args.(0) "" ctx.ir_builder
       in
-      register_builtin_func "__builtin_op_unary_pre_*_raw_ptr" f
+      register_builtin_template_func "__builtin_op_unary_pre_*_raw_ptr" f
     in
     ()
   in

@@ -328,6 +328,7 @@ rv_attr:
                 { Type_attr.Ref }   (* default *)
         |       rv_attr_force { $1 }
 
+
 mut_attr_force:
                 KEYWORD_IMMUTABLE   { Type_attr.Immutable }
         |       KEYWORD_CONST       { Type_attr.Const }
@@ -351,26 +352,35 @@ meta_level:
 
 
 variable_declaration_statement:
-                meta_level
-                variable_declararion
+                decl = variable_declararion
                 SEMICOLON
                 {
-                    Ast.VariableDefStmt ($1, $2, ())
-                }
-
-variable_declararion:
-                vi = variable_initializer_unit
-                {
-                    Ast.VarInit vi
+                    let (vinit, ml) = decl in
+                    Ast.VariableDefStmt (ml, vinit, ())
                 }
 
 (* TODO: change rel_id_has_no_op_as_raw to generic_rel_id_has_no_op to support template variables *)
-variable_initializer_unit:
-                variable_decl_introducer
-                rel_id_has_no_op_as_raw
-                value_initializer_unit { ($1, $2, $3) }
+variable_declararion:
+                intr = variable_decl_introducer
+                id = rel_id_has_no_op_as_raw
+                vunit = value_initializer_unit
+                {
+                    let (attr, ml) = intr in
+                    let vinit = Ast.VarInit (attr, id, vunit) in
+                    (vinit, ml)
+                }
 
-variable_decl_introducer:
+variable_runtime_declararion:
+                intr = variable_decl_runtime_introducer
+                id = rel_id_has_no_op_as_raw
+                vunit = value_initializer_unit
+                {
+                    let (attr, ml) = intr in
+                    let vinit = Ast.VarInit (attr, id, vunit) in
+                    (vinit, ml)
+                }
+
+variable_decl_runtime_introducer:
                 rv = rv_attr_force
                 mut = mut_attr
                 {
@@ -378,8 +388,22 @@ variable_decl_introducer:
                         Type_attr.ta_ref_val = rv;
                         Type_attr.ta_mut = mut;
                     } in
-                    attr
+                    (attr, Meta_level.Runtime)  (* default metalevel *)
                 }
+
+variable_decl_meta_introducer:
+                KEYWORD_META
+                {
+                    let attr = {
+                        Type_attr.ta_ref_val = Type_attr.Val;
+                        Type_attr.ta_mut = Type_attr.Immutable;
+                    } in
+                    (attr, Meta_level.Meta)
+                }
+
+variable_decl_introducer:
+                variable_decl_runtime_introducer    { $1 }
+        |       variable_decl_meta_introducer       { $1 }
 
 
 (**)
@@ -438,7 +462,7 @@ if_expression:
 for_expression:
                 KEYWORD_FOR
                 LPAREN
-                opt_decl = variable_declararion?
+                opt_decl = variable_runtime_declararion?
                 SEMICOLON
                 opt_cond = expression?
                 SEMICOLON
@@ -447,8 +471,8 @@ for_expression:
                 body = expression
                 {
                     let opt_decl_stmt = match opt_decl with
-                      | Some decl ->
-                          Some (Ast.VariableDefStmt (Meta_level.Runtime, decl, ()))
+                      | Some (vinit, ml) ->
+                          Some (Ast.VariableDefStmt (ml, vinit, ()))
                       | None -> None
                     in
                     Ast.ForExpr (opt_decl_stmt, opt_cond, opt_inc, body)
@@ -638,8 +662,24 @@ postfix_expression:
         |       postfix_expression LBRACKET expression? RBRACKET
                 { Ast.SubscriptingExpr ($1, $3) }
         |       traits_expression { $1 }
-        |       postfix_expression argument_list
+        |       call_expression { $1 }
+
+call_expression:
+                postfix_expression argument_list
                 { Ast.CallExpr ($1, $2, pos $startpos $endpos) }
+        |       KEYWORD_REF args = argument_list
+                { Ast.TypeRVConv (Type_attr.Ref, args, pos $startpos $endpos) }
+        |       KEYWORD_VAL args = argument_list
+                { Ast.TypeRVConv (Type_attr.Val, args, pos $startpos $endpos) }
+        |       KEYWORD_IMMUTABLE args = argument_list
+                { Ast.TypeQualConv (Type_attr.Immutable, args, pos $startpos $endpos) }
+        |       KEYWORD_CONST args = argument_list
+                { Ast.TypeQualConv (Type_attr.Const, args, pos $startpos $endpos) }
+        |       KEYWORD_MUTABLE args = argument_list
+                { Ast.TypeQualConv (Type_attr.Mutable, args, pos $startpos $endpos) }
+        |       KEYWORD_META args = argument_list
+                { Ast.MetaLevelConv (Meta_level.Meta, args, pos $startpos $endpos) }
+
 
 traits_expression:
                 statement_traits_expression { $1 }
@@ -721,6 +761,7 @@ binary_operator_as_raw:
         |       BITWISE_AND { $1 }
         |       BITWISE_OR { $1 }
         |       BITWISE_XOR { $1 }
+        |       LBRACKET RBRACKET { "[]" }
 
 binary_operator_as_s:
                 KEYWORD_OPERATOR
@@ -730,21 +771,39 @@ binary_operator_as_s:
 unary_operator_as_raw:
                 INCREMENT { $1 }
         |       DECREMENT { $1 }
-        |       NOT { $1 }
+
+unary_pre_operator_as_raw:
+                NOT { $1 }
         |       TIMES { $1 }        (* deref *)
         |       BITWISE_AND { $1 }  (* address *)
 
+unary_post_operator_as_raw:
+                LBRACKET RBRACKET { "[]" }
+
 unary_operator_as_s:
-                KEYWORD_OPERATOR
-                order = ID
+                KEYWORD_OPERATOR KEYWORD_PRE
                 op = unary_operator_as_raw
                 {
-                    match order with
-                    | "pre" -> Nodes.UnaryPreOp op
-                    | "post" -> Nodes.UnaryPostOp op
-                    | _ -> failwith "[ICE] ..."
+                    Nodes.UnaryPreOp op
                 }
 
+        |       KEYWORD_OPERATOR KEYWORD_POST
+                op = unary_operator_as_raw
+                {
+                    Nodes.UnaryPostOp op
+                }
+
+        |       KEYWORD_OPERATOR KEYWORD_UNARY
+                op = unary_pre_operator_as_raw
+                {
+                    Nodes.UnaryPreOp op
+                }
+
+        |       KEYWORD_OPERATOR KEYWORD_UNARY
+                op = unary_post_operator_as_raw
+                {
+                    Nodes.UnaryPostOp op
+                }
 
 (**)
 boolean_literal:

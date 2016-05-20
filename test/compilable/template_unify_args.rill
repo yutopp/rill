@@ -1,0 +1,12 @@
+def main()
+{
+    f(42, "string");
+    f("string", 42);
+}
+
+import std.stdio;
+
+def f!(T, U)(a1: U, a2:T) {
+    a1.print();
+    a2.print();
+}

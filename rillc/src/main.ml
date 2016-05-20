@@ -95,7 +95,8 @@ let () =
   let m = Sema.load_module_by_filepath filename ctx in
   let sem_ast = match Sema.analyze_module m ctx with
     | Some node -> node
-    | None -> exit 1
+    | None ->
+       Printf.printf "Semantics error\n"; exit 1
   in
 
   Printf.printf "===== PHASE = CODEGEN\n";

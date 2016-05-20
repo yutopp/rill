@@ -113,6 +113,11 @@ module Make (Ctx : NodeContextType) =
       | PrevPassNode of pctx_t
       | NotInstantiatedNode of pctx_t * attr_tbl_t option
 
+      | CtxNode of term_ctx_t
+      | TypeRVConv of Type_attr.ref_val_t * ast list * term_ctx_t
+      | TypeQualConv of Type_attr.mut_t * ast list * term_ctx_t
+      | MetaLevelConv of Meta_level.t * ast list * term_ctx_t
+
       (* *)
       | GenericId of id_string * ctx_t
       (* object construction, args, ctx *)

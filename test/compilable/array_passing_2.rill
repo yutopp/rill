@@ -1,0 +1,13 @@
+import std.stdio;
+
+def main()
+{
+    f([1, 2, 3]);
+}
+
+def f!(Arr)(arr :Arr) {
+    stringof(*(&arr)).println();
+    (*(&arr)).print();
+    stringof(*((&arr)+1)).println();
+    (*(&arr)).print();
+}

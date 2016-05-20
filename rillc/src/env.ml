@@ -18,6 +18,11 @@ type module_privacy =
   | ModPublic
   | ModPrivate
 
+type special_function_state =
+  | SFUserDefined
+  | SFDefaulted
+  | SFDeleted
+
 
 module Kind =
   struct
@@ -116,14 +121,14 @@ type 'ast env_t = {
  }
  and 'ast function_record_var =
    | FnRecordNormal of function_def_var * 'ast function_kind_var * 'ast function_record_normal
-   | FnRecordTrivial of function_def_var * 'ast function_kind_var
+   | FnRecordImplicit of function_def_var * 'ast function_kind_var
    | FnRecordExternal of function_def_var * 'ast function_kind_var * string
    | FnRecordBuiltin of function_def_var * 'ast function_kind_var * string
    | FnUndef
 
  and function_def_var =
    | FnDefUserDefined
-   | FnDefDefaulted
+   | FnDefDefaulted of bool (* is trivial *)
    | FnDefDeleted
 
  and 'ast function_kind_var =
@@ -150,7 +155,7 @@ type 'ast env_t = {
 
    mutable cls_template_vals    : ('ast type_info_t Ctfe_value.t) list;
    mutable cls_detail           : 'ast class_record_var;
-   mutable cls_traits           : class_traits_t option;
+   mutable cls_traits           : class_traits_t;
 
    mutable cls_member_vars      : 'ast env_t list;
    mutable cls_member_funcs     : 'ast env_t list;
@@ -159,7 +164,7 @@ type 'ast env_t = {
    mutable cls_align            : int;  (* bytes *)
  }
  and 'ast class_record_var =
-   | ClsRecordPrimitive of class_record_extern
+   | ClsRecordExtern of class_record_extern
    | ClsRecordNormal
    | ClsUndef
 
@@ -168,7 +173,11 @@ type 'ast env_t = {
  }
 
  and class_traits_t = {
-   cls_traits_is_primitive      : bool;
+   cls_traits_is_primitive              : bool;
+   cls_traits_defaule_ctor_state        : special_function_state;
+   cls_traits_is_default_ctor_trivial   : bool;
+   cls_traits_copy_ctor_state           : special_function_state;
+   cls_traits_is_copy_ctor_trivial      : bool;
  }
 
 
@@ -494,7 +503,7 @@ module FunctionOp =
       let er = get_record env in
       match er.fn_detail with
       | FnRecordNormal (_, kind, _) -> kind
-      | FnRecordTrivial (_, kind) -> kind
+      | FnRecordImplicit (_, kind) -> kind
       | FnRecordExternal (_, kind, _) -> kind
       | FnRecordBuiltin (_, kind, _) -> kind
       | _ -> failwith ""
@@ -531,12 +540,19 @@ module ClassOp =
       | _ -> failwith "ClassOp.get_record : not class"
 
     let empty_record name =
+      let default_traits = {
+        cls_traits_is_primitive = false;
+        cls_traits_defaule_ctor_state = SFDefaulted;
+        cls_traits_is_default_ctor_trivial = false;
+        cls_traits_copy_ctor_state = SFDefaulted;
+        cls_traits_is_copy_ctor_trivial = false;
+      } in
       {
          cls_name = name;
          cls_mangled = None;
          cls_template_vals = [];
          cls_detail = ClsUndef;
-         cls_traits = None;
+         cls_traits = default_traits;
          cls_member_vars = [];
          cls_member_funcs = [];
          cls_size = 0;

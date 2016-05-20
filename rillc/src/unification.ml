@@ -10,10 +10,10 @@ open Batteries
 
 type id_t = int
 
-type 'ty chain_t =
+type 'v chain_t =
   | Undef
   | Link of id_t
-  | Val of 'ty
+  | Val of 'v
 
 type ('ty, 'v) t = {
   mutable fresh_id  : id_t;

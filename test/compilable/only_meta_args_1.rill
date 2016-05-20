@@ -1,0 +1,6 @@
+import std.stdio;
+
+def main()
+{
+    sizeof(int32).print();
+}

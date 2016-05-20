@@ -1,11 +1,10 @@
-// type and void classes are defined by compiler directly.
+// "type" and "void" classes are defined by compiler directly.
 
 #[builtin]
 extern def sizeof!(T)() onlymeta: int32 = "__builtin_sizeof";
 
-/+#[builtin]
-extern def ref!(T)() onlymeta: int32 = "__builtin_ref";
-+/
+#[builtin]
+extern def stringof!(T)(ref p: T): raw_ptr!(uint8) = "__builtin_stringof";
 
 //
 extern def malloc(:int32): untyped_raw_ptr = "rill_core_malloc";
@@ -28,7 +27,7 @@ def new!(T)() {
 #[builtin, primitive]
 extern class bool = "__builtin_bool_type"
 #[builtin]
-extern def operator pre! (:bool): bool = "__builtin_op_unary_pre_!_bool";
+extern def operator unary! (:bool): bool = "__builtin_op_unary_pre_!_bool";
 
 // uint8
 #[builtin, primitive]
@@ -83,8 +82,10 @@ def operator pre--(ref mutable i:int32): void
 }
 
 // array
-#[builtin]
+#[builtin, ctor_gen_arg = 0]
 extern class array!(T, N:int32) = "__builtin_array_type"
+#[builtin]
+extern def operator unary& !(T, N:int32)(:array!(T, N)): raw_ptr!T = "__builtin_take_address_from_array";
 
 // untyped raw pointer
 #[builtin, primitive]
@@ -101,4 +102,5 @@ def operator- !(T)(p :raw_ptr!(T), n :int32): raw_ptr!(T) {
 }
 
 #[builtin]
-extern def operator pre* !(T)(:raw_ptr!(T)): T = "__builtin_op_unary_pre_*_raw_ptr";
+extern def operator unary* !(T)(:raw_ptr!(T)): ref(T) = "__builtin_op_unary_pre_*_raw_ptr";
+def operator[] !(T)(p :raw_ptr!(T), index: int32): ref(T) => *(p+index);

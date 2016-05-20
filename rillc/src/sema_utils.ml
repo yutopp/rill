@@ -75,10 +75,9 @@ let check_class_env env ctx =
   r.Env.cls_mangled <- Some mangled;
   check_env env Meta_level.Meta
 
-let complete_class_env env node c_detail traits =
+let complete_class_env env node c_detail =
   let r = Env.ClassOp.get_record env in
   r.Env.cls_detail <- c_detail;
-  r.Env.cls_traits <- Some traits;
   complete_env env node
 
 
@@ -101,7 +100,7 @@ let check_is_args_valid ty =
 
 let register_builtin_type name inner_name meta_level size align
                           root_env type_gen =
-  let create_builtin_class name inner_name =
+  let create_extern_primitive_class name inner_name =
     let env_r = Env.ClassOp.empty_record name in
     env_r.Env.cls_mangled <- Some inner_name;
     env_r.Env.cls_size <- size;
@@ -115,18 +114,19 @@ let register_builtin_type name inner_name meta_level size align
 
     let node = TAst.ExternClassDefStmt (name, inner_name, None, Some env) in
 
-    let detail_r = Env.ClsRecordPrimitive {
+    let detail_r = Env.ClsRecordExtern {
                        Env.cls_e_name = inner_name;
                      } in
-    let traits = {
+    complete_class_env env node detail_r;
+    env_r.Env.cls_traits <- {
+      env_r.Env.cls_traits with
       Env.cls_traits_is_primitive = true;
-    } in
-    complete_class_env env node detail_r traits;
+    };
     env
   in
 
   let id_name = Nodes.Pure name in
-  let cenv = create_builtin_class id_name inner_name in
+  let cenv = create_extern_primitive_class id_name inner_name in
   Env.add_inner_env root_env name cenv;
 
   Type.Generator.generate_type type_gen
