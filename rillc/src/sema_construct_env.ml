@@ -719,11 +719,11 @@ and analyze_expr ?(making_placeholder=false)
           failwith "unary operator is not found"
      end
 
-  | Ast.SubscriptingExpr (reciever, opt_arg) ->
+  | Ast.SubscriptingExpr (receiver, opt_arg) ->
      begin
        let (op, args) = match opt_arg with
-         | Some arg -> (Nodes.BinaryOp "[]", [reciever; arg])
-         | None -> (Nodes.UnaryPostOp "[]", [reciever])
+         | Some arg -> (Nodes.BinaryOp "[]", [receiver; arg])
+         | None -> (Nodes.UnaryPostOp "[]", [receiver])
        in
        let res = analyze_operator (Ast.Id (op, None)) args parent_env ctx attr in
        match res with
@@ -733,12 +733,12 @@ and analyze_expr ?(making_placeholder=false)
           failwith "subscripting operator is not found"
      end
 
-  | Ast.CallExpr (reciever, args, loc) ->
+  | Ast.CallExpr (receiver, args, loc) ->
      begin
        let (recv_node, (recv_type_info, recv_val_cat, recv_lt, recv_ml, _)) =
          analyze_expr ~making_placeholder:making_placeholder
                       ~enable_ufcs:true
-                      reciever parent_env ctx attr
+                      receiver parent_env ctx attr
        in
 
        let eargs =
