@@ -493,31 +493,51 @@ let rec construct_env node parent_env ctx opt_chain_attr =
             end
          | Some index ->
             begin
-              let cval = List.at cenv_r.Env.cls_template_vals index in
-              let ty = match cval with
+              let targ_cval = List.at cenv_r.Env.cls_template_vals index in
+              let tval_ty = match targ_cval with
                 | Ctfe_value.Type ty -> ty
                 | _ -> failwith "[ICE]"
               in
-              let ty_cenv = Type.as_unique ty in
-              let ty_cenv_r = Env.ClassOp.get_record ty_cenv in
-              let open Env in
+
+              let tval_ty_cenv = Type.as_unique tval_ty in
+              let tval_ty_cenv_r = Env.ClassOp.get_record tval_ty_cenv in
+              let tval_ty_traits = tval_ty_cenv_r.Env.cls_traits in
+
               (* default constructor *)
-              if ty_cenv_r.cls_traits.cls_traits_defaule_ctor_state = Env.SFDefaulted then
-                if ty_cenv_r.cls_traits.cls_traits_is_default_ctor_trivial then
-                  define_trivial_default_ctor_for_builtin env extern_cname ctx
+              if tval_ty_traits.Env.cls_traits_defaule_ctor_state = Env.SFDefaulted then
+                if tval_ty_traits.Env.cls_traits_is_default_ctor_trivial then
+                  begin
+                    define_trivial_default_ctor_for_builtin env extern_cname ctx;
+
+                    let open Env in
+                    cenv_r.cls_traits <- {
+                      cenv_r.cls_traits with
+                      cls_traits_defaule_ctor_state = SFDefaulted;
+                      cls_traits_is_default_ctor_trivial = true;
+                    };
+                  end
                 else
                   failwith "[ERR] not implemented yet"
               else
-                failwith "[ERR] not implemented yes";
+                failwith "[ERR] not implemented yet";
 
               (* copy constructor *)
-              if ty_cenv_r.cls_traits.cls_traits_copy_ctor_state = Env.SFDefaulted then
-                if ty_cenv_r.cls_traits.cls_traits_is_copy_ctor_trivial then
-                  define_trivial_copy_ctor_for_builtin env extern_cname ctx
+              if tval_ty_traits.Env.cls_traits_copy_ctor_state = Env.SFDefaulted then
+                if tval_ty_traits.Env.cls_traits_is_copy_ctor_trivial then
+                  begin
+                    define_trivial_copy_ctor_for_builtin env extern_cname ctx;
+
+                    let open Env in
+                    cenv_r.cls_traits <- {
+                      cenv_r.cls_traits with
+                      cls_traits_copy_ctor_state = SFDefaulted;
+                      cls_traits_is_copy_ctor_trivial = true;
+                    };
+                  end
                 else
                   failwith "[ERR] not implemented yet"
               else
-                failwith "[ERR] not implemented yes";
+                failwith "[ERR] not implemented yet";
             end
        in
        if not is_novalue then define_special_members ();
@@ -1013,16 +1033,47 @@ and analyze_expr ?(making_placeholder=false)
 
   | Ast.ArrayLit (elems, loc) ->
      begin
+       (* TODO: support typings for empty list literal *)
+       assert(List.length elems > 0);
        (* evaluate all elementes *)
-       let (n_nodes, n_auxs) =
-         elems
-         |> List.map (fun e -> analyze_expr ~making_placeholder:making_placeholder
-                                            e parent_env ctx attr)
-         |> List.split
+       let nargs =
+         elems |> List.map (fun e -> analyze_expr ~making_placeholder:making_placeholder
+                                                  e parent_env ctx attr)
        in
-       let n_types = List.map (fun t -> Tuple5.first t) n_auxs in
-       (* TODO: fix, calc undelying types(and attrs) and convert them *)
-       let elem_ty = List.hd n_types in
+
+       let array_common_elem =
+         let common_elem_arg arga argb =
+           let (dn, (s_ty, d1, d2, d3, d4)) = arga in
+           match convert_type s_ty argb parent_env ctx attr with
+           | (FuncMatchLevel.ExactMatch, Some (trg_ty, f)) ->
+              begin
+                (dn, (trg_ty, d1, d2, d3, d4))
+              end
+           | _ -> failwith "[ERR]"
+         in
+         List.reduce common_elem_arg nargs
+       in
+       let (_, (elem_ty, _, _, _, _)) = array_common_elem in
+
+       (* copy/move ctor *)
+       let conved_args =
+         let conv arg =
+           let res = convert_type elem_ty arg parent_env ctx attr in
+           match res with
+           | (FuncMatchLevel.NoMatch, _) -> failwith "[ERR]"
+           | (_, None) -> failwith "[ERR]"
+           | (_, (Some (trg_ty, f) as m_filter)) ->
+              begin
+                let is_trivial = Env.FunctionOp.is_trivial f in
+                if is_trivial then
+                  arg
+                else
+                  apply_conv_filter m_filter arg parent_env ctx
+              end
+         in
+         List.map conv nargs
+       in
+       let (n_nodes, n_auxs) = conved_args |> List.split in
 
        let array_ty =
          get_builtin_array_type elem_ty
@@ -1770,7 +1821,8 @@ and suitable_storage ?(exit_scope=false)
 
 and apply_conv_filter ?(exit_scope=false)
                       ?(param_passing=false)
-                      filter expr expr_aux ext_env ctx =
+                      filter expr ext_env ctx =
+  let (expr_node, expr_aux) = expr in
   match filter with
   | Some (trg_ty, f_env) ->
      let sto = suitable_storage
@@ -1781,13 +1833,13 @@ and apply_conv_filter ?(exit_scope=false)
      in
      let (_, _, _, expr_ml, _) = expr_aux in
      (* TODO: use default arguments *)
-     let node = TAst.GenericCallExpr (ref sto, [expr], Some ext_env, Some f_env) in
+     let node = TAst.GenericCallExpr (ref sto, [expr_node], Some ext_env, Some f_env) in
      let lt = Env.get_scope_lifetime ext_env in (* TODO: fix *)
      let ml = expr_ml in (* TODO: fix *)
      let aux = (trg_ty, VCatPrValue, lt, ml, None) in
      (node, aux)
 
-  | None -> (expr, expr_aux)
+  | None -> (expr_node, expr_aux)
 
 
 and adjust_expr_for_type ?(exit_scope=false)
@@ -1801,7 +1853,7 @@ and adjust_expr_for_type ?(exit_scope=false)
 
   apply_conv_filter ~exit_scope:exit_scope
                     ~param_passing:param_passing
-                    m_filter src_expr src_aux ext_env ctx
+                    m_filter (src_expr, src_aux) ext_env ctx
 
 
 and resolve_type_with_qual ?(making_placeholder=false) ty_attr (expr:Ast.ast) env ctx attr : type_info_t =
@@ -2582,8 +2634,7 @@ and run_instantiate menv f =
 
 and map_conversions ?(param_passing=false) filters args ext_env ctx =
   let f filter arg =
-    let (expr, aux) = arg in
-    apply_conv_filter ~param_passing:param_passing filter expr aux ext_env ctx
+    apply_conv_filter ~param_passing:param_passing filter arg ext_env ctx
   in
   List.map2 f filters args
 

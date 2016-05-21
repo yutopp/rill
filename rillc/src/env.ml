@@ -499,6 +499,21 @@ module FunctionOp =
       | Function (_, r) -> r
       | _ -> failwith "FunctionOp.get_record : not function"
 
+    let get_definition_status env =
+      let er = get_record env in
+      match er.fn_detail with
+      | FnRecordNormal (stat, _, _) -> stat
+      | FnRecordImplicit (stat, _) -> stat
+      | FnRecordExternal (stat, _, _) -> stat
+      | FnRecordBuiltin (stat, _, _) -> stat
+      | _ -> failwith ""
+
+    let is_trivial env =
+      let stat = get_definition_status env in
+      match stat with
+      | FnDefDefaulted true -> true
+      | _ -> false
+
     let get_kind env =
       let er = get_record env in
       match er.fn_detail with

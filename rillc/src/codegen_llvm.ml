@@ -552,18 +552,43 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
      begin
        (* TODO: support static storages *)
        let arr_llty = lltype_of_typeinfo arr_ty ctx in
-       let arr = L.build_alloca arr_llty "" ctx.ir_builder in
-(*
-       (* XXX: adhoc implementation, fix it *)
-       let (ll_elems, tys) =
-         elems
-         |> List.map (fun n -> generate_code n ctx)
-         |> List.split
-       in
-       let llty = lltype_of_typeinfo lit_ty ctx in
+       let ll_trg_array = L.build_alloca arr_llty "" ctx.ir_builder in
 
-       let llval = L.const_array llty (Array.of_list ll_elems) in*)
-       (arr, arr_ty)
+       let arr_cenv = Type.as_unique arr_ty in
+       let arr_cenv_r = Env.ClassOp.get_record arr_cenv in
+
+       (* TODO: fix algorithm *)
+       if arr_cenv_r.Env.cls_traits.Env.cls_traits_is_copy_ctor_trivial then
+         begin
+           let (ll_elems, tys) =
+             elems
+             |> List.map (fun n -> generate_code n ctx)
+             |> List.split
+           in
+           let lit_ty = List.hd tys in
+           let llty = lltype_of_typeinfo lit_ty ctx in
+           let lit_ptr_ty = L.pointer_type llty in
+           let ll_array = L.const_array llty (Array.of_list ll_elems) in
+           let ll_array = L.define_global "" ll_array ctx.ir_module in
+           L.set_linkage L.Linkage.Private ll_array;
+           L.set_unnamed_addr true ll_array;
+           let llsrc = L.build_bitcast ll_array lit_ptr_ty "" ctx.ir_builder in
+           let lltrg = L.build_bitcast ll_trg_array lit_ptr_ty "" ctx.ir_builder in
+           (* TODO: fix *)
+           let buffer_size = (size_of lit_ty) * (List.length elems) in
+           let size_of = Int64.of_int buffer_size in
+           let align_of = Int64.of_int 0 in
+           let open Codegen_llvm_intrinsics in
+           let _ =
+             ctx.intrinsics.memcpy_i32 lltrg llsrc
+                                       size_of align_of false ctx.ir_builder
+           in
+           (ll_trg_array, arr_ty)
+         end
+       else
+         begin
+           failwith "[ICE] not supported yet"
+         end
      end
 
   | TAst.GenericId (name, Some rel_env) ->
@@ -893,6 +918,11 @@ and is_primitive ty =
   let cr = Env.ClassOp.get_record cenv in
   cr.Env.cls_traits.Env.cls_traits_is_primitive
 
+(* TODO: move to util module *)
+and size_of ty =
+  let cenv = Type.as_unique ty in
+  let cr = Env.ClassOp.get_record cenv in
+  cr.Env.cls_size
 
 and is_heavy_object ty =
   let {
@@ -1374,9 +1404,7 @@ let inject_builtins ctx =
     in
     ()
   in
-
   ()
-
 
 let generate node ctx =
   inject_builtins ctx;
