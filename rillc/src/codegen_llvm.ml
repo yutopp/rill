@@ -725,7 +725,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
          void_val
        else
          let llret = L.build_phi brs "" ctx.ir_builder in
-         (llret, then_ty)
+         (llret, if_ty)
      end
 
   | TAst.ForExpr (opt_decl, opt_cond, opt_step, body) ->
