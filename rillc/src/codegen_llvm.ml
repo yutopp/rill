@@ -671,7 +671,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
        generate_code block ctx
      end
 
-  | TAst.IfExpr (cond_expr, then_expr, opt_else_expr) ->
+  | TAst.IfExpr (cond_expr, then_expr, opt_else_expr, if_ty) ->
      begin
        let (llcond, _) = generate_code cond_expr ctx in
 
@@ -695,6 +695,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
        (* then node *)
        L.position_at_end tip ctx.Ctx.ir_builder;
        let (then_llval, then_ty) = generate_code then_expr ctx in
+       let then_llval = adjust_llval_form if_ty then_ty then_llval ctx in
        let then_branch = if not (L.is_terminator then_llval) then
                            ignore @@ L.build_br fip ctx.ir_builder;
                          let cip = L.insertion_block ctx.ir_builder in
@@ -705,7 +706,8 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
          | Some else_expr ->
             begin
               L.position_at_end eip ctx.Ctx.ir_builder;
-              let (else_llval, _) = generate_code else_expr ctx in
+              let (else_llval, else_ty) = generate_code else_expr ctx in
+              let else_llval = adjust_llval_form if_ty else_ty else_llval ctx in
               if not (L.is_terminator else_llval) then
                 ignore @@ L.build_br fip ctx.ir_builder;
               let cip = L.insertion_block ctx.ir_builder in
@@ -719,7 +721,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
        in
 
        L.position_at_end fip ctx.Ctx.ir_builder;
-       if Type.is_same ctx.type_sets.Type_sets.ts_void_type then_ty then
+       if Type.has_same_class ctx.type_sets.Type_sets.ts_void_type then_ty then
          void_val
        else
          let llret = L.build_phi brs "" ctx.ir_builder in

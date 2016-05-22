@@ -1,0 +1,6 @@
+def main()
+{
+    val a = 10;
+    val mutable b = 20;
+    val c = if (true) a else b;
+}

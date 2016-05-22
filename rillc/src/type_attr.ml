@@ -36,6 +36,11 @@ let undef = {
 }
 
 
+let is_same lhs rhs =
+  lhs.ta_ref_val = rhs.ta_ref_val &&
+    lhs.ta_mut = rhs.ta_mut
+
+
 let int_of_mut m = match m with
   | Immutable -> 0
   | Const -> 1
@@ -50,3 +55,17 @@ let mut_of_int n = match n with
 
 let mut_strong a b =
   mut_of_int (min (int_of_mut a) (int_of_mut b))
+
+
+let int_of_rv m = match m with
+  | Val -> 0
+  | Ref -> 1
+  | _ -> failwith "int_of_rv"
+
+let rv_of_int n = match n with
+  | 0 -> Val
+  | 1 -> Ref
+  | _ -> failwith "mut_of_rv"
+
+let rv_strong a b =
+  rv_of_int (min (int_of_rv a) (int_of_rv b))

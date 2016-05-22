@@ -87,7 +87,7 @@ module Make (Ctx : NodeContextType) =
       | SubscriptingExpr of ast * ast option
       | CallExpr of ast * ast list * term_ctx_t
       | ScopeExpr of ast
-      | IfExpr of ast * ast * ast option
+      | IfExpr of ast * ast * ast option * term_ctx_t
       | ForExpr of ast option * ast option * ast option * ast
       | NewExpr of ast
       | DeleteExpr of ast

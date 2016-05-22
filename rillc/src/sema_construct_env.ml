@@ -1100,7 +1100,7 @@ and analyze_expr ?(making_placeholder=false)
        (node, aux)
      end
 
-  | Ast.IfExpr (cond_expr, then_expr, opt_else_expr) ->
+  | Ast.IfExpr (cond_expr, then_expr, opt_else_expr, loc) ->
      begin
        let scope_env =
          Env.create_scoped_env parent_env
@@ -1115,30 +1115,51 @@ and analyze_expr ?(making_placeholder=false)
                               scope_env ctx attr
        in
 
-       let then_scope_env =
-         Env.create_scoped_env scope_env
-                               (Env.Scope (Env.empty_lookup_table ()))
+       let analayze_clause node =
+         let clause_scope_env =
+           Env.create_scoped_env scope_env
+                                 (Env.Scope (Env.empty_lookup_table ()))
+         in
+         analyze_expr node clause_scope_env ctx attr
        in
-       let (nthen_expr, then_aux) = analyze_expr then_expr then_scope_env ctx attr in
 
+       let wrapped_type lhs rhs =
+         let open Type_info in
+         let open Type_attr in
+         assert(Type.has_same_class lhs rhs);
+
+         let attr = {
+           ta_ref_val = rv_strong lhs.ti_attr.ta_ref_val rhs.ti_attr.ta_ref_val;
+           ta_mut = mut_strong lhs.ti_attr.ta_mut rhs.ti_attr.ta_mut;
+         } in
+
+         Type.Generator.update_attr_r ctx.sc_tsets.ts_type_gen
+                                      lhs (* or rhs *)
+                                      attr
+       in
+
+       let (nthen_expr, then_aux) = analayze_clause then_expr in
        let (opt_else_expr, else_aux) = match opt_else_expr with
          | Some else_expr ->
-            let else_scope_env =
-              Env.create_scoped_env scope_env
-                                    (Env.Scope (Env.empty_lookup_table ()))
-            in
-            let (e, aux) = analyze_expr else_expr else_scope_env ctx attr in
+            let (e, aux) = analayze_clause else_expr in
             (Some e, aux)
          | None -> (None, void_t)
        in
 
        let (then_ty, _, _, _, _) = then_aux in
        let (else_ty, _, _, _, _) = else_aux in
-       if not (Type.is_same then_ty else_ty) then
+       if not (Type.has_same_class then_ty else_ty) then
          failwith "[ERR]";
 
-       let node = TAst.IfExpr (conved_cond_node, nthen_expr, opt_else_expr) in
-       (node, then_aux)
+       let if_ty = wrapped_type then_ty else_ty in
+       let if_cat = VCatLValue in   (* TODO: fix *)
+       let if_mt = Env.get_scope_lifetime parent_env in (* TODO: fix *)
+       let if_ml = Meta_level.Meta in   (* TODO: fix *)
+       let if_loc = loc in
+       let if_aux = (if_ty, if_cat, if_mt, if_ml, if_loc) in
+
+       let node = TAst.IfExpr (conved_cond_node, nthen_expr, opt_else_expr, if_ty) in
+       (node, if_aux)
      end
 
   | Ast.ForExpr (opt_var_decl, opt_cond, opt_step, body) ->
@@ -1610,7 +1631,7 @@ and convert_type trg_ty src_arg ext_env ctx attr =
   Printf.printf "to\n";
   Type.print trg_ty;
 
-  if Type.is_same trg_ty src_ty then begin
+  if is_type_convertible_to src_ty trg_ty then begin
     (* same type *)
     let open Type_attr in
     match (trg_ty.Type_info.ti_attr, src_ty.Type_info.ti_attr) with
@@ -1737,11 +1758,11 @@ and convert_type trg_ty src_arg ext_env ctx attr =
     (FuncMatchLevel.NoMatch, None)
   end
 
-and is_type_convertible_to src_ty dist_ty =
-  if Type.is_same src_ty dist_ty then
+and is_type_convertible_to src_ty trg_ty =
+  if Type.has_same_class src_ty trg_ty then
     true
   else begin
-    failwith "is_type_convertible_to / not implemented"
+    false
   end
 
 

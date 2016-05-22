@@ -451,13 +451,13 @@ if_expression:
                 KEYWORD_IF
                 LPAREN cond = expression RPAREN
                 then_n = expression %prec IFX
-                { Ast.IfExpr (cond, then_n, None) }
+                { Ast.IfExpr (cond, then_n, None, pos $startpos $endpos) }
         |       KEYWORD_IF
                 LPAREN cond = expression RPAREN
                 then_n = expression
                 KEYWORD_ELSE
                 else_n = expression
-                { Ast.IfExpr (cond, then_n, Some else_n) }
+                { Ast.IfExpr (cond, then_n, Some else_n, pos $startpos $endpos) }
 
 for_expression:
                 KEYWORD_FOR

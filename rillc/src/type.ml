@@ -26,7 +26,6 @@ let is_undef ty =
     Undef -> true
   | _ -> false
 
-
 let has_same_class lhs rhs =
   match (type_sort lhs, type_sort rhs) with
   | (UniqueTy lhs_e, UniqueTy rhs_e) ->
@@ -39,7 +38,8 @@ let is_same lhs rhs =
   | (UniqueTy lhs_r, UniqueTy rhs_r) ->
      begin
        (* TODO: implement correctly *)
-       has_same_class lhs rhs
+       has_same_class lhs rhs &&
+         Type_attr.is_same lhs.ti_attr rhs.ti_attr
      end
   | _ -> failwith "not supported"
 
@@ -66,7 +66,6 @@ module Generator =
       mutable gen_fresh_id  : type_id_ref_t;
       cache_table           : 'env id_record_table_t;
     }
-
 
     let default () =
       {
@@ -158,5 +157,5 @@ and to_s_ctfe value =
   | Ctfe_value.Int32 n -> string_of_int (Int32.to_int n)
   | Ctfe_value.Undef _ -> "%%ctfe_val(undef)"
 
-let print ty =
+and print ty =
   Printf.printf "%s\n" (to_string ty)
