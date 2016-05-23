@@ -536,7 +536,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
        (llval, lit_ty)
      end
 
-  | TAst.Int32Lit (v, lit_ty) ->
+  | TAst.IntLit (v, bits, signed, lit_ty) ->
      begin
        let llval = L.const_int (L.i32_type ctx.ir_context) v in
        (llval, lit_ty)

@@ -32,14 +32,21 @@ let bool_type_i = {
 let uint8_type_i = {
   external_name = "uint8";
   internal_name = "__builtin_uint8_type";
-  mangled_name = "u";
+  mangled_name = "uu";
 }
 
 let int32_type_i = {
   external_name = "int32";
   internal_name = "__builtin_int32_type";
-  mangled_name = "i";
+  mangled_name = "is";
 }
+
+let uint32_type_i = {
+  external_name = "uint32";
+  internal_name = "__builtin_uint32_type";
+  mangled_name = "iu";
+}
+
 
 let array_type_i = {
   external_name = "array";

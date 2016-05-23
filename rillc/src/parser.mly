@@ -811,7 +811,8 @@ boolean_literal:
         |       LIT_FALSE { Ast.BoolLit (false, pos $startpos $endpos) }
 
 numeric_literal:
-                INT { Ast.Int32Lit ($1, pos $startpos $endpos) }
+                INT { Ast.IntLit ($1, 32, true, pos $startpos $endpos) }
+        |       UINT { Ast.IntLit ($1, 32, false, pos $startpos $endpos) }
 
 string_literal:
                 STRING { Ast.StringLit ($1, pos $startpos $endpos) }

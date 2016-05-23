@@ -21,26 +21,22 @@ let make_default_context root_env module_search_dirs =
 
   let open Sema_utils in
   let open Builtin_info in
-  let tsets = {
-    ts_type_gen = type_gen;
-    ts_type_type = register_builtin_type type_type_i.external_name
-                                         type_type_i.internal_name
-                                         Meta_level.OnlyMeta
-                                         8 8    (* TODO: fix *)
-                                         root_env type_gen;
-    ts_void_type = register_builtin_type void_type_i.external_name
-                                         void_type_i.internal_name
-                                         Meta_level.Meta
-                                         0 0    (* TODO: fix *)
-                                         root_env type_gen;
 
-    ts_bool_type_holder = ref Type_info.undef_ty;
-    ts_uint8_type_holder = ref Type_info.undef_ty;
-    ts_int32_type_holder = ref Type_info.undef_ty;
-    ts_array_type_holder = ref Type_info.undef_ty;
-    ts_untyped_raw_ptr_type_holder = ref Type_info.undef_ty;
-    ts_raw_ptr_type_holder = ref Type_info.undef_ty;
-  } in
+  let type_type =
+    register_builtin_type type_type_i.external_name
+                          type_type_i.internal_name
+                          Meta_level.OnlyMeta
+                          8 8    (* TODO: fix *)
+                          root_env type_gen
+  in
+  let void_type =
+    register_builtin_type void_type_i.external_name
+                          void_type_i.internal_name
+                          Meta_level.Meta
+                          0 0    (* TODO: fix *)
+                          root_env type_gen
+  in
+  let tsets = Type_sets.make type_gen type_type void_type in
 
   let uni_map = Unification.empty () in
   let ctfe_engine = Ctfe_engine.initialize tsets uni_map in
@@ -78,6 +74,12 @@ let make_default_context root_env module_search_dirs =
                           int32_type_i.external_name
                           (Some (4, 4)) (* TODO: fix *)
                           ctx;
+
+  (* cache uint32 type *)
+  (*cache_builtin_type_info tsets.ts_uint32_type_holder
+                          uint32_type_i.external_name
+                          (Some (4, 4)) (* TODO: fix *)
+                          ctx;*)
 
   (* cache array type *)
   cache_builtin_type_info tsets.ts_array_type_holder

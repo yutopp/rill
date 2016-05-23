@@ -720,7 +720,7 @@ and analyze_expr ?(making_placeholder=false)
   | Ast.BinaryOpExpr (lhs, op, rhs, loc) ->
      begin
        let args = [lhs; rhs] in
-       let res = analyze_operator op args parent_env ctx attr in
+       let res = analyze_operator op args loc parent_env ctx attr in
        match res with
        | Some v -> v
        | None ->
@@ -731,7 +731,7 @@ and analyze_expr ?(making_placeholder=false)
   | Ast.UnaryOpExpr (op, expr, loc) ->
      begin
        let args = [expr] in
-       let res = analyze_operator op args parent_env ctx attr in
+       let res = analyze_operator op args loc parent_env ctx attr in
        match res with
        | Some v -> v
        | None ->
@@ -745,7 +745,8 @@ and analyze_expr ?(making_placeholder=false)
          | Some arg -> (Nodes.BinaryOp "[]", [receiver; arg])
          | None -> (Nodes.UnaryPostOp "[]", [receiver])
        in
-       let res = analyze_operator (Ast.Id (op, None)) args parent_env ctx attr in
+       let loc = None in
+       let res = analyze_operator (Ast.Id (op, None)) args loc parent_env ctx attr in
        match res with
        | Some v -> v
        | None ->
@@ -840,15 +841,14 @@ and analyze_expr ?(making_placeholder=false)
                 | Some v -> v
                 | None -> failwith "constructor not found"
               in
-              let f_conv =
+              let call_trg_finfo =
                 solve_function_overload eargs []
                                         ctor_env parent_env loc ctx attr
               in
+              let (f_env, conv_filters, eargs) = call_trg_finfo in
 
               (**)
               let f_sto = suitable_storage recv_ty ctx in
-
-              let (f_env, conv_filters, eargs) = f_conv in
               let n_eargs =
                 map_conversions ~param_passing:true
                                 conv_filters eargs parent_env ctx
@@ -991,15 +991,15 @@ and analyze_expr ?(making_placeholder=false)
        (node, (ty, VCatLValue, lt, ml, loc))
      end
 
-  | Ast.Int32Lit (i, loc) ->
+  | Ast.IntLit (i, bits, signed, loc) ->
      begin
        let attr = {
          Type_attr.ta_ref_val = Type_attr.Val;
          Type_attr.ta_mut = Type_attr.Immutable;
        } in
-       let ty = get_builtin_int32_type attr ctx in
+       let ty = get_builtin_int_type ~bits:bits ~signed:signed attr ctx in
        assert_valid_type ty;
-       let node = TAst.Int32Lit (i, ty) in
+       let node = TAst.IntLit (i, bits, signed, ty) in
 
        (node, (ty, VCatPrValue, Env.get_scope_lifetime parent_env, Meta_level.Meta, loc))
      end
@@ -1270,8 +1270,7 @@ and analyze_expr ?(making_placeholder=false)
        failwith "analyze_expr: unsupported node"
      end
 
-
-and analyze_operator op_id args parent_env ctx attr =
+and analyze_operator op_id args loc parent_env ctx attr =
   let eargs = evaluate_invocation_args args parent_env ctx attr in
   let (arg_exprs, arg_auxs) = List.split eargs in
   (*List.iter check_is_args_valid args_types_cats;*)
@@ -1307,6 +1306,54 @@ and analyze_operator op_id args parent_env ctx attr =
   in
   Option.map analyze opt_fs_and_args
 
+
+(*
+and analyze_operator op_id arg_nodes loc parent_env ctx attr =
+  let eargs = evaluate_invocation_args arg_nodes parent_env ctx attr in
+  (*let (arg_exprs, arg_auxs) = List.split eargs in
+  (*List.iter check_is_args_valid args_types_cats;*)
+
+  let (_, _, _, arg_metalevels, _) = split_aux arg_auxs in
+  let args_bottom_ml = Meta_level.calc_bottom arg_metalevels in*)
+
+  (*List.iter print_type args_types;*)
+  let opt_fs_and_args =
+    find_suitable_operator ~universal_search:true
+                           op_id eargs parent_env ctx attr in
+
+  Option.map (fun f -> analyze2 f loc None parent_env ctx) opt_fs_and_args
+
+and analyze2 call_target_func_info loc opt_sto parent_env ctx =
+  let (f_env, conv_filters, eargs) = call_target_func_info in
+  let n_eargs =
+    map_conversions ~param_passing:true
+                    conv_filters eargs parent_env ctx
+  in
+  let (n_earg_exprs, _) = n_eargs |> List.split in
+
+  let f_er = Env.FunctionOp.get_record f_env in
+  let f_ret_ty = f_er.Env.fn_return_type in
+  if not (is_valid_type f_ret_ty) then
+    failwith "[ERR] type of this function is not determined";
+  let f_ret_val_cat = ret_val_category f_ret_ty ctx in
+  let f_ret_lt = Env.get_scope_lifetime parent_env in (* TODO: fix *)
+
+  let ret_ty_cenv = Type.as_unique f_ret_ty in
+  let f_ret_ml = ret_ty_cenv.Env.meta_level in (* TODO: fix, use meta_level of return type *)
+
+  (*Printf.printf "        FUNCTION %s => %s\n" (Nodes.string_of_id_string f_er.Env.fn_name) (Meta_level.to_string f_ml);*)
+
+  let ret_ty_sto =
+    Option.default_delayed (fun () -> suitable_storage f_ret_ty ctx) opt_sto
+  in
+  let node = TAst.GenericCallExpr (
+                 (ref ret_ty_sto),
+                 n_earg_exprs,
+                 Some parent_env,
+                 Some f_env) in
+  let node_aux = (f_ret_ty, f_ret_val_cat, f_ret_lt, f_ret_ml, loc) in
+  (node, node_aux)
+ *)
 
 and analyze_inner node parent_env ctx opt_chain_attr =
   let pre_node = extract_prev_pass_node node in
@@ -1951,7 +1998,7 @@ and eval_texpr_as_ctfe ?(making_placeholder=false)
 
 and tnode_of_ctfe_val ctfe_val ctx =
   match ctfe_val with
-  | Ctfe_value.Int32 v -> TAst.Int32Lit (Int32.to_int v, get_builtin_int32_type default_ty_attr ctx)
+  | Ctfe_value.Int32 v -> TAst.IntLit (Int32.to_int v, 32, true, get_builtin_int32_type default_ty_attr ctx)
   | _ -> failwith ""
 
 
@@ -1964,14 +2011,12 @@ and evaluate_invocation_arg expr env ctx attr =
 
 
 and find_suitable_operator ?(universal_search=false)
-                           op_name_id eargs env ctx attr
-  : ('a * 'b * 'c) option =
-  let (_, arg_aux) = List.hd eargs in
+                           op_name_id eargs env ctx attr =
   let opt_callee_function_info =
+    let (_, lhs_arg_aux) = List.hd eargs in
     select_member_element ~universal_search:universal_search
-                          arg_aux op_name_id env ctx attr
+                          lhs_arg_aux op_name_id env ctx attr
   in
-
   let check_type_and_solve_overload (callee_f_ty, callee_f_env, x) =
     let {
       Type_info.ti_sort = ty_sort;
@@ -1983,9 +2028,7 @@ and find_suitable_operator ?(universal_search=false)
                                menv env None ctx attr
     | _ -> failwith "[ICE]: operator must be defined as function"
   in
-  match opt_callee_function_info with
-    Some info -> Some (check_type_and_solve_overload info)
-  | None -> None
+  opt_callee_function_info |> Option.map check_type_and_solve_overload
 
 
 (* returns Env of function *)

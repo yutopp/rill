@@ -61,8 +61,23 @@ rule token = parse
                           read_string_lit _lex_string_lit_buffer lexbuf
                         }
 
-  | ['0'-'9']+ as i     { INT (int_of_string i) }
-  | ("0x" ['0'-'9' 'a'-'f' 'A'-'F']+) as i  { INT (int_of_string i) }
+  | ['0'-'9']+ as i
+    {
+        INT (int_of_string i)
+    }
+  | ("0x" ['0'-'9' 'a'-'f' 'A'-'F']+) as i
+    {
+        INT (int_of_string i)
+    }
+
+  | ['0'-'9']+ as i 'u'
+    {
+        UINT (int_of_string i)
+    }
+  | ("0x" ['0'-'9' 'a'-'f' 'A'-'F']+) as i 'u'
+    {
+        UINT (int_of_string i)
+    }
 
   | ['a'-'z' 'A'-'Z' '_'] ['a'-'z' 'A'-'Z' '0'-'9' '_']* as s
                         { ID s }

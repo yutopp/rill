@@ -98,7 +98,7 @@ module Make (Ctx : NodeContextType) =
        *)
       | Id of id_string * term_ctx_t
       | InstantiatedId of id_string * ast list * term_ctx_t
-      | Int32Lit of int * term_ctx_t
+      | IntLit of int * int * bool * term_ctx_t (* value * bits * signed *)
       | StringLit of string * term_ctx_t
       | BoolLit of bool * term_ctx_t
       | ArrayLit of ast list * term_ctx_t
@@ -278,7 +278,7 @@ module Make (Ctx : NodeContextType) =
          begin
            print_string "InstantiatedId"
          end
-      | Int32Lit (v, _) ->
+      | IntLit (v, bits, signed, _) ->
          begin
            Printf.printf "Int32Lit %d" v
          end

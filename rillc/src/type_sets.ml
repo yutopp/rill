@@ -19,10 +19,26 @@ type 'env type_sets_t = {
   ts_bool_type_holder               : 'env type_info ref;
   ts_uint8_type_holder              : 'env type_info ref;
   ts_int32_type_holder              : 'env type_info ref;
+  ts_uint32_type_holder             : 'env type_info ref;
   ts_array_type_holder              : 'env type_info ref;
   ts_untyped_raw_ptr_type_holder    : 'env type_info ref;
   ts_raw_ptr_type_holder            : 'env type_info ref;
 }
+
+let make gen ttype vtype =
+  {
+    ts_type_gen = gen;
+    ts_type_type = ttype;
+    ts_void_type = vtype;
+
+    ts_bool_type_holder = ref Type_info.undef_ty;
+    ts_uint8_type_holder = ref Type_info.undef_ty;
+    ts_int32_type_holder = ref Type_info.undef_ty;
+    ts_uint32_type_holder = ref Type_info.undef_ty;
+    ts_array_type_holder = ref Type_info.undef_ty;
+    ts_untyped_raw_ptr_type_holder = ref Type_info.undef_ty;
+    ts_raw_ptr_type_holder = ref Type_info.undef_ty;
+  }
 
 
 let is_type_type ty tsets =
