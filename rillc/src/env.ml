@@ -174,7 +174,7 @@ type 'ast env_t = {
 
  and class_traits_t = {
    cls_traits_is_primitive              : bool;
-   cls_traits_defaule_ctor_state        : special_function_state;
+   cls_traits_default_ctor_state        : special_function_state;
    cls_traits_is_default_ctor_trivial   : bool;
    cls_traits_copy_ctor_state           : special_function_state;
    cls_traits_is_copy_ctor_trivial      : bool;
@@ -557,7 +557,7 @@ module ClassOp =
     let empty_record name =
       let default_traits = {
         cls_traits_is_primitive = false;
-        cls_traits_defaule_ctor_state = SFDefaulted;
+        cls_traits_default_ctor_state = SFDefaulted;
         cls_traits_is_default_ctor_trivial = false;
         cls_traits_copy_ctor_state = SFDefaulted;
         cls_traits_is_copy_ctor_trivial = false;

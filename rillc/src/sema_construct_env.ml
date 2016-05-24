@@ -254,7 +254,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
             complete_function_env env node ctor_id_name detail ctx;
             ctx_env_r.Env.cls_traits <- {
               ctx_env_r.Env.cls_traits with
-              Env.cls_traits_defaule_ctor_state = Env.SFUserDefined;
+              Env.cls_traits_default_ctor_state = Env.SFUserDefined;
             };
 
             (node, void_t)
@@ -397,7 +397,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
          (* implicit default constructor is defined as defaulted,
           * if there are no user defined constructor.
           * However, some conditions make it as deleted *)
-         if cenv_r.cls_traits.cls_traits_defaule_ctor_state = Env.SFDefaulted then
+         if cenv_r.cls_traits.cls_traits_default_ctor_state = Env.SFDefaulted then
            define_trivial_defaulted_default_ctor ();
 
          let define_trvial_defaulted_copy_ctor () =
@@ -479,7 +479,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
               define_trivial_default_ctor_for_builtin env extern_cname ctx;
               cenv_r.cls_traits <- {
                 cenv_r.cls_traits with
-                cls_traits_defaule_ctor_state = SFDefaulted;
+                cls_traits_default_ctor_state = SFDefaulted;
                 cls_traits_is_default_ctor_trivial = true;
               };
               define_trivial_copy_ctor_for_builtin env extern_cname ctx;
@@ -504,7 +504,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
               let tval_ty_traits = tval_ty_cenv_r.Env.cls_traits in
 
               (* default constructor *)
-              if tval_ty_traits.Env.cls_traits_defaule_ctor_state = Env.SFDefaulted then
+              if tval_ty_traits.Env.cls_traits_default_ctor_state = Env.SFDefaulted then
                 if tval_ty_traits.Env.cls_traits_is_default_ctor_trivial then
                   begin
                     define_trivial_default_ctor_for_builtin env extern_cname ctx;
@@ -512,7 +512,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                     let open Env in
                     cenv_r.cls_traits <- {
                       cenv_r.cls_traits with
-                      cls_traits_defaule_ctor_state = SFDefaulted;
+                      cls_traits_default_ctor_state = SFDefaulted;
                       cls_traits_is_default_ctor_trivial = true;
                     };
                   end
