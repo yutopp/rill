@@ -76,10 +76,10 @@ let make_default_context root_env module_search_dirs =
                           ctx;
 
   (* cache uint32 type *)
-  (*cache_builtin_type_info tsets.ts_uint32_type_holder
+  cache_builtin_type_info tsets.ts_uint32_type_holder
                           uint32_type_i.external_name
                           (Some (4, 4)) (* TODO: fix *)
-                          ctx;*)
+                          ctx;
 
   (* cache array type *)
   cache_builtin_type_info tsets.ts_array_type_holder

@@ -81,11 +81,60 @@ def operator pre--(ref mutable i:int32): void
     return;
 }
 
+
+// uint32
+#[builtin, primitive]
+extern class uint32 = "__builtin_uint32_type"
+
+// TODO: implement attributes scope
+#[builtin]
+extern def operator+(:uint32, :uint32): uint32 = "__builtin_op_binary_+_uint_uint";
+#[builtin]
+extern def operator-(:uint32, :uint32): uint32 = "__builtin_op_binary_-_uint_uint";
+#[builtin]
+extern def operator*(:uint32, :uint32): uint32 = "__builtin_op_binary_*_uint_uint";
+#[builtin]
+extern def operator/(:uint32, :uint32): uint32 = "__builtin_op_binary_/_uint_uint";
+#[builtin]
+extern def operator%(:uint32, :uint32): uint32 = "__builtin_op_binary_%_uint_uint";
+#[builtin]
+extern def operator<(:uint32, :uint32): bool = "__builtin_op_binary_<_uint_uint";
+#[builtin]
+extern def operator>(:uint32, :uint32): bool = "__builtin_op_binary_>_uint_uint";
+#[builtin]
+extern def operator|(:uint32, :uint32): uint32 = "__builtin_op_binary_|_uint_uint";
+#[builtin]
+extern def operator^(:uint32, :uint32): uint32 = "__builtin_op_binary_^_uint_uint";
+#[builtin]
+extern def operator&(:uint32, :uint32): uint32 = "__builtin_op_binary_&_uint_uint";
+#[builtin]
+extern def operator>=(:uint32, :uint32): bool = "__builtin_op_binary_>=_uint_uint";
+#[builtin]
+extern def operator<=(:uint32, :uint32): bool = "__builtin_op_binary_<=_uint_uint";
+#[builtin]
+extern def operator<<(:uint32, :uint32): uint32 = "__builtin_op_binary_<<_uint_uint";
+#[builtin]
+extern def operator>>(:uint32, :uint32): uint32 = "__builtin_op_binary_>>_uint_uint";
+#[builtin]
+extern def operator==(:uint32, :uint32): bool = "__builtin_op_binary_==_uint_uint";
+#[builtin]
+extern def operator!=(:uint32, :uint32): bool = "__builtin_op_binary_!=_uint_uint";
+def operator pre++(ref mutable i: uint32): void
+{
+    i = i + 1u;
+}
+def operator pre--(ref mutable i: uint32): void
+{
+    i = i - 1u;
+}
+
+
 // array
 #[builtin, ctor_gen_arg = 0]
 extern class array!(T, N:int32) = "__builtin_array_type"
 #[builtin]
 extern def operator unary& !(T, N:int32)(:array!(T, N)): raw_ptr!T = "__builtin_take_address_from_array";
+def operator[] !(T, N:int32)(arr :array!(T, N), index: int32): ref(T) => *(&arr + index);
 
 // untyped raw pointer
 #[builtin, primitive]

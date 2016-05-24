@@ -25,6 +25,31 @@ def main(): void
         --a;
         a.print();
     };
+
+    {
+        (1u+1u).print();
+        (1u-1u).print();
+        (1u*1u).print();
+        (1u/1u).print();
+        (1u%1u).print();
+        (1u<1u).print();
+        (1u>1u).print();
+        (1u|1u).print();
+        (1u^1u).print();
+        (1u&1u).print();
+        (1u>=1u).print();
+        (1u<=1u).print();
+        (1u<<1u).print();
+        (1u>>1u).print();
+        (1u==1u).print();
+        (1u!=1u).print();
+        val mutable a = 1u;
+        ++a;
+        a.print();
+        --a;
+        a.print();
+    };
+
     {
         val a = true;
     };

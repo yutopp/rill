@@ -1,0 +1,7 @@
+import std.stdio;
+
+def main()
+{
+    val mutable p = malloc(sizeof(int32) * 3).unsafe_ptr_cast!(mutable(int32))();
+    p[0] = 20;
+}

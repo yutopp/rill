@@ -19,6 +19,9 @@
 let blank = [' ' '\t']+
 let newline = "\r\n" | '\r' | '\n'
 
+let numeric_10 = ['0'-'9']+
+let numeric_16 = "0x" ['0'-'9' 'a'-'f' 'A'-'F']+
+
 rule token = parse
   | blank               { token lexbuf }
   | newline             { new_line lexbuf; token lexbuf }
@@ -61,23 +64,11 @@ rule token = parse
                           read_string_lit _lex_string_lit_buffer lexbuf
                         }
 
-  | ['0'-'9']+ as i
-    {
-        INT (int_of_string i)
-    }
-  | ("0x" ['0'-'9' 'a'-'f' 'A'-'F']+) as i
-    {
-        INT (int_of_string i)
-    }
+  | numeric_10 as i 'u' { UINT (int_of_string i) }
+  | numeric_16 as i 'u' { UINT (int_of_string i) }
 
-  | ['0'-'9']+ as i 'u'
-    {
-        UINT (int_of_string i)
-    }
-  | ("0x" ['0'-'9' 'a'-'f' 'A'-'F']+) as i 'u'
-    {
-        UINT (int_of_string i)
-    }
+  | numeric_10 as i     { INT (int_of_string i) }
+  | numeric_16 as i     { INT (int_of_string i) }
 
   | ['a'-'z' 'A'-'Z' '_'] ['a'-'z' 'A'-'Z' '0'-'9' '_']* as s
                         { ID s }

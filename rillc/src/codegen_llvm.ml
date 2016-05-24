@@ -1052,6 +1052,8 @@ let inject_builtins ctx =
                           (LLType (L.i8_type ctx.ir_context));
     register_builtin_type int32_type_i.internal_name
                           (LLType (L.i32_type ctx.ir_context));
+    register_builtin_type uint32_type_i.internal_name
+                          (LLType (L.i32_type ctx.ir_context));
 
     register_builtin_type raw_ptr_type_i.internal_name
                           (LLTypeGen (
@@ -1350,6 +1352,145 @@ let inject_builtins ctx =
     in
     ()
   in
+
+  (* for uint32 *)
+  let () =
+    let open Builtin_info in
+    let basename = "uint" in
+    let init = L.const_int (L.i32_type ctx.ir_context) 0 in
+    define_special_members uint32_type_i init;
+
+    let () = (* +(:INT, :INT): INT *)
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_add args.(0) args.(1) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func
+        (Printf.sprintf "__builtin_op_binary_+_%s_%s" basename basename) f
+    in
+    let () = (* -(:int, :int): int *)
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_sub args.(0) args.(1) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func
+        (Printf.sprintf "__builtin_op_binary_-_%s_%s" basename basename) f
+    in
+    let () = (* *(:int, :int): int *)
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_mul args.(0) args.(1) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func
+        (Printf.sprintf "__builtin_op_binary_*_%s_%s" basename basename) f
+    in
+    let () = (* /(:int, :int): int *)
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_sdiv args.(0) args.(1) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func
+        (Printf.sprintf "__builtin_op_binary_/_%s_%s" basename basename) f
+    in
+    let () = (* %(:int, :int): int *)
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_srem args.(0) args.(1) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func
+        (Printf.sprintf "__builtin_op_binary_%%_%s_%s" basename basename) f
+    in
+    let () = (* <(:int, :int): bool *)
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_icmp L.Icmp.Slt args.(0) args.(1) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func
+        (Printf.sprintf "__builtin_op_binary_<_%s_%s" basename basename) f
+    in
+    let () = (* >(:int, :int): bool *)
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_icmp L.Icmp.Sgt args.(0) args.(1) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func
+        (Printf.sprintf "__builtin_op_binary_>_%s_%s" basename basename) f
+    in
+    let () = (* |(:int, :int): int *)
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_or args.(0) args.(1) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func
+        (Printf.sprintf "__builtin_op_binary_|_%s_%s" basename basename) f
+    in
+    let () = (* ^(:int, :int): int *)
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_xor args.(0) args.(1) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func
+        (Printf.sprintf "__builtin_op_binary_^_%s_%s" basename basename) f
+    in
+    let () = (* &(:int, :int): int *)
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_and args.(0) args.(1) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func
+        (Printf.sprintf "__builtin_op_binary_&_%s_%s" basename basename) f
+    in
+    let () = (* <=(:int, :int): bool *)
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_icmp L.Icmp.Sge args.(0) args.(1) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func
+        (Printf.sprintf "__builtin_op_binary_<=_%s_%s" basename basename) f
+    in
+    let () = (* >=(:int, :int): bool *)
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_icmp L.Icmp.Sge args.(0) args.(1) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func
+        (Printf.sprintf "__builtin_op_binary_>=_%s_%s" basename basename) f
+    in
+    let () = (* <<(:int, :int): int *)
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_shl args.(0) args.(1) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func
+        (Printf.sprintf "__builtin_op_binary_<<_%s_%s" basename basename) f
+    in
+    let () = (* >>(:int, :int): int *)
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_lshr args.(0) args.(1) "" ctx.Ctx.ir_builder    (* zero ext(logical) *)
+      in
+      register_builtin_func
+        (Printf.sprintf "__builtin_op_binary_>>_%s_%s" basename basename) f
+    in
+    let () = (* ==(:int, :int): bool *)
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_icmp L.Icmp.Eq args.(0) args.(1) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func
+        (Printf.sprintf "__builtin_op_binary_==_%s_%s" basename basename) f
+    in
+    let () = (* !=(:int, :int): bool *)
+      let f args ctx =
+        assert (Array.length args = 2);
+        L.build_icmp L.Icmp.Ne args.(0) args.(1) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func
+        (Printf.sprintf "__builtin_op_binary_!=_%s_%s" basename basename) f
+    in
+    ()
+  in
+
 
   (* for bool *)
   let () =

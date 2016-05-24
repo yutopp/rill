@@ -3,6 +3,9 @@ def main(): void
     f(1);
     f(false);
 
+    1 + 1;
+    1u + 1u;
+
     1.f();
     false.f();
 

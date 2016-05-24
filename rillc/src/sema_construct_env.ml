@@ -775,7 +775,7 @@ and analyze_expr ?(making_placeholder=false)
          Type_info.ti_sort = ty_sort;
          Type_info.ti_template_args = template_args;
        } = recv_type_info in
-       let (node, aux, f_ml) = match ty_sort with
+       let ((node, aux), f_ml) = match ty_sort with
          (* normal function call *)
          | Type_info.FunctionSetTy menv ->
             begin
@@ -788,38 +788,18 @@ and analyze_expr ?(making_placeholder=false)
                 | _ -> (arg_exprs, arg_auxs)
               in
               let args = List.combine arg_exprs arg_auxs in
-              let (f_env, conv_filters, args) =
+              let call_trg_finfo =
                 solve_function_overload args template_args
                                         menv parent_env loc ctx attr
               in
-
-              let n_eargs =
-                map_conversions ~param_passing:true
-                                conv_filters args parent_env ctx
+              let call_inst =
+                make_call_instruction call_trg_finfo loc None parent_env ctx
               in
-              let (n_earg_exprs, _) = n_eargs |> List.split in
 
-              let f_er = Env.FunctionOp.get_record f_env in
-              let f_ret_ty = f_er.Env.fn_return_type in
-              if not (is_valid_type f_ret_ty) then
-                failwith "[ERR] type of this function is not determined";
-              let f_ret_val_cat = ret_val_category f_ret_ty ctx in
-              let f_ret_lt = Env.get_scope_lifetime parent_env in (* TODO: fix *)
-
-              let ret_ty_cenv = Type.as_unique f_ret_ty in
-              let f_ret_ml = ret_ty_cenv.Env.meta_level in (* TODO: fix, use meta_level of return type *)
+              let (f_env, conv_filters, args) = call_trg_finfo in
               let f_ml = f_env.Env.meta_level in
 
-              Printf.printf "        FUNCTION %s => %s\n" (Nodes.string_of_id_string f_er.Env.fn_name) (Meta_level.to_string f_ml);
-
-              let ret_ty_sto = suitable_storage f_ret_ty ctx in
-              let node = TAst.GenericCallExpr (
-                             (ref ret_ty_sto),
-                             n_earg_exprs,
-                             Some parent_env,
-                             Some f_env) in
-              let node_aux = (f_ret_ty, f_ret_val_cat, f_ret_lt, f_ret_ml, loc) in
-              (node, node_aux, f_ml)
+              (call_inst, f_ml)
             end
 
          (* constructor / operator call *)
@@ -832,6 +812,7 @@ and analyze_expr ?(making_placeholder=false)
               in
               let recv_cenv = Type.as_unique recv_ty in
               Env.print recv_cenv;
+              let f_sto = suitable_storage recv_ty ctx in
 
               (* call constructor *)
               (* TODO: take into account op call *)
@@ -845,31 +826,14 @@ and analyze_expr ?(making_placeholder=false)
                 solve_function_overload eargs []
                                         ctor_env parent_env loc ctx attr
               in
-              let (f_env, conv_filters, eargs) = call_trg_finfo in
-
-              (**)
-              let f_sto = suitable_storage recv_ty ctx in
-              let n_eargs =
-                map_conversions ~param_passing:true
-                                conv_filters eargs parent_env ctx
+              let call_inst =
+                make_call_instruction call_trg_finfo loc (Some f_sto) parent_env ctx
               in
-              let (n_earg_exprs, _) = n_eargs |> List.split in
 
-              let f_er = Env.FunctionOp.get_record f_env in
-              let f_ret_ty = f_er.Env.fn_return_type in
-              assert_valid_type f_ret_ty;
-
-              let f_ret_lt = Env.get_scope_lifetime parent_env in (* TODO: fix *)
-              let f_ret_ml = Meta_level.Runtime in (* TODO: fix *)
-
+              let (f_env, conv_filters, eargs) = call_trg_finfo in
               let f_ml = f_env.Env.meta_level in
 
-              let node = TAst.GenericCallExpr (
-                             ref f_sto,
-                             n_earg_exprs,
-                             Some parent_env,
-                             Some f_env) in
-              (node, (recv_ty, VCatPrValue, f_ret_lt, f_ret_ml, loc), f_ml)
+              (call_inst, f_ml)
             end
 
          | _ -> failwith "not implemented//" (* TODO: call ctor OR operator() *)
@@ -1272,44 +1236,6 @@ and analyze_expr ?(making_placeholder=false)
 
 and analyze_operator op_id args loc parent_env ctx attr =
   let eargs = evaluate_invocation_args args parent_env ctx attr in
-  let (arg_exprs, arg_auxs) = List.split eargs in
-  (*List.iter check_is_args_valid args_types_cats;*)
-
-  let (_, _, _, arg_metalevels, _) = split_aux arg_auxs in
-  let args_bottom_ml = Meta_level.calc_bottom arg_metalevels in
-
-  (*List.iter print_type args_types;*)
-  let opt_fs_and_args =
-    find_suitable_operator ~universal_search:true
-                           op_id eargs parent_env ctx attr in
-  let analyze (f_env, conv_filters, eargs) =
-    let n_eargs =
-      map_conversions ~param_passing:true
-                      conv_filters eargs parent_env ctx
-    in
-    let (n_earg_exprs, _) = n_eargs |> List.split in
-
-    let f_er = Env.FunctionOp.get_record f_env in
-    let f_ret_ty = f_er.Env.fn_return_type in
-    assert_valid_type f_ret_ty;
-    let f_ret_val_cat = ret_val_category f_ret_ty ctx in
-    let f_lt = Env.get_scope_lifetime parent_env in (* TODO: fix *)
-    let f_ml = args_bottom_ml in (* TODO: fix *)
-
-    (* Replace BinOpCall to generic FuncCall *)
-    let node = TAst.GenericCallExpr (
-                   ref TAst.StoImm,
-                   n_earg_exprs,
-                   Some parent_env,
-                   Some f_env) in
-    (node, (f_ret_ty, f_ret_val_cat, f_lt, f_ml, None))
-  in
-  Option.map analyze opt_fs_and_args
-
-
-(*
-and analyze_operator op_id arg_nodes loc parent_env ctx attr =
-  let eargs = evaluate_invocation_args arg_nodes parent_env ctx attr in
   (*let (arg_exprs, arg_auxs) = List.split eargs in
   (*List.iter check_is_args_valid args_types_cats;*)
 
@@ -1321,10 +1247,9 @@ and analyze_operator op_id arg_nodes loc parent_env ctx attr =
     find_suitable_operator ~universal_search:true
                            op_id eargs parent_env ctx attr in
 
-  Option.map (fun f -> analyze2 f loc None parent_env ctx) opt_fs_and_args
+  Option.map (fun f -> make_call_instruction f loc None parent_env ctx) opt_fs_and_args
 
-and analyze2 call_target_func_info loc opt_sto parent_env ctx =
-  let (f_env, conv_filters, eargs) = call_target_func_info in
+and make_call_instruction (f_env, conv_filters, eargs) loc opt_sto parent_env ctx =
   let n_eargs =
     map_conversions ~param_passing:true
                     conv_filters eargs parent_env ctx
@@ -1335,17 +1260,16 @@ and analyze2 call_target_func_info loc opt_sto parent_env ctx =
   let f_ret_ty = f_er.Env.fn_return_type in
   if not (is_valid_type f_ret_ty) then
     failwith "[ERR] type of this function is not determined";
+  let ret_ty_cenv = Type.as_unique f_ret_ty in
+
   let f_ret_val_cat = ret_val_category f_ret_ty ctx in
   let f_ret_lt = Env.get_scope_lifetime parent_env in (* TODO: fix *)
-
-  let ret_ty_cenv = Type.as_unique f_ret_ty in
-  let f_ret_ml = ret_ty_cenv.Env.meta_level in (* TODO: fix, use meta_level of return type *)
-
-  (*Printf.printf "        FUNCTION %s => %s\n" (Nodes.string_of_id_string f_er.Env.fn_name) (Meta_level.to_string f_ml);*)
+  let f_ret_ml = ret_ty_cenv.Env.meta_level in
 
   let ret_ty_sto =
     Option.default_delayed (fun () -> suitable_storage f_ret_ty ctx) opt_sto
   in
+
   let node = TAst.GenericCallExpr (
                  (ref ret_ty_sto),
                  n_earg_exprs,
@@ -1353,7 +1277,7 @@ and analyze2 call_target_func_info loc opt_sto parent_env ctx =
                  Some f_env) in
   let node_aux = (f_ret_ty, f_ret_val_cat, f_ret_lt, f_ret_ml, loc) in
   (node, node_aux)
- *)
+
 
 and analyze_inner node parent_env ctx opt_chain_attr =
   let pre_node = extract_prev_pass_node node in
@@ -1858,6 +1782,7 @@ and suitable_storage ?(exit_scope=false)
         Type_attr.ta_ref_val = rv;
       } = trg_ty.Type_info.ti_attr in
       match rv with
+      | Type_attr.Ref -> TAst.StoImm
       | Type_attr.Val when param_passing -> TAst.StoImm
       | _ ->
          begin
@@ -2324,7 +2249,8 @@ and unify_type_value ctx lhs rhs =
      begin
        (* TODO: check template args *)
        if not (is_type_convertible_to rhs_ty lhs_ty) then
-         failwith "[ERR] can not convert type"
+         raise Template_type_mismatch
+               (*failwith "[ERR] cannot convert type at unify_type_value"*)
      end
 
   | (lhs, rhs) ->
@@ -2690,6 +2616,7 @@ and run_instantiate menv f =
   let instantiate_wrapper f tenv =
     match f tenv with
     | exception Instantiation_failed -> None
+    | exception Template_type_mismatch -> None
     | x -> Some x
   in
   let mset_record = Env.MultiSetOp.get_record menv in
@@ -2820,11 +2747,13 @@ and get_builtin_int_type ~bits ~signed attr ctx : 'env type_info =
     | 32 -> if signed then
               !(ctx.sc_tsets.ts_int32_type_holder)
             else
-              failwith "[ICE] get builtin int type"
+              !(ctx.sc_tsets.ts_uint32_type_holder)
     | _ -> failwith "[ICE] unsupported bits size"
   in
   assert (not @@ Type.is_undef ty);
+  (*Type.Generator.update_attr_r ctx.sc_tsets.ts_type_gen ty attr*)
   ty
+
 
 and get_builtin_raw_ptr_type elem_ty ptr_attr ctx : 'env type_info =
   let raw_ptr_ty = !(ctx.sc_tsets.ts_raw_ptr_type_holder) in

@@ -45,6 +45,8 @@ let store_error_message msg ctx =
 
 
 exception Instantiation_failed
+exception Template_type_mismatch
+
 
 exception Fatal_error of string
 let fatal_error msg =
