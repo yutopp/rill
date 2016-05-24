@@ -669,6 +669,12 @@ postfix_expression:
                 { Ast.SubscriptingExpr ($1, $3, pos $startpos($2) $endpos($4)) }
         |       traits_expression { $1 }
         |       call_expression { $1 }
+        |       postfix_expression op = unary_operator_as_raw
+                {
+                    let op_id =
+                        Ast.Id (Nodes.UnaryPostOp op, pos $startpos(op) $endpos(op)) in
+                    Ast.UnaryOpExpr (op_id, $1, pos $startpos $endpos)
+                }
 
 call_expression:
                 postfix_expression argument_list
