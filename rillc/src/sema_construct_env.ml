@@ -650,7 +650,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                 | None -> failwith "[ERROR] initial value is required";
               in
               let (expr_ty, _, _, expr_ml, _) = expr_aux in
-              if Type.has_same_class expr_ty (get_builtin_void_incomplate_type ctx) then
+              if Type.has_same_class expr_ty (get_builtin_void_incomplete_type ctx) then
                 error_msg "rhs is void type";
 
               let var_ty =
@@ -2170,7 +2170,7 @@ and instantiate_function_templates menv template_args arg_auxs ext_env ctx attr 
     Printf.printf "       REACHED / unify_arg_type \n";
 
     (**)
-    complate_template_instance menv t_env_record
+    complete_template_instance menv t_env_record
                                meta_var_names uni_ids
                                temp_env opt_cond
                                ctx attr
@@ -2484,7 +2484,7 @@ and prepare_instantiate_template t_env_record template_args ext_env ctx attr =
   (temp_env, meta_var_names, uni_ids)
 
 
-and complate_template_instance ?(making_placeholder=false)
+and complete_template_instance ?(making_placeholder=false)
                                menv t_env_record meta_var_names uni_ids
                                temp_env opt_cond
                                ctx attr =
@@ -2622,7 +2622,7 @@ and instantiate_class_templates menv template_args ext_env ctx attr =
       prepare_instantiate_template t_env_record template_args
                                    ext_env ctx attr
     in
-    complate_template_instance menv t_env_record
+    complete_template_instance menv t_env_record
                                meta_var_names uni_ids
                                temp_env None
                                ctx attr
@@ -2741,11 +2741,11 @@ and define_trivial_copy_assign_for_builtin cenv extern_cname ctx =
   complete_function_env fenv node assign_name detail ctx
 
 
-and get_builtin_void_incomplate_type ctx : 'env type_info =
+and get_builtin_void_incomplete_type ctx : 'env type_info =
   ctx.sc_tsets.ts_void_type
 
 and get_builtin_void_type attr ctx : 'env type_info =
-  let ty = get_builtin_void_incomplate_type ctx in
+  let ty = get_builtin_void_incomplete_type ctx in
   Type.Generator.update_attr_r ctx.sc_tsets.ts_type_gen ty attr
 
 and get_builtin_bool_type attr ctx : 'env type_info =
