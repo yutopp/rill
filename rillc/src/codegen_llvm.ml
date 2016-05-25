@@ -94,17 +94,17 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
      begin
        Printf.printf "ReturnStmt!!!!!!!!\n";
        flush_all ();
-       let _ = match opt_e with
+       let llval = match opt_e with
        | Some e ->
           let (llval, ty) = generate_code e ctx in
-          ignore @@ if is_heavy_object ty then
-                      L.build_ret_void ctx.ir_builder
-                    else
-                      L.build_ret llval ctx.ir_builder
+          if is_heavy_object ty then
+            L.build_ret_void ctx.ir_builder
+          else
+            L.build_ret llval ctx.ir_builder
        | None ->
-          ignore @@ L.build_ret_void ctx.ir_builder
+          L.build_ret_void ctx.ir_builder
        in
-       void_val
+       (llval, ctx.type_sets.Type_sets.ts_void_type)
      end
 
   | TAst.GenericFuncDef (opt_body, Some env) ->

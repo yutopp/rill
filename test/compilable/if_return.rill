@@ -1,0 +1,17 @@
+import std.stdio;
+def f(v: bool) {
+	if (v) {
+		val x = 20;
+		x.print();
+		return;
+	} else {
+		val x = 30;
+		x.print();
+		return;
+	};
+}
+
+def main() {
+	f(true);
+	f(false);
+}
