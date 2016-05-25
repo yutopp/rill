@@ -135,6 +135,8 @@ extern class array!(T, N:int32) = "__builtin_array_type"
 #[builtin]
 extern def operator unary& !(T, N:int32)(:array!(T, N)): raw_ptr!T = "__builtin_take_address_from_array";
 def operator[] !(T, N:int32)(arr :array!(T, N), index: int32): ref(T) => *(&arr + index);
+// uint version. TODO: remove
+def operator[] !(T, N:int32)(arr :array!(T, N), index: uint32): ref(T) => *(&arr + index);
 
 // untyped raw pointer
 #[builtin, primitive]
@@ -150,6 +152,14 @@ def operator- !(T)(p :raw_ptr!(T), n :int32): raw_ptr!(T) {
        return p + (0 - n);
 }
 
+// uint version. TODO: remove
+#[builtin]
+extern def operator+ !(T)(:raw_ptr!(T), :uint32): raw_ptr!(T) = "__builtin_op_binary_+_raw_ptr_int";
+def operator- !(T)(p :raw_ptr!(T), n :uint32): raw_ptr!(T) => p + (0u - n);
+
+
 #[builtin]
 extern def operator unary* !(T)(:raw_ptr!(T)): ref(T) = "__builtin_op_unary_pre_*_raw_ptr";
 def operator[] !(T)(p :raw_ptr!(T), index: int32): ref(T) => *(p+index);
+// uint version. TODO: remove
+def operator[] !(T)(p :raw_ptr!(T), index: uint32): ref(T) => *(p+index);

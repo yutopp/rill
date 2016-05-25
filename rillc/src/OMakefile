@@ -147,6 +147,7 @@ FILES[] =
    ctfe_engine
    ctfe_value
    ctfe_exn
+   ctfe_util
    value_category
    unification
    module_info

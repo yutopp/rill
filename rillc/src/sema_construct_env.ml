@@ -739,7 +739,7 @@ and analyze_expr ?(making_placeholder=false)
           failwith "unary operator is not found"
      end
 
-  | Ast.SubscriptingExpr (receiver, opt_arg) ->
+  | Ast.SubscriptingExpr (receiver, opt_arg, loc) ->
      begin
        let (op, args) = match opt_arg with
          | Some arg -> (Nodes.BinaryOp "[]", [receiver; arg])
@@ -1968,12 +1968,11 @@ and solve_function_overload eargs template_args mset_env ext_env loc ctx attr =
     failwith "[ICE] solve_function_overload : sort of menv must be function.";
 
   (* move the sequence of onlymeta args to template args *)
-  (*  let (eargs, template_args) =*)
+  let (eargs, template_args) =
     let (_, onlymeta_args_num) =
       let f (hdf, num) arg_aux =
         if not hdf then
           let (_, _, _, ml, _) = arg_aux in
-          Printf.printf "%s\n" (Meta_level.to_string ml);
           match ml with
           | Meta_level.OnlyMeta -> (hdf, num + 1)
           | _ -> (true, num)
@@ -1982,7 +1981,7 @@ and solve_function_overload eargs template_args mset_env ext_env loc ctx attr =
       in
       List.fold_left f (false, 0) arg_auxs
     in
-    Printf.printf "^^^^^^^^^^^^^^^^^^^^^^^ %d\n" onlymeta_args_num;
+    Printf.printf "onlymeta_args_num = %d\n" onlymeta_args_num;
 
     let (meta_args, eargs) = List.split_at onlymeta_args_num eargs in
     let evaled_meta_args =
@@ -1994,9 +1993,9 @@ and solve_function_overload eargs template_args mset_env ext_env loc ctx attr =
     in
     let template_args = evaled_meta_args @ template_args in
 
-    Printf.printf "^^^^^^^^^^^^^^^^=> %d %d\n" (List.length template_args) (List.length eargs) ;
-(*    (eargs, template_args)
-  in*)
+    Printf.printf "[Tl = %d Al = %d]\n" (List.length template_args) (List.length eargs) ;
+    (eargs, template_args)
+  in
   let (args, arg_auxs) = List.split eargs in
 
   let (f_level, fs_and_args, errs) = match template_args with
@@ -2022,7 +2021,6 @@ and solve_function_overload eargs template_args mset_env ext_env loc ctx attr =
               let instanced_envs =
                 instantiate_function_templates mset_env [] arg_auxs ext_env ctx attr
               in
-
               let (instanced_f_level, instanced_fs_and_args, terrs) =
                 find_suitable_functions instanced_envs eargs ext_env ctx attr
               in
@@ -2152,20 +2150,10 @@ and instantiate_function_templates menv template_args arg_auxs ext_env ctx attr 
     in
 
     let param_types =
-      (* *)
-      let get_param_type (var_attr, _, init) =
-        match init with
-        | (Some ty_node, _) -> resolve_type_with_qual ~making_placeholder:true
-                                                      var_attr ty_node
-                                                      temp_env ctx attr
-        | _ -> failwith "not implemented / param nodes"
-      in
-      Printf.printf "\n      getting param types =============- \n";
-      List.map get_param_type parameters
+      List.map (fun decl -> get_param_type decl temp_env ctx attr) parameters
     in
-
-    List.iter Type.print param_types;
-    Printf.printf "\n      REACHED / param_types\n";
+    List.iteri (fun i ty -> Printf.printf "%d: %s\n" i (Type.to_string ty)) param_types;
+    Printf.printf "      REACHED / get_function_param_types\n";
 
     (* *)
     let params_type_value = List.map (fun x -> Ctfe_value.Type x) param_types in
@@ -2178,8 +2166,8 @@ and instantiate_function_templates menv template_args arg_auxs ext_env ctx attr 
                (List.enum params_type_value)
                (List.enum args_type_value);
 
-    Printf.printf "\n      REACHED / unify_arg_type =============- \n";
     List.iter (fun c -> print_meta_var c ctx) uni_ids;
+    Printf.printf "       REACHED / unify_arg_type \n";
 
     (**)
     complate_template_instance menv t_env_record
@@ -2188,6 +2176,15 @@ and instantiate_function_templates menv template_args arg_auxs ext_env ctx attr 
                                ctx attr
   in
   run_instantiate menv instantiate
+
+
+and get_param_type (var_attr, _, init) env ctx attr =
+  match init with
+  | (Some ty_node, _) ->
+     resolve_type_with_qual ~making_placeholder:true
+                            var_attr ty_node
+                            env ctx attr
+  | _ -> failwith "not implemented / param nodes"
 
 
 and unify_type ctx lhs rhs =
@@ -2232,7 +2229,7 @@ and unify_type_value ctx lhs rhs =
      ({Type_info.ti_sort = (Type_info.UniqueTy ty_r);
        Type_info.ti_template_args = args} as ty)) ->
      begin
-       Printf.printf "!! unify_type_value(T|V) / %d -> value [%d, %d]\n"
+       Printf.printf "!! unify_type_value(T|V) / %d -> value [Act: %d, Hld: %d]\n"
                      uni_t_id
                      (List.length args)
                      (List.length holder_args);
@@ -2242,6 +2239,7 @@ and unify_type_value ctx lhs rhs =
                   (List.enum args)
                   (List.enum holder_args);
 
+       Printf.printf "!! unify_type_value(T|V) / <<<<\n";
        Unification.update_value uni_map uni_t_id (Ctfe_value.Type ty)
      end
   | (({Type_info.ti_sort = (Type_info.UniqueTy _)} as lhs_ty),
@@ -2267,12 +2265,12 @@ and unify_arg_value ctx lhs rhs =
   match (lhs, rhs) with
   | (Ctfe_value.Type lhs_ty, Ctfe_value.Type rhs_ty) ->
      begin
-       unify_type_value ctx lhs_ty rhs_ty
+       unify_type_value ctx lhs_ty rhs_ty;
      end
   | (Ctfe_value.Undef uni_id, Ctfe_value.Int32 i32)
   | (Ctfe_value.Int32 i32, Ctfe_value.Undef uni_id) ->
      begin
-       Printf.printf "!! unify_meta_value(T|V) / %d -> value\n" uni_id;
+       Printf.printf "!! unify_arg_value(T|V) / %d -> value\n" uni_id;
        Unification.update_value ctx.sc_unification_ctx uni_id (Ctfe_value.Int32 i32)
      end
   | _ -> failwith "[ICE] not implemented (unify_arg_value)"
@@ -2293,15 +2291,16 @@ and print_meta_var uni_id ctx =
   let (_, val_c) =
     Unification.search_value_until_terminal ctx.sc_unification_ctx uni_id
   in
-  Printf.printf "? type is\n";
-  let _ = match ty_c with
-    | Unification.Val ty -> Type.print ty
-    | _ -> Printf.printf "link or undef\n"
-  in
-  Printf.printf "? value is\n";
-  match val_c with
-  | Unification.Val value -> print_ctfe_value value
-  | _ -> Printf.printf "link or undef\n";
+  Printf.printf "uni_id(%d); type  is => %s\n" uni_id (
+                  match ty_c with
+                  | Unification.Val ty -> Type.to_string ty
+                  | _ -> ">link or undef<"
+                );
+  Printf.printf "uni_id(%d); value is => %s\n" uni_id (
+                  match val_c with
+                  | Unification.Val value -> Ctfe_util.to_string value
+                  | _ -> ">link or undef<"
+                )
 
 
 and prepare_template_params params_node ctx =
@@ -2561,17 +2560,36 @@ and complate_template_instance ?(making_placeholder=false)
   if not is_instantiable then
     raise Instantiation_failed;
 
+  List.iter (fun i -> print_meta_var i ctx) uni_ids;
+
   let mangled_sym =
     uni_ids
     |> List.map (Unification.get_as_value ctx.sc_unification_ctx)
     |> (fun x -> Mangle.s_of_template_args x ctx.sc_tsets)
   in
-  Printf.printf "try instance -> %s\n" mangled_sym;
+  let appendix_signature =
+    let parameters = match inner_node with
+      | Ast.FunctionDefStmt (_, Ast.ParamsList params, _, c, _, _, _) -> params
+      | Ast.MemberFunctionDefStmt (_, Ast.ParamsList params, _, _, _, _) -> params
+      | Ast.ExternFunctionDefStmt (_, Ast.ParamsList params, _, _, _, _, _) -> params
+      | Ast.ClassDefStmt _ -> []
+      | Ast.ExternClassDefStmt _ -> []
+      | _ -> failwith "[ICE]"
+    in
+    let param_types =
+      List.map (fun decl -> get_param_type decl temp_env ctx attr) parameters
+    in
+    param_types |> List.map Type.to_string |> String.concat "--"
+  in
+  let mangled_sym = mangled_sym ^ appendix_signature in
+  Printf.printf "TRY making an instance! -> %s\n" mangled_sym;
 
   let mset_record = Env.MultiSetOp.get_record menv in
   let cache = Hashtbl.find_option mset_record.Env.ms_instanced_args_memo mangled_sym in
   match cache with
-  | Some env -> env (* DO NOTHING, because this template is already generated *)
+  | Some env ->
+     Printf.printf "USED CACHE for %s\n" mangled_sym;
+     env (* DO NOTHING, because this template is already generated *)
   | None ->
      begin
        let mvs = List.combine meta_var_names uni_ids in
