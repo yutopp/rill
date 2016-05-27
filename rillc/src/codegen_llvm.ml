@@ -90,18 +90,15 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
      end
  *)
 
-  | TAst.ReturnStmt (opt_e, Some ext_fenv) ->
+  | TAst.ReturnStmt (opt_e) ->
      begin
        Printf.printf "ReturnStmt!!!!!!!!\n";
        flush_all ();
 
-       let ext_fenv_r = Env.FunctionOp.get_record ext_fenv in
-       let ret_ty = ext_fenv_r.Env.fn_return_type in
-
        let llval = match opt_e with
        | Some e ->
-          let (llval, _) = generate_code e ctx in
-          if is_heavy_object ret_ty then
+          let (llval, ty) = generate_code e ctx in
+          if is_heavy_object ty then
             L.build_ret_void ctx.ir_builder
           else
             L.build_ret llval ctx.ir_builder

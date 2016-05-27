@@ -79,7 +79,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                                     e parent_env ctx opt_chain_attr in
      (TAst.ExprStmt node, aux)
 
-  | TAst.ReturnStmt (opt_e, _) ->
+  | TAst.ReturnStmt (opt_e) ->
      begin
        let (opt_expr, expr_aux) = match opt_e with
          | Some (TAst.PrevPassNode e) ->
@@ -93,10 +93,6 @@ let rec construct_env node parent_env ctx opt_chain_attr =
 
          | None ->
             begin
-              let default_ty_attr = {
-                Type_attr.ta_ref_val = Type_attr.Val;
-                Type_attr.ta_mut = Type_attr.Const;
-              } in
               let ty = get_builtin_void_type default_ty_attr ctx in
               let val_cat = Value_category.VCatPrValue in
               let lt = Env.get_scope_lifetime parent_env in
@@ -121,8 +117,12 @@ let rec construct_env node parent_env ctx opt_chain_attr =
               | Type_info.Undef ->
                  begin
                    (* TODO: check type attrbutes *)
-                   ctx_env_r.Env.fn_return_type <- expr_ty;
-                   expr_ty
+                   let nexpr_ty = match make_type_default_form expr_ty ctx with
+                     | Some t -> t
+                     | None -> failwith "[ERR] cannot convert"
+                   in
+                   ctx_env_r.Env.fn_return_type <- nexpr_ty;
+                   nexpr_ty
                  end
 
               | Type_info.UniqueTy _ ->
@@ -153,7 +153,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        in
        let opt_ret_expr = Option.map make_ret_expr opt_expr in
 
-       let node = TAst.ReturnStmt (opt_ret_expr, Some ctx_env) in
+       let node = TAst.ReturnStmt (opt_ret_expr) in
        (node, void_t)
      end
 
@@ -2968,6 +2968,15 @@ and cache_builtin_type_info preset_ty name ctx =
 
   (* already defined *)
   | _ -> ()
+
+and make_type_default_form ?(rv=Type_attr.Val)
+                           ?(mut=Type_attr.Const)
+                           ty ctx =
+  let trg_ty = Type.Generator.update_attr ctx.sc_tsets.ts_type_gen
+                                          ty rv mut in
+  match is_type_convertible_to ty trg_ty with
+  | true -> Some trg_ty
+  | false -> None
 
 (*
 and get_storage_ref n =

@@ -120,7 +120,7 @@ function_body_block:
 function_lambda_block:
                 FAT_ARROW
                 expr = expression
-                { Ast.ReturnStmt (Some expr, ()) }
+                { Ast.ReturnStmt (Some expr) }
 
 
 member_function_declaration_statement:
@@ -293,7 +293,7 @@ return_statement:
                 KEYWORD_RETURN
                 e = expression?
                 SEMICOLON
-                { Ast.ReturnStmt (e, ()) }
+                { Ast.ReturnStmt (e) }
 
 
 (**)
