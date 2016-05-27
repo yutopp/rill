@@ -24,8 +24,8 @@ let rec solve_forward_refs ?(meta_variables=[])
   | Ast.ExprStmt ast ->
      TAst.ExprStmt (TAst.PrevPassNode ast)
 
-  | Ast.ReturnStmt ast ->
-     TAst.ReturnStmt (Option.map (fun a -> TAst.PrevPassNode a) ast)
+  | Ast.ReturnStmt (ast, _) ->
+     TAst.ReturnStmt ((Option.map (fun a -> TAst.PrevPassNode a) ast), None)
 
   | Ast.ImportStmt (pkg_names, mod_name, _) ->
      begin

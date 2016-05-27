@@ -160,8 +160,8 @@ type 'ast env_t = {
    mutable cls_member_vars      : 'ast env_t list;
    mutable cls_member_funcs     : 'ast env_t list;
 
-   mutable cls_size             : int;  (* bytes *)
-   mutable cls_align            : int;  (* bytes *)
+   mutable cls_size             : int option;  (* bytes *)
+   mutable cls_align            : int option;  (* bytes *)
  }
  and 'ast class_record_var =
    | ClsRecordExtern of class_record_extern
@@ -242,7 +242,7 @@ let is_root e =
     Root _  -> true
   | _       -> false
 
-let parent_env e =
+let get_parent_env e =
   if is_root e then
     failwith "root env has no parent env"
   else
@@ -313,7 +313,7 @@ let rec lookup ?(exclude=[]) e name =
   let skip e exk =
     if (kind_of_env e) = exk then
       if is_root e then e
-      else (parent_env e)
+      else (get_parent_env e)
     else e
   in
   let e = List.fold_left skip e exclude in
@@ -322,7 +322,7 @@ let rec lookup ?(exclude=[]) e name =
   | [] -> if is_root e then
             []
           else
-            let penv = parent_env e in
+            let penv = get_parent_env e in
             lookup penv name
   | xs -> xs
 
@@ -570,8 +570,8 @@ module ClassOp =
          cls_traits = default_traits;
          cls_member_vars = [];
          cls_member_funcs = [];
-         cls_size = 0;
-         cls_align = 0;
+         cls_size = None;
+         cls_align = None;
       }
   end
 
@@ -655,7 +655,7 @@ let print env =
       let { er = er; _ } = env in
       print_ er f ""
     end else begin
-      let pr = parent_env env in
+      let pr = get_parent_env env in
       let { er = er; _ } = env in
       let newf indent = print_ er f indent in
       dig pr newf

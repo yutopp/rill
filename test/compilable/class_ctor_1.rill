@@ -1,0 +1,18 @@
+import std.stdio;
+
+def main() {
+    val a = A();
+    a.e.print();
+}
+
+class A {
+    val a: int32;
+    val b: int32;
+    val c: int32;
+    val d: int32;
+    val e: int32;
+
+    def ctor() {
+        this.e = 10;
+    }
+}

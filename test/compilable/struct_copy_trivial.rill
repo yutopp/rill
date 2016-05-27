@@ -1,0 +1,17 @@
+import std.stdio;
+
+def main() {
+    val mutable a = A();
+    a.f = 10;
+    val b = a;
+    b.f.print();
+}
+
+class A {
+    val a: int32;
+    val b: int32;
+    val c: int32;
+    val d: int32;
+    val e: int32;
+    val mutable f: int32;   // TODO: fix
+}

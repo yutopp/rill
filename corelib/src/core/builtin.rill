@@ -24,17 +24,17 @@ def new!(T)() {
 }
 
 // bool
-#[builtin, primitive]
+#[builtin, primitive, size = 1, align = 1]
 extern class bool = "__builtin_bool_type"
 #[builtin]
 extern def operator unary! (:bool): bool = "__builtin_op_unary_pre_!_bool";
 
 // uint8
-#[builtin, primitive]
+#[builtin, primitive, size = 1, align = 1]
 extern class uint8 = "__builtin_uint8_type"
 
 // int32
-#[builtin, primitive]
+#[builtin, primitive, size = 4, align = 4]
 extern class int32 = "__builtin_int32_type"
 
 // TODO: implement attributes scope
@@ -83,7 +83,7 @@ def operator pre--(ref mutable i:int32): void
 
 
 // uint32
-#[builtin, primitive]
+#[builtin, primitive, size = 4, align = 4]
 extern class uint32 = "__builtin_uint32_type"
 
 // TODO: implement attributes scope
@@ -130,7 +130,7 @@ def operator pre--(ref mutable i: uint32): void
 
 
 // array
-#[builtin, ctor_gen_arg = 0]
+#[builtin, array_type]
 extern class array!(T, N:int32) = "__builtin_array_type"
 #[builtin]
 extern def operator unary& !(T, N:int32)(:array!(T, N)): raw_ptr!T = "__builtin_take_address_from_array";
@@ -139,11 +139,11 @@ def operator[] !(T, N:int32)(arr :array!(T, N), index: int32): ref(T) => *(&arr 
 def operator[] !(T, N:int32)(arr :array!(T, N), index: uint32): ref(T) => *(&arr + index);
 
 // untyped raw pointer
-#[builtin, primitive]
+#[builtin, primitive, size = 8, align = 8]
 extern class untyped_raw_ptr = "__builtin_untyped_raw_ptr_type"
 
 // raw pointer
-#[builtin, primitive]
+#[builtin, primitive, size = 8, align = 8]
 extern class raw_ptr!(T) = "__builtin_raw_ptr_type"
 
 #[builtin]

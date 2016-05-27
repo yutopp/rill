@@ -120,7 +120,7 @@ function_body_block:
 function_lambda_block:
                 FAT_ARROW
                 expr = expression
-                { Ast.ReturnStmt (Some expr) }
+                { Ast.ReturnStmt (Some expr, ()) }
 
 
 member_function_declaration_statement:
@@ -293,7 +293,7 @@ return_statement:
                 KEYWORD_RETURN
                 e = expression?
                 SEMICOLON
-                { Ast.ReturnStmt e }
+                { Ast.ReturnStmt (e, ()) }
 
 
 (**)
@@ -811,8 +811,10 @@ boolean_literal:
         |       LIT_FALSE { Ast.BoolLit (false, pos $startpos $endpos) }
 
 numeric_literal:
-                INT  { Ast.IntLit ($1, 32, true, pos $startpos $endpos) }
-        |       UINT { Ast.IntLit ($1, 32, false, pos $startpos $endpos) }
+                INT  {
+                    let (v, bits, signed) = $1 in
+                    Ast.IntLit (v, bits, signed, pos $startpos $endpos)
+                }
 
 string_literal:
                 STRING { Ast.StringLit ($1, pos $startpos $endpos) }

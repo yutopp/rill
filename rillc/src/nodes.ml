@@ -59,10 +59,11 @@ module Make (Ctx : NodeContextType) =
        *)
       | StatementList of ast list
       | ExprStmt of ast
-      | ReturnStmt of ast option
+      | ReturnStmt of ast option * ctx_t    (* retexpr, ext func env *)
       | ImportStmt of string list * string * ctx_t
       (* name, params, return_type?, instance_cond, body, attribute?, _ *)
       | FunctionDefStmt of id_string * ast * ast option * ast option * ast * attr_tbl_t option * ctx_t
+      (* name, params, return_type?, body, attribute?, _ *)
       | MemberFunctionDefStmt of id_string * ast * ast option * ast * attr_tbl_t option * ctx_t
       (* name, params, return_type, function name(TODO: change to AST), attribute?, _ *)
       | ExternFunctionDefStmt of id_string * ast * Meta_level.t * ast * string * attr_tbl_t option * ctx_t

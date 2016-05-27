@@ -75,9 +75,17 @@ let check_class_env env ctx =
   r.Env.cls_mangled <- Some mangled;
   check_env env Meta_level.Meta
 
-let complete_class_env env node c_detail =
+let complete_class_env env node c_detail opt_layout =
   let r = Env.ClassOp.get_record env in
   r.Env.cls_detail <- c_detail;
+  let _ = match opt_layout with
+    | Some (size, align) ->
+       r.Env.cls_size <- Some size;
+       r.Env.cls_align <- Some align;
+    | None ->
+       r.Env.cls_size <- None;
+       r.Env.cls_align <- None;
+  in
   complete_env env node
 
 
@@ -98,13 +106,11 @@ let check_is_args_valid ty =
   ()
 
 
-let register_builtin_type name inner_name meta_level size align
+let register_builtin_type name inner_name meta_level opt_layout
                           root_env type_gen =
   let create_extern_primitive_class name inner_name =
     let env_r = Env.ClassOp.empty_record name in
     env_r.Env.cls_mangled <- Some inner_name;
-    env_r.Env.cls_size <- size;
-    env_r.Env.cls_align <- align;
 
     let env = Env.create_context_env root_env (
                                        Env.Class (Env.empty_lookup_table ~init:0 (),
@@ -117,7 +123,7 @@ let register_builtin_type name inner_name meta_level size align
     let detail_r = Env.ClsRecordExtern {
                        Env.cls_e_name = inner_name;
                      } in
-    complete_class_env env node detail_r;
+    complete_class_env env node detail_r opt_layout;
     env_r.Env.cls_traits <- {
       env_r.Env.cls_traits with
       Env.cls_traits_is_primitive = true;

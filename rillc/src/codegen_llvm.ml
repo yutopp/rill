@@ -90,14 +90,18 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
      end
  *)
 
-  | TAst.ReturnStmt (opt_e) ->
+  | TAst.ReturnStmt (opt_e, Some ext_fenv) ->
      begin
        Printf.printf "ReturnStmt!!!!!!!!\n";
        flush_all ();
+
+       let ext_fenv_r = Env.FunctionOp.get_record ext_fenv in
+       let ret_ty = ext_fenv_r.Env.fn_return_type in
+
        let llval = match opt_e with
        | Some e ->
-          let (llval, ty) = generate_code e ctx in
-          if is_heavy_object ty then
+          let (llval, _) = generate_code e ctx in
+          if is_heavy_object ret_ty then
             L.build_ret_void ctx.ir_builder
           else
             L.build_ret llval ctx.ir_builder
@@ -467,8 +471,8 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
                  begin
                    assert (List.length args = 1);
                    let rhs = List.hd args in
-                   let (llrhs, _) = generate_code rhs ctx in
-                   let sl = Int64.of_int 8 in
+                   let (llrhs, rhs_ty) = generate_code rhs ctx in
+                   let sl = Int64.of_int (size_of rhs_ty) in
                    (*let al = L.int64_of_const (L.align_of (L.type_of llrhs)) |> Option.get in*)
                    let al = Int64.of_int 0 in
                    let _ = ctx.intrinsics.memcpy_i32 new_obj llrhs
@@ -607,15 +611,15 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
 
        | Env.Variable (r) ->
           begin
-            Printf.printf "variable\n";
-            let v_record = try Ctx.find_val_by_env ctx rel_env with
-                           | Not_found ->
-                              begin
-                                try Ctx.find_metaval_by_env ctx rel_env with
-                                | Not_found -> failwith "[ICE] variable env is not found"
-                              end
+            Printf.printf "variable ty => %s\n" (Type.to_string r.Env.var_type);
+            let var_llr = try Ctx.find_val_by_env ctx rel_env with
+                          | Not_found ->
+                             begin
+                               try Ctx.find_metaval_by_env ctx rel_env with
+                               | Not_found -> failwith "[ICE] variable env is not found"
+                             end
             in
-            let llval = match v_record with
+            let llval = match var_llr with
               | LLValue v -> v
               | _ -> failwith "[ICE]"
             in
@@ -924,7 +928,10 @@ and is_primitive ty =
 and size_of ty =
   let cenv = Type.as_unique ty in
   let cr = Env.ClassOp.get_record cenv in
-  cr.Env.cls_size
+  match cr.Env.cls_size with
+  | Some v -> v
+  | None -> failwith "[ICE] cls size is not set"
+
 
 and is_heavy_object ty =
   let {
@@ -1106,9 +1113,7 @@ let inject_builtins ctx =
         | Ctfe_value.Type ty -> ty
         | _ -> failwith "[ICE]"
       in
-      let env = Type.as_unique ty in
-      let cenv_r = Env.ClassOp.get_record env in
-      L.const_int (L.i32_type ctx.ir_context) cenv_r.Env.cls_size
+      L.const_int (L.i32_type ctx.ir_context) (size_of ty)
     in
     register_builtin_template_func "__builtin_sizeof" f
   in
@@ -1368,7 +1373,7 @@ let inject_builtins ctx =
       register_builtin_func
         (Printf.sprintf "__builtin_op_binary_+_%s_%s" basename basename) f
     in
-    let () = (* -(:int, :int): int *)
+    let () = (* -(:INT, :INT): INT *)
       let f args ctx =
         assert (Array.length args = 2);
         L.build_sub args.(0) args.(1) "" ctx.Ctx.ir_builder
@@ -1376,7 +1381,7 @@ let inject_builtins ctx =
       register_builtin_func
         (Printf.sprintf "__builtin_op_binary_-_%s_%s" basename basename) f
     in
-    let () = (* *(:int, :int): int *)
+    let () = (* *(:INT, :INT): INT *)
       let f args ctx =
         assert (Array.length args = 2);
         L.build_mul args.(0) args.(1) "" ctx.Ctx.ir_builder
@@ -1384,18 +1389,18 @@ let inject_builtins ctx =
       register_builtin_func
         (Printf.sprintf "__builtin_op_binary_*_%s_%s" basename basename) f
     in
-    let () = (* /(:int, :int): int *)
+    let () = (* /(:INT, :INT): INT *)
       let f args ctx =
         assert (Array.length args = 2);
-        L.build_sdiv args.(0) args.(1) "" ctx.Ctx.ir_builder
+        L.build_udiv args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func
         (Printf.sprintf "__builtin_op_binary_/_%s_%s" basename basename) f
     in
-    let () = (* %(:int, :int): int *)
+    let () = (* %(:INT, :INT): INT *)
       let f args ctx =
         assert (Array.length args = 2);
-        L.build_srem args.(0) args.(1) "" ctx.Ctx.ir_builder
+        L.build_urem args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func
         (Printf.sprintf "__builtin_op_binary_%%_%s_%s" basename basename) f
@@ -1443,7 +1448,7 @@ let inject_builtins ctx =
     let () = (* <=(:int, :int): bool *)
       let f args ctx =
         assert (Array.length args = 2);
-        L.build_icmp L.Icmp.Sge args.(0) args.(1) "" ctx.Ctx.ir_builder
+        L.build_icmp L.Icmp.Ule args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func
         (Printf.sprintf "__builtin_op_binary_<=_%s_%s" basename basename) f
@@ -1451,7 +1456,7 @@ let inject_builtins ctx =
     let () = (* >=(:int, :int): bool *)
       let f args ctx =
         assert (Array.length args = 2);
-        L.build_icmp L.Icmp.Sge args.(0) args.(1) "" ctx.Ctx.ir_builder
+        L.build_icmp L.Icmp.Uge args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func
         (Printf.sprintf "__builtin_op_binary_>=_%s_%s" basename basename) f

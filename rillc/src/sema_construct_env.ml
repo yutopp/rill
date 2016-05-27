@@ -79,7 +79,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                                     e parent_env ctx opt_chain_attr in
      (TAst.ExprStmt node, aux)
 
-  | TAst.ReturnStmt opt_e ->
+  | TAst.ReturnStmt (opt_e, _) ->
      begin
        let (opt_expr, expr_aux) = match opt_e with
          | Some (TAst.PrevPassNode e) ->
@@ -114,7 +114,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
          | true ->
             (* return type will be inferenced *)
             begin
-              let (expr_ty, expr_val_cat, expr_lt, expr_ml, expr_loc) = expr_aux in
+              let (expr_ty, _, _, _, _) = expr_aux in
 
               let cur_ret_ty = ctx_env_r.Env.fn_return_type in
               match Type.type_sort cur_ret_ty with
@@ -153,7 +153,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        in
        let opt_ret_expr = Option.map make_ret_expr opt_expr in
 
-       let node = TAst.ReturnStmt opt_ret_expr in
+       let node = TAst.ReturnStmt (opt_ret_expr, Some ctx_env) in
        (node, void_t)
      end
 
@@ -373,6 +373,34 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        (* check! *)
        check_class_env env ctx;
 
+       (**)
+       let member_layouts =
+         let f venv =
+           let venv_r = Env.VariableOp.get_record venv in
+           let var_ty = venv_r.Env.var_type in
+           let var_cenv = Type.as_unique var_ty in
+           let var_cenv_r = Env.ClassOp.get_record var_cenv in
+           let vsize = match var_cenv_r.Env.cls_size with
+             | Some v -> v
+             | None -> failwith "[ERR] member size is not determined yet"
+           in
+           let valign = match var_cenv_r.Env.cls_align with
+             | Some v -> v
+             | None -> failwith "[ERR] member align is not determined yet"
+           in
+           (vsize, valign)
+         in
+         List.map f cenv_r.Env.cls_member_vars
+       in
+
+       let (class_size, class_align) =
+         let f (csize, calign) (vsize, valign) =
+           (* TODO: implement correctly *)
+           (csize + vsize, calign)
+         in
+         List.fold_left f (0, 0) member_layouts
+       in
+
        (* body *)
        let (nbody, _) = construct_env body env ctx opt_attr in
 
@@ -443,7 +471,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
             end
          | None -> false
        in
-       complete_class_env env node detail_r;
+       complete_class_env env node detail_r (Some (class_size, class_align));
        cenv_r.Env.cls_traits <- {
          cenv_r.Env.cls_traits with
          Env.cls_traits_is_primitive = is_primitive;
@@ -466,89 +494,131 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        (* currently, do not remake a node like other nodes *)
        Printf.printf "extern class %s - complete\n" name_s;
 
-       let is_novalue = find_attr_bool_val opt_attr "novalue" parent_env ctx in
+       let is_builtin = find_attr_bool_val ~boot:true
+                                           opt_attr "builtin" parent_env ctx
+       in
+       if not is_builtin then
+         failwith "[ERR]";
+
+       let is_novalue = find_attr_bool_val ~boot:true
+                                           opt_attr "novalue" parent_env ctx
+       in
        Printf.printf "is_novalue : %b \n" is_novalue;
 
-       let ctor_gen_arg = find_attr_int_val opt_attr "ctor_gen_arg" parent_env ctx in
-
-       let define_special_members () =
-         match ctor_gen_arg with
-         | None ->
-            begin
-              let open Env in
-              define_trivial_default_ctor_for_builtin env extern_cname ctx;
-              cenv_r.cls_traits <- {
-                cenv_r.cls_traits with
-                cls_traits_default_ctor_state = SFDefaulted;
-                cls_traits_is_default_ctor_trivial = true;
-              };
-              define_trivial_copy_ctor_for_builtin env extern_cname ctx;
-              cenv_r.cls_traits <- {
-                cenv_r.cls_traits with
-                cls_traits_copy_ctor_state = SFDefaulted;
-                cls_traits_is_copy_ctor_trivial = true;
-              };
-              define_trivial_copy_assign_for_builtin env extern_cname ctx;
-              ()
-            end
-         | Some index ->
-            begin
-              let targ_cval = List.at cenv_r.Env.cls_template_vals index in
-              let tval_ty = match targ_cval with
-                | Ctfe_value.Type ty -> ty
-                | _ -> failwith "[ICE]"
-              in
-
-              let tval_ty_cenv = Type.as_unique tval_ty in
-              let tval_ty_cenv_r = Env.ClassOp.get_record tval_ty_cenv in
-              let tval_ty_traits = tval_ty_cenv_r.Env.cls_traits in
-
-              (* default constructor *)
-              if tval_ty_traits.Env.cls_traits_default_ctor_state = Env.SFDefaulted then
-                if tval_ty_traits.Env.cls_traits_is_default_ctor_trivial then
-                  begin
-                    define_trivial_default_ctor_for_builtin env extern_cname ctx;
-
-                    let open Env in
-                    cenv_r.cls_traits <- {
-                      cenv_r.cls_traits with
-                      cls_traits_default_ctor_state = SFDefaulted;
-                      cls_traits_is_default_ctor_trivial = true;
-                    };
-                  end
-                else
-                  failwith "[ERR] not implemented yet"
-              else
-                failwith "[ERR] not implemented yet";
-
-              (* copy constructor *)
-              if tval_ty_traits.Env.cls_traits_copy_ctor_state = Env.SFDefaulted then
-                if tval_ty_traits.Env.cls_traits_is_copy_ctor_trivial then
-                  begin
-                    define_trivial_copy_ctor_for_builtin env extern_cname ctx;
-
-                    let open Env in
-                    cenv_r.cls_traits <- {
-                      cenv_r.cls_traits with
-                      cls_traits_copy_ctor_state = SFDefaulted;
-                      cls_traits_is_copy_ctor_trivial = true;
-                    };
-                  end
-                else
-                  failwith "[ERR] not implemented yet"
-              else
-                failwith "[ERR] not implemented yet";
-            end
+       let is_primitive = find_attr_bool_val ~boot:true
+                                             opt_attr "primitive" parent_env ctx
        in
-       if not is_novalue then define_special_members ();
+       let is_array_type = find_attr_bool_val ~boot:true
+                                              opt_attr "array_type" parent_env ctx
+       in
+
+       let define_special_members_and_calc_layout () =
+         if not is_array_type then
+           begin
+             let open Env in
+             define_trivial_default_ctor_for_builtin env extern_cname ctx;
+             cenv_r.cls_traits <- {
+               cenv_r.cls_traits with
+               cls_traits_default_ctor_state = SFDefaulted;
+               cls_traits_is_default_ctor_trivial = true;
+             };
+             define_trivial_copy_ctor_for_builtin env extern_cname ctx;
+             cenv_r.cls_traits <- {
+               cenv_r.cls_traits with
+               cls_traits_copy_ctor_state = SFDefaulted;
+               cls_traits_is_copy_ctor_trivial = true;
+             };
+             define_trivial_copy_assign_for_builtin env extern_cname ctx;
+
+             let opt_csize = find_attr_int32_val ~boot:true
+                                                 opt_attr "size" parent_env ctx
+             in
+             let csize = match opt_csize with
+               | Some v -> v
+               | None -> failwith "[ERR]"
+             in
+             let opt_calign = find_attr_int32_val ~boot:true
+                                                 opt_attr "align" parent_env ctx
+             in
+             let calign = match opt_calign with
+               | Some v -> v
+               | None -> failwith "[ERR]"
+             in
+
+             (csize, calign)
+           end
+         else
+           begin
+             (* for Array type *)
+             let targ_cval = List.at cenv_r.Env.cls_template_vals 0 in
+             let tval_ty = match targ_cval with
+               | Ctfe_value.Type ty -> ty
+               | _ -> failwith "[ICE]"
+             in
+             let tval_ty_cenv = Type.as_unique tval_ty in
+             let tval_ty_cenv_r = Env.ClassOp.get_record tval_ty_cenv in
+             let tval_ty_traits = tval_ty_cenv_r.Env.cls_traits in
+
+             let targ_nval = List.at cenv_r.Env.cls_template_vals 1 in
+             let tval_num = match targ_nval with
+               | Ctfe_value.Int32 n -> n
+               | _ -> failwith "[ICE]"
+             in
+
+             (* default constructor *)
+             if tval_ty_traits.Env.cls_traits_default_ctor_state = Env.SFDefaulted then
+               if tval_ty_traits.Env.cls_traits_is_default_ctor_trivial then
+                 begin
+                   define_trivial_default_ctor_for_builtin env extern_cname ctx;
+
+                   let open Env in
+                   cenv_r.cls_traits <- {
+                     cenv_r.cls_traits with
+                     cls_traits_default_ctor_state = SFDefaulted;
+                     cls_traits_is_default_ctor_trivial = true;
+                   };
+                 end
+               else
+                 failwith "[ERR] not implemented yet"
+             else
+               failwith "[ERR] not implemented yet";
+
+             (* copy constructor *)
+             if tval_ty_traits.Env.cls_traits_copy_ctor_state = Env.SFDefaulted then
+               if tval_ty_traits.Env.cls_traits_is_copy_ctor_trivial then
+                 begin
+                   define_trivial_copy_ctor_for_builtin env extern_cname ctx;
+
+                   let open Env in
+                   cenv_r.cls_traits <- {
+                     cenv_r.cls_traits with
+                     cls_traits_copy_ctor_state = SFDefaulted;
+                     cls_traits_is_copy_ctor_trivial = true;
+                   };
+                 end
+               else
+                 failwith "[ERR] not implemented yet"
+             else
+               failwith "[ERR] not implemented yet";
+
+             (* TODO: calc size *)
+             ignore tval_num;
+             (0, 0)
+           end
+       in
+       let opt_layout =
+         if is_novalue then
+           None
+         else
+           Some (define_special_members_and_calc_layout ())
+       in
 
        (* update record *)
        let detail_r = Env.ClsRecordExtern {
                           Env.cls_e_name = extern_cname;
                         } in
-       (* TODO: improve *)
-       let is_primitive = find_attr_bool_val opt_attr "primitive" parent_env ctx in
-       complete_class_env env node detail_r;
+
+       complete_class_env env node detail_r opt_layout;
        cenv_r.Env.cls_traits <- {
          cenv_r.Env.cls_traits with
          Env.cls_traits_is_primitive = is_primitive;
@@ -1226,6 +1296,33 @@ and analyze_expr ?(making_placeholder=false)
 
        let tnode = TAst.CtxNode nty in
        (tnode, arg_aux)
+     end
+
+  | _ ->
+     begin
+       Ast.print node;
+       failwith "analyze_expr: unsupported node"
+     end
+
+and analyze_boot_expr node parent_env ctx attr : 'ty Ctfe_value.t =
+  match node with
+  | Ast.IntLit (i, bits, signed, loc) ->
+     begin
+       match bits with
+       | 32 -> if signed then
+                 Ctfe_value.Int32 (Int32.of_int i)
+               else failwith ""
+       | _ -> failwith ""
+     end
+
+  | Ast.BoolLit (b, loc) ->
+     begin
+       Ctfe_value.Bool b
+     end
+
+  | Ast.StringLit (str, loc) ->
+     begin
+       failwith "[ICE]: not supported yet"
      end
 
   | _ ->
@@ -2277,11 +2374,7 @@ and unify_arg_value ctx lhs rhs =
 
 
 and print_ctfe_value value =
-  match value with
-  | Ctfe_value.Type ty -> Type.print ty
-  | Ctfe_value.Bool b -> Bool.print stdout b
-  | Ctfe_value.Int32 n -> Int32.print stdout n
-  | Ctfe_value.Undef _ -> Printf.printf "%%ctfe_val(undef)\n"
+  Printf.printf "%s" (Ctfe_util.to_string value)
 
 
 and print_meta_var uni_id ctx =
@@ -2748,6 +2841,7 @@ and get_builtin_void_type attr ctx : 'env type_info =
   let ty = get_builtin_void_incomplete_type ctx in
   Type.Generator.update_attr_r ctx.sc_tsets.ts_type_gen ty attr
 
+
 and get_builtin_bool_type attr ctx : 'env type_info =
   let ty = !(ctx.sc_tsets.ts_bool_type_holder) in
   assert (not @@ Type.is_undef ty);
@@ -2837,7 +2931,7 @@ and get_builtin_array_type elem_ty len arr_attr ctx : 'env type_info =
 
 
 (* *)
-and cache_builtin_type_info preset_ty name opt_layout ctx =
+and cache_builtin_type_info preset_ty name ctx =
   match Type.type_sort !preset_ty with
   (* not defined yet *)
   | Type_info.Undef ->
@@ -2853,13 +2947,6 @@ and cache_builtin_type_info preset_ty name opt_layout ctx =
        (* pure type *)
        | Some (ty, c_env, _) when ty == ctx.sc_tsets.ts_type_type ->
           begin
-            let _ = match opt_layout with
-              | Some (size, align) ->
-                 let cenv_r = Env.ClassOp.get_record c_env in
-                 cenv_r.Env.cls_size <- size;
-                 cenv_r.Env.cls_align <- align
-              | _ -> ()
-            in
             let prim_ty =
               Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
                                            (Type_info.UniqueTy c_env)
@@ -2899,7 +2986,7 @@ and get_storage_ref n =
   | _ -> failwith ""
  *)
 
-and find_attr_val opt_attr key parent_env ctx =
+and find_attr_val_impl opt_attr key f =
   match opt_attr with
   | Some tbl ->
      begin
@@ -2912,8 +2999,7 @@ and find_attr_val opt_attr key parent_env ctx =
            | Some value ->
               begin
                 let node = extract_prev_pass_node value in
-                let (nnode, (ty, _, _, ml, _)) = analyze_expr node parent_env ctx None in
-                let ctfe_v = eval_texpr_as_ctfe nnode ty ml parent_env ctx None in
+                let ctfe_v = f node in
                 Some (ctfe_v)
               end
          end
@@ -2921,8 +3007,30 @@ and find_attr_val opt_attr key parent_env ctx =
      end
   | None -> None
 
-and find_attr_bool_val opt_attr key parent_env ctx =
-  let opt_v = find_attr_val opt_attr key parent_env ctx in
+and find_attr_ctfe_val opt_attr key parent_env ctx =
+  let f node =
+    let (nnode, (ty, _, _, ml, _)) = analyze_expr node parent_env ctx None in
+    eval_texpr_as_ctfe nnode ty ml parent_env ctx None
+  in
+  find_attr_val_impl opt_attr key f
+
+(* it can treat simple nodes *)
+and find_attr_boot_val opt_attr key parent_env ctx =
+  let f tnode =
+    analyze_boot_expr tnode parent_env ctx None
+  in
+  find_attr_val_impl opt_attr key f
+
+and find_attr_val is_boot opt_attr key parent_env ctx =
+  let f = if is_boot then
+            find_attr_boot_val
+          else
+            find_attr_ctfe_val
+  in
+  f opt_attr key parent_env ctx
+
+and find_attr_bool_val ?(boot=false) opt_attr key parent_env ctx =
+  let opt_v = find_attr_val boot opt_attr key parent_env ctx in
   match opt_v with
   | Some v -> begin match v with
                     | Ctfe_value.Bool b -> b
@@ -2930,14 +3038,15 @@ and find_attr_bool_val opt_attr key parent_env ctx =
               end
   | None -> false (* default value *)
 
-and find_attr_int_val opt_attr key parent_env ctx =
-  let opt_v = find_attr_val opt_attr key parent_env ctx in
+and find_attr_int32_val ?(boot=false) opt_attr key parent_env ctx =
+  let opt_v = find_attr_val boot opt_attr key parent_env ctx in
   match opt_v with
   | Some v -> begin match v with
                     | Ctfe_value.Int32 i -> Some (Int32.to_int i)
-                    | _ -> failwith "[ERR] not bool value"
+                    | _ -> failwith "[ERR] not int value"
               end
   | None -> None
+
 
 
 and analyze ?(meta_variables=[]) ?(opt_attr=None) node env ctx =

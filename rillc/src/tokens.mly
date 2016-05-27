@@ -6,7 +6,7 @@
  * http://www.boost.org/LICENSE_1_0.txt)
  *)
 
-%token  <int>           INT UINT
+%token  <(int * int * bool)>    INT
 %token  <string>        ID STRING
 %token  <string>        PLUS MINUS TIMES DIV MOD
                         GT GTE LT LTE

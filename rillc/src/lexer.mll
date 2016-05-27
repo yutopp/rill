@@ -21,6 +21,7 @@ let newline = "\r\n" | '\r' | '\n'
 
 let numeric_10 = ['0'-'9']+
 let numeric_16 = "0x" ['0'-'9' 'a'-'f' 'A'-'F']+
+let num_bits = "8" | "16" | "32" | "64"
 
 rule token = parse
   | blank               { token lexbuf }
@@ -64,11 +65,17 @@ rule token = parse
                           read_string_lit _lex_string_lit_buffer lexbuf
                         }
 
-  | numeric_10 as i 'u' { UINT (int_of_string i) }
-  | numeric_16 as i 'u' { UINT (int_of_string i) }
+  | numeric_10 as i 'i' num_bits as b { INT (int_of_string i, int_of_string b, true) }
+  | numeric_16 as i 'i' num_bits as b { INT (int_of_string i, int_of_string b, true) }
 
-  | numeric_10 as i     { INT (int_of_string i) }
-  | numeric_16 as i     { INT (int_of_string i) }
+  | numeric_10 as i 'u' num_bits as b { INT (int_of_string i, int_of_string b, false) }
+  | numeric_16 as i 'u' num_bits as b { INT (int_of_string i, int_of_string b, false) }
+
+  | numeric_10 as i 'u' { INT (int_of_string i, 32, false) }
+  | numeric_16 as i 'u' { INT (int_of_string i, 32, false) }
+
+  | numeric_10 as i     { INT (int_of_string i, 32, true) }
+  | numeric_16 as i     { INT (int_of_string i, 32, true) }
 
   | ['a'-'z' 'A'-'Z' '_'] ['a'-'z' 'A'-'Z' '0'-'9' '_']* as s
                         { ID s }
