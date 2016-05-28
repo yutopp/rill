@@ -12,9 +12,15 @@ type 'e info_t = 'e Type_info.t
 
 let type_sort ty =
   let {
-    ti_sort = ts; _
+    ti_sort = ts;
   } = ty in
   ts
+
+let type_attr ty =
+  let {
+    ti_attr = ta;
+  } = ty in
+  ta
 
 let is_unique_ty ty =
   match type_sort ty with

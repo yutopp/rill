@@ -39,9 +39,10 @@ module Make (Cgt : CONTEXT_TYPE) =
       mutable defined_env       : IdSet.t;
       type_sets                 : 'env Type_sets.type_sets_t;
       uni_map                   : ('ty, 'v) Unification.t;
+
+      places_for_sto_array_elem : ('env, 'ty, 'v) value_t Stack.t;
     }
      and ('env, 'ty, 'v) value_t = ('ty, (('env, 'ty, 'v) t)) Cgt.value_record_t
-
 
     let init ~ir_context ~ir_builder ~ir_module ~ir_intrinsics
              ~type_sets ~uni_map =
@@ -59,6 +60,8 @@ module Make (Cgt : CONTEXT_TYPE) =
         defined_env = IdSet.empty;
         type_sets = type_sets;
         uni_map = uni_map;
+
+        places_for_sto_array_elem = Stack.create ();
       }
 
     (**)
@@ -91,4 +94,15 @@ module Make (Cgt : CONTEXT_TYPE) =
 
     let find_metaval_by_env ctx env =
       Hashtbl.find ctx.env_to_meta_record_tbl env.Env.env_id
+
+
+    (**)
+    let push_array_storage ctx array_value =
+      Stack.push array_value ctx.places_for_sto_array_elem
+
+    let pop_array_storage ctx =
+      Stack.pop ctx.places_for_sto_array_elem
+
+    let current_array_storage ctx =
+      Stack.top ctx.places_for_sto_array_elem
   end

@@ -13,6 +13,12 @@ open Sema_definitions
 open Sema_forward_ref
 open Sema_utils
 
+type storage_operation =
+  | SoExitScope
+  | SoParamPassing
+  | SoArrayElement of int
+
+
 let rec print_error ?(loc=None) err =
   match err with
   | Error.DifferentArgNum (params_num, args_num) ->
@@ -684,7 +690,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        in
 
        (* type check for the variable *)
-       let (type_node, value_node, var_ty) = match opt_type with
+       let (type_node, value_node, var_ty, var_metalevel) = match opt_type with
          (* variable type is specified *)
          | Some var_type_node ->
             begin
@@ -704,11 +710,12 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                    end
                 | None ->
                    begin
-                     (* TODO: implement call defaut constructor *)
+                     (* TODO: implement call default constructor *)
                      failwith "not implemented //"
                    end
               in
-              (Some type_expr, res_expr_node, var_ty)
+              (* TODO: fix var_metalevel *)
+              (Some type_expr, res_expr_node, var_ty, var_metalevel)
             end
 
          (* var_type is infered from initial_value *)
@@ -728,10 +735,30 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                                              var_attr
               in
               (* TODO: if var has meta level, qual must be immutable/const val *)
-              let (conved_node, (_, _, _, conved_ml, _)) =
+              let (conved_node, (conved_type, _, _, conved_ml, _)) =
                 adjust_expr_for_type var_ty expr_node expr_aux
                                      parent_env ctx opt_chain_attr
               in
+
+              (* var_metalevel *)
+              let var_metalevel =
+                let type_attr = Type.type_attr conved_type in
+                match type_attr.Type_attr.ta_ref_val with
+                | Type_attr.Ref ->
+                   Meta_level.bottom var_metalevel Meta_level.Runtime
+                | Type_attr.Val ->
+                   begin
+                     match type_attr.Type_attr.ta_mut with
+                     | Type_attr.Mutable ->
+                        Meta_level.bottom var_metalevel Meta_level.Runtime
+                     | Type_attr.Const
+                     | Type_attr.Immutable ->
+                        var_metalevel
+                     | _ -> failwith "[ICE]"
+                   end
+                | _ -> failwith "[ICE]"
+              in
+
               if not (Meta_level.is_convertiable_to conved_ml var_metalevel) then
                 failwith "[ERR] couldn't convert meta level";
 
@@ -751,10 +778,12 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                 | _ -> conved_node
               in
 
-              (None, mled_node, var_ty)
+              (None, mled_node, var_ty, var_metalevel)
             end
        in
        check_env venv var_metalevel;
+
+       Printf.printf "||||||| %s => %s | %s\n" var_name (Type.to_string var_ty) (Meta_level.to_string var_metalevel);
 
        (* register the variable to the environments *)
        Env.add_inner_env parent_env var_name venv;
@@ -1065,7 +1094,7 @@ and analyze_expr ?(making_placeholder=false)
        (n_ptr, (ptr_ty, VCatPrValue, Env.get_scope_lifetime parent_env, Meta_level.Meta, loc))
      end
 
-  | Ast.ArrayLit (elems, loc) ->
+  | Ast.ArrayLit (elems, _, loc) ->
      begin
        (* TODO: support typings for empty list literal *)
        assert(List.length elems > 0);
@@ -1077,35 +1106,52 @@ and analyze_expr ?(making_placeholder=false)
 
        let array_common_elem =
          let common_elem_arg arga argb =
-           let (dn, (s_ty, d1, d2, d3, d4)) = arga in
+           let (dn, (s_ty, d1, d2, s_ml, d4)) = arga in
+           let (_,  (_,     _, _,  t_ml, _ )) = argb in
+
            match convert_type s_ty argb parent_env ctx attr with
            | (FuncMatchLevel.ExactMatch, Some (trg_ty, f)) ->
               begin
-                (dn, (trg_ty, d1, d2, d3, d4))
+                (dn, (trg_ty, d1, d2, Meta_level.bottom s_ml t_ml, d4))
               end
            | _ -> failwith "[ERR]"
          in
          List.reduce common_elem_arg nargs
        in
-       let (_, (elem_ty, _, _, _, _)) = array_common_elem in
+       let (_, (elem_ty, _, _, bottom_ml, _)) = array_common_elem in
 
-       (* copy/move ctor *)
-       let conved_args =
+       (**)
+       let trivial_copy_ctors =
          let conv arg =
            let res = convert_type elem_ty arg parent_env ctx attr in
            match res with
            | (FuncMatchLevel.NoMatch, _) -> failwith "[ERR]"
            | (_, None) -> failwith "[ERR]"
-           | (_, (Some (trg_ty, f) as m_filter)) ->
-              begin
-                let is_trivial = Env.FunctionOp.is_trivial f in
-                if is_trivial then
-                  arg
-                else
-                  apply_conv_filter m_filter arg parent_env ctx
-              end
+           | (_, (Some (trg_ty, copy_ctor) as m_filter)) ->
+              let is_trivial = Env.FunctionOp.is_trivial copy_ctor in
+              (is_trivial, m_filter, arg)
          in
          List.map conv nargs
+       in
+
+       let static_constructable =
+         let is_all_trivial_copyable =
+           let f (b, _, _) = b in
+           List.for_all f trivial_copy_ctors
+         in
+         (Meta_level.has_meta_spec bottom_ml) && is_all_trivial_copyable
+       in
+
+       (* copy/move ctor *)
+       let conved_args =
+         let conv index (_, m_filter, arg) =
+           if static_constructable then
+             apply_conv_filter m_filter arg parent_env ctx
+           else
+             apply_conv_filter ~opt_operation:(Some (SoArrayElement index))
+                               m_filter arg parent_env ctx
+         in
+         List.mapi conv trivial_copy_ctors
        in
        let (n_nodes, n_auxs) = conved_args |> List.split in
 
@@ -1116,7 +1162,7 @@ and analyze_expr ?(making_placeholder=false)
                                 ctx
        in
        assert_valid_type array_ty;
-       let n_array = TAst.ArrayLit (n_nodes, array_ty) in
+       let n_array = TAst.ArrayLit (n_nodes, static_constructable, array_ty) in
        (* TODO: FIX *)
        (n_array, (array_ty, VCatPrValue, Env.get_scope_lifetime parent_env, Meta_level.Meta, loc))
      end
@@ -1694,10 +1740,7 @@ and try_to_complete_env env ctx =
 and convert_type trg_ty src_arg ext_env ctx attr =
   let (_, src_aux) = src_arg in
   let (src_ty, src_val_cat, src_lt, src_ml, _) = src_aux in
-  Printf.printf "convert_type from\n";
-  Type.print src_ty;
-  Printf.printf "to\n";
-  Type.print trg_ty;
+  Printf.printf "convert_type from %s to %s\n" (Type.to_string src_ty) (Type.to_string trg_ty);
 
   if is_type_convertible_to src_ty trg_ty then begin
     (* same type *)
@@ -1865,9 +1908,9 @@ and post_check_function_return_type fr ctx =
   ()
 
 
-and suitable_storage ?(exit_scope=false)
-                     ?(param_passing=false)
-                     trg_ty ctx =
+and suitable_storage' ~exit_scope
+                      ~param_passing
+                      trg_ty ctx =
   assert (not (exit_scope && param_passing));
   let cenv = Type.as_unique trg_ty in
   let cr = Env.ClassOp.get_record cenv in
@@ -1909,15 +1952,35 @@ and suitable_storage ?(exit_scope=false)
       in
       TAst.StoStack trg_ref_ty
 
-and apply_conv_filter ?(exit_scope=false)
-                      ?(param_passing=false)
+and suitable_storage ?(opt_operation=None)
+                     trg_ty ctx =
+  match opt_operation with
+  | Some operation ->
+     begin
+       match operation with
+       | SoExitScope ->
+          suitable_storage' ~exit_scope:true
+                            ~param_passing:false
+                            trg_ty ctx
+       | SoParamPassing ->
+          suitable_storage' ~exit_scope:false
+                            ~param_passing:true
+                            trg_ty ctx
+       | SoArrayElement index ->
+          TAst.StoArrayElem (trg_ty, index)
+     end
+  | None ->
+     suitable_storage' ~exit_scope:false
+                       ~param_passing:false
+                       trg_ty ctx
+
+and apply_conv_filter ?(opt_operation=None)
                       filter expr ext_env ctx =
   let (expr_node, expr_aux) = expr in
   match filter with
   | Some (trg_ty, f_env) ->
      let sto = suitable_storage
-                 ~exit_scope:exit_scope
-                 ~param_passing:param_passing
+                 ~opt_operation:opt_operation
                  trg_ty
                  ctx
      in
@@ -1933,7 +1996,6 @@ and apply_conv_filter ?(exit_scope=false)
 
 
 and adjust_expr_for_type ?(exit_scope=false)
-                         ?(param_passing=false)
                          trg_ty src_expr src_aux ext_env ctx attr =
   let (match_level, m_filter) =
     convert_type trg_ty (src_expr, src_aux) ext_env ctx attr
@@ -1941,8 +2003,11 @@ and adjust_expr_for_type ?(exit_scope=false)
   if match_level = FuncMatchLevel.NoMatch then
     failwith "[ERR] cannot convert type";
 
-  apply_conv_filter ~exit_scope:exit_scope
-                    ~param_passing:param_passing
+  let act = match exit_scope with
+    | true -> Some SoExitScope
+    | false -> None
+  in
+  apply_conv_filter ~opt_operation:act
                     m_filter (src_expr, src_aux) ext_env ctx
 
 
@@ -2736,7 +2801,11 @@ and run_instantiate menv f =
 
 and map_conversions ?(param_passing=false) filters args ext_env ctx =
   let f filter arg =
-    apply_conv_filter ~param_passing:param_passing filter arg ext_env ctx
+    let act = match param_passing with
+      | true -> Some SoParamPassing
+      | false -> None
+    in
+    apply_conv_filter ~opt_operation:act filter arg ext_env ctx
   in
   List.map2 f filters args
 

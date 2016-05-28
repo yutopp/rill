@@ -102,7 +102,7 @@ module Make (Ctx : NodeContextType) =
       | IntLit of int * int * bool * term_ctx_t (* value * bits * signed *)
       | StringLit of string * term_ctx_t
       | BoolLit of bool * term_ctx_t
-      | ArrayLit of ast list * term_ctx_t
+      | ArrayLit of ast list * bool * term_ctx_t
 
       (* error *)
       | Error
@@ -153,6 +153,7 @@ module Make (Ctx : NodeContextType) =
        | StoGc
        | StoAgg
        | StoImm
+       | StoArrayElem of term_ctx_t * int
 
     type t = ast
 

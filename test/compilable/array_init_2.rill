@@ -1,0 +1,8 @@
+import std.stdio;
+
+def main() {
+    val mutable v = 2;
+
+    val a = [0, 1, v];
+    a[2].print();
+}

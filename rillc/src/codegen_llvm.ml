@@ -368,28 +368,43 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
 
        let eval_args param_types =
          (* normal arguments *)
-         let (llvals, tys) =
+         let (llvals, arg_tys) =
            args
            |> List.map (fun n -> generate_code n ctx)
            |> List.split
          in
          (* special arguments *)
-         let (llvals, tys, param_types) = match !storage_ref with
+         let (llvals, arg_tys, param_types) = match !storage_ref with
            | TAst.StoStack (ty) ->
               begin
                 let llty = lltype_of_typeinfo ty ctx in
                 let v = L.build_alloca llty "" ctx.ir_builder in
-                (v::llvals), (ty::tys), (ty::param_types)
+                (v::llvals), (ty::arg_tys), (ty::param_types)
               end
 
            | TAst.StoImm ->
-              (llvals, tys, param_types)
+              (llvals, arg_tys, param_types)
 
-           | _ -> (ignore llvals; ignore tys; failwith "")
+           | TAst.StoArrayElem (ty, index) ->
+              let array_sto = match Ctx.current_array_storage ctx with
+                | LLValue v -> v
+                | _ -> failwith "[ICE]"
+              in
+              let zero = L.const_int (L.i32_type ctx.ir_context) 0 in
+              let llindex = L.const_int (L.i32_type ctx.ir_context) index in
+              let array_elem_ptr =
+                L.build_in_bounds_gep array_sto
+                                      [|zero; llindex|]
+                                      ""
+                                      ctx.Ctx.ir_builder
+              in
+              (array_elem_ptr::llvals), (ty::arg_tys), (ty::param_types)
+
+           | _ -> failwith "[ICE] special arguments"
          in
          let conv_funcs =
            let f t s = adjust_arg_llval_form t s in
-           List.map2 f param_types tys
+           List.map2 f param_types arg_tys
          in
          let llargs = List.map2 (fun f v -> f v ctx) conv_funcs llvals
                       |> Array.of_list
@@ -549,17 +564,12 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
        (llval, lit_ty)
      end
 
-  | TAst.ArrayLit (elems, arr_ty) ->
+  | TAst.ArrayLit (elems, static_constructable, arr_ty) ->
      begin
-       (* TODO: support static storages *)
        let arr_llty = lltype_of_typeinfo arr_ty ctx in
-       let ll_trg_array = L.build_alloca arr_llty "" ctx.ir_builder in
+       let ll_array_sto = L.build_alloca arr_llty "" ctx.ir_builder in
 
-       let arr_cenv = Type.as_unique arr_ty in
-       let arr_cenv_r = Env.ClassOp.get_record arr_cenv in
-
-       (* TODO: fix algorithm *)
-       if arr_cenv_r.Env.cls_traits.Env.cls_traits_is_copy_ctor_trivial then
+       if static_constructable then
          begin
            let (ll_elems, tys) =
              elems
@@ -574,7 +584,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
            L.set_linkage L.Linkage.Private ll_array;
            L.set_unnamed_addr true ll_array;
            let llsrc = L.build_bitcast ll_array lit_ptr_ty "" ctx.ir_builder in
-           let lltrg = L.build_bitcast ll_trg_array lit_ptr_ty "" ctx.ir_builder in
+           let lltrg = L.build_bitcast ll_array_sto lit_ptr_ty "" ctx.ir_builder in
            (* TODO: fix *)
            let buffer_size = (size_of lit_ty) * (List.length elems) in
            let size_of = Int64.of_int buffer_size in
@@ -584,11 +594,14 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
              ctx.intrinsics.memcpy_i32 lltrg llsrc
                                        size_of align_of false ctx.ir_builder
            in
-           (ll_trg_array, arr_ty)
+           (ll_array_sto, arr_ty)
          end
        else
          begin
-           failwith "[ICE] not supported yet"
+           Ctx.push_array_storage ctx (LLValue ll_array_sto);
+           let _ = elems |> List.map (fun n -> generate_code n ctx) in
+           let _ = Ctx.pop_array_storage ctx in
+           (ll_array_sto, arr_ty)
          end
      end
 
@@ -656,7 +669,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
             Printf.printf "LLVM codegen Env.MetaVariable = %d\n" uni_id;
             let (_, c) = Unification.search_value_until_terminal uni_map uni_id in
             match c with
-            | Unification.Val v ->  ctfe_val_to_llval v ctx
+            | Unification.Val v -> ctfe_val_to_llval v ctx
             | _ -> raise @@ Ctfe_exn.Meta_var_un_evaluatable uni_id
           end
 

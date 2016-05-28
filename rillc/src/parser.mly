@@ -823,7 +823,7 @@ array_literal:
                 LBRACKET
                 elems = separated_list(COMMA, expression)
                 RBRACKET
-                { Ast.ArrayLit (elems, pos $startpos $endpos) }
+                { Ast.ArrayLit (elems, false, pos $startpos $endpos) }
 
 (**)
 attribute:

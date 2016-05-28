@@ -47,3 +47,8 @@ let is_convertiable_to src trg =
   | (OnlyRuntime, _)
   | (_, OnlyRuntime) -> false
   | _ -> (to_int src) <= (to_int trg)
+
+let has_meta_spec ml =
+  match ml with
+  | OnlyMeta | Meta -> true
+  | _ -> false
