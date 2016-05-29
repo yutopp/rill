@@ -160,8 +160,8 @@ type 'ast env_t = {
    mutable cls_member_vars      : 'ast env_t list;
    mutable cls_member_funcs     : 'ast env_t list;
 
-   mutable cls_size             : int option;  (* bytes *)
-   mutable cls_align            : int option;  (* bytes *)
+   mutable cls_size             : Stdint.uint32 option;  (* bytes *)
+   mutable cls_align            : Stdint.uint32 option;  (* bytes *)
  }
  and 'ast class_record_var =
    | ClsRecordExtern of class_record_extern

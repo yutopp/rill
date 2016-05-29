@@ -25,7 +25,7 @@ Rill is designed for systems programming.
 
 ## Preparation
 ```
-opam install omake menhir batteries ctypes-foreign llvm.3.8
+opam install omake menhir batteries ctypes-foreign stdint llvm.3.8
 eval `opam config env`
 ```
 `opam update` might be required to install these packages.

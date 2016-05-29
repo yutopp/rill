@@ -7,6 +7,7 @@
  *)
 
 open Batteries
+open Stdint
 module L = Llvm
 module LBW = Llvm_bitwriter
 
@@ -55,6 +56,15 @@ let make_default_context ~type_sets ~uni_map =
     ~ir_intrinsics:ir_intrinsics
     ~type_sets:type_sets
     ~uni_map:uni_map
+
+
+let llval_i32 v ctx =
+  let open Ctx in
+  L.const_int_of_string (L.i32_type ctx.ir_context) (Int32.to_string v) 10
+
+let llval_u32 v ctx =
+  let open Ctx in
+  L.const_int_of_string (L.i32_type ctx.ir_context) (Uint32.to_string v) 10
 
 
 let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
@@ -483,9 +493,8 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
                    assert (List.length args = 1);
                    let rhs = List.hd args in
                    let (llrhs, rhs_ty) = generate_code rhs ctx in
-                   let sl = Int64.of_int (Type.size_of rhs_ty) in
-                   (*let al = L.int64_of_const (L.align_of (L.type_of llrhs)) |> Option.get in*)
-                   let al = Int64.of_int 0 in
+                   let sl = Type.size_of rhs_ty in
+                   let al = Type.align_of rhs_ty in
                    let _ = ctx.intrinsics.memcpy_i32 new_obj llrhs
                                                      sl al false ctx.ir_builder (* TODO: fix *)
                    in
@@ -584,8 +593,8 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
            L.set_unnamed_addr true ll_array;
            let llsrc = L.build_bitcast ll_array lit_ptr_ty "" ctx.ir_builder in
            let lltrg = L.build_bitcast ll_array_sto lit_ptr_ty "" ctx.ir_builder in
-           let size_of = Int64.of_int (Type.size_of arr_ty) in
-           let align_of = Int64.of_int (Type.align_of arr_ty) in
+           let size_of = Type.size_of arr_ty in
+           let align_of = Type.align_of arr_ty in
            let open Codegen_llvm_intrinsics in
            let _ =
              ctx.intrinsics.memcpy_i32 lltrg llsrc
@@ -842,6 +851,15 @@ and ctfe_val_to_llval ctfe_val ctx =
      let llval =
        L.const_of_int64 (L.i32_type ctx.ir_context)
                         (Int32.to_int64 i32)
+                        true (* signed *)
+     in
+     let ty = !(tsets.Type_sets.ts_int32_type_holder) in
+     (llval, ty)
+
+  | Ctfe_value.Uint32 i32 ->
+     let llval =
+       L.const_of_int64 (L.i32_type ctx.ir_context)
+                        (Uint32.to_int64 i32)
                         false (* not signed *)
      in
      let ty = !(tsets.Type_sets.ts_int32_type_holder) in
@@ -849,6 +867,8 @@ and ctfe_val_to_llval ctfe_val ctx =
 
   | Ctfe_value.Undef ud_uni_id ->
      raise @@ Ctfe_exn.Meta_var_un_evaluatable ud_uni_id
+
+  | _ -> failwith "[ICE]"
 
 
 and generate_code_by_interrupt node ctx =
@@ -1091,12 +1111,12 @@ let inject_builtins ctx =
                                    | _ -> failwith "[ICE]"
                                  in
                                  let len_val = match len_ct_val with
-                                   | Ctfe_value.Int32 i32 -> i32
+                                   | Ctfe_value.Uint32 i32 -> i32
                                    | _ -> failwith "[ICE]"
                                  in
                                  (* TODO: fix *)
                                  let llty = lltype_of_typeinfo ty_val ctx in
-                                 let len = Int32.to_int len_val in
+                                 let len = Uint32.to_int len_val in
                                  L.array_type llty len
                                end
                              ));
@@ -1113,7 +1133,7 @@ let inject_builtins ctx =
         | Ctfe_value.Type ty -> ty
         | _ -> failwith "[ICE]"
       in
-      L.const_int (L.i32_type ctx.ir_context) (Type.size_of ty)
+      llval_u32 (Type.size_of ty) ctx
     in
     register_builtin_template_func "__builtin_sizeof" f
   in
@@ -1175,8 +1195,8 @@ let inject_builtins ctx =
 
       let to_obj = args.(0) in
       let from_obj = args.(1) in
-      let size_of = Int64.of_int (Type.size_of arr_ty) in
-      let align_of = Int64.of_int (Type.align_of arr_ty) in
+      let size_of = Type.size_of arr_ty in
+      let align_of = Type.align_of arr_ty in
       let _ =
         ctx.intrinsics.memcpy_i32 to_obj from_obj
                                   size_of align_of false ctx.ir_builder

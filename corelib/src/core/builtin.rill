@@ -23,18 +23,20 @@ def new!(T)() {
     return p;
 }
 
+//def to!(T)(v: int32) when T
+
 // bool
-#[builtin, primitive, size = 1, align = 1]
+#[builtin, primitive, size = 1u, align = 1u]
 extern class bool = "__builtin_bool_type"
 #[builtin]
 extern def operator unary! (:bool): bool = "__builtin_op_unary_pre_!_bool";
 
 // uint8
-#[builtin, primitive, size = 1, align = 1]
+#[builtin, primitive, size = 1u, align = 1u]
 extern class uint8 = "__builtin_uint8_type"
 
 // int32
-#[builtin, primitive, size = 4, align = 4]
+#[builtin, primitive, size = 4u, align = 4u]
 extern class int32 = "__builtin_int32_type"
 
 // TODO: implement attributes scope
@@ -83,7 +85,7 @@ def operator pre--(ref mutable i:int32): void
 
 
 // uint32
-#[builtin, primitive, size = 4, align = 4]
+#[builtin, primitive, size = 4u, align = 4u]
 extern class uint32 = "__builtin_uint32_type"
 
 // TODO: implement attributes scope
@@ -131,19 +133,19 @@ def operator pre--(ref mutable i: uint32): void
 
 // array
 #[builtin, array_type]
-extern class array!(T, N:int32) = "__builtin_array_type"
+extern class array!(T, N: uint32) = "__builtin_array_type"
 #[builtin]
-extern def operator unary& !(T, N:int32)(:array!(T, N)): raw_ptr!T = "__builtin_take_address_from_array";
-def operator[] !(T, N:int32)(arr :array!(T, N), index: int32): ref(T) => *(&arr + index);
+extern def operator unary& !(T, N: uint32)(:array!(T, N)): raw_ptr!T = "__builtin_take_address_from_array";
+def operator[] !(T, N: uint32)(arr :array!(T, N), index: int32): ref(T) => *(&arr + index);
 // uint version. TODO: remove
-def operator[] !(T, N:int32)(arr :array!(T, N), index: uint32): ref(T) => *(&arr + index);
+def operator[] !(T, N: uint32)(arr :array!(T, N), index: uint32): ref(T) => *(&arr + index);
 
 // untyped raw pointer
-#[builtin, primitive, size = 8, align = 8]
+#[builtin, primitive, size = 8u, align = 8u]
 extern class untyped_raw_ptr = "__builtin_untyped_raw_ptr_type"
 
 // raw pointer
-#[builtin, primitive, size = 8, align = 8]
+#[builtin, primitive, size = 8u, align = 8u]
 extern class raw_ptr!(T) = "__builtin_raw_ptr_type"
 
 #[builtin]

@@ -89,6 +89,14 @@ let invoke_function engine fname ret_ty type_sets =
        Ctfe_value.Int32 ret_val
      end
 
+  | ty when Type.has_same_class ty !(type_sets.ts_uint32_type_holder) ->
+     begin
+       let cfunc_ty = Ctypes.void @-> returning Ctypes.uint32_t in
+       let ret_val = call_by_type cfunc_ty in
+
+       Ctfe_value.Uint32 (Stdint.Uint32.of_int32 (Unsigned.UInt32.to_int32 ret_val))
+     end
+
   | _ ->
      begin
        failwith "[ICE] this type is not supported"

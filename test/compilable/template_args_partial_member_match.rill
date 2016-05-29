@@ -1,0 +1,12 @@
+def main() {
+    A();
+}
+
+class A {
+    def ctor() {
+        this.f([1, 2, 3]);
+    }
+
+    def f!(N: uint32)(arr: array!(int32, N)) {
+    }
+}

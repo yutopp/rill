@@ -7,6 +7,7 @@
  *)
 
 open Batteries
+open Stdint
 open Type_sets
 open Value_category
 open Sema_definitions
@@ -214,6 +215,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        Printf.printf "member function %s - unchecked\n" name_s;
 
        (* class env *)
+       let parent_env = Option.get env.Env.parent_env in
        let ctx_env = Option.get parent_env.Env.context_env in
        let ctx_env_r = Env.ClassOp.get_record ctx_env in
 
@@ -401,10 +403,11 @@ let rec construct_env node parent_env ctx opt_chain_attr =
 
        let (class_size, class_align) =
          let f (csize, calign) (vsize, valign) =
+           let open Uint32 in
            (* TODO: implement correctly *)
            (csize + vsize, calign)
          in
-         List.fold_left f (0, 0) member_layouts
+         List.fold_left f (Uint32.zero, Uint32.zero) member_layouts
        in
 
        (* body *)
@@ -536,15 +539,15 @@ let rec construct_env node parent_env ctx opt_chain_attr =
              };
              define_trivial_copy_assign_for_builtin env extern_cname ctx;
 
-             let opt_csize = find_attr_int32_val ~boot:true
-                                                 opt_attr "size" parent_env ctx
+             let opt_csize = find_attr_uint32_val ~boot:true
+                                                  opt_attr "size" parent_env ctx
              in
              let csize = match opt_csize with
                | Some v -> v
                | None -> failwith "[ERR]"
              in
-             let opt_calign = find_attr_int32_val ~boot:true
-                                                 opt_attr "align" parent_env ctx
+             let opt_calign = find_attr_uint32_val ~boot:true
+                                                   opt_attr "align" parent_env ctx
              in
              let calign = match opt_calign with
                | Some v -> v
@@ -567,8 +570,8 @@ let rec construct_env node parent_env ctx opt_chain_attr =
 
              let targ_nval = List.at cenv_r.Env.cls_template_vals 1 in
              let tval_num = match targ_nval with
-               | Ctfe_value.Int32 n -> Int32.to_int n
-               | _ -> failwith "[ICE]"
+               | Ctfe_value.Uint32 n -> n
+               | _ -> failwith "[ICE] array length"
              in
 
              (* default constructor *)
@@ -607,7 +610,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
              else
                failwith "[ERR] not implemented yet";
 
-             ((Type.element_size_of tval_ty) * tval_num, Type.align_of tval_ty)
+             (Uint32.(Type.element_size_of tval_ty * tval_num), Type.align_of tval_ty)
            end
        in
        let opt_layout =
@@ -990,7 +993,7 @@ and analyze_expr ?(making_placeholder=false)
          analyze_expr ~making_placeholder:making_placeholder
                       expr parent_env ctx attr
        in
-       ignore expr_node; failwith ""
+       ignore expr_node; failwith "new expr"
      end
 
   | Ast.StatementTraitsExpr (keyword, block) ->
@@ -1355,7 +1358,8 @@ and analyze_boot_expr node parent_env ctx attr : 'ty Ctfe_value.t =
        match bits with
        | 32 -> if signed then
                  Ctfe_value.Int32 (Int32.of_int i)
-               else failwith ""
+               else
+                 Ctfe_value.Uint32 (Uint32.of_int i)
        | _ -> failwith ""
      end
 
@@ -2302,10 +2306,10 @@ and instantiate_function_templates menv template_args arg_auxs ext_env ctx attr 
       | TAst.NotInstantiatedNode (n, _) -> n
       | _ -> failwith "[ICE] unexpected not instantiated node"
     in
-    let (parameters, opt_cond) = match inner_node with
-      | Ast.FunctionDefStmt (_, Ast.ParamsList params, _, c, _, _, _) -> (params, c)
-      | Ast.MemberFunctionDefStmt (_, Ast.ParamsList params, _, _, _, _) -> (params, None)
-      | Ast.ExternFunctionDefStmt (_, Ast.ParamsList params, _, _, _, _, _) -> (params, None)
+    let (parameters, opt_cond, dn) = match inner_node with
+      | Ast.FunctionDefStmt (_, Ast.ParamsList params, _, c, _, _, _) -> (params, c, 0)
+      | Ast.MemberFunctionDefStmt (_, Ast.ParamsList params, _, _, _, _) -> (params, None, 1)
+      | Ast.ExternFunctionDefStmt (_, Ast.ParamsList params, _, _, _, _, _) -> (params, None, 0)
       | _ -> failwith ""
     in
 
@@ -2313,18 +2317,27 @@ and instantiate_function_templates menv template_args arg_auxs ext_env ctx attr 
       List.map (fun decl -> get_param_type decl temp_env ctx attr) parameters
     in
     List.iteri (fun i ty -> Printf.printf "%d: %s\n" i (Type.to_string ty)) param_types;
-    Printf.printf "      REACHED / get_function_param_types\n";
-
+    Printf.printf "REACHED / get_function_param_types\n";
+    arg_auxs
+    |> List.map (fun t -> let (ty, _, _, _, _) = t in ty)
+    |> List.iteri (fun i ty -> Printf.printf "%d: %s\n" i (Type.to_string ty));
+    Printf.printf "REACHED / get_function_arg_types\n";
     (* *)
-    let params_type_value = List.map (fun x -> Ctfe_value.Type x) param_types in
+    let params_type_value =
+      param_types
+      |> List.map (fun x -> Ctfe_value.Type x)
+      |> List.enum
+    in
     let args_type_value =
       arg_auxs
-      |> List.map (fun t -> let (ty, cat, lt, ml, _) = t in ty)
+      |> List.map (fun t -> let (ty, _, _, _, _) = t in ty)
       |> List.map (fun x -> Ctfe_value.Type x)
+      |> List.enum
     in
+    Enum.drop dn args_type_value;
     Enum.iter2 (unify_arg_value ctx)
-               (List.enum params_type_value)
-               (List.enum args_type_value);
+               params_type_value
+               args_type_value;
 
     List.iter (fun c -> print_meta_var c ctx) uni_ids;
     Printf.printf "       REACHED / unify_arg_type \n";
@@ -2427,11 +2440,13 @@ and unify_arg_value ctx lhs rhs =
      begin
        unify_type_value ctx lhs_ty rhs_ty;
      end
-  | (Ctfe_value.Undef uni_id, Ctfe_value.Int32 i32)
-  | (Ctfe_value.Int32 i32, Ctfe_value.Undef uni_id) ->
+  | (Ctfe_value.Undef _, Ctfe_value.Undef _) ->
+     failwith "[ERR]"
+  | (Ctfe_value.Undef uni_id, v)
+  | (v, Ctfe_value.Undef uni_id) ->
      begin
        Printf.printf "!! unify_arg_value(T|V) / %d -> value\n" uni_id;
-       Unification.update_value ctx.sc_unification_ctx uni_id (Ctfe_value.Int32 i32)
+       Unification.update_value ctx.sc_unification_ctx uni_id v
      end
   | _ -> failwith "[ICE] not implemented (unify_arg_value)"
 
@@ -2975,7 +2990,7 @@ and get_builtin_array_type elem_ty len arr_attr ctx : 'env type_info =
     | Type_info.ClassSetTy menv ->
        begin
          let template_args = [Ctfe_value.Type elem_ty;
-                              Ctfe_value.Int32 (Int32.of_int len)
+                              Ctfe_value.Uint32 (Uint32.of_int len)
                              ] in
          let ext_env = Option.get menv.Env.parent_env in
          let instances =
@@ -3118,11 +3133,19 @@ and find_attr_int32_val ?(boot=false) opt_attr key parent_env ctx =
   let opt_v = find_attr_val boot opt_attr key parent_env ctx in
   match opt_v with
   | Some v -> begin match v with
-                    | Ctfe_value.Int32 i -> Some (Int32.to_int i)
-                    | _ -> failwith "[ERR] not int value"
+                    | Ctfe_value.Int32 i -> Some i
+                    | _ -> failwith "[ERR] not int32 value"
               end
   | None -> None
 
+and find_attr_uint32_val ?(boot=false) opt_attr key parent_env ctx =
+  let opt_v = find_attr_val boot opt_attr key parent_env ctx in
+  match opt_v with
+  | Some v -> begin match v with
+                    | Ctfe_value.Uint32 i -> Some i
+                    | _ -> failwith "[ERR] not uint32 value"
+              end
+  | None -> None
 
 
 and analyze ?(meta_variables=[]) ?(opt_attr=None) node env ctx =

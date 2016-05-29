@@ -1,0 +1,12 @@
+def main() {
+    A();
+}
+
+class A {
+    def ctor() {
+        this.f(10);
+    }
+
+    def f!(T)(v: T) {
+    }
+}

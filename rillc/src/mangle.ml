@@ -2,18 +2,22 @@ open Batteries
 
 let rec s_of_ctfe_val value tset =
   let open Type_sets in
-  match value with
-  | Ctfe_value.Type ty -> s_of_type ty
-
-  | Ctfe_value.Int32 i32 ->
-     begin
-       Printf.sprintf "V%si%s"
-                      (s_of_ctfe_val (Ctfe_value.Type !(tset.ts_int32_type_holder)) tset)
-                      (Int32.to_string i32)
-     end
-
-  | _ -> failwith "[ICE] s_of_ctfe_val / unknown"
-
+  let ty = match value with
+    | Ctfe_value.Type _ ->
+       tset.ts_type_type
+    | Ctfe_value.Bool _ ->
+       !(tset.ts_bool_type_holder)
+    | Ctfe_value.Int32 _ ->
+       !(tset.ts_int32_type_holder)
+    | Ctfe_value.Uint32 _ ->
+       !(tset.ts_uint32_type_holder)
+  (*| Ctfe_value.Int64 _ ->
+       !(tset.ts_int64_type_holder)*)
+    | _ -> failwith "[ICE] s_of_ctfe_val"
+  in
+  Printf.sprintf "V%s%s"
+                 (s_of_type ty)
+                 (Ctfe_util.to_string value)
 
 and s_of_type ty =
   let c_env = Type.as_unique ty in

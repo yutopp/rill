@@ -47,12 +47,12 @@ let rec search_until_terminal ?(debug_s="") mapping uni_id =
   match c with
   | Val _ | Undef ->
              begin
-               Printf.printf "@%s@ val or undef [%d]\n" debug_s uni_id;
+               (*Printf.printf "@%s@ val or undef [%d]\n" debug_s uni_id;*)
                (uni_id, c)
              end
   | Link link_t_id ->
      begin
-       Printf.printf "@%s@ link to [%d] -> \n" debug_s uni_id;
+       (*Printf.printf "@%s@ link to [%d] -> \n" debug_s uni_id;*)
        search_until_terminal mapping link_t_id
      end
 
@@ -66,22 +66,22 @@ let link ?(debug_s="") holder mapping uni_id_a uni_id_b =
        let new_uni_id = generate_uni_id holder in
        Hashtbl.replace mapping a_id (Link new_uni_id);
        Hashtbl.replace mapping b_id (Link new_uni_id);
-       Printf.printf "@%s@ LINK [%d] = [%d] -> %d" debug_s a_id b_id new_uni_id
+       (*Printf.printf "@%s@ LINK [%d] = [%d] -> %d" debug_s a_id b_id new_uni_id*)
      end
   | (Val _, Undef) ->
      begin
-       Printf.printf "@%s@ LINK [%d] -> %d" debug_s b_id a_id;
+       (*Printf.printf "@%s@ LINK [%d] -> %d" debug_s b_id a_id;*)
        Hashtbl.replace mapping b_id (Link a_id)
      end
   | (Undef, Val _) ->
      begin
-       Printf.printf "@%s@ LINK [%d] -> %d" debug_s a_id b_id;
+       (*Printf.printf "@%s@ LINK [%d] -> %d" debug_s a_id b_id;*)
        Hashtbl.replace mapping a_id (Link b_id)
      end
   | _ -> failwith "[ICE] link"
 
 let update ?(debug_s="") holder mapping uni_id v =
-  Printf.printf "@%s@ update %d\n" debug_s uni_id;
+  (*Printf.printf "@%s@ update %d\n" debug_s uni_id;*)
   let (term_id, cur_val) = search_until_terminal ~debug_s:debug_s mapping uni_id in
   match cur_val with
   | Undef | Val _ -> Hashtbl.replace mapping term_id (Val v)

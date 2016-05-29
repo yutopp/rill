@@ -78,9 +78,10 @@ let align_of ty =
   | None -> failwith "[ICE] cls align is not set"
 
 let element_size_of ty =
+  let open Stdint.Uint32 in
   let size = size_of ty in
   let align = align_of ty in
-  let padding = size mod align in
+  let padding = rem size align in
   size + padding
 
 
@@ -181,7 +182,10 @@ and to_s_ctfe value =
   match value with
   | Ctfe_value.Type ty -> to_string ty
   | Ctfe_value.Bool b -> string_of_bool b
-  | Ctfe_value.Int32 n -> string_of_int (Int32.to_int n)
+  | Ctfe_value.Int32 n -> Int32.to_string n
+  | Ctfe_value.Uint32 n -> Stdint.Uint32.to_string n
+  | Ctfe_value.Int64 n -> Int64.to_string n
+  | Ctfe_value.Uint64 n -> Stdint.Uint64.to_string n
   | Ctfe_value.Undef _ -> "%%ctfe_val(undef)"
 
 and print ty =

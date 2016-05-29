@@ -57,6 +57,7 @@ OCAMLPACKS[] =
    llvm.analysis
    llvm.executionengine
    ctypes
+   stdint
 
 #
 if $(not $(OCAMLFIND_EXISTS))
