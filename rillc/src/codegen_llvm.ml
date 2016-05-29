@@ -10,13 +10,19 @@ open Batteries
 module L = Llvm
 module LBW = Llvm_bitwriter
 
+module TAst = Tagged_ast
+type env_t = TAst.t Env.env_t
+type type_info_t = env_t Type.info_t
+type ctfe_val_t = type_info_t Ctfe_value.t
+type type_gen_t = env_t Type.Generator.t
+
 type ('ty, 'ctx) record_t =
   | LLValue of L.llvalue
   | LLType of L.lltype
   | LLTypeGen of ('ty Ctfe_value.t list -> L.lltype)
   | ElemIndex of int
-  | BuiltinFunc of (L.llvalue array -> 'ctx -> L.llvalue)
-  | BuiltinFuncGen of ('ty Ctfe_value.t list -> L.llvalue array -> 'ctx -> L.llvalue)
+  | BuiltinFunc of (type_info_t list -> L.llvalue array -> 'ctx -> L.llvalue)
+  | BuiltinFuncGen of ('ty Ctfe_value.t list -> type_info_t list -> L.llvalue array -> 'ctx -> L.llvalue)
   | TrivialAction
 
 module CodeGeneratorType =
@@ -29,16 +35,9 @@ module CodeGeneratorType =
     type ('ty, 'ctx) value_record_t = ('ty, 'ctx) record_t
   end
 module Ctx = Codegen_context.Make(CodeGeneratorType)
-module TAst = Tagged_ast
-
-type env_t = TAst.t Env.env_t
-type type_info_t = env_t Type.info_t
-type ctfe_val_t = type_info_t Ctfe_value.t
-type type_gen_t = env_t Type.Generator.t
 type ctx_t = (env_t, type_info_t, ctfe_val_t) Ctx.t
 
 let agg_recever_name = "agg.receiver"
-
 
 let make_default_context ~type_sets ~uni_map =
   let ir_context = L.global_context () in
@@ -409,7 +408,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
          let llargs = List.map2 (fun f v -> f v ctx) conv_funcs llvals
                       |> Array.of_list
          in
-         llargs
+         (llargs, param_types)
        in
 
        let fn_s_name = Nodes.string_of_id_string fn_name in
@@ -430,10 +429,10 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
                       begin
                         match returns_heavy_obj with
                         | false ->
-                           let llargs = eval_args param_tys in
+                           let (llargs, _) = eval_args param_tys in
                            L.build_call f llargs "" ctx.ir_builder
                         | true ->
-                           let llargs = eval_args param_tys in
+                           let (llargs, _) = eval_args param_tys in
                            let _ = L.build_call f llargs "" ctx.ir_builder in
                            assert (Array.length llargs > 0);
                            llargs.(0)
@@ -484,7 +483,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
                    assert (List.length args = 1);
                    let rhs = List.hd args in
                    let (llrhs, rhs_ty) = generate_code rhs ctx in
-                   let sl = Int64.of_int (size_of rhs_ty) in
+                   let sl = Int64.of_int (Type.size_of rhs_ty) in
                    (*let al = L.int64_of_const (L.align_of (L.type_of llrhs)) |> Option.get in*)
                    let al = Int64.of_int 0 in
                    let _ = ctx.intrinsics.memcpy_i32 new_obj llrhs
@@ -500,7 +499,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
             begin
               Printf.printf "gen value: debug / extern  %s = \"%s\"\n"
                             fn_s_name extern_name; flush_all ();
-              let llargs = eval_args param_tys in
+              let (llargs, _) = eval_args param_tys in
               let extern_f =
                 find_llval_by_env_with_force_generation ctx env
               in
@@ -512,7 +511,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
               Printf.printf "gen value: debug / builtin %s = \"%s\"\n"
                             fn_s_name extern_name;
               flush_all ();
-              let llargs = eval_args param_tys in
+              let (llargs, param_tys) = eval_args param_tys in
               Array.iter L.dump_value llargs;
 
               let v_record = Ctx.find_val_by_name ctx extern_name in
@@ -523,7 +522,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
                    f fenv_r.Env.fn_template_vals
                 | _ -> failwith "[ICE]"
               in
-              builtin_gen_f llargs ctx
+              builtin_gen_f param_tys llargs ctx
             end
 
          | Env.FnUndef -> failwith "[ICE] codegen: undefined function record"
@@ -585,10 +584,8 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
            L.set_unnamed_addr true ll_array;
            let llsrc = L.build_bitcast ll_array lit_ptr_ty "" ctx.ir_builder in
            let lltrg = L.build_bitcast ll_array_sto lit_ptr_ty "" ctx.ir_builder in
-           (* TODO: fix *)
-           let buffer_size = (size_of lit_ty) * (List.length elems) in
-           let size_of = Int64.of_int buffer_size in
-           let align_of = Int64.of_int 0 in
+           let size_of = Int64.of_int (Type.size_of arr_ty) in
+           let align_of = Int64.of_int (Type.align_of arr_ty) in
            let open Codegen_llvm_intrinsics in
            let _ =
              ctx.intrinsics.memcpy_i32 lltrg llsrc
@@ -934,13 +931,6 @@ and is_primitive ty =
   let cr = Env.ClassOp.get_record cenv in
   cr.Env.cls_traits.Env.cls_traits_is_primitive
 
-(* TODO: move to util module *)
-and size_of ty =
-  let cenv = Type.as_unique ty in
-  let cr = Env.ClassOp.get_record cenv in
-  match cr.Env.cls_size with
-  | Some v -> v
-  | None -> failwith "[ICE] cls size is not set"
 
 
 and is_heavy_object ty =
@@ -1116,20 +1106,20 @@ let inject_builtins ctx =
    * Builtin functions
    *)
   let () =
-    let f template_args args ctx =
+    let f template_args _ args ctx =
       assert (List.length template_args = 1);
       let ty_val = List.nth template_args 0 in
       let ty = match ty_val with
         | Ctfe_value.Type ty -> ty
         | _ -> failwith "[ICE]"
       in
-      L.const_int (L.i32_type ctx.ir_context) (size_of ty)
+      L.const_int (L.i32_type ctx.ir_context) (Type.size_of ty)
     in
     register_builtin_template_func "__builtin_sizeof" f
   in
 
   let () =
-    let f template_args args ctx =
+    let f template_args _ args ctx =
       assert (List.length template_args = 1);
       let ty_val = List.nth template_args 0 in
       let ty = match ty_val with
@@ -1143,7 +1133,7 @@ let inject_builtins ctx =
   in
 
   let () =
-    let f template_args args ctx =
+    let f template_args _ args ctx =
       assert (List.length template_args = 1);
       let ty_val = List.nth template_args 0 in
       let ty = match ty_val with
@@ -1160,7 +1150,7 @@ let inject_builtins ctx =
   in
 
   let () =
-    let f template_args args ctx =
+    let f template_args _ args ctx =
       assert (List.length template_args = 2);
       let ty_val = List.nth template_args 0 in
       let ty = match ty_val with
@@ -1177,14 +1167,16 @@ let inject_builtins ctx =
     register_builtin_template_func "__builtin_take_address_from_array" f
   in
   let () =
-    let f args ctx =
+    let f param_tys args ctx =
       let open Codegen_llvm_intrinsics in
       assert (Array.length args = 2);
+      assert (List.length param_tys = 2);
+      let arr_ty = List.hd param_tys in
 
       let to_obj = args.(0) in
       let from_obj = args.(1) in
-      let size_of = Int64.of_int 8 in   (* TODO: fix fix fix !!!!! *)
-      let align_of = Int64.of_int 0 in
+      let size_of = Int64.of_int (Type.size_of arr_ty) in
+      let align_of = Int64.of_int (Type.align_of arr_ty) in
       let _ =
         ctx.intrinsics.memcpy_i32 to_obj from_obj
                                   size_of align_of false ctx.ir_builder
@@ -1199,7 +1191,7 @@ let inject_builtins ctx =
   let define_special_members builtin_info init =
     let open Builtin_info in
     let () = (* default constructor *)
-      let f args ctx =
+      let f _ args ctx =
         let v = init in
         match Array.length args with
         | 1 -> let _ = L.build_store v args.(0) ctx.ir_builder in args.(0)
@@ -1210,7 +1202,7 @@ let inject_builtins ctx =
         (make_builtin_default_ctor_name builtin_info.internal_name) f
     in
     let () = (* copy constructor *)
-      let f args ctx =
+      let f _ args ctx =
         match Array.length args with
         | 2 -> let _ = L.build_store args.(1) args.(0) ctx.ir_builder in args.(0)
         | 1 -> args.(0)
@@ -1220,7 +1212,7 @@ let inject_builtins ctx =
         (make_builtin_copy_ctor_name builtin_info.internal_name) f
     in
     let () = (* copy assign *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_store args.(1) args.(0) ctx.Ctx.ir_builder
       in
@@ -1254,112 +1246,112 @@ let inject_builtins ctx =
     define_special_members int32_type_i init;
 
     let () = (* +(:int, :int): int *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_add args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func "__builtin_op_binary_+_int_int" f
     in
     let () = (* -(:int, :int): int *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_sub args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func "__builtin_op_binary_-_int_int" f
     in
     let () = (* *(:int, :int): int *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_mul args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func "__builtin_op_binary_*_int_int" f
     in
     let () = (* /(:int, :int): int *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_sdiv args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func "__builtin_op_binary_/_int_int" f
     in
     let () = (* %(:int, :int): int *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_srem args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func "__builtin_op_binary_%_int_int" f
     in
     let () = (* <(:int, :int): bool *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_icmp L.Icmp.Slt args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func "__builtin_op_binary_<_int_int" f
     in
     let () = (* >(:int, :int): bool *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_icmp L.Icmp.Sgt args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func "__builtin_op_binary_>_int_int" f
     in
     let () = (* |(:int, :int): int *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_or args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func "__builtin_op_binary_|_int_int" f
     in
     let () = (* ^(:int, :int): int *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_xor args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func "__builtin_op_binary_^_int_int" f
     in
     let () = (* &(:int, :int): int *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_and args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func "__builtin_op_binary_&_int_int" f
     in
     let () = (* <=(:int, :int): bool *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_icmp L.Icmp.Sge args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func "__builtin_op_binary_<=_int_int" f
     in
     let () = (* >=(:int, :int): bool *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_icmp L.Icmp.Sge args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func "__builtin_op_binary_>=_int_int" f
     in
     let () = (* <<(:int, :int): int *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_shl args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func "__builtin_op_binary_<<_int_int" f
     in
     let () = (* >>(:int, :int): int *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_lshr args.(0) args.(1) "" ctx.Ctx.ir_builder    (* zero ext(logical) *)
       in
       register_builtin_func "__builtin_op_binary_>>_int_int" f
     in
     let () = (* ==(:int, :int): bool *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_icmp L.Icmp.Eq args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func "__builtin_op_binary_==_int_int" f
     in
     let () = (* !=(:int, :int): bool *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_icmp L.Icmp.Ne args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
@@ -1376,7 +1368,7 @@ let inject_builtins ctx =
     define_special_members uint32_type_i init;
 
     let () = (* +(:INT, :INT): INT *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_add args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
@@ -1384,7 +1376,7 @@ let inject_builtins ctx =
         (Printf.sprintf "__builtin_op_binary_+_%s_%s" basename basename) f
     in
     let () = (* -(:INT, :INT): INT *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_sub args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
@@ -1392,7 +1384,7 @@ let inject_builtins ctx =
         (Printf.sprintf "__builtin_op_binary_-_%s_%s" basename basename) f
     in
     let () = (* *(:INT, :INT): INT *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_mul args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
@@ -1400,7 +1392,7 @@ let inject_builtins ctx =
         (Printf.sprintf "__builtin_op_binary_*_%s_%s" basename basename) f
     in
     let () = (* /(:INT, :INT): INT *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_udiv args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
@@ -1408,7 +1400,7 @@ let inject_builtins ctx =
         (Printf.sprintf "__builtin_op_binary_/_%s_%s" basename basename) f
     in
     let () = (* %(:INT, :INT): INT *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_urem args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
@@ -1416,7 +1408,7 @@ let inject_builtins ctx =
         (Printf.sprintf "__builtin_op_binary_%%_%s_%s" basename basename) f
     in
     let () = (* <(:int, :int): bool *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_icmp L.Icmp.Slt args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
@@ -1424,7 +1416,7 @@ let inject_builtins ctx =
         (Printf.sprintf "__builtin_op_binary_<_%s_%s" basename basename) f
     in
     let () = (* >(:int, :int): bool *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_icmp L.Icmp.Sgt args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
@@ -1432,7 +1424,7 @@ let inject_builtins ctx =
         (Printf.sprintf "__builtin_op_binary_>_%s_%s" basename basename) f
     in
     let () = (* |(:int, :int): int *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_or args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
@@ -1440,7 +1432,7 @@ let inject_builtins ctx =
         (Printf.sprintf "__builtin_op_binary_|_%s_%s" basename basename) f
     in
     let () = (* ^(:int, :int): int *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_xor args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
@@ -1448,7 +1440,7 @@ let inject_builtins ctx =
         (Printf.sprintf "__builtin_op_binary_^_%s_%s" basename basename) f
     in
     let () = (* &(:int, :int): int *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_and args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
@@ -1456,7 +1448,7 @@ let inject_builtins ctx =
         (Printf.sprintf "__builtin_op_binary_&_%s_%s" basename basename) f
     in
     let () = (* <=(:int, :int): bool *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_icmp L.Icmp.Ule args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
@@ -1464,7 +1456,7 @@ let inject_builtins ctx =
         (Printf.sprintf "__builtin_op_binary_<=_%s_%s" basename basename) f
     in
     let () = (* >=(:int, :int): bool *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_icmp L.Icmp.Uge args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
@@ -1472,7 +1464,7 @@ let inject_builtins ctx =
         (Printf.sprintf "__builtin_op_binary_>=_%s_%s" basename basename) f
     in
     let () = (* <<(:int, :int): int *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_shl args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
@@ -1480,7 +1472,7 @@ let inject_builtins ctx =
         (Printf.sprintf "__builtin_op_binary_<<_%s_%s" basename basename) f
     in
     let () = (* >>(:int, :int): int *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_lshr args.(0) args.(1) "" ctx.Ctx.ir_builder    (* zero ext(logical) *)
       in
@@ -1488,7 +1480,7 @@ let inject_builtins ctx =
         (Printf.sprintf "__builtin_op_binary_>>_%s_%s" basename basename) f
     in
     let () = (* ==(:int, :int): bool *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_icmp L.Icmp.Eq args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
@@ -1496,7 +1488,7 @@ let inject_builtins ctx =
         (Printf.sprintf "__builtin_op_binary_==_%s_%s" basename basename) f
     in
     let () = (* !=(:int, :int): bool *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_icmp L.Icmp.Ne args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
@@ -1513,7 +1505,7 @@ let inject_builtins ctx =
     let init = L.const_int (L.i1_type ctx.ir_context) 0 in
     define_special_members bool_type_i init;
     let () = (* pre!(:bool): bool *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 1);
         L.build_not args.(0) "" ctx.Ctx.ir_builder
       in
@@ -1537,7 +1529,7 @@ let inject_builtins ctx =
     define_special_members untyped_raw_ptr_type_i init;
 
     let () = (* +(:raw_ptr!(T), :int): raw_ptr!(T) *)
-      let f args ctx =
+      let f _ args ctx =
         assert (Array.length args = 2);
         L.build_in_bounds_gep args.(0) [|args.(1)|] "" ctx.Ctx.ir_builder
       in
@@ -1545,7 +1537,7 @@ let inject_builtins ctx =
     in
 
     let () = (* pre* (:raw_ptr!(T)): ref(T) *)
-      let f template_args args ctx =
+      let f template_args _ args ctx =
         assert (List.length template_args = 1);
         let ty_val = List.nth template_args 0 in
         let ty = match ty_val with

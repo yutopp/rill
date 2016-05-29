@@ -63,6 +63,27 @@ let as_unique ty =
   | _ -> failwith "as_unique: not unique"
 
 
+let size_of ty =
+  let cenv = as_unique ty in
+  let cr = Env.ClassOp.get_record cenv in
+  match cr.Env.cls_size with
+  | Some v -> v
+  | None -> failwith "[ICE] cls size is not set"
+
+let align_of ty =
+  let cenv = as_unique ty in
+  let cr = Env.ClassOp.get_record cenv in
+  match cr.Env.cls_align with
+  | Some v -> v
+  | None -> failwith "[ICE] cls align is not set"
+
+let element_size_of ty =
+  let size = size_of ty in
+  let align = align_of ty in
+  let padding = size mod align in
+  size + padding
+
+
 module Generator =
   struct
     type 'env id_record_table_t =

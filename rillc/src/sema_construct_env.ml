@@ -567,7 +567,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
 
              let targ_nval = List.at cenv_r.Env.cls_template_vals 1 in
              let tval_num = match targ_nval with
-               | Ctfe_value.Int32 n -> n
+               | Ctfe_value.Int32 n -> Int32.to_int n
                | _ -> failwith "[ICE]"
              in
 
@@ -607,9 +607,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
              else
                failwith "[ERR] not implemented yet";
 
-             (* TODO: calc size *)
-             ignore tval_num;
-             (0, 0)
+             ((Type.element_size_of tval_ty) * tval_num, Type.align_of tval_ty)
            end
        in
        let opt_layout =
