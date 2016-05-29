@@ -2307,9 +2307,16 @@ and instantiate_function_templates menv template_args arg_auxs ext_env ctx attr 
       | _ -> failwith "[ICE] unexpected not instantiated node"
     in
     let (parameters, opt_cond, dn) = match inner_node with
-      | Ast.FunctionDefStmt (_, Ast.ParamsList params, _, c, _, _, _) -> (params, c, 0)
-      | Ast.MemberFunctionDefStmt (_, Ast.ParamsList params, _, _, _, _) -> (params, None, 1)
-      | Ast.ExternFunctionDefStmt (_, Ast.ParamsList params, _, _, _, _, _) -> (params, None, 0)
+      | Ast.FunctionDefStmt (_, Ast.ParamsList params, _, c, _, _, _) ->
+         (params, c, 0)
+      | Ast.ExternFunctionDefStmt (_, Ast.ParamsList params, _, _, _, _, _) ->
+         (params, None, 0)
+      | Ast.MemberFunctionDefStmt (name, Ast.ParamsList params, _, _, _, _) ->
+         let is_special = match name with
+           | Nodes.Pure s when s = ctor_name -> true
+           | _ -> false
+         in
+         (params, None, if is_special then 0 else 1)
       | _ -> failwith ""
     in
 
