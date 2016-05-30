@@ -57,6 +57,7 @@ let rec solve_forward_refs ?(meta_variables=[])
   | Ast.MemberFunctionDefStmt (id_name, params, opt_ret_type, body, None, _) ->
      begin
        let fenv = declare_pre_function id_name meta_variables parent_env ctx in
+       Env.ClassOp.push_member_function parent_env fenv;
 
        let node = TAst.MemberFunctionDefStmt (
                       id_name,
@@ -126,8 +127,6 @@ let rec solve_forward_refs ?(meta_variables=[])
 
   | Ast.MemberVariableDefStmt (v, _) ->
      begin
-       let parent_cenv_r = Env.ClassOp.get_record parent_env in
-
        let (_, var_name, _) =
          match v with
          | Ast.VarInit vi -> vi
@@ -140,7 +139,7 @@ let rec solve_forward_refs ?(meta_variables=[])
                                          )
        in
        Env.add_inner_env parent_env var_name venv;
-       parent_cenv_r.Env.cls_member_vars <- venv :: parent_cenv_r.Env.cls_member_vars;
+       Env.ClassOp.push_member_variable parent_env venv;
 
        let node = TAst.MemberVariableDefStmt (TAst.PrevPassNode v, Some venv) in
        Env.update_rel_ast venv node;    (* this node will be updated later... *)
@@ -154,8 +153,8 @@ let rec solve_forward_refs ?(meta_variables=[])
      begin
        let base_kind = match inner_node with
          | Ast.FunctionDefStmt _
-         | Ast.MemberFunctionDefStmt _
-         | Ast.ExternFunctionDefStmt _ -> Env.Kind.Function
+         | Ast.ExternFunctionDefStmt _
+         | Ast.MemberFunctionDefStmt _ -> Env.Kind.Function
          | Ast.ClassDefStmt _
          | Ast.ExternClassDefStmt _ -> Env.Kind.Class
          | _ ->
@@ -163,8 +162,24 @@ let rec solve_forward_refs ?(meta_variables=[])
               failwith "[ICE] template of this statement is not supported."
             end
        in
-       let base_env =
+       let (base_env, is_env_created) =
          Env.MultiSetOp.find_or_add parent_env id_name base_kind
+       in
+       let _ =
+         let register_member_info () =
+           match Env.kind_of_env parent_env with
+           | Env.Kind.Class ->
+              begin
+                match base_kind with
+                (* will be member function *)
+                | Env.Kind.Function ->
+                   Env.ClassOp.push_member_function parent_env base_env
+                | _ ->
+                   ()
+              end
+           | _ -> ()
+         in
+         if is_env_created then register_member_info ()
        in
        let template_env_r = {
          Env.tl_name = id_name;
@@ -292,7 +307,8 @@ and declare_meta_var env ctx (name, uni_id) =
 
 and declare_pre_function id_name meta_variables parent_env ctx =
   (* accept multiple definition for overload *)
-  let base_env = Env.MultiSetOp.find_or_add parent_env id_name Env.Kind.Function in
+  let (base_env, _) = Env.MultiSetOp.find_or_add parent_env id_name Env.Kind.Function in
+
   let fenv_r = Env.FunctionOp.empty_record id_name in
   let fenv = Env.create_context_env parent_env (
                                       Env.Function (
@@ -314,7 +330,8 @@ and declare_pre_function id_name meta_variables parent_env ctx =
 
 and declare_pre_class id_name meta_variables parent_env ctx =
   (* accept multiple definition for specialization *)
-  let base_env = Env.MultiSetOp.find_or_add parent_env id_name Env.Kind.Class in
+  let (base_env, _) = Env.MultiSetOp.find_or_add parent_env id_name Env.Kind.Class in
+
   let cenv_r = Env.ClassOp.empty_record id_name in
   let cenv = Env.create_context_env parent_env (
                                       Env.Class (

@@ -198,7 +198,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        } in
 
        complete_function_env env node name
-                             (Env.FnRecordNormal (Env.FnDefUserDefined,
+                             (Env.FnRecordNormal (Env.FnDefProvidedByUser,
                                                   Env.FnKindFree,
                                                   detail_r))
                              ctx;
@@ -255,14 +255,14 @@ let rec construct_env node parent_env ctx opt_chain_attr =
               Env.fn_n_param_envs = param_venvs;
             } in
             let detail =
-              Env.FnRecordNormal (Env.FnDefUserDefined,
+              Env.FnRecordNormal (Env.FnDefProvidedByUser,
                                   Env.FnKindConstructor (Some this_venv),
                                   detail_r)
             in
             complete_function_env env node ctor_id_name detail ctx;
             ctx_env_r.Env.cls_traits <- {
               ctx_env_r.Env.cls_traits with
-              Env.cls_traits_default_ctor_state = Env.SFUserDefined;
+              Env.cls_traits_default_ctor_state = Env.FnDefProvidedByUser;
             };
 
             (node, void_t)
@@ -308,7 +308,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
             } in
 
             complete_function_env env node name
-                                  (Env.FnRecordNormal (Env.FnDefUserDefined,
+                                  (Env.FnRecordNormal (Env.FnDefProvidedByUser,
                                                        Env.FnKindMember,
                                                        detail_r))
                                   ctx;
@@ -348,11 +348,11 @@ let rec construct_env node parent_env ctx opt_chain_attr =
 
        (* update record *)
        let record = if is_builtin then
-                      Env.FnRecordBuiltin (Env.FnDefUserDefined,
+                      Env.FnRecordBuiltin (Env.FnDefProvidedByUser,
                                            Env.FnKindFree,
                                            extern_fname)
                     else
-                      Env.FnRecordExternal (Env.FnDefUserDefined,
+                      Env.FnRecordExternal (Env.FnDefProvidedByUser,
                                             Env.FnKindFree,
                                             extern_fname)
        in
@@ -414,6 +414,15 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        let (nbody, _) = construct_env body env ctx opt_attr in
 
        (* TODO: check class characteristics *)
+       let _ =
+         let f env =
+           (* if there are template constructors at least 1, class has user-defined constructor *)
+           (*match Env.get_env_record env with
+           | Env.Template _*)
+           ()
+         in
+         List.iter f cenv_r.Env.cls_member_funcs
+       in
 
        (**)
        let define_special_members () =
@@ -431,11 +440,14 @@ let rec construct_env node parent_env ctx opt_chain_attr =
            check_function_env fenv [] Meta_level.Meta ty false;
            complete_function_env fenv node ctor_id_name detail ctx;
          in
-         (* implicit default constructor is defined as defaulted,
+         (* implicit default constructor is defined as defaulted and trivial,
           * if there are no user defined constructor.
           * However, some conditions make it as deleted *)
-         if cenv_r.cls_traits.cls_traits_default_ctor_state = Env.SFDefaulted then
-           define_trivial_defaulted_default_ctor ();
+         let _ = match cenv_r.cls_traits.cls_traits_default_ctor_state with
+           | Env.FnDefDefaulted _ -> (* TODO: check *)
+              define_trivial_defaulted_default_ctor ()
+           | _ -> ()
+         in
 
          let define_trvial_defaulted_copy_ctor () =
            (* copy ctor *)
@@ -528,14 +540,12 @@ let rec construct_env node parent_env ctx opt_chain_attr =
              define_trivial_default_ctor_for_builtin env extern_cname ctx;
              cenv_r.cls_traits <- {
                cenv_r.cls_traits with
-               cls_traits_default_ctor_state = SFDefaulted;
-               cls_traits_is_default_ctor_trivial = true;
+               cls_traits_default_ctor_state = Env.FnDefDefaulted true;
              };
              define_trivial_copy_ctor_for_builtin env extern_cname ctx;
              cenv_r.cls_traits <- {
                cenv_r.cls_traits with
-               cls_traits_copy_ctor_state = SFDefaulted;
-               cls_traits_is_copy_ctor_trivial = true;
+               cls_traits_copy_ctor_state = Env.FnDefDefaulted true;
              };
              define_trivial_copy_assign_for_builtin env extern_cname ctx;
 
@@ -575,40 +585,36 @@ let rec construct_env node parent_env ctx opt_chain_attr =
              in
 
              (* default constructor *)
-             if tval_ty_traits.Env.cls_traits_default_ctor_state = Env.SFDefaulted then
-               if tval_ty_traits.Env.cls_traits_is_default_ctor_trivial then
-                 begin
-                   define_trivial_default_ctor_for_builtin env extern_cname ctx;
+             let _ = match tval_ty_traits.Env.cls_traits_default_ctor_state with
+               | Env.FnDefDefaulted true ->
+                  begin
+                    define_trivial_default_ctor_for_builtin env extern_cname ctx;
 
-                   let open Env in
-                   cenv_r.cls_traits <- {
-                     cenv_r.cls_traits with
-                     cls_traits_default_ctor_state = SFDefaulted;
-                     cls_traits_is_default_ctor_trivial = true;
-                   };
-                 end
-               else
-                 failwith "[ERR] not implemented yet"
-             else
-               failwith "[ERR] not implemented yet";
+                    let open Env in
+                    cenv_r.cls_traits <- {
+                      cenv_r.cls_traits with
+                      cls_traits_default_ctor_state = Env.FnDefDefaulted true;
+                    };
+                  end
+               | _ ->
+                  failwith "[ERR] not implemented yet"
+             in
 
              (* copy constructor *)
-             if tval_ty_traits.Env.cls_traits_copy_ctor_state = Env.SFDefaulted then
-               if tval_ty_traits.Env.cls_traits_is_copy_ctor_trivial then
-                 begin
-                   define_trivial_copy_ctor_for_builtin env extern_cname ctx;
+             let _ = match tval_ty_traits.Env.cls_traits_copy_ctor_state with
+               | Env.FnDefDefaulted true ->
+                  begin
+                    define_trivial_copy_ctor_for_builtin env extern_cname ctx;
 
-                   let open Env in
-                   cenv_r.cls_traits <- {
-                     cenv_r.cls_traits with
-                     cls_traits_copy_ctor_state = SFDefaulted;
-                     cls_traits_is_copy_ctor_trivial = true;
-                   };
-                 end
-               else
-                 failwith "[ERR] not implemented yet"
-             else
-               failwith "[ERR] not implemented yet";
+                    let open Env in
+                    cenv_r.cls_traits <- {
+                      cenv_r.cls_traits with
+                      cls_traits_copy_ctor_state = Env.FnDefDefaulted true;
+                    };
+                  end
+               | _ ->
+                  failwith "[ERR] not implemented yet"
+             in
 
              (Uint32.(Type.element_size_of tval_ty * tval_num), Type.align_of tval_ty)
            end
@@ -2843,7 +2849,7 @@ and make_class_type cenv rv mut ctx =
 
 
 and declare_incomple_ctor cenv =
-  let base_env = Env.MultiSetOp.find_or_add cenv ctor_id_name Env.Kind.Function in
+  let (base_env, _) = Env.MultiSetOp.find_or_add cenv ctor_id_name Env.Kind.Function in
   let fenv_r = Env.FunctionOp.empty_record ctor_id_name in
 
   let fenv = Env.create_context_env cenv (
@@ -2855,7 +2861,7 @@ and declare_incomple_ctor cenv =
   fenv
 
 and declare_incomple_assign cenv =
-  let base_env = Env.MultiSetOp.find_or_add cenv assign_name Env.Kind.Function in
+  let (base_env, _) = Env.MultiSetOp.find_or_add cenv assign_name Env.Kind.Function in
   let fenv_r = Env.FunctionOp.empty_record assign_name in
 
   let fenv = Env.create_context_env cenv (

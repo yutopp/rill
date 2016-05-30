@@ -18,11 +18,6 @@ type module_privacy =
   | ModPublic
   | ModPrivate
 
-type special_function_state =
-  | SFUserDefined
-  | SFDefaulted
-  | SFDeleted
-
 
 module Kind =
   struct
@@ -127,7 +122,7 @@ type 'ast env_t = {
    | FnUndef
 
  and function_def_var =
-   | FnDefUserDefined
+   | FnDefProvidedByUser
    | FnDefDefaulted of bool (* is trivial *)
    | FnDefDeleted
 
@@ -154,16 +149,16 @@ type 'ast env_t = {
    mutable cls_mangled  : string option;
 
    mutable cls_template_vals    : ('ast type_info_t Ctfe_value.t) list;
-   mutable cls_detail           : 'ast class_record_var;
+   mutable cls_detail           : class_record_var;
    mutable cls_traits           : class_traits_t;
 
-   mutable cls_member_vars      : 'ast env_t list;
-   mutable cls_member_funcs     : 'ast env_t list;
+   mutable cls_member_vars      : 'ast env_t list;  (* include templates *)
+   mutable cls_member_funcs     : 'ast env_t list;  (* include templates *)
 
    mutable cls_size             : Stdint.uint32 option;  (* bytes *)
    mutable cls_align            : Stdint.uint32 option;  (* bytes *)
  }
- and 'ast class_record_var =
+ and class_record_var =
    | ClsRecordExtern of class_record_extern
    | ClsRecordNormal
    | ClsUndef
@@ -174,10 +169,8 @@ type 'ast env_t = {
 
  and class_traits_t = {
    cls_traits_is_primitive              : bool;
-   cls_traits_default_ctor_state        : special_function_state;
-   cls_traits_is_default_ctor_trivial   : bool;
-   cls_traits_copy_ctor_state           : special_function_state;
-   cls_traits_is_copy_ctor_trivial      : bool;
+   cls_traits_default_ctor_state        : function_def_var;
+   cls_traits_copy_ctor_state           : function_def_var;
  }
 
 
@@ -227,7 +220,6 @@ let get_lookup_table env =
 let get_symbol_table env =
   let lt = get_lookup_table env in
   lt.scope
-
 
 let get_scope_lifetime env =
   let ctx_env = match env.context_env with
@@ -438,6 +430,16 @@ let make_root_env () =
   }
 
 
+(**)
+let get_name env =
+  let er = get_env_record env in
+  match er with
+  | Template (r) -> r.tl_name
+  | Function (_, r) -> r.fn_name
+  | Class (_, r) -> r.cls_name
+  | _ -> failwith "get_name : not supported"
+
+
 module ModuleOp =
   struct
     let get_record env =
@@ -456,7 +458,7 @@ module MultiSetOp =
       match oe with
       (* Found *)
       | Some ({ er = (MultiSet { ms_kind = k; _ }); _} as e) ->
-         e
+         (e, false)
       | Some _ -> failwith "[ERR] suitable multienv is not found"
 
       (* *)
@@ -470,7 +472,7 @@ module MultiSetOp =
                                         ms_instanced_args_memo = Hashtbl.create 0
                                       }) in
          add_inner_env env name e;
-         e
+         (e, true)
 
     let get_record env =
       let er = get_env_record env in
@@ -557,10 +559,8 @@ module ClassOp =
     let empty_record name =
       let default_traits = {
         cls_traits_is_primitive = false;
-        cls_traits_default_ctor_state = SFDefaulted;
-        cls_traits_is_default_ctor_trivial = false;
-        cls_traits_copy_ctor_state = SFDefaulted;
-        cls_traits_is_copy_ctor_trivial = false;
+        cls_traits_default_ctor_state = FnDefDefaulted false;
+        cls_traits_copy_ctor_state = FnDefDefaulted false;
       } in
       {
          cls_name = name;
@@ -573,6 +573,14 @@ module ClassOp =
          cls_size = None;
          cls_align = None;
       }
+
+    let push_member_variable env venv =
+      let r = get_record env in
+      r.cls_member_vars <- venv :: r.cls_member_vars
+
+    let push_member_function env fenv =
+      let r = get_record env in
+      r.cls_member_funcs <- fenv :: r.cls_member_funcs
   end
 
 
