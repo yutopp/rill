@@ -1,0 +1,175 @@
+// reference: https://github.com/rhysd/Dachs/blob/master/samples/random.dcs
+
+import std.stdio;
+
+def main()
+{
+    {
+        val mutable mt = Xor128(123456789u, 362436069u, 521288629u, 88675123u);
+        mt.gen().print();
+    };
+
+    {
+        val mutable mt = Mt19937([0x123u, 0x234u, 0x345u, 0x456u]);
+        mt.gen().assert_and_print(150999088u);
+        mt.gen().assert_and_print(3499211612u);
+        mt.gen().assert_and_print(581869302u);
+        mt.gen().assert_and_print(3890346734u);
+        mt.gen().assert_and_print(3586334585u);
+    };
+}
+
+
+class Xor128 {
+    val x: uint32;
+    val y: uint32;
+    val z: uint32;
+    val w: uint32;
+
+    def ctor(x: uint32, y: uint32, z: uint32, w: uint32) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+        this.w = w;
+    }
+
+    def gen(): uint32 {
+        val t = this.x ^ (this.x << 11u);
+        val w = this.w;
+        this.x = this.y;
+        this.y = this.z;
+        this.z = this.w;
+        this.w = (w ^ (w << 19u)) ^ (t ^ (t << 8u));
+        return this.w;
+    }
+}
+
+class Mt19937
+{
+    val mt: array!(mutable(uint32), 624u);
+    val mti: uint32;
+    val n: uint32;
+    val m: uint32;
+
+    val matrix_a: uint32;
+    val upper_mask: uint32;
+    val lower_mask: uint32;
+
+    def ctor() {
+        this.mti = 625u;
+        this.n = 624u;
+        this.m = 397u;
+        this.matrix_a = 0x9908b0dfu;
+        this.upper_mask = 0x80000000u;
+        this.lower_mask = 0x7fffffffu;
+
+        this.init_by_array([1u, 2u, 3u]);
+    }
+
+    def ctor!(T)(seeds: T) {
+        this.mti = 625u;
+        this.n = 624u;
+        this.m = 397u;
+        this.matrix_a = 0x9908b0dfu;
+        this.upper_mask = 0x80000000u;
+        this.lower_mask = 0x7fffffffu;
+
+        this.init_by_array(seeds);
+    }
+
+    def init_genrand(s: uint32) {
+        this.mt[0] = s;
+        this.mti = 1u;
+        for(;this.mti < this.n;) {
+            this.mt[this.mti] =
+                   1812433253u * ( this.mt[this.mti-1u] ^ (this.mt[this.mti-1u] >> 30u) ) + this.mti;
+            ++this.mti;
+        };
+    }
+
+    def init_by_array!(N: uint32)(init_key: array!(uint32, N)) {
+        ref key_len = N;
+        this.init_genrand(19650218u);
+
+        val mutable i = 1u;
+        val mutable j = 0u;
+        val mutable k = if (this.n > key_len) this.n else key_len;
+
+        for(; k>0u; ) {
+            this.mt[i] = this.mt[i] ^ (this.mt[i-1u] ^ (this.mt[i-1u] >> 30u) * 1664525u) + init_key[j] + j;
+            ++i;
+            ++j;
+
+            if (i >= this.n) {
+                this.mt[0u] = this.mt[this.n-1u];
+                i = 1u;
+            };
+
+            if (j >= key_len) {
+                j = 0u;
+            };
+
+            --k;
+        };
+
+        k = this.n - 1u;
+
+        for(; k>0u;) {
+            this.mt[i] = this.mt[i] ^ (this.mt[i-1u] ^ (this.mt[i-1u] >> 30u) * 1566083941u) - i;
+            ++i;
+            if (i >= this.n) {
+                this.mt[0u] = this.mt[this.n-1u];
+                i = 1u;
+            };
+            --k;
+        };
+
+        this.mt[0u] = 0x80000000u;
+    }
+
+    def gen(): uint32 {
+        val mutable y = 0u;
+        if (this.mti > this.n) {
+           val mag01 = [0u, this.matrix_a];
+
+           if (this.mti == this.n + 1u) {
+              this.init_genrand(5489u);
+           };
+
+           val mutable kk = 0u;
+
+           for(; kk<this.n - this.m;) {
+                 y = (this.mt[kk] & this.upper_mask) | (this.mt[kk+1u] & this.lower_mask);
+                 this.mt[kk] = (this.mt[kk+this.m] ^ (y >> 1u)) ^ mag01[y % 2u];
+                 ++kk;
+           };
+
+           for (;kk < this.n - 1u;) {
+                y = (this.mt[kk] & this.upper_mask) | (this.mt[kk+1u] & this.lower_mask);
+                this.mt[kk] = (this.mt[kk+this.m-this.n] ^ (y >> 1u)) ^ mag01[y % 2u];
+                ++kk;
+           };
+
+           y = (this.mt[this.n-1u] & this.upper_mask) | (this.mt[0] & this.lower_mask);
+           this.mt[this.n-1u] = (this.mt[this.m-1u] ^ (y >> 1u)) ^ mag01[y % 2u];
+           this.mti = 0u;
+        };
+
+        y = this.mt[this.mti];
+        ++this.mti;
+
+        y = y ^ (y >> 11u);
+        y = y ^ ((y << 7u) & 0x9d2c5680u);
+        y = y ^ ((y << 15u) & 0xefc60000u);
+        y = y ^ (y >> 18u);
+
+        return y;
+    }
+}
+
+import std.assert;
+
+def assert_and_print!(T, U)(v: T, e: U) {
+    assert(v == e);
+    v.print();
+}
