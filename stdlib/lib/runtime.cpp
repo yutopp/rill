@@ -1,9 +1,16 @@
 #include <iostream>
 #include <cassert>
 #include <cstring>
+#include <cstdint>
 
 extern "C"
-void rill_print_int(int const v)
+void rill_print_int32(std::int32_t const v)
+{
+    std::cout << v << std::endl;
+}
+
+extern "C"
+void rill_print_uint32(std::uint32_t const v)
 {
     std::cout << v << std::endl;
 }

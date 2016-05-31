@@ -1,5 +1,5 @@
-extern def print(v: int32): void = "rill_print_int";
-extern def print(v: uint32): void = "rill_print_int";
+extern def print(v: int32): void = "rill_print_int32";
+extern def print(v: uint32): void = "rill_print_uint32";
 extern def print(v: bool): void = "rill_print_bool";
 extern def print(v: uint8): void = "rill_print_char";
 extern def print(v: raw_ptr!(uint8)): void = "rill_print_string";
