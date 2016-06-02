@@ -165,6 +165,14 @@ let rec solve_forward_refs ?(meta_variables=[])
        let (base_env, is_env_created) =
          Env.MultiSetOp.find_or_add parent_env id_name base_kind
        in
+       let template_env_r = {
+         Env.tl_name = id_name;
+         Env.tl_params = TAst.NotInstantiatedNode (template_params, None);
+         Env.tl_inner_node = TAst.NotInstantiatedNode (inner_node, opt_attr);
+       } in
+       let base_env_r = Env.MultiSetOp.get_record base_env in
+       base_env_r.Env.ms_templates <- template_env_r :: base_env_r.Env.ms_templates;
+
        let _ =
          let register_member_info () =
            match Env.kind_of_env parent_env with
@@ -173,7 +181,11 @@ let rec solve_forward_refs ?(meta_variables=[])
                 match base_kind with
                 (* will be member function *)
                 | Env.Kind.Function ->
-                   Env.ClassOp.push_member_function parent_env base_env
+                   let tenv =
+                     Env.create_context_env base_env
+                                            (Env.Template template_env_r)
+                   in
+                   Env.ClassOp.push_member_function parent_env tenv
                 | _ ->
                    ()
               end
@@ -181,13 +193,6 @@ let rec solve_forward_refs ?(meta_variables=[])
          in
          if is_env_created then register_member_info ()
        in
-       let template_env_r = {
-         Env.tl_name = id_name;
-         Env.tl_params = TAst.NotInstantiatedNode (template_params, None);
-         Env.tl_inner_node = TAst.NotInstantiatedNode (inner_node, opt_attr);
-       } in
-       let base_env_r = Env.MultiSetOp.get_record base_env in
-       base_env_r.Env.ms_templates <- template_env_r :: base_env_r.Env.ms_templates;
 
        (* regards as no statement *)
        TAst.EmptyStmt

@@ -217,7 +217,6 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        (* class env *)
        let parent_env = Option.get env.Env.parent_env in
        let ctx_env = Option.get parent_env.Env.context_env in
-       let ctx_env_r = Env.ClassOp.get_record ctx_env in
 
        match name with
        | Nodes.Pure s when s = ctor_name ->
@@ -260,10 +259,6 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                                   detail_r)
             in
             complete_function_env env node ctor_id_name detail ctx;
-            ctx_env_r.Env.cls_traits <- {
-              ctx_env_r.Env.cls_traits with
-              Env.cls_traits_default_ctor_state = Env.FnDefProvidedByUser;
-            };
 
             (node, void_t)
           end
@@ -410,18 +405,106 @@ let rec construct_env node parent_env ctx opt_chain_attr =
          List.fold_left f (Uint32.zero, Uint32.zero) member_layouts
        in
 
+       (**)
+       let module SpecialMemberStates = struct
+         type state_t = {
+           is_callable     : bool;
+           is_trivial      : bool;
+         }
+
+         let init_state =
+           {
+             is_callable = true;
+             is_trivial = true;
+           }
+
+         let scan_special_func_state state t =
+           match state with
+           | Env.FnDefDefaulted b ->
+              {
+                is_callable = true && t.is_callable;
+                is_trivial = b && t.is_trivial;
+              }
+           | Env.FnDefProvidedByUser ->
+              {
+                is_callable = true && t.is_callable;
+                is_trivial = false && t.is_trivial;
+              }
+           | Env.FnDefDeleted ->
+              {
+                is_callable = false && t.is_callable;
+                is_trivial = false && t.is_trivial;
+              }
+
+         type t =
+             {
+               default_ctor_state   : state_t;
+               copy_ctor_state      : state_t;
+             }
+
+         let init_states =
+           {
+             default_ctor_state = init_state;
+             copy_ctor_state = init_state;
+           }
+
+         let scan_special_func_states traits t =
+           {
+             default_ctor_state =
+               scan_special_func_state traits.Env.cls_traits_default_ctor_state
+                                       t.default_ctor_state;
+             copy_ctor_state =
+               scan_special_func_state traits.Env.cls_traits_copy_ctor_state
+                                       t.copy_ctor_state;
+           }
+       end in
+       let _ =
+         let f s venv =
+           let venv_r = Env.VariableOp.get_record venv in
+           let var_ty = venv_r.Env.var_type in
+           let var_cenv = Type.as_unique var_ty in
+           let var_cenv_r = Env.ClassOp.get_record var_cenv in
+           let var_cls_traits = var_cenv_r.Env.cls_traits in
+
+           SpecialMemberStates.scan_special_func_states var_cls_traits s
+         in
+         List.fold_left f SpecialMemberStates.init_states cenv_r.Env.cls_member_vars
+       in
+
        (* body *)
        let (nbody, _) = construct_env body env ctx opt_attr in
 
        (* TODO: check class characteristics *)
        let _ =
-         let f env =
+         let f c_traits env =
+           match Env.get_env_record env with
            (* if there are template constructors at least 1, class has user-defined constructor *)
-           (*match Env.get_env_record env with
-           | Env.Template _*)
-           ()
+           | Env.Template r ->
+              begin
+                match r.Env.tl_name with
+                (* template has ctor name *)
+                | Nodes.Pure n when n = ctor_name ->
+                   { c_traits with
+                     Env.cls_traits_has_user_defined_ctor = true
+                   }
+                | _ ->
+                   c_traits
+              end
+
+           | Env.Function (_, r) ->
+              begin
+                {
+                  c_traits with
+                  Env.cls_traits_default_ctor_state = Env.FnDefProvidedByUser;
+                }
+              end
+
+           | _ -> Env.print env; failwith "[ICE]"
          in
-         List.iter f cenv_r.Env.cls_member_funcs
+         let class_traits =
+           List.fold_left f cenv_r.Env.cls_traits cenv_r.Env.cls_member_funcs
+         in
+         cenv_r.Env.cls_traits <- class_traits
        in
 
        (**)
@@ -444,7 +527,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
           * if there are no user defined constructor.
           * However, some conditions make it as deleted *)
          let _ = match cenv_r.cls_traits.cls_traits_default_ctor_state with
-           | Env.FnDefDefaulted _ -> (* TODO: check *)
+           | Env.FnDefDefaulted true -> (* TODO: check *)
               define_trivial_defaulted_default_ctor ()
            | _ -> ()
          in
