@@ -1338,7 +1338,7 @@ let inject_builtins ctx =
     let () = (* <=(:int, :int): bool *)
       let f _ args ctx =
         assert (Array.length args = 2);
-        L.build_icmp L.Icmp.Sge args.(0) args.(1) "" ctx.Ctx.ir_builder
+        L.build_icmp L.Icmp.Sle args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func "__builtin_op_binary_<=_int_int" f
     in
@@ -1430,7 +1430,7 @@ let inject_builtins ctx =
     let () = (* <(:int, :int): bool *)
       let f _ args ctx =
         assert (Array.length args = 2);
-        L.build_icmp L.Icmp.Slt args.(0) args.(1) "" ctx.Ctx.ir_builder
+        L.build_icmp L.Icmp.Ult args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func
         (Printf.sprintf "__builtin_op_binary_<_%s_%s" basename basename) f
@@ -1438,7 +1438,7 @@ let inject_builtins ctx =
     let () = (* >(:int, :int): bool *)
       let f _ args ctx =
         assert (Array.length args = 2);
-        L.build_icmp L.Icmp.Sgt args.(0) args.(1) "" ctx.Ctx.ir_builder
+        L.build_icmp L.Icmp.Ugt args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func
         (Printf.sprintf "__builtin_op_binary_>_%s_%s" basename basename) f

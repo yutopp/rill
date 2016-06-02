@@ -1,0 +1,32 @@
+import std.assert;
+
+def compare!(T)(val l : T, val h : T) {
+    assert(l <= l);
+    assert(h <= h);
+    assert(l >= l);
+    assert(h >= h);
+    assert(l < h);
+    assert(h > l);
+    assert(l == l);
+    assert(h == h);
+    assert(l != h);
+    assert(h != l);
+
+    assert(!(l > l));
+    assert(!(h > h));
+    assert(!(l < l));
+    assert(!(h < h));
+    assert(!(l >= h));
+    assert(!(h <= l));
+    assert(!(l == h));
+    assert(!(h == l));
+    assert(!(l != l));
+    assert(!(h != h));
+}
+
+def main() {
+    compare(0x7fffffffu, 0x80000000u);
+    compare(0x80000000, 0x7fffffff);
+    compare(0xffffffff, 0x00000000);
+    compare(0x00000000u, 0xffffffffu);
+}
