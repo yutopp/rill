@@ -10,7 +10,7 @@
 %token  <string>        ID STRING
 %token  <string>        PLUS MINUS TIMES DIV MOD
                         GT GTE LT LTE
-                        LSHIFT RSHIFT
+                        LSHIFT ARSHIFT LRSHIFT
                         EQUALS NOT_EQUALS
                         ASSIGN
                         LOGICAL_OR LOGICAL_AND

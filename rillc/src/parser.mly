@@ -573,7 +573,13 @@ shift_expression:
                         Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
                     Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
                 }
-        |       shift_expression op = RSHIFT add_sub_expression
+        |       shift_expression op = ARSHIFT add_sub_expression
+                {
+                    let op_id =
+                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
+                }
+        |       shift_expression op = LRSHIFT add_sub_expression
                 {
                     let op_id =
                         Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
@@ -753,7 +759,8 @@ binary_operator_as_raw:
         |       LT { $1 }
         |       LTE { $1 }
         |       LSHIFT { $1 }
-        |       RSHIFT { $1 }
+        |       ARSHIFT { $1 }
+        |       LRSHIFT { $1 }
         |       EQUALS { $1 }
         |       NOT_EQUALS { $1 }
         |       LOGICAL_OR { $1 }

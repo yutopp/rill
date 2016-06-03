@@ -90,7 +90,8 @@ rule token = parse
   | "!=" as op          { NOT_EQUALS op }
 
   | "<<" as op          { LSHIFT op }
-  | ">>" as op          { RSHIFT op }
+  | ">>" as op          { ARSHIFT op }
+  | ">>>" as op         { LRSHIFT op }
 
   | ">=" as op          { GTE op }
   | "<=" as op          { LTE op }
