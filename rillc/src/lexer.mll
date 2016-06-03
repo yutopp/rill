@@ -65,11 +65,11 @@ rule token = parse
                           read_string_lit _lex_string_lit_buffer lexbuf
                         }
 
-  | numeric_10 as i 'i' num_bits as b { INT (int_of_string i, int_of_string b, true) }
-  | numeric_16 as i 'i' num_bits as b { INT (int_of_string i, int_of_string b, true) }
+  | numeric_10 as i 'i' (num_bits as b) { INT (int_of_string i, int_of_string b, true) }
+  | numeric_16 as i 'i' (num_bits as b) { INT (int_of_string i, int_of_string b, true) }
 
-  | numeric_10 as i 'u' num_bits as b { INT (int_of_string i, int_of_string b, false) }
-  | numeric_16 as i 'u' num_bits as b { INT (int_of_string i, int_of_string b, false) }
+  | numeric_10 as i 'u' (num_bits as b) { INT (int_of_string i, int_of_string b, false) }
+  | numeric_16 as i 'u' (num_bits as b) { INT (int_of_string i, int_of_string b, false) }
 
   | numeric_10 as i 'u' { INT (int_of_string i, 32, false) }
   | numeric_16 as i 'u' { INT (int_of_string i, 32, false) }

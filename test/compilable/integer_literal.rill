@@ -1,0 +1,16 @@
+def main() {
+	val i1 = 10;
+	val i2 = 10i32;
+
+	val i3 = 0x1234abcd;
+	val i4 = 0x5678cdefi32;
+
+	val u1 = 10u;
+	val u2 = 10u32;
+
+	val u3 = 0xabcd1234u;
+	val u4 = 0xabcd1234u32;
+
+	val u8 = 10u8;
+	val u9 = 0xabu8;
+}
