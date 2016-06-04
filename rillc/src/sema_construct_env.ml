@@ -436,6 +436,15 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                 is_trivial = false && t.is_trivial;
               }
 
+         let state_to_trait state =
+           match state with
+           | { is_callable = true; is_trivial = b } -> Env.FnDefDefaulted b
+           | { is_callable = false; is_trivial = false } -> Env.FnDefDeleted
+           | _ -> failwith "[ICE]: state_to_trait"
+
+         let string_of_state s =
+           Printf.sprintf "is_callable = %b; is_trivial = %b" s.is_callable s.is_trivial
+
          type t =
              {
                default_ctor_state   : state_t;
@@ -457,8 +466,23 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                scan_special_func_state traits.Env.cls_traits_copy_ctor_state
                                        t.copy_ctor_state;
            }
+
+         let update_traits_by_states traits states =
+           {
+             traits with
+             Env.cls_traits_default_ctor_state =
+               state_to_trait states.default_ctor_state;
+             Env.cls_traits_copy_ctor_state =
+               state_to_trait states.copy_ctor_state;
+           }
+
+         let string_of_states ss =
+           let s = Printf.sprintf "default_ctor_state = %s\n" (string_of_state ss.default_ctor_state) in
+           let s = s ^ Printf.sprintf "copy_ctor_state = %s\n" (string_of_state ss.copy_ctor_state) in
+           s
+
        end in
-       let _ =
+       let member_vars_sf_states =
          let f s venv =
            let venv_r = Env.VariableOp.get_record venv in
            let var_ty = venv_r.Env.var_type in
@@ -470,12 +494,16 @@ let rec construct_env node parent_env ctx opt_chain_attr =
          in
          List.fold_left f SpecialMemberStates.init_states cenv_r.Env.cls_member_vars
        in
+       Printf.printf "= CLASS: %s\n%s\n" name_s (SpecialMemberStates.string_of_states member_vars_sf_states);
+       cenv_r.Env.cls_traits <- SpecialMemberStates.update_traits_by_states cenv_r.Env.cls_traits member_vars_sf_states;
 
        (* body *)
        let (nbody, _) = construct_env body env ctx opt_attr in
 
        (* TODO: check class characteristics *)
        let _ =
+
+         (*let class_traits = if*)
          let f c_traits env =
            match Env.get_env_record env with
            (* if there are template constructors at least 1, class has user-defined constructor *)
@@ -493,10 +521,16 @@ let rec construct_env node parent_env ctx opt_chain_attr =
 
            | Env.Function (_, r) ->
               begin
-                {
-                  c_traits with
-                  Env.cls_traits_default_ctor_state = Env.FnDefProvidedByUser;
-                }
+                match r.Env.fn_name with
+                | Nodes.Pure n when n = ctor_name ->
+                   begin
+                     {
+                       c_traits with
+                       Env.cls_traits_default_ctor_state = Env.FnDefProvidedByUser;
+                     }
+                   end
+                | _ ->
+                   c_traits
               end
 
            | _ -> Env.print env; failwith "[ICE]"
