@@ -71,12 +71,15 @@ and s_of_class full_module_name id_name template_args tset =
   let s_targs = s_of_template_args template_args tset in
   Printf.sprintf "C%s%s" s_sym s_targs
 
+and s_of_param param =
+  match param with
+  | Env.FnParamKindType ty -> s_of_type ty
 
 and s_of_function full_module_name id_name
-                  template_args args_types return_type
+                  template_args param_kinds return_type
                   tset =
   let s_sym = s_of_id_string full_module_name id_name in
   let s_targs = s_of_template_args template_args tset in
-  let s_args_tys = args_types |> List.map s_of_type |> String.concat "" in
+  let s_args_tys = param_kinds |> List.map s_of_param |> String.concat "" in
   let s_ret_ty = return_type |> s_of_type in
   Printf.sprintf "_Rill_%s%sF%sZ%s" s_sym s_targs s_args_tys s_ret_ty

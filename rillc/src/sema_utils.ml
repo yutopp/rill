@@ -28,9 +28,9 @@ let complete_env env node =
   Env.update_rel_ast env node
 
 
-let check_function_env env param_types ml return_type is_auto_return_type =
+let check_function_env env param_kinds ml return_type is_auto_return_type =
   let r = Env.FunctionOp.get_record env in
-  r.Env.fn_param_types <- param_types;
+  r.Env.fn_param_kinds <- param_kinds;
   r.Env.fn_return_type <- return_type;
   r.Env.fn_is_auto_return_type <- is_auto_return_type;
   check_env env ml
@@ -55,7 +55,7 @@ let complete_function_env env node id_name f_detail ctx =
          let mangled =
            Mangle.s_of_function (Env.get_full_module_name env) id_name
                                 r.Env.fn_template_vals
-                                r.Env.fn_param_types r.Env.fn_return_type
+                                r.Env.fn_param_kinds r.Env.fn_return_type
                                 ctx.sc_tsets
          in
          r.Env.fn_mangled <- Some mangled

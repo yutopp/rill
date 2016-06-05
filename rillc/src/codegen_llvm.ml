@@ -139,11 +139,10 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
             in
             let llret_ty = lltype_of_typeinfo_ret func_ret_ty ctx in
 
-            let llparam_tys =
-              (if returns_heavy_obj then [fenv_r.Env.fn_return_type] else [])
-              @ fenv_r.Env.fn_param_types
-              |> List.map (fun t -> lltype_of_typeinfo_param t ctx)
-              |> Array.of_list
+            let (_, llparam_tys) =
+              paramkinds_to_llparams fenv_r.Env.fn_param_kinds
+                                     fenv_r.Env.fn_return_type
+                                     ctx
             in
 
             (* type of function *)
@@ -199,7 +198,12 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
               | _ -> failwith "[ICE]"
             in
             let ll_params =
-              Enum.combine ((List.enum fenv_r.Env.fn_param_types), raw_ll_params)
+              let param_types =
+                fenv_r.Env.fn_param_kinds
+                |> List.map typeinfo_of_paramkind
+                |> List.enum
+              in
+              Enum.combine (param_types, raw_ll_params)
               |> Enum.map adjust_param_type
             in
             let declare_param_var optenv llvar =
@@ -253,10 +257,10 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
 
        | Env.FnRecordExternal (def, kind, extern_fname) ->
           begin
-            let llparam_tys =
-              fenv_r.Env.fn_param_types
-              |> List.map (fun t -> lltype_of_typeinfo_param t ctx)
-              |> Array.of_list
+            let (_, llparam_tys) =
+              paramkinds_to_llparams fenv_r.Env.fn_param_kinds
+                                     fenv_r.Env.fn_return_type
+                                     ctx
             in
             let llret_ty = lltype_of_typeinfo fenv_r.Env.fn_return_type ctx in
 
@@ -369,9 +373,11 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
        let {
          Env.fn_name = fn_name;
          Env.fn_detail = detail;
-         Env.fn_param_types = param_tys;
+         Env.fn_param_kinds = param_kinds;
          Env.fn_return_type = ret_ty;
        } = f_er in
+
+       let param_tys = adjust_param_types param_kinds args in
 
        let returns_heavy_obj = is_heavy_object ret_ty in
 
@@ -1044,6 +1050,42 @@ and adjust_arg_llval_form trg_ty src_ty llval ctx =
   else
     adjust_llval_form trg_ty src_ty llval ctx
 
+and paramkinds_to_llparams params ret_ty ctx =
+  let returns_heavy_obj = is_heavy_object ret_ty in
+  let f (is_vargs, rev_tys) tp =
+    match tp with
+    | Env.FnParamKindType ty -> (is_vargs, ty :: rev_tys)
+  in
+  let (is_vargs, rev_tys) =
+    List.fold_left f (false, []) params
+  in
+  let param_types = rev_tys |> List.rev in
+  let llparams =
+    (if returns_heavy_obj then [ret_ty] else []) @ param_types
+    |> List.map (fun t -> lltype_of_typeinfo_param t ctx)
+    |> Array.of_list
+  in
+  (is_vargs, llparams)
+
+(* move to elsewhere *)
+and typeinfo_of_paramkind pk =
+  match pk with
+  | Env.FnParamKindType ty -> ty
+
+and adjust_param_types params_info args =
+  adjust_param_types' params_info args []
+  |> List.rev
+
+and adjust_param_types' params_info args acc =
+  match (params_info, args) with
+  | (param_info :: px, _ :: ax) ->
+     begin
+       match param_info with
+       | Env.FnParamKindType ty ->
+          adjust_param_types' px ax (ty :: acc)
+     end
+  | (_, []) -> acc
+  | ([], _) -> failwith "[ICE]"
 
 let regenerate_module ctx =
   let ir_module = L.create_module ctx.Ctx.ir_context "Rill" in

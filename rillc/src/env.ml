@@ -109,7 +109,7 @@ type 'ast env_t = {
    mutable fn_mangled               : string option;
 
    mutable fn_template_vals         : ('ast type_info_t Ctfe_value.t) list;
-   mutable fn_param_types           : 'ast type_info_t list;
+   mutable fn_param_kinds           : 'ast function_param_kind_t list;
    mutable fn_return_type           : 'ast type_info_t;
    mutable fn_is_auto_return_type   : bool;
    mutable fn_detail                : 'ast function_record_var;
@@ -120,6 +120,9 @@ type 'ast env_t = {
    | FnRecordExternal of function_def_var * 'ast function_kind_var * string
    | FnRecordBuiltin of function_def_var * 'ast function_kind_var * string
    | FnUndef
+
+ and 'ast function_param_kind_t =
+   | FnParamKindType of 'ast type_info_t
 
  and function_def_var =
    | FnDefProvidedByUser
@@ -531,7 +534,7 @@ module FunctionOp =
         fn_name = id_name;
         fn_mangled = None;
         fn_template_vals = [];
-        fn_param_types = [];
+        fn_param_kinds = [];
         fn_return_type = Type_info.undef_ty;
         fn_is_auto_return_type = false;
         fn_detail = FnUndef;

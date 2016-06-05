@@ -519,11 +519,14 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                    c_traits
               end
 
+           (* normal functions *)
            | Env.Function (_, r) ->
               begin
                 match r.Env.fn_name with
                 | Nodes.Pure n when n = ctor_name ->
                    begin
+                     let required_params = exclude_optional_params r.Env.fn_param_kinds in
+                     ignore required_params; (* TODO: implement *)
                      {
                        c_traits with
                        Env.cls_traits_default_ctor_state = Env.FnDefProvidedByUser;
@@ -575,7 +578,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
              Env.FnRecordImplicit (Env.FnDefDefaulted true,
                                   Env.FnKindCopyConstructor None)
            in
-           check_function_env fenv [rhs_ty] Meta_level.Meta ty false;
+           check_function_env fenv [Env.FnParamKindType rhs_ty] Meta_level.Meta ty false;
            complete_function_env fenv node ctor_id_name detail ctx;
          in
          define_trvial_defaulted_copy_ctor ()
@@ -1563,7 +1566,7 @@ and extract_prev_pass_node node =
 
 and analyze_param f_env param ctx attr =
   let (var_attr, var_name, init_part) = param in
-  let (param_ty, default_value) = match init_part with
+  let param_kind = match init_part with
     (* Ex. :int = 10 *)
     | (Some type_expr, Some defalut_val) ->
        begin
@@ -1574,7 +1577,7 @@ and analyze_param f_env param ctx attr =
     | (Some type_expr, None) ->
        begin
          let ty = resolve_type_with_qual var_attr type_expr f_env ctx attr in
-         (ty, None)
+         Env.FnParamKindType ty
        end
 
     (* Ex. = 10 *)
@@ -1589,9 +1592,9 @@ and analyze_param f_env param ctx attr =
        failwith "type or default value is required"
   in
 
-  let ninit_part = (None, default_value) in   (* type node is no longer necessary *)
+  let ninit_part = (None, None) in   (* a type node and a default value are no longer necessary *)
   let nparam: TAst.param_init_t = (var_attr, var_name, ninit_part) in
-  (nparam, param_ty)
+  (nparam, param_kind)
 
 and make_parameter_venv f_env param_name param_ty ctx =
   let venv_r = {
@@ -1615,30 +1618,75 @@ and prepare_params env special_params params_node ctx attr =
   | _ -> failwith "check_params / unexpected"
 
 
+and typeinfo_of_paramkind pk =
+  match pk with
+  | Env.FnParamKindType ty -> ty
+
+and adjust_param_types param_kinds args =
+  adjust_param_types' param_kinds args []
+  |> Option.map List.rev
+
+and adjust_param_types' param_kinds args acc =
+  match (param_kinds, args) with
+  | (param_info :: px, _ :: ax) ->
+     begin
+       match param_info with
+       | Env.FnParamKindType ty ->
+          adjust_param_types' px ax (ty :: acc)
+     end
+  | (param_info :: px, []) ->
+     begin
+       match param_info with
+       | Env.FnParamKindType ty ->
+          adjust_param_types' px [] (ty :: acc)
+     end
+  | ([], []) -> Some acc
+  | ([], _) -> None
+
+and exclude_optional_params param_kinds =
+  let rec exclude_optional_params' param_kinds acc =
+    match param_kinds with
+    | [] -> acc
+    | (k :: ks) ->
+       begin
+         match k with
+         | Env.FnParamKindType ty ->
+            exclude_optional_params' ks (ty :: acc)
+       end
+  in
+  exclude_optional_params' param_kinds []
+  |> List.rev
+
 and declare_function_params f_env special_params params ctx attr =
   (* analyze parameters *)
-  let (nparams, (param_types: type_info_t list)) =
-    special_params @ (params
-                      |> List.map (fun p -> analyze_param f_env p ctx attr))
+  let (nparams, param_kinds) =
+    let special_param_kinds =
+      special_params
+      |> List.map (fun (i, p) -> (i, Env.FnParamKindType p))
+    in
+    special_param_kinds @
+      (params |> List.map (fun p -> analyze_param f_env p ctx attr))
     |> List.split
   in
 
   (* first, make all of environments.
    * next declare them into the function env *)
   let param_envs =
-    let make_env param ty =
+    let make_env param kind =
       let (_, opt_name, _) = param in
-      opt_name |> Option.map (fun name -> make_parameter_venv f_env name ty ctx)
+      match kind with
+      | Env.FnParamKindType ty ->
+         opt_name |> Option.map (fun name -> make_parameter_venv f_env name ty ctx)
     in
     let declare_env (name, venv) =
       Env.add_inner_env f_env name venv;
       venv
     in
-    List.map2 make_env nparams param_types
+    List.map2 make_env nparams param_kinds
     |> List.map (Option.map declare_env)
   in
 
-  (nparams, param_types, param_envs)
+  (nparams, param_kinds, param_envs)
 
 
 and check_id_is_defined_uniquely env id =
@@ -2351,43 +2399,48 @@ and find_suitable_functions f_candidates args ext_env ctx attr
     try_to_complete_env f_env ctx;
     let f_record = Env.FunctionOp.get_record f_env in
 
-    (* check number of args *)
-    (* TODO: support dynamic variadic args *)
-    let params_num = List.length f_record.Env.fn_param_types in
-    let args_num = List.length args in
-    if params_num <> args_num then
-      let err = Error.DifferentArgNum (params_num, args_num) in
-      (FuncMatchLevel.NoMatch, f_env, [], args, Some err)
+    let opt_param_types = adjust_param_types f_record.Env.fn_param_kinds args in
+    match opt_param_types with
+    | Some param_types ->
+       let params_num = List.length param_types in
+       let args_num = List.length args in
+       if args_num <> params_num then
+         let err = Error.DifferentArgNum (params_num, args_num) in
+         (FuncMatchLevel.NoMatch, f_env, [], args, Some err)
+       else
+         let (match_levels, conv_funcs, _, errmap) =
+           let conv src_arg trg_ty (match_levels, conv_funcs, idx, errmap) =
+             let (l, f) = convert_type trg_ty src_arg ext_env ctx attr in
+             let pos = pos_of_earg src_arg in
+             let errmap = match l with
+               | FuncMatchLevel.NoMatch ->
+                  begin
+                    let m = match errmap with
+                      | Some (m) -> m
+                      | None -> Error.PosMap.empty
+                    in
+                    let m = Error.PosMap.add idx ("nomatch", pos) m in
+                    Some m
+                  end
+               | _ -> errmap
+             in
+             (l::match_levels, f::conv_funcs, (idx+1), errmap)
+           in
+           List.fold_right2 conv args param_types ([], [], 0, None)
+         in
 
-    else begin
-      let (match_levels, conv_funcs, _, errmap) =
-        let conv src_arg trg_ty (match_levels, conv_funcs, idx, errmap) =
-          let (l, f) = convert_type trg_ty src_arg ext_env ctx attr in
-          let pos = pos_of_earg src_arg in
-          let errmap = match l with
-            | FuncMatchLevel.NoMatch ->
-               begin
-                 let m = match errmap with
-                   | Some (m) -> m
-                   | None -> Error.PosMap.empty
-                 in
-                 let m = Error.PosMap.add idx ("nomatch", pos) m in
-                 Some m
-               end
-            | _ -> errmap
-          in
-          (l::match_levels, f::conv_funcs, (idx+1), errmap)
-        in
-        List.fold_right2 conv args f_record.Env.fn_param_types ([], [], 0, None)
-      in
+         (* most unmatch level of parameters becomes function match level *)
+         let total_f_level =
+           List.fold_left FuncMatchLevel.bottom FuncMatchLevel.ExactMatch match_levels in
 
-      (* most unmatch level of parameters becomes function match level *)
-      let total_f_level =
-        List.fold_left FuncMatchLevel.bottom FuncMatchLevel.ExactMatch match_levels in
+         let err = Option.map (fun m -> Error.ConvErr m) errmap in
+         (total_f_level, f_env, conv_funcs, args, err)
 
-      let err = Option.map (fun m -> Error.ConvErr m) errmap in
-      (total_f_level, f_env, conv_funcs, args, err)
-    end
+    | None ->
+       let params_num = List.length f_record.Env.fn_param_kinds in
+       let args_num = List.length args in
+       let err = Error.DifferentArgNum (params_num, args_num) in
+       (FuncMatchLevel.NoMatch, f_env, [], args, Some err)
   in
 
   let collect (cur_order, fs_and_args, errs) candidate
@@ -3019,7 +3072,7 @@ and define_trivial_copy_ctor_for_builtin cenv extern_cname ctx =
                            (Builtin_info.make_builtin_copy_ctor_name extern_cname))
     in
     (* interface of default constructor: TYPE -> TYPE *)
-    check_function_env fenv [rhs_ty] Meta_level.Meta ty false;
+    check_function_env fenv [Env.FnParamKindType rhs_ty] Meta_level.Meta ty false;
 
     let node = TAst.GenericFuncDef (None, Some fenv) in
     complete_function_env fenv node ctor_id_name detail ctx
@@ -3040,7 +3093,7 @@ and define_trivial_copy_assign_for_builtin cenv extern_cname ctx =
                          (Builtin_info.make_builtin_copy_assign_name extern_cname))
   in
   (* interface of default constructor: TYPE -> TYPE -> void *)
-  check_function_env fenv [ty; rhs_ty] Meta_level.Meta ctx.sc_tsets.ts_void_type false;
+  check_function_env fenv [Env.FnParamKindType ty; Env.FnParamKindType rhs_ty] Meta_level.Meta ctx.sc_tsets.ts_void_type false;
 
   let node = TAst.GenericFuncDef (None, Some fenv) in
   complete_function_env fenv node assign_name detail ctx
