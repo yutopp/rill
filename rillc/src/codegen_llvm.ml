@@ -562,7 +562,12 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
 
   | TAst.IntLit (v, bits, signed, lit_ty) ->
      begin
-       let llval = L.const_int (L.i32_type ctx.ir_context) v in
+       let llty = match bits with
+         | 8 -> L.i8_type
+         | 32 -> L.i32_type
+         | _ -> failwith "[ICE]"
+       in
+       let llval = L.const_int (llty ctx.ir_context) v in
        (llval, lit_ty)
      end
 

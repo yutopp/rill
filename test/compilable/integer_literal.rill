@@ -1,16 +1,28 @@
+import std.stdio;
+
 def main() {
 	val i1 = 10;
 	val i2 = 10i32;
+	i1.print();
+	i2.print();
 
 	val i3 = 0x1234abcd;
 	val i4 = 0x5678cdefi32;
+	i3.print();
+	i4.print();
 
 	val u1 = 10u;
 	val u2 = 10u32;
+	u1.print();
+	u2.print();
 
 	val u3 = 0xabcd1234u;
 	val u4 = 0xabcd1234u32;
+	u3.print();
+	u4.print();
 
 	val u8 = 10u8;
 	val u9 = 0xabu8;
+	u8.print();
+	u9.print();
 }
