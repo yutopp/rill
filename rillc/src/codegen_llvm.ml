@@ -1359,9 +1359,16 @@ let inject_builtins ctx =
     let () = (* >>(:int, :int): int *)
       let f _ args ctx =
         assert (Array.length args = 2);
-        L.build_lshr args.(0) args.(1) "" ctx.Ctx.ir_builder    (* zero ext(logical) *)
+        L.build_ashr args.(0) args.(1) "" ctx.Ctx.ir_builder    (* sign ext(arithmetic) *)
       in
       register_builtin_func "__builtin_op_binary_>>_int_int" f
+    in
+    let () = (* >>>(:int, :int): int *)
+      let f _ args ctx =
+        assert (Array.length args = 2);
+        L.build_lshr args.(0) args.(1) "" ctx.Ctx.ir_builder    (* zero ext(logical) *)
+      in
+      register_builtin_func "__builtin_op_binary_>>>_int_int" f
     in
     let () = (* ==(:int, :int): bool *)
       let f _ args ctx =
@@ -1498,6 +1505,14 @@ let inject_builtins ctx =
       in
       register_builtin_func
         (Printf.sprintf "__builtin_op_binary_>>_%s_%s" basename basename) f
+    in
+    let () = (* >>>(:int, :int): int *)
+      let f _ args ctx =
+        assert (Array.length args = 2);
+        L.build_lshr args.(0) args.(1) "" ctx.Ctx.ir_builder    (* zero ext(logical) *)
+      in
+      register_builtin_func
+        (Printf.sprintf "__builtin_op_binary_>>>_%s_%s" basename basename) f
     in
     let () = (* ==(:int, :int): bool *)
       let f _ args ctx =

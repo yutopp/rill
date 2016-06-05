@@ -67,6 +67,8 @@ extern def operator<=(:int32, :int32): bool = "__builtin_op_binary_<=_int_int";
 #[builtin]
 extern def operator<<(:int32, :int32): int32 = "__builtin_op_binary_<<_int_int";
 #[builtin]
+extern def operator>>>(:int32, :int32): int32 = "__builtin_op_binary_>>>_int_int";
+#[builtin]
 extern def operator>>(:int32, :int32): int32 = "__builtin_op_binary_>>_int_int";
 #[builtin]
 extern def operator==(:int32, :int32): bool = "__builtin_op_binary_==_int_int";
@@ -117,6 +119,8 @@ extern def operator<=(:uint32, :uint32): bool = "__builtin_op_binary_<=_uint_uin
 extern def operator<<(:uint32, :uint32): uint32 = "__builtin_op_binary_<<_uint_uint";
 #[builtin]
 extern def operator>>(:uint32, :uint32): uint32 = "__builtin_op_binary_>>_uint_uint";
+#[builtin]
+extern def operator>>>(:uint32, :uint32): uint32 = "__builtin_op_binary_>>>_uint_uint";
 #[builtin]
 extern def operator==(:uint32, :uint32): bool = "__builtin_op_binary_==_uint_uint";
 #[builtin]
