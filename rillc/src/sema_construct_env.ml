@@ -447,24 +447,27 @@ let rec construct_env node parent_env ctx opt_chain_attr =
 
          type t =
              {
-               default_ctor_state   : state_t;
-               copy_ctor_state      : state_t;
+               default_ctor_state       : state_t;
+               copy_ctor_state          : state_t;
+               has_user_defined_ctor    : bool;
              }
 
          let init_states =
            {
              default_ctor_state = init_state;
              copy_ctor_state = init_state;
+             has_user_defined_ctor = false;
            }
 
-         let scan_special_func_states traits t =
+         let scan_special_func_states traits states =
            {
+             states with
              default_ctor_state =
                scan_special_func_state traits.Env.cls_traits_default_ctor_state
-                                       t.default_ctor_state;
+                                       states.default_ctor_state;
              copy_ctor_state =
                scan_special_func_state traits.Env.cls_traits_copy_ctor_state
-                                       t.copy_ctor_state;
+                                       states.copy_ctor_state;
            }
 
          let update_traits_by_states traits states =
@@ -495,16 +498,15 @@ let rec construct_env node parent_env ctx opt_chain_attr =
          List.fold_left f SpecialMemberStates.init_states cenv_r.Env.cls_member_vars
        in
        Printf.printf "= CLASS: %s\n%s\n" name_s (SpecialMemberStates.string_of_states member_vars_sf_states);
-       cenv_r.Env.cls_traits <- SpecialMemberStates.update_traits_by_states cenv_r.Env.cls_traits member_vars_sf_states;
+
 
        (* body *)
        let (nbody, _) = construct_env body env ctx opt_attr in
 
        (* TODO: check class characteristics *)
        let _ =
-
-         (*let class_traits = if*)
-         let f c_traits env =
+         let open SpecialMemberStates in
+         let f c_states env =
            match Env.get_env_record env with
            (* if there are template constructors at least 1, class has user-defined constructor *)
            | Env.Template r ->
@@ -512,11 +514,11 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                 match r.Env.tl_name with
                 (* template has ctor name *)
                 | Nodes.Pure n when n = ctor_name ->
-                   { c_traits with
-                     Env.cls_traits_has_user_defined_ctor = true
+                   { c_states with
+                     has_user_defined_ctor = true
                    }
                 | _ ->
-                   c_traits
+                   c_states
               end
 
            (* normal functions *)
@@ -526,22 +528,36 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                 | Nodes.Pure n when n = ctor_name ->
                    begin
                      let required_params = exclude_optional_params r.Env.fn_param_kinds in
-                     ignore required_params; (* TODO: implement *)
-                     {
-                       c_traits with
-                       Env.cls_traits_default_ctor_state = Env.FnDefProvidedByUser;
-                     }
+                     match List.length required_params with
+                     (* default constructor *)
+                     | 0 ->
+                        begin
+                          {
+                            c_states with
+                            default_ctor_state =
+                              scan_special_func_state
+                                (Env.FunctionOp.get_definition_status env)
+                                c_states.default_ctor_state;
+                          }
+                        end
+                     | 1 ->
+                        begin
+                          (* TODO: implement *)
+                          c_states
+                        end
+                     | _ ->
+                        c_states
                    end
                 | _ ->
-                   c_traits
+                   c_states
               end
 
            | _ -> Env.print env; failwith "[ICE]"
          in
-         let class_traits =
-           List.fold_left f cenv_r.Env.cls_traits cenv_r.Env.cls_member_funcs
+         let class_states =
+           List.fold_left f member_vars_sf_states cenv_r.Env.cls_member_funcs
          in
-         cenv_r.Env.cls_traits <- class_traits
+         cenv_r.Env.cls_traits <- update_traits_by_states cenv_r.Env.cls_traits class_states
        in
 
        (**)
