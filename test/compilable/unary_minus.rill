@@ -1,0 +1,13 @@
+import std.stdio;
+
+class C {
+    def operator unary-() {
+        "operator unary-\n".print();
+    }
+}
+
+def main() {
+    val mutable c = C();
+    -c;
+    return 0;
+}
