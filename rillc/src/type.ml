@@ -49,6 +49,11 @@ let is_same lhs rhs =
      end
   | _ -> failwith "not supported"
 
+let is_same_class_ref lhs rhs =
+  match (type_attr lhs, type_attr rhs) with
+  | ({Type_attr.ta_ref_val = Type_attr.Ref}, {Type_attr.ta_ref_val = Type_attr.Ref}) ->
+     has_same_class lhs rhs
+  | _ -> false
 
 let is_class_set ty =
   let ts = type_sort ty in
@@ -133,6 +138,11 @@ module Generator =
       } in
       update_attr_r gen ty attr
 
+    let add_reference gen ty =
+      let attr = type_attr ty in
+      update_attr_r gen ty { attr with
+                             Type_attr.ta_ref_val = Type_attr.Ref
+                           }
 
     let find_type_by_cache_id gen t_id =
       try Hashtbl.find gen.cache_table t_id with
