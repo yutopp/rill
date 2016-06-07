@@ -2759,6 +2759,9 @@ and prepare_instantiate_template t_env_record template_args ext_env ctx attr =
     | _ -> failwith "[ICE] unexpected template params"
   in
 
+  if (List.length template_params) < (List.length template_args) then
+    raise Instantiation_failed;
+
   (* In this context, value of MetaVar is treated as TYPE *)
 
   (* *)
