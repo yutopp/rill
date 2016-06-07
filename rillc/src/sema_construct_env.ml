@@ -2402,7 +2402,7 @@ and solve_function_overload eargs template_args mset_env ext_env loc ctx attr =
 
   assert (List.length fs_and_args <> 0);
   if (List.length fs_and_args) > 1 then
-    error_msg "[ERR] anbigous";
+    error_msg "[ERR] ambiguous";
 
   List.hd fs_and_args
 
