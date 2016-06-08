@@ -1,0 +1,15 @@
+import std.stdio;
+
+def f!(N: int32)() {
+    N.print();
+}
+def f!(N: int32, M: int32)() {
+    N.print();
+    M.print();
+}
+
+def main() {
+    f!(42)();
+    f!(10, 20)();
+    return 0;
+}
