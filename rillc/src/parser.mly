@@ -787,6 +787,7 @@ unary_operator_as_raw:
 
 unary_pre_operator_as_raw:
                 NOT { $1 }
+        |       MINUS { $1 }
         |       TIMES { $1 }        (* deref *)
         |       BITWISE_AND { $1 }  (* address *)
 
