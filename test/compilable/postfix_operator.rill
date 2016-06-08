@@ -1,0 +1,12 @@
+import std.stdio;
+
+class C {
+    def operator post++() {
+        "operator post++\n".print();
+    }
+}
+
+def main() {
+    val mutable c = C();
+    c++;
+}
