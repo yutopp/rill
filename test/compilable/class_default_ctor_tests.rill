@@ -1,0 +1,37 @@
+class has_implicit_trivial_default_ctor {
+}
+
+class has_user_provided_default_ctor {
+    def ctor() {}
+}
+
+class mem_c_0 {
+    val _0: has_implicit_trivial_default_ctor;
+}
+
+class mem_c_1 {
+    val _0: has_user_provided_default_ctor;
+}
+
+class mems_c_0 {
+    val _0: has_implicit_trivial_default_ctor;
+    val _1: has_implicit_trivial_default_ctor;
+}
+
+class mems_c_1 {
+    val _0: has_implicit_trivial_default_ctor;
+    val _1: has_user_provided_default_ctor;
+}
+
+class mems_c_2 {
+    val _0: has_user_provided_default_ctor;
+    val _1: has_user_provided_default_ctor;
+}
+
+def main() {
+    mem_c_0();
+    mem_c_1();
+    mems_c_0();
+    mems_c_1();
+    mems_c_2();
+}

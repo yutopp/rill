@@ -446,12 +446,12 @@ let rec construct_env node parent_env ctx opt_chain_attr =
 
          let state_to_trait state has_user_defined_ctor =
            match state with
-           | { is_provided_by_user = true } -> Env.FnDefProvidedByUser
+           | { is_explicit = true; is_provided_by_user = true } -> Env.FnDefProvidedByUser
            | { is_explicit = e; is_callable = true; is_trivial = b } when e || (not e && not has_user_defined_ctor) -> Env.FnDefDefaulted b
            | _ -> Env.FnDefDeleted
 
          let string_of_state s =
-           Printf.sprintf "is_callable = %b; is_trivial = %b" s.is_callable s.is_trivial
+           Printf.sprintf "is_explicit = %b; is_callable = %b;\n is_trivial = %b; is_provided_by_user = %b" s.is_explicit s.is_callable s.is_trivial s.is_provided_by_user
 
          type t =
              {
@@ -488,8 +488,9 @@ let rec construct_env node parent_env ctx opt_chain_attr =
            }
 
          let string_of_states ss =
-           let s = Printf.sprintf "default_ctor_state = %s\n" (string_of_state ss.default_ctor_state) in
-           let s = s ^ Printf.sprintf "copy_ctor_state = %s\n" (string_of_state ss.copy_ctor_state) in
+           let s = Printf.sprintf "default_ctor_state -> %s\n" (string_of_state ss.default_ctor_state) in
+           let s = s ^ Printf.sprintf "copy_ctor_state -> %s\n" (string_of_state ss.copy_ctor_state) in
+           let s = s ^ Printf.sprintf "has_user_defined_ctor -> %b\n" ss.has_user_defined_ctor in
            s
 
        end in
@@ -505,7 +506,6 @@ let rec construct_env node parent_env ctx opt_chain_attr =
          in
          List.fold_left f SpecialMemberStates.init_states cenv_r.Env.cls_member_vars
        in
-       Printf.printf "= CLASS: %s\n%s\n" name_s (SpecialMemberStates.string_of_states member_vars_sf_states);
 
        (* body *)
        let (nbody, _) = construct_env body env ctx opt_attr in
@@ -513,7 +513,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        (* TODO: check class characteristics *)
        let _ =
          let open SpecialMemberStates in
-         let f c_states fenv =
+         let memorize_and_scan_ctor c_states fenv =
            match Env.get_env_record fenv with
            (* if there are template constructors at least 1, class has user-defined constructor *)
            | Env.Template r ->
@@ -539,6 +539,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                      (* default constructor *)
                      | 0 ->
                         begin
+                          Sema_utils.register_default_ctor_to_class_env env fenv;
                           { c_states with
                             default_ctor_state =
                               scan_special_func_state
@@ -554,6 +555,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                           in
                           match List.hd required_params with
                           | ty when Type.is_same_class_ref ref_self_ty ty ->
+                             Sema_utils.register_copy_ctor_to_class_env env fenv;
                              { c_states with
                                copy_ctor_state =
                                  scan_special_func_state
@@ -575,8 +577,13 @@ let rec construct_env node parent_env ctx opt_chain_attr =
            | _ -> Env.print fenv; failwith "[ICE]"
          in
          let class_states =
-           List.fold_left f member_vars_sf_states cenv_r.Env.cls_member_funcs
+           List.fold_left memorize_and_scan_ctor
+                          member_vars_sf_states cenv_r.Env.cls_member_funcs
          in
+         Printf.printf "MEMBERS\n";
+         Printf.printf "= CLASS: %s\n%s\n" name_s (string_of_states member_vars_sf_states);
+         Printf.printf "CTORS\n";
+         Printf.printf "= CLASS: %s\n%s\n" name_s (string_of_states class_states);
          cenv_r.Env.cls_traits <-
            update_traits_by_states cenv_r.Env.cls_traits class_states
        in
@@ -588,11 +595,31 @@ let rec construct_env node parent_env ctx opt_chain_attr =
 
          let define_trivial_defaulted_default_ctor () =
            let fenv = declare_incomple_ctor env in
+           Sema_utils.register_default_ctor_to_class_env env fenv;
+
            let node = TAst.GenericFuncDef (None, Some fenv) in
-           (* TODO: check class members are all trivial *)
            let detail =
-             Env.FnRecordImplicit (Env.FnDefDefaulted true,
-                                  Env.FnKindDefaultConstructor None)
+             Env.FnRecordImplicit (Env.FnDefDefaulted true, (* trivial *)
+                                   Env.FnKindDefaultConstructor None)
+           in
+           check_function_env fenv [] Meta_level.Meta ty false;
+           complete_function_env fenv node ctor_id_name detail ctx;
+         in
+         let define_defaulted_default_ctor () =
+           let fenv = declare_incomple_ctor env in
+           Sema_utils.register_default_ctor_to_class_env env fenv;
+
+           let construct_implicit_default_ctor_body_ast () =
+             TAst.Error
+           in
+
+           let body = construct_implicit_default_ctor_body_ast () in
+
+           (* TODO: implement *)
+           let node = TAst.GenericFuncDef (Some body, Some fenv) in
+           let detail =
+             Env.FnRecordImplicit (Env.FnDefDefaulted false,
+                                   Env.FnKindDefaultConstructor None)
            in
            check_function_env fenv [] Meta_level.Meta ty false;
            complete_function_env fenv node ctor_id_name detail ctx;
@@ -601,8 +628,10 @@ let rec construct_env node parent_env ctx opt_chain_attr =
           * if there are no user defined constructor.
           * However, some conditions make it as deleted *)
          let _ = match cenv_r.cls_traits.cls_traits_default_ctor_state with
-           | Env.FnDefDefaulted true -> (* TODO: check *)
+           | Env.FnDefDefaulted true ->
               define_trivial_defaulted_default_ctor ()
+           | Env.FnDefDefaulted false ->
+              define_defaulted_default_ctor ()
            | _ -> ()
          in
 

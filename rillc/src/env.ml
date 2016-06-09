@@ -160,6 +160,9 @@ type 'ast env_t = {
 
    mutable cls_size             : Stdint.uint32 option;  (* bytes *)
    mutable cls_align            : Stdint.uint32 option;  (* bytes *)
+
+   mutable cls_default_ctor     : 'ast env_t option;
+   mutable cls_copy_ctor        : 'ast env_t option;
  }
  and class_record_var =
    | ClsRecordExtern of class_record_extern
@@ -577,6 +580,8 @@ module ClassOp =
          cls_member_funcs = [];
          cls_size = None;
          cls_align = None;
+         cls_default_ctor = None;
+         cls_copy_ctor = None;
       }
 
     let push_member_variable env venv =

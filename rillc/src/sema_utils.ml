@@ -88,6 +88,22 @@ let complete_class_env env node c_detail opt_layout =
   in
   complete_env env node
 
+let register_default_ctor_to_class_env cenv fenv =
+  let r = Env.ClassOp.get_record cenv in
+  match r.Env.cls_default_ctor with
+  | None ->
+     r.Env.cls_default_ctor <- (Some fenv)
+  | Some _ ->
+     failwith "[ICE] default ctor is already registered"
+
+let register_copy_ctor_to_class_env cenv fenv =
+  let r = Env.ClassOp.get_record cenv in
+  match r.Env.cls_copy_ctor with
+  | None ->
+     r.Env.cls_copy_ctor <- (Some fenv)
+  | Some _ ->
+     failwith "[ICE] default ctor is already registered"
+
 
 let is_valid_type ty =
   let open Type_attr in
