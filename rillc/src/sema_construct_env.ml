@@ -494,17 +494,22 @@ let rec construct_env node parent_env ctx opt_chain_attr =
            s
 
        end in
-       let member_vars_sf_states =
-         let f s venv =
+       let member_var_tys =
+         let f venv =
            let venv_r = Env.VariableOp.get_record venv in
-           let var_ty = venv_r.Env.var_type in
-           let var_cenv = Type.as_unique var_ty in
-           let var_cenv_r = Env.ClassOp.get_record var_cenv in
-           let var_cls_traits = var_cenv_r.Env.cls_traits in
-
-           SpecialMemberStates.scan_special_func_states var_cls_traits s
+           venv_r.Env.var_type
          in
-         List.fold_left f SpecialMemberStates.init_states cenv_r.Env.cls_member_vars
+         List.map f cenv_r.Env.cls_member_vars
+       in
+       let member_vars_sf_states =
+         let f s var_ty =
+           let vcenv = Type.as_unique var_ty in
+           let vcenv_r = Env.ClassOp.get_record vcenv in
+           let vcls_traits = vcenv_r.Env.cls_traits in
+
+           SpecialMemberStates.scan_special_func_states vcls_traits s
+         in
+         List.fold_left f SpecialMemberStates.init_states member_var_tys
        in
 
        (* body *)
@@ -610,7 +615,24 @@ let rec construct_env node parent_env ctx opt_chain_attr =
            Sema_utils.register_default_ctor_to_class_env env fenv;
 
            let construct_implicit_default_ctor_body_ast () =
-             TAst.Error
+             let member_var_default_ctors =
+               let f var_ty =
+                 let vcenv = Type.as_unique var_ty in
+                 let vcenv_r = Env.ClassOp.get_record vcenv in
+                 let vdctor = match vcenv_r.Env.cls_default_ctor with
+                   | Some e -> e
+                   | None -> failwith "[ICE] no ctor for thenmember"
+                 in
+                 let call_inst =
+                   let f_sto = suitable_storage var_ty ctx in
+                   make_call_instruction (vdctor, [], []) None (Some f_sto) parent_env ctx
+                 in
+                 let (tast, term) = call_inst in
+                 tast
+               in
+               List.map f member_var_tys
+             in
+             TAst.StatementList member_var_default_ctors
            in
 
            let body = construct_implicit_default_ctor_body_ast () in
