@@ -624,7 +624,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                    | None -> failwith "[ICE] no ctor for thenmember"
                  in
                  let call_inst =
-                   let f_sto = suitable_storage var_ty ctx in
+                   let f_sto = suitable_storage var_ty ctx in   (* TODO: fix. point member variables *)
                    make_call_instruction (vdctor, [], []) None (Some f_sto) parent_env ctx
                  in
                  let (tast, term) = call_inst in

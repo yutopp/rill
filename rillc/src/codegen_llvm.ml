@@ -438,36 +438,28 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
          (llargs, param_types)
        in
 
+       let call_func f =
+         match returns_heavy_obj with
+         | false ->
+            let (llargs, _) = eval_args param_tys in
+            L.build_call f llargs "" ctx.ir_builder
+         | true ->
+            let (llargs, _) = eval_args param_tys in
+            let _ = L.build_call f llargs "" ctx.ir_builder in
+            assert (Array.length llargs > 0);
+            llargs.(0)
+       in
+
        let fn_s_name = Nodes.string_of_id_string fn_name in
        let llval = match detail with
          (* normal function *)
-         | Env.FnRecordNormal (_, kind, _) ->
+         | Env.FnRecordNormal (_, _, _) ->
             begin
               Printf.printf "gen value: debug / function normal %s\n" fn_s_name;
 
               let r_value = force_target_generation ctx env in
               match r_value with
-              | LLValue f ->
-                 begin
-                   match kind with
-                   | Env.FnKindFree
-                   | Env.FnKindMember
-                   | Env.FnKindConstructor _ ->
-                      begin
-                        match returns_heavy_obj with
-                        | false ->
-                           let (llargs, _) = eval_args param_tys in
-                           L.build_call f llargs "" ctx.ir_builder
-                        | true ->
-                           let (llargs, _) = eval_args param_tys in
-                           let _ = L.build_call f llargs "" ctx.ir_builder in
-                           assert (Array.length llargs > 0);
-                           llargs.(0)
-                      end
-
-                   | _ -> failwith "[ICE] unexpected kind"
-                 end
-
+              | LLValue f -> call_func f
               | _ -> failwith "[ICE] unexpected value"
             end
 
@@ -477,47 +469,55 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
               Printf.printf "gen value: debug / function implicit %s\n" fn_s_name;
 
               let r_value = force_target_generation ctx env in
-              let _ = match r_value with
-                | TrivialAction -> ()
-                | _ -> failwith "[ICE] not trivial"
-              in
-
-              let new_obj = match !storage_ref with
-                | TAst.StoStack (ty) ->
-                   begin
-                     let llty = lltype_of_typeinfo ty ctx in
-                     L.build_alloca llty "" ctx.ir_builder
-                   end
-                | TAst.StoAgg ->
-                   begin
-                     let ctx_env = Option.get call_on_env.Env.context_env in
-                     Env.print ctx_env;
-                     let ll_fval =
-                       find_llval_by_env_with_force_generation ctx ctx_env
-                     in
-                     let agg = L.param ll_fval 0 in
-                     assert (L.value_name agg = agg_recever_name);
-                     agg
-                   end
-                | _ -> failwith "[ICE]"
-              in
-
-              match kind with
-              | Env.FnKindDefaultConstructor None -> new_obj
-              | Env.FnKindCopyConstructor None
-              | Env.FnKindMoveConstructor None ->
+              match r_value with
+              (* trivial function *)
+              | TrivialAction ->
                  begin
-                   assert (List.length args = 1);
-                   let rhs = List.hd args in
-                   let (llrhs, rhs_ty) = generate_code rhs ctx in
-                   let sl = Type.size_of rhs_ty in
-                   let al = Type.align_of rhs_ty in
-                   let _ = ctx.intrinsics.memcpy_i32 new_obj llrhs
-                                                     sl al false ctx.ir_builder (* TODO: fix *)
+                   let new_obj = match !storage_ref with
+                     | TAst.StoStack (ty) ->
+                        begin
+                          let llty = lltype_of_typeinfo ty ctx in
+                          L.build_alloca llty "" ctx.ir_builder
+                        end
+                     | TAst.StoAgg ->
+                        begin
+                          let ctx_env = Option.get call_on_env.Env.context_env in
+                          Env.print ctx_env;
+                          let ll_fval =
+                            find_llval_by_env_with_force_generation ctx ctx_env
+                          in
+                          let agg = L.param ll_fval 0 in
+                          assert (L.value_name agg = agg_recever_name);
+                          agg
+                        end
+                     | _ -> failwith "[ICE]"
                    in
-                   new_obj
+
+                   match kind with
+                   | Env.FnKindDefaultConstructor None ->
+                      begin
+                        (* TODO: zero-fill *)
+                        new_obj
+                      end
+                   | Env.FnKindCopyConstructor None
+                   | Env.FnKindMoveConstructor None ->
+                      begin
+                        assert (List.length args = 1);
+                        let rhs = List.hd args in
+                        let (llrhs, rhs_ty) = generate_code rhs ctx in
+                        let sl = Type.size_of rhs_ty in
+                        let al = Type.align_of rhs_ty in
+                        let _ = ctx.intrinsics.memcpy_i32 new_obj llrhs
+                                                          sl al false ctx.ir_builder
+                        in
+                        new_obj
+                      end
+                   | _ -> failwith "[ICE]"
                  end
-              | _ -> failwith "[ICE]"
+
+              (* non-trivial function *)
+              | LLValue f -> call_func f
+              | _ -> failwith "[ICE] unexpected"
             end
 
          (* external function *)
