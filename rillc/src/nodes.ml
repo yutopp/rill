@@ -151,13 +151,24 @@ module Make (Ctx : NodeContextType) =
        | StoStack of term_ctx_t
        | StoHeap
        | StoGc
-       | StoAgg
+       | StoAgg of term_ctx_t
        | StoImm
        | StoArrayElem of term_ctx_t * int
+       | StoMemberVar of term_ctx_t * ctx_t * ctx_t
 
     type t = ast
 
     (* debug print *)
+    let print_storage sto =
+      match sto with
+      | StoStack _ -> Printf.printf "StoStack\n"
+      | StoHeap -> Printf.printf "StoHeap\n"
+      | StoGc -> Printf.printf "StoGc\n"
+      | StoAgg _ -> Printf.printf "StoAgg\n"
+      | StoImm -> Printf.printf "StoImm\n"
+      | StoArrayElem _ -> Printf.printf "StoArrayElem\n"
+      | StoMemberVar _ -> Printf.printf "StoMemberVar\n"
+
     let rec print ast =
       let open Format in
       match ast with

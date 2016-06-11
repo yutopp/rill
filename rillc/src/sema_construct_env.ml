@@ -494,22 +494,18 @@ let rec construct_env node parent_env ctx opt_chain_attr =
            s
 
        end in
-       let member_var_tys =
-         let f venv =
-           let venv_r = Env.VariableOp.get_record venv in
-           venv_r.Env.var_type
-         in
-         List.map f cenv_r.Env.cls_member_vars
-       in
+
        let member_vars_sf_states =
-         let f s var_ty =
+         let f s venv =
+           let venv_r = Env.VariableOp.get_record venv in
+           let var_ty = venv_r.Env.var_type in
            let vcenv = Type.as_unique var_ty in
            let vcenv_r = Env.ClassOp.get_record vcenv in
            let vcls_traits = vcenv_r.Env.cls_traits in
 
            SpecialMemberStates.scan_special_func_states vcls_traits s
          in
-         List.fold_left f SpecialMemberStates.init_states member_var_tys
+         List.fold_left f SpecialMemberStates.init_states cenv_r.Env.cls_member_vars
        in
 
        (* body *)
@@ -616,7 +612,9 @@ let rec construct_env node parent_env ctx opt_chain_attr =
 
            let construct_implicit_default_ctor_body_ast () =
              let member_var_default_ctors =
-               let f var_ty =
+               let f venv =
+                 let venv_r = Env.VariableOp.get_record venv in
+                 let var_ty = venv_r.Env.var_type in
                  let vcenv = Type.as_unique var_ty in
                  let vcenv_r = Env.ClassOp.get_record vcenv in
                  let vdctor = match vcenv_r.Env.cls_default_ctor with
@@ -624,24 +622,30 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                    | None -> failwith "[ICE] no ctor for thenmember"
                  in
                  let call_inst =
-                   let f_sto = suitable_storage var_ty ctx in   (* TODO: fix. point member variables *)
+                   let f_sto = TAst.StoMemberVar (var_ty, Some venv, Some fenv) in
                    make_call_instruction (vdctor, [], []) None (Some f_sto) parent_env ctx
                  in
-                 let (tast, term) = call_inst in
-                 tast
+                 let (t_ast, term) = call_inst in
+                 t_ast
                in
-               List.map f member_var_tys
+               List.map f cenv_r.Env.cls_member_vars
              in
              TAst.StatementList member_var_default_ctors
            in
 
+           (* prepare "this" special var *)(* TODO: consider member qual *)
+           let this_ty = make_class_type env
+                                         Type_attr.Ref Type_attr.Mutable
+                                         ctx in
+           let (name, this_venv) = make_parameter_venv fenv "this" this_ty ctx in
+           Env.add_inner_env fenv name this_venv;
+
            let body = construct_implicit_default_ctor_body_ast () in
 
-           (* TODO: implement *)
            let node = TAst.GenericFuncDef (Some body, Some fenv) in
            let detail =
              Env.FnRecordImplicit (Env.FnDefDefaulted false,
-                                   Env.FnKindDefaultConstructor None)
+                                   Env.FnKindDefaultConstructor (Some this_venv))
            in
            check_function_env fenv [] Meta_level.Meta ty false;
            complete_function_env fenv node ctor_id_name detail ctx;
@@ -2202,15 +2206,15 @@ and suitable_storage' ~exit_scope
          end
     end
   else
+    let trg_ref_ty =
+      Type.Generator.update_attr_r ctx.sc_tsets.ts_type_gen trg_ty
+                                   { trg_ty.Type_info.ti_attr with
+                                     Type_attr.ta_ref_val = Type_attr.Ref
+                                   }
+    in
     if exit_scope then
-      TAst.StoAgg
+      TAst.StoAgg trg_ref_ty
     else
-      let trg_ref_ty =
-        Type.Generator.update_attr_r ctx.sc_tsets.ts_type_gen trg_ty
-                                     { trg_ty.Type_info.ti_attr with
-                                       Type_attr.ta_ref_val = Type_attr.Ref
-                                     }
-      in
       TAst.StoStack trg_ref_ty
 
 and suitable_storage ?(opt_operation=None)

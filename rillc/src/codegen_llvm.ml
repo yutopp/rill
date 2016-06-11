@@ -326,6 +326,8 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
 
        Ctx.bind_val_to_env ctx (LLType struct_ty) env;
 
+       L.dump_type struct_ty;
+
        (* body *)
        let _ = generate_code body ctx in
        void_val
@@ -392,7 +394,68 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
 
        let returns_heavy_obj = is_heavy_object ret_ty in
 
-       let eval_args param_types =
+       let setup_storage sto =
+         match sto with
+         | TAst.StoStack (ty) ->
+            begin
+              let llty = lltype_of_typeinfo ty ctx in
+              let v = L.build_alloca llty "" ctx.ir_builder in
+              (v, ty)
+              end
+
+         | TAst.StoAgg (ty) ->
+            begin
+              let ctx_env = Option.get call_on_env.Env.context_env in
+              let ll_fval =
+                find_llval_by_env_with_force_generation ctx ctx_env
+              in
+              let agg = L.param ll_fval 0 in
+              assert (L.value_name agg = agg_recever_name);
+              (agg, ty)
+            end
+
+         | TAst.StoArrayElem (ty, index) ->
+            let array_sto = match Ctx.current_array_storage ctx with
+              | LLValue v -> v
+              | _ -> failwith "[ICE]"
+            in
+            let zero = L.const_int (L.i32_type ctx.ir_context) 0 in
+            let llindex = L.const_int (L.i32_type ctx.ir_context) index in
+            let array_elem_ptr =
+              L.build_in_bounds_gep array_sto
+                                    [|zero; llindex|]
+                                    ""
+                                    ctx.Ctx.ir_builder
+            in
+            (array_elem_ptr, ty)
+
+         | TAst.StoMemberVar (ty, Some venv, Some parent_fenv) ->
+            let reciever_llval =
+              match Env.FunctionOp.get_kind parent_fenv with
+              | Env.FnKindConstructor (Some rvenv)
+              | Env.FnKindCopyConstructor (Some rvenv)
+              | Env.FnKindMoveConstructor (Some rvenv)
+              | Env.FnKindDefaultConstructor (Some rvenv)
+              | Env.FnKindDestructor (Some rvenv) ->
+                 find_llval_by_env_with_force_generation ctx rvenv
+              | _ -> failwith "[ICE] no reciever"
+            in
+            let member_index = match Ctx.find_val_by_env ctx venv with
+              | ElemIndex idx -> idx
+              | _ -> failwith "[ICE] a member variable is not found"
+            in
+            let elem_llval =
+              L.dump_value reciever_llval;
+              Printf.printf "index = %d\n" member_index;
+              flush_all ();
+              L.build_struct_gep reciever_llval member_index "" ctx.ir_builder
+            in
+            (elem_llval, ty)
+
+         | _ -> failwith "[ICE] cannot setup storage"
+       in
+
+       let eval_args kind param_types =
          (* normal arguments *)
          let (llvals, arg_tys) =
            args
@@ -401,30 +464,14 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
          in
          (* special arguments *)
          let (llvals, arg_tys, param_types) = match !storage_ref with
-           | TAst.StoStack (ty) ->
-              begin
-                let llty = lltype_of_typeinfo ty ctx in
-                let v = L.build_alloca llty "" ctx.ir_builder in
-                (v::llvals), (ty::arg_tys), (ty::param_types)
-              end
+           | TAst.StoStack _
+           | TAst.StoArrayElem _
+           | TAst.StoMemberVar _ ->
+              let (v, ty) = setup_storage !storage_ref in
+              (v::llvals), (ty::arg_tys), (ty::param_types)
 
            | TAst.StoImm ->
               (llvals, arg_tys, param_types)
-
-           | TAst.StoArrayElem (ty, index) ->
-              let array_sto = match Ctx.current_array_storage ctx with
-                | LLValue v -> v
-                | _ -> failwith "[ICE]"
-              in
-              let zero = L.const_int (L.i32_type ctx.ir_context) 0 in
-              let llindex = L.const_int (L.i32_type ctx.ir_context) index in
-              let array_elem_ptr =
-                L.build_in_bounds_gep array_sto
-                                      [|zero; llindex|]
-                                      ""
-                                      ctx.Ctx.ir_builder
-              in
-              (array_elem_ptr::llvals), (ty::arg_tys), (ty::param_types)
 
            | _ -> failwith "[ICE] special arguments"
          in
@@ -438,13 +485,13 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
          (llargs, param_types)
        in
 
-       let call_func f =
+       let call_func kind f =
          match returns_heavy_obj with
          | false ->
-            let (llargs, _) = eval_args param_tys in
+            let (llargs, _) = eval_args kind param_tys in
             L.build_call f llargs "" ctx.ir_builder
          | true ->
-            let (llargs, _) = eval_args param_tys in
+            let (llargs, _) = eval_args kind param_tys in
             let _ = L.build_call f llargs "" ctx.ir_builder in
             assert (Array.length llargs > 0);
             llargs.(0)
@@ -453,13 +500,13 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
        let fn_s_name = Nodes.string_of_id_string fn_name in
        let llval = match detail with
          (* normal function *)
-         | Env.FnRecordNormal (_, _, _) ->
+         | Env.FnRecordNormal (_, kind, _) ->
             begin
               Printf.printf "gen value: debug / function normal %s\n" fn_s_name;
 
               let r_value = force_target_generation ctx env in
               match r_value with
-              | LLValue f -> call_func f
+              | LLValue f -> call_func kind f
               | _ -> failwith "[ICE] unexpected value"
             end
 
@@ -474,23 +521,16 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
               | TrivialAction ->
                  begin
                    let new_obj = match !storage_ref with
-                     | TAst.StoStack (ty) ->
-                        begin
-                          let llty = lltype_of_typeinfo ty ctx in
-                          L.build_alloca llty "" ctx.ir_builder
-                        end
-                     | TAst.StoAgg ->
-                        begin
-                          let ctx_env = Option.get call_on_env.Env.context_env in
-                          Env.print ctx_env;
-                          let ll_fval =
-                            find_llval_by_env_with_force_generation ctx ctx_env
-                          in
-                          let agg = L.param ll_fval 0 in
-                          assert (L.value_name agg = agg_recever_name);
-                          agg
-                        end
-                     | _ -> failwith "[ICE]"
+                     | TAst.StoStack _
+                     | TAst.StoAgg _
+                     | TAst.StoArrayElem _
+                     | TAst.StoMemberVar _ ->
+                        let (v, _) = setup_storage !storage_ref in
+                        v
+
+                     | _ ->
+                        TAst.print_storage !storage_ref;
+                        failwith "[ICE]"
                    in
 
                    match kind with
@@ -516,7 +556,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
                  end
 
               (* non-trivial function *)
-              | LLValue f -> call_func f
+              | LLValue f -> call_func kind f
               | _ -> failwith "[ICE] unexpected"
             end
 
@@ -525,7 +565,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
             begin
               Printf.printf "gen value: debug / extern  %s = \"%s\"\n"
                             fn_s_name extern_name; flush_all ();
-              let (llargs, _) = eval_args param_tys in
+              let (llargs, _) = eval_args kind param_tys in
               let extern_f =
                 find_llval_by_env_with_force_generation ctx env
               in
@@ -537,7 +577,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
               Printf.printf "gen value: debug / builtin %s = \"%s\"\n"
                             fn_s_name extern_name;
               flush_all ();
-              let (llargs, param_tys) = eval_args param_tys in
+              let (llargs, param_tys) = eval_args kind param_tys in
               Array.iter L.dump_value llargs;
 
               let v_record = Ctx.find_val_by_name ctx extern_name in
