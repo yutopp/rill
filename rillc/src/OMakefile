@@ -122,6 +122,24 @@ parser_messages.ml:
 
 OCamlGeneratedFiles(lexer.ml)
 
+gen_config() =
+    stdout = $(fopen config.ml, w)
+    fsubst(config.ml.template)
+    case $"\?PREFIX" g
+        value "$(PREFIX)"
+    case $"\?BIN_DIR" g
+        value "$(BIN_DIR)"
+    case $"\?LIB_DIR" g
+        value "$(LIB_DIR)"
+    case $"\?INCLUDE_DIR" g
+        value "$(INCLUDE_DIR)"
+    case $"\?RELEASE" g
+	    value $(RELEASE)
+    close($(stdout))
+
+config.ml:
+    gen_config()
+
 ################################################
 # Build an OCaml program
 #
@@ -161,6 +179,7 @@ FILES[] =
    mangle
    lifetime
    meta_level
+   config
 
 #
 PROGRAM = rillc
@@ -185,4 +204,5 @@ clean:
 		*.o *.a *.out *.s *.bc *.log *.cache $(PROGRAM) \
 		parser.ml parser.mli tokens.ml tokens.mli lexer.ml \
 		parser_messages.ml syntax.messages.pre \
+        config.ml \
 		*.conflicts *.automaton

@@ -12,3 +12,5 @@ parser_messages.ml
 
 rillc
 rillc.opt
+
+config.ml

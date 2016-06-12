@@ -1,0 +1,12 @@
+module Build_info = struct
+ let prefix = ?PREFIX
+ let bin_dir = ?BIN_DIR
+ let lib_dir = ?LIB_DIR
+ let include_dir = ?INCLUDE_DIR
+end
+
+let is_release = ?RELEASE
+let default_includes = [Filename.concat Build_info.include_dir "rill"]
+(* TODO: check static/shared lib *)
+let default_core_lib_path = Filename.concat Build_info.lib_dir "librillcore-rt.a"
+let default_std_lib_path = Filename.concat Build_info.lib_dir "librillstd-rt.a"
