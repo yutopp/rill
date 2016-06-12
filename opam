@@ -1,0 +1,31 @@
+opam-version: "1.2"
+name: "rill"
+version: "0.0.1"
+maintainer: "yutopp <yutopp@gmail.com>"
+author: "yutopp <yutopp@gmail.com>"
+homepage: "https://github.com/yutopp/rill"
+bug-reports: "https://github.com/yutopp/rill/issues"
+license: "Boost License Version 1.0"
+dev-repo: "https://github.com/yutopp/rill.git"
+
+available: [ocaml-version >= "4.02.3"]
+
+build: [
+  [ "omake" "RELEASE=true" "PREFIX=%{prefix}%" ]
+]
+install: [
+  [ "omake" "install" "PREFIX=%{prefix}%" ]
+]
+remove: [
+  [ "omake" "uninstall" "PREFIX=%{prefix}%" ]
+]
+
+depends: [
+  "menhir"
+  "batteries"
+  "ctypes-foreign"
+  "stdint"
+  "llvm"        { = "3.8" }
+  "omake"       {build}
+  "ocamlfind"   {build}
+]
