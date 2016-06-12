@@ -22,7 +22,7 @@
 # Phony targets are scoped, so you probably want to declare them first.
 #
 
-# .PHONY: all install clean
+.PHONY: install uninstall clean
 
 
 ########################################################################
@@ -54,3 +54,15 @@ LIB = librillstd-rt
 # LIBS =
 
 .DEFAULT: $(StaticCXXLibrary $(LIB), $(LIBFILES))
+
+########################################################################
+#
+install:
+    prepare-directory($(LIB_DIR))
+    cp -rv $(LIB)$(EXT_LIB) $(LIB_DIR)/$(LIB)$(EXT_LIB)
+
+uninstall:
+    rm-if-exists($(LIB_DIR)/$(LIB)$(EXT_LIB))
+
+clean:
+    rm -f *~ *.opt *.cmi *.cmx *.cmxa *.o *.omc *.a *.out *.s *.so

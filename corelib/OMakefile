@@ -22,7 +22,7 @@
 # Phony targets are scoped, so you probably want to declare them first.
 #
 
-.PHONY: all install clean
+.PHONY: all install uninstall clean
 
 
 ########################################################################
@@ -36,5 +36,15 @@
 
 ########################################################################
 #
+install:
+    prepare-directory($(INCLUDE_DIR)/rill)
+    cp -rv src/* $(INCLUDE_DIR)/rill/.
+
+uninstall:
+    foreach(x => ..., $(ls src))
+        if $(test -e $(INCLUDE_DIR)/rill/$(basename $x))
+            rm-if-exists($(INCLUDE_DIR)/rill/$(basename $x))
+    rmdir-if-empty($(INCLUDE_DIR)/rill)
+
 clean:
     rm -f *~ *.opt *.cmi *.cmx *.cmxa *.o *.omc *.a *.out *.s *.bc *.log *.cache

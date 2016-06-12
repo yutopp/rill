@@ -22,7 +22,7 @@
 # Phony targets are scoped, so you probably want to declare them first.
 #
 
-.PHONY: all install clean
+.PHONY: all install uninstall clean
 
 
 ########################################################################
@@ -81,7 +81,12 @@ if $(not $(OCAMLFIND_EXISTS))
 #
 # Various options
 #
-OCAMLFLAGS    += -g -bin-annot
+if $(equal $(RELEASE), true)
+   # do nothing...
+else
+   OCAMLFLAGS    += -g -bin-annot
+   export
+
 # OCAMLCFLAGS   +=
 # OCAMLOPTFLAGS +=
 # OCAML_LINK_FLAGS +=
@@ -166,9 +171,15 @@ PROGRAM = rillc
 #
 .DEFAULT: $(OCamlProgram $(PROGRAM), $(FILES))
 
-
 ########################################################################
 #
+install:
+    prepare-directory($(BIN_DIR))
+    cp $(PROGRAM) $(BIN_DIR)/$(PROGRAM)
+
+uninstall:
+    rm-if-exists($(BIN_DIR)/$(PROGRAM))
+
 clean:
     rm -f *~ *.opt *.cmi *.cmx *.cmt *.cmti *.cmxa *.omc \
 		*.o *.a *.out *.s *.bc *.log *.cache $(PROGRAM) \

@@ -18,6 +18,7 @@ let string_of_tdir td = match td with
 
 type context_t = {
   compiler_bin:     string;
+  compiler_options: string list;
 }
 
 type executed_status =
@@ -73,13 +74,10 @@ let run_compilable_test base_dir files ctx =
     let filename_output = Filename.temp_file "rill-run-test-" "-pipe" in
     let fd = Unix.openfile filename_output [Unix.O_RDWR] 0600 in
     let pid =
-      Unix.create_process ctx.compiler_bin [|
-                            ctx.compiler_bin;
-                            file_fullpath;
-                            "--system-lib-core"; "../corelib/src";
-                            "--system-lib-std"; "../stdlib/src";
-                            "--system-default-link-option"; String.concat " " ["-L../stdlib/lib"; "-lrillstd-rt"; "-L../corelib/lib"; "-lrillcore-memory"];
-                           |]
+      Unix.create_process ctx.compiler_bin (Array.of_list ([
+                                                            ctx.compiler_bin;
+                                                            file_fullpath
+                                                          ] @ ctx.compiler_options))
                           Unix.stdin fd fd
     in
 
@@ -131,6 +129,10 @@ let () =
 
   let ctx = {
     compiler_bin = rill_bin;
+    compiler_options = ["--system-lib-core"; "../corelib/src";
+                        "--system-lib-std"; "../stdlib/src";
+                        "--system-default-link-option"; String.concat " " ["-L../stdlib/lib"; "-lrillstd-rt"; "-L../corelib/lib"; "-lrillcore-rt"]
+                       ]
   } in
 
   let test_dir = Sys.getcwd () in

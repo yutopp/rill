@@ -40,6 +40,39 @@ open build/LaTeX
 DefineCommandVars()
 
 #
+if $(not $(defined RELEASE))
+   RELEASE = false
+   export
+
+if $(not $(defined PREFIX))
+   PREFIX = /usr/local
+   export
+
+if $(not $(defined BIN_DIR))
+   BIN_DIR = $(PREFIX)/bin
+   export
+
+if $(not $(defined LIB_DIR))
+   LIB_DIR = $(PREFIX)/lib
+   export
+
+if $(not $(defined INCLUDE_DIR))
+   INCLUDE_DIR = $(PREFIX)/include
+   export
+
+prepare-directory(dir) =
+   if $(not $(file-exists $(dir)))
+      mkdir -p $(dir)
+
+rm-if-exists(path) =
+   if $(file-exists $(path))
+      rm -rv $(path)
+
+rmdir-if-empty(dir) =
+   if $(equal $(length $(ls $(dir))), 0)
+      rmdir -rv $(dir)
+
+#
 # Include the OMakefile in this directory.
 #
 .SUBDIRS: .
