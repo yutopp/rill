@@ -60,10 +60,11 @@ omake install
 ```
 
 You can use these variables.
+
 |variable|default value|
 |:--|:--|
-|PREFIX|/usr/local|
-|RELEASE|false|
+|PREFIX|`/usr/local`|
+|RELEASE|`false`|
 
 There is no configure file. Thus, you need to specify these variables every time. Ex,
 ```
