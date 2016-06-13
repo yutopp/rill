@@ -135,8 +135,8 @@ let () =
                         "-l"; "rillstd-rt";
                         "-L"; "../corelib/lib";
                         "-l"; "rillcore-rt";
-                        "--no-corelib"; (* because link libs by my self *)
-                        "--no-stdlib";  (* because link libs by my self *)
+                        "--no-corelib"; (* because link libs by myself *)
+                        "--no-stdlib";  (* because link libs by myself *)
                        ]
   } in
 
