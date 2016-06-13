@@ -9,31 +9,44 @@
 open Batteries
 
 type compile_options_t = {
-  mutable input_files       : string list;
-  mutable output_file       : string;
+  mutable input_files           : string list;
+  mutable output_file           : string;
 
-  mutable system_import_dir_core    : string;
-  mutable system_import_dir_std     : string;
-  mutable system_import_dirs        : string list;
+  mutable system_import_dirs    : string list;
+  mutable user_import_dirs      : string list;
 
-  mutable user_import_dirs          : string list;
-
-  mutable system_default_link_option    : string
+  mutable options               : string list;
+  mutable no_corelib            : bool;
+  mutable no_stdlib             : bool;
 }
 
 let empty () =
-  {
-    input_files = [];
-    output_file = "a.out";
+  if Config.use_local_dev_lib then
+    {
+      input_files = [];
+      output_file = "a.out";
 
-    system_import_dir_core = "./corelib/src";
-    system_import_dir_std  = "./stdlib/src";
-    system_import_dirs = [];
+      system_import_dirs = ["./stdlib/src"; "./corelib/src"];
+      user_import_dirs = [];
 
-    user_import_dirs = [];
+      options = [];
 
-    system_default_link_option = "-L./stdlib/lib -lrillstd-rt -L./corelib/lib -lrillcore-memory"
-  }
+      no_corelib = false;
+      no_stdlib = false;
+    }
+  else
+    {
+      input_files = [];
+      output_file = "a.out";
+
+      system_import_dirs = Config.default_includes;
+      user_import_dirs = [];
+
+      options = [];
+
+      no_corelib = false;
+      no_stdlib = false;
+    }
 
 
 let () =
@@ -48,28 +61,28 @@ let () =
     ("-o",
      Arg.String (fun s -> co.output_file <- s),
      " specify output file name");
-    ("--system-lib-core",
-     Arg.String (fun s -> co.system_import_dir_core <- s),
-     " specify core system lib directory");
-    ("--system-lib-std",
-     Arg.String (fun s -> co.system_import_dir_std <- s),
-     " specify std system lib directory");
     ("--system-lib",
      Arg.String (fun s -> co.system_import_dirs <- s :: co.system_import_dirs),
      " specify system libs directory");
     ("-I",
      Arg.String (fun s -> co.user_import_dirs <- s :: co.user_import_dirs),
      " specify modules directory");
-    ("--system-default-link-option",
-     Arg.String (fun s -> co.system_default_link_option <- s),
-     " system default link option");
+    ("-L",
+     Arg.String (fun s -> co.options <- (Printf.sprintf "-L%s" s) :: co.options),
+     " linker option");
+    ("-l",
+     Arg.String (fun s -> co.options <- (Printf.sprintf "-l%s" s) :: co.options),
+     " linker option");
+    ("--no-corelib",
+     Arg.Unit (fun b -> co.no_corelib <- true),
+     " do not link corelib");
+    ("--no-stdlib",
+     Arg.Unit (fun b -> co.no_stdlib <- true),
+     " do not link stdlib");
   ] in
   Arg.parse speclist (fun s -> (co.input_files <- s :: co.input_files)) usagemsg;
 
-  let system_libs_dirs = [
-    co.system_import_dir_core;
-    co.system_import_dir_std;
-  ] @ List.rev co.system_import_dirs in
+  let system_libs_dirs = List.rev co.system_import_dirs in
 
   let module_search_dirs = List.rev co.user_import_dirs in
   let cur_dir = Sys.getcwd () in
@@ -109,7 +122,26 @@ let () =
                                  ~uni_map:ctx.Sema.sc_unification_ctx
   in
   Codegen.generate sem_ast code_ctx;
-  Codegen.create_executable code_ctx co.system_default_link_option "a.out";
+  let options =
+    let core_lib_opts = if co.no_corelib then []
+                        else
+                          if Config.use_local_dev_lib then
+                            ["-L./corelib/lib"; "-lrillcore-rt"]
+                          else
+                            [Printf.sprintf "-L%s" Config.default_core_lib_dir;
+                             Printf.sprintf "-l%s" Config.default_core_lib_name]
+    in
+    let std_lib_opts = if co.no_corelib then []
+                       else
+                         if Config.use_local_dev_lib then
+                           ["-L./stdlib/lib"; "-lrillstd-rt"]
+                         else
+                           [Printf.sprintf "-L%s" Config.default_std_lib_dir;
+                            Printf.sprintf "-l%s" Config.default_std_lib_name]
+    in
+    core_lib_opts @ std_lib_opts @ co.options
+  in
+  Codegen.create_executable code_ctx options co.output_file;
 
   Printf.printf "===== PHASE = FINISHED\n";
   flush_all ();

@@ -1700,10 +1700,12 @@ exception FailedToWriteBitcode
 exception FailedToBuildBitcode
 exception FailedToBuildExecutable
 
-let create_executable ctx link_options out_name =
+let create_executable ctx options out_name =
   let open Ctx in
 
-  let basic_name = try Filename.chop_extension out_name with Invalid_argument _ -> out_name in
+  let basic_name =
+    try Filename.chop_extension out_name with Invalid_argument _ -> out_name
+  in
   let bitcode_name = basic_name ^ ".bc" in
 
   (* output LLVM bitcode to the file *)
@@ -1717,7 +1719,15 @@ let create_executable ctx link_options out_name =
   if sc <> 0 then raise FailedToBuildBitcode;
 
   (* output executable *)
-  let cmd = Printf.sprintf "g++ %s %s -o %s" (Filename.quote bin_name) link_options (Filename.quote out_name) in
+  let escaped_link_options =
+    options |> List.map Filename.quote |> String.concat " "
+  in
+  let cmd =
+    Printf.sprintf "g++ %s %s -o %s"
+                   (Filename.quote bin_name)
+                   escaped_link_options
+                   (Filename.quote out_name)
+  in
   Printf.printf "cmd = %s\n" cmd; flush_all ();
   let sc = Sys.command cmd in
   flush_all ();

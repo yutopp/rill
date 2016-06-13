@@ -44,6 +44,15 @@ if $(not $(defined RELEASE))
    RELEASE = false
    export
 
+if $(not $(defined USE_LOCAL_DEV_LIB))
+   if $(equal $(RELEASE), true)
+       USE_LOCAL_DEV_LIB = false
+       export
+   else
+       USE_LOCAL_DEV_LIB = true
+       export
+   export
+
 if $(not $(defined PREFIX))
    PREFIX = /usr/local
    export

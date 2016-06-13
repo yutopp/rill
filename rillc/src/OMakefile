@@ -135,6 +135,8 @@ gen_config() =
         value "$(INCLUDE_DIR)"
     case $"\?RELEASE" g
 	    value $(RELEASE)
+    case $"\?USE_LOCAL_DEV_LIB" g
+        value $(USE_LOCAL_DEV_LIB)
     close($(stdout))
 
 config.ml:

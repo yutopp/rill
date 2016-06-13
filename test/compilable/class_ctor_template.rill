@@ -1,0 +1,8 @@
+class A {
+    def ctor!(T)(v: T) {
+    }
+}
+
+def main() {
+    A(10);
+}

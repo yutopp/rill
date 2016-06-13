@@ -129,9 +129,14 @@ let () =
 
   let ctx = {
     compiler_bin = rill_bin;
-    compiler_options = ["--system-lib-core"; "../corelib/src";
-                        "--system-lib-std"; "../stdlib/src";
-                        "--system-default-link-option"; String.concat " " ["-L../stdlib/lib"; "-lrillstd-rt"; "-L../corelib/lib"; "-lrillcore-rt"]
+    compiler_options = ["--system-lib"; "../corelib/src";
+                        "--system-lib"; "../stdlib/src";
+                        "-L"; "../stdlib/lib";
+                        "-l"; "rillstd-rt";
+                        "-L"; "../corelib/lib";
+                        "-l"; "rillcore-rt";
+                        "--no-corelib"; (* because link libs by my self *)
+                        "--no-stdlib";  (* because link libs by my self *)
                        ]
   } in
 
