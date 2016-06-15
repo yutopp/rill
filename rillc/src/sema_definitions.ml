@@ -7,41 +7,14 @@
  *)
 
 open Batteries
-open Type_sets
+open Sema_context
 
-module TAst = Tagged_ast
 
-type env_t = TAst.t Env.env_t
-type type_info_t = env_t Type.info_t
-type ctfe_val_t = type_info_t Ctfe_value.t
+
 type type_gen_t = env_t Type.Generator.t
 
 type conv_filter_t = (type_info_t * env_t) option
 type earg_t = TAst.ast * TAst.term_aux_t
-
-
-type 'env ctx_t = {
-  sc_root_env       : 'env;
-  mutable sc_builtin_m_env  : 'env option;
-
-  sc_module_bag         : 'env Module_info.Bag.t;
-  sc_module_search_dirs : string list;
-
-  (* ctfe engine *)
-  sc_ctfe_engine    : Ctfe_engine.t;
-
-  (* type sets *)
-  sc_tsets          : 'env type_sets_t;
-
-  (* for template *)
-  sc_unification_ctx    : (type_info_t, ctfe_val_t) Unification.t;
-
-  (* errors *)
-  mutable sc_errors : string list;
-}
-
-let store_error_message msg ctx =
-  ctx.sc_errors <- msg :: ctx.sc_errors
 
 
 exception Instantiation_failed

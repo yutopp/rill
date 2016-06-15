@@ -11,6 +11,7 @@ open Stdint
 open Type_sets
 open Value_category
 open Sema_definitions
+open Sema_context
 open Sema_forward_ref
 open Sema_utils
 
@@ -177,7 +178,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
      else begin
        (* TODO: check duplicate *)
        let name_s = Nodes.string_of_id_string name in
-       Printf.printf "function %s - unchecked\n" name_s;
+       Debug.printf "function %s - unchecked\n" name_s;
 
        (* check parameters *)
        let (params, param_types, param_venvs) =
@@ -195,7 +196,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        let fr = Env.FunctionOp.get_record env in
        post_check_function_return_type fr ctx;
 
-       Printf.printf "function %s - complete\n" name_s;
+       Debug.printf "function %s - complete\n" name_s;
        let node = TAst.GenericFuncDef (Some nbody, Some env) in
 
        (* update record *)
@@ -218,7 +219,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
      else begin
        (* TODO: check duplicate *)
        let name_s = Nodes.string_of_id_string name in
-       Printf.printf "member function %s - unchecked\n" name_s;
+       Debug.printf "member function %s - unchecked\n" name_s;
 
        (* class env *)
        let parent_env = Option.get env.Env.parent_env in
@@ -253,7 +254,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
             (* analyze body *)
             let nbody = analyze_inner body env ctx opt_attr in
 
-            Printf.printf "function %s - complete\n" name_s;
+            Debug.printf "function %s - complete\n" name_s;
             let node = TAst.GenericFuncDef (Some nbody, Some env) in
 
             let detail_r = {
@@ -300,7 +301,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
             let fr = Env.FunctionOp.get_record env in
             post_check_function_return_type fr ctx;
 
-            Printf.printf "function %s - complete\n" name_s;
+            Debug.printf "function %s - complete\n" name_s;
             let node = TAst.GenericFuncDef (Some nbody, Some env) in
 
             (* update record *)
@@ -324,7 +325,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
      else begin
        (* TODO: check duplicate *)
        let name_s = Nodes.string_of_id_string name in
-       Printf.printf "extern function %s - unchecked\n" name_s;
+       Debug.printf "extern function %s - unchecked\n" name_s;
 
        (* check parameters *)
        let (params, param_types, _) =
@@ -344,7 +345,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        in
 
        (* body *)
-       Printf.printf "extern function %s - complete (builtin=%b)\n" name_s is_builtin;
+       Debug.printf "extern function %s - complete (builtin=%b)\n" name_s is_builtin;
        let node = TAst.GenericFuncDef (None, Some env) in
 
        (* update record *)
@@ -368,7 +369,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
      else begin
        (* TODO: check duplicate *)
        let name_s = Nodes.string_of_id_string name in
-       Printf.printf "class %s - unchecked\n" name_s;
+       Debug.printf "class %s - unchecked\n" name_s;
 
        (* resolve member variables first *)
        let cenv_r = Env.ClassOp.get_record env in
@@ -581,16 +582,16 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                    c_states
               end
 
-           | _ -> Env.print fenv; failwith "[ICE]"
+           | _ -> Env.debug_print fenv; failwith "[ICE]"
          in
          let class_states =
            List.fold_left memorize_and_scan_ctor
                           member_vars_sf_states cenv_r.Env.cls_member_funcs
          in
-         Printf.printf "MEMBERS\n";
-         Printf.printf "= CLASS: %s\n%s\n" name_s (string_of_states member_vars_sf_states);
-         Printf.printf "CTORS\n";
-         Printf.printf "= CLASS: %s\n%s\n" name_s (string_of_states class_states);
+         Debug.printf "MEMBERS\n";
+         Debug.printf "= CLASS: %s\n%s\n" name_s (string_of_states member_vars_sf_states);
+         Debug.printf "CTORS\n";
+         Debug.printf "= CLASS: %s\n%s\n" name_s (string_of_states class_states);
          cenv_r.Env.cls_traits <-
            update_traits_by_states cenv_r.Env.cls_traits class_states
        in
@@ -683,7 +684,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        in
        define_special_members ();
 
-       Printf.printf "class %s - complete\n" name_s;
+       Debug.printf "class %s - complete\n" name_s;
        let node = TAst.ClassDefStmt (
                       name,
                       nbody,
@@ -725,13 +726,13 @@ let rec construct_env node parent_env ctx opt_chain_attr =
      else begin
        (* TODO: check duplicate *)
        let name_s = Nodes.string_of_id_string name in
-       Printf.printf "extern class %s - unchecked\n" name_s;
+       Debug.printf "extern class %s - unchecked\n" name_s;
        check_class_env env ctx;
 
        let cenv_r = Env.ClassOp.get_record env in
 
        (* currently, do not remake a node like other nodes *)
-       Printf.printf "extern class %s - complete\n" name_s;
+       Debug.printf "extern class %s - complete\n" name_s;
 
        let is_builtin = find_attr_bool_val ~boot:true
                                            opt_attr "builtin" parent_env ctx
@@ -742,7 +743,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        let is_novalue = find_attr_bool_val ~boot:true
                                            opt_attr "novalue" parent_env ctx
        in
-       Printf.printf "is_novalue : %b \n" is_novalue;
+       Debug.printf "is_novalue : %b \n" is_novalue;
 
        let is_primitive = find_attr_bool_val ~boot:true
                                              opt_attr "primitive" parent_env ctx
@@ -1008,7 +1009,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        in
        check_env venv var_metalevel;
 
-       Printf.printf "||||||| %s => %s | %s\n" var_name (Type.to_string var_ty) (Meta_level.to_string var_metalevel);
+       Debug.printf "||||||| %s => %s | %s\n" var_name (Type.to_string var_ty) (Meta_level.to_string var_metalevel);
 
        (* register the variable to the environments *)
        Env.add_inner_env parent_env var_name venv;
@@ -1135,7 +1136,7 @@ and analyze_expr ?(making_placeholder=false)
                                    parent_env ctx attr
               in
               let recv_cenv = Type.as_unique recv_ty in
-              Env.print recv_cenv;
+              Env.debug_print recv_cenv;
               let f_sto = suitable_storage recv_ty ctx in
 
               (* call constructor *)
@@ -1271,7 +1272,7 @@ and analyze_expr ?(making_placeholder=false)
        in
        let lt = Env.get_scope_lifetime parent_env in (* TODO: fix *)
 
-       Printf.printf "= %s - %s\n" (Nodes.string_of_id_string name) (Meta_level.to_string ml);
+       Debug.printf "= %s - %s\n" (Nodes.string_of_id_string name) (Meta_level.to_string ml);
 
        (* both of id and instantiated_id will be id node *)
        let node = TAst.GenericId (name, Some trg_env) in
@@ -1807,7 +1808,7 @@ and solve_identifier ?(do_rec_search=true)
 
   | Ast.InstantiatedId (name, template_args, _) ->
      begin
-       Printf.printf "$$$$$ Ast.InstantiatedId\n";
+       Debug.printf "$$$$$ Ast.InstantiatedId\n";
        let (evaled_t_args, _) =
          template_args
          |> List.map (fun e -> eval_expr_as_ctfe e env ctx attr)
@@ -1964,7 +1965,7 @@ and solve_basic_identifier ?(do_rec_search=true)
   in
 
   let name_s = Nodes.string_of_id_string name in
-  Printf.printf "-> finding identitifer = %s : rec = %b\n" name_s do_rec_search;
+  Debug.printf "-> finding identitifer = %s : rec = %b\n" name_s do_rec_search;
   let oenv = if do_rec_search then
                Env.lookup ~exclude:exclude search_base_env name_s
              else
@@ -2010,7 +2011,7 @@ and try_to_complete_env env ctx =
 and convert_type trg_ty src_arg ext_env ctx attr =
   let (_, src_aux) = src_arg in
   let (src_ty, src_val_cat, src_lt, src_ml, _) = src_aux in
-  Printf.printf "convert_type from %s to %s\n" (Type.to_string src_ty) (Type.to_string trg_ty);
+  Debug.printf "convert_type from %s to %s\n" (Type.to_string src_ty) (Type.to_string trg_ty);
 
   if is_type_convertible_to src_ty trg_ty then begin
     (* same type *)
@@ -2048,7 +2049,7 @@ and convert_type trg_ty src_arg ext_env ctx attr =
             * because it will cause infinite loop of to call "convert_type"
             *)
            let funcs = List.filter_map pred ctor_fenvs in
-           Printf.printf "=> number of funcs = %d\n" (List.length funcs);
+           Debug.printf "=> number of funcs = %d\n" (List.length funcs);
            let selected = find_suitable_functions funcs [src_arg] ext_env ctx attr in
            let fns = match selected with
              | (FuncMatchLevel.ExactMatch, fs, _)
@@ -2316,7 +2317,7 @@ and extract_ctfe_val_as_type ctfe_val : type_info_t =
 
 
 and eval_expr_as_ctfe ?(making_placeholder=false) expr env ctx attr =
-  Printf.printf "----> eval_expr_as_ctfe : begin ; \n";
+  Debug.printf "----> eval_expr_as_ctfe : begin ; \n";
   let (nexpr, (ty, _, _, ml, _)) =
     analyze_expr ~making_placeholder:making_placeholder
                  expr env ctx attr
@@ -2349,7 +2350,7 @@ and eval_texpr_as_ctfe ?(making_placeholder=false)
     | _ -> failwith "[ICE] eval_expr_as_ctfe : couldn't resolve"
   in
 
-  Printf.printf "<---- eval_expr_as_ctfe : end\n";
+  Debug.printf "<---- eval_expr_as_ctfe : end\n";
   ctfe_val
 
 
@@ -2393,7 +2394,7 @@ and solve_function_overload eargs template_args mset_env ext_env loc ctx attr =
   let (args, arg_auxs) = List.split eargs in
   let mset_record = match mset_env.Env.er with
     | Env.MultiSet r -> r
-    | _ -> Env.print mset_env;
+    | _ -> Env.debug_print mset_env;
            failwith "[ICE] solve_function_overload : Only Multiset is accepted"
   in
   if mset_record.Env.ms_kind <> Env.Kind.Function then
@@ -2413,7 +2414,7 @@ and solve_function_overload eargs template_args mset_env ext_env loc ctx attr =
       in
       List.fold_left f (false, 0) arg_auxs
     in
-    Printf.printf "onlymeta_args_num = %d\n" onlymeta_args_num;
+    Debug.printf "onlymeta_args_num = %d\n" onlymeta_args_num;
 
     let (meta_args, eargs) = List.split_at onlymeta_args_num eargs in
     let evaled_meta_args =
@@ -2425,7 +2426,7 @@ and solve_function_overload eargs template_args mset_env ext_env loc ctx attr =
     in
     let template_args = evaled_meta_args @ template_args in
 
-    Printf.printf "[Tl = %d Al = %d]\n" (List.length template_args) (List.length eargs) ;
+    Debug.printf "[Tl = %d Al = %d]\n" (List.length template_args) (List.length eargs) ;
     (eargs, template_args)
   in
   let (args, arg_auxs) = List.split eargs in
@@ -2439,9 +2440,9 @@ and solve_function_overload eargs template_args mset_env ext_env loc ctx attr =
                                    eargs
                                    ext_env ctx attr
          in
-         Printf.printf "!! normal function candidates = %s / %d\n"
-                       (FuncMatchLevel.to_string normal_f_level)
-                       (List.length normal_fs_and_args);
+         Debug.printf "!! normal function candidates = %s / %d\n"
+                      (FuncMatchLevel.to_string normal_f_level)
+                      (List.length normal_fs_and_args);
 
          match normal_f_level with
          | FuncMatchLevel.ExactMatch ->
@@ -2456,9 +2457,9 @@ and solve_function_overload eargs template_args mset_env ext_env loc ctx attr =
               let (instanced_f_level, instanced_fs_and_args, terrs) =
                 find_suitable_functions instanced_envs eargs ext_env ctx attr
               in
-              Printf.printf "!! instanced function candidates = %s / %d\n"
-                            (FuncMatchLevel.to_string instanced_f_level)
-                            (List.length instanced_fs_and_args);
+              Debug.printf "!! instanced function candidates = %s / %d\n"
+                           (FuncMatchLevel.to_string instanced_f_level)
+                           (List.length instanced_fs_and_args);
               if FuncMatchLevel.is_better instanced_f_level normal_f_level then
                 (instanced_f_level, instanced_fs_and_args, terrs)
               else
@@ -2473,7 +2474,7 @@ and solve_function_overload eargs template_args mset_env ext_env loc ctx attr =
          instantiate_function_templates mset_env template_args arg_auxs
                                         ext_env ctx attr
        in
-       Printf.printf "%%%%%%%%%%%%%%%% instanced_envs -> %d\n" (List.length instanced_envs);
+       Debug.printf "%%%%%%%%%%%%%%%% instanced_envs -> %d\n" (List.length instanced_envs);
        find_suitable_functions instanced_envs eargs ext_env ctx attr
      end
   in
@@ -2490,7 +2491,7 @@ and solve_function_overload eargs template_args mset_env ext_env loc ctx attr =
 
 and find_suitable_functions f_candidates args ext_env ctx attr
     : FuncMatchLevel.t * (env_t * conv_filter_t list * earg_t list) list * Error.t list =
-  Printf.printf "number of candidates = %d\n" (List.length f_candidates);
+  Debug.printf "number of candidates = %d\n" (List.length f_candidates);
 
   let calc_match_level f_env =
     try_to_complete_env f_env ctx;
@@ -2596,12 +2597,12 @@ and instantiate_function_templates menv template_args arg_auxs ext_env ctx attr 
     let param_types =
       List.map (fun decl -> get_param_type decl temp_env ctx attr) parameters
     in
-    List.iteri (fun i ty -> Printf.printf "%d: %s\n" i (Type.to_string ty)) param_types;
-    Printf.printf "REACHED / get_function_param_types\n";
+    List.iteri (fun i ty -> Debug.printf "%d: %s\n" i (Type.to_string ty)) param_types;
+    Debug.printf "REACHED / get_function_param_types\n";
     arg_auxs
     |> List.map (fun t -> let (ty, _, _, _, _) = t in ty)
-    |> List.iteri (fun i ty -> Printf.printf "%d: %s\n" i (Type.to_string ty));
-    Printf.printf "REACHED / get_function_arg_types\n";
+    |> List.iteri (fun i ty -> Debug.printf "%d: %s\n" i (Type.to_string ty));
+    Debug.printf "REACHED / get_function_arg_types\n";
     (* *)
     let params_type_value =
       param_types
@@ -2619,8 +2620,8 @@ and instantiate_function_templates menv template_args arg_auxs ext_env ctx attr 
                params_type_value
                args_type_value;
 
-    List.iter (fun c -> print_meta_var c ctx) uni_ids;
-    Printf.printf "       REACHED / unify_arg_type \n";
+    List.iter (fun c -> debug_print_meta_var c ctx) uni_ids;
+    Debug.printf "       REACHED / unify_arg_type \n";
 
     (**)
     complete_template_instance menv t_env_record
@@ -2670,7 +2671,7 @@ and unify_type_value ctx lhs rhs =
      {Type_info.ti_sort = Type_info.NotDetermined rhs_uni_t_id}) ->
      begin
        (* TODO: check template args *)
-       Printf.printf "!! unify_type_value(T/T) / %d = %d\n" lhs_uni_t_id rhs_uni_t_id;
+       Debug.printf "!! unify_type_value(T/T) / %d = %d\n" lhs_uni_t_id rhs_uni_t_id;
        Unification.link_value uni_map lhs_uni_t_id rhs_uni_t_id
      end
   | (({Type_info.ti_sort = (Type_info.UniqueTy ty_r);
@@ -2682,17 +2683,17 @@ and unify_type_value ctx lhs rhs =
      ({Type_info.ti_sort = (Type_info.UniqueTy ty_r);
        Type_info.ti_template_args = args} as ty)) ->
      begin
-       Printf.printf "!! unify_type_value(T|V) / %d -> value [Act: %d, Hld: %d]\n"
-                     uni_t_id
-                     (List.length args)
-                     (List.length holder_args);
+       Debug.printf "!! unify_type_value(T|V) / %d -> value [Act: %d, Hld: %d]\n"
+                    uni_t_id
+                    (List.length args)
+                    (List.length holder_args);
 
        (* TODO: support variadic args *)
        Enum.iter2 (unify_arg_value ctx)
                   (List.enum args)
                   (List.enum holder_args);
 
-       Printf.printf "!! unify_type_value(T|V) / <<<<\n";
+       Debug.printf "!! unify_type_value(T|V) / <<<<\n";
        Unification.update_value uni_map uni_t_id (Ctfe_value.Type ty)
      end
   | (({Type_info.ti_sort = (Type_info.UniqueTy _)} as lhs_ty),
@@ -2706,10 +2707,10 @@ and unify_type_value ctx lhs rhs =
 
   | (lhs, rhs) ->
      begin
-       Printf.printf "lhs==\n";
-       Type.print lhs;
-       Printf.printf "rhs==\n";
-       Type.print rhs;
+       Debug.printf "lhs==\n";
+       Type.debug_print lhs;
+       Debug.printf "rhs==\n";
+       Type.debug_print rhs;
        failwith "[ICE] unify_value_type"
      end
 
@@ -2725,33 +2726,10 @@ and unify_arg_value ctx lhs rhs =
   | (Ctfe_value.Undef uni_id, v)
   | (v, Ctfe_value.Undef uni_id) ->
      begin
-       Printf.printf "!! unify_arg_value(T|V) / %d -> value\n" uni_id;
+       Debug.printf "!! unify_arg_value(T|V) / %d -> value\n" uni_id;
        Unification.update_value ctx.sc_unification_ctx uni_id v
      end
   | _ -> failwith "[ICE] not implemented (unify_arg_value)"
-
-
-and print_ctfe_value value =
-  Printf.printf "%s" (Ctfe_util.to_string value)
-
-
-and print_meta_var uni_id ctx =
-  let (_, ty_c) =
-    Unification.search_type_until_terminal ctx.sc_unification_ctx uni_id
-  in
-  let (_, val_c) =
-    Unification.search_value_until_terminal ctx.sc_unification_ctx uni_id
-  in
-  Printf.printf "uni_id(%d); type  is => %s\n" uni_id (
-                  match ty_c with
-                  | Unification.Val ty -> Type.to_string ty
-                  | _ -> ">link or undef<"
-                );
-  Printf.printf "uni_id(%d); value is => %s\n" uni_id (
-                  match val_c with
-                  | Unification.Val value -> Ctfe_util.to_string value
-                  | _ -> ">link or undef<"
-                )
 
 
 and prepare_template_params params_node ctx =
@@ -2786,7 +2764,7 @@ and select_member_element ?(universal_search=false)
   : (type_info_t * 'env * Meta_level.t) option =
   let (recv_ty, _, _, _, _) = recv_aux in
   let recv_cenv = Type.as_unique recv_ty in
-  Env.print recv_cenv;
+  Env.debug_print recv_cenv;
   let opt_ty_ctx = solve_identifier ~do_rec_search:false
                                     t_id recv_cenv ctx attr in
 
@@ -2831,8 +2809,8 @@ and propagate_type_attrs dest_ty src_ty ctx =
 
 
 and prepare_instantiate_template t_env_record template_args ext_env ctx attr =
-  Printf.printf "\n-----\n&& start instantiation = %s\n-----\n\n"
-                (Nodes.string_of_id_string t_env_record.Env.tl_name);
+  Debug.printf "\n-----\n&& start instantiation = %s\n-----\n\n"
+               (Nodes.string_of_id_string t_env_record.Env.tl_name);
 
   let template_params =
     match t_env_record.Env.tl_params with
@@ -2896,8 +2874,8 @@ and prepare_instantiate_template t_env_record template_args ext_env ctx attr =
   in
   List.iter2 set_type_to_meta_var meta_specs meta_var_inits;
 
-  Printf.printf "== PRINT META VARIABLES (after type set)\n";
-  List.iter (fun c -> print_meta_var c ctx) uni_ids;
+  Debug.printf "== PRINT META VARIABLES (after type set)\n";
+  List.iter (fun c -> debug_print_meta_var c ctx) uni_ids;
 
   (* set values of meta var(template variables) *)
   let set_default_value_to_meta_var uni_id =
@@ -2917,22 +2895,22 @@ and prepare_instantiate_template t_env_record template_args ext_env ctx attr =
   in
   let template_params_default_values = List.map set_default_value_to_meta_var uni_ids in
 
-  Printf.printf "== PRINT META VARIABLES (after default value set)\n";
-  List.iter (fun c -> print_meta_var c ctx) uni_ids;
+  Debug.printf "== PRINT META VARIABLES (after default value set)\n";
+  List.iter (fun c -> debug_print_meta_var c ctx) uni_ids;
 
-  Printf.printf "\nREACHED / set_default_value\n";
+  Debug.printf "\nREACHED / set_default_value\n";
 
-  Printf.printf "len(template_params_default_values) = %d\n"
-                (List.length template_params_default_values);
-  Printf.printf "len(template_args) = %d\n"
-                (List.length template_args);
+  Debug.printf "len(template_params_default_values) = %d\n"
+               (List.length template_params_default_values);
+  Debug.printf "len(template_args) = %d\n"
+               (List.length template_args);
 
   (* match values by template args *)
   Enum.iter2 (unify_arg_value ctx)
              (List.enum template_params_default_values)
              (List.enum template_args);
 
-  Printf.printf "\nREACHED / unify_arg_value\n";
+  Debug.printf "\nREACHED / unify_arg_value\n";
 
   (* TODO: assign default template parameter values *)
   (temp_env, meta_var_names, uni_ids)
@@ -3014,7 +2992,7 @@ and complete_template_instance ?(making_placeholder=false)
   if not is_instantiable then
     raise Instantiation_failed;
 
-  List.iter (fun i -> print_meta_var i ctx) uni_ids;
+  List.iter (fun i -> debug_print_meta_var i ctx) uni_ids;
 
   let mangled_sym =
     uni_ids
@@ -3036,13 +3014,13 @@ and complete_template_instance ?(making_placeholder=false)
     param_types |> List.map Type.to_string |> String.concat "--"
   in
   let mangled_sym = mangled_sym ^ appendix_signature in
-  Printf.printf "TRY making an instance! -> %s\n" mangled_sym;
+  Debug.printf "TRY making an instance! -> %s\n" mangled_sym;
 
   let mset_record = Env.MultiSetOp.get_record menv in
   let cache = Hashtbl.find_option mset_record.Env.ms_instanced_args_memo mangled_sym in
   match cache with
   | Some env ->
-     Printf.printf "USED CACHE for %s\n" mangled_sym;
+     Debug.printf "USED CACHE for %s\n" mangled_sym;
      env (* DO NOTHING, because this template is already generated *)
   | None ->
      begin
@@ -3236,8 +3214,8 @@ and get_builtin_raw_ptr_type elem_ty ptr_attr ctx : 'env type_info =
   let raw_ptr_ty = !(ctx.sc_tsets.ts_raw_ptr_type_holder) in
   assert (not @@ Type.is_undef raw_ptr_ty);
 
-  Printf.printf "========= RawPtr Element\n";
-  Type.print elem_ty;
+  Debug.printf "========= RawPtr Element\n";
+  Type.debug_print elem_ty;
 
   let ty = match Type.type_sort raw_ptr_ty with
     | Type_info.ClassSetTy menv ->
@@ -3259,15 +3237,15 @@ and get_builtin_raw_ptr_type elem_ty ptr_attr ctx : 'env type_info =
        end
     | _ -> failwith "[ICE] unexpected"
   in
-  Type.print ty;
+  Type.debug_print ty;
   ty
 
 and get_builtin_array_type elem_ty len arr_attr ctx : 'env type_info =
   let arr_ty = !(ctx.sc_tsets.ts_array_type_holder) in
   assert (not @@ Type.is_undef arr_ty);
 
-  Printf.printf "========= Array Element\n";
-  Type.print elem_ty;
+  Debug.printf "========= Array Element\n";
+  Type.debug_print elem_ty;
 
   let ty = match Type.type_sort arr_ty with
     | Type_info.ClassSetTy menv ->
@@ -3291,7 +3269,7 @@ and get_builtin_array_type elem_ty len arr_attr ctx : 'env type_info =
        end
     | _ -> failwith "[ICE] unexpected"
   in
-  Type.print ty;
+  Type.debug_print ty;
   ty
 
 
@@ -3301,7 +3279,7 @@ and cache_builtin_type_info preset_ty name ctx =
   (* not defined yet *)
   | Type_info.Undef ->
      begin
-       Printf.printf "get_builtin_type_info = %s\n" name;
+       Debug.printf "get_builtin_type_info = %s\n" name;
 
        let res =
          solve_basic_identifier ~do_rec_search:false

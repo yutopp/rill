@@ -10,6 +10,7 @@ open Batteries
 open Type_sets
 
 include Sema_definitions
+include Sema_context
 include Sema_forward_ref
 include Sema_construct_env
 

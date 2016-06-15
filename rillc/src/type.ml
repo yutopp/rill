@@ -198,5 +198,5 @@ and to_s_ctfe value =
   | Ctfe_value.Uint64 n -> Stdint.Uint64.to_string n
   | Ctfe_value.Undef _ -> "%%ctfe_val(undef)"
 
-and print ty =
-  Printf.printf "%s\n" (to_string ty)
+and debug_print ty =
+  Debug.printf "%s\n" (to_string ty)

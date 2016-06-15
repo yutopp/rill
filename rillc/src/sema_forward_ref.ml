@@ -9,6 +9,7 @@
 open Batteries
 open Type_sets
 open Sema_definitions
+open Sema_context
 
 let rec solve_forward_refs ?(meta_variables=[])
                            ?(opt_attr=None)

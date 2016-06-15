@@ -162,6 +162,7 @@ FILES[] =
    sema_forward_ref
    sema_construct_env
    sema_definitions
+   sema_context
    sema_utils
    codegen_context
    codegen_llvm
@@ -182,6 +183,7 @@ FILES[] =
    lifetime
    meta_level
    config
+   debug
 
 #
 PROGRAM = rillc

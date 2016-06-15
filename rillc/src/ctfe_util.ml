@@ -15,3 +15,6 @@ let to_string v =
   | Ctfe_value.Int64 n -> Int64.to_string n
   | Ctfe_value.Uint64 n -> Stdint.Uint64.to_string n
   | Ctfe_value.Undef _ -> "%%ctfe_val(undef)%%"
+
+let debug_print_ctfe_value value =
+  Debug.printf "%s" (to_string value)

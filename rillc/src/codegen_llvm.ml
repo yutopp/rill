@@ -101,7 +101,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
 
   | TAst.ReturnStmt (opt_e) ->
      begin
-       Printf.printf "ReturnStmt!!!!!!!!\n";
+       Debug.printf "ReturnStmt!!!!!!!!\n";
        flush_all ();
 
        let llval = match opt_e with
@@ -228,7 +228,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
            ignore @@ L.build_ret_void ctx.ir_builder;
 
          L.dump_value f;
-         Printf.printf "generated genric function(%b): %s\n" env.Env.closed name;
+         Debug.printf "generated genric function(%b): %s\n" env.Env.closed name;
          flush_all ();
 
          Llvm_analysis.assert_valid_function f
@@ -365,9 +365,9 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
        let (_, _, (_, opt_init_expr)) = var_init in
        let init_expr = Option.get opt_init_expr in
 
-       Printf.printf "Define variable: %s\n" venv.Env.var_name;
+       Debug.printf "Define variable: %s\n" venv.Env.var_name;
        let (llval, expr_ty) = generate_code init_expr ctx in
-       Type.print var_type;
+       Type.debug_print var_type;
        flush_all ();
 
        L.set_value_name venv.Env.var_name llval;
@@ -446,7 +446,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
             in
             let elem_llval =
               L.dump_value reciever_llval;
-              Printf.printf "index = %d\n" member_index;
+              Debug.printf "index = %d\n" member_index;
               flush_all ();
               L.build_struct_gep reciever_llval member_index "" ctx.ir_builder
             in
@@ -502,7 +502,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
          (* normal function *)
          | Env.FnRecordNormal (_, kind, _) ->
             begin
-              Printf.printf "gen value: debug / function normal %s\n" fn_s_name;
+              Debug.printf "gen value: debug / function normal %s\n" fn_s_name;
 
               let r_value = force_target_generation ctx env in
               match r_value with
@@ -513,7 +513,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
          | Env.FnRecordImplicit (def, kind) ->
             begin
               let open Codegen_llvm_intrinsics in
-              Printf.printf "gen value: debug / function implicit %s\n" fn_s_name;
+              Debug.printf "gen value: debug / function implicit %s\n" fn_s_name;
 
               let r_value = force_target_generation ctx env in
               match r_value with
@@ -563,7 +563,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
          (* external function *)
          | Env.FnRecordExternal (def, kind, extern_name) ->
             begin
-              Printf.printf "gen value: debug / extern  %s = \"%s\"\n"
+              Debug.printf "gen value: debug / extern  %s = \"%s\"\n"
                             fn_s_name extern_name; flush_all ();
               let (llargs, _) = eval_args kind param_tys in
               let extern_f =
@@ -574,7 +574,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
 
          | Env.FnRecordBuiltin (def, kind, extern_name) ->
             begin
-              Printf.printf "gen value: debug / builtin %s = \"%s\"\n"
+              Debug.printf "gen value: debug / builtin %s = \"%s\"\n"
                             fn_s_name extern_name;
               flush_all ();
               let (llargs, param_tys) = eval_args kind param_tys in
@@ -680,7 +680,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
        | Env.Function (_, r) ->
           begin
             (* *)
-            Env.print rel_env;
+            Env.debug_print rel_env;
             failwith @@ "[ICE] TAst.Id: function "
                         ^ (Nodes.string_of_id_string name)
                         ^ " // "
@@ -689,7 +689,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
 
        | Env.Variable (r) ->
           begin
-            Printf.printf "variable ty => %s\n" (Type.to_string r.Env.var_type);
+            Debug.printf "variable ty => %s\n" (Type.to_string r.Env.var_type);
             let var_llr = try Ctx.find_val_by_env ctx rel_env with
                           | Not_found ->
                              begin
@@ -718,7 +718,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
                                            ty_attr_val_default
             in
             let itype_id = Option.get ty.Type_info.ti_id in
-            Printf.printf "##### type_id = %s\n" (Int64.to_string itype_id);
+            Debug.printf "##### type_id = %s\n" (Int64.to_string itype_id);
 
             (* return the internal typeid as a type *)
             let llval = L.const_of_int64 (L.i64_type ctx.ir_context)
@@ -734,7 +734,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
           begin
             let uni_map = ctx.uni_map in
 
-            Printf.printf "LLVM codegen Env.MetaVariable = %d\n" uni_id;
+            Debug.printf "LLVM codegen Env.MetaVariable = %d\n" uni_id;
             let (_, c) = Unification.search_value_until_terminal uni_map uni_id in
             match c with
             | Unification.Val v -> ctfe_val_to_llval v ctx
@@ -743,7 +743,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
 
        | _ ->
           begin
-            Env.print rel_env;
+            Env.debug_print rel_env;
             failwith @@ "codegen; id " ^ (Nodes.string_of_id_string name)
           end
      end
@@ -857,7 +857,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
   | TAst.CtxNode ty ->
      begin
        let itype_id = Option.get ty.Type_info.ti_id in
-       Printf.printf "##### type_id = %s\n" (Int64.to_string itype_id);
+       Debug.printf "##### type_id = %s\n" (Int64.to_string itype_id);
 
        (* return the internal typeid as a type *)
        let llval = L.const_of_int64 (L.i64_type ctx.ir_context)
@@ -953,7 +953,7 @@ and force_target_generation ctx env =
          | Some v -> v
          | None ->
             begin
-              Env.print env;
+              Env.debug_print env;
               failwith "[ICE] force_target_generation: there is no rel node"
             end
        in
@@ -963,7 +963,7 @@ and force_target_generation ctx env =
        try Ctx.find_val_by_env ctx env with
        | Not_found ->
           begin
-            Env.print env;
+            Env.debug_print env;
             failwith "[ICE] force_target_generation: couldn't find target"
           end
      end
@@ -1069,9 +1069,9 @@ and adjust_llval_form' trg_ty trg_chkf src_ty src_chkf llval ctx =
      L.build_load llval "" ctx.ir_builder
 
 and adjust_llval_form trg_ty src_ty llval ctx =
-  Type.print trg_ty;
-  Type.print src_ty;
-  Printf.printf "is_pointer rep?  trg: %b, src: %b\n src = "
+  Type.debug_print trg_ty;
+  Type.debug_print src_ty;
+  Debug.printf "is_pointer rep?  trg: %b, src: %b\n src = "
                 (is_address_representation trg_ty)
                 (is_address_representation src_ty);
   flush_all ();
@@ -1085,9 +1085,9 @@ and adjust_llval_form trg_ty src_ty llval ctx =
 and adjust_arg_llval_form trg_ty src_ty llval ctx =
   if is_primitive trg_ty then
     begin
-      Type.print trg_ty;
-      Type.print src_ty;
-      Printf.printf "is_pointer_arg rep?  trg: %b, src: %b\n src = "
+      Type.debug_print trg_ty;
+      Type.debug_print src_ty;
+      Debug.printf "is_pointer_arg rep?  trg: %b, src: %b\n src = "
                     (is_address_representation_param trg_ty)
                     (is_address_representation src_ty);
       flush_all ();
@@ -1147,15 +1147,15 @@ let inject_builtins ctx =
   let open Ctx in
   let register_builtin_type name record =
     Ctx.bind_val_to_name ctx record name;
-    (*Printf.printf "debug / registerd builtin type = \"%s\"\n" name*)
+    (*Debug.printf "debug / registerd builtin type = \"%s\"\n" name*)
   in
   let register_builtin_func name f =
     Ctx.bind_val_to_name ctx (BuiltinFunc f) name;
-    (*Printf.printf "debug / registerd builtin func = \"%s\"\n" name*)
+    (*Debug.printf "debug / registerd builtin func = \"%s\"\n" name*)
   in
   let register_builtin_template_func name f =
     Ctx.bind_val_to_name ctx (BuiltinFuncGen f) name;
-    (*Printf.printf "debug / registerd builtin func = \"%s\"\n" name*)
+    (*Debug.printf "debug / registerd builtin func = \"%s\"\n" name*)
   in
 
   (* type is represented as int64 in this context.
@@ -1728,7 +1728,7 @@ let create_executable ctx options out_name =
                    escaped_link_options
                    (Filename.quote out_name)
   in
-  Printf.printf "cmd = %s\n" cmd; flush_all ();
+  Debug.printf "cmd = %s\n" cmd; flush_all ();
   let sc = Sys.command cmd in
   flush_all ();
   (*let sc = Sys.command (Printf.sprintf "gcc %s -o %s" (Filename.quote bin_name) (Filename.quote out_name)) in*)

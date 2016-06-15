@@ -9,6 +9,7 @@
 open Batteries
 open Value_category
 open Sema_definitions
+open Sema_context
 
 let ret_val_category ty ctx =
   let open Type_attr in
@@ -41,8 +42,8 @@ let complete_function_env env node id_name f_detail ctx =
   r.Env.fn_detail <- f_detail;
 
   let m = (Env.get_full_module_name env) |> String.concat "." in
-  Printf.printf "Complete function -> %s.%s\n" m (Nodes.string_of_id_string id_name);
-  Type.print r.Env.fn_return_type;
+  Debug.printf "Complete function -> %s.%s\n" m (Nodes.string_of_id_string id_name);
+  Type.debug_print r.Env.fn_return_type;
 
   let _ = match id_name with
     | Nodes.Pure s when s = Builtin_info.entrypoint_name ->
@@ -173,4 +174,23 @@ let pos_of_earg earg =
 
 
 let print_error_msg msg ctx =
-  Printf.printf "\nCompilation Error!: %s\n\n" msg;
+  Printf.printf "\nCompilation Error!: %s\n\n" msg
+
+
+let debug_print_meta_var uni_id ctx =
+  let (_, ty_c) =
+    Unification.search_type_until_terminal ctx.sc_unification_ctx uni_id
+  in
+  let (_, val_c) =
+    Unification.search_value_until_terminal ctx.sc_unification_ctx uni_id
+  in
+  Debug.printf "uni_id(%d); type  is => %s\n" uni_id (
+                 match ty_c with
+                 | Unification.Val ty -> Type.to_string ty
+                 | _ -> ">link or undef<"
+               );
+  Debug.printf "uni_id(%d); value is => %s\n" uni_id (
+                 match val_c with
+                 | Unification.Val value -> Ctfe_util.to_string value
+                 | _ -> ">link or undef<"
+               )

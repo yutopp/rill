@@ -611,58 +611,57 @@ module VariableOp =
   end
 
 
-let print env =
+
+let debug_print env =
   let print_table tbl indent =
-    let open Printf in
     let p name =
-      printf "%s+ %s\n" indent name
+      Debug.printf "%s+ %s\n" indent name
     in
     tbl |> Hashtbl.iter @@ fun name _ -> p name
   in
   let print_ er f indent =
-    let open Printf in
     let nindent = (indent ^ "  ") in
     match er with
     | Root (lt) ->
        begin
-         printf "%sRootEnv\n" indent;
+         Debug.printf "%sRootEnv\n" indent;
          print_table lt.scope indent;
          f nindent;
        end
     | Module (lt, r) ->
        begin
-         printf "%sModuleEnv - %s\n" indent r.mod_name;
+         Debug.printf "%sModuleEnv - %s\n" indent r.mod_name;
          print_table lt.scope indent;
          f nindent;
        end
     | Function (lt, r) ->
        begin
          let name = Nodes.string_of_id_string r.fn_name in
-         printf "%sFunction - %s\n" indent name;
+         Debug.printf "%sFunction - %s\n" indent name;
          print_table lt.scope indent;
          f nindent;
        end
     | Class (lt, r) ->
        begin
          let name = Nodes.string_of_id_string r.cls_name in
-         printf "%sClassEnv - %s\n" indent name;
+         Debug.printf "%sClassEnv - %s\n" indent name;
          print_table lt.scope indent;
          f nindent;
        end
     | Scope _ ->
        begin
-         printf "%Scope\n" indent;
+         Debug.printf "%Scope\n" indent;
          f nindent
        end
     | MetaVariable uni_id ->
        begin
-         printf "%sMetaVariable - %d\n" indent uni_id;
+         Debug.printf "%sMetaVariable - %d\n" indent uni_id;
          f nindent
        end
 
     | MultiSet r ->
        begin
-         printf "%sMultiSet - %s\n" indent (Kind.to_string r.ms_kind);
+         Debug.printf "%sMultiSet - %s\n" indent (Kind.to_string r.ms_kind);
          f nindent;
        end
 
