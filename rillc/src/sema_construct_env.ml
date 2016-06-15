@@ -23,7 +23,9 @@ type storage_operation =
 let rec print_error ?(loc=None) err =
   match err with
   | Error.DifferentArgNum (params_num, args_num) ->
-     Printf.printf "%s:\nError: requires %d but given %d\n" (Nodes.Loc.to_string loc) params_num args_num
+     Printf.printf "%s:\nError: requires %d but given %d\n"
+                   (Nodes.Loc.to_string loc) params_num args_num
+
   | Error.ConvErr m ->
      begin
        Printf.printf "%s:\nError:\n" (Nodes.Loc.to_string loc);
@@ -33,9 +35,13 @@ let rec print_error ?(loc=None) err =
        in
        Error.PosMap.iter p m
      end
+
   | Error.NoMatch (errs, loc) ->
      Printf.printf "%s:\nError: nomatch\n" (Nodes.Loc.to_string loc);
      List.iter (fun err -> print_error ~loc:loc err) errs
+
+  | Error.MemberNotFound (loc) ->
+     Printf.printf "%s:\nError: member not found\n" (Nodes.Loc.to_string loc);
 
   | Error.Msg msg ->
      Printf.printf "\n------------------\nError:\n %s\n\n-------------------\n" msg
@@ -1173,9 +1179,8 @@ and analyze_expr ?(making_placeholder=false)
        (mled_node, aux)
      end
 
-  | Ast.ElementSelectionExpr (lhs, rhs, _) ->
+  | Ast.ElementSelectionExpr (lhs, rhs, loc) ->
      begin
-       let loc = None in
        let (lhs_node, lhs_aux) =
          analyze_expr ~making_placeholder:making_placeholder
                       lhs parent_env ctx attr
@@ -1198,7 +1203,7 @@ and analyze_expr ?(making_placeholder=false)
                (node, (prop_ty, VCatLValue, lt, ml, loc))
 
             | None ->
-               failwith "[ERR] member is not found"
+               error (Error.MemberNotFound loc)
           end
 
        | _ -> failwith "[ICE]"

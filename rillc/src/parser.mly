@@ -664,7 +664,7 @@ unary_expression:
 postfix_expression:
                 primary_expression { $1 }
         |       postfix_expression DOT rel_generic_id
-                { Ast.ElementSelectionExpr ($1, $3, ()) }
+                { Ast.ElementSelectionExpr ($1, $3, pos $startpos($3) $endpos($3)) }
         |       postfix_expression LBRACKET expression? RBRACKET
                 { Ast.SubscriptingExpr ($1, $3, pos $startpos($2) $endpos($4)) }
         |       traits_expression { $1 }

@@ -54,10 +54,12 @@ let fatal_error msg =
 
 module Error = struct
   module PosMap = Map.Make(Int)
+
   type t =
     | DifferentArgNum of int * int (* num of params * num of args *)
     | ConvErr of (string * Nodes.Loc.t) PosMap.t
     | NoMatch of t list * Nodes.Loc.t
+    | MemberNotFound of Nodes.Loc.t
     | Msg of string
 end
 
