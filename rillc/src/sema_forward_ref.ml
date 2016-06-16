@@ -40,7 +40,8 @@ let rec solve_forward_refs ?(meta_variables=[])
 
   | Ast.FunctionDefStmt (id_name, params, opt_ret_type, _, body, None, _) ->
      begin
-       let fenv = declare_pre_function id_name meta_variables parent_env ctx in
+       let loc = None in
+       let fenv = declare_pre_function id_name meta_variables loc parent_env ctx in
 
        let node = TAst.FunctionDefStmt (
                       id_name,
@@ -57,7 +58,8 @@ let rec solve_forward_refs ?(meta_variables=[])
 
   | Ast.MemberFunctionDefStmt (id_name, params, opt_ret_type, body, None, _) ->
      begin
-       let fenv = declare_pre_function id_name meta_variables parent_env ctx in
+       let loc = None in
+       let fenv = declare_pre_function id_name meta_variables loc parent_env ctx in
        Env.ClassOp.push_member_function parent_env fenv;
 
        let node = TAst.MemberFunctionDefStmt (
@@ -74,7 +76,8 @@ let rec solve_forward_refs ?(meta_variables=[])
 
   | Ast.ExternFunctionDefStmt (id_name, params, ml, ret_type, extern_fname, None, _) ->
      begin
-       let fenv = declare_pre_function id_name meta_variables parent_env ctx in
+       let loc = None in
+       let fenv = declare_pre_function id_name meta_variables loc parent_env ctx in
 
        let node = TAst.ExternFunctionDefStmt (
                       id_name,
@@ -91,7 +94,8 @@ let rec solve_forward_refs ?(meta_variables=[])
 
   | Ast.ClassDefStmt (id_name, body, None, _) ->
      begin
-       let cenv = declare_pre_class id_name meta_variables parent_env ctx in
+       let loc = None in
+       let cenv = declare_pre_class id_name meta_variables loc parent_env ctx in
        let cenv_r = Env.ClassOp.get_record cenv in
 
        (* class members are forward referencable *)
@@ -114,7 +118,8 @@ let rec solve_forward_refs ?(meta_variables=[])
 
   | Ast.ExternClassDefStmt (id_name, extern_cname, None, _) ->
      begin
-       let cenv = declare_pre_class id_name meta_variables parent_env ctx in
+       let loc = None in
+       let cenv = declare_pre_class id_name meta_variables loc parent_env ctx in
 
        let node = TAst.ExternClassDefStmt (
                       id_name,
@@ -128,6 +133,7 @@ let rec solve_forward_refs ?(meta_variables=[])
 
   | Ast.MemberVariableDefStmt (v, _) ->
      begin
+       let loc = None in
        let (_, var_name, _) =
          match v with
          | Ast.VarInit vi -> vi
@@ -138,6 +144,7 @@ let rec solve_forward_refs ?(meta_variables=[])
        let venv = Env.create_context_env parent_env (
                                            Env.Variable (var_r)
                                          )
+                                         loc
        in
        Env.add_inner_env parent_env var_name venv;
        Env.ClassOp.push_member_variable parent_env venv;
@@ -152,6 +159,7 @@ let rec solve_forward_refs ?(meta_variables=[])
 
   | Ast.TemplateStmt (id_name, template_params, inner_node) ->
      begin
+       let loc = None in
        let base_kind = match inner_node with
          | Ast.FunctionDefStmt _
          | Ast.ExternFunctionDefStmt _
@@ -182,11 +190,12 @@ let rec solve_forward_refs ?(meta_variables=[])
                 match base_kind with
                 (* will be member function *)
                 | Env.Kind.Function ->
-                   let tenv =
+                   let fenv =
                      Env.create_context_env base_env
                                             (Env.Template template_env_r)
+                                            loc
                    in
-                   Env.ClassOp.push_member_function parent_env tenv
+                   Env.ClassOp.push_member_function parent_env fenv
                 | _ ->
                    ()
               end
@@ -237,6 +246,7 @@ and load_module_by_filepath ?(def_mod_info=None) filepath ctx =
   match mod_ast with
   | Ast.Module (inner, pkg_names, mod_name, base_dir, _) ->
      begin
+       let loc = None in
        let check_mod_name (raw_pkg_names, raw_mod_name) =
          if not (pkg_names = raw_pkg_names && mod_name = raw_mod_name) then
            raise (Fatal_error "package/module names are different")
@@ -249,7 +259,9 @@ and load_module_by_filepath ?(def_mod_info=None) filepath ctx =
                                                         Env.mod_name = mod_name;
                                                         Env.mod_pkg_names = pkg_names;
                                                       })
-                                        ) in
+                                        )
+                                        loc
+       in
        (* TODO: fix g_name *)
        let g_name = String.concat "." (pkg_names @ [mod_name]) in
        Env.add_inner_env root_env g_name env;
@@ -304,23 +316,26 @@ and load_module pkg_names mod_name ctx =
 
 
 and declare_meta_var env ctx (name, uni_id) =
+  let loc = None in
   let meta_e = Env.MetaVariable uni_id in
-  let e = Env.create_context_env env meta_e in
+  let e = Env.create_context_env env meta_e loc in
   Env.add_inner_env env name e;
 
   Unification.get_as_value ctx.sc_unification_ctx uni_id
 
 
-and declare_pre_function id_name meta_variables parent_env ctx =
+and declare_pre_function id_name meta_variables loc parent_env ctx =
   (* accept multiple definition for overload *)
   let (base_env, _) = Env.MultiSetOp.find_or_add parent_env id_name Env.Kind.Function in
 
   let fenv_r = Env.FunctionOp.empty_record id_name in
-  let fenv = Env.create_context_env parent_env (
-                                      Env.Function (
-                                          Env.empty_lookup_table (),
-                                          fenv_r)
-                                    ) in
+  let fenv = Env.create_context_env parent_env
+                                    (Env.Function (
+                                         Env.empty_lookup_table (),
+                                         fenv_r))
+                                    loc
+  in
+
   (* declare meta variables if exist *)
   let template_vals = List.map (declare_meta_var fenv ctx) meta_variables in
   fenv_r.Env.fn_template_vals <- template_vals;
@@ -334,16 +349,18 @@ and declare_pre_function id_name meta_variables parent_env ctx =
   fenv
 
 
-and declare_pre_class id_name meta_variables parent_env ctx =
+and declare_pre_class id_name meta_variables loc parent_env ctx =
   (* accept multiple definition for specialization *)
   let (base_env, _) = Env.MultiSetOp.find_or_add parent_env id_name Env.Kind.Class in
 
   let cenv_r = Env.ClassOp.empty_record id_name in
-  let cenv = Env.create_context_env parent_env (
-                                      Env.Class (
-                                          Env.empty_lookup_table (),
-                                          cenv_r)
-                                    ) in
+  let cenv = Env.create_context_env parent_env
+                                    (Env.Class (
+                                         Env.empty_lookup_table (),
+                                         cenv_r))
+                                    loc
+  in
+
   (* declare meta variables if exist *)
   let template_vals = List.map (declare_meta_var cenv ctx) meta_variables in
   cenv_r.Env.cls_template_vals <- template_vals;

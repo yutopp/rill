@@ -32,8 +32,38 @@ module Error = struct
     | DifferentArgNum of int * int (* num of params * num of args *)
     | ConvErr of (string * Nodes.Loc.t) PosMap.t
     | NoMatch of t list * Nodes.Loc.t
-    | MemberNotFound of Nodes.Loc.t
+    | MemberNotFound of type_info_t * Nodes.Loc.t
     | Msg of string
+
+  let rec print ?(loc=None) err =
+    match err with
+    | DifferentArgNum (params_num, args_num) ->
+       Printf.printf "%s:\nError: requires %d but given %d\n"
+                     (Nodes.Loc.to_string loc) params_num args_num
+
+    | ConvErr m ->
+       begin
+         Printf.printf "%s:\nError:\n" (Nodes.Loc.to_string loc);
+         let p k (msg, arg_loc) =
+           (* TODO: prinf arg_loc *)
+           Printf.printf "%s: %dth arg %s\n" (Nodes.Loc.to_string arg_loc) k msg
+         in
+         PosMap.iter p m
+       end
+
+    | NoMatch (errs, loc) ->
+       Printf.printf "%s:\nError: nomatch\n" (Nodes.Loc.to_string loc);
+       List.iter (fun err -> print ~loc:loc err) errs
+
+    | MemberNotFound (in_ty, loc) ->
+       let s_ty = Type.to_string in_ty in
+       Printf.printf "%s:\nError: member not found in %s\n"
+                     (Nodes.Loc.to_string loc)
+                     s_ty
+
+    | Msg msg ->
+       Printf.printf "\n------------------\nError:\n %s\n\n-------------------\n" msg
+
 end
 
 exception NError of Error.t

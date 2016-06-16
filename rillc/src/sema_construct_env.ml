@@ -20,34 +20,6 @@ type storage_operation =
   | SoParamPassing
   | SoArrayElement of int
 
-
-let rec print_error ?(loc=None) err =
-  match err with
-  | Error.DifferentArgNum (params_num, args_num) ->
-     Printf.printf "%s:\nError: requires %d but given %d\n"
-                   (Nodes.Loc.to_string loc) params_num args_num
-
-  | Error.ConvErr m ->
-     begin
-       Printf.printf "%s:\nError:\n" (Nodes.Loc.to_string loc);
-       let p k (msg, arg_loc) =
-         (* TODO: prinf arg_loc *)
-         Printf.printf "%s: %dth arg %s\n" (Nodes.Loc.to_string arg_loc) k msg
-       in
-       Error.PosMap.iter p m
-     end
-
-  | Error.NoMatch (errs, loc) ->
-     Printf.printf "%s:\nError: nomatch\n" (Nodes.Loc.to_string loc);
-     List.iter (fun err -> print_error ~loc:loc err) errs
-
-  | Error.MemberNotFound (loc) ->
-     Printf.printf "%s:\nError: member not found\n" (Nodes.Loc.to_string loc);
-
-  | Error.Msg msg ->
-     Printf.printf "\n------------------\nError:\n %s\n\n-------------------\n" msg
-
-
 (*
 * this function will raise exceptions. NError or Fatal_error.
 *)
@@ -67,7 +39,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
          | NError err ->
             begin
               Printf.printf "\n===============================\n";
-              print_error err;
+              Error.print err;
               store_error_message "" ctx;
               Printf.printf "\n===============================\n";
               (TAst.Error, void_t)
@@ -896,6 +868,8 @@ let rec construct_env node parent_env ctx opt_chain_attr =
   (* scoped declare *)
   | TAst.VariableDefStmt (var_metalevel, v, None) ->
      begin
+       let loc = None in
+
        let (var_attr, var_name, init_term) =
          match extract_prev_pass_node v with
          | Ast.VarInit vi -> vi
@@ -904,9 +878,9 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        check_id_is_defined_uniquely parent_env var_name;
 
        let venv_r = Env.VariableOp.empty_record var_name in
-       let venv = Env.create_context_env parent_env (
-                                           Env.Variable (venv_r)
-                                         )
+       let venv = Env.create_context_env parent_env
+                                         (Env.Variable (venv_r))
+                                         loc
        in
 
        let (opt_type, opt_init_value) = init_term in
@@ -1204,7 +1178,7 @@ and analyze_expr ?(making_placeholder=false)
                (node, (prop_ty, VCatLValue, lt, ml, loc))
 
             | None ->
-               error (Error.MemberNotFound loc)
+               error (Error.MemberNotFound (lhs_ty, loc))
           end
 
        | _ -> failwith "[ICE]"
@@ -1243,7 +1217,9 @@ and analyze_expr ?(making_placeholder=false)
                  * DO NOT append this env to the parent_env.
                  *)
               let temp_env =
-                Env.create_scoped_env parent_env (Env.Scope (Env.empty_lookup_table ()))
+                Env.create_scoped_env parent_env
+                                      (Env.Scope (Env.empty_lookup_table ()))
+                                      None
               in
               ignore @@
                 analyze ~opt_attr:attr block temp_env ctx;
@@ -1394,9 +1370,11 @@ and analyze_expr ?(making_placeholder=false)
 
   | Ast.ScopeExpr (block) ->
      begin
+       let loc = None in
        let scope_env =
          Env.create_scoped_env parent_env
                                (Env.Scope (Env.empty_lookup_table ()))
+                               loc
        in
        let (nblock, aux) = analyze_t block scope_env ctx in
        parent_env.Env.closed <- scope_env.Env.closed;
@@ -1410,6 +1388,7 @@ and analyze_expr ?(making_placeholder=false)
        let scope_env =
          Env.create_scoped_env parent_env
                                (Env.Scope (Env.empty_lookup_table ()))
+                               loc
        in
 
        let (n_cond_expr, cond_aux) = analyze_expr cond_expr scope_env ctx attr in
@@ -1424,6 +1403,7 @@ and analyze_expr ?(making_placeholder=false)
          let clause_scope_env =
            Env.create_scoped_env scope_env
                                  (Env.Scope (Env.empty_lookup_table ()))
+                                 None
          in
          analyze_expr node clause_scope_env ctx attr
        in
@@ -1469,9 +1449,11 @@ and analyze_expr ?(making_placeholder=false)
 
   | Ast.ForExpr (opt_var_decl, opt_cond, opt_step, body) ->
      begin
+       let loc = None in
        let scope_env =
          Env.create_scoped_env parent_env
                                (Env.Scope (Env.empty_lookup_table ()))
+                               loc
        in
 
        let nopt_var_decl =
@@ -1500,6 +1482,7 @@ and analyze_expr ?(making_placeholder=false)
        let body_env =
          Env.create_scoped_env scope_env
                                (Env.Scope (Env.empty_lookup_table ()))
+                               None
        in
        let (nbody, body_aux) = analyze_expr body body_env ctx attr in
 
@@ -1695,14 +1678,15 @@ and analyze_param f_env param ctx attr =
   (nparam, param_kind)
 
 and make_parameter_venv f_env param_name param_ty ctx =
+  let loc = None in
   let venv_r = {
     Env.var_name = param_name;
     Env.var_type = param_ty;
     Env.var_detail = Env.VarRecordNormal ();
   } in
-  let venv = Env.create_context_env f_env (
-                                      Env.Variable (venv_r)
-                                    )
+  let venv = Env.create_context_env f_env
+                                    (Env.Variable (venv_r))
+                                    loc
   in
   Env.update_status venv Env.Complete;
   (param_name, venv)
@@ -2830,13 +2814,17 @@ and prepare_instantiate_template t_env_record template_args ext_env ctx attr =
    * DO NOT append this env to the parent_env.
    *)
   let temp_env =
-    Env.create_scoped_env ext_env (Env.Scope (Env.empty_lookup_table ())) in
+    Env.create_scoped_env ext_env
+                          (Env.Scope (Env.empty_lookup_table ()))
+                          None
+  in
 
   let (uni_ids, meta_specs) =
     (* generate meta variables which have no value and no type *)
     let generate_meta_var name =
+      let loc = None in
       let uni_id = Unification.generate_uni_id ctx.sc_unification_ctx in
-      let mv_env = Env.create_context_env temp_env (Env.MetaVariable uni_id) in
+      let mv_env = Env.create_context_env temp_env (Env.MetaVariable uni_id) loc in
       let mv_ty = make_notdetermined_type uni_id ctx in
       (uni_id, (mv_ty, mv_env))
     in
@@ -3097,26 +3085,30 @@ and make_class_type cenv rv mut ctx =
 
 
 and declare_incomple_ctor cenv =
+  let loc = None in
   let (base_env, _) = Env.MultiSetOp.find_or_add cenv ctor_id_name Env.Kind.Function in
   let fenv_r = Env.FunctionOp.empty_record ctor_id_name in
 
-  let fenv = Env.create_context_env cenv (
-                                      Env.Function (
-                                          Env.empty_lookup_table ~init:0 (),
-                                          fenv_r)
-                                    ) in
+  let fenv = Env.create_context_env cenv
+                                    (Env.Function (
+                                         Env.empty_lookup_table ~init:0 (),
+                                         fenv_r))
+                                    loc
+  in
   Env.MultiSetOp.add_normal_instances base_env fenv;
   fenv
 
 and declare_incomple_assign cenv =
+  let loc = None in
   let (base_env, _) = Env.MultiSetOp.find_or_add cenv assign_name Env.Kind.Function in
   let fenv_r = Env.FunctionOp.empty_record assign_name in
 
-  let fenv = Env.create_context_env cenv (
-                                      Env.Function (
-                                          Env.empty_lookup_table ~init:0 (),
-                                          fenv_r)
-                                    ) in
+  let fenv = Env.create_context_env cenv
+                                    (Env.Function (
+                                         Env.empty_lookup_table ~init:0 (),
+                                         fenv_r))
+                                    loc
+  in
   Env.MultiSetOp.add_normal_instances base_env fenv;
   fenv
 

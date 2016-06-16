@@ -48,6 +48,9 @@ type 'ast env_t = {
    mutable closed       : bool;
    mutable meta_level   : Meta_level.t;
    mutable rel_node     : 'ast option;
+
+   (* information for error message *)
+   loc                  : Nodes.Loc.t;
 }
 
  and 'ast env_record_t =
@@ -208,6 +211,7 @@ let undef () =
     closed = false;
     meta_level = Meta_level.Meta;
     rel_node = None;
+    loc = None;
   }
 
 
@@ -344,7 +348,7 @@ let empty_lookup_table ?(init=8) () =
 
 (* create an env as new context.
  * it will be used for functions, classes and so on... *)
-let create_context_env parent_env er =
+let create_context_env parent_env er loc =
   let cur_id = generate_new_env_id () in
 
   let opt_mod_env = match parent_env.er with
@@ -363,12 +367,14 @@ let create_context_env parent_env er =
     closed = false;
     meta_level = Meta_level.Meta;
     rel_node = None;
+
+    loc = loc;
   } in
   e
 
 (* create an env which is a part of the parent_env.
  * it will be used for block, if_scope and so on... *)
-let create_scoped_env parent_env er =
+let create_scoped_env parent_env er loc =
   let cur_id = generate_new_env_id () in
 
   let opt_mod_env = match parent_env.er with
@@ -382,10 +388,13 @@ let create_scoped_env parent_env er =
     module_env = opt_mod_env;
     nest_level = NestLevel.add parent_env.nest_level NestLevel.one;
     er = er;
+
     state = InComplete;
     closed = false;
     meta_level = Meta_level.Meta;
     rel_node = None;
+
+    loc = loc;
   }
 
 
@@ -434,6 +443,7 @@ let make_root_env () =
     closed = false;
     meta_level = Meta_level.Meta;
     rel_node = None;
+    loc = None;
   }
 
 
@@ -477,7 +487,9 @@ module MultiSetOp =
                                         ms_normal_instances = [];
                                         ms_template_instances = [];
                                         ms_instanced_args_memo = Hashtbl.create 0
-                                      }) in
+                                      })
+                                   None
+         in
          add_inner_env env name e;
          (e, true)
 

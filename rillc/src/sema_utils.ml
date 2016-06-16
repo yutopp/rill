@@ -132,7 +132,9 @@ let register_builtin_type name inner_name meta_level opt_layout
     let env = Env.create_context_env root_env (
                                        Env.Class (Env.empty_lookup_table ~init:0 (),
                                                   env_r)
-                                     ) in
+                                     )
+                                     None
+    in
     env.Env.meta_level <- meta_level;
 
     let node = TAst.ExternClassDefStmt (name, inner_name, None, Some env) in
