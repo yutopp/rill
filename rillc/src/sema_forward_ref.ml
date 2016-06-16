@@ -295,7 +295,7 @@ and load_module pkg_names mod_name ctx =
            | [] -> raise (Fatal_error ("[ERR] package not found : " ^ (String.concat "." pkg_names) ^ "." ^ mod_name))
            | _ -> failwith "[ICE]"
          in
-         Printf.printf "import from = %s\n" target_dir;
+         Debug.printf "import from = %s\n" target_dir;
          let filepath = Filename.concat target_dir mod_name ^ ".rill" in
 
          load_module_by_filepath ~def_mod_info:(Some (pkg_names, mod_name))

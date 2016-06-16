@@ -50,8 +50,7 @@ let empty () =
 
 
 let () =
-  (* debug option *)
-  Printexc.record_backtrace true;
+  Debug.record_backtrace ();
 
   (* Compile Option *)
   let co = empty () in
@@ -102,8 +101,7 @@ let () =
   assert (List.length co.input_files = 1);
   let filename = List.hd filepaths in
 
-  Printf.printf "===== PHASE = ANALYZE SEMANTICS\n";
-  flush_all ();
+  Debug.printf "===== PHASE = ANALYZE SEMANTICS\n";
   let (env, ctx) = Sema.make_default_state system_libs_dirs module_search_dirs in
   let m = Sema.load_module_by_filepath filename ctx in
   let sem_ast = match Sema.analyze_module m ctx with
@@ -112,8 +110,7 @@ let () =
        Printf.printf "Semantics error\n"; exit 1
   in
 
-  Printf.printf "===== PHASE = CODEGEN\n";
-  flush_all ();
+  Debug.printf "===== PHASE = CODEGEN\n";
 
   let module Codegen = Codegen_llvm in
 
@@ -143,7 +140,6 @@ let () =
   in
   Codegen.create_executable code_ctx options co.output_file;
 
-  Printf.printf "===== PHASE = FINISHED\n";
-  flush_all ();
+  Debug.printf "===== PHASE = FINISHED\n";
 
   exit 0

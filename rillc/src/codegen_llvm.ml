@@ -67,6 +67,16 @@ let llval_u32 v ctx =
   L.const_int_of_string (L.i32_type ctx.ir_context) (Uint32.to_string v) 10
 
 
+let debug_dump_value v =
+  if Config.is_release then () else (L.dump_value v; flush stderr)
+
+let debug_dump_module m =
+  if Config.is_release then () else (L.dump_module m; flush stderr)
+
+let debug_dump_type t =
+  if Config.is_release then () else (L.dump_type t; flush stderr)
+
+
 let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
   let open Ctx in
   let void_t = L.void_type ctx.ir_context in
@@ -102,7 +112,6 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
   | TAst.ReturnStmt (opt_e) ->
      begin
        Debug.printf "ReturnStmt!!!!!!!!\n";
-       flush_all ();
 
        let llval = match opt_e with
        | Some e ->
@@ -227,9 +236,8 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
          if not env.Env.closed && Type.has_same_class func_ret_ty (ctx.type_sets.Type_sets.ts_void_type) then
            ignore @@ L.build_ret_void ctx.ir_builder;
 
-         L.dump_value f;
+         debug_dump_value f;
          Debug.printf "generated genric function(%b): %s\n" env.Env.closed name;
-         flush_all ();
 
          Llvm_analysis.assert_valid_function f
        in
@@ -280,8 +288,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
 
             let llvm_func = L.declare_function extern_fname f_ty ctx.ir_module in
 
-            L.dump_value llvm_func;
-            flush_all ();
+            debug_dump_value llvm_func;
 
             Ctx.bind_val_to_env ctx (LLValue llvm_func) env;
             void_val
@@ -326,7 +333,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
 
        Ctx.bind_val_to_env ctx (LLType struct_ty) env;
 
-       L.dump_type struct_ty;
+       debug_dump_type struct_ty;
 
        (* body *)
        let _ = generate_code body ctx in
@@ -368,7 +375,6 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
        Debug.printf "Define variable: %s\n" venv.Env.var_name;
        let (llval, expr_ty) = generate_code init_expr ctx in
        Type.debug_print var_type;
-       flush_all ();
 
        L.set_value_name venv.Env.var_name llval;
        Ctx.bind_val_to_env ctx (LLValue llval) env;
@@ -445,9 +451,9 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
               | _ -> failwith "[ICE] a member variable is not found"
             in
             let elem_llval =
-              L.dump_value reciever_llval;
+              debug_dump_value reciever_llval;
               Debug.printf "index = %d\n" member_index;
-              flush_all ();
+
               L.build_struct_gep reciever_llval member_index "" ctx.ir_builder
             in
             (elem_llval, ty)
@@ -529,7 +535,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
                         v
 
                      | _ ->
-                        TAst.print_storage !storage_ref;
+                        TAst.debug_print_storage !storage_ref;
                         failwith "[ICE]"
                    in
 
@@ -564,7 +570,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
          | Env.FnRecordExternal (def, kind, extern_name) ->
             begin
               Debug.printf "gen value: debug / extern  %s = \"%s\"\n"
-                            fn_s_name extern_name; flush_all ();
+                            fn_s_name extern_name;
               let (llargs, _) = eval_args kind param_tys in
               let extern_f =
                 find_llval_by_env_with_force_generation ctx env
@@ -576,9 +582,8 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
             begin
               Debug.printf "gen value: debug / builtin %s = \"%s\"\n"
                             fn_s_name extern_name;
-              flush_all ();
               let (llargs, param_tys) = eval_args kind param_tys in
-              Array.iter L.dump_value llargs;
+              Array.iter debug_dump_value llargs;
 
               let v_record = Ctx.find_val_by_name ctx extern_name in
               let builtin_gen_f = match v_record with
@@ -1074,9 +1079,7 @@ and adjust_llval_form trg_ty src_ty llval ctx =
   Debug.printf "is_pointer rep?  trg: %b, src: %b\n src = "
                 (is_address_representation trg_ty)
                 (is_address_representation src_ty);
-  flush_all ();
-  L.dump_value llval;
-  flush_all ();
+  debug_dump_value llval;
 
   let trg_check_f = is_address_representation in
   let src_check_f = is_address_representation in
@@ -1090,9 +1093,7 @@ and adjust_arg_llval_form trg_ty src_ty llval ctx =
       Debug.printf "is_pointer_arg rep?  trg: %b, src: %b\n src = "
                     (is_address_representation_param trg_ty)
                     (is_address_representation src_ty);
-      flush_all ();
-      L.dump_value llval;
-      flush_all ();
+      debug_dump_value llval;
 
       let trg_check_f = is_address_representation_param in
       let src_check_f = is_address_representation in
@@ -1693,7 +1694,7 @@ let generate node ctx =
   inject_builtins ctx;
 
   let _ = generate_code node ctx in
-  L.dump_module ctx.Ctx.ir_module
+  debug_dump_module ctx.Ctx.ir_module
 
 
 exception FailedToWriteBitcode
@@ -1715,7 +1716,6 @@ let create_executable ctx options out_name =
   (* build bitcode and output object file *)
   let bin_name = basic_name ^ ".o" in
   let sc = Sys.command (Printf.sprintf "llc %s -filetype=obj -o %s " (Filename.quote bitcode_name) (Filename.quote bin_name)) in
-  flush_all ();
   if sc <> 0 then raise FailedToBuildBitcode;
 
   (* output executable *)
@@ -1728,9 +1728,8 @@ let create_executable ctx options out_name =
                    escaped_link_options
                    (Filename.quote out_name)
   in
-  Debug.printf "cmd = %s\n" cmd; flush_all ();
+  Debug.printf "cmd = %s\n" cmd;
   let sc = Sys.command cmd in
-  flush_all ();
   (*let sc = Sys.command (Printf.sprintf "gcc %s -o %s" (Filename.quote bin_name) (Filename.quote out_name)) in*)
   if sc <> 0 then raise FailedToBuildExecutable;
   ()

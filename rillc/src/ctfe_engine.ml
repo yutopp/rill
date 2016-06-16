@@ -140,7 +140,7 @@ let execute engine expr_node expr_ty type_sets =
       ignore @@ L.build_ret expr_llval ir_builder;
 
       Llvm_analysis.assert_valid_function f;
-      L.dump_value f;   (* debug *)
+      Codegen_llvm.debug_dump_value f;
 
       (**)
       LE.add_module ir_mod engine.exec_engine;
@@ -152,7 +152,7 @@ let execute engine expr_node expr_ty type_sets =
        * However, the module will be used until next time.
        *)
       LE.remove_module ir_mod engine.exec_engine;
-      (*L.dump_module engine.cg_ctx.CgCtx.ir_module;   (* debug *)*)
+      (* Codegen_llvm.debug_dump_module engine.cg_ctx.CgCtx.ir_module; *)
 
       L.delete_function f;
 

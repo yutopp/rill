@@ -158,16 +158,15 @@ module Make (Ctx : NodeContextType) =
 
     type t = ast
 
-    (* debug print *)
-    let print_storage sto =
+    let debug_print_storage sto =
       match sto with
-      | StoStack _ -> Printf.printf "StoStack\n"
-      | StoHeap -> Printf.printf "StoHeap\n"
-      | StoGc -> Printf.printf "StoGc\n"
-      | StoAgg _ -> Printf.printf "StoAgg\n"
-      | StoImm -> Printf.printf "StoImm\n"
-      | StoArrayElem _ -> Printf.printf "StoArrayElem\n"
-      | StoMemberVar _ -> Printf.printf "StoMemberVar\n"
+      | StoStack _ -> Debug.printf "StoStack\n"
+      | StoHeap -> Debug.printf "StoHeap\n"
+      | StoGc -> Debug.printf "StoGc\n"
+      | StoAgg _ -> Debug.printf "StoAgg\n"
+      | StoImm -> Debug.printf "StoImm\n"
+      | StoArrayElem _ -> Debug.printf "StoArrayElem\n"
+      | StoMemberVar _ -> Debug.printf "StoMemberVar\n"
 
     let rec print ast =
       let open Format in

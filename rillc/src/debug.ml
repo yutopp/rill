@@ -9,7 +9,15 @@
 open Batteries
 
 let out_ch =
-  open_out "/dev/null"
+  if Config.is_release then
+    open_out "/dev/null"
+  else
+    stderr
 
 let printf fmt =
-  Printf.fprintf out_ch fmt
+  let o = Printf.fprintf out_ch fmt in
+  if Config.is_release then () else flush out_ch;
+  o
+
+let record_backtrace () =
+  Printexc.record_backtrace true
