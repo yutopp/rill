@@ -55,15 +55,18 @@ module Error = struct
        Printf.printf "%s:\nError: nomatch\n" (Nodes.Loc.to_string loc);
        List.iter (fun err -> print ~loc:loc err) errs
 
-    | MemberNotFound (in_ty, loc) ->
+    | MemberNotFound (in_ty, Some loc) ->
        let s_ty = Type.to_string in_ty in
-       Printf.printf "%s:\nError: member not found in %s\n"
-                     (Nodes.Loc.to_string loc)
+
+       Printf.printf "%s:\nError: member \"%s\" is not found in %s\n"
+                     (Nodes.Loc.to_string (Some loc))
+                     (Bytes.sub_string loc.Nodes.Loc.source_code loc.Nodes.Loc.pos_begin_cnum (loc.Nodes.Loc.pos_end_cnum - loc.Nodes.Loc.pos_begin_cnum))
                      s_ty
 
     | Msg msg ->
        Printf.printf "\n------------------\nError:\n %s\n\n-------------------\n" msg
 
+    | _ -> failwith ""
 end
 
 exception NError of Error.t

@@ -23,6 +23,7 @@
         let open Lexing in
         let p = {
           pos_fname         = Mi.full_filepath;
+          source_code       = Mi.module_source;
           pos_begin_cnum    = s_pos.pos_cnum;
           pos_begin_lnum    = s_pos.pos_lnum;
           pos_begin_bol     = s_pos.pos_cnum - s_pos.pos_bol;
