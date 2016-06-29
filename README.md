@@ -31,6 +31,12 @@ eval `opam config env`
 ```
 `opam update` might be required to install these packages.
 
+#### for Mac
+
+```
+brew install llvm38
+```
+
 ### Build
 `omake`
 
