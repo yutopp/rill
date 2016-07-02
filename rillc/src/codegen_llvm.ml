@@ -1225,16 +1225,18 @@ let inject_builtins ctx =
    * Builtin functions
    *)
   let () =
-    let f template_args _ args ctx =
-      assert (List.length template_args = 1);
-      let ty_val = List.nth template_args 0 in
-      let ty = match ty_val with
-        | Ctfe_value.Type ty -> ty
-        | _ -> failwith "[ICE]"
+    (* sizeof is onlymeta function *)
+    let f _ args ctx =
+      assert (Array.length args = 1);
+      let ty_val = args.(0) in
+      let ty = match L.int64_of_const ty_val with
+        | Some t_id ->
+           Type.Generator.find_type_by_cache_id ctx.type_sets.Type_sets.ts_type_gen t_id
+        | _ -> failwith "[ICE] failed get a ctfed value"
       in
       llval_u32 (Type.size_of ty) ctx
     in
-    register_builtin_template_func "__builtin_sizeof" f
+    register_builtin_func "__builtin_sizeof" f
   in
 
   let () =

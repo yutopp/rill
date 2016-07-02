@@ -312,7 +312,7 @@ let rec kind_of_env e =
   | _ -> failwith ""
 
 
-let rec lookup ?(exclude=[]) e name =
+let rec lookup' ?(exclude=[]) e name acc =
   let skip e exk =
     if (kind_of_env e) = exk then
       if is_root e then e
@@ -323,11 +323,15 @@ let rec lookup ?(exclude=[]) e name =
   let target = find_all_on_env e name in
   match target with
   | [] -> if is_root e then
-            []
+            ([], e :: acc)
           else
             let penv = get_parent_env e in
-            lookup penv name
-  | xs -> xs
+            lookup' penv name (e :: acc)
+  | xs -> (xs, e :: acc)
+
+let rec lookup ?(exclude=[]) e name =
+  let (res, history) = lookup' ~exclude:exclude e name [] in
+  (res, List.rev history)
 
 (*  *)
 let add_inner_env target_env name e =

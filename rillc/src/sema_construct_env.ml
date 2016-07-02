@@ -1115,8 +1115,8 @@ and analyze_expr ?(making_placeholder=false)
 
               (* call constructor *)
               (* TODO: take into account op call *)
-              let res = solve_basic_identifier ~do_rec_search:false
-                                               ctor_id_name recv_cenv ctx attr in
+              let (res, _) = solve_basic_identifier ~do_rec_search:false
+                                                    ctor_id_name recv_cenv ctx attr in
               let (_, ctor_env, _) = match res with
                 | Some v -> v
                 | None -> failwith "constructor not found"
@@ -1165,7 +1165,7 @@ and analyze_expr ?(making_placeholder=false)
        match Type.type_sort lhs_ty with
        | Type_info.UniqueTy lhs_type_cenv ->
           begin
-            let opt_rhs_ty_node =
+            let (opt_rhs_ty_node, hist) =
               select_member_element ~universal_search:enable_ufcs
                                     lhs_aux rhs parent_env ctx attr
             in
@@ -1178,7 +1178,7 @@ and analyze_expr ?(making_placeholder=false)
                (node, (prop_ty, VCatLValue, lt, ml, loc))
 
             | None ->
-               error (Error.MemberNotFound (lhs_ty, loc))
+               error (Error.MemberNotFound (lhs_ty, hist, loc))
           end
 
        | _ -> failwith "[ICE]"
@@ -1237,7 +1237,7 @@ and analyze_expr ?(making_placeholder=false)
   | (Ast.Id (name, loc) as id_node)
   | (Ast.InstantiatedId (name, _, loc) as id_node) ->
      begin
-       let res =
+       let (res, _) =
          solve_identifier ~making_placeholder:making_placeholder
                           id_node parent_env ctx attr
        in
@@ -1782,8 +1782,8 @@ and solve_identifier ?(do_rec_search=true)
                      ?(making_placeholder=false)
                      ?(exclude=[])
                      id_node env ctx attr
-  =
-  match id_node with
+    : (type_info_t * env_t * Meta_level.t) option * env_t list
+  = match id_node with
   | Ast.Id (name, _) ->
      solve_basic_identifier ~do_rec_search:do_rec_search
                             ~making_placeholder:making_placeholder
@@ -1812,7 +1812,7 @@ and solve_basic_identifier ?(do_rec_search=true)
                            ?(making_placeholder=false)
                            ?(exclude=[])
                            name search_base_env ctx attr
-    : (type_info_t * 'env * Meta_level.t) option =
+    : (type_info_t * 'env * Meta_level.t) option * env_t list =
   let type_ty = ctx.sc_tsets.ts_type_type in
   let ty_cenv = Type.as_unique type_ty in
 
@@ -1950,14 +1950,16 @@ and solve_basic_identifier ?(do_rec_search=true)
 
   let name_s = Nodes.string_of_id_string name in
   Debug.printf "-> finding identitifer = %s : rec = %b\n" name_s do_rec_search;
-  let oenv = if do_rec_search then
-               Env.lookup ~exclude:exclude search_base_env name_s
-             else
-               Env.find_all_on_env search_base_env name_s
+  let (oenv, search_env_history) = if do_rec_search then
+                    Env.lookup ~exclude:exclude search_base_env name_s
+                  else
+                    (Env.find_all_on_env search_base_env name_s, [search_base_env])
   in
-  match oenv with
-  | [] -> None
-  | envs -> Some (List.fold_left solve (Type_info.undef_ty, Env.undef (), Meta_level.Runtime) envs)
+  let opt_trg_env = match oenv with
+    | [] -> None
+    | envs -> Some (List.fold_left solve (Type_info.undef_ty, Env.undef (), Meta_level.Runtime) envs)
+  in
+  (opt_trg_env, search_env_history)
 
 
 and make_notdetermined_type uni_id ctx =
@@ -2005,8 +2007,8 @@ and convert_type trg_ty src_arg ext_env ctx attr =
        begin
          (* copy val/ref to value *)
          let cenv = Type.as_unique trg_ty in
-         let res = solve_basic_identifier ~do_rec_search:false
-                                          ctor_id_name cenv ctx attr in
+         let (res, _) = solve_basic_identifier ~do_rec_search:false
+                                               ctor_id_name cenv ctx attr in
          let (_, ctor_env, _) = match res with
            | Some v -> v
            | None -> failwith "constructor not found"
@@ -2354,7 +2356,7 @@ and evaluate_invocation_arg expr env ctx attr =
 
 and find_suitable_operator ?(universal_search=false)
                            op_name_id eargs env ctx attr =
-  let opt_callee_function_info =
+  let (opt_callee_function_info, _) =
     let (_, lhs_arg_aux) = List.hd eargs in
     select_member_element ~universal_search:universal_search
                           lhs_arg_aux op_name_id env ctx attr
@@ -2383,37 +2385,6 @@ and solve_function_overload eargs template_args mset_env ext_env loc ctx attr =
   in
   if mset_record.Env.ms_kind <> Env.Kind.Function then
     failwith "[ICE] solve_function_overload : sort of menv must be function.";
-
-  (* move the sequence of onlymeta args to template args *)
-  let (eargs, template_args) =
-    let (_, onlymeta_args_num) =
-      let f (hdf, num) arg_aux =
-        if not hdf then
-          let (_, _, _, ml, _) = arg_aux in
-          match ml with
-          | Meta_level.OnlyMeta -> (hdf, num + 1)
-          | _ -> (true, num)
-        else
-          (hdf, num)
-      in
-      List.fold_left f (false, 0) arg_auxs
-    in
-    Debug.printf "onlymeta_args_num = %d\n" onlymeta_args_num;
-
-    let (meta_args, eargs) = List.split_at onlymeta_args_num eargs in
-    let evaled_meta_args =
-      let f earg =
-        let (arg, (ty, _, _, ml, _)) = earg in
-        eval_texpr_as_ctfe arg ty ml ext_env ctx None
-      in
-      List.map f meta_args
-    in
-    let template_args = evaled_meta_args @ template_args in
-
-    Debug.printf "[Tl = %d Al = %d]\n" (List.length template_args) (List.length eargs) ;
-    (eargs, template_args)
-  in
-  let (args, arg_auxs) = List.split eargs in
 
   let (f_level, fs_and_args, errs) = match template_args with
     (* has no template args *)
@@ -2491,31 +2462,27 @@ and find_suitable_functions f_candidates args ext_env ctx attr
          (FuncMatchLevel.NoMatch, f_env, [], args, Some err)
        else
          let (match_levels, conv_funcs, _, errmap) =
-           let conv src_arg trg_ty (match_levels, conv_funcs, idx, errmap) =
+           let conv trg_ty src_arg (match_levels, conv_funcs, idx, errmap) =
              let (l, f) = convert_type trg_ty src_arg ext_env ctx attr in
-             let pos = pos_of_earg src_arg in
              let errmap = match l with
                | FuncMatchLevel.NoMatch ->
                   begin
-                    let m = match errmap with
-                      | Some (m) -> m
-                      | None -> Error.PosMap.empty
-                    in
-                    let m = Error.PosMap.add idx ("nomatch", pos) m in
+                    let m = Option.default Error.ArgPosMap.empty errmap in
+                    let m = Error.ArgPosMap.add idx (trg_ty, src_arg, l) m in
                     Some m
                   end
                | _ -> errmap
              in
              (l::match_levels, f::conv_funcs, (idx+1), errmap)
            in
-           List.fold_right2 conv args param_types ([], [], 0, None)
+           List.fold_right2 conv param_types args ([], [], 0, None)
          in
 
          (* most unmatch level of parameters becomes function match level *)
          let total_f_level =
            List.fold_left FuncMatchLevel.bottom FuncMatchLevel.ExactMatch match_levels in
 
-         let err = Option.map (fun m -> Error.ConvErr m) errmap in
+         let err = Option.map (fun m -> Error.ConvErr (m, f_env)) errmap in
          (total_f_level, f_env, conv_funcs, args, err)
 
     | None ->
@@ -2745,18 +2712,18 @@ and prepare_template_params params_node ctx =
 *)
 and select_member_element ?(universal_search=false)
                           recv_aux t_id env ctx attr
-  : (type_info_t * 'env * Meta_level.t) option =
+  : (type_info_t * 'env * Meta_level.t) option * env_t list =
   let (recv_ty, _, _, _, _) = recv_aux in
   let recv_cenv = Type.as_unique recv_ty in
   Env.debug_print recv_cenv;
-  let opt_ty_ctx = solve_identifier ~do_rec_search:false
-                                    t_id recv_cenv ctx attr in
+  let (opt_ty_ctx, hist) = solve_identifier ~do_rec_search:false
+                                            t_id recv_cenv ctx attr in
 
   match opt_ty_ctx with
   | Some ty_ctx ->
      begin
        (* member env named id is found in recv_ty_r! *)
-       Some ty_ctx
+       (Some ty_ctx, hist)
      end
 
   | None ->
@@ -2771,7 +2738,7 @@ and select_member_element ?(universal_search=false)
          solve_identifier ~exclude:[Env.Kind.Class] t_id env ctx attr
 
        end else
-         None
+         (None, hist)
      end
 
 
@@ -3273,7 +3240,7 @@ and cache_builtin_type_info preset_ty name ctx =
      begin
        Debug.printf "get_builtin_type_info = %s\n" name;
 
-       let res =
+       let (res, _) =
          solve_basic_identifier ~do_rec_search:false
                                 (Nodes.Pure name)
                                 (Option.get ctx.sc_builtin_m_env) ctx None

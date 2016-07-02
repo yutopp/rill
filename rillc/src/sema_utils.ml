@@ -169,12 +169,6 @@ let rec split_aux auxs = match auxs with
      let (ts, vs, ls, ms, ps) = split_aux xs in
      (termc::ts, vc::vs, lt::ls, ml::ms, pos::ps)
 
-let pos_of_earg earg =
-  let (_, aux) = earg in
-  let (_, _, _, _, pos) = aux in
-  pos
-
-
 let print_error_msg msg ctx =
   Printf.printf "\nCompilation Error!: %s\n\n" msg
 
