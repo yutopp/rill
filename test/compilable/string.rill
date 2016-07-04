@@ -1,0 +1,21 @@
+def main()
+{
+    val s = "abcde";
+/+    val s1 = f()[2];
+    s1.print();+/
+}
+/+
+def f()
+{
+    val s = "abcde";
+    return s;
+}
+
+def yo()
+{
+    val i = 10;
+    return &i;
+}
+
+import std.stdio;
++/

@@ -1,0 +1,16 @@
+import std.stdio;
+
+def main() {
+    val mutable a = A();
+    a.a = 10;
+    val b = a;  // copy
+    b.a.print();
+}
+
+class A {
+    val a: int32;
+    def ctor(rhs: A) {
+        // dummy
+        this.a = rhs.a;
+    }
+}

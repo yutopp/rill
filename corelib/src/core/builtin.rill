@@ -144,13 +144,14 @@ def operator[] !(T, N: uint32)(arr :array!(T, N), index: int32): ref(T) => *(&ar
 // uint version. TODO: remove
 def operator[] !(T, N: uint32)(arr :array!(T, N), index: uint32): ref(T) => *(&arr + index);
 
+
 // untyped raw pointer
 #[builtin, primitive, size = 8u, align = 8u]
 extern class untyped_raw_ptr = "__builtin_untyped_raw_ptr_type"
 
 // raw pointer
 #[builtin, primitive, size = 8u, align = 8u]
-extern class raw_ptr!(T) = "__builtin_raw_ptr_type"
+extern class raw_ptr<`a>!(T) = "__builtin_raw_ptr_type"
 
 #[builtin]
 extern def operator+ !(T)(:raw_ptr!(T), :int32): raw_ptr!(T) = "__builtin_op_binary_+_raw_ptr_int";
@@ -162,7 +163,6 @@ def operator- !(T)(p :raw_ptr!(T), n :int32): raw_ptr!(T) {
 #[builtin]
 extern def operator+ !(T)(:raw_ptr!(T), :uint32): raw_ptr!(T) = "__builtin_op_binary_+_raw_ptr_int";
 def operator- !(T)(p :raw_ptr!(T), n :uint32): raw_ptr!(T) => p + (0u - n);
-
 
 #[builtin]
 extern def operator unary* !(T)(:raw_ptr!(T)): ref(T) = "__builtin_op_unary_pre_*_raw_ptr";

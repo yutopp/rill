@@ -6,4 +6,7 @@
  * http://www.boost.org/LICENSE_1_0.txt)
  *)
 
-type t = Env_system.EnvId.t * Env_system.NestLevel.t
+type t =
+  | LtStatic
+  | LtHeap
+  | LtDynamic of Env_system.EnvId.t * Env_system.NestLevel.t

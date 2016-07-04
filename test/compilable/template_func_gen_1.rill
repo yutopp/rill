@@ -1,0 +1,8 @@
+def main()
+{
+    f!int32();
+}
+
+def f!(T)(): void {
+    if (false) f!(T)();
+}

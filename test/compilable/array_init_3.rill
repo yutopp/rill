@@ -1,0 +1,3 @@
+def main() {
+    val arr = array!(int32, 3u)();
+}

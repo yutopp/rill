@@ -131,11 +131,13 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
      begin
        Ctx.mark_env_as_defined ctx env;
        let fenv_r = Env.FunctionOp.get_record env in
+       Debug.printf "\n\n\n\n<><><><>\nDefine: %s\n<><><><>\n%d\n\n\n\n" (fenv_r.Env.fn_mangled |> Option.get) (Int32.to_int env.Env.env_id);
 
        let define_current_function kind param_envs =
          let body = Option.get opt_body in
 
-         (* if this class returns non primitive object, add a parameter to receive the object *)
+         (* if this class returns non primitive object,
+          * add a parameter to receive the object *)
          let returns_heavy_obj = is_heavy_object fenv_r.Env.fn_return_type in
 
          let func_ret_ty =
@@ -243,18 +245,19 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
        in
 
        match fenv_r.Env.fn_detail with
-       | Env.FnRecordNormal (def, kind, fenv_d) ->
+       | Env.FnRecordNormal (def, kind, fenv_spec) ->
           begin
-            define_current_function kind fenv_d.Env.fn_n_param_envs;
+            define_current_function kind fenv_spec.Env.fn_spec_param_envs;
             void_val
           end
 
-       | Env.FnRecordImplicit (def, kind) ->
+       | Env.FnRecordImplicit (def, kind, fenv_spec) ->
           begin
             match def with
             (* implicit & trivial *)
             | Env.FnDefDefaulted true ->
                begin
+                 assert(List.length fenv_spec.Env.fn_spec_param_envs = 0);
                  let r_value = match kind with
                    | Env.FnKindDefaultConstructor None
                    | Env.FnKindCopyConstructor None
@@ -268,7 +271,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
             (* implicit & non-trivial *)
             | Env.FnDefDefaulted false ->
                begin
-                 define_current_function kind [];
+                 define_current_function kind fenv_spec.Env.fn_spec_param_envs;
                  void_val
                end
             | _ -> failwith "[ICE] define implicit function"
@@ -435,6 +438,20 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
             in
             (array_elem_ptr, ty)
 
+         | TAst.StoArrayElemFromThis (ty, Some this_env, index) ->
+            let array_sto =
+              find_llval_by_env_with_force_generation ctx this_env
+            in
+            let zero = L.const_int (L.i32_type ctx.ir_context) 0 in
+            let llindex = L.const_int (L.i32_type ctx.ir_context) index in
+            let array_elem_ptr =
+              L.build_in_bounds_gep array_sto
+                                    [|zero; llindex|]
+                                    ""
+                                    ctx.Ctx.ir_builder
+            in
+            (array_elem_ptr, ty)
+
          | TAst.StoMemberVar (ty, Some venv, Some parent_fenv) ->
             let reciever_llval =
               match Env.FunctionOp.get_kind parent_fenv with
@@ -472,6 +489,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
          let (llvals, arg_tys, param_types) = match !storage_ref with
            | TAst.StoStack _
            | TAst.StoArrayElem _
+           | TAst.StoArrayElemFromThis _
            | TAst.StoMemberVar _ ->
               let (v, ty) = setup_storage !storage_ref in
               (v::llvals), (ty::arg_tys), (ty::param_types)
@@ -516,7 +534,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
               | _ -> failwith "[ICE] unexpected value"
             end
 
-         | Env.FnRecordImplicit (def, kind) ->
+         | Env.FnRecordImplicit (def, kind, _) ->
             begin
               let open Codegen_llvm_intrinsics in
               Debug.printf "gen value: debug / function implicit %s\n" fn_s_name;
@@ -563,6 +581,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
 
               (* non-trivial function *)
               | LLValue f -> call_func kind f
+
               | _ -> failwith "[ICE] unexpected"
             end
 
@@ -694,7 +713,9 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
 
        | Env.Variable (r) ->
           begin
-            Debug.printf "variable ty => %s\n" (Type.to_string r.Env.var_type);
+            Debug.printf "variable %s / type => %s\n"
+                         (Nodes.string_of_id_string name)
+                         (Type.to_string r.Env.var_type);
             let var_llr = try Ctx.find_val_by_env ctx rel_env with
                           | Not_found ->
                              begin
@@ -1286,6 +1307,26 @@ let inject_builtins ctx =
       L.build_pointercast args.(0) llptrty "" ctx.ir_builder
     in
     register_builtin_template_func "__builtin_take_address_from_array" f
+  in
+  let () =
+    let f param_tys args ctx =
+      let open Codegen_llvm_intrinsics in
+      assert (Array.length args = 1);
+      assert (List.length param_tys = 1);
+      let arr_ty = List.hd param_tys in
+
+      let to_obj = args.(0) in
+      let size_of = Type.size_of arr_ty in
+      let align_of = Type.align_of arr_ty in
+      let _ =
+        ctx.intrinsics.memset_i32 to_obj (Int8.of_int 0)
+                                  size_of align_of false ctx.ir_builder
+      in
+      to_obj
+    in
+    let open Builtin_info in
+    register_builtin_func
+      (make_builtin_default_ctor_name array_type_i.internal_name) f
   in
   let () =
     let f param_tys args ctx =

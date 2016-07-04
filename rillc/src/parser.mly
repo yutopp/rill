@@ -95,6 +95,7 @@ import_statement:
 function_decl_statement:
                 KEYWORD_DEF
                 name = rel_id_as_s
+                lifetimes = lifetime_parameter_decl_list?
                 opt_tparams = template_parameter_variables_decl_list?
                 params = parameter_variables_decl_list
                 ret_type = type_specifier?
@@ -127,6 +128,7 @@ function_lambda_block:
 member_function_declaration_statement:
                 KEYWORD_DEF
                 name = rel_id_as_s
+                lifetimes = lifetime_parameter_decl_list?
                 opt_tparams = template_parameter_variables_decl_list?
                 params = parameter_variables_decl_list
                 ret_type = type_specifier?
@@ -162,6 +164,18 @@ parameter_variable_initializer_unit:
                 rel_id_has_no_op_as_raw?
                 value_initializer_unit { ($1, $2, $3) }
 
+
+(**)
+lifetime_parameter_decl_list:
+                LT
+                separated_nonempty_list(COMMA, lifetime_var)
+                GT
+                { [] }
+
+lifetime_var:
+                BACKQUOTE
+                id = rel_id_has_no_op_as_raw
+                { id }
 
 (**)
 template_parameter_variables_decl_list:
@@ -267,6 +281,7 @@ extern_statement_:
 extern_function_statement:
                 KEYWORD_DEF
                 name = rel_id_as_s
+                lifetimes = lifetime_parameter_decl_list?
                 opt_tparams = template_parameter_variables_decl_list?
                 params = parameter_variables_decl_list
                 ml = meta_level
@@ -281,6 +296,7 @@ extern_function_statement:
 extern_class_statement:
                 KEYWORD_CLASS
                 name = rel_id_as_s
+                lifetimes = lifetime_parameter_decl_list?
                 opt_tparams = template_parameter_variables_decl_list?
                 ml = meta_level
                 ASSIGN

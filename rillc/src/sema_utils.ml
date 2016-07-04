@@ -82,6 +82,7 @@ let complete_class_env env node c_detail opt_layout =
   let _ = match opt_layout with
     | Some (size, align) ->
        r.Env.cls_size <- Some size;
+       assert(align >= Stdint.Uint32.of_int 1);
        r.Env.cls_align <- Some align;
     | None ->
        r.Env.cls_size <- None;
@@ -123,11 +124,12 @@ let check_is_args_valid ty =
   ()
 
 
-let register_builtin_type name inner_name meta_level opt_layout
+let register_builtin_type name inner_name mangled_name
+                          meta_level opt_layout
                           root_env type_gen =
   let create_extern_primitive_class name inner_name =
     let env_r = Env.ClassOp.empty_record name in
-    env_r.Env.cls_mangled <- Some inner_name;
+    env_r.Env.cls_mangled <- Some mangled_name;
 
     let env = Env.create_context_env root_env (
                                        Env.Class (Env.empty_lookup_table ~init:0 (),

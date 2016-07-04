@@ -139,8 +139,7 @@ module Make (Ctx : NodeContextType) =
       | GenericFuncDef of ast option * ctx_t
       | NestedExpr of ast * term_aux_t * term_ctx_t * ctx_t
 
-
-     and term_aux_t = (term_ctx_t * Value_category.t * Type_attr.lifetime_t * Meta_level.t * Loc.t)
+     and term_aux_t = (term_ctx_t * Value_category.t * Lifetime.t * Meta_level.t * Loc.t)
 
      (* attr * id? * value *)
      and param_init_t = Type_attr.attr_t * string option * value_init_t
@@ -165,7 +164,11 @@ module Make (Ctx : NodeContextType) =
        | StoGc
        | StoAgg of term_ctx_t
        | StoImm
+       (* type of element * index *)
        | StoArrayElem of term_ctx_t * int
+       (* type of element * env of this * index *)
+       | StoArrayElemFromThis of term_ctx_t * ctx_t * int
+       (* *)
        | StoMemberVar of term_ctx_t * ctx_t * ctx_t
 
     type t = ast
@@ -178,185 +181,184 @@ module Make (Ctx : NodeContextType) =
       | StoAgg _ -> Debug.printf "StoAgg\n"
       | StoImm -> Debug.printf "StoImm\n"
       | StoArrayElem _ -> Debug.printf "StoArrayElem\n"
+      | StoArrayElemFromThis _ -> Debug.printf "StoArrayElemFromThis\n"
       | StoMemberVar _ -> Debug.printf "StoMemberVar\n"
 
     let rec print ast =
-      let open Format in
       match ast with
       | Module (a, _, _, _, ctx) ->
          begin
-           open_hbox();
-           print_string "module";
-           print_newline();
+           Debug.printf "module\n";
            print a;
-           close_box();
-           print_newline ()
          end
 
       | StatementList asts ->
          begin
-           asts |> List.iter (fun a -> print a; print_newline())
+           Debug.printf "StatementList\n";
+           asts |> List.iter (fun a -> print a; Debug.printf "\n")
          end
 
       | ExprStmt _ ->
-         print_string "ExprStmt\n"
+         Debug.printf "ExprStmt\n"
 
       | FunctionDefStmt (id, _, _, _, statements, _, ctx) ->
          begin
-           open_hbox();
-           print_string "function def : "; print_string (string_of_id_string id); print_string "\n";
+           Debug.printf "function def : ";
+           Debug.printf "%s\n" (string_of_id_string id);
            print statements;
-           close_box()
          end
 
       | ExternFunctionDefStmt _ ->
-         print_string "ExternFunctionDefStmt\n"
+         Debug.printf "ExternFunctionDefStmt\n"
 
       | VariableDefStmt _ ->
-         print_string "VariableDefStmt\n"
+         Debug.printf "VariableDefStmt\n"
 
       | EmptyStmt ->
          begin
-           open_hbox();
-           print_string "EMPTY";
-           close_box()
+           Debug.printf "EMPTY\n";
          end
-
 
       | BinaryOpExpr (lhs, op, rhs, _) ->
          begin
+           Debug.printf "binary\n";
            print lhs; print op; print rhs
          end
 
       | UnaryOpExpr (op, expr, _) ->
          begin
+           Debug.printf "unary\n";
            print op; print expr
          end
 
       | ElementSelectionExpr (recv, sel, _) ->
          begin
-           print recv; print_string "."; print sel
+           Debug.printf "element selector\n";
+           print recv; Debug.printf "."; print sel
          end
 
       | CallExpr (recv, args, _) ->
          begin
-           print recv; print_string "(\n";
-           List.iter (fun arg -> print arg; print_string ",\n") args;
-           print_string ")\n"
+           Debug.printf "Call\n";
+           print recv; Debug.printf "(\n";
+           List.iter (fun arg -> print arg; Debug.printf ",\n") args;
+           Debug.printf ")\n"
          end
 
       | Id (name, _) ->
          begin
-           print_string "id{"; print_string (string_of_id_string name); print_string "}"
+           Debug.printf "id{";
+           Debug.printf "%s" (string_of_id_string name);
+           Debug.printf "}"
          end
 
       | ReturnStmt _ ->
          begin
-           print_string "return"
+           Debug.printf "return\n"
          end
       | ImportStmt _ ->
          begin
-           print_string "import"
+           Debug.printf "import\n"
          end
       | MemberFunctionDefStmt _ ->
          begin
-           print_string "member function"
+           Debug.printf "member function\n"
          end
       | ClassDefStmt _ ->
          begin
-           print_string "class def"
+           Debug.printf "class def\n"
          end
       | ExternClassDefStmt _ ->
          begin
-           print_string "extern class def"
+           Debug.printf "extern class def\n"
          end
       | MemberVariableDefStmt _ ->
          begin
-           print_string "member variable def"
+           Debug.printf "member variable def\n"
          end
       | TemplateStmt _ ->
          begin
-           print_string "template"
+           Debug.printf "template\n"
          end
       | AttrWrapperStmt _ ->
          begin
-           print_string "attr wrapper"
+           Debug.printf "attr wrapper\n"
          end
       | SubscriptingExpr _ ->
          begin
-           print_string "sub scripting"
+           Debug.printf "sub scripting\n"
          end
       | NewExpr _ ->
          begin
-           print_string "new"
+           Debug.printf "new\n"
          end
       | DeleteExpr _ ->
          begin
-           print_string "delete"
+           Debug.printf "delete\n"
          end
       | StatementTraitsExpr _ ->
          begin
-           print_string "stmt traits"
+           Debug.printf "stmt traits\n"
          end
       | InstantiatedId _ ->
          begin
-           print_string "InstantiatedId"
+           Debug.printf "InstantiatedId\n"
          end
       | IntLit (v, bits, signed, _) ->
          begin
-           Printf.printf "Int32Lit %d" v
+           Printf.printf "Int32Lit %d\n" v
          end
       | BoolLit _ ->
          begin
-           print_string "BoolLit"
+           Debug.printf "BoolLit\n"
          end
       | StringLit _ ->
          begin
-           print_string "StringLit"
+           Debug.printf "StringLit\n"
          end
       | ArrayLit _ ->
          begin
-           print_string "ArrayLit"
+           Debug.printf "ArrayLit\n"
          end
       | Error ->
          begin
-           print_string "Error"
+           Debug.printf "Error\n"
          end
       | ParamsList _ ->
          begin
-           print_string "ParamsList"
+           Debug.printf "ParamsList\n"
          end
       | TemplateParamsList _ ->
          begin
-           print_string "TemplateParamsList"
+           Debug.printf "TemplateParamsList\n"
          end
       | VarInit _ ->
          begin
-           print_string "VarInit"
+           Debug.printf "VarInit\n"
          end
       | PrevPassNode _ ->
          begin
-           print_string "PrevPassNode"
+           Debug.printf "PrevPassNode\n"
          end
       | NotInstantiatedNode _ ->
          begin
-           print_string "NotInstantiatedNode"
+           Debug.printf "NotInstantiatedNode\n"
          end
       | GenericId _ ->
          begin
-           print_string "GenericId"
+           Debug.printf "GenericId\n"
          end
       | GenericCallExpr _ ->
          begin
-           print_string "GenericCallExpr"
+           Debug.printf "GenericCallExpr\n"
          end
       | GenericFuncDef _ ->
          begin
-           print_string "GenericFuncDef"
+           Debug.printf "GenericFuncDef\n"
          end
       | NestedExpr _ ->
          begin
-           print_string "NestedExpr"
+           Debug.printf "NestedExpr\n"
          end
-      | _ -> print_string "unknown"
+      | _ -> Debug.printf "unknown\n"
   end

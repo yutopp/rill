@@ -18,12 +18,6 @@ type mut_t =
   | Mutable
   | MutUndef
 
-type lifetime_t =
-    Static
-  | ThreadLocal
-  | Scoped of Lifetime.t
-  | LifetimeUndef
-
 type attr_t = {
   ta_ref_val    : ref_val_t;
   ta_mut        : mut_t;

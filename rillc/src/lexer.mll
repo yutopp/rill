@@ -127,6 +127,7 @@ rule token = parse
   | '.'                 { DOT }
   | ':'                 { COLON }
   | ';'                 { SEMICOLON }
+  | '`'                 { BACKQUOTE }
 
   | eof                 { EOF }
 

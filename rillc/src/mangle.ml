@@ -2,22 +2,20 @@ open Batteries
 
 let rec s_of_ctfe_val value tset =
   let open Type_sets in
-  let ty = match value with
-    | Ctfe_value.Type _ ->
-       tset.ts_type_type
+  let (ty, sv) = match value with
+    | Ctfe_value.Type ty ->
+       (tset.ts_type_type, s_of_type ty)
     | Ctfe_value.Bool _ ->
-       !(tset.ts_bool_type_holder)
+       (!(tset.ts_bool_type_holder), (Ctfe_util.to_string value))
     | Ctfe_value.Int32 _ ->
-       !(tset.ts_int32_type_holder)
+       (!(tset.ts_int32_type_holder), (Ctfe_util.to_string value))
     | Ctfe_value.Uint32 _ ->
-       !(tset.ts_uint32_type_holder)
+       (!(tset.ts_uint32_type_holder), (Ctfe_util.to_string value))
   (*| Ctfe_value.Int64 _ ->
        !(tset.ts_int64_type_holder)*)
     | _ -> failwith "[ICE] s_of_ctfe_val"
   in
-  Printf.sprintf "V%s%s"
-                 (s_of_type ty)
-                 (Ctfe_util.to_string value)
+  Printf.sprintf "V%s%s" (s_of_type ty) sv
 
 and s_of_type ty =
   let c_env = Type.as_unique ty in
@@ -60,9 +58,14 @@ and s_of_symbol sym =
 
 
 and s_of_id_string full_module_name id_name =
-  let s_mod_name = full_module_name |> List.map s_of_string |> String.concat "" in
+  let mod_num = List.length full_module_name in
   let s_name = id_name |> s_of_symbol in
-  Printf.sprintf "%s%s" s_mod_name s_name
+  match full_module_name with
+  | ["core"; "builtin"] ->  (* TODO: fix *)
+     Printf.sprintf "B%s" s_name
+  | _ ->
+     let s_mod_name = full_module_name |> List.map s_of_string |> String.concat "" in
+     Printf.sprintf "M%d_%s_%s" mod_num s_mod_name s_name
 
 
 and s_of_class full_module_name id_name template_args tset =

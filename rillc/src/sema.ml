@@ -26,6 +26,7 @@ let make_default_context root_env module_search_dirs =
   let type_type =
     register_builtin_type type_type_i.external_name
                           type_type_i.internal_name
+                          type_type_i.mangled_name
                           Meta_level.OnlyMeta
                           (Some (Stdint.Uint32.of_int 8, Stdint.Uint32.of_int 8))
                           root_env type_gen
@@ -33,6 +34,7 @@ let make_default_context root_env module_search_dirs =
   let void_type =
     register_builtin_type void_type_i.external_name
                           void_type_i.internal_name
+                          void_type_i.mangled_name
                           Meta_level.Meta
                           None          (* TODO: fix *)
                           root_env type_gen

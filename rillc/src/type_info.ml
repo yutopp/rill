@@ -22,8 +22,8 @@ type 'env t = {
 
  and 'env type_sort_t =
     UniqueTy of 'env
-  | ClassSetTy of 'env
-  | FunctionSetTy of 'env
+  | ClassSetTy of 'env      (* for specialize *)
+  | FunctionSetTy of 'env   (* for overload *)
   | Undef
   | NotDetermined of Unification.id_t
 

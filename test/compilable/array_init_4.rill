@@ -1,0 +1,7 @@
+def main() {
+    val arr = array!(A, 3u)();
+}
+
+class A {
+    def ctor() {}
+}

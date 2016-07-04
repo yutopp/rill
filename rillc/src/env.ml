@@ -65,6 +65,7 @@ type 'ast env_t = {
   | Scope of 'ast lookup_table_t
 
   | MetaVariable of Unification.id_t
+  | LifetimeVariable of Lifetime.t
 
   | Unknown
 
@@ -84,7 +85,8 @@ type 'ast env_t = {
    mutable ms_normal_instances      : 'ast env_t list;
    mutable ms_template_instances    : 'ast env_t list;
 
-   ms_instanced_args_memo           : (string, 'ast env_t) Hashtbl.t;
+   ms_instanced_args_cache_for_env  : (string, 'ast env_t) Hashtbl.t;
+   ms_instanced_args_cache_for_node : (string, 'ast) Hashtbl.t;
  }
 
 
@@ -118,8 +120,8 @@ type 'ast env_t = {
    mutable fn_detail                : 'ast function_record_var;
  }
  and 'ast function_record_var =
-   | FnRecordNormal of function_def_var * 'ast function_kind_var * 'ast function_record_normal
-   | FnRecordImplicit of function_def_var * 'ast function_kind_var
+   | FnRecordNormal of function_def_var * 'ast function_kind_var * 'ast function_spec
+   | FnRecordImplicit of function_def_var * 'ast function_kind_var * 'ast function_spec
    | FnRecordExternal of function_def_var * 'ast function_kind_var * string
    | FnRecordBuiltin of function_def_var * 'ast function_kind_var * string
    | FnUndef
@@ -135,15 +137,15 @@ type 'ast env_t = {
  and 'ast function_kind_var =
    | FnKindFree
    | FnKindMember
+   (* 'ast env_t option is a variable of reciever *)
    | FnKindDefaultConstructor of 'ast env_t option
    | FnKindCopyConstructor of 'ast env_t option
    | FnKindMoveConstructor of 'ast env_t option
    | FnKindConstructor of 'ast env_t option
    | FnKindDestructor of 'ast env_t option
 
-
- and 'ast function_record_normal = {
-   fn_n_param_envs  : 'ast env_t option list;
+ and 'ast function_spec = {
+   fn_spec_param_envs  : 'ast env_t option list;
  }
 
 
@@ -237,7 +239,7 @@ let get_scope_lifetime env =
       Some e -> e
     | None -> failwith ""
   in
-  Type_attr.Scoped (ctx_env.env_id, env.nest_level)
+  Lifetime.LtDynamic (ctx_env.env_id, env.nest_level)
 
 let is_root e =
   let { er = er; _ } = e in
@@ -484,16 +486,17 @@ module MultiSetOp =
 
       (* *)
       | None ->
-         let e = create_scoped_env env
-                                   (MultiSet {
-                                        ms_kind = k;
-                                        ms_templates = [];
-                                        ms_normal_instances = [];
-                                        ms_template_instances = [];
-                                        ms_instanced_args_memo = Hashtbl.create 0
-                                      })
-                                   None
+         let er =
+           MultiSet {
+               ms_kind = k;
+               ms_templates = [];
+               ms_normal_instances = [];
+               ms_template_instances = [];
+               ms_instanced_args_cache_for_env = Hashtbl.create 0;
+               ms_instanced_args_cache_for_node = Hashtbl.create 0;
+             }
          in
+         let e = create_scoped_env env er None in
          add_inner_env env name e;
          (e, true)
 
@@ -528,7 +531,7 @@ module FunctionOp =
       let er = get_record env in
       match er.fn_detail with
       | FnRecordNormal (stat, _, _) -> stat
-      | FnRecordImplicit (stat, _) -> stat
+      | FnRecordImplicit (stat, _, _) -> stat
       | FnRecordExternal (stat, _, _) -> stat
       | FnRecordBuiltin (stat, _, _) -> stat
       | _ -> failwith ""
@@ -543,7 +546,7 @@ module FunctionOp =
       let er = get_record env in
       match er.fn_detail with
       | FnRecordNormal (_, kind, _) -> kind
-      | FnRecordImplicit (_, kind) -> kind
+      | FnRecordImplicit (_, kind, _) -> kind
       | FnRecordExternal (_, kind, _) -> kind
       | FnRecordBuiltin (_, kind, _) -> kind
       | _ -> failwith ""
@@ -599,6 +602,10 @@ module ClassOp =
          cls_default_ctor = None;
          cls_copy_ctor = None;
       }
+
+    let is_primitive env =
+      let er = get_record env in
+      er.cls_traits.cls_traits_is_primitive
 
     let push_member_variable env venv =
       let r = get_record env in

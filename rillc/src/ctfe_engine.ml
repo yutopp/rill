@@ -66,7 +66,6 @@ let invoke_function engine fname ret_ty type_sets =
      begin
        let cfunc_ty = Ctypes.void @-> returning Ctypes.int64_t in
        let ret_val = call_by_type cfunc_ty in
-       Debug.printf "=========> %s\n" (Int64.to_string ret_val);
 
        let ty =
          Type.Generator.find_type_by_cache_id type_sets.ts_type_gen ret_val in
@@ -106,7 +105,7 @@ let invoke_function engine fname ret_ty type_sets =
 let execute engine expr_node expr_ty type_sets =
   let module CgCtx = Codegen_llvm.Ctx in
   (* TODO: add cache... *)
-  Debug.printf "JIT ==== execute!!!\n";
+  (*Debug.printf "JIT ==== execute!!!\n";*)
 
   (* save the module which has previous definitions to JIT engine *)
   LE.add_module engine.cg_ctx.CgCtx.ir_module engine.exec_engine;
@@ -140,7 +139,7 @@ let execute engine expr_node expr_ty type_sets =
       ignore @@ L.build_ret expr_llval ir_builder;
 
       Llvm_analysis.assert_valid_function f;
-      Codegen_llvm.debug_dump_value f;
+      (*Codegen_llvm.debug_dump_value f;*)
 
       (**)
       LE.add_module ir_mod engine.exec_engine;

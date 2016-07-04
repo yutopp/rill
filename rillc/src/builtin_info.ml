@@ -13,7 +13,7 @@ type bulitin_class_info_t = {
 let type_type_i = {
   external_name = "type";
   internal_name = "__builtin_type_type";
-  mangled_name = "";
+  mangled_name = "t";
 }
 
 let void_type_i = {

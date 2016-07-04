@@ -1,0 +1,12 @@
+def main() {
+    val arr = [A(), A(), A()];
+}
+
+
+
+class A {
+    def ctor() {}
+
+    // user provided copy ctor
+    def ctor(rhs: A) {}
+}

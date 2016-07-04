@@ -21,7 +21,7 @@
                         LBLOCK RBLOCK
                         LBRACKET RBRACKET
 %token                  COMMA DOT
-                        COLON SEMICOLON
+                        COLON SEMICOLON BACKQUOTE
                         FAT_ARROW SHARP
 %token                  EOF
 %token                  LIT_TRUE LIT_FALSE
