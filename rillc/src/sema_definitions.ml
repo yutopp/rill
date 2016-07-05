@@ -60,6 +60,9 @@ module FuncMatchLevel =
 let ctor_name = "ctor"
 let ctor_id_name = Nodes.Pure ctor_name
 
+let dtor_name = "dtor"
+let dtor_id_name = Nodes.Pure dtor_name
+
 let assign_name = Nodes.BinaryOp "="
 
 (* default qual *)

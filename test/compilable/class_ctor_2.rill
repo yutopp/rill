@@ -1,0 +1,10 @@
+import std.stdio;
+
+def main() {
+    B();
+}
+
+class B { val v: A; }
+class A {
+    def ctor() {}
+}

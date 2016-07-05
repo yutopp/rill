@@ -1,0 +1,9 @@
+def main() {
+    val b = B();
+    val b2 = b;
+}
+
+class B { val v: A; }
+class A {
+    def ctor(rhs: A) {}
+}

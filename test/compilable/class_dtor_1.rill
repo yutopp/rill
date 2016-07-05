@@ -1,0 +1,10 @@
+import std.stdio;
+
+def main() {
+    val a = A();
+}
+
+class A {
+    def dtor() {
+    }
+}

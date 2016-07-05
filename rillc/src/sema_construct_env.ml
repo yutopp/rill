@@ -197,9 +197,8 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        match name with
        | Nodes.Pure s when s = ctor_name ->
           begin
-            (* this function is constructor. TODO: check default/copy/move/other
-             * currently, treat as normal ctor *)
-            let ty = make_class_type ctx_env Type_attr.Val Type_attr.Const ctx in
+            (* this function is constructor. *)
+            let ret_ty = make_class_type ctx_env Type_attr.Val Type_attr.Const ctx in
 
             (* check parameters *)
             let (params, param_kinds, param_venvs) =
@@ -211,7 +210,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
             in
 
             (* interface of normal constructor: params -> TYPE *)
-            check_function_env env param_kinds Meta_level.Meta ty false;
+            check_function_env env param_kinds Meta_level.Meta ret_ty false;
 
             (* prepare "this" special var *)(* TODO: consider member qual *)
             let this_ty = make_class_type ctx_env
@@ -233,7 +232,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                  Env.FnKindCopyConstructor (Some this_venv)
               | Env.FnKindConstructor _ ->
                  Env.FnKindConstructor (Some this_venv)
-              | _ -> failwith "[ICE] not supported kind of constructor"
+              | _ -> failwith "[ERR] not supported kind of constructor"
             in
 
             let fn_spec = {
@@ -246,6 +245,54 @@ let rec construct_env node parent_env ctx opt_chain_attr =
 
             (node, void_t)
           end
+
+       | Nodes.Pure s when s = dtor_name ->
+          (* this function is destructor. *)
+          let ret_ty = get_builtin_void_incomplete_type ctx in
+          (* TODO: consider member qual *)
+          let this_ty = make_class_type ctx_env
+                                        Type_attr.Ref Type_attr.Mutable
+                                        ctx in
+          (* check parameters *)
+          let _ =
+            let (_, param_kinds, _) =
+              prepare_params env [] params_node ctx opt_attr
+            in
+            (* default parametes is also not allowed *)
+            match param_kinds with
+            | [] -> ()
+            | _ -> failwith "[ERR] destructor cannot have parameters"
+          in
+          (* check return type *)
+          let _ = match opt_ret_type with
+            | None -> ()
+            | Some _ -> failwith "[ERR] destructor cannot have return type"
+          in
+
+          (* interface of normal constructor: TYPE(implicit this) -> TYPE *)
+          let param_kinds = [Env.FnParamKindType this_ty] in
+          check_function_env env param_kinds Meta_level.Meta ret_ty false;
+
+          (* prepare "this" special var *)
+          let (name, this_venv) = make_parameter_venv env "this" this_ty ctx in
+          Env.add_inner_env env name this_venv;
+
+          (* analyze body *)
+          let nbody = analyze_inner body env ctx opt_attr in
+
+          Debug.printf "function %s - complete\n" name_s;
+          let node = TAst.GenericFuncDef (Some nbody, Some env) in
+
+          let kind = Env.FnKindDestructor None in
+          let fn_spec = {
+            Env.fn_spec_param_envs = [Some this_venv];
+          } in
+          let detail =
+            Env.FnRecordNormal (Env.FnDefProvidedByUser, kind, fn_spec)
+          in
+          complete_function_env env node ctor_id_name detail ctx;
+
+          (node, void_t)
 
        | _ ->
           begin
@@ -658,24 +705,52 @@ let rec construct_env node parent_env ctx opt_chain_attr =
            check_function_env fenv [Env.FnParamKindType rhs_ty] Meta_level.Meta ty false;
            complete_function_env fenv node ctor_id_name detail ctx;
          in
-         (*let define_defaulted_copy_ctor () =
+         let define_defaulted_copy_ctor () =
+           let rhs_ty = make_class_type env Type_attr.Ref Type_attr.Const ctx in
            let fenv = declare_incomple_ctor env in
            Sema_utils.register_copy_ctor_to_class_env env fenv;
 
+           (* interface of copy constructor: TYPE -> TYPE *)
+           check_function_env fenv [Env.FnParamKindType rhs_ty] Meta_level.Meta ty false;
+
+           (* prepare "this" special var *)(* TODO: consider member qual *)
+           let this_ty = make_class_type env
+                                         Type_attr.Ref Type_attr.Mutable
+                                         ctx in
+           let (name, this_venv) = make_parameter_venv fenv "this" this_ty ctx in
+           Env.add_inner_env fenv name this_venv;
+
+           let (name, rhs_venv) = make_parameter_venv fenv "rhs" rhs_ty ctx in
+           Env.add_inner_env fenv name rhs_venv;
+
+           let src_node = Ast.Id (Nodes.Pure "rhs", None) in
            let construct_implicit_copy_ctor_body_ast () =
              let member_var_default_ctors =
                let f venv =
                  let venv_r = Env.VariableOp.get_record venv in
+
+                 let rhs_elem =
+                   let trg_node = Ast.Id (Nodes.Pure venv_r.Env.var_name, None) in
+                   let rhs_node = Ast.ElementSelectionExpr (src_node, trg_node, None) in
+                   analyze_expr ~making_placeholder:false rhs_node fenv ctx None
+                 in
+
+                 let venv_r = Env.VariableOp.get_record venv in
                  let var_ty = venv_r.Env.var_type in
                  let vcenv = Type.as_unique var_ty in
                  let vcenv_r = Env.ClassOp.get_record vcenv in
-                 let vdctor = match vcenv_r.Env.cls_default_ctor with
+                 let vdctor = match vcenv_r.Env.cls_copy_ctor with
                    | Some e -> e
                    | None -> failwith "[ICE] no ctor for thenmember"
                  in
+                 let (_, fs_and_args, _) =
+                   find_suitable_functions [vdctor] [rhs_elem] fenv ctx None
+                 in
+                 assert (List.length fs_and_args = 1);
+                 let fs_and_args = List.hd fs_and_args in
                  let call_inst =
                    let f_sto = TAst.StoMemberVar (var_ty, Some venv, Some fenv) in
-                   make_call_instruction (vdctor, [], []) None (Some f_sto) parent_env ctx
+                   make_call_instruction fs_and_args None (Some f_sto) parent_env ctx
                  in
                  let (t_ast, term) = call_inst in
                  t_ast
@@ -685,28 +760,27 @@ let rec construct_env node parent_env ctx opt_chain_attr =
              TAst.StatementList member_var_default_ctors
            in
 
-           (* prepare "this" special var *)(* TODO: consider member qual *)
-           let this_ty = make_class_type env
-                                         Type_attr.Ref Type_attr.Mutable
-                                         ctx in
-           let (name, this_venv) = make_parameter_venv fenv "this" this_ty ctx in
-           Env.add_inner_env fenv name this_venv;
+
 
            let body = construct_implicit_copy_ctor_body_ast () in
 
            let node = TAst.GenericFuncDef (Some body, Some fenv) in
+           let fn_spec = {
+             Env.fn_spec_param_envs = [Some rhs_venv];
+           } in
            let detail =
-             Env.FnRecordImplicit (Env.FnDefDefaulted false,
-                                   Env.FnKindDefaultConstructor (Some this_venv))
+             Env.FnRecordImplicit (Env.FnDefDefaulted false,    (* not trivial *)
+                                   Env.FnKindCopyConstructor (Some this_venv),
+                                   fn_spec)
            in
-           check_function_env fenv [] Meta_level.Meta ty false;
+
            complete_function_env fenv node ctor_id_name detail ctx;
-         in*)
+         in
          let _ = match cenv_r.cls_traits.cls_traits_copy_ctor_state with
            | Env.FnDefDefaulted true ->
               define_trvial_defaulted_copy_ctor ()
-           (*| Env.FnDefDefaulted false ->
-              define_defaulted_copy_ctor ()*)
+           | Env.FnDefDefaulted false ->
+              define_defaulted_copy_ctor ()
            | _ -> ()
          in
 
@@ -3231,6 +3305,7 @@ and constructor_kind param_kinds cenv ctx =
      Env.FnKindConstructor None
 
 
+(* helpers for defining ctor/dtor/assignments *)
 and define_trivial_default_ctor_for_builtin cenv extern_cname ctx =
   let ty = make_class_type cenv Type_attr.Val Type_attr.Const ctx in
   let fenv = declare_incomple_ctor cenv in
@@ -3301,25 +3376,20 @@ and define_default_ctor_for_builtin_array cenv extern_cname elem_ty total_num ct
 
 
 and define_trivial_copy_ctor_for_builtin cenv extern_cname ctx =
-  let define mut =
-    let ty = make_class_type cenv Type_attr.Val mut ctx in
-    let rhs_ty = make_class_type cenv Type_attr.Ref mut ctx in
-    let fenv = declare_incomple_ctor cenv in
+  let ret_ty = make_class_type cenv Type_attr.Val Type_attr.Const ctx in
+  let rhs_ty = make_class_type cenv Type_attr.Ref Type_attr.Const ctx in
+  let fenv = declare_incomple_ctor cenv in
 
-    let detail =
-      Env.FnRecordBuiltin (Env.FnDefDefaulted true,
-                           Env.FnKindCopyConstructor None,
-                           (Builtin_info.make_builtin_copy_ctor_name extern_cname))
-    in
-    (* interface of copy constructor: TYPE -> TYPE *)
-    check_function_env fenv [Env.FnParamKindType rhs_ty] Meta_level.Meta ty false;
-
-    let node = TAst.GenericFuncDef (None, Some fenv) in
-    complete_function_env fenv node ctor_id_name detail ctx
+  let detail =
+    Env.FnRecordBuiltin (Env.FnDefDefaulted true,
+                         Env.FnKindCopyConstructor None,
+                         (Builtin_info.make_builtin_copy_ctor_name extern_cname))
   in
-  define Type_attr.Immutable;
-  define Type_attr.Const;
-(*define Type_attr.Mutable;*)
+  (* interface of copy constructor: TYPE -> TYPE *)
+  check_function_env fenv [Env.FnParamKindType rhs_ty] Meta_level.Meta ret_ty false;
+
+  let node = TAst.GenericFuncDef (None, Some fenv) in
+  complete_function_env fenv node ctor_id_name detail ctx
 
 and define_copy_ctor_for_builtin_array cenv extern_cname elem_ty total_num ctx =
   let ret_ty = make_class_type cenv Type_attr.Val Type_attr.Const ctx in
@@ -3334,7 +3404,7 @@ and define_copy_ctor_for_builtin_array cenv extern_cname elem_ty total_num ctx =
   let (name, this_venv) = make_parameter_venv fenv "this" this_ty ctx in
   Env.add_inner_env fenv name this_venv;
 
- let (name, rhs_venv) = make_parameter_venv fenv "rhs" rhs_ty ctx in
+  let (name, rhs_venv) = make_parameter_venv fenv "rhs" rhs_ty ctx in
   Env.add_inner_env fenv name rhs_venv;
 
   let elem_ty_cenv = Type.as_unique elem_ty in
@@ -3406,7 +3476,7 @@ and define_trivial_copy_assign_for_builtin cenv extern_cname ctx =
   let node = TAst.GenericFuncDef (None, Some fenv) in
   complete_function_env fenv node assign_name detail ctx
 
-
+(* TODO: fix them *)
 and get_builtin_void_incomplete_type ctx : 'env type_info =
   ctx.sc_tsets.ts_void_type
 
