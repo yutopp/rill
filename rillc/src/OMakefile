@@ -85,6 +85,7 @@ if $(equal $(RELEASE), true)
    # do nothing...
 else
    OCAMLFLAGS    += -g -bin-annot
+   OCAMLPACKS    += bisect_ppx
    export
 
 # OCAMLCFLAGS   +=
@@ -204,7 +205,7 @@ uninstall:
     rm-if-exists($(BIN_DIR)/$(PROGRAM))
 
 clean:
-    rm -f *~ *.opt *.cmi *.cmx *.cmt *.cmti *.cmxa *.omc \
+    rm -f *~ *.opt *.cmi *.cmx *.cmt *.cmti *.cmp *.cmxa *.omc \
 		*.o *.a *.out *.s *.bc *.log *.cache $(PROGRAM) \
 		parser.ml parser.mli tokens.ml tokens.mli lexer.ml \
 		parser_messages.ml syntax.messages.pre \

@@ -22,7 +22,7 @@
 # Phony targets are scoped, so you probably want to declare them first.
 #
 
-.PHONY: clean test_all
+.PHONY: clean clean_coverage test_all
 
 
 ########################################################################
@@ -87,8 +87,11 @@ build_runner: $(OCamlProgram $(PROGRAM), $(FILES))
 
 ########################################################################
 #
-test_all: $(PROGRAM)
+test_all: clean_coverage $(PROGRAM)
 	./$(PROGRAM)
 
 clean:
 	rm -f *~ *.opt *.cmi *.cmx *.o *.omc *.log *.cache *.bc *.o *.out $(PROGRAM)
+
+clean_coverage:
+    rm -f bisect-*.out

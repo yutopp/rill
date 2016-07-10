@@ -1,5 +1,6 @@
 bin/
 build/
+coverage/
 *.out
 *.obj
 *.opt
@@ -21,6 +22,7 @@ s.sh
 *.cmt
 *.cmti
 *.cmx
+*.cmp
 *.o
 
 *.bc

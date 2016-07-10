@@ -55,9 +55,9 @@ let show_reports files stats =
   Printf.printf "SUCCESS (%03d/%03d) : FAILURE (%03d/%03d) : UNKNOWN (%03d/%03d)\n" succ_num total_num fail_num total_num unk_num total_num;
   ()
 
-let run_executable bin_path args stdin stdout stderr =
+let run_executable bin_path args env stdin stdout stderr =
   let pid =
-    Unix.create_process bin_path args stdin stdout stderr
+    Unix.create_process_env bin_path args env stdin stdout stderr
   in
   let (rpid, ps) = Unix.waitpid [] pid in
   let stat = match ps with
@@ -84,12 +84,10 @@ let run_executable_test executable_filename ctx =
   let fd_stdout = Unix.openfile filename_output_stdout [Unix.O_RDWR] 0600 in
   let filename_output_stderr = Filename.temp_file "rill-run-test-" "-pipe-stderr" in
   let fd_stderr = Unix.openfile filename_output_stderr [Unix.O_RDWR] 0600 in
-  let args = Array.of_list ([
-                             executable_filename
-                           ])
-  in
+  let args = [|executable_filename|] in
+  let env = Unix.environment () in
   let executable_path = Filename.concat (Unix.getcwd()) executable_filename in
-  let stat = run_executable executable_path args Unix.stdin fd_stdout fd_stderr in
+  let stat = run_executable executable_path args env Unix.stdin fd_stdout fd_stderr in
   Unix.close fd_stdout;
   Unix.close fd_stderr;
 
@@ -122,7 +120,8 @@ let run_compilable_tests base_dir files ctx =
     Printf.printf "\n";
     flush_all ();
 
-    let casename = Printf.sprintf "%03d-%s.out" i (Filename.chop_extension filename) in
+    let casename = Printf.sprintf "%03d-%s" (i+1) (Filename.chop_extension filename) in
+    let executable_name = Printf.sprintf "%s.out" casename in
     let file_fullpath = Filename.concat base_dir filename in
 
     let filename_output = Filename.temp_file "rill-run-test-" "-pipe" in
@@ -130,10 +129,18 @@ let run_compilable_tests base_dir files ctx =
     let args = Array.of_list ([
                                ctx.compiler_bin;
                                file_fullpath;
-                               "-o"; casename;
+                               "-o"; executable_name;
                              ] @ ctx.compiler_options)
     in
-    let stat = run_executable ctx.compiler_bin args Unix.stdin fd fd in
+    let env =
+      Array.concat [
+          Unix.environment ();
+          [|
+            Printf.sprintf "BISECT_FILE=bisect-%s" casename
+           |]
+        ]
+    in
+    let stat = run_executable ctx.compiler_bin args env Unix.stdin fd fd in
     Unix.close fd;
 
     if is_failure stat then
@@ -143,7 +150,7 @@ let run_compilable_tests base_dir files ctx =
     flush_all ();
 
     if is_success stat then
-      run_executable_test casename ctx
+      run_executable_test executable_name ctx
     else
       stat
   in
