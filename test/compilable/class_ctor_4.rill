@@ -1,0 +1,9 @@
+def main()
+{
+    A(10);
+}
+
+class A {
+    def ctor(ref v: int32) {
+    }
+}

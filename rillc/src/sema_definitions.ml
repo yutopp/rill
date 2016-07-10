@@ -11,7 +11,10 @@ open Sema_context
 
 type type_gen_t = env_t Type.Generator.t
 
-type conv_filter_t = (type_info_t * env_t) option
+type conv_filter_t =
+  | Trans of type_info_t
+  | ConvFunc of type_info_t * env_t
+
 type earg_t = TAst.ast * TAst.term_aux_t
 
 module FuncMatchLevel =
@@ -88,7 +91,7 @@ let type_of_earg earg =
   let (ty, _, _, _, pos) = aux in
   ty
 
-module Error = struct
+module ErrorMsg = struct
   module ArgPosMap = Map.Make(Int)
 
   type t =
@@ -174,13 +177,11 @@ module Error = struct
 
     | Msg msg ->
        Printf.printf "\n------------------\nError:\n %s\n\n-------------------\n" msg
-
-
 end
 
-exception NError of Error.t
+exception NError of ErrorMsg.t
 let error err =
   raise (NError err)
 
 let error_msg msg =
-  raise (NError (Error.Msg msg))
+  raise (NError (ErrorMsg.Msg msg))

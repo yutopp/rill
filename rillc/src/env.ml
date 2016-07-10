@@ -42,12 +42,14 @@ type 'ast env_t = {
    parent_env           : 'ast env_t option;
    context_env          : 'ast env_t option;
    module_env           : 'ast env_t option;
-   nest_level           : NestLevel.t;
    er                   : 'ast env_record_t;
    mutable state        : checked_state_t;
    mutable closed       : bool;
    mutable meta_level   : Meta_level.t;
    mutable rel_node     : 'ast option;
+
+   nest_level           : NestLevel.t;
+   mutable region_count : int;  (* TODO: fix *)
 
    (* information for error message *)
    loc                  : Nodes.Loc.t;
@@ -180,6 +182,7 @@ type 'ast env_t = {
 
  and class_traits_t = {
    cls_traits_is_primitive              : bool;
+   cls_traits_is_always_value           : bool;
    cls_traits_has_user_defined_ctor     : bool;
    cls_traits_default_ctor_state        : function_def_var;
    cls_traits_copy_ctor_state           : function_def_var;
@@ -207,12 +210,15 @@ let undef () =
     parent_env = None;
     context_env = None;
     module_env = None;
-    nest_level = NestLevel.zero;
     er = Unknown;
     state = InComplete;
     closed = false;
     meta_level = Meta_level.Meta;
     rel_node = None;
+
+    nest_level = NestLevel.zero;
+    region_count = 0;
+
     loc = None;
   }
 
@@ -234,12 +240,18 @@ let get_symbol_table env =
   let lt = get_lookup_table env in
   lt.scope
 
+
 let get_scope_lifetime env =
   let ctx_env = match env.context_env with
       Some e -> e
     | None -> failwith ""
   in
-  Lifetime.LtDynamic (ctx_env.env_id, env.nest_level)
+  Lifetime.LtDynamic (ctx_env.env_id, env.nest_level, env.region_count)
+
+let make_scope_lifetime env =
+  env.region_count <- env.region_count + 1;
+  get_scope_lifetime env
+
 
 let is_root e =
   let { er = er; _ } = e in
@@ -366,13 +378,15 @@ let create_context_env parent_env er loc =
     parent_env = Some parent_env;
     context_env = Some e;       (* self reference *)
     module_env = opt_mod_env;
-    nest_level = NestLevel.add parent_env.nest_level NestLevel.one;
     er = er;
 
     state = InComplete;
     closed = false;
     meta_level = Meta_level.Meta;
     rel_node = None;
+
+    nest_level = NestLevel.add parent_env.nest_level NestLevel.one;
+    region_count = 0;
 
     loc = loc;
   } in
@@ -392,13 +406,15 @@ let create_scoped_env parent_env er loc =
     parent_env = Some parent_env;
     context_env = parent_env.context_env;
     module_env = opt_mod_env;
-    nest_level = NestLevel.add parent_env.nest_level NestLevel.one;
     er = er;
 
     state = InComplete;
     closed = false;
     meta_level = Meta_level.Meta;
     rel_node = None;
+
+    nest_level = NestLevel.add parent_env.nest_level NestLevel.one;
+    region_count = 0;
 
     loc = loc;
   }
@@ -443,12 +459,16 @@ let make_root_env () =
     parent_env = None;
     context_env = None;
     module_env = None;
-    nest_level = NestLevel.zero;
+
     er = Root (tbl);
     state = Complete;
     closed = false;
     meta_level = Meta_level.Meta;
     rel_node = None;
+
+    nest_level = NestLevel.zero;
+    region_count = 0;
+
     loc = None;
   }
 
@@ -585,6 +605,7 @@ module ClassOp =
     let empty_record name =
       let default_traits = {
         cls_traits_is_primitive = false;
+        cls_traits_is_always_value = false;
         cls_traits_has_user_defined_ctor = false;
         cls_traits_default_ctor_state = FnDefDefaulted true;
         cls_traits_copy_ctor_state = FnDefDefaulted true;

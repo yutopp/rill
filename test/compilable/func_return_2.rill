@@ -1,0 +1,7 @@
+def main()
+{
+    g(f(10));
+}
+
+def f(ref v: int32): ref(int32) => v;
+def g(val v: int32) {}

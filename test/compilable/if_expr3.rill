@@ -4,5 +4,6 @@ def main()
 {
     val mutable a = 1;
     ref b = 3;
-    val c = if (true) a else b;
+    b.print();
+//    val c = if (true) a else b;
 }

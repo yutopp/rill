@@ -148,6 +148,7 @@ let register_builtin_type name inner_name mangled_name
     env_r.Env.cls_traits <- {
       env_r.Env.cls_traits with
       Env.cls_traits_is_primitive = true;
+      Env.cls_traits_is_always_value = true;
     };
     env
   in

@@ -1,0 +1,15 @@
+def main() {
+    val a = 10;
+    fv1(10); fv2(10); fv3(10);
+    fv1(a); fv2(a); fv3(a);
+    /*fr1(10);*/ fr2(10); fr3(10);
+    /*fr1(a);*/ fr2(a); fr3(a);
+}
+
+def fv1(val mutable i: int32) {}
+def fv2(val const i: int32) {}
+def fv3(val immutable i: int32) {}
+
+def fr1(ref mutable i: int32) {}
+def fr2(ref const i: int32) {}
+def fr3(ref immutable i: int32) {}

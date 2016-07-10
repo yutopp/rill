@@ -134,7 +134,7 @@ let execute engine expr_node expr_ty type_sets =
   (* generate a LLVM value from the expression *)
   try
     begin
-      let (expr_llval, _) =
+      let (expr_llval, _, is_addr) =
         Codegen_llvm.generate_code expr_node engine.cg_ctx in
       ignore @@ L.build_ret expr_llval ir_builder;
 
@@ -155,15 +155,15 @@ let execute engine expr_node expr_ty type_sets =
 
       L.delete_function f;
 
-      ctfe_val
+      (ctfe_val, is_addr)
     end
   with
   | Ctfe_exn.Meta_var_un_evaluatable uni_id ->
      begin
        L.delete_function f;
-       Ctfe_value.Undef uni_id
+       (Ctfe_value.Undef uni_id, false)
      end
 
 
-let register_metavar engine ctfe_val env =
-  Codegen_llvm.register_metaval ctfe_val env engine.cg_ctx
+let register_metavar engine ctfe_val is_addr env =
+  Codegen_llvm.register_metaval ctfe_val is_addr env engine.cg_ctx

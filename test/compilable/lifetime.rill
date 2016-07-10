@@ -1,0 +1,27 @@
+def main() {
+    val a = 1 + 2;
+}
+
+//def f() {
+//    val y = 0;
+//    {
+//        val x = 0;
+//        &y;
+//    };
+//}
+
+//def ref_1() => ref_2(42);
+//def ref_2(ref r: mutable(int32)) {
+////    r = 10;
+//}
+
+// make error
+//def test01() {
+//    val a = 10;     // lifetime is bounds to this scope
+//    return &a;
+//}
+
+//def test01(): raw_ptr<'(this scope)>!(int32) {
+//    val a = 10;     // lifetime is bounds to this scope
+//    return &a;
+//}

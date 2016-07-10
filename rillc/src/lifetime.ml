@@ -9,4 +9,4 @@
 type t =
   | LtStatic
   | LtHeap
-  | LtDynamic of Env_system.EnvId.t * Env_system.NestLevel.t
+  | LtDynamic of Env_system.EnvId.t * Env_system.NestLevel.t * int

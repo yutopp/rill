@@ -106,6 +106,8 @@ module Make (Ctx : NodeContextType) =
       | DeleteExpr of ast
       | StatementTraitsExpr of string * ast
 
+      | FinalyzeExpr of ast * ast list
+
       (*
        * values
        *)
@@ -138,6 +140,7 @@ module Make (Ctx : NodeContextType) =
       (* body, ctx *)
       | GenericFuncDef of ast option * ctx_t
       | NestedExpr of ast * term_aux_t * term_ctx_t * ctx_t
+      | StorageWrapperExpr of storage_t ref * ast
 
      and term_aux_t = (term_ctx_t * Value_category.t * Lifetime.t * Meta_level.t * Loc.t)
 

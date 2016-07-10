@@ -1,0 +1,10 @@
+def main()
+{
+    1 + 1;
+
+    val a = 42;
+    a + 1;
+
+    val mutable b = 72;
+    b + 1;
+}

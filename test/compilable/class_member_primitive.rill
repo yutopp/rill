@@ -1,0 +1,11 @@
+def main()
+{
+    val a = C();
+    a.m;
+    val c = a.m;
+}
+
+class C
+{
+    val m: int32;
+}

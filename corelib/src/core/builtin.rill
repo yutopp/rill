@@ -7,21 +7,26 @@ extern def sizeof(t: type) onlymeta: int32 = "__builtin_sizeof";
 extern def stringof!(T)(ref p: T): raw_ptr!(uint8) = "__builtin_stringof";
 
 //
-extern def malloc(:int32): untyped_raw_ptr = "rill_core_malloc";
+extern def malloc(val :int32): untyped_raw_ptr = "rill_core_malloc";
 extern def free(:untyped_raw_ptr): void = "rill_core_free";
 extern def free!(T)(:raw_ptr!(T)): void = "rill_core_free";
 
 // TODO: fix
-extern def memcpy(:raw_ptr!(uint8), :raw_ptr!(uint8), :int32): void = "rill_core_memcpy";
-extern def memset(:raw_ptr!(uint8), :uint8, :int32): void = "rill_core_memset";
+extern def memcpy(val :raw_ptr!(uint8), val :raw_ptr!(uint8), :int32): void = "rill_core_memcpy";
+extern def memset(val :raw_ptr!(uint8), val :uint8, val :int32): void = "rill_core_memset";
 
 #[builtin]
-extern def unsafe_ptr_cast!(T)(:untyped_raw_ptr): raw_ptr!(T) = "__builtin_unsafe_ptr_cast";
+extern def unsafe_ptr_cast!(T)(val :untyped_raw_ptr): raw_ptr!(T) = "__builtin_unsafe_ptr_cast";
 
 def new!(T)() {
     val p = malloc(sizeof!(T)());
     return p;
 }
+
+//
+#[builtin]
+extern def operator unary& (ref :int32): raw_ptr!(int32) = "__builtin_make_ptr_from_ref";
+
 
 //def to!(T)(v: int32) when T
 
@@ -29,7 +34,7 @@ def new!(T)() {
 #[builtin, primitive, size = 1u, align = 1u]
 extern class bool = "__builtin_bool_type"
 #[builtin]
-extern def operator unary! (:bool): bool = "__builtin_op_unary_pre_!_bool";
+extern def operator unary! (val :bool): bool = "__builtin_op_unary_pre_!_bool";
 
 // uint8
 #[builtin, primitive, size = 1u, align = 1u]
@@ -41,39 +46,39 @@ extern class int32 = "__builtin_int32_type"
 
 // TODO: implement attributes scope
 #[builtin]
-extern def operator+(:int32, :int32): int32 = "__builtin_op_binary_+_int_int";
+extern def operator+(val :int32, val :int32): int32 = "__builtin_op_binary_+_int_int";
 #[builtin]
-extern def operator-(:int32, :int32): int32 = "__builtin_op_binary_-_int_int";
+extern def operator-(val :int32, val :int32): int32 = "__builtin_op_binary_-_int_int";
 #[builtin]
-extern def operator*(:int32, :int32): int32 = "__builtin_op_binary_*_int_int";
+extern def operator*(val :int32, val :int32): int32 = "__builtin_op_binary_*_int_int";
 #[builtin]
-extern def operator/(:int32, :int32): int32 = "__builtin_op_binary_/_int_int";
+extern def operator/(val :int32, val :int32): int32 = "__builtin_op_binary_/_int_int";
 #[builtin]
-extern def operator%(:int32, :int32): int32 = "__builtin_op_binary_%_int_int";
+extern def operator%(val :int32, val :int32): int32 = "__builtin_op_binary_%_int_int";
 #[builtin]
-extern def operator<(:int32, :int32): bool = "__builtin_op_binary_<_int_int";
+extern def operator<(val :int32, val :int32): bool = "__builtin_op_binary_<_int_int";
 #[builtin]
-extern def operator>(:int32, :int32): bool = "__builtin_op_binary_>_int_int";
+extern def operator>(val :int32, val :int32): bool = "__builtin_op_binary_>_int_int";
 #[builtin]
-extern def operator|(:int32, :int32): int32 = "__builtin_op_binary_|_int_int";
+extern def operator|(val :int32, val :int32): int32 = "__builtin_op_binary_|_int_int";
 #[builtin]
-extern def operator^(:int32, :int32): int32 = "__builtin_op_binary_^_int_int";
+extern def operator^(val :int32, val :int32): int32 = "__builtin_op_binary_^_int_int";
 #[builtin]
-extern def operator&(:int32, :int32): int32 = "__builtin_op_binary_&_int_int";
+extern def operator&(val :int32, val :int32): int32 = "__builtin_op_binary_&_int_int";
 #[builtin]
-extern def operator>=(:int32, :int32): bool = "__builtin_op_binary_>=_int_int";
+extern def operator>=(val :int32, val :int32): bool = "__builtin_op_binary_>=_int_int";
 #[builtin]
-extern def operator<=(:int32, :int32): bool = "__builtin_op_binary_<=_int_int";
+extern def operator<=(val :int32, val :int32): bool = "__builtin_op_binary_<=_int_int";
 #[builtin]
-extern def operator<<(:int32, :int32): int32 = "__builtin_op_binary_<<_int_int";
+extern def operator<<(val :int32, val :int32): int32 = "__builtin_op_binary_<<_int_int";
 #[builtin]
-extern def operator>>>(:int32, :int32): int32 = "__builtin_op_binary_>>>_int_int";
+extern def operator>>>(val :int32, val :int32): int32 = "__builtin_op_binary_>>>_int_int";
 #[builtin]
-extern def operator>>(:int32, :int32): int32 = "__builtin_op_binary_>>_int_int";
+extern def operator>>(val :int32, val :int32): int32 = "__builtin_op_binary_>>_int_int";
 #[builtin]
-extern def operator==(:int32, :int32): bool = "__builtin_op_binary_==_int_int";
+extern def operator==(val :int32, val :int32): bool = "__builtin_op_binary_==_int_int";
 #[builtin]
-extern def operator!=(:int32, :int32): bool = "__builtin_op_binary_!=_int_int";
+extern def operator!=(val :int32, val :int32): bool = "__builtin_op_binary_!=_int_int";
 def operator pre++(ref mutable i: int32): void
 {
     i = i + 1;
@@ -92,39 +97,39 @@ extern class uint32 = "__builtin_uint32_type"
 
 // TODO: implement attributes scope
 #[builtin]
-extern def operator+(:uint32, :uint32): uint32 = "__builtin_op_binary_+_uint_uint";
+extern def operator+(val :uint32, val :uint32): uint32 = "__builtin_op_binary_+_uint_uint";
 #[builtin]
-extern def operator-(:uint32, :uint32): uint32 = "__builtin_op_binary_-_uint_uint";
+extern def operator-(val :uint32, val :uint32): uint32 = "__builtin_op_binary_-_uint_uint";
 #[builtin]
-extern def operator*(:uint32, :uint32): uint32 = "__builtin_op_binary_*_uint_uint";
+extern def operator*(val :uint32, val :uint32): uint32 = "__builtin_op_binary_*_uint_uint";
 #[builtin]
-extern def operator/(:uint32, :uint32): uint32 = "__builtin_op_binary_/_uint_uint";
+extern def operator/(val :uint32, val :uint32): uint32 = "__builtin_op_binary_/_uint_uint";
 #[builtin]
-extern def operator%(:uint32, :uint32): uint32 = "__builtin_op_binary_%_uint_uint";
+extern def operator%(val :uint32, val :uint32): uint32 = "__builtin_op_binary_%_uint_uint";
 #[builtin]
-extern def operator<(:uint32, :uint32): bool = "__builtin_op_binary_<_uint_uint";
+extern def operator<(val :uint32, val :uint32): bool = "__builtin_op_binary_<_uint_uint";
 #[builtin]
-extern def operator>(:uint32, :uint32): bool = "__builtin_op_binary_>_uint_uint";
+extern def operator>(val :uint32, val :uint32): bool = "__builtin_op_binary_>_uint_uint";
 #[builtin]
-extern def operator|(:uint32, :uint32): uint32 = "__builtin_op_binary_|_uint_uint";
+extern def operator|(val :uint32, val :uint32): uint32 = "__builtin_op_binary_|_uint_uint";
 #[builtin]
-extern def operator^(:uint32, :uint32): uint32 = "__builtin_op_binary_^_uint_uint";
+extern def operator^(val :uint32, val :uint32): uint32 = "__builtin_op_binary_^_uint_uint";
 #[builtin]
-extern def operator&(:uint32, :uint32): uint32 = "__builtin_op_binary_&_uint_uint";
+extern def operator&(val :uint32, val :uint32): uint32 = "__builtin_op_binary_&_uint_uint";
 #[builtin]
-extern def operator>=(:uint32, :uint32): bool = "__builtin_op_binary_>=_uint_uint";
+extern def operator>=(val :uint32, val :uint32): bool = "__builtin_op_binary_>=_uint_uint";
 #[builtin]
-extern def operator<=(:uint32, :uint32): bool = "__builtin_op_binary_<=_uint_uint";
+extern def operator<=(val :uint32, val :uint32): bool = "__builtin_op_binary_<=_uint_uint";
 #[builtin]
-extern def operator<<(:uint32, :uint32): uint32 = "__builtin_op_binary_<<_uint_uint";
+extern def operator<<(val :uint32, val :uint32): uint32 = "__builtin_op_binary_<<_uint_uint";
 #[builtin]
-extern def operator>>(:uint32, :uint32): uint32 = "__builtin_op_binary_>>_uint_uint";
+extern def operator>>(val :uint32, val :uint32): uint32 = "__builtin_op_binary_>>_uint_uint";
 #[builtin]
-extern def operator>>>(:uint32, :uint32): uint32 = "__builtin_op_binary_>>>_uint_uint";
+extern def operator>>>(val :uint32, val :uint32): uint32 = "__builtin_op_binary_>>>_uint_uint";
 #[builtin]
-extern def operator==(:uint32, :uint32): bool = "__builtin_op_binary_==_uint_uint";
+extern def operator==(val :uint32, val :uint32): bool = "__builtin_op_binary_==_uint_uint";
 #[builtin]
-extern def operator!=(:uint32, :uint32): bool = "__builtin_op_binary_!=_uint_uint";
+extern def operator!=(val :uint32, val :uint32): bool = "__builtin_op_binary_!=_uint_uint";
 def operator pre++(ref mutable i: uint32): void
 {
     i = i + 1u;
@@ -133,7 +138,6 @@ def operator pre--(ref mutable i: uint32): void
 {
     i = i - 1u;
 }
-
 
 // array
 #[builtin, array_type]
@@ -154,18 +158,18 @@ extern class untyped_raw_ptr = "__builtin_untyped_raw_ptr_type"
 extern class raw_ptr<`a>!(T) = "__builtin_raw_ptr_type"
 
 #[builtin]
-extern def operator+ !(T)(:raw_ptr!(T), :int32): raw_ptr!(T) = "__builtin_op_binary_+_raw_ptr_int";
+extern def operator+ !(T)(val :raw_ptr!(T), val :int32): raw_ptr!(T) = "__builtin_op_binary_+_raw_ptr_int";
 def operator- !(T)(p :raw_ptr!(T), n :int32): raw_ptr!(T) {
        return p + (0 - n);
 }
 
 // uint version. TODO: remove
 #[builtin]
-extern def operator+ !(T)(:raw_ptr!(T), :uint32): raw_ptr!(T) = "__builtin_op_binary_+_raw_ptr_int";
+extern def operator+ !(T)(val :raw_ptr!(T), val :uint32): raw_ptr!(T) = "__builtin_op_binary_+_raw_ptr_int";
 def operator- !(T)(p :raw_ptr!(T), n :uint32): raw_ptr!(T) => p + (0u - n);
 
 #[builtin]
-extern def operator unary* !(T)(:raw_ptr!(T)): ref(T) = "__builtin_op_unary_pre_*_raw_ptr";
+extern def operator unary* !(T)(val :raw_ptr!(T)): ref(T) = "__builtin_op_unary_pre_*_raw_ptr";
 def operator[] !(T)(p :raw_ptr!(T), index: int32): ref(T) => *(p+index);
 // uint version. TODO: remove
 def operator[] !(T)(p :raw_ptr!(T), index: uint32): ref(T) => *(p+index);

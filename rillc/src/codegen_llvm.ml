@@ -18,12 +18,12 @@ type ctfe_val_t = type_info_t Ctfe_value.t
 type type_gen_t = env_t Type.Generator.t
 
 type ('ty, 'ctx) record_t =
-  | LLValue of L.llvalue
+  | LLValue of (L.llvalue * bool)   (* value * is_addr *)
   | LLType of L.lltype
   | LLTypeGen of ('ty Ctfe_value.t list -> L.lltype)
   | ElemIndex of int
-  | BuiltinFunc of (type_info_t list -> L.llvalue array -> 'ctx -> L.llvalue)
-  | BuiltinFuncGen of ('ty Ctfe_value.t list -> type_info_t list -> L.llvalue array -> 'ctx -> L.llvalue)
+  | BuiltinFunc of ((type_info_t * bool) list -> L.llvalue array -> 'ctx -> L.llvalue)
+  | BuiltinFuncGen of ('ty Ctfe_value.t list -> (type_info_t * bool) list -> L.llvalue array -> 'ctx -> L.llvalue)
   | TrivialAction
 
 module CodeGeneratorType =
@@ -68,20 +68,20 @@ let llval_u32 v ctx =
 
 
 let debug_dump_value v =
-  if Config.is_release then () else (L.dump_value v; flush stderr)
+  Debug.printf "%s\n" (L.string_of_llvalue v)
 
 let debug_dump_module m =
-  if Config.is_release then () else (L.dump_module m; flush stderr)
+  Debug.printf "%s\n" (L.string_of_llmodule m)
 
 let debug_dump_type t =
-  if Config.is_release then () else (L.dump_type t; flush stderr)
+  Debug.printf "%s\n" (L.string_of_lltype t)
 
 
-let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
+let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t * bool) =
   let open Ctx in
-  let void_t = L.void_type ctx.ir_context in
-  let void_v = L.undef void_t in
-  let void_val = (void_v, ctx.type_sets.Type_sets.ts_void_type) in
+  let void_v = L.undef (L.void_type ctx.ir_context) in
+  let void_ty = ctx.type_sets.Type_sets.ts_void_type in
+  let void_val = (void_v, void_ty, false) in
 
   match node with
   | TAst.Module (inner, pkg_names, mod_name, base_dir, _) ->
@@ -90,8 +90,8 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
      end
 
   | TAst.StatementList (nodes) ->
-     let rec gen nx (v, t) = match nx with
-       | [] -> (v, t)
+     let rec gen nx (v, t, p) = match nx with
+       | [] -> (v, t, p)
        | x :: xs ->
           let l = generate_code x ctx in
           gen xs l
@@ -115,15 +115,17 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
 
        let llval = match opt_e with
        | Some e ->
-          let (llval, ty) = generate_code e ctx in
+          let (llval, ty, is_addr) = generate_code e ctx in
           if is_heavy_object ty then
             L.build_ret_void ctx.ir_builder
           else
+            let llval = adjust_addr_val llval ty is_addr ctx in
             L.build_ret llval ctx.ir_builder
        | None ->
           L.build_ret_void ctx.ir_builder
        in
-       (llval, ctx.type_sets.Type_sets.ts_void_type)
+
+       (llval, void_ty, false)
      end
 
   | TAst.GenericFuncDef (opt_body, Some env) ->
@@ -160,7 +162,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
          (* declare function *)
          let name = fenv_r.Env.fn_mangled |> Option.get in
          let f = L.declare_function name f_ty ctx.ir_module in
-         Ctx.bind_val_to_env ctx (LLValue f) env;
+         Ctx.bind_val_to_env ctx (LLValue (f, true)) env;
 
          (* entry block *)
          let eib = L.append_block ctx.ir_context "entry" f in
@@ -184,7 +186,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
                                          let venv_r = Env.VariableOp.get_record venv in
                                          let var_name = venv_r.Env.var_name in
                                          L.set_value_name var_name agg;
-                                         Ctx.bind_val_to_env ctx (LLValue agg) venv
+                                         Ctx.bind_val_to_env ctx (LLValue (agg, true)) venv
                                        end
                                     | _ ->
                                        L.set_value_name agg_recever_name agg;
@@ -201,9 +203,9 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
               let llty = lltype_of_typeinfo ty ctx in
               let v = L.build_alloca llty "" ctx.ir_builder in
               let _ = L.build_store llval v ctx.ir_builder in
-              v
+              (v, should_param_be_address)
            | (true, true)
-           | (false, false) -> llval
+           | (false, false) -> (llval, should_param_be_address)
            | _ -> failwith "[ICE]"
          in
          let ll_params =
@@ -215,14 +217,14 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
            Enum.combine (param_types, raw_ll_params)
            |> Enum.map adjust_param_type
          in
-         let declare_param_var optenv llvar =
+         let declare_param_var optenv (llvar, is_addr) =
            match optenv with
            | Some env ->
               begin
                 let venv = Env.VariableOp.get_record env in
                 let var_name = venv.Env.var_name in
                 L.set_value_name var_name llvar;
-                Ctx.bind_val_to_env ctx (LLValue llvar) env
+                Ctx.bind_val_to_env ctx (LLValue (llvar, is_addr)) env
               end
            | None -> ()
          in
@@ -293,7 +295,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
 
             debug_dump_value llvm_func;
 
-            Ctx.bind_val_to_env ctx (LLValue llvm_func) env;
+            Ctx.bind_val_to_env ctx (LLValue (llvm_func, true)) env;
             void_val
           end
 
@@ -375,12 +377,15 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
        let (_, _, (_, opt_init_expr)) = var_init in
        let init_expr = Option.get opt_init_expr in
 
-       Debug.printf "Define variable: %s\n" venv.Env.var_name;
-       let (llval, expr_ty) = generate_code init_expr ctx in
+       let (llval, expr_ty, is_addr) = generate_code init_expr ctx in
+
+       Debug.printf "<><><>\nDefine variable: %s / is_addr: %b\n<><><>\n"
+                    venv.Env.var_name
+                    is_addr;
        Type.debug_print var_type;
 
        L.set_value_name venv.Env.var_name llval;
-       Ctx.bind_val_to_env ctx (LLValue llval) env;
+       Ctx.bind_val_to_env ctx (LLValue (llval, is_addr)) env;
 
        Ctx.mark_env_as_defined ctx env;
        void_val
@@ -407,25 +412,32 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
          match sto with
          | TAst.StoStack (ty) ->
             begin
+              Debug.printf "setup_storage: StoStack ty=%s\n"
+                           (Type.to_string ty);
               let llty = lltype_of_typeinfo ty ctx in
               let v = L.build_alloca llty "" ctx.ir_builder in
-              (v, ty)
+              (v, ty, true)
               end
 
          | TAst.StoAgg (ty) ->
             begin
+              Debug.printf "setup_storage: StoAgg ty=%s\n"
+                           (Type.to_string ty);
               let ctx_env = Option.get call_on_env.Env.context_env in
-              let ll_fval =
+              let (ll_fval, is_addr) =
                 find_llval_by_env_with_force_generation ctx ctx_env
               in
+              assert (is_addr);
               let agg = L.param ll_fval 0 in
               assert (L.value_name agg = agg_recever_name);
-              (agg, ty)
+              (agg, ty, true)
             end
 
          | TAst.StoArrayElem (ty, index) ->
+            Debug.printf "setup_storage: StoArrayElem ty=%s\n"
+                         (Type.to_string ty);
             let array_sto = match Ctx.current_array_storage ctx with
-              | LLValue v -> v
+              | LLValue (v, true) -> v
               | _ -> failwith "[ICE]"
             in
             let zero = L.const_int (L.i32_type ctx.ir_context) 0 in
@@ -436,12 +448,15 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
                                     ""
                                     ctx.Ctx.ir_builder
             in
-            (array_elem_ptr, ty)
+            (array_elem_ptr, ty, true)
 
          | TAst.StoArrayElemFromThis (ty, Some this_env, index) ->
-            let array_sto =
+            Debug.printf "setup_storage: StoArrayElemFromThis ty=%s\n"
+                         (Type.to_string ty);
+            let (array_sto, is_addr) =
               find_llval_by_env_with_force_generation ctx this_env
             in
+            assert (is_addr);
             let zero = L.const_int (L.i32_type ctx.ir_context) 0 in
             let llindex = L.const_int (L.i32_type ctx.ir_context) index in
             let array_elem_ptr =
@@ -450,10 +465,12 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
                                     ""
                                     ctx.Ctx.ir_builder
             in
-            (array_elem_ptr, ty)
+            (array_elem_ptr, ty, true)
 
          | TAst.StoMemberVar (ty, Some venv, Some parent_fenv) ->
-            let reciever_llval =
+            Debug.printf "setup_storage: StoMemberVar ty=%s\n"
+                         (Type.to_string ty);
+            let (reciever_llval, is_addr) =
               match Env.FunctionOp.get_kind parent_fenv with
               | Env.FnKindConstructor (Some rvenv)
               | Env.FnKindCopyConstructor (Some rvenv)
@@ -463,6 +480,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
                  find_llval_by_env_with_force_generation ctx rvenv
               | _ -> failwith "[ICE] no reciever"
             in
+            assert (is_addr);
             let member_index = match Ctx.find_val_by_env ctx venv with
               | ElemIndex idx -> idx
               | _ -> failwith "[ICE] a member variable is not found"
@@ -473,56 +491,87 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
 
               L.build_struct_gep reciever_llval member_index "" ctx.ir_builder
             in
-            (elem_llval, ty)
+            (elem_llval, ty, true)
 
          | _ -> failwith "[ICE] cannot setup storage"
        in
 
        let eval_args kind param_types =
          (* normal arguments *)
-         let (llvals, arg_tys) =
-           args
-           |> List.map (fun n -> generate_code n ctx)
-           |> List.split
+         let (llvals, arg_tys, is_addrs) =
+           let res = args |> List.map (fun n -> generate_code n ctx) in
+           List.fold_right (fun (v, t, p) (vs, ts, ps) -> (v::vs, t::ts, p::ps))
+                           res
+                           ([], [], [])
          in
          (* special arguments *)
-         let (llvals, arg_tys, param_types) = match !storage_ref with
+         let (llvals, arg_tys, is_addrs, param_types, returns_addr, skip_alloca) =
+           match !storage_ref with
            | TAst.StoStack _
            | TAst.StoArrayElem _
            | TAst.StoArrayElemFromThis _
            | TAst.StoMemberVar _ ->
-              let (v, ty) = setup_storage !storage_ref in
-              (v::llvals), (ty::arg_tys), (ty::param_types)
+              let (v, ty, is_addr) = setup_storage !storage_ref in
+              let sa = is_primitive ty in
+              (v::llvals, ty::arg_tys, is_addr::is_addrs, ty::param_types, true, sa)
 
            | TAst.StoImm ->
-              (llvals, arg_tys, param_types)
+              let (returns_addr, sa) =
+                match kind with
+                | Env.FnKindFree ->
+                   (is_address_representation ret_ty, false)
+
+                | _ ->
+                   let (returns_addr, skip_alloca) = match (is_addrs, arg_tys) with
+                     (* Case for constructors of primitives *)
+                     | ([], []) -> (false, false)
+                     (* Case for normal constructors
+                      * An address flag of first arg(hp) means
+                      *   "is the return value pointer?"
+                      * And if the first type of arguments is a primitive,
+                      *   do not allocate storage for optimization
+                      *)
+                     | (hp::_, aty::_) -> (hp, is_primitive aty)
+                     | _ -> failwith "[ICE]"
+                   in
+                   (returns_addr, skip_alloca)
+              in
+              (llvals, arg_tys, is_addrs, param_types, returns_addr, sa)
 
            | _ -> failwith "[ICE] special arguments"
          in
-         let conv_funcs =
-           let f t s = adjust_arg_llval_form t s in
-           List.map2 f param_types arg_tys
+         let llargs =
+           Debug.printf "conv funcs skip_alloca = %b\n" skip_alloca;
+           let rec make param_tys arg_tys is_addrs llvals =
+             match (param_tys, arg_tys, is_addrs, llvals) with
+             | ([], [], [], []) -> []
+             | (pt::pts, at::ats, ia::ias, lv::lvs) ->
+                let llarg = adjust_arg_llval_form pt at ia skip_alloca lv ctx in
+                llarg::(make pts ats ias lvs)
+             | _ -> failwith ""
+           in
+           make param_types arg_tys is_addrs llvals
          in
-         let llargs = List.map2 (fun f v -> f v ctx) conv_funcs llvals
-                      |> Array.of_list
-         in
-         (llargs, param_types)
+         let llargs = llargs |> Array.of_list in
+         (llargs, param_types, is_addrs, returns_addr)
        in
 
        let call_func kind f =
          match returns_heavy_obj with
          | false ->
-            let (llargs, _) = eval_args kind param_tys in
-            L.build_call f llargs "" ctx.ir_builder
+            let (llargs, _, _, p) = eval_args kind param_tys in
+            let llval = L.build_call f llargs "" ctx.ir_builder in
+            (llval, p)
          | true ->
-            let (llargs, _) = eval_args kind param_tys in
+            let (llargs, _, _, p) = eval_args kind param_tys in
             let _ = L.build_call f llargs "" ctx.ir_builder in
             assert (Array.length llargs > 0);
-            llargs.(0)
+            let llval = llargs.(0) in
+            (llval, p)
        in
 
        let fn_s_name = Nodes.string_of_id_string fn_name in
-       let llval = match detail with
+       let (llval, returns_addr) = match detail with
          (* normal function *)
          | Env.FnRecordNormal (_, kind, _) ->
             begin
@@ -530,7 +579,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
 
               let r_value = force_target_generation ctx env in
               match r_value with
-              | LLValue f -> call_func kind f
+              | LLValue (f, true) -> call_func kind f
               | _ -> failwith "[ICE] unexpected value"
             end
 
@@ -544,13 +593,13 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
               (* trivial function *)
               | TrivialAction ->
                  begin
-                   let new_obj = match !storage_ref with
+                   let (new_obj, is_addr) = match !storage_ref with
                      | TAst.StoStack _
                      | TAst.StoAgg _
                      | TAst.StoArrayElem _
                      | TAst.StoMemberVar _ ->
-                        let (v, _) = setup_storage !storage_ref in
-                        v
+                        let (v, _, is_addr) = setup_storage !storage_ref in
+                        (v, is_addr)
 
                      | _ ->
                         TAst.debug_print_storage !storage_ref;
@@ -561,26 +610,27 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
                    | Env.FnKindDefaultConstructor None ->
                       begin
                         (* TODO: zero-fill *)
-                        new_obj
+                        (new_obj, is_addr)
                       end
                    | Env.FnKindCopyConstructor None
                    | Env.FnKindMoveConstructor None ->
                       begin
                         assert (List.length args = 1);
                         let rhs = List.hd args in
-                        let (llrhs, rhs_ty) = generate_code rhs ctx in
+                        let (llrhs, rhs_ty, is_ptr) = generate_code rhs ctx in
+                        assert (is_ptr);
                         let sl = Type.size_of rhs_ty in
                         let al = Type.align_of rhs_ty in
                         let _ = ctx.intrinsics.memcpy_i32 new_obj llrhs
                                                           sl al false ctx.ir_builder
                         in
-                        new_obj
+                        (new_obj, is_addr)
                       end
                    | _ -> failwith "[ICE]"
                  end
 
               (* non-trivial function *)
-              | LLValue f -> call_func kind f
+              | LLValue (f, true) -> call_func kind f
 
               | _ -> failwith "[ICE] unexpected"
             end
@@ -588,21 +638,28 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
          (* external function *)
          | Env.FnRecordExternal (def, kind, extern_name) ->
             begin
-              Debug.printf "gen value: debug / extern  %s = \"%s\"\n"
+              Debug.printf "CALL FUNC / extern  %s = \"%s\"\n"
                             fn_s_name extern_name;
-              let (llargs, _) = eval_args kind param_tys in
-              let extern_f =
+              let (llargs, _, _, returns_addr) = eval_args kind param_tys in
+              let (extern_f, is_addr) =
                 find_llval_by_env_with_force_generation ctx env
               in
-              L.build_call extern_f llargs "" ctx.ir_builder
+              assert (is_addr);
+              let llval = L.build_call extern_f llargs "" ctx.ir_builder in
+              (llval, returns_addr)
             end
 
          | Env.FnRecordBuiltin (def, kind, extern_name) ->
             begin
-              Debug.printf "gen value: debug / builtin %s = \"%s\"\n"
-                            fn_s_name extern_name;
-              let (llargs, param_tys) = eval_args kind param_tys in
+              Debug.printf "CALL FUNC / builtin %s = \"%s\"\n"
+                           fn_s_name extern_name;
+              TAst.debug_print_storage (!storage_ref);
+              let (llargs, param_tys, is_addrs, returns_addr) =
+                eval_args kind param_tys
+              in
+              Debug.printf "== Args\n";
               Array.iter debug_dump_value llargs;
+              Debug.printf "== %b\n" returns_addr;
 
               let v_record = Ctx.find_val_by_name ctx extern_name in
               let builtin_gen_f = match v_record with
@@ -612,17 +669,21 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
                    f fenv_r.Env.fn_template_vals
                 | _ -> failwith "[ICE]"
               in
-              builtin_gen_f param_tys llargs ctx
+
+              let param_ty_and_addrs = List.combine param_tys is_addrs in
+              let llval = builtin_gen_f param_ty_and_addrs llargs ctx in
+              (llval, returns_addr)
             end
 
          | Env.FnUndef -> failwith "[ICE] codegen: undefined function record"
        in
-       (llval, ret_ty)
+       (llval, ret_ty, returns_addr)
      end
 
   | TAst.NestedExpr (lhs_node, _, rhs_ty, Some rhs_env) ->
      begin
-       let (ll_lhs, _) = generate_code lhs_node ctx in
+       let (ll_lhs, _, is_addr) = generate_code lhs_node ctx in
+       assert (is_addr);
 
        let v_record = try Ctx.find_val_by_env ctx rhs_env with
                       | Not_found -> failwith "[ICE] member env is not found"
@@ -632,30 +693,40 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
          | _ -> failwith "[ICE]"
        in
        let llelem = L.build_struct_gep ll_lhs index "" ctx.ir_builder in
-       (llelem, rhs_ty)
+       (llelem, rhs_ty, true)
      end
+
+  | TAst.FinalyzeExpr (act_node, final_exprs) ->
+     let (ll_lhs, llty, is_addr) = generate_code act_node ctx in
+     List.iter (fun n -> let _ = generate_code n ctx in ()) final_exprs;
+     (ll_lhs, llty, is_addr)
 
   | TAst.BoolLit (v, lit_ty) ->
      begin
-       let llval = L.const_int (L.i1_type ctx.ir_context) (if v then 1 else 0) in
-       (llval, lit_ty)
+       let llty = L.i1_type ctx.ir_context in
+       let llval = L.const_int llty (if v then 1 else 0) in
+       let (llval, is_addr) = adjust_primitive_value storage llty llval ctx in
+       (llval, lit_ty, false)
      end
 
   | TAst.IntLit (v, bits, signed, lit_ty) ->
      begin
        let llty = match bits with
-         | 8 -> L.i8_type
-         | 32 -> L.i32_type
+         | 8 -> L.i8_type ctx.ir_context
+         | 32 -> L.i32_type ctx.ir_context
          | _ -> failwith "[ICE]"
        in
-       let llval = L.const_int (llty ctx.ir_context) v in
-       (llval, lit_ty)
+       let llval = L.const_int llty v in
+       let (llval, is_addr) = adjust_primitive_value storage llty llval ctx in
+       (llval, lit_ty, is_addr)
      end
 
   | TAst.StringLit (str, lit_ty) ->
      begin
+       let llty = L.pointer_type (L.i8_type ctx.ir_context) in
        let llval = L.build_global_stringptr str "" ctx.ir_builder in
-       (llval, lit_ty)
+       let (llval, is_addr) = adjust_primitive_value storage llty llval ctx in
+       (llval, lit_ty, false)
      end
 
   | TAst.ArrayLit (elems, static_constructable, arr_ty) ->
@@ -665,10 +736,11 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
 
        if static_constructable then
          begin
-           let (ll_elems, tys) =
-             elems
-             |> List.map (fun n -> generate_code n ctx)
-             |> List.split
+           let (ll_elems, tys, _) =
+             let res = elems |> List.map (fun n -> generate_code n ctx) in
+             List.fold_right (fun (v, t, p) (vs, ts, ps) -> (v::vs, t::ts, p::ps))
+                             res
+                             ([], [], [])
            in
            let lit_ty = List.hd tys in
            let llty = lltype_of_typeinfo lit_ty ctx in
@@ -686,14 +758,14 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
              ctx.intrinsics.memcpy_i32 lltrg llsrc
                                        size_of align_of false ctx.ir_builder
            in
-           (ll_array_sto, arr_ty)
+           (ll_array_sto, arr_ty, true)
          end
        else
          begin
-           Ctx.push_array_storage ctx (LLValue ll_array_sto);
+           Ctx.push_array_storage ctx (LLValue (ll_array_sto, true));
            let _ = elems |> List.map (fun n -> generate_code n ctx) in
            let _ = Ctx.pop_array_storage ctx in
-           (ll_array_sto, arr_ty)
+           (ll_array_sto, arr_ty, true)
          end
      end
 
@@ -723,12 +795,12 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
                                | Not_found -> failwith "[ICE] variable env is not found"
                              end
             in
-            let llval = match var_llr with
+            let (llval, is_addr) = match var_llr with
               | LLValue v -> v
               | _ -> failwith "[ICE]"
             in
             let ty = r.Env.var_type in
-            (llval, ty)
+            (llval, ty, is_addr)
           end
 
        | Env.Class (_, r) ->
@@ -752,7 +824,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
                                          Type_info.is_type_id_signed
             in
             let ty = ctx.type_sets.Type_sets.ts_type_type in
-            (llval, ty)
+            (llval, ty, false)
           end
 
        (* regards all values are NOT references *)
@@ -779,9 +851,15 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
        generate_code block ctx
      end
 
+  (* TODO: fix is_addr *)
   | TAst.IfExpr (cond_expr, then_expr, opt_else_expr, if_ty) ->
      begin
-       let (llcond, _) = generate_code cond_expr ctx in
+       let (llcond, _, is_cond_addr) = generate_code cond_expr ctx in
+       let llcond = if is_cond_addr then
+                      L.build_load llcond "" ctx.ir_builder
+                    else
+                      llcond
+       in
 
        let ip =  L.insertion_block ctx.Ctx.ir_builder in
        let tip = L.insert_block ctx.ir_context "then" ip in (* then *)
@@ -802,8 +880,11 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
 
        (* then node *)
        L.position_at_end tip ctx.Ctx.ir_builder;
-       let (then_llval, then_ty) = generate_code then_expr ctx in
+       let (then_llval, then_ty, is_then_addr) = generate_code then_expr ctx in
        let then_llval = adjust_llval_form if_ty then_ty then_llval ctx in
+       let then_llval =
+         adjust_addr_val then_llval then_ty is_then_addr ctx
+       in
        let then_branch = if not (L.is_terminator then_llval) then
                            ignore @@ L.build_br fip ctx.ir_builder;
                          let cip = L.insertion_block ctx.ir_builder in
@@ -814,8 +895,11 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
          | Some else_expr ->
             begin
               L.position_at_end eip ctx.Ctx.ir_builder;
-              let (else_llval, else_ty) = generate_code else_expr ctx in
+              let (else_llval, else_ty, is_else_addr) = generate_code else_expr ctx in
               let else_llval = adjust_llval_form if_ty else_ty else_llval ctx in
+              let else_llval =
+                adjust_addr_val else_llval else_ty is_else_addr ctx
+              in
               if not (L.is_terminator else_llval) then
                 ignore @@ L.build_br fip ctx.ir_builder;
               let cip = L.insertion_block ctx.ir_builder in
@@ -833,9 +917,10 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
          void_val
        else
          let llret = L.build_phi brs "" ctx.ir_builder in
-         (llret, if_ty)
+         (llret, if_ty, is_address_representation if_ty)
      end
 
+  (* FIX: is_addr *)
   | TAst.ForExpr (opt_decl, opt_cond, opt_step, body) ->
      begin
        let ip =  L.insertion_block ctx.Ctx.ir_builder in
@@ -857,7 +942,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
        let _ = match opt_cond with
          | Some cond ->
             begin
-              let (llcond, _) = generate_code cond ctx in
+              let (llcond, _, _) = generate_code cond ctx in
               ignore @@ L.build_cond_br llcond sip eip ctx.ir_builder;
               L.position_at_end sip ctx.Ctx.ir_builder;
             end
@@ -869,7 +954,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
        let _ = match opt_step with
          | Some step ->
             begin
-              ignore @@  generate_code step ctx
+              ignore @@ generate_code step ctx
             end
          | None -> ();
        in
@@ -880,6 +965,7 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
        void_val
      end
 
+  (* TODO: fix is_addr *)
   | TAst.CtxNode ty ->
      begin
        let itype_id = Option.get ty.Type_info.ti_id in
@@ -891,8 +977,14 @@ let rec generate_code node ctx : (L.llvalue * 'env Type.info_t) =
                                     Type_info.is_type_id_signed
        in
        let ty = ctx.type_sets.Type_sets.ts_type_type in
-       (llval, ty)
+       (llval, ty, true)
      end
+
+  | TAst.StorageWrapperExpr (sto, e) ->
+     Debug.printf "STORAGE CHANGED\n";
+     TAst.debug_print_storage (!sto);
+
+     generate_code ~storage:(Some !sto) e ctx
 
   | _ -> failwith "cannot generate : node"
 
@@ -920,7 +1012,7 @@ and ctfe_val_to_llval ctfe_val ctx =
                                   Type_info.is_type_id_signed
                in
                let ty = tsets.Type_sets.ts_type_type in
-               (llval, ty)
+               (llval, ty, false)
             | None -> failwith "[ICE] codegen_llvm : has no type_id"
           end
        | _-> failwith "[ICE] codegen_llvm : type"
@@ -933,7 +1025,7 @@ and ctfe_val_to_llval ctfe_val ctx =
                         false (* not signed *)
      in
      let ty = !(tsets.Type_sets.ts_bool_type_holder) in
-     (llval, ty)
+     (llval, ty, false)
 
   | Ctfe_value.Int32 i32 ->
      let llval =
@@ -942,7 +1034,7 @@ and ctfe_val_to_llval ctfe_val ctx =
                         true (* signed *)
      in
      let ty = !(tsets.Type_sets.ts_int32_type_holder) in
-     (llval, ty)
+     (llval, ty, false)
 
   | Ctfe_value.Uint32 i32 ->
      let llval =
@@ -951,7 +1043,7 @@ and ctfe_val_to_llval ctfe_val ctx =
                         false (* not signed *)
      in
      let ty = !(tsets.Type_sets.ts_int32_type_holder) in
-     (llval, ty)
+     (llval, ty, false)
 
   | Ctfe_value.Undef ud_uni_id ->
      raise @@ Ctfe_exn.Meta_var_un_evaluatable ud_uni_id
@@ -1008,9 +1100,9 @@ and find_lltype_by_env_with_force_generation ctx env =
   | _ -> failwith "[ICE] / find_lltype_by_env_with_force_generation"
 
 
-and register_metaval value env ctx =
-  let (llval, _) = ctfe_val_to_llval value ctx in
-  let cv = LLValue llval in
+and register_metaval value is_addr env ctx =
+  let (llval, _, _) = ctfe_val_to_llval value ctx in
+  let cv = LLValue (llval, is_addr) in
   Ctx.bind_metaval_to_env ctx cv env
 
 
@@ -1039,7 +1131,10 @@ and is_primitive ty =
   let cr = Env.ClassOp.get_record cenv in
   cr.Env.cls_traits.Env.cls_traits_is_primitive
 
-
+and is_always_value ty =
+  let cenv = Type.as_unique ty in
+  let cr = Env.ClassOp.get_record cenv in
+  cr.Env.cls_traits.Env.cls_traits_is_always_value
 
 and is_heavy_object ty =
   let {
@@ -1058,7 +1153,7 @@ and is_address_representation ty =
     Type_attr.ta_mut = mut;
   } = ty.Type_info.ti_attr in
   match rv with
-  | Type_attr.Ref
+  | Type_attr.Ref -> not (is_always_value ty)
   | Type_attr.Val ->
      begin
        match mut with
@@ -1066,13 +1161,14 @@ and is_address_representation ty =
        | Type_attr.Const
        | Type_attr.Immutable ->
           begin
-            (* if type is primitive, it will not be represented by address *)
+            (* if type is NOT primitive, it will be represented by address *)
             not (is_primitive ty)
           end
        | _ -> failwith "[ICE] Unexpected : mut"
      end
   | _ -> failwith "[ICE] Unexpected : rv"
 
+(* address representation of function interface *)
 and is_address_representation_param ty =
   let {
     Type_attr.ta_ref_val = rv;
@@ -1081,47 +1177,76 @@ and is_address_representation_param ty =
   | Type_attr.Val when is_primitive ty -> false
   | _ -> is_address_representation ty
 
-and adjust_llval_form' trg_ty trg_chkf src_ty src_chkf llval ctx =
+and adjust_llval_form' trg_ty trg_chkf src_ty src_chkf skip_alloca llval ctx =
   let open Ctx in
   match (trg_chkf trg_ty, src_chkf src_ty) with
   | (true, true)
   | (false, false) -> llval
   | (true, false) ->
-     let llty = lltype_of_typeinfo trg_ty ctx in
-     let v = L.build_alloca llty "" ctx.ir_builder in
-     let _ = L.build_store llval v ctx.ir_builder in
-     v
+     if skip_alloca then
+       llval
+     else
+       let llty = lltype_of_typeinfo trg_ty ctx in
+       let v = L.build_alloca llty "" ctx.ir_builder in
+       let _ = L.build_store llval v ctx.ir_builder in
+       v
   | (false, true) ->
-     L.build_load llval "" ctx.ir_builder
+     if skip_alloca then
+       llval
+     else
+       (debug_dump_value llval;
+       L.build_load llval "" ctx.ir_builder)
 
 and adjust_llval_form trg_ty src_ty llval ctx =
-  Type.debug_print trg_ty;
-  Type.debug_print src_ty;
-  Debug.printf "is_pointer rep?  trg: %b, src: %b\n src = "
-                (is_address_representation trg_ty)
-                (is_address_representation src_ty);
+  Debug.printf "is_pointer rep?  trg: %b(%s), src: %b(%s)\n"
+               (is_address_representation trg_ty)
+               (Type.to_string trg_ty)
+               (is_address_representation src_ty)
+               (Type.to_string src_ty);
   debug_dump_value llval;
 
   let trg_check_f = is_address_representation in
   let src_check_f = is_address_representation in
-  adjust_llval_form' trg_ty trg_check_f src_ty src_check_f llval ctx
+  adjust_llval_form' trg_ty trg_check_f src_ty src_check_f false llval ctx
 
-and adjust_arg_llval_form trg_ty src_ty llval ctx =
+and adjust_arg_llval_form trg_ty src_ty src_is_addr skip_alloca llval ctx =
   if is_primitive trg_ty then
     begin
-      Type.debug_print trg_ty;
-      Type.debug_print src_ty;
-      Debug.printf "is_pointer_arg rep?  trg: %b, src: %b\n src = "
-                    (is_address_representation_param trg_ty)
-                    (is_address_representation src_ty);
+      Debug.printf "ARG: is_pointer_arg rep?  trg: %b(%s), src: %b, %b(%s)\n"
+                   (is_address_representation_param trg_ty)
+                   (Type.to_string trg_ty)
+                   (is_address_representation src_ty)
+                   src_is_addr
+                   (Type.to_string src_ty);
       debug_dump_value llval;
 
       let trg_check_f = is_address_representation_param in
-      let src_check_f = is_address_representation in
-      adjust_llval_form' trg_ty trg_check_f src_ty src_check_f llval ctx
+      let src_check_f = is_address_representation in (ignore @@ src_check_f);
+      let src_check_f = fun _ -> src_is_addr in
+      adjust_llval_form' trg_ty trg_check_f src_ty src_check_f skip_alloca llval ctx
     end
   else
     adjust_llval_form trg_ty src_ty llval ctx
+
+and adjust_addr_val v ty is_addr ctx =
+  if is_address_representation ty then
+    v
+  else
+    if is_addr then
+      L.build_load v "" ctx.Ctx.ir_builder
+    else
+      v
+
+and adjust_primitive_value storage llty llval ctx =
+  match storage with
+  | Some (TAst.StoStack _) ->
+     let v = L.build_alloca llty "" ctx.Ctx.ir_builder in
+     let _ = L.build_store llval v  ctx.Ctx.ir_builder in
+     (v, true)
+  | Some TAst.StoImm
+  | None -> (llval, false)
+  | _ -> failwith "[ICE]"
+
 
 and paramkinds_to_llparams params ret_ty ctx =
   let returns_heavy_obj = is_heavy_object ret_ty in
@@ -1253,7 +1378,7 @@ let inject_builtins ctx =
       let ty = match L.int64_of_const ty_val with
         | Some t_id ->
            Type.Generator.find_type_by_cache_id ctx.type_sets.Type_sets.ts_type_gen t_id
-        | _ -> failwith "[ICE] failed get a ctfed value"
+        | _ -> failwith "[ICE] failed to get a ctfed value"
       in
       llval_u32 (Type.size_of ty) ctx
     in
@@ -1309,11 +1434,11 @@ let inject_builtins ctx =
     register_builtin_template_func "__builtin_take_address_from_array" f
   in
   let () =
-    let f param_tys args ctx =
+    let f param_tys_and_addrs args ctx =
       let open Codegen_llvm_intrinsics in
       assert (Array.length args = 1);
-      assert (List.length param_tys = 1);
-      let arr_ty = List.hd param_tys in
+      assert (List.length param_tys_and_addrs = 1);
+      let (arr_ty, _) = List.hd param_tys_and_addrs in
 
       let to_obj = args.(0) in
       let size_of = Type.size_of arr_ty in
@@ -1329,11 +1454,11 @@ let inject_builtins ctx =
       (make_builtin_default_ctor_name array_type_i.internal_name) f
   in
   let () =
-    let f param_tys args ctx =
+    let f param_tys_and_addrs args ctx =
       let open Codegen_llvm_intrinsics in
       assert (Array.length args = 2);
-      assert (List.length param_tys = 2);
-      let arr_ty = List.hd param_tys in
+      assert (List.length param_tys_and_addrs = 2);
+      let (arr_ty, _) = List.hd param_tys_and_addrs in
 
       let to_obj = args.(0) in
       let from_obj = args.(1) in
@@ -1352,11 +1477,24 @@ let inject_builtins ctx =
 
   let define_special_members builtin_info init =
     let open Builtin_info in
+
+    let normalize_store_value param_tys_and_addrs args =
+      assert (List.length param_tys_and_addrs = Array.length args);
+      let (_, rhs_is_addr) = List.at param_tys_and_addrs 1 in
+      Debug.printf "COPY => %b\n" rhs_is_addr;
+      if rhs_is_addr then
+        L.build_load args.(1) "" ctx.ir_builder
+      else
+        args.(1)
+    in
+
     let () = (* default constructor *)
-      let f _ args ctx =
+      let f param_tys_and_addrs args ctx =
+        assert (List.length param_tys_and_addrs = Array.length args);
         let v = init in
         match Array.length args with
-        | 1 -> let _ = L.build_store v args.(0) ctx.ir_builder in args.(0)
+        | 1 ->
+           let _ = L.build_store v args.(0) ctx.ir_builder in args.(0)
         | 0 -> v
         | _ -> failwith ""
       in
@@ -1364,9 +1502,13 @@ let inject_builtins ctx =
         (make_builtin_default_ctor_name builtin_info.internal_name) f
     in
     let () = (* copy constructor *)
-      let f _ args ctx =
+      let f param_tys_and_addrs args ctx =
+        assert (List.length param_tys_and_addrs = Array.length args);
         match Array.length args with
-        | 2 -> let _ = L.build_store args.(1) args.(0) ctx.ir_builder in args.(0)
+        | 2 ->
+           let store_val = normalize_store_value param_tys_and_addrs args in
+           let _ = L.build_store store_val args.(0) ctx.ir_builder in
+           args.(0)
         | 1 -> args.(0)
         | _ -> failwith ""
       in
@@ -1374,9 +1516,10 @@ let inject_builtins ctx =
         (make_builtin_copy_ctor_name builtin_info.internal_name) f
     in
     let () = (* copy assign *)
-      let f _ args ctx =
+      let f param_tys_and_addrs args ctx =
         assert (Array.length args = 2);
-        L.build_store args.(1) args.(0) ctx.Ctx.ir_builder
+        let store_val = normalize_store_value param_tys_and_addrs args in
+        L.build_store store_val args.(0) ctx.Ctx.ir_builder
       in
       register_builtin_func
         (make_builtin_copy_assign_name builtin_info.internal_name) f
@@ -1675,7 +1818,6 @@ let inject_builtins ctx =
     ()
   in
 
-
   (* for bool *)
   let () =
     let open Builtin_info in
@@ -1689,6 +1831,14 @@ let inject_builtins ctx =
       register_builtin_func "__builtin_op_unary_pre_!_bool" f
     in
     ()
+  in
+
+  let () = (* *)
+    let f _ args ctx =
+      assert (Array.length args = 1);
+      args.(0)
+    in
+    register_builtin_func "__builtin_make_ptr_from_ref" f
   in
 
   (* for ptr *)
@@ -1716,16 +1866,13 @@ let inject_builtins ctx =
     let () = (* pre* (:raw_ptr!(T)): ref(T) *)
       let f template_args _ args ctx =
         assert (List.length template_args = 1);
-        let ty_val = List.nth template_args 0 in
+        (*let ty_val = List.nth template_args 0 in
         let ty = match ty_val with
           | Ctfe_value.Type ty -> ty
           | _ -> failwith "[ICE]"
-        in
+        in*)
         assert (Array.length args = 1);
-        if is_address_representation ty then
-          args.(0)
-        else
-          L.build_load args.(0) "" ctx.ir_builder
+        args.(0)
       in
       register_builtin_template_func "__builtin_op_unary_pre_*_raw_ptr" f
     in
