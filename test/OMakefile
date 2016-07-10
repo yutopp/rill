@@ -91,4 +91,4 @@ test_all: $(PROGRAM)
 	./$(PROGRAM)
 
 clean:
-	rm -f *~ *.opt *.cmi *.cmx *.o *.omc *.log *.cache $(PROGRAM)
+	rm -f *~ *.opt *.cmi *.cmx *.o *.omc *.log *.cache *.bc *.o *.out $(PROGRAM)

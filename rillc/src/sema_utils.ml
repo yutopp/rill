@@ -49,7 +49,7 @@ let complete_function_env env node id_name f_detail ctx =
     | Nodes.Pure s when s = Builtin_info.entrypoint_name ->
        begin
          (* TODO: check param_types and return_type *)
-         r.Env.fn_mangled <- Some Builtin_info.entrypoint_name
+         r.Env.fn_mangled <- Some Builtin_info.entrypoint_export_name
        end
     | _ ->
        begin

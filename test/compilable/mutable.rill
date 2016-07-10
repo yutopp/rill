@@ -38,8 +38,8 @@ def main(): void
     assert(__statement_traits(semantics, {
         ref immutable r = i;
     }));
-    // ref immutable <- val const: NG
-    assert(!__statement_traits(semantics, {
+    // ref immutable <- val const: OK
+    assert(__statement_traits(semantics, {
         ref immutable r = c;
     }));
     // ref immutable <- val mutable: NG

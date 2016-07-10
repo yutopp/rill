@@ -29,7 +29,6 @@ let is_success x = match x with
   | Success -> true
   | Failure _ -> false
 
-
 let is_failure x = match x with
   | Success -> false
   | Failure _ -> true
@@ -56,8 +55,61 @@ let show_reports files stats =
   Printf.printf "SUCCESS (%03d/%03d) : FAILURE (%03d/%03d) : UNKNOWN (%03d/%03d)\n" succ_num total_num fail_num total_num unk_num total_num;
   ()
 
+let run_executable bin_path args stdin stdout stderr =
+  let pid =
+    Unix.create_process bin_path args stdin stdout stderr
+  in
+  let (rpid, ps) = Unix.waitpid [] pid in
+  let stat = match ps with
+    | Unix.WEXITED 0 -> Success
+    | Unix.WEXITED code -> Failure (code, "return code")
+    | Unix.WSIGNALED s -> Failure (s, "signaled")
+    | _ -> Failure (0, "unexpected")
+  in
+  stat
 
-let run_compilable_test base_dir files ctx =
+let output_file filename =
+  let fd = Unix.openfile filename [Unix.O_RDONLY] 0400 in
+  let ch = Unix.in_channel_of_descr fd in
+  let _ = try while true do
+                let s = IO.nread ch 1024 in
+                output_string stdout s
+              done with
+          | IO.No_more_input -> ()
+  in
+  Unix.close fd
+
+let run_executable_test executable_filename ctx =
+  let filename_output_stdout = Filename.temp_file "rill-run-test-" "-pipe-stdout" in
+  let fd_stdout = Unix.openfile filename_output_stdout [Unix.O_RDWR] 0600 in
+  let filename_output_stderr = Filename.temp_file "rill-run-test-" "-pipe-stderr" in
+  let fd_stderr = Unix.openfile filename_output_stderr [Unix.O_RDWR] 0600 in
+  let args = Array.of_list ([
+                             executable_filename
+                           ])
+  in
+  let executable_path = Filename.concat (Unix.getcwd()) executable_filename in
+  let stat = run_executable executable_path args Unix.stdin fd_stdout fd_stderr in
+  Unix.close fd_stdout;
+  Unix.close fd_stderr;
+
+  Printf.printf "RUN    : %s\n" (string_of_stat stat);
+
+  if is_success stat then
+    begin
+      stat
+    end
+  else
+    begin
+      Printf.printf "stdout\n";
+      output_file filename_output_stdout;
+      Printf.printf "stderr\n";
+      output_file filename_output_stderr;
+
+      stat
+    end
+
+let run_compilable_tests base_dir files ctx =
   let sep_1 = String.make 80 '-' in
   let sep_2 = String.make 80 '=' in
   let total_num = List.length files in
@@ -69,42 +121,30 @@ let run_compilable_test base_dir files ctx =
     Printf.printf "\n";
     flush_all ();
 
+    let casename = Printf.sprintf "%03d-%s.out" i (Filename.chop_extension filename) in
     let file_fullpath = Filename.concat base_dir filename in
 
     let filename_output = Filename.temp_file "rill-run-test-" "-pipe" in
     let fd = Unix.openfile filename_output [Unix.O_RDWR] 0600 in
-    let pid =
-      Unix.create_process ctx.compiler_bin (Array.of_list ([
-                                                            ctx.compiler_bin;
-                                                            file_fullpath
-                                                          ] @ ctx.compiler_options))
-                          Unix.stdin fd fd
+    let args = Array.of_list ([
+                               ctx.compiler_bin;
+                               file_fullpath;
+                               "-o"; casename;
+                             ] @ ctx.compiler_options)
     in
-
-    let (rpid, ps) = Unix.waitpid [] pid in
-    let stat = match ps with
-      | Unix.WEXITED 0 -> Success
-      | Unix.WEXITED code -> Failure (code, "return code")
-      | Unix.WSIGNALED s -> Failure (s, "signaled")
-      | _ -> Failure (0, "unexpected")
-    in
+    let stat = run_executable ctx.compiler_bin args Unix.stdin fd fd in
     Unix.close fd;
 
     if is_failure stat then
-      begin
-        let fd = Unix.openfile filename_output [Unix.O_RDONLY] 0400 in
-        let ch = Unix.in_channel_of_descr fd in
-        let _ = try while true do
-                      let s = IO.nread ch 1024 in
-                      output_string stdout s
-                    done with
-                | IO.No_more_input -> ()
-        in
-        Unix.close fd
-      end;
-    Printf.printf "%s\n" (string_of_stat stat);
+      output_file filename_output;
 
-    stat
+    Printf.printf "COMPILE: %s\n" (string_of_stat stat);
+    flush_all ();
+
+    if is_success stat then
+      run_executable_test casename ctx
+    else
+      stat
   in
   let stats = List.mapi run files in
 
@@ -146,5 +186,5 @@ let () =
   let extension = Str.regexp "^\\(.*\\)\\.rill$" in
 
   let filenames = collect_filenames target_dir extension in
-  let is_failed = run_compilable_test target_dir filenames ctx in
+  let is_failed = run_compilable_tests target_dir filenames ctx in
   exit (if is_failed then 1 else 0)

@@ -363,5 +363,40 @@ module Make (Ctx : NodeContextType) =
          begin
            Debug.printf "NestedExpr\n"
          end
-      | _ -> Debug.printf "unknown\n"
+      | ScopeExpr _ ->
+         begin
+           Debug.printf "ScopeExpr\n"
+         end
+      | IfExpr _ ->
+         begin
+           Debug.printf "IfExpr\n"
+         end
+      | ForExpr _ ->
+         begin
+           Debug.printf "ForExpr\n"
+         end
+      | FinalyzeExpr _ ->
+         begin
+           Debug.printf "FinalyzeExpr\n"
+         end
+      | CtxNode _ ->
+         begin
+           Debug.printf "CtxNode\n"
+         end
+      | TypeQualConv _ ->
+         begin
+           Debug.printf "TypeQualConv\n"
+         end
+      | TypeRVConv _ ->
+         begin
+           Debug.printf "TypeRVConv\n"
+         end
+      | MetaLevelConv _ ->
+         begin
+           Debug.printf "MetaLevelConv\n"
+         end
+      | StorageWrapperExpr _ ->
+         begin
+           Debug.printf "StorageWrapperExpr\n"
+         end
   end

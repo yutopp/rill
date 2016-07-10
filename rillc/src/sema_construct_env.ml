@@ -1213,20 +1213,22 @@ and analyze_expr ?(making_placeholder=false)
             assert_valid_type ty;
 
             let test () =
-                (* temporary environment for check whether semantics is valid.
-                 * DO NOT append this env to the parent_env.
-                 *)
+              (* A temporary environment for checking whether semantics is valid or not.
+               * DO NOT append this env to the parent_env.
+               *)
               let temp_env =
                 Env.create_scoped_env parent_env
                                       (Env.Scope (Env.empty_lookup_table ()))
                                       None
               in
-              ignore @@
-                analyze ~opt_attr:attr block temp_env ctx;
+              ignore @@ analyze_expr block temp_env ctx attr;
               true
             in
             let could_compile = try test() with
-                                | _ -> false
+                                | e ->
+                                   Debug.printf "STATEMENT TRAIT ERROR: %s\n"
+                                                (Printexc.to_string e);
+                                   false
             in
             let node = TAst.BoolLit (could_compile, ty) in
             (node, (ty, VCatPrValue, Env.get_scope_lifetime parent_env, Meta_level.Meta, loc))
@@ -2019,6 +2021,7 @@ and convert_type trg_ty src_arg ext_env ctx attr : FuncMatchLevel.t * conv_filte
     (* same type *)
     let open Type_attr in
     match (trg_ty.Type_info.ti_attr, src_ty.Type_info.ti_attr) with
+    (* val <- ref *)
     | ({ta_ref_val = Val}, {ta_ref_val = _}) ->
        begin
          (* copy val/ref to value *)
@@ -2095,6 +2098,7 @@ and convert_type trg_ty src_arg ext_env ctx attr : FuncMatchLevel.t * conv_filte
          (FuncMatchLevel.ExactMatch, ConvFunc (trg_ty, f))
        end
 
+    (* ref <- ref *)
     | ({ta_ref_val = Ref; ta_mut = trg_mut},
        {ta_ref_val = Ref; ta_mut = src_mut}) ->
        begin
@@ -2116,6 +2120,7 @@ and convert_type trg_ty src_arg ext_env ctx attr : FuncMatchLevel.t * conv_filte
          (level, Trans trg_ty)
        end
 
+    (* ref <- val *)
     | ({ta_ref_val = Ref; ta_mut = trg_mut},
        {ta_ref_val = Val; ta_mut = src_mut}) ->
        begin
@@ -2276,7 +2281,10 @@ and apply_conv_filter ?(opt_operation=None)
        suitable_storage ~opt_operation:opt_operation
                         trg_ty ctx
      in
-     let nexpr = TAst.StorageWrapperExpr (ref sto, expr_node) in
+     let nexpr = match sto with
+       | TAst.StoImm -> expr_node
+       | _ -> TAst.StorageWrapperExpr (ref sto, expr_node)
+     in
      (nexpr, expr_aux)
 
 

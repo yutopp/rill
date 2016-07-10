@@ -70,7 +70,7 @@ let raw_ptr_type_i = {
  *
  *)
 let entrypoint_name = "main"
-
+let entrypoint_export_name = "_Rill_main"
 
 (*
  *)
