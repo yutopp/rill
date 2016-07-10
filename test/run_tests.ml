@@ -116,7 +116,8 @@ let run_compilable_tests base_dir files ctx =
   let run i filename =
     Printf.printf "\n";
     Printf.printf "%s\n" sep_1;
-    Printf.printf "- (%03d/%03d) compilable test / %s\n" (i+1) total_num filename;
+    Printf.printf "- (%03d/%03d) compilable and executable test / %s\n"
+                  (i+1) total_num filename;
     Printf.printf "%s\n" sep_1;
     Printf.printf "\n";
     flush_all ();
