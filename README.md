@@ -27,7 +27,7 @@ Rill is designed for systems programming.
 ### Preparation
 ```
 opam install omake menhir batteries ctypes-foreign stdint llvm.3.8
-opam install bisect_ppx # for testing
+opam install bisect_ppx ocveralls   # for coverage
 eval `opam config env`
 ```
 `opam update` might be required to install these packages.
@@ -62,10 +62,11 @@ omake install
 
 You can use these variables.
 
-|variable|default value|
-|:--|:--|
-|PREFIX|`/usr/local`|
-|RELEASE|`false`|
+|variable|default value|required|
+|:--|:--|:--|
+|PREFIX|`/usr/local`|every time|
+|RELEASE|`false`|build time|
+|COVERAGE|`false`|build time|
 
 There is no configure file. Thus, you need to specify these variables every time. Ex,
 ```

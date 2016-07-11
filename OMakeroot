@@ -53,6 +53,10 @@ if $(not $(defined USE_LOCAL_DEV_LIB))
        export
    export
 
+if $(not $(defined COVERAGE))
+   COVERAGE = false
+   export
+
 if $(not $(defined PREFIX))
    PREFIX = /usr/local
    export

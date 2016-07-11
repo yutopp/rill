@@ -85,6 +85,9 @@ if $(equal $(RELEASE), true)
    # do nothing...
 else
    OCAMLFLAGS    += -g -bin-annot
+   export
+
+if $(equal $(COVERAGE), true)
    OCAMLPACKS    += bisect_ppx
    export
 
