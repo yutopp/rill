@@ -17,13 +17,25 @@ type type_info_t = env_t Type.info_t
 type ctfe_val_t = type_info_t Ctfe_value.t
 type type_gen_t = env_t Type.Generator.t
 
+type value_form_t = bool    (* is_address or not *)
+
+type builtin_func_params_t =
+    (type_info_t * value_form_t) list
+type builtin_func_ret_t =
+    (type_info_t * value_form_t)
+type 'ctx builtin_func_def_t =
+    builtin_func_params_t -> builtin_func_ret_t -> L.llvalue array -> 'ctx -> L.llvalue
+type ('ty, 'ctx) builtin_template_func_def_t =
+    'ty Ctfe_value.t list ->
+    builtin_func_params_t -> builtin_func_ret_t -> L.llvalue array -> 'ctx -> L.llvalue
+
 type ('ty, 'ctx) record_t =
-  | LLValue of (L.llvalue * bool)   (* value * is_addr *)
+  | LLValue of (L.llvalue * value_form_t)
   | LLType of L.lltype
   | LLTypeGen of ('ty Ctfe_value.t list -> L.lltype)
   | ElemIndex of int
-  | BuiltinFunc of ((type_info_t * bool) list -> L.llvalue array -> 'ctx -> L.llvalue)
-  | BuiltinFuncGen of ('ty Ctfe_value.t list -> (type_info_t * bool) list -> L.llvalue array -> 'ctx -> L.llvalue)
+  | BuiltinFunc of 'ctx builtin_func_def_t
+  | BuiltinFuncGen of ('ty, 'ctx) builtin_template_func_def_t
   | TrivialAction
 
 module CodeGeneratorType =
@@ -171,29 +183,31 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
          (* setup parameters *)
          let param_envs = param_envs |> List.enum in
          let raw_ll_params = L.params f |> Array.enum in
-         if returns_heavy_obj then begin
-                                  (* set name of receiver *)
-                                  let opt_agg = Enum.peek raw_ll_params in
-                                  assert (Option.is_some opt_agg);
-                                  let agg = Option.get opt_agg in
-                                  let _ = match kind with
-                                    | Env.FnKindConstructor (Some venv)
-                                    | Env.FnKindCopyConstructor (Some venv)
-                                    | Env.FnKindMoveConstructor (Some venv)
-                                    | Env.FnKindDefaultConstructor (Some venv)
-                                    | Env.FnKindDestructor (Some venv) ->
-                                       begin
-                                         let venv_r = Env.VariableOp.get_record venv in
-                                         let var_name = venv_r.Env.var_name in
-                                         L.set_value_name var_name agg;
-                                         Ctx.bind_val_to_env ctx (LLValue (agg, true)) venv
-                                       end
-                                    | _ ->
-                                       L.set_value_name agg_recever_name agg;
-                                  in
-                                  (* remove the implicit parameter from ENUM *)
-                                  Enum.drop 1 raw_ll_params;
-                                end;
+         if returns_heavy_obj then
+           begin
+             (* set name of receiver *)
+             let opt_agg = Enum.peek raw_ll_params in
+             assert (Option.is_some opt_agg);
+             let agg = Option.get opt_agg in
+             let _ = match kind with
+               | Env.FnKindConstructor (Some venv)
+               | Env.FnKindCopyConstructor (Some venv)
+               | Env.FnKindMoveConstructor (Some venv)
+               | Env.FnKindDefaultConstructor (Some venv)
+               | Env.FnKindDestructor (Some venv) ->
+                  begin
+                    let venv_r = Env.VariableOp.get_record venv in
+                    let var_name = venv_r.Env.var_name in
+                    L.set_value_name var_name agg;
+                    Ctx.bind_val_to_env ctx (LLValue (agg, true)) venv
+                  end
+               | _ ->
+                  L.set_value_name agg_recever_name agg;
+             in
+             (* remove the implicit parameter from ENUM *)
+             Enum.drop 1 raw_ll_params;
+           end;
+
          (* adjust type specialized by params to normal type forms *)
          let adjust_param_type (ty, llval) =
            let should_param_be_address = is_address_representation ty in
@@ -394,7 +408,7 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
   | TAst.MemberVariableDefStmt _ -> void_val
   | TAst.EmptyStmt -> void_val
 
-  | TAst.GenericCallExpr (storage_ref, args, Some call_on_env, Some env) ->
+  | TAst.GenericCallExpr (storage_ref, args, Some caller_env, Some env) ->
      begin
        let f_er = Env.FunctionOp.get_record env in
        let {
@@ -404,170 +418,23 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
          Env.fn_return_type = ret_ty;
        } = f_er in
 
-       let param_tys = adjust_param_types param_kinds args in
-
-       let returns_heavy_obj = is_heavy_object ret_ty in
-
-       let setup_storage sto =
-         match sto with
-         | TAst.StoStack (ty) ->
-            begin
-              Debug.printf "setup_storage: StoStack ty=%s\n"
-                           (Type.to_string ty);
-              let llty = lltype_of_typeinfo ty ctx in
-              let v = L.build_alloca llty "" ctx.ir_builder in
-              (v, ty, true)
-              end
-
-         | TAst.StoAgg (ty) ->
-            begin
-              Debug.printf "setup_storage: StoAgg ty=%s\n"
-                           (Type.to_string ty);
-              let ctx_env = Option.get call_on_env.Env.context_env in
-              let (ll_fval, is_addr) =
-                find_llval_by_env_with_force_generation ctx ctx_env
-              in
-              assert (is_addr);
-              let agg = L.param ll_fval 0 in
-              assert (L.value_name agg = agg_recever_name);
-              (agg, ty, true)
-            end
-
-         | TAst.StoArrayElem (ty, index) ->
-            Debug.printf "setup_storage: StoArrayElem ty=%s\n"
-                         (Type.to_string ty);
-            let array_sto = match Ctx.current_array_storage ctx with
-              | LLValue (v, true) -> v
-              | _ -> failwith "[ICE]"
-            in
-            let zero = L.const_int (L.i32_type ctx.ir_context) 0 in
-            let llindex = L.const_int (L.i32_type ctx.ir_context) index in
-            let array_elem_ptr =
-              L.build_in_bounds_gep array_sto
-                                    [|zero; llindex|]
-                                    ""
-                                    ctx.Ctx.ir_builder
-            in
-            (array_elem_ptr, ty, true)
-
-         | TAst.StoArrayElemFromThis (ty, Some this_env, index) ->
-            Debug.printf "setup_storage: StoArrayElemFromThis ty=%s\n"
-                         (Type.to_string ty);
-            let (array_sto, is_addr) =
-              find_llval_by_env_with_force_generation ctx this_env
-            in
-            assert (is_addr);
-            let zero = L.const_int (L.i32_type ctx.ir_context) 0 in
-            let llindex = L.const_int (L.i32_type ctx.ir_context) index in
-            let array_elem_ptr =
-              L.build_in_bounds_gep array_sto
-                                    [|zero; llindex|]
-                                    ""
-                                    ctx.Ctx.ir_builder
-            in
-            (array_elem_ptr, ty, true)
-
-         | TAst.StoMemberVar (ty, Some venv, Some parent_fenv) ->
-            Debug.printf "setup_storage: StoMemberVar ty=%s\n"
-                         (Type.to_string ty);
-            let (reciever_llval, is_addr) =
-              match Env.FunctionOp.get_kind parent_fenv with
-              | Env.FnKindConstructor (Some rvenv)
-              | Env.FnKindCopyConstructor (Some rvenv)
-              | Env.FnKindMoveConstructor (Some rvenv)
-              | Env.FnKindDefaultConstructor (Some rvenv)
-              | Env.FnKindDestructor (Some rvenv) ->
-                 find_llval_by_env_with_force_generation ctx rvenv
-              | _ -> failwith "[ICE] no reciever"
-            in
-            assert (is_addr);
-            let member_index = match Ctx.find_val_by_env ctx venv with
-              | ElemIndex idx -> idx
-              | _ -> failwith "[ICE] a member variable is not found"
-            in
-            let elem_llval =
-              debug_dump_value reciever_llval;
-              Debug.printf "index = %d\n" member_index;
-
-              L.build_struct_gep reciever_llval member_index "" ctx.ir_builder
-            in
-            (elem_llval, ty, true)
-
-         | _ -> failwith "[ICE] cannot setup storage"
+       let analyze_func_and_eval_args kind =
+         let (param_tys, evaled_args) = normalize_params_and_args param_kinds args in
+         eval_args_for_func kind !storage_ref param_tys ret_ty evaled_args caller_env ctx
        in
 
-       let eval_args kind param_types =
-         (* normal arguments *)
-         let (llvals, arg_tys, is_addrs) =
-           let res = args |> List.map (fun n -> generate_code n ctx) in
-           List.fold_right (fun (v, t, p) (vs, ts, ps) -> (v::vs, t::ts, p::ps))
-                           res
-                           ([], [], [])
-         in
-         (* special arguments *)
-         let (llvals, arg_tys, is_addrs, param_types, returns_addr, skip_alloca) =
-           match !storage_ref with
-           | TAst.StoStack _
-           | TAst.StoArrayElem _
-           | TAst.StoArrayElemFromThis _
-           | TAst.StoMemberVar _ ->
-              let (v, ty, is_addr) = setup_storage !storage_ref in
-              let sa = is_primitive ty in
-              (v::llvals, ty::arg_tys, is_addr::is_addrs, ty::param_types, true, sa)
-
-           | TAst.StoImm ->
-              let (returns_addr, sa) =
-                match kind with
-                | Env.FnKindFree ->
-                   (is_address_representation ret_ty, false)
-
-                | _ ->
-                   let (returns_addr, skip_alloca) = match (is_addrs, arg_tys) with
-                     (* Case for constructors of primitives *)
-                     | ([], []) -> (false, false)
-                     (* Case for normal constructors
-                      * An address flag of first arg(hp) means
-                      *   "is the return value pointer?"
-                      * And if the first type of arguments is a primitive,
-                      *   do not allocate storage for optimization
-                      *)
-                     | (hp::_, aty::_) -> (hp, is_primitive aty)
-                     | _ -> failwith "[ICE]"
-                   in
-                   (returns_addr, skip_alloca)
-              in
-              (llvals, arg_tys, is_addrs, param_types, returns_addr, sa)
-
-           | _ -> failwith "[ICE] special arguments"
-         in
-         let llargs =
-           Debug.printf "conv funcs skip_alloca = %b\n" skip_alloca;
-           let rec make param_tys arg_tys is_addrs llvals =
-             match (param_tys, arg_tys, is_addrs, llvals) with
-             | ([], [], [], []) -> []
-             | (pt::pts, at::ats, ia::ias, lv::lvs) ->
-                let llarg = adjust_arg_llval_form pt at ia skip_alloca lv ctx in
-                llarg::(make pts ats ias lvs)
-             | _ -> failwith ""
-           in
-           make param_types arg_tys is_addrs llvals
-         in
-         let llargs = llargs |> Array.of_list in
-         (llargs, param_types, is_addrs, returns_addr)
-       in
-
-       let call_func kind f =
+       let call_llfunc kind f =
+         let (_, llargs, _, returns_addr) = analyze_func_and_eval_args kind in
+         let returns_heavy_obj = is_heavy_object ret_ty in
          match returns_heavy_obj with
          | false ->
-            let (llargs, _, _, p) = eval_args kind param_tys in
             let llval = L.build_call f llargs "" ctx.ir_builder in
-            (llval, p)
+            (llval, returns_addr)
          | true ->
-            let (llargs, _, _, p) = eval_args kind param_tys in
             let _ = L.build_call f llargs "" ctx.ir_builder in
             assert (Array.length llargs > 0);
             let llval = llargs.(0) in
-            (llval, p)
+            (llval, returns_addr)
        in
 
        let fn_s_name = Nodes.string_of_id_string fn_name in
@@ -579,7 +446,7 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
 
               let r_value = force_target_generation ctx env in
               match r_value with
-              | LLValue (f, true) -> call_func kind f
+              | LLValue (f, true) -> call_llfunc kind f
               | _ -> failwith "[ICE] unexpected value"
             end
 
@@ -598,7 +465,7 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
                      | TAst.StoAgg _
                      | TAst.StoArrayElem _
                      | TAst.StoMemberVar _ ->
-                        let (v, _, is_addr) = setup_storage !storage_ref in
+                        let (v, _, is_addr) = setup_storage !storage_ref caller_env ctx in
                         (v, is_addr)
 
                      | _ ->
@@ -630,7 +497,7 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
                  end
 
               (* non-trivial function *)
-              | LLValue (f, true) -> call_func kind f
+              | LLValue (f, true) -> call_llfunc kind f
 
               | _ -> failwith "[ICE] unexpected"
             end
@@ -640,7 +507,9 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
             begin
               Debug.printf "CALL FUNC / extern  %s = \"%s\"\n"
                             fn_s_name extern_name;
-              let (llargs, _, _, returns_addr) = eval_args kind param_tys in
+              let (_, llargs, _, returns_addr) =
+                analyze_func_and_eval_args kind
+              in
               let (extern_f, is_addr) =
                 find_llval_by_env_with_force_generation ctx env
               in
@@ -654,8 +523,8 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
               Debug.printf "CALL FUNC / builtin %s = \"%s\"\n"
                            fn_s_name extern_name;
               TAst.debug_print_storage (!storage_ref);
-              let (llargs, param_tys, is_addrs, returns_addr) =
-                eval_args kind param_tys
+              let (param_tys, llargs, is_addrs, returns_addr) =
+                analyze_func_and_eval_args kind
               in
               Debug.printf "== Args\n";
               Array.iter debug_dump_value llargs;
@@ -671,7 +540,8 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
               in
 
               let param_ty_and_addrs = List.combine param_tys is_addrs in
-              let llval = builtin_gen_f param_ty_and_addrs llargs ctx in
+              let ret_ty_and_addrs = (ret_ty, returns_addr) in
+              let llval = builtin_gen_f param_ty_and_addrs ret_ty_and_addrs llargs ctx in
               (llval, returns_addr)
             end
 
@@ -1237,6 +1107,7 @@ and adjust_addr_val v ty is_addr ctx =
     else
       v
 
+(* allocate storage for primitve i*)
 and adjust_primitive_value storage llty llval ctx =
   match storage with
   | Some (TAst.StoStack _) ->
@@ -1270,20 +1141,167 @@ and typeinfo_of_paramkind pk =
   match pk with
   | Env.FnParamKindType ty -> ty
 
-and adjust_param_types params_info args =
+and normalize_params_and_args params_info args =
   adjust_param_types' params_info args []
-  |> List.rev
+  |> List.rev |> List.split
 
 and adjust_param_types' params_info args acc =
   match (params_info, args) with
-  | (param_info :: px, _ :: ax) ->
+  | (param_info :: px, arg :: ax) ->
      begin
        match param_info with
        | Env.FnParamKindType ty ->
-          adjust_param_types' px ax (ty :: acc)
+          adjust_param_types' px ax ((ty, arg) :: acc)
      end
   | (_, []) -> acc
   | ([], _) -> failwith "[ICE]"
+
+and setup_storage sto caller_env ctx =
+  let open Ctx in
+  match sto with
+  | TAst.StoStack (ty) ->
+     begin
+       Debug.printf "setup_storage: StoStack ty=%s\n"
+                    (Type.to_string ty);
+       let llty = lltype_of_typeinfo ty ctx in
+       let v = L.build_alloca llty "" ctx.ir_builder in
+       (v, ty, true)
+     end
+
+  | TAst.StoAgg (ty) ->
+     begin
+       Debug.printf "setup_storage: StoAgg ty=%s\n"
+                    (Type.to_string ty);
+       let ctx_env = Option.get caller_env.Env.context_env in
+       let (ll_fval, is_f_addr) =
+         find_llval_by_env_with_force_generation ctx ctx_env
+       in
+       assert (is_f_addr);
+       let agg = L.param ll_fval 0 in
+       assert (L.value_name agg = agg_recever_name);
+       (agg, ty, true)
+     end
+
+  | TAst.StoArrayElem (ty, index) ->
+     Debug.printf "setup_storage: StoArrayElem ty=%s\n"
+                  (Type.to_string ty);
+     let array_sto = match Ctx.current_array_storage ctx with
+       | LLValue (v, true) -> v
+       | _ -> failwith "[ICE]"
+     in
+     let zero = L.const_int (L.i32_type ctx.ir_context) 0 in
+     let llindex = L.const_int (L.i32_type ctx.ir_context) index in
+     let array_elem_ptr =
+       L.build_in_bounds_gep array_sto
+                             [|zero; llindex|]
+                             ""
+                             ctx.Ctx.ir_builder
+     in
+     (array_elem_ptr, ty, true)
+
+  | TAst.StoArrayElemFromThis (ty, Some this_env, index) ->
+     Debug.printf "setup_storage: StoArrayElemFromThis ty=%s\n"
+                  (Type.to_string ty);
+     let (array_sto, is_f_addr) =
+       find_llval_by_env_with_force_generation ctx this_env
+     in
+     assert (is_f_addr);
+     let zero = L.const_int (L.i32_type ctx.ir_context) 0 in
+     let llindex = L.const_int (L.i32_type ctx.ir_context) index in
+     let array_elem_ptr =
+       L.build_in_bounds_gep array_sto
+                             [|zero; llindex|]
+                             ""
+                             ctx.Ctx.ir_builder
+     in
+     (array_elem_ptr, ty, true)
+
+  | TAst.StoMemberVar (ty, Some venv, Some parent_fenv) ->
+     Debug.printf "setup_storage: StoMemberVar ty=%s\n"
+                  (Type.to_string ty);
+     let (reciever_llval, is_addr) =
+       match Env.FunctionOp.get_kind parent_fenv with
+       | Env.FnKindConstructor (Some rvenv)
+       | Env.FnKindCopyConstructor (Some rvenv)
+       | Env.FnKindMoveConstructor (Some rvenv)
+       | Env.FnKindDefaultConstructor (Some rvenv)
+       | Env.FnKindDestructor (Some rvenv) ->
+          find_llval_by_env_with_force_generation ctx rvenv
+       | _ -> failwith "[ICE] no reciever"
+     in
+     assert (is_addr);
+     let member_index = match Ctx.find_val_by_env ctx venv with
+       | ElemIndex idx -> idx
+       | _ -> failwith "[ICE] a member variable is not found"
+     in
+     let elem_llval =
+       debug_dump_value reciever_llval;
+       Debug.printf "index = %d\n" member_index;
+
+       L.build_struct_gep reciever_llval member_index "" ctx.ir_builder
+     in
+     (elem_llval, ty, true)
+
+  | _ -> failwith "[ICE] cannot setup storage"
+
+and eval_args_for_func kind sto param_types ret_ty args caller_env ctx =
+  (* normal arguments *)
+  let (llvals, arg_tys, is_addrs) =
+    let res = args |> List.map (fun n -> generate_code n ctx) in
+    List.fold_right (fun (v, t, p) (vs, ts, ps) -> (v::vs, t::ts, p::ps))
+                    res
+                    ([], [], [])
+  in
+  (* special arguments *)
+  let (llvals, arg_tys, is_addrs, param_types, returns_addr, skip_alloca) =
+    match sto with
+    | TAst.StoStack _
+    | TAst.StoArrayElem _
+    | TAst.StoArrayElemFromThis _
+    | TAst.StoMemberVar _ ->
+       let (v, ty, is_addr) = setup_storage sto caller_env ctx in
+       let sa = is_primitive ty in
+       (v::llvals, ty::arg_tys, is_addr::is_addrs, ty::param_types, true, sa)
+
+    | TAst.StoImm ->
+       let (returns_addr, sa) =
+         match kind with
+         | Env.FnKindFree ->
+            (is_address_representation ret_ty, false)
+
+         | _ ->
+            let (returns_addr, skip_alloca) = match (is_addrs, arg_tys) with
+              (* Case for constructors of primitives *)
+              | ([], []) -> (false, false)
+              (* Case for normal constructors
+               * An address flag of first arg(hp) means
+               *   "is the return value pointer?"
+               * And if the first type of arguments is a primitive,
+               *   do not allocate storage for optimization
+               *)
+              | (hp::_, aty::_) -> (hp, is_primitive aty)
+              | _ -> failwith "[ICE]"
+            in
+            (returns_addr, skip_alloca)
+       in
+       (llvals, arg_tys, is_addrs, param_types, returns_addr, sa)
+
+    | _ -> failwith "[ICE] special arguments"
+  in
+  let llargs =
+    Debug.printf "conv funcs skip_alloca = %b\n" skip_alloca;
+    let rec make param_tys arg_tys is_addrs llvals =
+      match (param_tys, arg_tys, is_addrs, llvals) with
+      | ([], [], [], []) -> []
+      | (pt::pts, at::ats, ia::ias, lv::lvs) ->
+         let llarg = adjust_arg_llval_form pt at ia skip_alloca lv ctx in
+         llarg::(make pts ats ias lvs)
+      | _ -> failwith ""
+    in
+    make param_types arg_tys is_addrs llvals
+  in
+  let llargs = llargs |> Array.of_list in
+  (param_types, llargs, is_addrs, returns_addr)
 
 let regenerate_module ctx =
   let ir_module = L.create_module ctx.Ctx.ir_context "Rill" in
@@ -1372,7 +1390,7 @@ let inject_builtins ctx =
    *)
   let () =
     (* sizeof is onlymeta function *)
-    let f _ args ctx =
+    let f _ _ args ctx =
       assert (Array.length args = 1);
       let ty_val = args.(0) in
       let ty = match L.int64_of_const ty_val with
@@ -1386,7 +1404,7 @@ let inject_builtins ctx =
   in
 
   let () =
-    let f template_args _ args ctx =
+    let f template_args _ _ args ctx =
       assert (List.length template_args = 1);
       let ty_val = List.nth template_args 0 in
       let ty = match ty_val with
@@ -1400,7 +1418,7 @@ let inject_builtins ctx =
   in
 
   let () =
-    let f template_args _ args ctx =
+    let f template_args _ _ args ctx =
       assert (List.length template_args = 1);
       let ty_val = List.nth template_args 0 in
       let ty = match ty_val with
@@ -1417,7 +1435,7 @@ let inject_builtins ctx =
   in
 
   let () =
-    let f template_args _ args ctx =
+    let f template_args _ _ args ctx =
       assert (List.length template_args = 2);
       let ty_val = List.nth template_args 0 in
       let ty = match ty_val with
@@ -1434,7 +1452,7 @@ let inject_builtins ctx =
     register_builtin_template_func "__builtin_take_address_from_array" f
   in
   let () =
-    let f param_tys_and_addrs args ctx =
+    let f param_tys_and_addrs _ args ctx =
       let open Codegen_llvm_intrinsics in
       assert (Array.length args = 1);
       assert (List.length param_tys_and_addrs = 1);
@@ -1454,7 +1472,7 @@ let inject_builtins ctx =
       (make_builtin_default_ctor_name array_type_i.internal_name) f
   in
   let () =
-    let f param_tys_and_addrs args ctx =
+    let f param_tys_and_addrs _ args ctx =
       let open Codegen_llvm_intrinsics in
       assert (Array.length args = 2);
       assert (List.length param_tys_and_addrs = 2);
@@ -1475,7 +1493,7 @@ let inject_builtins ctx =
       (make_builtin_copy_ctor_name array_type_i.internal_name) f
   in
 
-  let define_special_members builtin_info init =
+  let define_special_members builtin_info init_val_gen =
     let open Builtin_info in
 
     let normalize_store_value param_tys_and_addrs args =
@@ -1489,9 +1507,9 @@ let inject_builtins ctx =
     in
 
     let () = (* default constructor *)
-      let f param_tys_and_addrs args ctx =
+      let f param_tys_and_addrs ret_ty_and_addr args ctx =
         assert (List.length param_tys_and_addrs = Array.length args);
-        let v = init in
+        let v = init_val_gen ret_ty_and_addr in
         match Array.length args with
         | 1 ->
            let _ = L.build_store v args.(0) ctx.ir_builder in args.(0)
@@ -1502,7 +1520,7 @@ let inject_builtins ctx =
         (make_builtin_default_ctor_name builtin_info.internal_name) f
     in
     let () = (* copy constructor *)
-      let f param_tys_and_addrs args ctx =
+      let f param_tys_and_addrs _ args ctx =
         assert (List.length param_tys_and_addrs = Array.length args);
         match Array.length args with
         | 2 ->
@@ -1516,7 +1534,7 @@ let inject_builtins ctx =
         (make_builtin_copy_ctor_name builtin_info.internal_name) f
     in
     let () = (* copy assign *)
-      let f param_tys_and_addrs args ctx =
+      let f param_tys_and_addrs _ args ctx =
         assert (Array.length args = 2);
         let store_val = normalize_store_value param_tys_and_addrs args in
         L.build_store store_val args.(0) ctx.Ctx.ir_builder
@@ -1539,7 +1557,7 @@ let inject_builtins ctx =
   (* for int8 *)
   let () =
     let open Builtin_info in
-    let init = L.const_int (L.i8_type ctx.ir_context) 0 in
+    let init _ = L.const_int (L.i8_type ctx.ir_context) 0 in
     define_special_members uint8_type_i init;
     ()
   in
@@ -1547,123 +1565,123 @@ let inject_builtins ctx =
   (* for int32 *)
   let () =
     let open Builtin_info in
-    let init = L.const_int (L.i32_type ctx.ir_context) 0 in
+    let init _ = L.const_int (L.i32_type ctx.ir_context) 0 in
     define_special_members int32_type_i init;
 
     let () = (* +(:int, :int): int *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_add args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func "__builtin_op_binary_+_int_int" f
     in
     let () = (* -(:int, :int): int *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_sub args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func "__builtin_op_binary_-_int_int" f
     in
     let () = (* *(:int, :int): int *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_mul args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func "__builtin_op_binary_*_int_int" f
     in
     let () = (* /(:int, :int): int *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_sdiv args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func "__builtin_op_binary_/_int_int" f
     in
     let () = (* %(:int, :int): int *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_srem args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func "__builtin_op_binary_%_int_int" f
     in
     let () = (* <(:int, :int): bool *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_icmp L.Icmp.Slt args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func "__builtin_op_binary_<_int_int" f
     in
     let () = (* >(:int, :int): bool *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_icmp L.Icmp.Sgt args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func "__builtin_op_binary_>_int_int" f
     in
     let () = (* |(:int, :int): int *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_or args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func "__builtin_op_binary_|_int_int" f
     in
     let () = (* ^(:int, :int): int *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_xor args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func "__builtin_op_binary_^_int_int" f
     in
     let () = (* &(:int, :int): int *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_and args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func "__builtin_op_binary_&_int_int" f
     in
     let () = (* <=(:int, :int): bool *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_icmp L.Icmp.Sle args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func "__builtin_op_binary_<=_int_int" f
     in
     let () = (* >=(:int, :int): bool *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_icmp L.Icmp.Sge args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func "__builtin_op_binary_>=_int_int" f
     in
     let () = (* <<(:int, :int): int *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_shl args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func "__builtin_op_binary_<<_int_int" f
     in
     let () = (* >>(:int, :int): int *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_ashr args.(0) args.(1) "" ctx.Ctx.ir_builder    (* sign ext(arithmetic) *)
       in
       register_builtin_func "__builtin_op_binary_>>_int_int" f
     in
     let () = (* >>>(:int, :int): int *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_lshr args.(0) args.(1) "" ctx.Ctx.ir_builder    (* zero ext(logical) *)
       in
       register_builtin_func "__builtin_op_binary_>>>_int_int" f
     in
     let () = (* ==(:int, :int): bool *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_icmp L.Icmp.Eq args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
       register_builtin_func "__builtin_op_binary_==_int_int" f
     in
     let () = (* !=(:int, :int): bool *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_icmp L.Icmp.Ne args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
@@ -1676,11 +1694,11 @@ let inject_builtins ctx =
   let () =
     let open Builtin_info in
     let basename = "uint" in
-    let init = L.const_int (L.i32_type ctx.ir_context) 0 in
+    let init _ = L.const_int (L.i32_type ctx.ir_context) 0 in
     define_special_members uint32_type_i init;
 
     let () = (* +(:INT, :INT): INT *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_add args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
@@ -1688,7 +1706,7 @@ let inject_builtins ctx =
         (Printf.sprintf "__builtin_op_binary_+_%s_%s" basename basename) f
     in
     let () = (* -(:INT, :INT): INT *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_sub args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
@@ -1696,7 +1714,7 @@ let inject_builtins ctx =
         (Printf.sprintf "__builtin_op_binary_-_%s_%s" basename basename) f
     in
     let () = (* *(:INT, :INT): INT *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_mul args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
@@ -1704,7 +1722,7 @@ let inject_builtins ctx =
         (Printf.sprintf "__builtin_op_binary_*_%s_%s" basename basename) f
     in
     let () = (* /(:INT, :INT): INT *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_udiv args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
@@ -1712,7 +1730,7 @@ let inject_builtins ctx =
         (Printf.sprintf "__builtin_op_binary_/_%s_%s" basename basename) f
     in
     let () = (* %(:INT, :INT): INT *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_urem args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
@@ -1720,7 +1738,7 @@ let inject_builtins ctx =
         (Printf.sprintf "__builtin_op_binary_%%_%s_%s" basename basename) f
     in
     let () = (* <(:int, :int): bool *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_icmp L.Icmp.Ult args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
@@ -1728,7 +1746,7 @@ let inject_builtins ctx =
         (Printf.sprintf "__builtin_op_binary_<_%s_%s" basename basename) f
     in
     let () = (* >(:int, :int): bool *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_icmp L.Icmp.Ugt args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
@@ -1736,7 +1754,7 @@ let inject_builtins ctx =
         (Printf.sprintf "__builtin_op_binary_>_%s_%s" basename basename) f
     in
     let () = (* |(:int, :int): int *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_or args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
@@ -1744,7 +1762,7 @@ let inject_builtins ctx =
         (Printf.sprintf "__builtin_op_binary_|_%s_%s" basename basename) f
     in
     let () = (* ^(:int, :int): int *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_xor args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
@@ -1752,7 +1770,7 @@ let inject_builtins ctx =
         (Printf.sprintf "__builtin_op_binary_^_%s_%s" basename basename) f
     in
     let () = (* &(:int, :int): int *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_and args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
@@ -1760,7 +1778,7 @@ let inject_builtins ctx =
         (Printf.sprintf "__builtin_op_binary_&_%s_%s" basename basename) f
     in
     let () = (* <=(:int, :int): bool *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_icmp L.Icmp.Ule args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
@@ -1768,7 +1786,7 @@ let inject_builtins ctx =
         (Printf.sprintf "__builtin_op_binary_<=_%s_%s" basename basename) f
     in
     let () = (* >=(:int, :int): bool *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_icmp L.Icmp.Uge args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
@@ -1776,7 +1794,7 @@ let inject_builtins ctx =
         (Printf.sprintf "__builtin_op_binary_>=_%s_%s" basename basename) f
     in
     let () = (* <<(:int, :int): int *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_shl args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
@@ -1784,7 +1802,7 @@ let inject_builtins ctx =
         (Printf.sprintf "__builtin_op_binary_<<_%s_%s" basename basename) f
     in
     let () = (* >>(:int, :int): int *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_lshr args.(0) args.(1) "" ctx.Ctx.ir_builder    (* zero ext(logical) *)
       in
@@ -1792,7 +1810,7 @@ let inject_builtins ctx =
         (Printf.sprintf "__builtin_op_binary_>>_%s_%s" basename basename) f
     in
     let () = (* >>>(:int, :int): int *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_lshr args.(0) args.(1) "" ctx.Ctx.ir_builder    (* zero ext(logical) *)
       in
@@ -1800,7 +1818,7 @@ let inject_builtins ctx =
         (Printf.sprintf "__builtin_op_binary_>>>_%s_%s" basename basename) f
     in
     let () = (* ==(:int, :int): bool *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_icmp L.Icmp.Eq args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
@@ -1808,7 +1826,7 @@ let inject_builtins ctx =
         (Printf.sprintf "__builtin_op_binary_==_%s_%s" basename basename) f
     in
     let () = (* !=(:int, :int): bool *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_icmp L.Icmp.Ne args.(0) args.(1) "" ctx.Ctx.ir_builder
       in
@@ -1821,10 +1839,10 @@ let inject_builtins ctx =
   (* for bool *)
   let () =
     let open Builtin_info in
-    let init = L.const_int (L.i1_type ctx.ir_context) 0 in
+    let init _ = L.const_int (L.i1_type ctx.ir_context) 0 in
     define_special_members bool_type_i init;
     let () = (* pre!(:bool): bool *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 1);
         L.build_not args.(0) "" ctx.Ctx.ir_builder
       in
@@ -1834,7 +1852,7 @@ let inject_builtins ctx =
   in
 
   let () = (* *)
-    let f _ args ctx =
+    let f _ _ args ctx =
       assert (Array.length args = 1);
       args.(0)
     in
@@ -1844,7 +1862,10 @@ let inject_builtins ctx =
   (* for ptr *)
   let () =
     let open Builtin_info in
-    let init = L.const_int (L.i1_type ctx.ir_context) 0 in
+    let init (ty, is_addr) =
+      let llty = lltype_of_typeinfo ty ctx in
+      L.const_pointer_null llty
+    in
     define_special_members raw_ptr_type_i init;
     ()
   in
@@ -1852,11 +1873,14 @@ let inject_builtins ctx =
   (* for ptr *)
   let () =
     let open Builtin_info in
-    let init = L.const_int (L.i1_type ctx.ir_context) 0 in
+    let init (ty, is_addr) =
+      let llty = lltype_of_typeinfo ty ctx in
+      L.const_pointer_null llty
+    in
     define_special_members untyped_raw_ptr_type_i init;
 
     let () = (* +(:raw_ptr!(T), :int): raw_ptr!(T) *)
-      let f _ args ctx =
+      let f _ _ args ctx =
         assert (Array.length args = 2);
         L.build_in_bounds_gep args.(0) [|args.(1)|] "" ctx.Ctx.ir_builder
       in
@@ -1864,7 +1888,7 @@ let inject_builtins ctx =
     in
 
     let () = (* pre* (:raw_ptr!(T)): ref(T) *)
-      let f template_args _ args ctx =
+      let f template_args _ _ args ctx =
         assert (List.length template_args = 1);
         (*let ty_val = List.nth template_args 0 in
         let ty = match ty_val with

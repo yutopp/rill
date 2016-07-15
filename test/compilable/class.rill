@@ -16,7 +16,7 @@ def main() : void
 
     //ref mutable ra1 = a1();
     ref const ra2 = a1();
-    ref immutable ra3 = a1();
+    //ref immutable ra3 = a1();
 
     return;
 }

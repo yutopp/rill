@@ -2126,7 +2126,7 @@ and convert_type trg_ty src_arg ext_env ctx attr : FuncMatchLevel.t * conv_filte
        begin
          let level = match (trg_mut, src_mut) with
            | (Immutable, Immutable) -> FuncMatchLevel.ExactMatch
-           | (Immutable, Const) -> FuncMatchLevel.QualConv
+           | (Immutable, Const)
            | (Immutable, Mutable) -> FuncMatchLevel.NoMatch
 
            | (Const, Immutable) -> FuncMatchLevel.QualConv

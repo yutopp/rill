@@ -5,7 +5,7 @@ def main()
     val immutable c1 = if (true) a else b;
     val const c2 = if (true) a else b;
     val mutable c3 = if (true) a else b;
-    ref immutable c4 = if (true) a else b;
+    //ref immutable c4 = if (true) a else b;
     ref const c5 = if (true) a else b;
     //ref mutable c6 = if (true) a else b;
 }

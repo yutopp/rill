@@ -2,13 +2,16 @@ def main() {
     val a = 1 + 2;
 }
 
-//def f() {
-//    val y = 0;
-//    {
-//        val x = 0;
-//        &y;
-//    };
-//}
+import std.stdio;
+
+def f() {
+    val mutable y = raw_ptr!int32();
+    {
+        val x = 72;
+        y = &x;
+    };
+    (*y).print();
+}
 
 //def ref_1() => ref_2(42);
 //def ref_2(ref r: mutable(int32)) {
