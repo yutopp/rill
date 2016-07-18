@@ -22,7 +22,7 @@
 # Phony targets are scoped, so you probably want to declare them first.
 #
 
-.PHONY: all install clean
+.PHONY: all unit_test install clean
 
 
 ########################################################################
@@ -31,7 +31,7 @@
 # If so, define the subdirectory targets and uncomment this section.
 #
 
-.SUBDIRS: src
+.SUBDIRS: src test
 
 
 ########################################################################

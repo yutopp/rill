@@ -189,6 +189,9 @@ FILES[] =
    config
    debug
 
+LIB = rillc
+OCamlLibrary($(LIB), $(FILES))
+
 #
 PROGRAM = rillc
 # OCAML_LIBS +=
@@ -209,7 +212,7 @@ uninstall:
 
 clean:
     rm -f *~ *.opt *.cmi *.cmx *.cmt *.cmti *.cmp *.cmxa *.omc \
-		*.o *.a *.out *.s *.bc *.log *.cache $(PROGRAM) \
+		*.o *.a *.out *.s *.bc *.log *.cache $(PROGRAM) $(LIB) \
 		parser.ml parser.mli tokens.ml tokens.mli lexer.ml \
 		parser_messages.ml syntax.messages.pre \
         config.ml \

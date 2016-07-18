@@ -22,7 +22,7 @@
 # Phony targets are scoped, so you probably want to declare them first.
 #
 
-.PHONY: clean clean_coverage test_all
+.PHONY: clean clean_coverage e2e_test
 
 
 ########################################################################
@@ -59,9 +59,9 @@ if $(not $(OCAMLFIND_EXISTS))
 #
 # Various options
 #
-# OCAMLFLAGS    +=
+OCAMLFLAGS    += -thread
 # OCAMLCFLAGS   +=
-# OCAMLOPTFLAGS +=
+OCAMLOPTFLAGS += -thread
 # OCAML_LINK_FLAGS +=
 # OCAML_BYTE_LINK_FLAGS +=
 # OCAML_NATIVE_LINK_FLAGS +=
@@ -87,7 +87,7 @@ build_runner: $(OCamlProgram $(PROGRAM), $(FILES))
 
 ########################################################################
 #
-test_all: clean_coverage $(PROGRAM)
+e2e_test: clean_coverage $(PROGRAM)
 	./$(PROGRAM)
 
 clean:

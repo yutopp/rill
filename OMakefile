@@ -22,7 +22,7 @@
 # Phony targets are scoped, so you probably want to declare them first.
 #
 
-.PHONY: all install clean
+.PHONY: all test install clean unit_test e2e_test
 
 
 ########################################################################
@@ -38,3 +38,5 @@
 #
 clean:
     rm -f *~ *.opt *.cmi *.cmx *.cmxa *.o *.omc *.a *.out *.s *.bc *.log *.cache
+
+test: unit_test e2e_test

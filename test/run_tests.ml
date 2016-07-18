@@ -21,9 +21,18 @@ type context_t = {
   compiler_options: string list;
 }
 
+type message =
+  | MsgOutput of string * string
+  | MsgExpect of string * string
+
 type executed_status =
     Success
-  | Failure of int * string
+  | Failure of int * string * message list
+
+let parallel_num = 10
+let mutex = Mutex.create ()
+
+let line_width = 100
 
 let is_success x = match x with
   | Success -> true
@@ -35,7 +44,7 @@ let is_failure x = match x with
 
 let string_of_stat x = match x with
   | Success -> "SUCCESS"
-  | Failure (code, reason) -> Printf.sprintf "FAILURE (%d, %s)" code reason
+  | Failure (code, reason, _) -> Printf.sprintf "FAILURE (%d, %s)" code reason
 
 
 let show_reports files stats =
@@ -46,13 +55,37 @@ let show_reports files stats =
 
   let fn_max_width = List.fold_left (fun w s -> max w (String.length s)) 0 files in
 
-  let show file stat =
+  let show i (file, stat) =
     let pretty_filename = file ^ String.make (fn_max_width - String.length file) ' ' in
-    Printf.printf "%s - %s\n" pretty_filename (string_of_stat stat)
+    Printf.printf " %03d / %s - %s\n" (i+1) pretty_filename (string_of_stat stat)
   in
-  List.iter2 show files stats;
+  List.iteri show (List.combine files stats);
 
-  Printf.printf "SUCCESS (%03d/%03d) : FAILURE (%03d/%03d) : UNKNOWN (%03d/%03d)\n" succ_num total_num fail_num total_num unk_num total_num;
+  Printf.printf "SUCCESS (%03d/%03d) : FAILURE (%03d/%03d) : UNKNOWN (%03d/%03d)\n"
+                succ_num total_num fail_num total_num unk_num total_num;
+
+  (**)
+  let sep_1 = String.make line_width '=' in
+  let sep_2 = String.make line_width '-' in
+  let show_errors file stat =
+    match stat with
+    | Failure (code, reason, msgs) ->
+       Printf.printf "%s\n\n" sep_1;
+       let pretty_filename = file ^ String.make (fn_max_width - String.length file) ' ' in
+       Printf.printf ":Log: %s - %s\n\n" pretty_filename (string_of_stat stat);
+       let show_msg msg = match msg with
+         | MsgOutput (title, content) ->
+            Printf.printf "<%s>\n%s\n" title sep_2;
+            Printf.printf "%s\n" content;
+            Printf.printf "%s\n\n" sep_2;
+         | _ -> ()
+       in
+       List.iter show_msg msgs;
+       Printf.printf "\n%s\n" sep_1;
+    | _ -> ()
+  in
+  List.iter2 show_errors files stats;
+
   ()
 
 let run_executable bin_path args env stdin stdout stderr =
@@ -62,22 +95,24 @@ let run_executable bin_path args env stdin stdout stderr =
   let (rpid, ps) = Unix.waitpid [] pid in
   let stat = match ps with
     | Unix.WEXITED 0 -> Success
-    | Unix.WEXITED code -> Failure (code, "return code")
-    | Unix.WSIGNALED s -> Failure (s, "signaled")
-    | _ -> Failure (0, "unexpected")
+    | Unix.WEXITED code -> Failure (code, "return code", [])
+    | Unix.WSIGNALED s -> Failure (s, "signaled", [])
+    | _ -> Failure (0, "unexpected", [])
   in
   stat
 
-let output_file filename =
+let read_file filename =
   let fd = Unix.openfile filename [Unix.O_RDONLY] 0400 in
   let ch = Unix.in_channel_of_descr fd in
+  let buf = Buffer.create 1024 in
   let _ = try while true do
                 let s = IO.nread ch 1024 in
-                output_string stdout s
+                Buffer.add_string buf s
               done with
           | IO.No_more_input -> ()
   in
-  Unix.close fd
+  Unix.close fd;
+  Buffer.contents buf
 
 let run_executable_test executable_filename ctx =
   let filename_output_stdout = Filename.temp_file "rill-run-test-" "-pipe-stdout" in
@@ -91,36 +126,29 @@ let run_executable_test executable_filename ctx =
   Unix.close fd_stdout;
   Unix.close fd_stderr;
 
-  Printf.printf "RUN    : %s\n" (string_of_stat stat);
+  (*m_printf "RUN    : %s\n" (string_of_stat stat);*)
 
-  if is_success stat then
-    begin
-      stat
-    end
-  else
-    begin
-      Printf.printf "stdout\n";
-      output_file filename_output_stdout;
-      Printf.printf "stderr\n";
-      output_file filename_output_stderr;
+  match stat with
+  | Success ->
+     (* TODO: check outputs *)
+     stat
 
-      stat
-    end
+  | Failure (code, reason, msgs) ->
+     let s_stdout = read_file filename_output_stdout in
+     let m_stdout = MsgOutput ("stdout", s_stdout) in
+     let s_stderr = read_file filename_output_stderr in
+     let m_stderr = MsgOutput ("stderr", s_stderr) in
+     Failure (code, reason, m_stdout :: m_stderr :: msgs)
 
 let run_compilable_tests base_dir files ctx =
-  let sep_1 = String.make 80 '-' in
-  let sep_2 = String.make 80 '=' in
+  let sep_1 = String.make line_width '-' in
+  let sep_2 = String.make line_width '=' in
   let total_num = List.length files in
-  let run i filename =
-    Printf.printf "\n";
-    Printf.printf "%s\n" sep_1;
-    Printf.printf "- (%03d/%03d) compilable and executable test / %s\n"
-                  (i+1) total_num filename;
-    Printf.printf "%s\n" sep_1;
-    Printf.printf "\n";
-    flush_all ();
 
-    let casename = Printf.sprintf "%03d-%s" (i+1) (Filename.chop_extension filename) in
+  let run offset i ch filename =
+    let index = offset + i in
+
+    let casename = Printf.sprintf "%03d-%s" (index+1) (Filename.chop_extension filename) in
     let executable_name = Printf.sprintf "%s.out" casename in
     let file_fullpath = Filename.concat base_dir filename in
 
@@ -143,18 +171,60 @@ let run_compilable_tests base_dir files ctx =
     let stat = run_executable ctx.compiler_bin args env Unix.stdin fd fd in
     Unix.close fd;
 
-    if is_failure stat then
-      output_file filename_output;
+    let stat = match stat with
+      | Success -> stat
+      | Failure (code, reason, msgs) ->
+         let out = read_file filename_output in
+         let m_out = MsgOutput ("output", out) in
+         Failure (code, reason, m_out :: msgs)
+    in
 
-    Printf.printf "COMPILE: %s\n" (string_of_stat stat);
-    flush_all ();
+    let stat =
+      if is_success stat then
+        run_executable_test executable_name ctx
+      else
+        stat
+    in
+    Event.sync (Event.send ch stat);
 
-    if is_success stat then
-      run_executable_test executable_name ctx
-    else
-      stat
+    Mutex.lock mutex;
+    Printf.printf "\n";
+    Printf.printf "%s\n" sep_1;
+    Printf.printf "- (%03d/%03d) compilable and executable test / %s\n"
+                  (index+1) total_num filename;
+    Printf.printf "%s\n" sep_1;
+    Printf.printf "\n";
+    Printf.printf "RESULT: %s\n" (string_of_stat stat);
+    Mutex.unlock mutex;
   in
-  let stats = List.mapi run files in
+
+  let splitted =
+    let rec split total_files acc = match total_files with
+      | [] -> acc
+      | _ ->
+         let files = List.take parallel_num total_files in
+         split (List.drop parallel_num total_files) (files :: acc)
+    in
+    split files [] |> List.rev
+  in
+
+  let run_parallel i file_block =
+    let offset = List.length file_block * i in
+    let spawn i file =
+      let ch = Event.new_channel () in
+      let t = Thread.create (fun ch -> run offset i ch file) ch in
+      (t, ch)
+    in
+
+    let tx = List.mapi spawn file_block in
+    let (ts, cs) = List.split tx in
+
+    let results = cs |> List.map Event.receive |> List.map Event.sync in
+    List.iter Thread.join ts;
+
+    results
+  in
+  let stats = List.mapi run_parallel splitted |> List.flatten in
 
   Printf.printf "\n";
   Printf.printf "%s\n" sep_2;

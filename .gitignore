@@ -21,6 +21,7 @@ s.sh
 *.cmi
 *.cmt
 *.cmti
+*.cmxa
 *.cmx
 *.cmp
 *.o
@@ -29,3 +30,5 @@ s.sh
 
 .gdb_history
 peda-session-*
+
+perf.*

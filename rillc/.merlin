@@ -4,3 +4,4 @@ PKG llvm
 PKG batteries
 PKG ctypes
 PKG stdint
+PKG oUnit

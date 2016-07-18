@@ -28,6 +28,7 @@ Rill is designed for systems programming.
 ### Preparation
 ```
 opam install omake menhir batteries ctypes-foreign stdint llvm.3.8
+opam install ounit                  # for unit testing
 opam install bisect_ppx ocveralls   # for coverage
 eval `opam config env`
 ```
@@ -37,7 +38,9 @@ eval `opam config env`
 `omake`
 
 ### Test
-`omake test_all`
+`omake test`
+
+or `omake unit_test` and `omake e2e_test`
 
 ### Try
 `rillc/src/rillc test/compilable/hello_world.rill && ./a.out`

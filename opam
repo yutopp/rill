@@ -28,5 +28,6 @@ depends: [
   "llvm"        { = "3.8" }
   "omake"       {build}
   "ocamlfind"   {build}
+  "ounit"       {build}
   "bisect_ppx"  {build}
 ]
