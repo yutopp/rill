@@ -1,0 +1,5 @@
+*.log
+*.cache
+
+unit_test
+unit_test.opt
