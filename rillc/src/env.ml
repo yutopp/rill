@@ -38,21 +38,20 @@ module Kind =
 
 
 type 'ast env_t = {
-   env_id               : EnvId.t;
-   parent_env           : 'ast env_t option;
-   context_env          : 'ast env_t option;
-   module_env           : 'ast env_t option;
-   er                   : 'ast env_record_t;
-   mutable state        : checked_state_t;
-   mutable closed       : bool;
-   mutable meta_level   : Meta_level.t;
-   mutable rel_node     : 'ast option;
-
-   nest_level           : NestLevel.t;
-   mutable region_count : int;  (* TODO: fix *)
+   env_id                   : EnvId.t;
+   parent_env               : 'ast env_t option;
+   context_env              : 'ast env_t option;
+   module_env               : 'ast env_t option;
+   er                       : 'ast env_record_t;
+   mutable state            : checked_state_t;
+   mutable closed           : bool;
+   mutable meta_level       : Meta_level.t;
+   mutable rel_node         : 'ast option;
+   mutable callee_when_exit : 'ast list;
+   nest_level               : NestLevel.t;
 
    (* information for error message *)
-   loc                  : Nodes.Loc.t;
+   loc                      : Nodes.Loc.t;
 }
 
  and 'ast env_record_t =
@@ -170,6 +169,10 @@ type 'ast env_t = {
 
    mutable cls_default_ctor     : 'ast env_t option;
    mutable cls_copy_ctor        : 'ast env_t option;
+   mutable cls_move_ctor        : 'ast env_t option;
+   mutable cls_dtor             : 'ast env_t option;
+   mutable cls_copy_assign      : 'ast env_t option;
+   mutable cls_move_assign      : 'ast env_t option;
  }
  and class_record_var =
    | ClsRecordExtern of class_record_extern
@@ -186,6 +189,7 @@ type 'ast env_t = {
    cls_traits_has_user_defined_ctor     : bool;
    cls_traits_default_ctor_state        : function_def_var;
    cls_traits_copy_ctor_state           : function_def_var;
+   cls_traits_dtor_state                : function_def_var;
  }
 
 
@@ -194,6 +198,7 @@ type 'ast env_t = {
   *)
  and 'ast variable_record = {
    var_name             : string;
+   mutable var_lifetime : Lifetime.t;
    mutable var_type     : 'ast type_info_t;
    mutable var_detail   : 'ast variable_record_var;
  }
@@ -215,9 +220,9 @@ let undef () =
     closed = false;
     meta_level = Meta_level.Meta;
     rel_node = None;
+    callee_when_exit = [];
 
     nest_level = NestLevel.zero;
-    region_count = 0;
 
     loc = None;
   }
@@ -241,16 +246,15 @@ let get_symbol_table env =
   lt.scope
 
 
-let get_scope_lifetime env =
+let get_scope_lifetime ?(aux_count=0) env =
   let ctx_env = match env.context_env with
       Some e -> e
     | None -> failwith ""
   in
-  Lifetime.LtDynamic (ctx_env.env_id, env.nest_level, env.region_count)
+  Lifetime.LtDynamic (ctx_env.env_id, env.nest_level, aux_count)
 
-let make_scope_lifetime env =
-  env.region_count <- env.region_count + 1;
-  get_scope_lifetime env
+let make_scope_lifetime ?(aux_count=0) env =
+  get_scope_lifetime ~aux_count:aux_count env
 
 
 let is_root e =
@@ -384,9 +388,9 @@ let create_context_env parent_env er loc =
     closed = false;
     meta_level = Meta_level.Meta;
     rel_node = None;
+    callee_when_exit = [];
 
     nest_level = NestLevel.add parent_env.nest_level NestLevel.one;
-    region_count = 0;
 
     loc = loc;
   } in
@@ -412,9 +416,9 @@ let create_scoped_env parent_env er loc =
     closed = false;
     meta_level = Meta_level.Meta;
     rel_node = None;
+    callee_when_exit = [];
 
     nest_level = NestLevel.add parent_env.nest_level NestLevel.one;
-    region_count = 0;
 
     loc = loc;
   }
@@ -446,6 +450,10 @@ let get_rel_ast e =
 
 
 (**)
+let set_closed_flag env is_closed =
+  env.closed <- is_closed
+
+(**)
 let update_meta_level e ml =
   e.meta_level <- ml
 
@@ -465,9 +473,9 @@ let make_root_env () =
     closed = false;
     meta_level = Meta_level.Meta;
     rel_node = None;
+    callee_when_exit = [];
 
     nest_level = NestLevel.zero;
-    region_count = 0;
 
     loc = None;
   }
@@ -481,6 +489,29 @@ let get_name env =
   | Function (_, r) -> r.fn_name
   | Class (_, r) -> r.cls_name
   | _ -> failwith "get_name : not supported"
+
+let append_callee_when_exit env node =
+  (* LIFO *)
+  env.callee_when_exit <- node :: env.callee_when_exit
+
+
+let get_callee_funcs_when_context_exit env =
+  let ctx_env = match env.context_env with
+    | Some c -> c
+    | None -> failwith "[ICE] env must have context_env "
+  in
+  let rec collect env acc =
+    let nodes = env.callee_when_exit in
+    if env == ctx_env then
+      nodes :: acc
+    else
+      let parent_env = match env.parent_env with
+        | Some e -> e
+        | None -> failwith ""
+      in
+      collect parent_env (nodes :: acc)
+  in
+  collect env [] |> List.rev |> List.flatten
 
 
 module ModuleOp =
@@ -609,6 +640,7 @@ module ClassOp =
         cls_traits_has_user_defined_ctor = false;
         cls_traits_default_ctor_state = FnDefDefaulted true;
         cls_traits_copy_ctor_state = FnDefDefaulted true;
+        cls_traits_dtor_state = FnDefDefaulted true;
       } in
       {
          cls_name = name;
@@ -622,6 +654,10 @@ module ClassOp =
          cls_align = None;
          cls_default_ctor = None;
          cls_copy_ctor = None;
+         cls_move_ctor = None;
+         cls_dtor = None;
+         cls_copy_assign = None;
+         cls_move_assign = None;
       }
 
     let is_primitive env =
@@ -649,6 +685,7 @@ module VariableOp =
     let empty_record name =
       {
         var_name = name;
+        var_lifetime = Lifetime.LtUndef;
         var_type = Type_info.undef_ty;
         var_detail = VarUndef;
       }

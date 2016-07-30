@@ -104,7 +104,21 @@ let register_copy_ctor_to_class_env cenv fenv =
   | None ->
      r.Env.cls_copy_ctor <- (Some fenv)
   | Some _ ->
-     failwith "[ICE] default ctor is already registered"
+     failwith "[ICE] copy ctor is already registered"
+
+let register_dtor_to_class_env cenv fenv =
+  let r = Env.ClassOp.get_record cenv in
+  match r.Env.cls_dtor with
+  | None ->
+     r.Env.cls_dtor <- (Some fenv)
+  | Some _ ->
+     failwith "[ICE] dtor is already registered"
+
+let complete_variable_env env node ty lifetime v_detail ctx =
+  let r = Env.VariableOp.get_record env in
+  r.Env.var_type <- ty;
+  r.Env.var_lifetime <- lifetime;
+  r.Env.var_detail <- v_detail
 
 
 let is_valid_type ty =
@@ -139,7 +153,8 @@ let register_builtin_type name inner_name mangled_name
     in
     env.Env.meta_level <- meta_level;
 
-    let node = TAst.ExternClassDefStmt (name, inner_name, None, Some env) in
+    let lifetime_spec = [] in
+    let node = TAst.ExternClassDefStmt (name, lifetime_spec, inner_name, None, Some env) in
 
     let detail_r = Env.ClsRecordExtern {
                        Env.cls_e_name = inner_name;

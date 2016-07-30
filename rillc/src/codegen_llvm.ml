@@ -29,7 +29,7 @@ type ('ty, 'ctx) builtin_template_func_def_t =
     'ty Ctfe_value.t list ->
     builtin_func_params_t -> builtin_func_ret_t -> L.llvalue array -> 'ctx -> L.llvalue
 
-type ('ty, 'ctx) record_t =
+type ('ty, 'ctx) record_value_t =
   | LLValue of (L.llvalue * value_form_t)
   | LLType of L.lltype
   | LLTypeGen of ('ty Ctfe_value.t list -> L.lltype)
@@ -44,11 +44,12 @@ module CodeGeneratorType =
     type ir_builder_t = L.llbuilder
     type ir_module_t = L.llmodule
     type ir_intrinsics = Codegen_llvm_intrinsics.t
+    type 'ty ir_cache_value_t = L.llvalue * 'ty * bool
 
-    type ('ty, 'ctx) value_record_t = ('ty, 'ctx) record_t
+    type ('ty, 'ctx) value_t = ('ty, 'ctx) record_value_t
   end
 module Ctx = Codegen_context.Make(CodeGeneratorType)
-type ctx_t = (env_t, type_info_t, ctfe_val_t) Ctx.t
+type ctx_t = (env_t, Nodes.CachedNodeCounter.t, type_info_t, ctfe_val_t) Ctx.t
 
 let agg_recever_name = "agg.receiver"
 
@@ -126,15 +127,15 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
        Debug.printf "ReturnStmt!!!!!!!!\n";
 
        let llval = match opt_e with
-       | Some e ->
-          let (llval, ty, is_addr) = generate_code e ctx in
-          if is_heavy_object ty then
+         | Some e ->
+            let (llval, ty, is_addr) = generate_code e ctx in
+            if is_heavy_object ty || ty == void_ty then
+              L.build_ret_void ctx.ir_builder
+            else
+              let llval = adjust_addr_val llval ty is_addr ctx in
+              L.build_ret llval ctx.ir_builder
+         | None ->
             L.build_ret_void ctx.ir_builder
-          else
-            let llval = adjust_addr_val llval ty is_addr ctx in
-            L.build_ret llval ctx.ir_builder
-       | None ->
-          L.build_ret_void ctx.ir_builder
        in
 
        (llval, void_ty, false)
@@ -250,10 +251,6 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
          (**)
          let _ = generate_code body ctx in
 
-         (**)
-         if not env.Env.closed && Type.has_same_class func_ret_ty (ctx.type_sets.Type_sets.ts_void_type) then
-           ignore @@ L.build_ret_void ctx.ir_builder;
-
          debug_dump_value f;
          Debug.printf "generated genric function(%b): %s\n" env.Env.closed name;
 
@@ -360,7 +357,7 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
      end
 
   | TAst.ExternClassDefStmt (
-        name, extern_cname, _, Some env
+        name, _, extern_cname, _, Some env
       ) ->
      if Ctx.is_env_defined ctx env then void_val else
      begin
@@ -420,7 +417,7 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
 
        let analyze_func_and_eval_args kind =
          let (param_tys, evaled_args) = normalize_params_and_args param_kinds args in
-         eval_args_for_func kind !storage_ref param_tys ret_ty evaled_args caller_env ctx
+         eval_args_for_func kind storage_ref param_tys ret_ty evaled_args caller_env ctx
        in
 
        let call_llfunc kind f =
@@ -460,16 +457,16 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
               (* trivial function *)
               | TrivialAction ->
                  begin
-                   let (new_obj, is_addr) = match !storage_ref with
+                   let (new_obj, is_addr) = match storage_ref with
                      | TAst.StoStack _
                      | TAst.StoAgg _
                      | TAst.StoArrayElem _
                      | TAst.StoMemberVar _ ->
-                        let (v, _, is_addr) = setup_storage !storage_ref caller_env ctx in
+                        let (v, _, is_addr) = setup_storage storage_ref caller_env ctx in
                         (v, is_addr)
 
                      | _ ->
-                        TAst.debug_print_storage !storage_ref;
+                        TAst.debug_print_storage storage_ref;
                         failwith "[ICE]"
                    in
 
@@ -522,7 +519,7 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
             begin
               Debug.printf "CALL FUNC / builtin %s = \"%s\"\n"
                            fn_s_name extern_name;
-              TAst.debug_print_storage (!storage_ref);
+              TAst.debug_print_storage (storage_ref);
               let (param_tys, llargs, is_addrs, returns_addr) =
                 analyze_func_and_eval_args kind
               in
@@ -566,10 +563,21 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
        (llelem, rhs_ty, true)
      end
 
-  | TAst.FinalyzeExpr (act_node, final_exprs) ->
-     let (ll_lhs, llty, is_addr) = generate_code act_node ctx in
+  | TAst.FinalyzeExpr (opt_act_node, final_exprs) ->
+     let (ll_lhs, ty, is_addr) = match opt_act_node with
+       | Some act_node -> generate_code act_node ctx
+       | None -> (void_v, void_ty, false)
+     in
      List.iter (fun n -> let _ = generate_code n ctx in ()) final_exprs;
-     (ll_lhs, llty, is_addr)
+     (ll_lhs, ty, is_addr)
+
+  | TAst.SetCacheExpr (id, node) ->
+     let values = generate_code node ctx in
+     Ctx.bind_values_to_cache_id ctx values id;
+     values
+
+  | TAst.GetCacheExpr id ->
+     Ctx.find_values_by_cache_id ctx id
 
   | TAst.BoolLit (v, lit_ty) ->
      begin

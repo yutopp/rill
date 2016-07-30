@@ -6,6 +6,9 @@ extern def sizeof(t: type) onlymeta: int32 = "__builtin_sizeof";
 #[builtin]
 extern def stringof!(T)(ref p: T): raw_ptr!(uint8) = "__builtin_stringof";
 
+#[builtin]
+extern def address_of!(T)(ref :T): raw_ptr!(T) = "__builtin_make_ptr_from_ref";
+
 //
 extern def malloc(val :int32): untyped_raw_ptr = "rill_core_malloc";
 extern def free(:untyped_raw_ptr): void = "rill_core_free";

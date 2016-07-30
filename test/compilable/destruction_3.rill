@@ -1,0 +1,25 @@
+def main()
+{
+    val v1 = A(42);
+    A(50);
+    val v2 = A(72);
+}
+
+import std.stdio;
+
+class A {
+    val i: int32;
+
+    def ctor(i: int32) {
+        this.i = i;
+    }
+
+    def ctor(r: A) {
+        this.i = r.i;
+    }
+
+    def dtor() {
+        this.i.print();
+        "dtor".println();
+    }
+}

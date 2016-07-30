@@ -9,4 +9,6 @@
 type t =
   | LtStatic
   | LtHeap
+  (* env_id * nest_levet * (aux counter) *)
   | LtDynamic of Env_system.EnvId.t * Env_system.NestLevel.t * int
+  | LtUndef

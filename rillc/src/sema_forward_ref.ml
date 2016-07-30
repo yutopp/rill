@@ -116,13 +116,14 @@ let rec solve_forward_refs ?(meta_variables=[])
        node
      end
 
-  | Ast.ExternClassDefStmt (id_name, extern_cname, None, _) ->
+  | Ast.ExternClassDefStmt (id_name, lifetime_spec, extern_cname, None, _) ->
      begin
        let loc = None in
        let cenv = declare_pre_class id_name meta_variables loc parent_env ctx in
 
        let node = TAst.ExternClassDefStmt (
                       id_name,
+                      lifetime_spec,
                       extern_cname,
                       opt_attr,
                       Some cenv

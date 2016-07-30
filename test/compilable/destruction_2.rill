@@ -1,0 +1,19 @@
+def main()
+{
+    A(10);
+}
+
+import std.stdio;
+
+class A {
+    val i: int32;
+
+    def ctor(i: int32) {
+        this.i = i;
+    }
+
+    def dtor() {
+        this.i.print();
+        "dtor".println();
+    }
+}

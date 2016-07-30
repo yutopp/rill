@@ -1,0 +1,12 @@
+def main()
+{
+    A();
+}
+
+import std.stdio;
+
+class A {
+    def dtor() {
+        "dtor".println();
+    }
+}

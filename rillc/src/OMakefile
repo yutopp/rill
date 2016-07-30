@@ -188,6 +188,7 @@ FILES[] =
    meta_level
    config
    debug
+   generic_counter
 
 LIB = rillc
 OCamlLibrary($(LIB), $(FILES))

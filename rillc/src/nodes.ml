@@ -61,6 +61,8 @@ module type NodeContextType =
     type 'a prev_ctx_t
   end
 
+module CachedNodeCounter = Generic_counter.Counter(Int64)
+
 module Make (Ctx : NodeContextType) =
   struct
     type ast =
@@ -79,9 +81,9 @@ module Make (Ctx : NodeContextType) =
       | MemberFunctionDefStmt of id_string * ast * ast option * ast * attr_tbl_t option * ctx_t
       (* name, params, return_type, function name(TODO: change to AST), attribute?, _ *)
       | ExternFunctionDefStmt of id_string * ast * Meta_level.t * ast * string * attr_tbl_t option * ctx_t
-      (* name, body, attribute?, _ *)
+      (* name, lifetime, body, attribute?, _ *)
       | ClassDefStmt of id_string * ast * attr_tbl_t option * ctx_t
-      | ExternClassDefStmt of id_string * string * attr_tbl_t option * ctx_t
+      | ExternClassDefStmt of id_string * lifetime_spec * string * attr_tbl_t option * ctx_t
       (* VarInit, _ *)
       | VariableDefStmt of Meta_level.t * ast * ctx_t
       | MemberVariableDefStmt of ast * ctx_t
@@ -106,7 +108,11 @@ module Make (Ctx : NodeContextType) =
       | DeleteExpr of ast
       | StatementTraitsExpr of string * ast
 
-      | FinalyzeExpr of ast * ast list
+      (* used for calling destructors *)
+      | FinalyzeExpr of ast option * ast list
+      (* set cache id for only needed ones. will be used for memo needed by destructor *)
+      | SetCacheExpr of CachedNodeCounter.t * ast
+      | GetCacheExpr of CachedNodeCounter.t
 
       (*
        * values
@@ -136,7 +142,7 @@ module Make (Ctx : NodeContextType) =
       (* *)
       | GenericId of id_string * ctx_t
       (* object construction, args, ctx *)
-      | GenericCallExpr of storage_t ref * ast list * ctx_t * ctx_t
+      | GenericCallExpr of storage_t * ast list * ctx_t * ctx_t
       (* body, ctx *)
       | GenericFuncDef of ast option * ctx_t
       | NestedExpr of ast * term_aux_t * term_ctx_t * ctx_t
@@ -151,6 +157,9 @@ module Make (Ctx : NodeContextType) =
      (* attr * id * value *)
      and var_init_t = var_aux_t * string * value_init_t
      and var_aux_t = Type_attr.attr_t
+
+     and lifetime_ids = string list
+     and lifetime_spec = lifetime_ids
 
      (* type * default value *)
      and value_init_t = ast option * ast option
@@ -378,6 +387,14 @@ module Make (Ctx : NodeContextType) =
       | FinalyzeExpr _ ->
          begin
            Debug.printf "FinalyzeExpr\n"
+         end
+      | SetCacheExpr _ ->
+         begin
+           Debug.printf "SetCacheExpr\n"
+         end
+      | GetCacheExpr _ ->
+         begin
+           Debug.printf "GetCacheExpr\n"
          end
       | CtxNode _ ->
          begin
