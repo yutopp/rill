@@ -494,6 +494,8 @@ let append_callee_when_exit env node =
   (* LIFO *)
   env.callee_when_exit <- node :: env.callee_when_exit
 
+let get_callee_funcs_when_scope_exit env =
+  env.callee_when_exit
 
 let get_callee_funcs_when_context_exit env =
   let ctx_env = match env.context_env with
@@ -501,7 +503,7 @@ let get_callee_funcs_when_context_exit env =
     | None -> failwith "[ICE] env must have context_env "
   in
   let rec collect env acc =
-    let nodes = env.callee_when_exit in
+    let nodes = get_callee_funcs_when_scope_exit env in
     if env == ctx_env then
       nodes :: acc
     else

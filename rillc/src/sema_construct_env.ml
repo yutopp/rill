@@ -1523,12 +1523,19 @@ and analyze_expr ?(making_placeholder=false)
                                loc
        in
        let (nblock, aux) = analyze_t block scope_env ctx in
+
+       (**)
+       let df_nodes = Env.get_callee_funcs_when_scope_exit scope_env in
+       let n_node = TAst.FinalyzeExpr (Some nblock, df_nodes) in
+       let node = TAst.ScopeExpr n_node in
+
+       (* propagete *)
        parent_env.Env.closed <- scope_env.Env.closed;
 
-       let node = TAst.ScopeExpr (nblock) in
        (node, aux)
      end
 
+  (* TODO: implement dtor *)
   | Ast.IfExpr (cond_expr, then_expr, opt_else_expr, loc) ->
      begin
        let scope_env =
@@ -1595,6 +1602,7 @@ and analyze_expr ?(making_placeholder=false)
        (node, if_aux)
      end
 
+  (* TODO: implement dtor *)
   | Ast.ForExpr (opt_var_decl, opt_cond, opt_step, body) ->
      begin
        let loc = None in
