@@ -1189,6 +1189,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                    begin
                      (* TODO: check whether the variable is ctfeable.
                       * Ex. it must have trivial destructor *)
+                     Debug.printf "=> CONSTEXPR\n";
                      let (ctfe_v, is_addr) =
                        eval_texpr_as_ctfe conved_node var_ty var_metalevel
                                           parent_env ctx opt_chain_attr
@@ -3318,7 +3319,8 @@ and eval_texpr_as_ctfe ?(making_placeholder=false)
 
 and tnode_of_ctfe_val ctfe_val ctx =
   match ctfe_val with
-  | Ctfe_value.Int32 v -> TAst.IntLit (Int32.to_int v, 32, true, get_builtin_int32_type default_ty_attr ctx)
+  | Ctfe_value.Int32 v ->
+     TAst.IntLit (Int32.to_int v, 32, true, get_builtin_int32_type default_ty_attr ctx)
   | _ -> failwith ""
 
 

@@ -136,10 +136,19 @@ let execute engine expr_node expr_ty type_sets =
     begin
       let (expr_llval, _, is_addr) =
         Codegen_llvm.generate_code expr_node engine.cg_ctx in
+      Debug.printf ">>> DUMP LLVM VALUE / is_addr: %b\n" is_addr;
+      Codegen_llvm.debug_dump_value expr_llval;
+      Debug.printf "===\n";
+      let expr_llval = match is_addr with
+        | true -> L.build_load expr_llval "" ir_builder
+        | faise -> expr_llval
+      in
+      Codegen_llvm.debug_dump_value expr_llval;
+      Debug.printf "<<< DUMP LLVM VALUE\n";
       ignore @@ L.build_ret expr_llval ir_builder;
 
       Llvm_analysis.assert_valid_function f;
-      (*Codegen_llvm.debug_dump_value f;*)
+      Codegen_llvm.debug_dump_value f;
 
       (**)
       LE.add_module ir_mod engine.exec_engine;

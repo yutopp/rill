@@ -866,7 +866,6 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
        void_val
      end
 
-  (* TODO: fix is_addr *)
   | TAst.CtxNode ty ->
      begin
        let itype_id = Option.get ty.Type_info.ti_id in
@@ -878,7 +877,7 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
                                     Type_info.is_type_id_signed
        in
        let ty = ctx.type_sets.Type_sets.ts_type_type in
-       (llval, ty, true)
+       (llval, ty, false)
      end
 
   | TAst.StorageWrapperExpr (sto, e) ->

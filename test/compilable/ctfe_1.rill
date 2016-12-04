@@ -1,0 +1,10 @@
+import std.stdio;
+
+def main() {
+    meta res = f();
+    res.print();
+}
+
+def f() {
+    return 10;
+}
