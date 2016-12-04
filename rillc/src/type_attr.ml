@@ -7,7 +7,7 @@
  *)
 
 type ref_val_t =
-    Ref
+    Ref of Id_string.t list
   | Val
   | XRef
   | RefValUndef
@@ -53,12 +53,12 @@ let mut_strong a b =
 
 let int_of_rv m = match m with
   | Val -> 0
-  | Ref -> 1
+  | Ref _ -> 1
   | _ -> failwith "int_of_rv"
 
 let rv_of_int n = match n with
   | 0 -> Val
-  | 1 -> Ref
+  | 1 -> Ref []
   | _ -> failwith "mut_of_rv"
 
 let rv_strong a b =

@@ -25,7 +25,7 @@ and s_of_type ty =
   let ta = ty.Type_info.ti_attr in
   let rv_s = match ta.Type_attr.ta_ref_val with
     | Type_attr.Val -> "v"
-    | Type_attr.Ref -> "r"
+    | Type_attr.Ref _ -> "r"
     | Type_attr.XRef -> "x"
     | _ -> failwith ("Mangle.s_of_type / has no rv : " ^ symbol)
   in
@@ -53,7 +53,7 @@ and s_of_string s =
 
 
 and s_of_symbol sym =
-  let s = Nodes.string_of_id_string sym in
+  let s = Id_string.to_string sym in
   s_of_string s
 
 

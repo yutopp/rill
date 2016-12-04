@@ -1,0 +1,10 @@
+def main()
+{
+    val p = address_of(A());    // TODO: make it error
+    (*p).f();
+}
+
+class A {
+    def dtor() {}
+    def f() const {}
+}

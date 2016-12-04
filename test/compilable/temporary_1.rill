@@ -1,0 +1,7 @@
+def main()
+{
+    val p = address_of(A());
+}
+
+class A {
+}

@@ -2,10 +2,10 @@ extern def print(val v: int32): void = "rill_print_int32";
 extern def print(val v: uint32): void = "rill_print_uint32";
 extern def print(val v: bool): void = "rill_print_bool";
 extern def print(val v: uint8): void = "rill_print_char";
-extern def print(val v: raw_ptr!(uint8)): void = "rill_print_string";
-extern def println(val v: raw_ptr!(uint8)): void = "rill_println_string";
+extern def print(val v: 'static raw_ptr!(uint8)): void = "rill_print_string";
+extern def println(val v: 'static raw_ptr!(uint8)): void = "rill_println_string";
 
-extern def print_addr!(T)(val v: raw_ptr!(T)): void = "rill_print_addr";
+extern def print_addr!(T)(val v: 'static raw_ptr!(T)): void = "rill_print_addr";
 
 extern def read_int32(): int32 = "rill_read_int32";
 extern def read_char(): uint8 = "rill_read_char";
@@ -19,6 +19,7 @@ extern def strlen(val :raw_ptr!(uint8)): int32 = "rill_strlen";
 
 class string
 {
+/*
     def ctor(s: raw_ptr!(uint8)) {
         val l = s.strlen();
         val ptr = malloc(l+1);
@@ -28,10 +29,10 @@ class string
 
         this.p = ptr2;
 
-        //"ctor".println();
-        //this.p.println();
-        //this.p.strlen().print();
-        //this.p.print_addr();
+        "ctor".println();
+        this.p.println();
+        this.p.strlen().print();
+        this.p.print_addr();
     }
 
     def insert(c: uint8, index: int32): void {
@@ -52,8 +53,8 @@ class string
 
         this.p = ptr;
     }
-
-    val p: raw_ptr!(uint8);
+*/
+    val p: 'static raw_ptr!(uint8);
 }
 
 def println(s: string): void {

@@ -11,6 +11,9 @@ module type GENERIC_COUNTER =
     type t
     val undef : t
     val generate : unit -> t
+
+    val to_string : t -> string
+    val compare : t -> t -> int
   end
 
 module type COUNTER_SIG =
@@ -21,6 +24,8 @@ module type COUNTER_SIG =
     val max_int : t
 
     val add : t -> t -> t
+    val to_string : t -> string
+    val compare : t -> t -> int
   end
 
 module Counter(C : COUNTER_SIG) : GENERIC_COUNTER =
@@ -37,4 +42,10 @@ module Counter(C : COUNTER_SIG) : GENERIC_COUNTER =
         failwith "counter is reached to limit";
       id_counter := C.add !id_counter C.one;
       cur_id
+
+    let to_string id =
+      C.to_string id
+
+    let compare a b =
+      C.compare a b
   end

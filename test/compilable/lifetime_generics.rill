@@ -1,0 +1,45 @@
+def main()
+{
+    //A#<'static>();
+    //val a = A#<'static>();
+    //f(10);
+    //f2(10);   // should pass
+    //g(A());
+    //val a = A();
+    val mutable p_p = address_of(10);
+    {
+        val p = address_of(10);
+        //p_p = p;
+    };
+    //val p = aaaaaaaaaaaaaa(A#<'static>());  // should pass
+    //g(A#<'static>());
+    //h(10);
+    //val rp = ret();
+    //ret();    // should fail
+}
+
+class 'a A {}
+//def aaaaaaaaaaaaaa<'a>(val: A#<'a>) => 0;
+
+//def f<'a>(ref#<'a> a: int32): A#<'a> => A#<'a>();
+
+
+//def f2<'a>(ref#<'a> a: int32) { val p = address_of(a); val pp = p; /*address_of(10);*/ return pp; }
+
+//def g(ref a: A): A#<'static> => a;
+//def h(i: int32) => 10;
+
+
+//def ret() { val p = address_of(10); return p; }
+
+//def ff<'p>(p: raw_ptr!(int32)<'p>, i: int32) {
+//    p = &i;
+//}
+//
+//def ff_use() {
+//    val n = 0;
+//    val i = 32;
+//
+//    // The variable "i" will be dead before the lifetime of "n" is ended. thus, the address of "i" must not be assigned to the "n".
+//    ff(&n, i);
+//}

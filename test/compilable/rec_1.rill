@@ -1,0 +1,11 @@
+def main() {
+    f2();
+}
+
+def f2(): void {
+    g2();
+}
+
+def g2(): void {
+    if (true) {return;}; f2();
+}

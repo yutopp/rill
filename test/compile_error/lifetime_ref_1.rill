@@ -1,0 +1,7 @@
+def main()
+{}
+
+def 'a f(mutable a: 'a raw_ptr!(int32), b: 'a raw_ptr!(int32)) {
+    val c = address_of(20);
+    a = c;
+}

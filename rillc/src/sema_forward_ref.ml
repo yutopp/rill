@@ -38,13 +38,14 @@ let rec solve_forward_refs ?(meta_variables=[])
        TAst.EmptyStmt
      end
 
-  | Ast.FunctionDefStmt (id_name, params, opt_ret_type, _, body, None, _) ->
+  | Ast.FunctionDefStmt (id_name, lt_specs, params, opt_ret_type, _, body, None, _) ->
      begin
        let loc = None in
        let fenv = declare_pre_function id_name meta_variables loc parent_env ctx in
 
        let node = TAst.FunctionDefStmt (
                       id_name,
+                      lt_specs,
                       TAst.PrevPassNode params,
                       Option.map (fun x -> TAst.PrevPassNode x) opt_ret_type,
                       None,
@@ -56,7 +57,7 @@ let rec solve_forward_refs ?(meta_variables=[])
        node
      end
 
-  | Ast.MemberFunctionDefStmt (id_name, params, opt_ret_type, body, None, _) ->
+  | Ast.MemberFunctionDefStmt (id_name, lt_specs, params, quals, opt_ret_type, body, None, _) ->
      begin
        let loc = None in
        let fenv = declare_pre_function id_name meta_variables loc parent_env ctx in
@@ -64,7 +65,9 @@ let rec solve_forward_refs ?(meta_variables=[])
 
        let node = TAst.MemberFunctionDefStmt (
                       id_name,
+                      lt_specs,
                       TAst.PrevPassNode params,
+                      quals,
                       Option.map (fun x -> TAst.PrevPassNode x) opt_ret_type,
                       TAst.PrevPassNode body,
                       opt_attr,
@@ -74,13 +77,14 @@ let rec solve_forward_refs ?(meta_variables=[])
        node
      end
 
-  | Ast.ExternFunctionDefStmt (id_name, params, ml, ret_type, extern_fname, None, _) ->
+  | Ast.ExternFunctionDefStmt (id_name, lt_specs, params, ml, ret_type, extern_fname, None, _) ->
      begin
        let loc = None in
        let fenv = declare_pre_function id_name meta_variables loc parent_env ctx in
 
        let node = TAst.ExternFunctionDefStmt (
                       id_name,
+                      lt_specs,
                       TAst.PrevPassNode params,
                       ml,
                       TAst.PrevPassNode ret_type,
@@ -92,7 +96,7 @@ let rec solve_forward_refs ?(meta_variables=[])
        node
      end
 
-  | Ast.ClassDefStmt (id_name, body, None, _) ->
+  | Ast.ClassDefStmt (id_name, lt_spec, body, None, _) ->
      begin
        let loc = None in
        let cenv = declare_pre_class id_name meta_variables loc parent_env ctx in
@@ -108,6 +112,7 @@ let rec solve_forward_refs ?(meta_variables=[])
 
        let node = TAst.ClassDefStmt (
                       id_name,
+                      lt_spec,
                       nbody,
                       opt_attr,
                       Some cenv
@@ -116,7 +121,7 @@ let rec solve_forward_refs ?(meta_variables=[])
        node
      end
 
-  | Ast.ExternClassDefStmt (id_name, lifetime_spec, extern_cname, None, _) ->
+  | Ast.ExternClassDefStmt (id_name, lifetime_spec, extern_cname, opt_body, None, _) ->
      begin
        let loc = None in
        let cenv = declare_pre_class id_name meta_variables loc parent_env ctx in
@@ -125,6 +130,7 @@ let rec solve_forward_refs ?(meta_variables=[])
                       id_name,
                       lifetime_spec,
                       extern_cname,
+                      opt_body |> Option.map (fun a -> TAst.PrevPassNode a),
                       opt_attr,
                       Some cenv
                     ) in

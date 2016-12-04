@@ -13,9 +13,39 @@ type type_gen_t = env_t Type.Generator.t
 
 type conv_filter_t =
   | Trans of type_info_t
-  | ConvFunc of type_info_t * env_t
+  | ConvFunc of type_info_t * env_t * Lifetime.t list
+
+(*module Eargs : sig
+  type t
+
+
+end = struct
+  type t = TAst.ast * TAst.term_aux_t * unit list
+
+  let rec split' lists (acca,accb,accc) =
+    match lists with
+    | [] -> (acca,accb,accc)
+    | (a, b, c)::rest -> split' rest (a::acca, b::accb, c::accc)
+
+  let split3 lists =
+    let (a, b, c) = split3' lists ([], [], []) in
+    (a |> List.rev, b |> List.rev, c |> List.rev)
+end*)
 
 type earg_t = TAst.ast * TAst.term_aux_t
+
+let make_earg ast aux constraints =
+  (ast, aux, constraints)
+
+let rec split3' lists (acca,accb,accc) =
+  match lists with
+  | [] -> (acca,accb,accc)
+  | (a, b, c)::rest -> split3' rest (a::acca, b::accb, c::accc)
+
+let split3 lists =
+  let (a, b, c) = split3' lists ([], [], []) in
+  (a |> List.rev, b |> List.rev, c |> List.rev)
+
 
 module FuncMatchLevel =
   struct
@@ -61,12 +91,12 @@ module FuncMatchLevel =
 
 
 let ctor_name = "ctor"
-let ctor_id_name = Nodes.Pure ctor_name
+let ctor_id_name = Id_string.Pure ctor_name
 
 let dtor_name = "dtor"
-let dtor_id_name = Nodes.Pure dtor_name
+let dtor_id_name = Id_string.Pure dtor_name
 
-let assign_name = Nodes.BinaryOp "="
+let assign_name = Id_string.BinaryOp "="
 
 (* default qual *)
 let default_ty_attr = {
@@ -83,13 +113,11 @@ let fatal_error msg =
 
 let pos_of_earg earg =
   let (_, aux) = earg in
-  let (_, _, _, _, pos) = aux in
-  pos
+  TAst.Aux.loc aux
 
 let type_of_earg earg =
   let (_, aux) = earg in
-  let (ty, _, _, _, pos) = aux in
-  ty
+  TAst.Aux.ty aux
 
 module ErrorMsg = struct
   module ArgPosMap = Map.Make(Int)
@@ -99,9 +127,11 @@ module ErrorMsg = struct
     | DifferentArgNum of int * int
     (* target_type * source_arg * ErrorLevel *)
     | ConvErr of (type_info_t * earg_t * FuncMatchLevel.t) ArgPosMap.t * env_t
-    | NoMatch of t list * Nodes.Loc.t
-    | MemberNotFound of type_info_t * env_t list * Nodes.Loc.t
+    | NoMatch of t list * Loc.t
+    | MemberNotFound of env_t * env_t list * Loc.t
     | Msg of string
+
+    | TmpError of string * env_t
 
   let print_env_trace env =
     let env_loc = env.Env.loc in
@@ -109,17 +139,25 @@ module ErrorMsg = struct
     | Env.Module (lt, r) ->
        Printf.printf "  module   : %s (%s)\n"
                      r.Env.mod_name
-                     (Nodes.Loc.to_string env_loc)
+                     (Loc.to_string env_loc)
     | Env.Function (lt, r) ->
-       let name = Nodes.string_of_id_string r.Env.fn_name in
-       Printf.printf "  function : %s (%s)\n"
+       let name = Id_string.to_string r.Env.fn_name in
+       let f pk =
+         match pk with
+         | Env.FnParamKindType ty -> Type.to_string ty
+       in
+       let params_s = r.Env.fn_param_kinds |> List.map f |> String.join ", " in
+       let ret_ty_s = r.Env.fn_return_type |> Type.to_string in
+       Printf.printf "  function : %s(%s): %s (%s)\n"
                      name
-                     (Nodes.Loc.to_string env_loc)
+                     params_s
+                     ret_ty_s
+                     (Loc.to_string env_loc)
     | Env.Class (lt, r) ->
-       let name = Nodes.string_of_id_string r.Env.cls_name in
+       let name = Id_string.to_string r.Env.cls_name in
        Printf.printf "  class    : %s (%s)\n"
                      name
-                     (Nodes.Loc.to_string env_loc)
+                     (Loc.to_string env_loc)
     | Env.Scope _ ->
        begin
          Printf.printf "Scope\n"
@@ -132,16 +170,22 @@ module ErrorMsg = struct
   let string_of_loc_region loc =
     match loc with
     | Some l ->
-       Bytes.sub_string l.Nodes.Loc.source_code
-                        l.Nodes.Loc.pos_begin_cnum
-                        (l.Nodes.Loc.pos_end_cnum - l.Nodes.Loc.pos_begin_cnum)
-    | None -> failwith ""
+       assert (l.Loc.pos_begin_cnum >= 0);
+       assert (l.Loc.pos_end_cnum >= 0);
+       assert (l.Loc.pos_end_cnum > l.Loc.pos_begin_cnum);
+       Debug.printf "%s\n%d\n" (l.Loc.source_code) (String.length l.Loc.source_code);
+       Debug.printf "%d %d\n" l.Loc.pos_begin_cnum l.Loc.pos_end_cnum;
+
+       Bytes.sub_string l.Loc.source_code
+                        l.Loc.pos_begin_cnum
+                        (l.Loc.pos_end_cnum - l.Loc.pos_begin_cnum)
+    | None -> "<unknown>"
 
   let rec print ?(loc=None) err =
     match err with
     | DifferentArgNum (params_num, args_num) ->
        Printf.printf "%s:\nError: requires %d but given %d\n"
-                     (Nodes.Loc.to_string loc) params_num args_num
+                     (Loc.to_string loc) params_num args_num
 
     | ConvErr (m, f_env) ->
        let p k (trg_ty, src_arg, level) =
@@ -162,21 +206,33 @@ module ErrorMsg = struct
 
     | NoMatch (errs, loc) ->
        Printf.printf "%s:\nError: There is no matched function\n"
-                     (Nodes.Loc.to_string loc);
+                     (Loc.to_string loc);
        List.iter (fun err -> print err) errs
 
-    | MemberNotFound (in_ty, history, loc) ->
-       let s_ty = Type.to_string in_ty in
+    | MemberNotFound (env, history, loc) ->
+       let env_name = Id_string.to_string (Env.get_name env) in
 
        Printf.printf "%s:\nError: member \"%s\" is not found in %s\n"
-                     (Nodes.Loc.to_string loc)
+                     (Loc.to_string loc)
                      (string_of_loc_region loc)
-                     s_ty;
+                     env_name;
        Printf.printf "Searched scopes are...\n";
        List.iter (fun env -> print_env_trace env) history
 
     | Msg msg ->
        Printf.printf "\n------------------\nError:\n %s\n\n-------------------\n" msg
+
+    | TmpError (msg, env) ->
+       Printf.printf "\n------------------\nError:\n %s\n\n-------------------\n" msg;
+       let history =
+         let rec f oe xs =
+           match oe with
+           | Some e -> f (Env.get_parent_env_opt e) (e :: xs)
+           | None -> xs
+         in
+         f (Some env) [] |> List.rev
+       in
+       List.iter (fun env -> print_env_trace env) history
 end
 
 exception NError of ErrorMsg.t

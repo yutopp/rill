@@ -19,7 +19,7 @@
         | None -> node
 
     let pos s_pos e_pos =
-        let open Nodes.Loc in
+        let open Loc in
         let open Lexing in
         let p = {
           pos_fname         = Mi.full_filepath;
@@ -94,15 +94,15 @@ import_statement:
 
 function_decl_statement:
                 KEYWORD_DEF
-                name = rel_id_as_s
                 lifetimes = lifetime_parameter_decl_list
-                opt_tparams = template_parameter_variables_decl_list?
+                name = rel_id_as_s
+                opt_tparams = template_parameter_variables_decl_list
                 params = parameter_variables_decl_list
                 ret_type = type_specifier?
                 t_cond = when_cond?
                 body = function_decl_body_block
                 {
-                    let n = Ast.FunctionDefStmt (name, params, ret_type, t_cond, body, None, ()) in
+                    let n = Ast.FunctionDefStmt (name, lifetimes, params, ret_type, t_cond, body, None, ()) in
                     templatefy name n opt_tparams
                 }
 
@@ -127,14 +127,15 @@ function_lambda_block:
 
 member_function_declaration_statement:
                 KEYWORD_DEF
-                name = rel_id_as_s
                 lifetimes = lifetime_parameter_decl_list
-                opt_tparams = template_parameter_variables_decl_list?
+                name = rel_id_as_s
+                opt_tparams = template_parameter_variables_decl_list
                 params = parameter_variables_decl_list
+                quals = qual_spec_list
                 ret_type = type_specifier?
                 body = function_decl_body_block
                 {
-                    let n = Ast.MemberFunctionDefStmt (name, params, ret_type, body, None, ()) in
+                    let n = Ast.MemberFunctionDefStmt (name, lifetimes, params, quals, ret_type, body, None, ()) in
                     templatefy name n opt_tparams
                 }
 
@@ -167,24 +168,71 @@ parameter_variable_initializer_unit:
 
 (**)
 lifetime_parameter_decl_list:
-        |       { [] }
-        |       LT
-                ids = separated_nonempty_list(COMMA, lifetime_var)
-                GT
-                { ids }
+                { [] }
 
+        |       ps = lifetime_single_param
+                { ps }
+
+        |       LPAREN
+                ps = separated_nonempty_list(COMMA, lifetime_param)
+                RPAREN
+                { ps }
 
 lifetime_var:
-                BACKQUOTE
-                id = rel_id_has_no_op_as_raw
-                { id }
+                SINGLEQUOTE
+                id = ID
+                { Id_string.Pure ("`" ^ id) }
+        |       SINGLEQUOTE
+                KEYWORD_STATIC
+                { Id_string.Pure ("`static") }
+        |       SINGLEQUOTE
+                KEYWORD_GC
+                { Id_string.Pure ("`gc") }
+        |       SINGLEQUOTE
+                KEYWORD_UNMANAGED
+                { Id_string.Pure ("`unmanaged") }
+
+lifetime_single_arg:
+                id = lifetime_var
+                { [id] }
+
+lifetime_single_param:
+                id = lifetime_var
+                { [Lifetime.LtSingle (id, pos $startpos(id) $endpos(id))] }
+
+lifetime_param:
+                lifetime_var { Lifetime.LtSingle ($1, pos $startpos($1) $endpos($1)) }
+                (* constraint *)
+        |       lifetime_var COLON lifetime_var { Lifetime.LtLongerThan ($1, $3) }
+
+lifetime_arg_list2:
+                id = lifetime_var
+                { [id] }
+        |       LPAREN
+                ids = separated_nonempty_list(COMMA, lifetime_var)
+                RPAREN
+                { ids }
+
+(**)
+qual_spec_list:
+                list(qual_spec)     { $1 }
+
+qual_spec:
+                KEYWORD_MUTABLE     { Nodes.QualMutable }
+        |       KEYWORD_CONST       { Nodes.QualConst }
+        |       KEYWORD_IMMUTABLE   { Nodes.QualImmutable }
 
 (**)
 template_parameter_variables_decl_list:
-                NOT
+                { None }
+        |       NOT
+                template_parameter_variables_decl_list2
+                { (Some $2) }
+
+template_parameter_variables_decl_list2:
                 LPAREN
                 separated_nonempty_list(COMMA, template_parameter_variable_declaration)
-                RPAREN { Ast.TemplateParamsList $3 }
+                RPAREN { Ast.TemplateParamsList $2 }
 
 template_parameter_variable_declaration:
                 template_parameter_variable_initializer_unit { $1 }
@@ -214,10 +262,15 @@ class_decl_statement:
 
 class_decl_statement_:
                 KEYWORD_CLASS
+                lifetimes = lifetime_parameter_decl_list
                 name = rel_id_as_s
+                opt_tparams = template_parameter_variables_decl_list
                 ml = meta_level
                 body = class_decl_body_block
-                { Ast.ClassDefStmt (name, body, None, () )}
+                {
+                    let n = Ast.ClassDefStmt (name, lifetimes, body, None, () ) in
+                    templatefy name n opt_tparams
+                }
 
 class_decl_body_block:
                 class_body_block    { $1 }
@@ -270,7 +323,6 @@ member_variable_decl_introducer:
                     attr
                 }
 
-
 (**)
 extern_statement:
                 KEYWORD_EXTERN
@@ -282,29 +334,30 @@ extern_statement_:
 
 extern_function_statement:
                 KEYWORD_DEF
-                name = rel_id_as_s
                 lifetimes = lifetime_parameter_decl_list
-                opt_tparams = template_parameter_variables_decl_list?
+                name = rel_id_as_s
+                opt_tparams = template_parameter_variables_decl_list
                 params = parameter_variables_decl_list
                 ml = meta_level
                 ret_type = type_specifier
                 ASSIGN
                 body_name = STRING (*string_lit*)
                 {
-                    let n = Ast.ExternFunctionDefStmt (name, params, ml, ret_type, body_name, None, ()) in
+                    let n = Ast.ExternFunctionDefStmt (name, lifetimes, params, ml, ret_type, body_name, None, ()) in
                     templatefy name n opt_tparams
                 }
 
 extern_class_statement:
                 KEYWORD_CLASS
+                lifetimes = lifetime_parameter_decl_list
                 name = rel_id_as_s
-                lts = lifetime_parameter_decl_list
-                opt_tparams = template_parameter_variables_decl_list?
+                opt_tparams = template_parameter_variables_decl_list
                 ml = meta_level
                 ASSIGN
                 body_name = STRING (*string_lit*)
+                opt_body = class_decl_body_block?
                 {
-                    let n = Ast.ExternClassDefStmt (name, lts, body_name, None, ()) in
+                    let n = Ast.ExternClassDefStmt (name, lifetimes, body_name, opt_body, None, ()) in
                     templatefy name n opt_tparams
                 }
 
@@ -338,13 +391,14 @@ type_specifier:
 (**)
 rv_attr_force:
                 KEYWORD_VAL { Type_attr.Val }
-        |       KEYWORD_REF { Type_attr.Ref }
+        |       KEYWORD_REF { Type_attr.Ref [] }
+        |       lts = lifetime_single_arg KEYWORD_REF { Type_attr.Ref lts }
 
 rv_attr_val:
                 KEYWORD_VAL { Type_attr.Val }
 
 rv_attr:
-                { Type_attr.Ref }   (* default *)
+                { Type_attr.Ref [] }   (* default *)
         |       rv_attr_force { $1 }
 
 
@@ -432,14 +486,12 @@ argument_list:
                 RPAREN { l }
 
 template_argument_list:
-                NOT
                 LPAREN
                 l = separated_nonempty_list(COMMA, expression)
                 RPAREN
                 { l }
 
-        |       NOT
-                v = primary_value
+        |       v = template_primary_value
                 { [v] }
 
 (**)
@@ -459,8 +511,8 @@ assign_expression:  (* right to left *)
                 logical_or_expression { $1 }
         |       logical_or_expression op = ASSIGN assign_expression
                 {
-                    let op_id =
-                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    let op_name = Id_string.BinaryOp op in
+                    let op_id = Ast.Id (op_name, [], pos $startpos(op) $endpos(op)) in
                     Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
                 }
         |       if_expression { $1 }
@@ -501,8 +553,8 @@ logical_or_expression:
                 logical_and_expression { $1 }
         |       logical_or_expression op = LOGICAL_OR logical_and_expression
                 {
-                    let op_id =
-                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    let op_name = Id_string.BinaryOp op in
+                    let op_id = Ast.Id (op_name, [], pos $startpos(op) $endpos(op)) in
                     Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
                 }
 
@@ -510,8 +562,8 @@ logical_and_expression:
                 bitwise_or_expression { $1 }
         |       logical_and_expression op = LOGICAL_AND bitwise_or_expression
                 {
-                    let op_id =
-                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    let op_name = Id_string.BinaryOp op in
+                    let op_id = Ast.Id (op_name, [], pos $startpos(op) $endpos(op)) in
                     Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
                 }
 
@@ -519,8 +571,8 @@ bitwise_or_expression:
                 bitwise_xor_expression { $1 }
         |       bitwise_or_expression op = BITWISE_OR bitwise_xor_expression
                 {
-                    let op_id =
-                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    let op_name = Id_string.BinaryOp op in
+                    let op_id = Ast.Id (op_name, [], pos $startpos(op) $endpos(op)) in
                     Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
                 }
 
@@ -528,8 +580,8 @@ bitwise_xor_expression:
                 bitwise_and_expression { $1 }
         |       bitwise_xor_expression op = BITWISE_XOR bitwise_and_expression
                 {
-                    let op_id =
-                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    let op_name = Id_string.BinaryOp op in
+                    let op_id = Ast.Id (op_name, [], pos $startpos(op) $endpos(op)) in
                     Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
                 }
 
@@ -537,8 +589,8 @@ bitwise_and_expression:
                 equality_expression { $1 }
         |       bitwise_and_expression op = BITWISE_AND equality_expression
                 {
-                    let op_id =
-                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    let op_name = Id_string.BinaryOp op in
+                    let op_id = Ast.Id (op_name, [], pos $startpos(op) $endpos(op)) in
                     Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
                 }
 
@@ -546,14 +598,14 @@ equality_expression:
                 relational_expression { $1 }
         |       equality_expression op = EQUALS relational_expression
                 {
-                    let op_id =
-                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    let op_name = Id_string.BinaryOp op in
+                    let op_id = Ast.Id (op_name, [], pos $startpos(op) $endpos(op)) in
                     Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
                 }
         |       equality_expression op = NOT_EQUALS relational_expression
                 {
-                    let op_id =
-                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    let op_name = Id_string.BinaryOp op in
+                    let op_id = Ast.Id (op_name, [], pos $startpos(op) $endpos(op)) in
                     Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
                 }
 
@@ -561,26 +613,26 @@ relational_expression:
                 shift_expression { $1 }
         |       relational_expression op = LTE shift_expression
                 {
-                    let op_id =
-                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    let op_name = Id_string.BinaryOp op in
+                    let op_id = Ast.Id (op_name, [], pos $startpos(op) $endpos(op)) in
                     Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
                 }
         |       relational_expression op = LT shift_expression
                 {
-                    let op_id =
-                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    let op_name = Id_string.BinaryOp op in
+                    let op_id = Ast.Id (op_name, [], pos $startpos(op) $endpos(op)) in
                     Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
                 }
         |       relational_expression op = GTE shift_expression
                 {
-                    let op_id =
-                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    let op_name = Id_string.BinaryOp op in
+                    let op_id = Ast.Id (op_name, [], pos $startpos(op) $endpos(op)) in
                     Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
                 }
         |       relational_expression op = GT shift_expression
                 {
-                    let op_id =
-                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    let op_name = Id_string.BinaryOp op in
+                    let op_id = Ast.Id (op_name, [], pos $startpos(op) $endpos(op)) in
                     Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
                 }
 
@@ -588,20 +640,20 @@ shift_expression:
                 add_sub_expression { $1 }
         |       shift_expression op = LSHIFT add_sub_expression
                 {
-                    let op_id =
-                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    let op_name = Id_string.BinaryOp op in
+                    let op_id = Ast.Id (op_name, [], pos $startpos(op) $endpos(op)) in
                     Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
                 }
         |       shift_expression op = ARSHIFT add_sub_expression
                 {
-                    let op_id =
-                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    let op_name = Id_string.BinaryOp op in
+                    let op_id = Ast.Id (op_name, [], pos $startpos(op) $endpos(op)) in
                     Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
                 }
         |       shift_expression op = LRSHIFT add_sub_expression
                 {
-                    let op_id =
-                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    let op_name = Id_string.BinaryOp op in
+                    let op_id = Ast.Id (op_name, [], pos $startpos(op) $endpos(op)) in
                     Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
                 }
 
@@ -609,14 +661,14 @@ add_sub_expression:
                 mul_div_rem_expression { $1 }
         |       add_sub_expression op = PLUS mul_div_rem_expression
                 {
-                    let op_id =
-                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    let op_name = Id_string.BinaryOp op in
+                    let op_id = Ast.Id (op_name, [], pos $startpos(op) $endpos(op)) in
                     Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
                 }
         |       add_sub_expression op = MINUS mul_div_rem_expression
                 {
-                    let op_id =
-                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    let op_name = Id_string.BinaryOp op in
+                    let op_id = Ast.Id (op_name, [], pos $startpos(op) $endpos(op)) in
                     Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
                 }
 
@@ -624,20 +676,20 @@ mul_div_rem_expression:
                 unary_expression { $1 }
         |       mul_div_rem_expression op =TIMES unary_expression
                 {
-                    let op_id =
-                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    let op_name = Id_string.BinaryOp op in
+                    let op_id = Ast.Id (op_name, [], pos $startpos(op) $endpos(op)) in
                     Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
                 }
         |       mul_div_rem_expression op =DIV unary_expression
                 {
-                    let op_id =
-                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    let op_name = Id_string.BinaryOp op in
+                    let op_id = Ast.Id (op_name, [], pos $startpos(op) $endpos(op)) in
                     Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
                 }
         |       mul_div_rem_expression op = MOD unary_expression
                 {
-                    let op_id =
-                        Ast.Id (Nodes.BinaryOp op, pos $startpos(op) $endpos(op)) in
+                    let op_name = Id_string.BinaryOp op in
+                    let op_id = Ast.Id (op_name, [], pos $startpos(op) $endpos(op)) in
                     Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
                 }
 
@@ -645,38 +697,38 @@ unary_expression:
                 postfix_expression { $1 }
         |       op = MINUS postfix_expression
                 {
-                    let op_id =
-                        Ast.Id (Nodes.UnaryPreOp op, pos $startpos(op) $endpos(op)) in
+                    let op_name = Id_string.UnaryPreOp op in
+                    let op_id = Ast.Id (op_name, [], pos $startpos(op) $endpos(op)) in
                     Ast.UnaryOpExpr (op_id, $2, pos $startpos $endpos)
                 }
         |       op = INCREMENT postfix_expression
                 {
-                    let op_id =
-                        Ast.Id (Nodes.UnaryPreOp op, pos $startpos(op) $endpos(op)) in
+                    let op_name = Id_string.UnaryPreOp op in
+                    let op_id = Ast.Id (op_name, [], pos $startpos(op) $endpos(op)) in
                     Ast.UnaryOpExpr (op_id, $2, pos $startpos $endpos)
                 }
         |       op = DECREMENT postfix_expression
                 {
-                    let op_id =
-                        Ast.Id (Nodes.UnaryPreOp op, pos $startpos(op) $endpos(op)) in
+                    let op_name = Id_string.UnaryPreOp op in
+                    let op_id = Ast.Id (op_name, [], pos $startpos(op) $endpos(op)) in
                     Ast.UnaryOpExpr (op_id, $2, pos $startpos $endpos)
                 }
         |       op = NOT postfix_expression
                 {
-                    let op_id =
-                        Ast.Id (Nodes.UnaryPreOp op, pos $startpos(op) $endpos(op)) in
+                    let op_name = Id_string.UnaryPreOp op in
+                    let op_id = Ast.Id (op_name, [], pos $startpos(op) $endpos(op)) in
                     Ast.UnaryOpExpr (op_id, $2, pos $startpos $endpos)
                 }
         |       op = TIMES postfix_expression
                 {
-                    let op_id =
-                        Ast.Id (Nodes.UnaryPreOp op, pos $startpos(op) $endpos(op)) in
+                    let op_name = Id_string.UnaryPreOp op in
+                    let op_id = Ast.Id (op_name, [], pos $startpos(op) $endpos(op)) in
                     Ast.UnaryOpExpr (op_id, $2, pos $startpos $endpos)
                 }
         |       op = BITWISE_AND postfix_expression
                 {
-                    let op_id =
-                        Ast.Id (Nodes.UnaryPreOp op, pos $startpos(op) $endpos(op)) in
+                    let op_name = Id_string.UnaryPreOp op in
+                    let op_id = Ast.Id (op_name, [], pos $startpos(op) $endpos(op)) in
                     Ast.UnaryOpExpr (op_id, $2, pos $startpos $endpos)
                 }
 
@@ -690,8 +742,8 @@ postfix_expression:
         |       call_expression { $1 }
         |       postfix_expression op = unary_operator_as_raw
                 {
-                    let op_id =
-                        Ast.Id (Nodes.UnaryPostOp op, pos $startpos(op) $endpos(op)) in
+                    let op_name = Id_string.UnaryPostOp op in
+                    let op_id = Ast.Id (op_name, [], pos $startpos(op) $endpos(op)) in
                     Ast.UnaryOpExpr (op_id, $1, pos $startpos $endpos)
                 }
 
@@ -699,7 +751,9 @@ call_expression:
                 postfix_expression argument_list
                 { Ast.CallExpr ($1, $2, pos $startpos $endpos) }
         |       KEYWORD_REF args = argument_list
-                { Ast.TypeRVConv (Type_attr.Ref, args, pos $startpos $endpos) }
+                { Ast.TypeRVConv (Type_attr.Ref [], args, pos $startpos $endpos) }
+        |       lts = lifetime_single_arg KEYWORD_REF args = argument_list
+                { Ast.TypeRVConv (Type_attr.Ref lts, args, pos $startpos $endpos) }
         |       KEYWORD_VAL args = argument_list
                 { Ast.TypeRVConv (Type_attr.Val, args, pos $startpos $endpos) }
         |       KEYWORD_IMMUTABLE args = argument_list
@@ -743,16 +797,31 @@ primary_value:
         |       array_literal { $1 }
         |       generic_id { $1 }
 
+template_primary_value:
+                boolean_literal { $1 }
+        |       numeric_literal { $1 }
+        |       string_literal { $1 }
+        |       array_literal { $1 }
+        |       rel_id { $1 }
 
 (**)
-rel_id:         rel_id_as_s { Ast.Id ($1, pos $startpos $endpos) }
+rel_id:         rel_id_as_s
+                { Ast.Id ($1, [], pos $startpos $endpos) }
+
+rel_generics_id:
+                rel_id
+                { $1 }
+        |       lts = lifetime_arg_list2 id = rel_id_as_s
+                { Ast.Id (id, lts, pos $startpos $endpos) }
 
 rel_template_instance_id:
-                rel_id_as_s template_argument_list
-                { Ast.InstantiatedId ($1, $2, pos $startpos $endpos) }
+                rel_id_as_s NOT template_argument_list
+                { Ast.InstantiatedId ($1, $3, [], pos $startpos $endpos) }
+        |       lts = lifetime_arg_list2 id = rel_id_as_s NOT ts = template_argument_list
+                { Ast.InstantiatedId (id, ts, lts, pos $startpos $endpos) }
 
 rel_generic_id:
-                rel_id { $1 }
+                rel_generics_id { $1 }
         |       rel_template_instance_id { $1 }
 
 (* TODO: implement root_generic_id *)
@@ -766,7 +835,7 @@ rel_id_has_no_op_as_raw:
                 ID { $1 }
 
 rel_id_has_no_op_as_s:
-                rel_id_has_no_op_as_raw { Nodes.Pure $1 }
+                rel_id_has_no_op_as_raw { Id_string.Pure $1 }
 
 rel_id_as_s:
                 binary_operator_as_s { $1 }
@@ -798,7 +867,7 @@ binary_operator_as_raw:
 binary_operator_as_s:
                 KEYWORD_OPERATOR
                 op = binary_operator_as_raw
-                { Nodes.BinaryOp op }
+                { Id_string.BinaryOp op }
 
 unary_operator_as_raw:
                 INCREMENT { $1 }
@@ -817,25 +886,25 @@ unary_operator_as_s:
                 KEYWORD_OPERATOR KEYWORD_PRE
                 op = unary_operator_as_raw
                 {
-                    Nodes.UnaryPreOp op
+                    Id_string.UnaryPreOp op
                 }
 
         |       KEYWORD_OPERATOR KEYWORD_POST
                 op = unary_operator_as_raw
                 {
-                    Nodes.UnaryPostOp op
+                    Id_string.UnaryPostOp op
                 }
 
         |       KEYWORD_OPERATOR KEYWORD_UNARY
                 op = unary_pre_operator_as_raw
                 {
-                    Nodes.UnaryPreOp op
+                    Id_string.UnaryPreOp op
                 }
 
         |       KEYWORD_OPERATOR KEYWORD_UNARY
                 op = unary_post_operator_as_raw
                 {
-                    Nodes.UnaryPostOp op
+                    Id_string.UnaryPostOp op
                 }
 
 (**)

@@ -89,6 +89,11 @@ let debug_dump_module m =
 let debug_dump_type t =
   Debug.printf "%s\n" (L.string_of_lltype t)
 
+type cg_aux_t =
+    {
+      cg_returns_addr : bool;
+      cg_has_terminator: bool;
+    }
 
 let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t * bool) =
   let open Ctx in
@@ -146,7 +151,7 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
      begin
        Ctx.mark_env_as_defined ctx env;
        let fenv_r = Env.FunctionOp.get_record env in
-       Debug.printf "\n\n\n\n<><><><>\nDefine: %s\n<><><><>\n%d\n\n\n\n" (fenv_r.Env.fn_mangled |> Option.get) (Int32.to_int env.Env.env_id);
+       Debug.printf "\n\n\n\n<><><><>\nDefine: %s\n<><><><>\n%s\n\n\n\n" (fenv_r.Env.fn_mangled |> Option.get) (Env_system.EnvId.to_string env.Env.env_id);
 
        let define_current_function kind param_envs =
          let body = Option.get opt_body in
@@ -320,7 +325,7 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
      end
 
   | TAst.ClassDefStmt (
-        name, body, opt_attr, Some env
+        name, _, body, opt_attr, Some env
       ) ->
      if Ctx.is_env_defined ctx env then void_val else
      begin
@@ -357,7 +362,7 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
      end
 
   | TAst.ExternClassDefStmt (
-        name, _, extern_cname, _, Some env
+        name, _, extern_cname, _, _, Some env
       ) ->
      if Ctx.is_env_defined ctx env then void_val else
      begin
@@ -434,7 +439,7 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
             (llval, returns_addr)
        in
 
-       let fn_s_name = Nodes.string_of_id_string fn_name in
+       let fn_s_name = Id_string.to_string fn_name in
        let (llval, returns_addr) = match detail with
          (* normal function *)
          | Env.FnRecordNormal (_, kind, _) ->
@@ -647,24 +652,26 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
          end
      end
 
-  | TAst.GenericId (name, Some rel_env) ->
+  | TAst.GenericId (name, lt_args, Some rel_env) ->
      begin
        let { Env.er = er; _ } = rel_env in
        match er with
        | Env.Function (_, r) ->
           begin
+            assert(List.length lt_args = 0);
             (* *)
             Env.debug_print rel_env;
             failwith @@ "[ICE] TAst.Id: function "
-                        ^ (Nodes.string_of_id_string name)
+                        ^ (Id_string.to_string name)
                         ^ " // "
-                        ^ (Nodes.string_of_id_string r.Env.fn_name)
+                        ^ (Id_string.to_string r.Env.fn_name)
           end
 
        | Env.Variable (r) ->
           begin
+            assert(List.length lt_args = 0);
             Debug.printf "variable %s / type => %s\n"
-                         (Nodes.string_of_id_string name)
+                         (Id_string.to_string name)
                          (Type.to_string r.Env.var_type);
             let var_llr = try Ctx.find_val_by_env ctx rel_env with
                           | Not_found ->
@@ -687,10 +694,25 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
               Type_attr.ta_ref_val = Type_attr.Val;
               Type_attr.ta_mut = Type_attr.Const;
             } in
+            (* generics *)
+            assert (List.length r.Env.cls_generics_vals >= List.length lt_args);
+            let generics_args =
+              let rec f pl al acc =
+                match (pl, al) with
+                | ([], []) -> acc
+                | ([], _) -> failwith ""
+                | (_::px, []) -> f px [] (Lifetime.LtUndef :: acc)  (* TODO: check undef *)
+                | (p::px, a::ax) -> f px ax (a :: acc)
+              in
+              f r.Env.cls_generics_vals lt_args [] |> List.rev
+            in
+
+            (* type *)
             let ty =
               Type.Generator.generate_type ctx.type_sets.Type_sets.ts_type_gen
                                            (Type_info.UniqueTy rel_env)
                                            r.Env.cls_template_vals
+                                           generics_args
                                            ty_attr_val_default
             in
             let itype_id = Option.get ty.Type_info.ti_id in
@@ -708,6 +730,7 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
        (* regards all values are NOT references *)
        | Env.MetaVariable (uni_id) ->
           begin
+            assert(List.length lt_args = 0);
             let uni_map = ctx.uni_map in
 
             Debug.printf "LLVM codegen Env.MetaVariable = %d\n" uni_id;
@@ -720,7 +743,7 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
        | _ ->
           begin
             Env.debug_print rel_env;
-            failwith @@ "codegen; id " ^ (Nodes.string_of_id_string name)
+            failwith @@ "codegen; id " ^ (Id_string.to_string name)
           end
      end
 
@@ -1020,7 +1043,7 @@ and is_heavy_object ty =
     Type_attr.ta_mut = mut;
   } = ty.Type_info.ti_attr in
   match rv with
-  | Type_attr.Ref -> false
+  | Type_attr.Ref _ -> false
   | Type_attr.Val -> is_address_representation ty
   | _ -> failwith "[ICE] Unexpected : rv"
 
@@ -1031,7 +1054,7 @@ and is_address_representation ty =
     Type_attr.ta_mut = mut;
   } = ty.Type_info.ti_attr in
   match rv with
-  | Type_attr.Ref -> not (is_always_value ty)
+  | Type_attr.Ref _ -> not (is_always_value ty)
   | Type_attr.Val ->
      begin
        match mut with
@@ -1180,7 +1203,7 @@ and setup_storage sto caller_env ctx =
      begin
        Debug.printf "setup_storage: StoAgg ty=%s\n"
                     (Type.to_string ty);
-       let ctx_env = Option.get caller_env.Env.context_env in
+       let ctx_env = caller_env.Env.context_env in
        let (ll_fval, is_f_addr) =
          find_llval_by_env_with_force_generation ctx ctx_env
        in
@@ -1264,6 +1287,7 @@ and eval_args_for_func kind sto param_types ret_ty args caller_env ctx =
   let (llvals, arg_tys, is_addrs, param_types, returns_addr, skip_alloca) =
     match sto with
     | TAst.StoStack _
+    | TAst.StoAgg _
     | TAst.StoArrayElem _
     | TAst.StoArrayElemFromThis _
     | TAst.StoMemberVar _ ->
@@ -1294,7 +1318,8 @@ and eval_args_for_func kind sto param_types ret_ty args caller_env ctx =
        in
        (llvals, arg_tys, is_addrs, param_types, returns_addr, sa)
 
-    | _ -> failwith "[ICE] special arguments"
+    | _ -> failwith (Printf.sprintf "[ICE] special arguments %s"
+                                    (TAst.string_of_stirage sto))
   in
   let llargs =
     Debug.printf "conv funcs skip_alloca = %b\n" skip_alloca;

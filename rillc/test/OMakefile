@@ -52,6 +52,8 @@ USE_OCAMLFIND = true
 #
 OCAMLPACKS[] =
    oUnit
+   batteries
+   ocamlgraph
 
 #
 if $(not $(OCAMLFIND_EXISTS))
@@ -62,7 +64,7 @@ if $(not $(OCAMLFIND_EXISTS))
 #
 # Include path
 #
-# OCAMLINCLUDES +=
+OCAMLINCLUDES += ../src
 
 #
 # Compile native or byte code?
@@ -77,7 +79,7 @@ if $(not $(OCAMLFIND_EXISTS))
 #
 
 # OCAMLCFLAGS   +=
-# OCAMLOPTFLAGS +=
+OCAMLOPTFLAGS += -annot
 # OCAML_LINK_FLAGS +=
 # OCAML_BYTE_LINK_FLAGS +=
 # OCAML_NATIVE_LINK_FLAGS +=

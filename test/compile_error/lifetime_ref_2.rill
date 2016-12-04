@@ -1,0 +1,16 @@
+def main()
+{
+    val mutable a = address_of(10);
+    val mutable b = address_of(10);
+
+    // a = b; will be error
+    f(a, b); // will be error
+             // 'a will be the lifetime of "b"
+             // Thus, it will violate the constraint of "'a: 'r1"
+             // which means the lifetime 'a will live longer at least the lifetime 'r1.
+             // the lifetime of "b" is shorter than the lifetime "a".
+}
+
+def ('a: 'r1, 'r1, 'r2) f('r1 ref mutable a: 'a raw_ptr!(int32), 'r2 ref b: 'a raw_ptr!(int32)) {
+    a = b;
+}

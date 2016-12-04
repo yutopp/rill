@@ -1,0 +1,14 @@
+def main()
+{
+    val x = 10;             // 0
+    val y = 20;             // 1
+
+    val i = address_of(x);  // 2   // '0 i32
+    val j = address_of(y);  // 3   // '1 i32
+
+    f(i, j);  // 2(i) > 1(y) [min(0(x), 1(y))], 3(j) > 1(y) [min(0(x), 1(y))]
+}
+
+// '_1 > 'a, '_2 > 'a
+def ('a, '_1, '_2) f('_1 ref a: 'a raw_ptr!(int32), '_2 ref b: 'a raw_ptr!(int32)) {
+}

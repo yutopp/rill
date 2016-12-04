@@ -1,0 +1,18 @@
+import std.stdio;
+
+def main() {
+//    val s = "abcdef";
+//    s[0].print();
+//
+    val i = f();
+//      f2();
+}
+
+def f() {
+    //return "";
+}
+
+//def f2(): 'static raw_ptr2!(int32) {
+//    val i = 100;
+//    return address_of2(100);
+//}

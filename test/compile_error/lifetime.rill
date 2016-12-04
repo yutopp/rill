@@ -1,10 +1,13 @@
 def main() {
-    f();
 }
 
 import std.stdio;
 
 def f() {
     val mutable y = address_of(10);
+    {
+        val x = 72;
+        y = &x;
+    };
     (*y).print();
 }

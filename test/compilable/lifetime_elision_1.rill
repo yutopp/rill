@@ -1,0 +1,11 @@
+def main() {
+}
+
+def f(p: raw_ptr!int32) {};
+extern def f_ret(p: raw_ptr!int32): raw_ptr!int32 = "";
+
+def g(p: raw_ptr!int32, p2: raw_ptr!int32) {}
+
+//def g(p: raw_ptr!int32, p2: raw_ptr!int32): raw_ptr!int32 {/* return address_of(10); */}
+
+//def a(): 'a ref('b raw_ptr!(int32)) {}

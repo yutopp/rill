@@ -22,6 +22,7 @@ s.sh
 *.cmt
 *.cmti
 *.cmxa
+*.annot
 *.cmx
 *.cmp
 *.o
@@ -32,3 +33,6 @@ s.sh
 peda-session-*
 
 perf.*
+
+memo-*.md
+docs

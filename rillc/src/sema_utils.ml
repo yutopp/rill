@@ -28,12 +28,13 @@ let complete_env env node =
   Env.update_status env Env.Complete;
   Env.update_rel_ast env node
 
-
-let check_function_env env param_kinds ml return_type is_auto_return_type =
+let check_function_env2 env generics_vals constraints param_kinds ml return_type is_auto_return_type =
   let r = Env.FunctionOp.get_record env in
+  r.Env.fn_generics_vals <- generics_vals;
   r.Env.fn_param_kinds <- param_kinds;
   r.Env.fn_return_type <- return_type;
   r.Env.fn_is_auto_return_type <- is_auto_return_type;
+  env.Env.generics_constraints <- constraints;
   check_env env ml
 
 let complete_function_env env node id_name f_detail ctx =
@@ -42,11 +43,11 @@ let complete_function_env env node id_name f_detail ctx =
   r.Env.fn_detail <- f_detail;
 
   let m = (Env.get_full_module_name env) |> String.concat "." in
-  Debug.printf "Complete function -> %s.%s\n" m (Nodes.string_of_id_string id_name);
+  Debug.printf "Complete function -> %s.%s\n" m (Id_string.to_string id_name);
   Type.debug_print r.Env.fn_return_type;
 
   let _ = match id_name with
-    | Nodes.Pure s when s = Builtin_info.entrypoint_name ->
+    | Id_string.Pure s when s = Builtin_info.entrypoint_name ->
        begin
          (* TODO: check param_types and return_type *)
          r.Env.fn_mangled <- Some Builtin_info.entrypoint_export_name
@@ -65,7 +66,7 @@ let complete_function_env env node id_name f_detail ctx =
   complete_env env node
 
 
-let check_class_env env ctx =
+let check_class_env env generics_vals ctx =
   let r = Env.ClassOp.get_record env in
   let id_name = r.Env.cls_name in
   let template_args = r.Env.cls_template_vals in
@@ -74,6 +75,7 @@ let check_class_env env ctx =
                       id_name template_args ctx.sc_tsets
   in
   r.Env.cls_mangled <- Some mangled;
+  r.Env.cls_generics_vals <- generics_vals;
   check_env env Meta_level.Meta
 
 let complete_class_env env node c_detail opt_layout =
@@ -123,11 +125,22 @@ let complete_variable_env env node ty lifetime v_detail ctx =
 
 let is_valid_type ty =
   let open Type_attr in
+  let open Type_info in
   let {
     ta_ref_val = rv;
     ta_mut = mut;
   } = ty.Type_info.ti_attr in
-  (rv <> RefValUndef) && (mut <> MutUndef)
+  let attr_v = (rv <> RefValUndef) && (mut <> MutUndef) in
+  let {
+    ti_aux_generics_args = aux_gs;
+    ti_generics_args = gs;
+  } = ty in
+  let g_check lt =
+    lt <> Lifetime.LtUndef
+  in
+  let gs_v = (List.for_all g_check aux_gs) && (List.for_all g_check gs) in
+  Debug.printf "- %b / %b(%b)\n" attr_v (List.for_all g_check aux_gs) (List.for_all g_check gs);
+  attr_v && gs_v
 
 let assert_valid_type ty =
   assert (is_valid_type ty)
@@ -154,7 +167,7 @@ let register_builtin_type name inner_name mangled_name
     env.Env.meta_level <- meta_level;
 
     let lifetime_spec = [] in
-    let node = TAst.ExternClassDefStmt (name, lifetime_spec, inner_name, None, Some env) in
+    let node = TAst.ExternClassDefStmt (name, lifetime_spec, inner_name, None, None, Some env) in
 
     let detail_r = Env.ClsRecordExtern {
                        Env.cls_e_name = inner_name;
@@ -168,24 +181,24 @@ let register_builtin_type name inner_name mangled_name
     env
   in
 
-  let id_name = Nodes.Pure name in
+  let id_name = Id_string.Pure name in
   let cenv = create_extern_primitive_class id_name inner_name in
   Env.add_inner_env root_env name cenv;
 
   Type.Generator.generate_type type_gen
                                (Type_info.UniqueTy cenv)
                                []
+                               [] (* TODO *)
                                {
                                  Type_attr.ta_ref_val = Type_attr.Val;
                                  Type_attr.ta_mut = Type_attr.Immutable;
                                }
 
+let register_builtin_lifetime name lt root_env =
+  let loc = None in
+  let env = Env.create_context_env root_env (Env.LifetimeVariable lt) loc in
+  Env.add_inner_env root_env name env
 
-let rec split_aux auxs = match auxs with
-  | [] -> ([], [], [], [], [])
-  | (termc, vc, lt, ml, pos) :: xs ->
-     let (ts, vs, ls, ms, ps) = split_aux xs in
-     (termc::ts, vc::vs, lt::ls, ml::ms, pos::ps)
 
 let print_error_msg msg ctx =
   Printf.printf "\nCompilation Error!: %s\n\n" msg

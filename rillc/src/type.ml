@@ -51,7 +51,7 @@ let is_same lhs rhs =
 
 let is_same_class_ref lhs rhs =
   match (type_attr lhs, type_attr rhs) with
-  | ({Type_attr.ta_ref_val = Type_attr.Ref}, {Type_attr.ta_ref_val = Type_attr.Ref}) ->
+  | ({Type_attr.ta_ref_val = Type_attr.Ref _}, {Type_attr.ta_ref_val = Type_attr.Ref _}) ->
      has_same_class lhs rhs
   | _ -> false
 
@@ -113,23 +113,35 @@ module Generator =
       gen.gen_fresh_id <- IdType.succ gen.gen_fresh_id; (* update fresh id *)
       new_id
 
-    let generate_type gen type_sort template_args ty_attr =
+    let generate_type ?(aux_generics_args=[])
+                      gen type_sort template_args generics_args ty_attr =
       (* TODO: implement cache *)
       let tid = make_fresh_id gen in
       let ty = {
         ti_id = Some tid;
         ti_sort = type_sort;
         ti_template_args = template_args;
+        ti_aux_generics_args = aux_generics_args;
+        ti_generics_args = generics_args;
         ti_attr = ty_attr;
       } in
       Hashtbl.add gen.cache_table tid ty;
       ty
 
     let register_type gen ty =
-      generate_type gen ty.ti_sort ty.ti_template_args ty.ti_attr
+      generate_type ~aux_generics_args:ty.ti_aux_generics_args
+                    gen ty.ti_sort ty.ti_template_args ty.ti_generics_args ty.ti_attr
 
     let update_attr_r gen ty attr =
       register_type gen { ty with ti_attr = attr; }
+
+    let update_attr_r2 gen ty attr aux_generics_args =
+      register_type gen { ty with ti_attr = attr;
+                                  ti_aux_generics_args = aux_generics_args }
+
+    let update_attr_r3 gen ty aux_generics_args gs =
+      register_type gen { ty with ti_aux_generics_args = aux_generics_args;
+                                  ti_generics_args = gs }
 
     let update_attr gen ty at_rv at_mut =
       let attr = {
@@ -138,10 +150,12 @@ module Generator =
       } in
       update_attr_r gen ty attr
 
+
+
     let add_reference gen ty =
       let attr = type_attr ty in
       update_attr_r gen ty { attr with
-                             Type_attr.ta_ref_val = Type_attr.Ref
+                             Type_attr.ta_ref_val = Type_attr.Ref []
                            }
 
     let find_type_by_cache_id gen t_id =
@@ -154,7 +168,7 @@ module Generator =
 let rec to_string ty =
   let open Type_attr in
   let rv_s = match ty.ti_attr.ta_ref_val with
-      Ref -> "ref"
+      Ref _ -> "ref"
     | Val -> "val"
     | XRef -> "xref"
     | _ -> "undef"
@@ -166,11 +180,23 @@ let rec to_string ty =
     | _ -> "undef"
   in
 
+  let aux_gs = match ty.ti_aux_generics_args with
+    | [] -> ""
+    | lx ->
+       Printf.sprintf "<%s>" (lx |> List.map Lifetime.to_string |> String.concat ", ")
+  in
+
+  let gs = match ty.ti_generics_args with
+    | [] -> ""
+    | lx ->
+       Printf.sprintf "<%s>" (lx |> List.map Lifetime.to_string |> String.concat ", ")
+  in
+
   let base_s = match type_sort ty with
     | UniqueTy cenv ->
        begin
          let cls_r = Env.ClassOp.get_record cenv in
-         let name = Nodes.string_of_id_string cls_r.Env.cls_name in
+         let name = Id_string.to_string cls_r.Env.cls_name in
          name
        end
     | FunctionSetTy _ -> "@function set@"
@@ -185,7 +211,7 @@ let rec to_string ty =
                   Printf.sprintf "!(%s)" (String.concat ", " targs_s)
                 else ""
   in
-  Printf.sprintf "%s(%s(%s%s))" rv_s mut_s base_s targs_s
+  Printf.sprintf "%s%s(%s(%s%s))%s" rv_s aux_gs mut_s base_s targs_s gs
 
 
 and to_s_ctfe value =

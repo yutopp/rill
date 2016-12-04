@@ -1,0 +1,16 @@
+def main()
+{
+    val mutable a = address_of(10);
+    val mutable b = address_of(10);
+
+    // a = b; will be error
+    f(a, b); // ok, because pointer will be copied
+    f(a); // ok, because pointer will be copied
+}
+
+def 'a f(val mutable a: 'a raw_ptr!(int32), val b: 'a raw_ptr!(int32)) {
+    a = b;
+}
+
+def 'a f(val mutable a: 'a raw_ptr!(int32)) {
+}

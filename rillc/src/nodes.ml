@@ -6,62 +6,20 @@
  * http://www.boost.org/LICENSE_1_0.txt)
  *)
 
-module Loc = struct
-  type info_t = {
-    pos_fname           : string;
-    source_code         : bytes;
-    pos_begin_cnum      : int;
-    pos_begin_lnum      : int;
-    pos_begin_bol       : int;
-    pos_end_cnum        : int;
-    pos_end_lnum        : int;
-    pos_end_bol         : int;
-  }
-
-  type t = info_t option
-  let dummy = None
-
-  let to_string opt_loc =
-    match opt_loc with
-    | Some loc ->
-       let bline = loc.pos_begin_lnum in
-       let bcol = loc.pos_begin_bol in
-       let eline = loc.pos_end_lnum in
-       let ecol = loc.pos_end_bol in
-       let pos_s = if bline = eline then
-                     Printf.sprintf "Line %d, charactor %d-%d"
-                                    bline bcol ecol
-                   else
-                     Printf.sprintf "Line %d, charactor %d to Line %d, %d"
-                                    bline bcol eline ecol
-       in
-       Printf.sprintf "%s in %s" pos_s loc.pos_fname
-    | None -> "Unknown location"
-end
-
-
-type id_string =
-    Pure of string
-  | UnaryPreOp of string
-  | UnaryPostOp of string
-  | BinaryOp of string
-
-let string_of_id_string id_s =
-  match id_s with
-  | Pure s -> s
-  | UnaryPreOp s -> "op_unary_pre_" ^ s
-  | UnaryPostOp s -> "op_unary_post_" ^ s
-  | BinaryOp s -> "op_binary_" ^ s
-
-
 module type NodeContextType =
   sig
     type 'a current_ctx_t
     type 'a term_ctx_t
     type 'a prev_ctx_t
+    type 'a term_aux_t
   end
 
 module CachedNodeCounter = Generic_counter.Counter(Int64)
+
+type qual_t =
+    QualMutable
+  | QualConst
+  | QualImmutable
 
 module Make (Ctx : NodeContextType) =
   struct
@@ -75,20 +33,21 @@ module Make (Ctx : NodeContextType) =
       | ExprStmt of ast
       | ReturnStmt of ast option
       | ImportStmt of string list * string * ctx_t
-      (* name, params, return_type?, instance_cond, body, attribute?, _ *)
-      | FunctionDefStmt of id_string * ast * ast option * ast option * ast * attr_tbl_t option * ctx_t
-      (* name, params, return_type?, body, attribute?, _ *)
-      | MemberFunctionDefStmt of id_string * ast * ast option * ast * attr_tbl_t option * ctx_t
-      (* name, params, return_type, function name(TODO: change to AST), attribute?, _ *)
-      | ExternFunctionDefStmt of id_string * ast * Meta_level.t * ast * string * attr_tbl_t option * ctx_t
+      (* name, lifetimes, params, return_type?, instance_cond, body, attribute?, _ *)
+      | FunctionDefStmt of Id_string.t * lifetime_def_specs * ast * ast option * ast option * ast * attr_tbl_t option * ctx_t
+      (* name, lifetimes, params, return_type?, body, attribute?, _ *)
+      | MemberFunctionDefStmt of Id_string.t * lifetime_def_specs * ast * qual_t list * ast option * ast * attr_tbl_t option * ctx_t
+      (* name, lifetimes, params, return_type, meta_level, function name(TODO: change to AST), attribute?, _ *)
+      | ExternFunctionDefStmt of Id_string.t * lifetime_def_specs * ast * Meta_level.t * ast * string * attr_tbl_t option * ctx_t
       (* name, lifetime, body, attribute?, _ *)
-      | ClassDefStmt of id_string * ast * attr_tbl_t option * ctx_t
-      | ExternClassDefStmt of id_string * lifetime_spec * string * attr_tbl_t option * ctx_t
+      | ClassDefStmt of Id_string.t * lifetime_def_specs * ast * attr_tbl_t option * ctx_t
+      (* name, lifetimes, params, class name(TODO: change to AST), body?, attribute?, _ *)
+      | ExternClassDefStmt of Id_string.t * lifetime_def_specs * string * ast option * attr_tbl_t option * ctx_t
       (* VarInit, _ *)
       | VariableDefStmt of Meta_level.t * ast * ctx_t
       | MemberVariableDefStmt of ast * ctx_t
       (* name, template params, inner node *)
-      | TemplateStmt of id_string * ast * ast
+      | TemplateStmt of Id_string.t * ast * ast
       | EmptyStmt
       | AttrWrapperStmt of (string, ast option) Hashtbl.t * ast
 
@@ -117,8 +76,9 @@ module Make (Ctx : NodeContextType) =
       (*
        * values
        *)
-      | Id of id_string * term_ctx_t
-      | InstantiatedId of id_string * ast list * term_ctx_t
+      | Id of Id_string.t * lifetime_specs * term_ctx_t
+      | InstantiatedId of Id_string.t * ast list * lifetime_specs * term_ctx_t
+
       | IntLit of int * int * bool * term_ctx_t (* value * bits * signed *)
       | StringLit of string * term_ctx_t
       | BoolLit of bool * term_ctx_t
@@ -140,15 +100,13 @@ module Make (Ctx : NodeContextType) =
       | MetaLevelConv of Meta_level.t * ast list * term_ctx_t
 
       (* *)
-      | GenericId of id_string * ctx_t
+      | GenericId of Id_string.t * Lifetime.t list * ctx_t
       (* object construction, args, ctx *)
       | GenericCallExpr of storage_t * ast list * ctx_t * ctx_t
       (* body, ctx *)
       | GenericFuncDef of ast option * ctx_t
       | NestedExpr of ast * term_aux_t * term_ctx_t * ctx_t
       | StorageWrapperExpr of storage_t ref * ast
-
-     and term_aux_t = (term_ctx_t * Value_category.t * Lifetime.t * Meta_level.t * Loc.t)
 
      (* attr * id? * value *)
      and param_init_t = Type_attr.attr_t * string option * value_init_t
@@ -158,8 +116,8 @@ module Make (Ctx : NodeContextType) =
      and var_init_t = var_aux_t * string * value_init_t
      and var_aux_t = Type_attr.attr_t
 
-     and lifetime_ids = string list
-     and lifetime_spec = lifetime_ids
+     and lifetime_specs = Id_string.t list
+     and lifetime_def_specs = Lifetime.sort list
 
      (* type * default value *)
      and value_init_t = ast option * ast option
@@ -169,13 +127,15 @@ module Make (Ctx : NodeContextType) =
      and ctx_t = ast Ctx.current_ctx_t
      and term_ctx_t = ast Ctx.term_ctx_t
      and pctx_t = ast Ctx.prev_ctx_t
+     and term_aux_t = ast Ctx.term_aux_t
 
      and storage_t =
        | StoStack of term_ctx_t
+       | StoImm
        | StoHeap
        | StoGc
+       (* bind storage *)
        | StoAgg of term_ctx_t
-       | StoImm
        (* type of element * index *)
        | StoArrayElem of term_ctx_t * int
        (* type of element * env of this * index *)
@@ -185,16 +145,19 @@ module Make (Ctx : NodeContextType) =
 
     type t = ast
 
-    let debug_print_storage sto =
+    let string_of_stirage sto =
       match sto with
-      | StoStack _ -> Debug.printf "StoStack\n"
-      | StoHeap -> Debug.printf "StoHeap\n"
-      | StoGc -> Debug.printf "StoGc\n"
-      | StoAgg _ -> Debug.printf "StoAgg\n"
-      | StoImm -> Debug.printf "StoImm\n"
-      | StoArrayElem _ -> Debug.printf "StoArrayElem\n"
-      | StoArrayElemFromThis _ -> Debug.printf "StoArrayElemFromThis\n"
-      | StoMemberVar _ -> Debug.printf "StoMemberVar\n"
+      | StoStack _ -> "StoStack"
+      | StoHeap -> "StoHeap"
+      | StoGc -> "StoGc"
+      | StoAgg _ -> "StoAgg"
+      | StoImm -> "StoImm"
+      | StoArrayElem _ -> "StoArrayElem"
+      | StoArrayElemFromThis _ -> "StoArrayElemFromThis"
+      | StoMemberVar _ -> "StoMemberVar"
+
+    let debug_print_storage sto =
+      Debug.printf "%s\n" (string_of_stirage sto)
 
     let rec print ast =
       match ast with
@@ -213,10 +176,10 @@ module Make (Ctx : NodeContextType) =
       | ExprStmt _ ->
          Debug.printf "ExprStmt\n"
 
-      | FunctionDefStmt (id, _, _, _, statements, _, ctx) ->
+      | FunctionDefStmt (id, _, _, _, _, statements, _, ctx) ->
          begin
            Debug.printf "function def : ";
-           Debug.printf "%s\n" (string_of_id_string id);
+           Debug.printf "%s\n" (Id_string.to_string id);
            print statements;
          end
 
@@ -257,10 +220,10 @@ module Make (Ctx : NodeContextType) =
            Debug.printf ")\n"
          end
 
-      | Id (name, _) ->
+      | Id (name, _, _) ->
          begin
            Debug.printf "id{";
-           Debug.printf "%s" (string_of_id_string name);
+           Debug.printf "%s" (Id_string.to_string name);
            Debug.printf "}"
          end
 

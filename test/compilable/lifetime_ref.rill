@@ -1,0 +1,13 @@
+def main()
+{
+    val mutable a = address_of(10);
+    val mutable b = address_of(10);
+    b = a;
+    // a = b;
+
+    //f(a, b);
+}
+
+//def f<'a>(mutable a: raw_ptr!(int32)#<'a>, b: raw_ptr!(int32)#<'a>) {
+//    a = b;
+//}

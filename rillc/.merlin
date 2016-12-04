@@ -5,3 +5,4 @@ PKG batteries
 PKG ctypes
 PKG stdint
 PKG oUnit
+PKG ocamlgraph

@@ -23,6 +23,8 @@ let numeric_10 = ['0'-'9']+
 let numeric_16 = "0x" ['0'-'9' 'a'-'f' 'A'-'F']+
 let num_bits = "8" | "16" | "32" | "64"
 
+let id = ['a'-'z' 'A'-'Z' '_'] ['a'-'z' 'A'-'Z' '0'-'9' '_']*
+
 rule token = parse
   | blank               { token lexbuf }
   | newline             { new_line lexbuf; token lexbuf }
@@ -54,7 +56,9 @@ rule token = parse
   | "pre"               { KEYWORD_PRE }
   | "post"              { KEYWORD_POST }
   | "unary"             { KEYWORD_UNARY }
-
+  | "static"            { KEYWORD_STATIC }
+  | "gc"                { KEYWORD_GC }
+  | "unmanaged"         { KEYWORD_UNMANAGED }
   | "true"              { LIT_TRUE }
   | "false"             { LIT_FALSE }
 
@@ -77,8 +81,7 @@ rule token = parse
   | numeric_10 as i     { INT (int_of_string i, 32, true) }
   | numeric_16 as i     { INT (int_of_string i, 32, true) }
 
-  | ['a'-'z' 'A'-'Z' '_'] ['a'-'z' 'A'-'Z' '0'-'9' '_']* as s
-                        { ID s }
+  | id as s             { ID s }
 
   | "++" as op          { INCREMENT op }
   | "--" as op          { DECREMENT op }
@@ -127,7 +130,8 @@ rule token = parse
   | '.'                 { DOT }
   | ':'                 { COLON }
   | ';'                 { SEMICOLON }
-  | '`'                 { BACKQUOTE }
+  (*| '`'                 { BACKQUOTE }*)
+  | '''                 { SINGLEQUOTE }
 
   | eof                 { EOF }
 

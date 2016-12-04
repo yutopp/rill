@@ -1,0 +1,5 @@
+def main()
+{
+    val x = 10;             // 0
+    val i = address_of(x);  // 1   // '0 i32
+}

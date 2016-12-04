@@ -58,6 +58,7 @@ OCAMLPACKS[] =
    llvm.executionengine
    ctypes
    stdint
+   ocamlgraph
 
 #
 if $(not $(OCAMLFIND_EXISTS))
@@ -153,6 +154,7 @@ config.ml:
 FILES[] =
    main
    nodes
+   loc
    ast
    tagged_ast
    lexer
@@ -185,10 +187,12 @@ FILES[] =
    builtin_info
    mangle
    lifetime
+   lifetime_constraints
    meta_level
    config
    debug
    generic_counter
+   id_string
 
 LIB = rillc
 OCamlLibrary($(LIB), $(FILES))

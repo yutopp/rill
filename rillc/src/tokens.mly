@@ -21,7 +21,7 @@
                         LBLOCK RBLOCK
                         LBRACKET RBRACKET
 %token                  COMMA DOT
-                        COLON SEMICOLON BACKQUOTE
+                        COLON SEMICOLON (*BACKQUOTE*) SINGLEQUOTE
                         FAT_ARROW SHARP
 %token                  EOF
 %token                  LIT_TRUE LIT_FALSE
@@ -48,4 +48,7 @@
                         KEYWORD_PRE
                         KEYWORD_POST
                         KEYWORD_UNARY
+                        KEYWORD_STATIC
+                        KEYWORD_GC
+                        KEYWORD_UNMANAGED
 %%

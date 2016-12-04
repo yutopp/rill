@@ -7,17 +7,21 @@
  *)
 
 (* used for id of environments *)
-module EnvId = Int32
-let id_counter = ref (EnvId.of_int 1)
-let undef_id = (EnvId.of_int 0)
+module EnvUniqId = Generic_counter.Counter(Int32)
 
-let generate_new_env_id () =
-  let cur_id = !id_counter in
-  if cur_id = EnvId.max_int then
-    failwith "env id is reached to limit";
+module EnvId =
+  struct
+    type t = E of EnvUniqId.t * t option
 
-  id_counter := EnvId.add !id_counter EnvId.one;
-  cur_id
+    let undef = E (EnvUniqId.undef, None)
 
+    let compare a b =
+      match (a, b) with
+      | (E (u_a, _), E (u_b, _)) -> EnvUniqId.(compare u_a u_b)
+
+    let to_string v =
+      match v with
+      | E (u_v, _) -> EnvUniqId.to_string u_v
+  end
 
 module NestLevel = Int32

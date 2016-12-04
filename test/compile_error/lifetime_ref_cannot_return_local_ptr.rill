@@ -1,0 +1,7 @@
+def main() {
+    f();
+}
+
+def f() {
+    return address_of(100);
+}

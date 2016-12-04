@@ -36,22 +36,23 @@ module Kind =
       | Other -> "other"
   end
 
-
 type 'ast env_t = {
    env_id                   : EnvId.t;
    parent_env               : 'ast env_t option;
-   context_env              : 'ast env_t option;
+   context_env              : 'ast env_t;
+   ns_env                   : 'ast env_t;
    module_env               : 'ast env_t option;
    er                       : 'ast env_record_t;
    mutable state            : checked_state_t;
    mutable closed           : bool;
+   mutable generics_constraints: Lifetime.constraint_t list;
    mutable meta_level       : Meta_level.t;
    mutable rel_node         : 'ast option;
-   mutable callee_when_exit : 'ast list;
+   mutable callee_when_exit : 'ast list;    (* TODO: rename *)
    nest_level               : NestLevel.t;
 
    (* information for error message *)
-   loc                      : Nodes.Loc.t;
+   loc                      : Loc.t;
 }
 
  and 'ast env_record_t =
@@ -66,7 +67,7 @@ type 'ast env_t = {
   | Scope of 'ast lookup_table_t
 
   | MetaVariable of Unification.id_t
-  | LifetimeVariable of Lifetime.t
+  | LifetimeVariable of lifetime_record
 
   | Unknown
 
@@ -92,7 +93,7 @@ type 'ast env_t = {
 
 
  and 'ast template_record = {
-   tl_name          : Nodes.id_string;
+   tl_name          : Id_string.t;
    tl_params        : 'ast;
    tl_inner_node    : 'ast;
  }
@@ -111,10 +112,11 @@ type 'ast env_t = {
   *
   *)
  and 'ast function_record = {
-   fn_name                          : Nodes.id_string;
+   fn_name                          : Id_string.t;
    mutable fn_mangled               : string option;
-
+   mutable fn_generics_vals         : Lifetime.t list;
    mutable fn_template_vals         : ('ast type_info_t Ctfe_value.t) list;
+
    mutable fn_param_kinds           : 'ast function_param_kind_t list;
    mutable fn_return_type           : 'ast type_info_t;
    mutable fn_is_auto_return_type   : bool;
@@ -154,9 +156,9 @@ type 'ast env_t = {
   *
   *)
  and 'ast class_record = {
-   cls_name             : Nodes.id_string;
+   cls_name             : Id_string.t;
    mutable cls_mangled  : string option;
-
+   mutable cls_generics_vals    : Lifetime.t list;
    mutable cls_template_vals    : ('ast type_info_t Ctfe_value.t) list;
    mutable cls_detail           : class_record_var;
    mutable cls_traits           : class_traits_t;
@@ -184,40 +186,42 @@ type 'ast env_t = {
  }
 
  and class_traits_t = {
-   cls_traits_is_primitive              : bool;
-   cls_traits_is_always_value           : bool;
-   cls_traits_has_user_defined_ctor     : bool;
-   cls_traits_default_ctor_state        : function_def_var;
-   cls_traits_copy_ctor_state           : function_def_var;
-   cls_traits_dtor_state                : function_def_var;
+     cls_traits_is_primitive              : bool;
+     cls_traits_is_always_value           : bool;
+     cls_traits_has_user_defined_ctor     : bool;
+     cls_traits_default_ctor_state        : function_def_var;
+     cls_traits_copy_ctor_state           : function_def_var;
+     cls_traits_dtor_state                : function_def_var;
  }
-
 
  (*
   *
   *)
  and 'ast variable_record = {
-   var_name             : string;
-   mutable var_lifetime : Lifetime.t;
-   mutable var_type     : 'ast type_info_t;
-   mutable var_detail   : 'ast variable_record_var;
- }
+     var_name             : string;
+     mutable var_lifetime : Lifetime.t;
+     mutable var_type     : 'ast type_info_t;
+     mutable var_detail   : 'ast variable_record_var;
+   }
  and 'ast variable_record_var =
    | VarRecordNormal of 'ast variable_record_normal
    | VarUndef
 
  and 'ast variable_record_normal = unit
 
+ and lifetime_record = Lifetime.t
 
 let undef () =
-  {
-    env_id = undef_id;
+  let rec e = {
+    env_id = EnvId.undef;
     parent_env = None;
-    context_env = None;
+    context_env = e;
+    ns_env = e;
     module_env = None;
     er = Unknown;
     state = InComplete;
     closed = false;
+    generics_constraints = [];
     meta_level = Meta_level.Meta;
     rel_node = None;
     callee_when_exit = [];
@@ -225,7 +229,8 @@ let undef () =
     nest_level = NestLevel.zero;
 
     loc = None;
-  }
+  } in
+  e
 
 
 let get_env_record env =
@@ -233,7 +238,8 @@ let get_env_record env =
   er
 
 let get_lookup_table env =
-  match get_env_record env with
+  let ns_env = env.ns_env in
+  match get_env_record ns_env with
   | Root (r) -> r
   | Module (r, _) -> r
   | Function (r, _) -> r
@@ -246,12 +252,9 @@ let get_symbol_table env =
   lt.scope
 
 
-let get_scope_lifetime ?(aux_count=0) env =
-  let ctx_env = match env.context_env with
-      Some e -> e
-    | None -> failwith ""
-  in
-  Lifetime.LtDynamic (ctx_env.env_id, env.nest_level, aux_count)
+let get_scope_lifetime ?(aux_count=0) sub_nest env =
+  let ctx_env = env.context_env in
+  Lifetime.LtDynamic (ctx_env.env_id, env.nest_level, sub_nest, aux_count)
 
 let make_scope_lifetime ?(aux_count=0) env =
   get_scope_lifetime ~aux_count:aux_count env
@@ -263,12 +266,15 @@ let is_root e =
     Root _  -> true
   | _       -> false
 
+let get_parent_env_opt e =
+  let { parent_env = opt_penv } = e in
+  opt_penv
+
 let get_parent_env e =
   if is_root e then
     failwith "root env has no parent env"
   else
-    let { parent_env = opt_penv } = e in
-    match opt_penv with
+    match get_parent_env_opt e with
       Some penv -> penv
     | None -> failwith ""
 
@@ -277,15 +283,16 @@ let find_on_env e name =
   let lt = get_lookup_table e in
   Hashtbl.find_option lt.scope name
 
-let rec find_all_on_env ?(checked_env=[]) e name =
-  if List.mem e.env_id checked_env then
+let rec find_all_on_env ?(checked_env=[]) env name =
+  let ns_env = env.ns_env in
+  if List.mem ns_env.env_id checked_env then
     failwith "[ERR] recursive package search";
 
-  match find_on_env e name with
+  match find_on_env ns_env name with
   | Some e -> [e]
   | None ->
      begin
-       let lt = get_lookup_table e in
+       let lt = get_lookup_table ns_env in
        (* find from import tables *)
        let search_module envs (mod_env, priv) =
          match priv with
@@ -298,7 +305,7 @@ let rec find_all_on_env ?(checked_env=[]) e name =
          | ModPublic ->
             begin
               let res =
-                find_all_on_env ~checked_env:(e.env_id::checked_env) mod_env name
+                find_all_on_env ~checked_env:(ns_env.env_id::checked_env) mod_env name
               in
               res @ envs
             end
@@ -330,14 +337,15 @@ let rec kind_of_env e =
   | _ -> failwith ""
 
 
-let rec lookup' ?(exclude=[]) e name acc =
+let rec lookup' ?(exclude=[]) env name acc =
+  let ns_env = env.ns_env in
   let skip e exk =
     if (kind_of_env e) = exk then
       if is_root e then e
       else (get_parent_env e)
     else e
   in
-  let e = List.fold_left skip e exclude in
+  let e = List.fold_left skip ns_env exclude in
   let target = find_all_on_env e name in
   match target with
   | [] -> if is_root e then
@@ -371,21 +379,23 @@ let empty_lookup_table ?(init=8) () =
 (* create an env as new context.
  * it will be used for functions, classes and so on... *)
 let create_context_env parent_env er loc =
-  let cur_id = generate_new_env_id () in
+  let cur_id = EnvUniqId.generate () in
 
   let opt_mod_env = match parent_env.er with
     | Module _ -> Some parent_env
     | _ -> parent_env.module_env
   in
   let rec e = {
-    env_id = cur_id;
+    env_id = EnvId.E (cur_id, Some parent_env.env_id);
     parent_env = Some parent_env;
-    context_env = Some e;       (* self reference *)
+    context_env = e;    (* self reference *)
+    ns_env = e;         (* self reference *)
     module_env = opt_mod_env;
     er = er;
 
     state = InComplete;
     closed = false;
+    generics_constraints = [];
     meta_level = Meta_level.Meta;
     rel_node = None;
     callee_when_exit = [];
@@ -398,22 +408,24 @@ let create_context_env parent_env er loc =
 
 (* create an env which is a part of the parent_env.
  * it will be used for block, if_scope and so on... *)
-let create_scoped_env parent_env er loc =
-  let cur_id = generate_new_env_id () in
+let create_scoped_env ?(has_ns=true) parent_env er loc =
+  let cur_id = EnvUniqId.generate () in
 
   let opt_mod_env = match parent_env.er with
     | Module _ -> Some parent_env
     | _ -> parent_env.module_env
   in
-  {
-    env_id = cur_id;
+  let rec e = {
+    env_id = EnvId.E (cur_id, Some parent_env.env_id);
     parent_env = Some parent_env;
     context_env = parent_env.context_env;
+    ns_env = e; (* self reference *)
     module_env = opt_mod_env;
     er = er;
 
     state = InComplete;
-    closed = false;
+    closed = parent_env.closed;
+    generics_constraints = [];
     meta_level = Meta_level.Meta;
     rel_node = None;
     callee_when_exit = [];
@@ -421,20 +433,20 @@ let create_scoped_env parent_env er loc =
     nest_level = NestLevel.add parent_env.nest_level NestLevel.one;
 
     loc = loc;
-  }
-
+  } in
+  if has_ns then e else { e with ns_env = parent_env.ns_env }
 
 (**)
 let is_checked e =
   let { state = s; _ } = e in
   s = Checking || s = Complete
 
-let is_incomplete e =
-  not (is_checked e)
-
 let is_complete e =
   let { state = s; _ } = e in
   s = Complete
+
+let is_incomplete e =
+  not (is_complete e)
 
 (**)
 let update_status e ns =
@@ -461,16 +473,18 @@ let update_meta_level e ml =
 (**)
 let make_root_env () =
   let tbl = empty_lookup_table () in
-  let cur_id = generate_new_env_id () in
-  {
-    env_id = cur_id;
+  let cur_id = EnvUniqId.generate () in
+  let rec e = {
+    env_id = EnvId.E (cur_id, None);
     parent_env = None;
-    context_env = None;
+    context_env = e;    (* self reference *)
+    ns_env = e;         (* self reference *)
     module_env = None;
 
     er = Root (tbl);
     state = Complete;
     closed = false;
+    generics_constraints = [];
     meta_level = Meta_level.Meta;
     rel_node = None;
     callee_when_exit = [];
@@ -478,17 +492,44 @@ let make_root_env () =
     nest_level = NestLevel.zero;
 
     loc = None;
-  }
+  } in
+  e
+
+let string_of_env_record env =
+  let er = get_env_record env in
+  match er with
+  | Root _ -> "root"
+  | MultiSet _ -> "multiset"
+  | Template _ -> "template"
+  | Module _ -> "module"
+  | Function _ -> "function"
+  | Class _ -> "class"
+  | Variable _ -> "variable"
+  | Scope _ -> "scope"
+  | MetaVariable _ -> "meta_variable"
+  | LifetimeVariable _ -> "lifetime_variable"
+  | Unknown -> "unknown"
 
 
 (**)
+let get_id env =
+  env.env_id
+
 let get_name env =
   let er = get_env_record env in
   match er with
   | Template (r) -> r.tl_name
   | Function (_, r) -> r.fn_name
   | Class (_, r) -> r.cls_name
-  | _ -> failwith "get_name : not supported"
+  | Scope _ -> (Id_string.Pure "[scope]")
+  | _ -> failwith (Printf.sprintf "get_name : not supported / %s" (string_of_env_record env))
+
+let get_generics_vals env =
+  let er = get_env_record env in
+  match er with
+  | Function (_, r) -> r.fn_generics_vals
+  | Class (_, r) -> r.cls_generics_vals
+  | _ -> []
 
 let append_callee_when_exit env node =
   (* LIFO *)
@@ -498,10 +539,7 @@ let get_callee_funcs_when_scope_exit env =
   env.callee_when_exit
 
 let get_callee_funcs_when_context_exit env =
-  let ctx_env = match env.context_env with
-    | Some c -> c
-    | None -> failwith "[ICE] env must have context_env "
-  in
+  let ctx_env = env.context_env in
   let rec collect env acc =
     let nodes = get_callee_funcs_when_scope_exit env in
     if env == ctx_env then
@@ -515,6 +553,14 @@ let get_callee_funcs_when_context_exit env =
   in
   collect env [] |> List.rev |> List.flatten
 
+let collect_dependee_envs env =
+  let rec collect env acc =
+    let nacc = env :: acc in
+    match env.parent_env with
+    | Some c -> collect c nacc
+    | None -> nacc
+  in
+  collect env [] |> List.rev
 
 module ModuleOp =
   struct
@@ -529,7 +575,7 @@ module ModuleOp =
 module MultiSetOp =
   struct
     let find_or_add env id_name k =
-      let name = Nodes.string_of_id_string id_name in
+      let name = Id_string.to_string id_name in
       let oe = find_on_env env name in
       match oe with
       (* Found *)
@@ -608,6 +654,7 @@ module FunctionOp =
       {
         fn_name = id_name;
         fn_mangled = None;
+        fn_generics_vals = [];
         fn_template_vals = [];
         fn_param_kinds = [];
         fn_return_type = Type_info.undef_ty;
@@ -647,6 +694,7 @@ module ClassOp =
       {
          cls_name = name;
          cls_mangled = None;
+         cls_generics_vals = [];
          cls_template_vals = [];
          cls_detail = ClsUndef;
          cls_traits = default_traits;
@@ -693,7 +741,14 @@ module VariableOp =
       }
   end
 
-
+module LifetimeVariableOp =
+  struct
+    let as_lifetime env =
+      let er = get_env_record env in
+      match er with
+      | LifetimeVariable lt -> lt
+      | _ -> failwith ""
+  end
 
 let debug_print env =
   let print_table tbl indent =
@@ -719,14 +774,14 @@ let debug_print env =
        end
     | Function (lt, r) ->
        begin
-         let name = Nodes.string_of_id_string r.fn_name in
+         let name = Id_string.to_string r.fn_name in
          Debug.printf "%sFunction - %s\n" indent name;
          print_table lt.scope indent;
          f nindent;
        end
     | Class (lt, r) ->
        begin
-         let name = Nodes.string_of_id_string r.cls_name in
+         let name = Id_string.to_string r.cls_name in
          Debug.printf "%sClassEnv - %s\n" indent name;
          print_table lt.scope indent;
          f nindent;
@@ -747,6 +802,9 @@ let debug_print env =
          Debug.printf "%sMultiSet - %s\n" indent (Kind.to_string r.ms_kind);
          f nindent;
        end
+    | Unknown->
+       Debug.printf "%sUnknown\n" indent;
+       f nindent;
 
     | _ -> failwith "print: unsupported env"
   in

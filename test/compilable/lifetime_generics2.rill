@@ -1,0 +1,38 @@
+class 'a A {
+      def ctor(p: 'a raw_ptr!(int32)) /* :A<'a> */ {
+          this.p = p;
+      }
+      def ctor(rhs: 'a A) {
+          //this.p = rhs.p;
+      }
+      val p: 'a raw_ptr!(int32);
+}
+
+def 'a f(p: 'a raw_ptr!(int32)) {
+    return 'a A(p);
+}
+
+def main() {
+    val n = 10;
+    val p = address_of(n);
+    val mutable obj = f(p);
+    //obj.p = p;
+
+    {
+        //obj.p = address_of(2);
+        //obj.update(address_of(2));
+        //obj.update2(address_of(2)); // FAILUE
+        //obj.update(p);
+        //obj.update2(p);
+    };
+
+    //f2(address_of(2));
+}
+
+/+def f2<'a>(p: raw_ptr!(int32)#<'a>): void {
+    g2(p);
+}
+
+def g2<'a>(p: raw_ptr!(int32)#<'a>): void {
+    if (true) {return;}; f2(p);
+}+/

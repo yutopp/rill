@@ -1,0 +1,21 @@
+class 'a A {
+      val p: 'a raw_ptr!(int32);
+
+      def ('z: 'a) update(rhs: 'z raw_ptr!(int32)) {
+          this.p = rhs;
+      }
+}
+
+def 'a f(p: 'a raw_ptr!(int32)) {
+    return 'a A();
+}
+
+def main() {
+    val n = 10;
+    val p = address_of(n);
+    val mutable obj = f(p);
+
+    {
+        obj.update(address_of(2));
+    };
+}
