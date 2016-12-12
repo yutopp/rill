@@ -12,6 +12,7 @@ module type NodeContextType =
     type 'a term_ctx_t
     type 'a prev_ctx_t
     type 'a term_aux_t
+    type 'a attr_value_t
   end
 
 module CachedNodeCounter = Generic_counter.Counter(Int64)
@@ -49,7 +50,7 @@ module Make (Ctx : NodeContextType) =
       (* name, template params, inner node *)
       | TemplateStmt of Id_string.t * ast * ast
       | EmptyStmt
-      | AttrWrapperStmt of (string, ast option) Hashtbl.t * ast
+      | AttrWrapperStmt of attr_tbl_t * ast
 
       (*
        * expressions
@@ -122,12 +123,13 @@ module Make (Ctx : NodeContextType) =
      (* type * default value *)
      and value_init_t = ast option * ast option
 
-     and attr_tbl_t = (string, ast option) Hashtbl.t
+     and attr_tbl_t = (string, attr_value_t option) Hashtbl.t
 
      and ctx_t = ast Ctx.current_ctx_t
      and term_ctx_t = ast Ctx.term_ctx_t
      and pctx_t = ast Ctx.prev_ctx_t
      and term_aux_t = ast Ctx.term_aux_t
+     and attr_value_t = ast Ctx.attr_value_t
 
      and storage_t =
        | StoStack of term_ctx_t

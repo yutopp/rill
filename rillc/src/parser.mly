@@ -23,7 +23,6 @@
         let open Lexing in
         let p = {
           pos_fname         = Mi.full_filepath;
-          source_code       = Mi.module_source;
           pos_begin_cnum    = s_pos.pos_cnum;
           pos_begin_lnum    = s_pos.pos_lnum;
           pos_begin_bol     = s_pos.pos_cnum - s_pos.pos_bol;
@@ -41,23 +40,31 @@ program_entry:
                 prog_module EOF { $1 }
 
 prog_module:
-                m = module_decl
-                body = top_level_statements
-                {
-                    let (full_base_dir, pkg_names, mod_name) = m in
-                    Ast.Module (body, pkg_names, mod_name, full_base_dir, ())
-                }
+                m = module_decl { m }
 
 module_decl:
-                (* empty *)
-                { (Mi.full_filepath, Mi.package_names, Mi.module_name) }
+                (* no module specifier *)
+                body = top_level_statements
+                {
+                    let pkg_names = Mi.package_names in
+                    let mod_name = Mi.module_name in
+                    Ast.Module (body, pkg_names, mod_name, Mi.full_filepath, ())
+                }
 
-        |       xs = separated_nonempty_list(DOT, rel_id_has_no_op_as_raw)
+        |       attr_opt = attribute?
+                KEYWODD_MODULE
+                xs = separated_nonempty_list(DOT, rel_id_has_no_op_as_raw)
+                body = top_level_statements
                 {
                     let rev_xs = List.rev xs in
                     let pkg_names = List.rev (List.tl rev_xs) in
                     let mod_name = List.hd rev_xs in
-                    (Mi.full_filepath, pkg_names, mod_name)
+                    let ast =
+                        Ast.Module (body, pkg_names, mod_name, Mi.full_filepath, ())
+                    in
+                    match attr_opt with
+                    | Some attr -> Ast.AttrWrapperStmt (attr, ast)
+                    | None -> ast
                 }
 
 

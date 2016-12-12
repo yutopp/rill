@@ -16,11 +16,20 @@ let rec solve_forward_refs ?(meta_variables=[])
                            node parent_env ctx =
   match node with
   | Ast.StatementList (nodes) ->
-     let tagged_nodes =
-       nodes
-       |> List.map (fun n -> solve_forward_refs n parent_env ctx)
-     in
-     TAst.StatementList tagged_nodes
+     begin
+       try
+         let tagged_nodes =
+           nodes
+           |> List.map (fun n -> solve_forward_refs n parent_env ctx)
+         in
+         TAst.StatementList tagged_nodes
+       with
+       | Normal_error err ->
+          failwith "[ICE] normal error"
+       | Fatal_error err as exn ->
+          Sema_error.process_error err ctx;
+          raise exn
+     end
 
   | Ast.ExprStmt ast ->
      TAst.ExprStmt (TAst.PrevPassNode ast)
@@ -30,8 +39,7 @@ let rec solve_forward_refs ?(meta_variables=[])
 
   | Ast.ImportStmt (pkg_names, mod_name, _) ->
      begin
-       let mod_env = load_module pkg_names mod_name ctx in
-
+       let mod_env = prepare_module pkg_names mod_name ctx in
        Env.import_module parent_env mod_env;
 
        (* remove import statements *)
@@ -219,12 +227,9 @@ let rec solve_forward_refs ?(meta_variables=[])
 
   | Ast.AttrWrapperStmt (attr_tbl, ast) ->
      begin
-       let conv k v = Option.map (fun v -> TAst.PrevPassNode v) v in
-       let t_attr_tbl = attr_tbl |> Hashtbl.map conv in
-
        let t_ast =
          solve_forward_refs ~meta_variables:meta_variables
-                            ~opt_attr:(Some t_attr_tbl)
+                            ~opt_attr:(Some attr_tbl)
                             ast parent_env ctx
        in
        (* reduce AttrWrapperStmt *)
@@ -237,8 +242,7 @@ let rec solve_forward_refs ?(meta_variables=[])
        failwith "solve_forward_refs: unsupported node"
      end
 
-
-and load_module_by_filepath ?(def_mod_info=None) filepath ctx =
+and prepare_module_from_filepath ?(def_mod_info=None) filepath ctx =
   let root_env = ctx.sc_root_env in
   let (raw_pkg_names, raw_mod_name) =
     Option.default ([], filepath |> Filename.basename |> Filename.chop_extension)
@@ -250,77 +254,102 @@ and load_module_by_filepath ?(def_mod_info=None) filepath ctx =
                               filepath
   in
 
-  match mod_ast with
-  | Ast.Module (inner, pkg_names, mod_name, base_dir, _) ->
-     begin
-       let loc = None in
-       let check_mod_name (raw_pkg_names, raw_mod_name) =
-         if not (pkg_names = raw_pkg_names && mod_name = raw_mod_name) then
-           raise (Fatal_error "package/module names are different")
-       in
-       Option.may check_mod_name def_mod_info;
+  let load_module_ast body pkg_names mod_name base_dir attr loc =
+    let check_mod_name (raw_pkg_names, raw_mod_name) =
+      if not (pkg_names = raw_pkg_names && mod_name = raw_mod_name) then
+        fatal_error_msg "package/module names are different"
+    in
+    Option.may check_mod_name def_mod_info;
 
-       let env = Env.create_context_env root_env (
-                                          Env.Module (Env.empty_lookup_table (),
-                                                      {
-                                                        Env.mod_name = mod_name;
-                                                        Env.mod_pkg_names = pkg_names;
-                                                      })
-                                        )
-                                        loc
-       in
-       (* TODO: fix g_name *)
-       let g_name = String.concat "." (pkg_names @ [mod_name]) in
-       Env.add_inner_env root_env g_name env;
+    let env = Env.create_context_env root_env (
+                                       Env.Module (Env.empty_lookup_table (),
+                                                   {
+                                                     Env.mod_name = mod_name;
+                                                     Env.mod_pkg_names = pkg_names;
+                                                  })
+                                     )
+                                     loc
+    in
+    (* TODO: fix g_name *)
+    let g_name = String.concat "." (pkg_names @ [mod_name]) in
+    Env.add_inner_env root_env g_name env;
 
-       (* register module*)
-       let mod_id =
-         Module_info.Bag.register ctx.sc_module_bag
-                                  pkg_names mod_name env
-       in
-       ignore mod_id;
+    (* register module*)
+    let mod_id = Module_info.Bag.register ctx.sc_module_bag pkg_names mod_name env in
+    ignore mod_id;
 
-       (* import builtins for all modules, if the builtin modules loaded *)
-       Option.may (fun bm -> Env.import_module env bm) ctx.sc_builtin_m_env;
+    let no_builtin = Attribute.find_bool_val (Some attr) "no_builtin" ctx in
+    (* import builtins for all modules, if the builtin modules loaded *)
+    (*
+    if do_import_builtin then
+      Option.may (fun bm -> Env.import_module env bm) ctx.sc_builtin_m_env;
+     *)
 
-       (* solve forward references *)
-       let res_node = solve_forward_refs inner env ctx in
-       let node = TAst.Module (res_node, pkg_names, mod_name, base_dir, Some env) in
-       Env.update_rel_ast env node;
+    if not no_builtin then
+      begin
+        (* import incomplete builtin module *)
+        let builtin_mod_e = prepare_builtin_module ctx in
+        Env.import_module env builtin_mod_e
+      end;
 
-       env
-     end
-  | _ -> failwith "[ICE]"
+    (* solve forward references *)
+    let res_node = solve_forward_refs body env ctx in
+
+    (* make and save tmp TAst to env *)
+    let node = TAst.Module (res_node, pkg_names, mod_name, base_dir, Some env) in
+    Env.update_rel_ast env node;
+
+    env
+  in
+
+  let rec load_ast ast attr =
+    match ast with
+    | Ast.Module (inner, pkg_names, mod_name, base_dir, _) ->
+       load_module_ast inner pkg_names mod_name base_dir attr None
+    | Ast.AttrWrapperStmt (attr, ast) ->
+       load_ast ast attr
+    | _ -> failwith "[ICE] ast is not module"
+  in
+  load_ast mod_ast (Hashtbl.create 0)
 
 
-and load_module pkg_names mod_name ctx =
+and prepare_module pkg_names mod_name ctx =
   let mod_env = Module_info.Bag.search_module ctx.sc_module_bag
                                               pkg_names mod_name in
   match mod_env with
-    | Some r -> r (* return cached module *)
-    | None ->
-       begin
-         let pp dirs dir_name =
-           let dir_exists dir =
-             let dir_name = Filename.concat dir dir_name in
-             Sys.file_exists dir_name
-           in
-           try [Filename.concat (List.find dir_exists dirs) dir_name] with
-           | Not_found -> []
-         in
-         let target_dirs = List.fold_left pp ctx.sc_module_search_dirs pkg_names in
-         let target_dir = match target_dirs with
-           | [dir] -> dir
-           | [] -> raise (Fatal_error ("[ERR] package not found : " ^ (String.concat "." pkg_names) ^ "." ^ mod_name))
-           | _ -> failwith "[ICE]"
-         in
-         Debug.printf "import from = %s\n" target_dir;
-         let filepath = Filename.concat target_dir mod_name ^ ".rill" in
+  | Some r ->
+     (* return cached module *)
+     r
+  | None ->
+     let pp (dirs, hist) dir_name =
+       let dir_exists dir =
+         let dir_name = Filename.concat dir dir_name in
+         Sys.file_exists dir_name
+       in
+       let next_dir =
+         try
+           let base_dir_name = List.find dir_exists dirs in
+           [Filename.concat base_dir_name dir_name]
+         with
+         | Not_found -> []
+       in
+       (next_dir, (dir_name, dirs) :: hist)
+     in
+     let search_dirs = ctx.sc_module_search_dirs in
+     let target_dirs = List.fold_left pp (search_dirs, []) pkg_names in
+     let target_dir = match target_dirs with
+       | ([dir], _) ->
+          dir
+       | ([], hist) ->
+          let full_module_name = (String.concat "." pkg_names) ^ "." ^ mod_name in
+          fatal_error (ErrorMsg.PackageNotFound (full_module_name, hist))
+       | _ -> failwith "[ICE]"
+     in
+     Debug.printf "import from = %s\n" target_dir;
+     let filepath = Filename.concat target_dir mod_name ^ ".rill" in
 
-         load_module_by_filepath ~def_mod_info:(Some (pkg_names, mod_name))
-                                 filepath ctx
-       end
-
+     prepare_module_from_filepath ~def_mod_info:(Some (pkg_names, mod_name))
+                                  filepath ctx
 
 and declare_meta_var env ctx (name, uni_id) =
   let loc = None in
@@ -332,11 +361,14 @@ and declare_meta_var env ctx (name, uni_id) =
 
 
 and declare_pre_function id_name meta_variables loc parent_env ctx =
+  let in_template = List.length meta_variables > 0 in
+
   (* accept multiple definition for overload *)
   let (base_env, _) = Env.MultiSetOp.find_or_add parent_env id_name Env.Kind.Function in
 
   let fenv_r = Env.FunctionOp.empty_record id_name in
-  let fenv = Env.create_context_env parent_env
+  let fenv = Env.create_context_env ~is_instantiated:in_template
+                                    parent_env
                                     (Env.Function (
                                          Env.empty_lookup_table (),
                                          fenv_r))
@@ -347,7 +379,6 @@ and declare_pre_function id_name meta_variables loc parent_env ctx =
   let template_vals = List.map (declare_meta_var fenv ctx) meta_variables in
   fenv_r.Env.fn_template_vals <- template_vals;
 
-  let in_template = List.length meta_variables > 0 in
   let _ = if in_template then
             Env.MultiSetOp.add_template_instances base_env fenv
           else
@@ -357,11 +388,14 @@ and declare_pre_function id_name meta_variables loc parent_env ctx =
 
 
 and declare_pre_class id_name meta_variables loc parent_env ctx =
+  let in_template = List.length meta_variables > 0 in
+
   (* accept multiple definition for specialization *)
   let (base_env, _) = Env.MultiSetOp.find_or_add parent_env id_name Env.Kind.Class in
 
   let cenv_r = Env.ClassOp.empty_record id_name in
-  let cenv = Env.create_context_env parent_env
+  let cenv = Env.create_context_env ~is_instantiated:in_template
+                                    parent_env
                                     (Env.Class (
                                          Env.empty_lookup_table (),
                                          cenv_r))
@@ -372,10 +406,17 @@ and declare_pre_class id_name meta_variables loc parent_env ctx =
   let template_vals = List.map (declare_meta_var cenv ctx) meta_variables in
   cenv_r.Env.cls_template_vals <- template_vals;
 
-  let in_template = List.length meta_variables > 0 in
   let _ = if in_template then
             Env.MultiSetOp.add_template_instances base_env cenv
           else
             Env.MultiSetOp.add_normal_instances base_env cenv
   in
   cenv
+
+and prepare_builtin_module ctx =
+  try
+    prepare_module ["core"] "builtin" ctx
+  with
+  | Fatal_error err as exn ->
+     Sema_error.process_error err ctx;
+     raise exn

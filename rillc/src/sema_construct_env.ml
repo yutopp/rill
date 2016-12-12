@@ -198,22 +198,19 @@ let rec construct_env node parent_env ctx opt_chain_attr =
   match node with
   | TAst.Module (inner, pkg_names, mod_name, base_dir, Some env) ->
      begin
+       cache_primitive_types env ctx;
        construct_env inner env ctx opt_chain_attr
      end
 
   | TAst.StatementList (nodes) ->
      let (nodes, last_ty, last_env) =
        let construct_env_with_error_check n env =
-         try construct_env n env ctx opt_chain_attr
+         try
+           construct_env n env ctx opt_chain_attr
          with
-         | NError err ->
-            begin
-              Printf.printf "\n===============================\n";
-              ErrorMsg.print err;
-              store_error_message "" ctx;
-              Printf.printf "\n===============================\n";
-              (TAst.Error, void_t, env)
-            end
+         | Normal_error err when ctx.sc_handle_error ->
+            Sema_error.process_error err ctx;
+            (TAst.Error, void_t, env)
        in
        let rec p nodes env = match nodes with
          (* if there are no statements, it is void_type *)
@@ -352,6 +349,8 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        let name_s = Id_string.to_string name in
        Debug.printf "function %s - unchecked\n" name_s;
 
+       let force_inline = Attribute.find_bool_val opt_attr "force_inline" ctx in
+
        (**)
        let (lt_params, lt_cx) = declare_generics_specs lifetime_specs env in
 
@@ -383,9 +382,12 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        let node = TAst.GenericFuncDef (Some nbody, Some env) in
 
        (* update record *)
-       let fn_spec = {
-         Env.fn_spec_param_envs = param_venvs;
-       } in
+       let fn_spec =
+         Env.{
+             fn_spec_param_envs = param_venvs;
+             fn_spec_force_inline = force_inline;
+         }
+       in
 
        complete_function_env env node name
                              (Env.FnRecordNormal (Env.FnDefProvidedByUser,
@@ -489,8 +491,10 @@ let rec construct_env node parent_env ctx opt_chain_attr =
             in
 
             let fn_spec = {
-              Env.fn_spec_param_envs = param_venvs;
-            } in
+                Env.fn_spec_param_envs = param_venvs;
+                Env.fn_spec_force_inline = false;
+              }
+            in
             let detail =
               Env.FnRecordNormal (Env.FnDefProvidedByUser, kind, fn_spec)
             in
@@ -541,7 +545,8 @@ let rec construct_env node parent_env ctx opt_chain_attr =
 
           let kind = Env.FnKindDestructor None in
           let fn_spec = {
-            Env.fn_spec_param_envs = [Some this_venv];
+              Env.fn_spec_param_envs = [Some this_venv];
+              Env.fn_spec_force_inline = false;
           } in
           let detail =
             Env.FnRecordNormal (Env.FnDefProvidedByUser, kind, fn_spec)
@@ -590,7 +595,8 @@ let rec construct_env node parent_env ctx opt_chain_attr =
 
             (* update record *)
             let fn_spec = {
-              Env.fn_spec_param_envs = param_venvs;
+                Env.fn_spec_param_envs = param_venvs;
+                Env.fn_spec_force_inline = false;
             } in
 
             complete_function_env env node name
@@ -629,11 +635,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        check_function_env2 env (lt_params @ implicit_generics_params) lt_cx
          param_types ml ret_type is_auto;
 
-       (* TODO: fix *)
-       let is_builtin = match opt_attr with
-           Some tbl -> Hashtbl.mem tbl "builtin"
-         | None -> false
-       in
+       let is_builtin = Attribute.find_bool_val opt_attr "builtin" ctx in
 
        (* body *)
        Debug.printf "extern function %s - complete (builtin=%b)\n" name_s is_builtin;
@@ -884,25 +886,19 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        (* currently, do not remake a node like other nodes *)
        Debug.printf "extern class %s - complete\n" name_s;
 
-       let is_builtin = find_attr_bool_val ~boot:true
-                                           opt_attr "builtin" parent_env ctx
-       in
+       let is_builtin = Attribute.find_bool_val opt_attr "builtin" ctx in
        if not is_builtin then
          failwith "[ERR]";
 
-       let is_novalue = find_attr_bool_val ~boot:true
-                                           opt_attr "novalue" parent_env ctx
+       let is_novalue = Attribute.find_bool_val opt_attr "novalue" ctx
        in
        Debug.printf "is_novalue : %b \n" is_novalue;
 
-       let is_primitive = find_attr_bool_val ~boot:true
-                                             opt_attr "primitive" parent_env ctx
+       let is_primitive = Attribute.find_bool_val opt_attr "primitive" ctx
        in
-       let is_array_type = find_attr_bool_val ~boot:true
-                                              opt_attr "array_type" parent_env ctx
+       let is_array_type = Attribute.find_bool_val opt_attr "array_type" ctx
        in
-       let has_ptr_constraints = find_attr_bool_val ~boot:true
-                                                    opt_attr "ptr_constraints" parent_env ctx
+       let has_ptr_constraints = Attribute.find_bool_val opt_attr "ptr_constraints" ctx
        in
 
        let define_special_members_and_calc_layout () =
@@ -932,7 +928,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                cenv extern_cname ctx;
 
              let opt_csize =
-               find_attr_uint32_val ~boot:true opt_attr "size" parent_env ctx
+               Attribute.find_uint32_val opt_attr "size" ctx
              in
              let csize = match opt_csize with
                | Some v -> v
@@ -940,7 +936,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
              in
 
              let opt_calign =
-               find_attr_uint32_val ~boot:true opt_attr "align" parent_env ctx
+               Attribute.find_uint32_val opt_attr "align" ctx
              in
              let calign = match opt_calign with
                | Some v -> v
@@ -1264,8 +1260,7 @@ and analyze_expr ?(making_placeholder=false)
        match res with
        | Ok v -> v
        | Bad err ->
-          (* TODO: error message *)
-          failwith "binary operator is not found"
+          error err;
      end
 
   | Ast.UnaryOpExpr (op, expr, loc) ->
@@ -1502,7 +1497,7 @@ and analyze_expr ?(making_placeholder=false)
           begin
             let default_ty_attr = {
               Type_attr.ta_ref_val = Type_attr.Val;
-              Type_attr.ta_mut = Type_attr.Const;
+              Type_attr.ta_mut = Type_attr.Immutable;
             } in
             let ty = get_builtin_bool_type default_ty_attr ctx in
             let ty =
@@ -1512,23 +1507,27 @@ and analyze_expr ?(making_placeholder=false)
             in
             assert_valid_type ty;
 
+            Debug.printf "\n\n\n\n\n STATEMENT TRAIT\n\n\n\n\n\n\n";
+
             let test () =
               (* A temporary environment for checking whether semantics is valid or not.
                * DO NOT append this env to the parent_env.
                *)
+              let ctx_tmp = Sema_context.make_temporary_context ctx in
               let temp_env =
                 Env.create_scoped_env parent_env
                                       (Env.Scope (Env.empty_lookup_table ()))
                                       None
               in
-              ignore @@ analyze_expr block temp_env temp_obj_spec ctx attr;
+              ignore @@ analyze_expr block temp_env temp_obj_spec ctx_tmp attr;
               true
             in
-            let could_compile = try test() with
-                                | e ->
-                                   Debug.printf "STATEMENT TRAIT ERROR: %s\n"
-                                                (Printexc.to_string e);
-                                   false
+            let could_compile =
+              try test() with
+              | e ->
+                 Debug.printf "STATEMENT TRAIT ERROR: %s\n"
+                              (Printexc.to_string e);
+                 false
             in
             let node = TAst.BoolLit (could_compile, ty) in
             let sub_nest_lt = (Lifetime.LtSlNormal sub_nest) in
@@ -3008,7 +3007,8 @@ and determine_function_return_type opt_ret_type
                                      new_aux_lt_args
                                      new_lt_args
      in
-     assert_valid_type new_ret_ty;
+     raise_error_if_type_is_invalid new_ret_ty;
+
      (new_ret_ty, false)
 
   (* return type is not specified *)
@@ -3356,7 +3356,7 @@ and find_suitable_operator ?(universal_search=false)
        begin
          match solve_function_overload eargs template_args menv env None ctx attr with
          | v -> Ok v
-         | exception (NError v) -> Bad v
+         | exception (Normal_error v) -> Bad v
        end
     | _ -> failwith "[ICE]: operator must be defined as function"
   in
@@ -4095,6 +4095,11 @@ and map_conversions ?(param_passing=false)
   in
   List.map2 f filters eargs
 
+and raise_error_if_type_is_invalid ty =
+  (* TODO: implement *)
+  assert_valid_type ty;
+  ()
+
 and make_class_type ?(new_instance=false) cenv rv mut env ctx =
   let attr = {
     Type_attr.ta_ref_val = rv;
@@ -4301,7 +4306,8 @@ and define_trivial_default_ctor cenv ctx =
 
   let node = TAst.GenericFuncDef (None, Some fenv) in
   let fn_spec = {
-    Env.fn_spec_param_envs = [];
+      Env.fn_spec_param_envs = [];
+      Env.fn_spec_force_inline = true;
   } in
   let detail =
     Env.FnRecordImplicit (Env.FnDefDefaulted true,  (* trivial *)
@@ -4348,7 +4354,8 @@ and define_implicit_default_ctor cenv ctx =
 
   let node = TAst.GenericFuncDef (Some call_inst, Some fenv) in
   let fn_spec = {
-    Env.fn_spec_param_envs = [];
+      Env.fn_spec_param_envs = [];
+      Env.fn_spec_force_inline = true;
   } in
   let detail =
     Env.FnRecordImplicit (Env.FnDefDefaulted false,
@@ -4418,7 +4425,8 @@ and define_implicit_default_ctor_for_array cenv elem_ty total_num ctx =
 
   let node = TAst.GenericFuncDef (Some call_inst, Some fenv) in
   let fn_spec = {
-    Env.fn_spec_param_envs = [];
+      Env.fn_spec_param_envs = [];
+      Env.fn_spec_force_inline = true;
   } in
   let detail =
     Env.FnRecordImplicit (Env.FnDefDefaulted false,  (* not trivial *)
@@ -4449,7 +4457,8 @@ and define_trivial_copy_ctor cenv ctx =
 
   let node = TAst.GenericFuncDef (None, Some fenv) in
   let fn_spec = {
-    Env.fn_spec_param_envs = [];
+      Env.fn_spec_param_envs = [];
+      Env.fn_spec_force_inline = true;
   } in
   let detail =
     Env.FnRecordImplicit (Env.FnDefDefaulted true,      (* trivial *)
@@ -4516,7 +4525,8 @@ and define_implicit_copy_ctor cenv ctx =
 
   let node = TAst.GenericFuncDef (Some call_inst, Some fenv) in
   let fn_spec = {
-    Env.fn_spec_param_envs = [Some rhs_venv];
+      Env.fn_spec_param_envs = [Some rhs_venv];
+      Env.fn_spec_force_inline = true;
   } in
   let detail =
     Env.FnRecordImplicit (Env.FnDefDefaulted false,    (* not trivial *)
@@ -4585,7 +4595,8 @@ and define_implicit_copy_ctor_for_array cenv elem_ty total_num ctx =
 
   let node = TAst.GenericFuncDef (Some call_inst, Some fenv) in
   let fn_spec = {
-    Env.fn_spec_param_envs = [Some rhs_venv];
+      Env.fn_spec_param_envs = [Some rhs_venv];
+      Env.fn_spec_force_inline = true;
   } in
   let detail =
     Env.FnRecordImplicit (Env.FnDefDefaulted false,  (* not trivial *)
@@ -4772,17 +4783,17 @@ and get_builtin_array_type elem_ty len arr_attr ctx : 'env type_info =
 
 
 (* *)
-and cache_builtin_type_info preset_ty name ctx =
+and cache_builtin_type_info builtin_mod_e preset_ty name ctx =
   match Type.type_sort !preset_ty with
   (* not defined yet *)
   | Type_info.Undef ->
      begin
        Debug.printf "get_builtin_type_info = %s\n" name;
 
-       let (res, _) =
-         solve_basic_identifier ~do_rec_search:false
+       let (res, hist) =
+         solve_basic_identifier ~do_rec_search:true
                                 (Id_string.Pure name) []
-                                (Option.get ctx.sc_builtin_m_env) ctx None
+                                builtin_mod_e ctx None
        in
        match res with
        (* pure type *)
@@ -4805,11 +4816,60 @@ and cache_builtin_type_info preset_ty name ctx =
           end
 
        (**)
-       | _ -> failwith "[ICE] cache_builtin_type_info: no definition"
+       | _ ->
+          fatal_error (ErrorMsg.MemberNotFound (builtin_mod_e, hist, None))
      end
 
   (* already defined *)
   | _ -> ()
+
+and cache_primitive_types builtin_mod_env ctx =
+  let open Builtin_info in
+  let tsets = ctx.sc_tsets in
+
+  (* cache bool type *)
+  cache_builtin_type_info builtin_mod_env
+                          tsets.ts_bool_type_holder
+                          bool_type_i.external_name
+                          ctx;
+
+  (* cache uint8 type *)
+  cache_builtin_type_info builtin_mod_env
+                          tsets.ts_uint8_type_holder
+                          uint8_type_i.external_name
+                          ctx;
+
+  (* cache int32 type *)
+  cache_builtin_type_info builtin_mod_env
+                          tsets.ts_int32_type_holder
+                          int32_type_i.external_name
+                          ctx;
+
+  (* cache uint32 type *)
+  cache_builtin_type_info builtin_mod_env
+                          tsets.ts_uint32_type_holder
+                          uint32_type_i.external_name
+                          ctx;
+
+  (* cache array type *)
+  cache_builtin_type_info builtin_mod_env
+                          tsets.ts_array_type_holder
+                          array_type_i.external_name
+                          ctx;
+
+  (* cache untyped pointer types *)
+  cache_builtin_type_info builtin_mod_env
+                          tsets.ts_untyped_raw_ptr_type_holder
+                          untyped_raw_ptr_type_i.external_name
+                          ctx;
+
+  (* cache pointer types *)
+  cache_builtin_type_info builtin_mod_env
+                          tsets.ts_raw_ptr_type_holder
+                          raw_ptr_type_i.external_name
+                          ctx;
+
+  ()
 
 and create_updated_type ty
                         ?(rv=ty.Type_info.ti_attr.Type_attr.ta_ref_val)
@@ -4848,85 +4908,6 @@ and make_type_default_form ?(rv=Type_attr.Val)
   match is_type_convertible_to ty trg_ty with
   | true -> Some trg_ty
   | false -> None
-
-and find_attr_val_impl opt_attr key f =
-  match opt_attr with
-  | Some tbl ->
-     begin
-       let opt_value_node = Hashtbl.find_option tbl key in
-       match opt_value_node with
-         Some value_node ->
-         begin
-           match value_node with
-           | None -> Some (Ctfe_value.Bool true)
-           | Some value ->
-              begin
-                let node = extract_prev_pass_node value in
-                let ctfe_v = f node in
-                Some (ctfe_v)
-              end
-         end
-       | None -> None
-     end
-  | None -> None
-
-and find_attr_ctfe_val opt_attr key parent_env ctx =
-  let f node =
-    let sub_expr_spec = SubExprSpec.empty () in
-    let (nnode, naux) =
-      analyze_expr node parent_env sub_expr_spec ctx None
-    in
-    let {
-      TAst.Aux.ta_type = ty;
-      TAst.Aux.ta_ml = ml;
-    } = naux in
-    let (v, _) = eval_texpr_as_ctfe nnode ty ml parent_env ctx None in
-    v
-  in
-  find_attr_val_impl opt_attr key f
-
-(* it can treat simple nodes *)
-and find_attr_boot_val opt_attr key parent_env ctx =
-  let f tnode =
-    analyze_boot_expr tnode parent_env ctx None
-  in
-  find_attr_val_impl opt_attr key f
-
-and find_attr_val is_boot opt_attr key parent_env ctx =
-  let f = if is_boot then
-            find_attr_boot_val
-          else
-            find_attr_ctfe_val
-  in
-  f opt_attr key parent_env ctx
-
-and find_attr_bool_val ?(boot=false) opt_attr key parent_env ctx =
-  let opt_v = find_attr_val boot opt_attr key parent_env ctx in
-  match opt_v with
-  | Some v -> begin match v with
-                    | Ctfe_value.Bool b -> b
-                    | _ -> failwith "[ERR] not bool value"
-              end
-  | None -> false (* default value *)
-
-and find_attr_int32_val ?(boot=false) opt_attr key parent_env ctx =
-  let opt_v = find_attr_val boot opt_attr key parent_env ctx in
-  match opt_v with
-  | Some v -> begin match v with
-                    | Ctfe_value.Int32 i -> Some i
-                    | _ -> failwith "[ERR] not int32 value"
-              end
-  | None -> None
-
-and find_attr_uint32_val ?(boot=false) opt_attr key parent_env ctx =
-  let opt_v = find_attr_val boot opt_attr key parent_env ctx in
-  match opt_v with
-  | Some v -> begin match v with
-                    | Ctfe_value.Uint32 i -> Some i
-                    | _ -> failwith "[ERR] not uint32 value"
-              end
-  | None -> None
-
 
 and analyze ?(meta_variables=[]) ?(opt_attr=None) node env ctx =
   let (node, _, _) = analyze_t ~meta_variables:meta_variables

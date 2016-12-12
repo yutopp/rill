@@ -13,7 +13,6 @@ module type INFO_TYPE =
     val full_filepath   : string
     val package_names   : string list
     val module_name     : string
-    val module_source   : bytes
   end
 
 type 'env dep_t =

@@ -1,0 +1,12 @@
+def main() {
+    meta res = f();
+}
+
+import std.stdio;
+
+def f() {
+    val a = [1, 2, 3, 4, 5];
+    val mutable pc = 0;
+    pc.print();
+    return 10;
+}

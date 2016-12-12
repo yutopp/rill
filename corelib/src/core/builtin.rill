@@ -1,4 +1,7 @@
-// "type" and "void" classes are defined by compiler directly.
+// "type" and "void" classes are defined directly by compiler.
+
+#[no_builtin]
+module core.builtin;
 
 #[builtin]
 extern def sizeof(t: type) onlymeta: int32 = "__builtin_sizeof";
@@ -9,7 +12,7 @@ extern def stringof!(T)(ref p: T): 'static raw_ptr!(uint8) = "__builtin_stringof
 #[builtin]
 extern def 'a address_of!(T)('a ref :T): 'a raw_ptr!(val(T)) = "__builtin_make_ptr_from_ref";
 
-//
+// TODO: move to else where
 extern def malloc(val :int32): 'unmanaged untyped_raw_ptr = "rill_core_malloc";
 extern def 'a free(val :'a untyped_raw_ptr): void = "rill_core_free";
 extern def free!(T)(val :raw_ptr!(T)): void = "rill_core_free";
@@ -82,11 +85,13 @@ extern def operator>>(val :int32, val :int32): int32 = "__builtin_op_binary_>>_i
 extern def operator==(val :int32, val :int32): bool = "__builtin_op_binary_==_int_int";
 #[builtin]
 extern def operator!=(val :int32, val :int32): bool = "__builtin_op_binary_!=_int_int";
+#[force_inline]
 def operator pre++(ref mutable i: int32): void
 {
     i = i + 1;
     return;
 }
+#[force_inline]
 def operator pre--(ref mutable i:int32): void
 {
     i = i - 1;
@@ -133,10 +138,12 @@ extern def operator>>>(val :uint32, val :uint32): uint32 = "__builtin_op_binary_
 extern def operator==(val :uint32, val :uint32): bool = "__builtin_op_binary_==_uint_uint";
 #[builtin]
 extern def operator!=(val :uint32, val :uint32): bool = "__builtin_op_binary_!=_uint_uint";
+#[force_inline]
 def operator pre++(ref mutable i: uint32): void
 {
     i = i + 1u;
 }
+#[force_inline]
 def operator pre--(ref mutable i: uint32): void
 {
     i = i - 1u;
@@ -147,8 +154,10 @@ def operator pre--(ref mutable i: uint32): void
 extern class array!(T, N: uint32) = "__builtin_array_type"
 #[builtin]
 extern def 'a operator unary& !(T, N: uint32)('a ref _v:array!(T, N)): 'a raw_ptr!T = "__builtin_take_address_from_array";
+#[force_inline]
 def 'a operator[] !(T, N: uint32)('a ref arr :array!(T, N), index: int32): 'a ref(T) => *(&arr + index);
 // uint version. TODO: remove
+#[force_inline]
 def 'a operator[] !(T, N: uint32)('a ref arr :array!(T, N), index: uint32): 'a ref(T) => *(&arr + index);
 
 
@@ -169,6 +178,7 @@ extern class 'a raw_ptr!(T) = "__builtin_raw_ptr_type"
 
 #[builtin]
 extern def 'a operator+ !(T)(val :'a raw_ptr!(T), val :int32): 'a raw_ptr!(T) = "__builtin_op_binary_+_raw_ptr_int";
+#[force_inline]
 def operator- !(T)(p :raw_ptr!(T), n :int32): raw_ptr!(T) {
     return p + (0 - n);
 }
@@ -176,10 +186,13 @@ def operator- !(T)(p :raw_ptr!(T), n :int32): raw_ptr!(T) {
 // uint version. TODO: remove
 #[builtin]
 extern def 'a operator+ !(T)(val :'a raw_ptr!(T), val :uint32): 'a raw_ptr!(T) = "__builtin_op_binary_+_raw_ptr_int";
+#[force_inline]
 def operator- !(T)(p :raw_ptr!(T), n :uint32): raw_ptr!(T) => p + (0u - n);
 
 #[builtin]
 extern def 'a operator unary* !(T)(val :'a raw_ptr!(T)): 'a ref(T) = "__builtin_op_unary_pre_*_raw_ptr";
+#[force_inline]
 def 'a operator[] !(T)(p :'a raw_ptr!(T), index: int32): 'a ref(T) => *(p+index);
 // uint version. TODO: remove
+#[force_inline]
 def operator[] !(T)(p :raw_ptr!(T), index: uint32): ref(T) => *(p+index);

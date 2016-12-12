@@ -73,6 +73,8 @@ if $(not $(defined INCLUDE_DIR))
    INCLUDE_DIR = $(PREFIX)/include
    export
 
+RILLC_BIN = $(file rillc/src/rillc)
+
 prepare-directory(dir) =
    if $(not $(file-exists $(dir)))
       mkdir -p $(dir)

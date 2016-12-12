@@ -15,23 +15,6 @@ type conv_filter_t =
   | Trans of type_info_t
   | ConvFunc of type_info_t * env_t * Lifetime.t list
 
-(*module Eargs : sig
-  type t
-
-
-end = struct
-  type t = TAst.ast * TAst.term_aux_t * unit list
-
-  let rec split' lists (acca,accb,accc) =
-    match lists with
-    | [] -> (acca,accb,accc)
-    | (a, b, c)::rest -> split' rest (a::acca, b::accb, c::accc)
-
-  let split3 lists =
-    let (a, b, c) = split3' lists ([], [], []) in
-    (a |> List.rev, b |> List.rev, c |> List.rev)
-end*)
-
 type earg_t = TAst.ast * TAst.term_aux_t
 
 let make_earg ast aux constraints =
@@ -107,10 +90,6 @@ let default_ty_attr = {
 exception Instantiation_failed
 exception Template_type_mismatch
 
-exception Fatal_error of string
-let fatal_error msg =
-  raise (Fatal_error msg)
-
 let pos_of_earg earg =
   let (_, aux) = earg in
   TAst.Aux.loc aux
@@ -129,6 +108,8 @@ module ErrorMsg = struct
     | ConvErr of (type_info_t * earg_t * FuncMatchLevel.t) ArgPosMap.t * env_t
     | NoMatch of t list * Loc.t
     | MemberNotFound of env_t * env_t list * Loc.t
+    | PackageNotFound of string * (string * string list) list
+
     | Msg of string
 
     | TmpError of string * env_t
@@ -173,12 +154,25 @@ module ErrorMsg = struct
        assert (l.Loc.pos_begin_cnum >= 0);
        assert (l.Loc.pos_end_cnum >= 0);
        assert (l.Loc.pos_end_cnum > l.Loc.pos_begin_cnum);
-       Debug.printf "%s\n%d\n" (l.Loc.source_code) (String.length l.Loc.source_code);
-       Debug.printf "%d %d\n" l.Loc.pos_begin_cnum l.Loc.pos_end_cnum;
+       Debug.printf "begin = %d / end = %d\n" l.Loc.pos_begin_cnum l.Loc.pos_end_cnum;
+       Debug.printf "s = %s\n" (Loc.to_string (Some l));
 
-       Bytes.sub_string l.Loc.source_code
-                        l.Loc.pos_begin_cnum
-                        (l.Loc.pos_end_cnum - l.Loc.pos_begin_cnum)
+       let lines =
+         Batteries.File.with_file_in l.Loc.pos_fname
+                                     (fun input ->
+                                       let lines =
+                                         input
+                                         |> Batteries.IO.to_input_channel
+                                         |> input_lines
+                                       in
+                                       Enum.drop (l.Loc.pos_begin_lnum-1) lines;
+                                       let rng =
+                                         Enum.take (l.Loc.pos_end_lnum - l.Loc.pos_begin_lnum-1) lines
+                                       in
+                                       rng
+                                     )
+       in
+       lines |> List.of_enum |> String.join "\n"
     | None -> "<unknown>"
 
   let rec print ?(loc=None) err =
@@ -219,6 +213,18 @@ module ErrorMsg = struct
        Printf.printf "Searched scopes are...\n";
        List.iter (fun env -> print_env_trace env) history
 
+    | PackageNotFound (full_module_name, hist) ->
+       Printf.printf "Error: module \"%s\" is not found.\n" full_module_name;
+       hist |> List.iter
+                 (fun (package_name, dirs) ->
+                   Printf.printf " \"%s\" is not found in\n" package_name;
+                   dirs |> List.iter
+                             (fun d ->
+                               Printf.printf "  -> %s\n" d;
+                             );
+                   ()
+                 )
+
     | Msg msg ->
        Printf.printf "\n------------------\nError:\n %s\n\n-------------------\n" msg
 
@@ -235,9 +241,16 @@ module ErrorMsg = struct
        List.iter (fun env -> print_env_trace env) history
 end
 
-exception NError of ErrorMsg.t
+exception Normal_error of ErrorMsg.t
 let error err =
-  raise (NError err)
+  raise (Normal_error err)
 
 let error_msg msg =
-  raise (NError (ErrorMsg.Msg msg))
+  raise (Normal_error (ErrorMsg.Msg msg))
+
+exception Fatal_error of ErrorMsg.t
+let fatal_error err =
+  raise (Fatal_error err)
+
+let fatal_error_msg msg =
+  raise (Fatal_error (ErrorMsg.Msg msg))

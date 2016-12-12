@@ -24,6 +24,16 @@
 
 .PHONY: install uninstall clean
 
+########################################################################
+#
+
+STD_SRC_FILES = $(find src -name *.rill)
+STD_SRC_EXT_FILES = $(find src_ext -name *.cpp)
+
+STD_SRC_TARGET_FILES = $(STD_SRC_FILES) $(STD_SRC_EXT_FILES)
+STD_SRC_TARGET_OBJS = $(replacesuffixes .rill .cpp, .o .o, $(STD_SRC_TARGET_FILES))
+
+LIBNAME = librillstd-rt
 
 ########################################################################
 # Subdirectories.
@@ -31,20 +41,51 @@
 # If so, define the subdirectory targets and uncomment this section.
 #
 
-.SUBDIRS: lib
+CORE_LIB_SRC_DIR = $(dir ../corelib/src)
+.SUBDIRS: src/std
+    %.o: %.rill $(RILLC_BIN)
+        $(RILLC_BIN) -c $< --no-stdlib --system-lib $(CORE_LIB_SRC_DIR) \
+                                       --system-lib $(dir src) -o $@
 
+    clean:
+        rm -f *~ *.o *.ll *.bc
+
+.SUBDIRS: src_ext
+    %.o: %.cpp
+        $(CXX) -c $+ -o $@
+
+    clean:
+        rm -f *~ *.o
+
+.DEFAULT: lib/$(LIBNAME).a
 
 ########################################################################
 #
-install:
+
+lib/$(LIBNAME).a: $(STD_SRC_TARGET_OBJS)
+    prepare-directory(lib)
+    $(AR $@) $(STD_SRC_TARGET_OBJS)
+
+install: lib/$(LIBNAME).a
+    # copy srcs
     prepare-directory($(INCLUDE_DIR)/rill)
-    cp -rv src/* $(INCLUDE_DIR)/rill/.
+    foreach(x => ..., $(filter %.rill, $(STD_SRC_FILES)))
+        src = $(removeprefix src/, $(x))
+        target_dir = $(INCLUDE_DIR)/rill/$(dirname $(src))
+        prepare-directory($(target_dir))
+        cp -v $(x) $(target_dir)/.
+    # copy libs
+    prepare-directory($(LIB_DIR))
+    cp -v lib/$(LIBNAME).a $(LIB_DIR)/.
 
 uninstall:
+    # remove srcs
     foreach(x => ..., $(ls src))
         if $(test -e $(INCLUDE_DIR)/rill/$(basename $x))
             rm-if-exists($(INCLUDE_DIR)/rill/$(basename $x))
+    # remove libs
     rmdir-if-empty($(INCLUDE_DIR)/rill)
 
 clean:
     rm -f *~ *.opt *.cmi *.cmx *.cmxa *.o *.omc *.a *.out *.s *.bc *.log *.cache
+    rm -r lib

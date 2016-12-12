@@ -6,6 +6,11 @@ coverage/
 *.opt
 *.a
 
+corelib/**/*.ll
+corelib/**/*.bc
+stdlib/**/*.ll
+stdlib/**/*.bc
+
 memo/
 
 Gemfile.lock

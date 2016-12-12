@@ -38,6 +38,7 @@ rule token = parse
   | "import"            { KEYWORD_IMPORT }
   | "def"               { KEYWORD_DEF }
   | "class"             { KEYWORD_CLASS }
+  | "module"            { KEYWODD_MODULE }
   | "val"               { KEYWORD_VAL }
   | "ref"               { KEYWORD_REF }
   | "immutable"         { KEYWORD_IMMUTABLE }
@@ -59,6 +60,7 @@ rule token = parse
   | "static"            { KEYWORD_STATIC }
   | "gc"                { KEYWORD_GC }
   | "unmanaged"         { KEYWORD_UNMANAGED }
+
   | "true"              { LIT_TRUE }
   | "false"             { LIT_FALSE }
 

@@ -18,10 +18,10 @@ let make_default_env () =
   Env.make_root_env ()
 
 let make_default_context root_env module_search_dirs =
-  let type_gen = Type.Generator.default () in
-
   let open Sema_utils in
   let open Builtin_info in
+
+  let type_gen = Type.Generator.default () in
 
   let type_type =
     register_builtin_type type_type_i.external_name
@@ -59,48 +59,19 @@ let make_default_context root_env module_search_dirs =
     sc_ctfe_engine = ctfe_engine;
     sc_tsets = tsets;
     sc_unification_ctx = uni_map;
+
+    sc_handle_error = true;
     sc_errors = []
   } in
 
   (**)
-  let builtin_mod_e = load_module ["core"] "builtin" ctx in
+  (*
+  let builtin_mod_e = load_builtin_module ctx in
   ctx.sc_builtin_m_env <- Some builtin_mod_e;
 
-  (* cache bool type *)
-  cache_builtin_type_info tsets.ts_bool_type_holder
-                          bool_type_i.external_name
-                          ctx;
-
-  (* cache uint8 type *)
-  cache_builtin_type_info tsets.ts_uint8_type_holder
-                          uint8_type_i.external_name
-                          ctx;
-
-  (* cache int32 type *)
-  cache_builtin_type_info tsets.ts_int32_type_holder
-                          int32_type_i.external_name
-                          ctx;
-
-  (* cache uint32 type *)
-  cache_builtin_type_info tsets.ts_uint32_type_holder
-                          uint32_type_i.external_name
-                          ctx;
-
-  (* cache array type *)
-  cache_builtin_type_info tsets.ts_array_type_holder
-                          array_type_i.external_name
-                          ctx;
-
-  (* cache pointer types *)
-  cache_builtin_type_info tsets.ts_untyped_raw_ptr_type_holder
-                          untyped_raw_ptr_type_i.external_name
-                          ctx;
-
-  cache_builtin_type_info tsets.ts_raw_ptr_type_holder
-                          raw_ptr_type_i.external_name
-                          ctx;
+  cache_primitive_types builtin_mod_e ctx;
+   *)
   ctx
-
 
 let make_default_state system_libs_dirs user_srcs_dirs =
   let module_search_dirs = system_libs_dirs @ user_srcs_dirs in
@@ -109,10 +80,23 @@ let make_default_state system_libs_dirs user_srcs_dirs =
   let ctx = make_default_context env module_search_dirs in
   (env, ctx)
 
-
 let analyze_module mod_env ctx =
+  assert (Env.is_incomplete mod_env);
   let mod_node = Option.get mod_env.Env.rel_node in
   let (node, _, _) = construct_env mod_node ctx.sc_root_env ctx None in
   match List.length ctx.sc_errors with
   | 0 -> Some node
   | _ -> None
+
+let load_module filename env ctx =
+  try
+    let m = prepare_module_from_filepath filename ctx in
+    analyze_module m ctx
+    |> Option.map (fun sem_node ->
+           Env.update_rel_ast m sem_node;
+           Env.update_status m Env.Complete;
+           m)
+  with
+  | Fatal_error err ->
+     Sema_error.process_error err ctx;
+     None

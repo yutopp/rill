@@ -37,22 +37,23 @@ module Kind =
   end
 
 type 'ast env_t = {
-   env_id                   : EnvId.t;
-   parent_env               : 'ast env_t option;
-   context_env              : 'ast env_t;
-   ns_env                   : 'ast env_t;
-   module_env               : 'ast env_t option;
-   er                       : 'ast env_record_t;
-   mutable state            : checked_state_t;
-   mutable closed           : bool;
-   mutable generics_constraints: Lifetime.constraint_t list;
-   mutable meta_level       : Meta_level.t;
-   mutable rel_node         : 'ast option;
-   mutable callee_when_exit : 'ast list;    (* TODO: rename *)
-   nest_level               : NestLevel.t;
+    env_id                      : EnvId.t;
+    parent_env                  : 'ast env_t option;
+    context_env                 : 'ast env_t;
+    ns_env                      : 'ast env_t;
+    module_env                  : 'ast env_t option;
+    er                          : 'ast env_record_t;
+    mutable state               : checked_state_t;
+    mutable closed              : bool;
+    mutable generics_constraints: Lifetime.constraint_t list;
+    mutable meta_level          : Meta_level.t;
+    mutable rel_node            : 'ast option;
+    mutable callee_when_exit    : 'ast list;    (* TODO: rename *)
+    nest_level                  : NestLevel.t;
+    is_instantiated             : bool;
 
    (* information for error message *)
-   loc                      : Loc.t;
+    loc                         : Loc.t;
 }
 
  and 'ast env_record_t =
@@ -148,7 +149,8 @@ type 'ast env_t = {
    | FnKindDestructor of 'ast env_t option
 
  and 'ast function_spec = {
-   fn_spec_param_envs  : 'ast env_t option list;
+     fn_spec_param_envs     : 'ast env_t option list;
+     fn_spec_force_inline   : bool;
  }
 
 
@@ -227,6 +229,7 @@ let undef () =
     callee_when_exit = [];
 
     nest_level = NestLevel.zero;
+    is_instantiated = false;
 
     loc = None;
   } in
@@ -297,18 +300,18 @@ let rec find_all_on_env ?(checked_env=[]) env name =
        let search_module envs (mod_env, priv) =
          match priv with
          | ModPrivate ->
+            (* if the module is private, find symbols from only the imported module *)
             begin
               match find_on_env mod_env name with
               | Some e -> e :: envs
               | None -> envs
             end
          | ModPublic ->
-            begin
-              let res =
-                find_all_on_env ~checked_env:(ns_env.env_id::checked_env) mod_env name
-              in
-              res @ envs
-            end
+            (* if the module is public, find symbols recursively *)
+            let res =
+              find_all_on_env ~checked_env:(ns_env.env_id::checked_env) mod_env name
+            in
+            res @ envs
        in
        List.fold_left search_module [] lt.imported_mods
      end
@@ -378,7 +381,7 @@ let empty_lookup_table ?(init=8) () =
 
 (* create an env as new context.
  * it will be used for functions, classes and so on... *)
-let create_context_env parent_env er loc =
+let create_context_env ?(is_instantiated=false) parent_env er loc =
   let cur_id = EnvUniqId.generate () in
 
   let opt_mod_env = match parent_env.er with
@@ -401,6 +404,7 @@ let create_context_env parent_env er loc =
     callee_when_exit = [];
 
     nest_level = NestLevel.add parent_env.nest_level NestLevel.one;
+    is_instantiated = is_instantiated;
 
     loc = loc;
   } in
@@ -408,7 +412,7 @@ let create_context_env parent_env er loc =
 
 (* create an env which is a part of the parent_env.
  * it will be used for block, if_scope and so on... *)
-let create_scoped_env ?(has_ns=true) parent_env er loc =
+let create_scoped_env ?(has_ns=true) ?(is_instantiated=false) parent_env er loc =
   let cur_id = EnvUniqId.generate () in
 
   let opt_mod_env = match parent_env.er with
@@ -431,6 +435,7 @@ let create_scoped_env ?(has_ns=true) parent_env er loc =
     callee_when_exit = [];
 
     nest_level = NestLevel.add parent_env.nest_level NestLevel.one;
+    is_instantiated = is_instantiated;
 
     loc = loc;
   } in
@@ -490,6 +495,7 @@ let make_root_env () =
     callee_when_exit = [];
 
     nest_level = NestLevel.zero;
+    is_instantiated = false;
 
     loc = None;
   } in
@@ -515,9 +521,16 @@ let string_of_env_record env =
 let get_id env =
   env.env_id
 
+let get_module_env env =
+  env.module_env
+
+let get_module_env_id env =
+  env |> get_module_env |> Option.map get_id
+
 let get_name env =
   let er = get_env_record env in
   match er with
+  | Module (_, r) -> Id_string.Pure r.mod_name
   | Template (r) -> r.tl_name
   | Function (_, r) -> r.fn_name
   | Class (_, r) -> r.cls_name

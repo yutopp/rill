@@ -139,7 +139,7 @@ let is_valid_type ty =
     lt <> Lifetime.LtUndef
   in
   let gs_v = (List.for_all g_check aux_gs) && (List.for_all g_check gs) in
-  Debug.printf "- %b / %b(%b)\n" attr_v (List.for_all g_check aux_gs) (List.for_all g_check gs);
+  Debug.printf "- attr:%b / lt:%b(aux:%b): %s\n" attr_v (List.for_all g_check aux_gs) (List.for_all g_check gs) (Type.to_string ty);
   attr_v && gs_v
 
 let assert_valid_type ty =

@@ -15,7 +15,6 @@ let make_ast full_filepath pkg_names mod_name lexedbuf =
                               let full_filepath = full_filepath
                               let package_names = pkg_names
                               let module_name = mod_name
-                              let module_source = lexedbuf.Lexing.lex_buffer
                             end) in
   try
     P.program_entry Lexer.token lexedbuf

@@ -53,7 +53,7 @@ type ctx_t = (env_t, Nodes.CachedNodeCounter.t, type_info_t, ctfe_val_t) Ctx.t
 
 let agg_recever_name = "agg.receiver"
 
-let make_default_context ~type_sets ~uni_map =
+let make_default_context ~type_sets ~uni_map ~target_module =
   let ir_context = L.global_context () in
   let ir_module = L.create_module ir_context "Rill" in
   let ir_builder = L.builder ir_context in
@@ -69,6 +69,7 @@ let make_default_context ~type_sets ~uni_map =
     ~ir_intrinsics:ir_intrinsics
     ~type_sets:type_sets
     ~uni_map:uni_map
+    ~target_module_id:(target_module |> Option.map Env.get_id)
 
 
 let llval_i32 v ctx =
@@ -150,12 +151,11 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
      if Ctx.is_env_defined ctx env then void_val else
      begin
        Ctx.mark_env_as_defined ctx env;
+
        let fenv_r = Env.FunctionOp.get_record env in
        Debug.printf "\n\n\n\n<><><><>\nDefine: %s\n<><><><>\n%s\n\n\n\n" (fenv_r.Env.fn_mangled |> Option.get) (Env_system.EnvId.to_string env.Env.env_id);
 
-       let define_current_function kind param_envs =
-         let body = Option.get opt_body in
-
+       let declare_current_function name =
          (* if this class returns non primitive object,
           * add a parameter to receive the object *)
          let returns_heavy_obj = is_heavy_object fenv_r.Env.fn_return_type in
@@ -178,94 +178,117 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
          let f_ty = L.function_type llret_ty llparam_tys in
 
          (* declare function *)
-         let name = fenv_r.Env.fn_mangled |> Option.get in
          let f = L.declare_function name f_ty ctx.ir_module in
          Ctx.bind_val_to_env ctx (LLValue (f, true)) env;
 
-         (* entry block *)
-         let eib = L.append_block ctx.ir_context "entry" f in
-         L.position_at_end eib ctx.ir_builder;
+         f
+       in
 
-         (* setup parameters *)
-         let param_envs = param_envs |> List.enum in
-         let raw_ll_params = L.params f |> Array.enum in
-         if returns_heavy_obj then
+       let define_current_function kind fn_spec =
+         let body = Option.get opt_body in
+
+         let param_envs = fn_spec.Env.fn_spec_param_envs in
+         let force_inline = fn_spec.Env.fn_spec_force_inline in
+
+         let name = fenv_r.Env.fn_mangled |> Option.get in
+         let f = declare_current_function name in
+
+         if force_inline then
            begin
-             (* set name of receiver *)
-             let opt_agg = Enum.peek raw_ll_params in
-             assert (Option.is_some opt_agg);
-             let agg = Option.get opt_agg in
-             let _ = match kind with
-               | Env.FnKindConstructor (Some venv)
-               | Env.FnKindCopyConstructor (Some venv)
-               | Env.FnKindMoveConstructor (Some venv)
-               | Env.FnKindDefaultConstructor (Some venv)
-               | Env.FnKindDestructor (Some venv) ->
-                  begin
-                    let venv_r = Env.VariableOp.get_record venv in
-                    let var_name = venv_r.Env.var_name in
-                    L.set_value_name var_name agg;
-                    Ctx.bind_val_to_env ctx (LLValue (agg, true)) venv
-                  end
-               | _ ->
-                  L.set_value_name agg_recever_name agg;
-             in
-             (* remove the implicit parameter from ENUM *)
-             Enum.drop 1 raw_ll_params;
+             L.add_function_attr f L.Attribute.Alwaysinline;
+             L.add_function_attr f L.Attribute.Nounwind;
+             L.set_linkage L.Linkage.Private f;
+             ()
            end;
 
-         (* adjust type specialized by params to normal type forms *)
-         let adjust_param_type (ty, llval) =
-           let should_param_be_address = is_address_representation ty in
-           let actual_param_rep = is_address_representation_param ty in
-           match (should_param_be_address, actual_param_rep) with
-           | (true, false) ->
-              let llty = lltype_of_typeinfo ty ctx in
-              let v = L.build_alloca llty "" ctx.ir_builder in
-              let _ = L.build_store llval v ctx.ir_builder in
-              (v, should_param_be_address)
-           | (true, true)
-           | (false, false) -> (llval, should_param_be_address)
-           | _ -> failwith "[ICE]"
-         in
-         let ll_params =
-           let param_types =
-             fenv_r.Env.fn_param_kinds
-             |> List.map typeinfo_of_paramkind
-             |> List.enum
-           in
-           Enum.combine (param_types, raw_ll_params)
-           |> Enum.map adjust_param_type
-         in
-         let declare_param_var optenv (llvar, is_addr) =
-           match optenv with
-           | Some env ->
-              begin
-                let venv = Env.VariableOp.get_record env in
-                let var_name = venv.Env.var_name in
-                L.set_value_name var_name llvar;
-                Ctx.bind_val_to_env ctx (LLValue (llvar, is_addr)) env
-              end
-           | None -> ()
-         in
-         Enum.iter2 declare_param_var param_envs ll_params;
+         if is_in_other_module ctx env && not force_inline then
+           ()
+         else
+           begin
+             (* entry block *)
+             let eib = L.append_block ctx.ir_context "entry" f in
+             L.position_at_end eib ctx.ir_builder;
 
-         (* entry block *)
-         L.position_at_end eib ctx.ir_builder;
+             (* setup parameters *)
+             let param_envs = param_envs |> List.enum in
+             let raw_ll_params = L.params f |> Array.enum in
+             let returns_heavy_obj = is_heavy_object fenv_r.Env.fn_return_type in
+             if returns_heavy_obj then
+               begin
+                 (* set name of receiver *)
+                 let opt_agg = Enum.peek raw_ll_params in
+                 assert (Option.is_some opt_agg);
+                 let agg = Option.get opt_agg in
+                 let _ = match kind with
+                   | Env.FnKindConstructor (Some venv)
+                     | Env.FnKindCopyConstructor (Some venv)
+                     | Env.FnKindMoveConstructor (Some venv)
+                     | Env.FnKindDefaultConstructor (Some venv)
+                     | Env.FnKindDestructor (Some venv) ->
+                      let venv_r = Env.VariableOp.get_record venv in
+                      let var_name = venv_r.Env.var_name in
+                      L.set_value_name var_name agg;
+                      Ctx.bind_val_to_env ctx (LLValue (agg, true)) venv
+                   | _ ->
+                      L.set_value_name agg_recever_name agg;
+                 in
+                 (* remove the implicit parameter from ENUM *)
+                 Enum.drop 1 raw_ll_params;
+               end;
 
-         (**)
-         let _ = generate_code body ctx in
+             (* adjust type specialized by params to normal type forms *)
+             let adjust_param_type (ty, llval) =
+               let should_param_be_address = is_address_representation ty in
+               let actual_param_rep = is_address_representation_param ty in
+               match (should_param_be_address, actual_param_rep) with
+               | (true, false) ->
+                  let llty = lltype_of_typeinfo ty ctx in
+                  let v = L.build_alloca llty "" ctx.ir_builder in
+                  let _ = L.build_store llval v ctx.ir_builder in
+                  (v, should_param_be_address)
+               | (true, true)
+                 | (false, false) -> (llval, should_param_be_address)
+               | _ -> failwith "[ICE]"
+             in
+             let ll_params =
+               let param_types =
+                 fenv_r.Env.fn_param_kinds
+                 |> List.map typeinfo_of_paramkind
+                 |> List.enum
+               in
+               Enum.combine (param_types, raw_ll_params)
+               |> Enum.map adjust_param_type
+             in
+             let declare_param_var optenv (llvar, is_addr) =
+               match optenv with
+               | Some env ->
+                  begin
+                    let venv = Env.VariableOp.get_record env in
+                    let var_name = venv.Env.var_name in
+                    L.set_value_name var_name llvar;
+                    Ctx.bind_val_to_env ctx (LLValue (llvar, is_addr)) env
+                  end
+               | None -> ()
+             in
+             Enum.iter2 declare_param_var param_envs ll_params;
 
-         debug_dump_value f;
-         Debug.printf "generated genric function(%b): %s\n" env.Env.closed name;
+             (* entry block *)
+             L.position_at_end eib ctx.ir_builder;
 
-         Llvm_analysis.assert_valid_function f
+             (**)
+             let _ = generate_code body ctx in
+
+             debug_dump_value f;
+             Debug.printf "generated genric function(%b): %s\n" env.Env.closed name;
+
+             Llvm_analysis.assert_valid_function f
+           end
        in
 
        match fenv_r.Env.fn_detail with
        | Env.FnRecordNormal (def, kind, fenv_spec) ->
           begin
-            define_current_function kind fenv_spec.Env.fn_spec_param_envs;
+            define_current_function kind fenv_spec;
             void_val
           end
 
@@ -289,7 +312,7 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
             (* implicit & non-trivial *)
             | Env.FnDefDefaulted false ->
                begin
-                 define_current_function kind fenv_spec.Env.fn_spec_param_envs;
+                 define_current_function kind fenv_spec;
                  void_val
                end
             | _ -> failwith "[ICE] define implicit function"
@@ -297,21 +320,7 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
 
        | Env.FnRecordExternal (def, kind, extern_fname) ->
           begin
-            let (_, llparam_tys) =
-              paramkinds_to_llparams fenv_r.Env.fn_param_kinds
-                                     fenv_r.Env.fn_return_type
-                                     ctx
-            in
-            let llret_ty = lltype_of_typeinfo fenv_r.Env.fn_return_type ctx in
-
-            (* type of function *)
-            let f_ty = L.function_type llret_ty llparam_tys in
-
-            let llvm_func = L.declare_function extern_fname f_ty ctx.ir_module in
-
-            debug_dump_value llvm_func;
-
-            Ctx.bind_val_to_env ctx (LLValue (llvm_func, true)) env;
+            let _ = declare_current_function extern_fname in
             void_val
           end
 
@@ -716,7 +725,9 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
                                            ty_attr_val_default
             in
             let itype_id = Option.get ty.Type_info.ti_id in
-            Debug.printf "##### type_id = %s\n" (Int64.to_string itype_id);
+            Debug.printf "#### LLVM: eval class: type_id = %s / %s\n"
+                         (Int64.to_string itype_id)
+                         (Type.to_string ty);
 
             (* return the internal typeid as a type *)
             let llval = L.const_of_int64 (L.i64_type ctx.ir_context)
@@ -950,6 +961,19 @@ and ctfe_val_to_llval ctfe_val ctx =
 
   | _ -> failwith "[ICE]"
 
+and is_in_other_module ctx env =
+  let open Ctx in
+  match ctx.target_module_id with
+  | None -> false
+  | Some target_module_id ->
+     let module_env_id = match Env.get_module_env_id env with
+       | Some e -> e
+       | None -> failwith "[ICE]"
+     in
+     if target_module_id = module_env_id then
+       false
+     else
+       not env.Env.is_instantiated
 
 and generate_code_by_interrupt node ctx =
   let opt_ip = match L.insertion_block ctx.Ctx.ir_builder with
@@ -1936,22 +1960,18 @@ let inject_builtins ctx =
   in
   ()
 
-let generate node ctx =
-  inject_builtins ctx;
-
-  let _ = generate_code node ctx in
-  debug_dump_module ctx.Ctx.ir_module
-
-
 exception FailedToWriteBitcode
-exception FailedToBuildBitcode
-exception FailedToBuildExecutable
+exception FailedToBuildBytecode
 
-let create_executable ctx options out_name =
+let create_object_from_ctx ctx options out_filepath =
   let open Ctx in
 
+  Debug.printf "%s\n" out_filepath;
   let basic_name =
-    try Filename.chop_extension out_name with Invalid_argument _ -> out_name
+    try
+      Filename.chop_extension out_filepath
+    with
+    | Invalid_argument _ -> out_filepath
   in
   let bitcode_name = basic_name ^ ".bc" in
 
@@ -1961,21 +1981,13 @@ let create_executable ctx options out_name =
 
   (* build bitcode and output object file *)
   let bin_name = basic_name ^ ".o" in
-  let sc = Sys.command (Printf.sprintf "llc %s -filetype=obj -o %s " (Filename.quote bitcode_name) (Filename.quote bin_name)) in
-  if sc <> 0 then raise FailedToBuildBitcode;
+  let sc = Sys.command (Printf.sprintf "llc %s -filetype=obj -o %s" (Filename.quote bitcode_name) (Filename.quote bin_name)) in
+  if sc <> 0 then raise FailedToBuildBytecode;
 
-  (* output executable *)
-  let escaped_link_options =
-    options |> List.map Filename.quote |> String.concat " "
-  in
-  let cmd =
-    Printf.sprintf "g++ %s %s -o %s"
-                   (Filename.quote bin_name)
-                   escaped_link_options
-                   (Filename.quote out_name)
-  in
-  Debug.printf "cmd = %s\n" cmd;
-  let sc = Sys.command cmd in
-  (*let sc = Sys.command (Printf.sprintf "gcc %s -o %s" (Filename.quote bin_name) (Filename.quote out_name)) in*)
-  if sc <> 0 then raise FailedToBuildExecutable;
-  ()
+  bin_name
+
+let create_object node out_filepath ctx =
+  inject_builtins ctx;
+  let _ = generate_code node ctx in
+  debug_dump_module ctx.Ctx.ir_module;
+  create_object_from_ctx ctx [] out_filepath

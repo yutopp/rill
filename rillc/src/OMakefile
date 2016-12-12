@@ -22,7 +22,7 @@
 # Phony targets are scoped, so you probably want to declare them first.
 #
 
-.PHONY: all install uninstall clean
+.PHONY: build_rillc all install uninstall clean
 
 
 ########################################################################
@@ -153,6 +153,7 @@ config.ml:
 
 FILES[] =
    main
+   compiler
    nodes
    loc
    ast
@@ -164,15 +165,18 @@ FILES[] =
    syntax
    env
    env_system
+   attribute
    sema
    sema_forward_ref
    sema_construct_env
    sema_definitions
    sema_context
    sema_utils
+   sema_error
    codegen_context
    codegen_llvm
    codegen_llvm_intrinsics
+   codegen_executable
    type
    type_attr
    type_sets
@@ -208,6 +212,8 @@ PROGRAM = rillc
 
 ########################################################################
 #
+build_rillc: .DEFAULT
+
 install:
     prepare-directory($(BIN_DIR))
     cp $(PROGRAM) $(BIN_DIR)/$(PROGRAM)

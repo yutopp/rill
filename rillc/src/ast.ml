@@ -12,6 +12,7 @@ module Context =
     type 'a term_ctx_t = Loc.t
     type 'a prev_ctx_t = unit
     type 'a term_aux_t = unit
+    type 'a attr_value_t = 'a
   end
 
 include Nodes.Make(Context)

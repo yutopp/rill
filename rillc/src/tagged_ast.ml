@@ -44,8 +44,14 @@ module AstContext =
     type 'a term_ctx_t = 'a Env.env_t Type.info_t
     type 'a prev_ctx_t = Ast.ast
     type 'ast term_aux_t = 'ast Aux.t
+    type 'a attr_value_t = Ast.ast
   end
 
 module TaggedAst = Nodes.Make(AstContext)
 
 include TaggedAst
+
+let extract_prev_pass_node node =
+  match node with
+  | PrevPassNode n -> n
+  | _ -> failwith "[ICE] not prev node"

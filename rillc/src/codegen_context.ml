@@ -48,6 +48,7 @@ module Make (Cgt : CONTEXT_TYPE) =
       mutable defined_env       : EnvIdSet.t;
       type_sets                 : 'env Type_sets.type_sets_t;
       uni_map                   : ('ty, 'v) Unification.t;
+      target_module_id          : Env_system.EnvId.t option;
 
       places_for_sto_array_elem : ('env, 'c_id, 'ty, 'v) value_t Stack.t;
     }
@@ -55,7 +56,7 @@ module Make (Cgt : CONTEXT_TYPE) =
        ('ty, (('env, 'c_id, 'ty, 'v) t)) Cgt.value_t
 
     let init ~ir_context ~ir_builder ~ir_module ~ir_intrinsics
-             ~type_sets ~uni_map =
+             ~type_sets ~uni_map ~target_module_id =
       {
         ir_context = ir_context;
         ir_builder = ir_builder;
@@ -71,6 +72,7 @@ module Make (Cgt : CONTEXT_TYPE) =
         defined_env = EnvIdSet.empty;
         type_sets = type_sets;
         uni_map = uni_map;
+        target_module_id = target_module_id;
 
         places_for_sto_array_elem = Stack.create ();
       }

@@ -7,24 +7,13 @@
  *)
 
 open Batteries
-
-type compile_options_t = {
-  mutable input_files           : string list;
-  mutable output_file           : string;
-
-  mutable system_import_dirs    : string list;
-  mutable user_import_dirs      : string list;
-
-  mutable options               : string list;
-  mutable no_corelib            : bool;
-  mutable no_stdlib             : bool;
-}
+open Compiler
 
 let empty () =
   if Config.use_local_dev_lib then
     {
       input_files = [];
-      output_file = "a.out";
+      output_file = None;
 
       system_import_dirs = ["./stdlib/src"; "./corelib/src"];
       user_import_dirs = [];
@@ -33,11 +22,13 @@ let empty () =
 
       no_corelib = false;
       no_stdlib = false;
+
+      compile_only = false;
     }
   else
     {
       input_files = [];
-      output_file = "a.out";
+      output_file = None;
 
       system_import_dirs = Config.default_includes;
       user_import_dirs = [];
@@ -46,6 +37,8 @@ let empty () =
 
       no_corelib = false;
       no_stdlib = false;
+
+      compile_only = false;
     }
 
 
@@ -55,39 +48,45 @@ let () =
   (* Compile Option *)
   let co = empty () in
 
-  let usagemsg = "Usage: rillc [filename] <options>\n"; in
+  let usagemsg = "Usage: rillc <options> [filename]\n"; in
   let speclist = [
     ("-o",
-     Arg.String (fun s -> co.output_file <- s),
-     " specify output file name");
+     Arg.String (fun s -> co.output_file <- Some s),
+     "<path> specify output file name");
     ("--system-lib",
      Arg.String (fun s -> co.system_import_dirs <- s :: co.system_import_dirs),
-     " specify system libs directory");
+     "<dir> Specify system libs directory");
     ("-I",
      Arg.String (fun s -> co.user_import_dirs <- s :: co.user_import_dirs),
-     " specify modules directory");
+     "<dir> Specify modules directory");
     ("-L",
      Arg.String (fun s -> co.options <- (Printf.sprintf "-L%s" s) :: co.options),
-     " linker option");
+     "<option> Linker option");
     ("-l",
      Arg.String (fun s -> co.options <- (Printf.sprintf "-l%s" s) :: co.options),
-     " linker option");
+     "<option> Linker option");
     ("--no-corelib",
      Arg.Unit (fun b -> co.no_corelib <- true),
-     " do not link corelib");
+     " Do not link corelib");
     ("--no-stdlib",
      Arg.Unit (fun b -> co.no_stdlib <- true),
-     " do not link stdlib");
+     " Do not link stdlib");
+    ("-c",
+     Arg.Unit (fun b -> co.compile_only <- true),
+     " Compile only");
   ] in
-  Arg.parse speclist (fun s -> (co.input_files <- s :: co.input_files)) usagemsg;
+  Arg.parse (speclist |> Arg.align)
+            (fun s -> co.input_files <- s :: co.input_files)
+            usagemsg;
 
-  let system_libs_dirs = List.rev co.system_import_dirs in
-
-  let module_search_dirs = List.rev co.user_import_dirs in
-  let cur_dir = Sys.getcwd () in
-  let module_search_dirs = cur_dir :: module_search_dirs in
+  if co.compile_only && (List.length co.input_files > 1) && Option.is_some co.output_file then
+    begin
+      Printf.eprintf "cannot specify -o option when multiple files and -c option are given";
+      exit 1
+    end;
 
   let filepaths =
+    let cur_dir = Sys.getcwd () in
     let f filename =
       if Filename.is_relative filename then
         Filename.concat cur_dir filename
@@ -98,28 +97,19 @@ let () =
   in
 
   (* TODO: fix *)
+  if List.length co.input_files > 1 then
+    begin
+      Printf.eprintf "currently, multiple files are not supported: %s\n"
+                     (co.input_files |> String.join ", ");
+      exit 1
+    end;
+
   assert (List.length co.input_files = 1);
-  let filename = List.hd filepaths in
+  let filepath = List.hd filepaths in
 
-  Debug.printf "===== PHASE = ANALYZE SEMANTICS\n";
-  let (env, ctx) = Sema.make_default_state system_libs_dirs module_search_dirs in
-  let m = Sema.load_module_by_filepath filename ctx in
-  let sem_ast = match Sema.analyze_module m ctx with
-    | Some node -> node
-    | None ->
-       Printf.printf "Semantics error\n"; exit 1
-  in
+  let obj_file_name = compile co filepath in
 
-  Debug.printf "===== PHASE = CODEGEN\n";
-
-  let module Codegen = Codegen_llvm in
-
-  let code_ctx =
-    Codegen.make_default_context ~type_sets:ctx.Sema.sc_tsets
-                                 ~uni_map:ctx.Sema.sc_unification_ctx
-  in
-  Codegen.generate sem_ast code_ctx;
-  let options =
+  let build_options =
     let core_lib_opts = if co.no_corelib then []
                         else
                           if Config.use_local_dev_lib then
@@ -138,7 +128,20 @@ let () =
     in
     core_lib_opts @ std_lib_opts @ co.options
   in
-  Codegen.create_executable code_ctx options co.output_file;
+  if not co.compile_only then
+    let executable_filepath =
+      match co.output_file with
+      | Some path -> path
+      | None ->
+         let filepath = List.hd filepaths in
+         try
+           filepath
+           |> Filename.basename
+           |> Filename.chop_extension
+         with
+         | Invalid_argument _ -> filepath
+    in
+    Codegen_executable.link_objects [obj_file_name] build_options executable_filepath;
 
   Debug.printf "===== PHASE = FINISHED\n";
 

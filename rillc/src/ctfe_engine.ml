@@ -40,6 +40,7 @@ let initialize type_sets uni_map =
   let codegen_ctx =
     Codegen_llvm.make_default_context ~type_sets:type_sets
                                       ~uni_map:uni_map
+                                      ~target_module:None
   in
   Codegen_llvm.inject_builtins codegen_ctx;
 
