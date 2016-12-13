@@ -102,7 +102,7 @@ module G2 = struct
   include Graph.Imperative.Digraph.Concrete(Vertex)
 end
 
-(* `a: `b reads as lifetime `a is at least as long as `b *)
+(* 'a: 'b reads as lifetime 'a is at least as long as 'b *)
 (* `a >: `b *)
 let convert raw_lts lt_constaints base_env_id =
   let open Graph in
@@ -123,10 +123,8 @@ let convert raw_lts lt_constaints base_env_id =
   List.iter (fun n -> G.add_vertex g n) raw_lts;
   List.iter (fun (a, b) -> G.add_vertex g a; G.add_vertex g b) lt_constaints;
 
-  (* "(a, b)" means A >= B. A will be live at least as longer as B. edge will be B -> A *)
+  (* "(a, b)" means A >= B. A will be live at least as long as B. edge will be B -> A *)
   List.iter (fun (a, b) -> G.add_edge g b a) lt_constaints;
-
-  List.iter (fun (a, b) -> Debug.printf "LL (%s: %s)\n" (to_string a) (to_string b)) lt_constaints;
 
   let (n, fs) = Comp.scc g in
   let scc_arr = Comp.scc_array g in

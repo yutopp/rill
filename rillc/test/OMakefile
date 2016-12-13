@@ -93,7 +93,7 @@ FILES[] =
    semantics_test
 
 #
-PROGRAM = unit_test
+PROGRAM = test_bin
 
 OCAML_LIBS += ../src/rillc
 # OCAML_CLIBS +=
@@ -104,7 +104,7 @@ OCAML_LIBS += ../src/rillc
 
 ########################################################################
 #
-unit_test:
+unit_test: $(PROGRAM)
     ./$(PROGRAM)
 
 clean:

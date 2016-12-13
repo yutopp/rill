@@ -10,6 +10,7 @@ module type GENERIC_COUNTER =
   sig
     type t
     val undef : t
+    val reset : unit -> unit
     val generate : unit -> t
 
     val to_string : t -> string
@@ -35,6 +36,9 @@ module Counter(C : COUNTER_SIG) : GENERIC_COUNTER =
     let undef = C.zero
 
     let id_counter = ref C.one
+
+    let reset () =
+      id_counter := C.one
 
     let generate () =
       let cur_id = !id_counter in
