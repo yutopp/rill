@@ -22,7 +22,7 @@
 # Phony targets are scoped, so you probably want to declare them first.
 #
 
-.PHONY: install uninstall clean
+.PHONY: build_stdlib install uninstall clean
 
 ########################################################################
 #
@@ -61,6 +61,8 @@ CORE_LIB_SRC_DIR = $(dir ../corelib/src)
 
 ########################################################################
 #
+
+build_stdlib: lib/$(LIBNAME).a
 
 lib/$(LIBNAME).a: $(STD_SRC_TARGET_OBJS)
     prepare-directory(lib)

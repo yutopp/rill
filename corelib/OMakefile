@@ -22,7 +22,7 @@
 # Phony targets are scoped, so you probably want to declare them first.
 #
 
-.PHONY: install uninstall clean
+.PHONY: build_corelib install uninstall clean
 
 ########################################################################
 #
@@ -59,6 +59,8 @@ LIBNAME = librillcore-rt
 
 ########################################################################
 #
+
+build_corelib: lib/$(LIBNAME).a
 
 lib/$(LIBNAME).a: $(CORE_SRC_TARGET_OBJS)
     prepare-directory(lib)

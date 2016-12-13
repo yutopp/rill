@@ -131,17 +131,17 @@ let run_executable bin_path args env stdin stdout stderr checker =
   stat
 
 let read_file filename =
-  let fd = Unix.openfile filename [Unix.O_RDONLY] 0400 in
-  let ch = Unix.in_channel_of_descr fd in
-  let buf = Buffer.create 1024 in
-  let _ = try while true do
-                let s = IO.nread ch 1024 in
-                Buffer.add_string buf s
-              done with
-          | IO.No_more_input -> ()
-  in
-  Unix.close fd;
-  Buffer.contents buf
+  File.with_file_in
+    filename
+    (fun input ->
+      let buf = Buffer.create 1024 in
+      let _ = try while true do
+                    let s = IO.nread input 1024 in
+                    Buffer.add_string buf s
+                  done with
+              | IO.No_more_input -> ()
+      in
+      Buffer.contents buf)
 
 let run_executable_test executable_filename checker ctx =
   let filename_output_stdout = Filename.temp_file "rill-run-test-" "-pipe-stdout" in
@@ -177,22 +177,19 @@ let run_test_suite filepaths concept =
   let checker = concept.status_checker in
   let aux_suites = concept.next_suite_funs in
 
-  let total_num = List.length filepaths in
-
-  let run offset i ch filepath =
-    let index = offset + i in
-
+  let run' index filepath =
     let filename = Filename.basename filepath in
     let casename = Printf.sprintf "%03d-%s" (index+1) (Filename.chop_extension filename) in
     let executable_name = Printf.sprintf "%s.out" casename in
 
     let filename_output = Filename.temp_file "rill-run-test-" "-pipe" in
     let fd = Unix.openfile filename_output [Unix.O_RDWR] 0600 in
+
     let args = Array.of_list ([
-                               ctx.compiler_bin;
-                               filepath;
-                               "-o"; executable_name;
-                             ] @ ctx.compiler_options)
+                                 ctx.compiler_bin;
+                                 filepath;
+                                 "-o"; executable_name;
+                               ] @ ctx.compiler_options)
     in
     let env =
       Array.concat [
@@ -222,19 +219,23 @@ let run_test_suite filepaths concept =
       in
       List.fold_left f stat aux_suites
     in
-    Event.sync (Event.send ch stat);
 
-    match is_success stat with
-    | true -> ()
-    | false ->
-       Mutex.lock mutex;
-       Printf.printf "\n";
-       Printf.printf "%s\n" sep_2;
-       Printf.printf "- (%03d/%03d) %s test / %s\n" (index+1) total_num suite_name filename;
-       Printf.printf "%s\n" sep_2;
-       Printf.printf "\n";
-       Printf.printf "RESULT: %s\n" (string_of_stat stat);
-       Mutex.unlock mutex
+    stat
+  in
+  let run index filepath =
+    let stat =
+      try
+        run' index filepath
+      with
+      | e ->
+         Failure (-1, Printf.sprintf "exception raised / %s%!" (Printexc.to_string e), [])
+    in
+
+    Mutex.lock mutex;
+    Printf.printf "%s%!" (if is_success stat then "." else "F");
+    Mutex.unlock mutex;
+
+    stat
   in
 
   let splitted =
@@ -248,11 +249,18 @@ let run_test_suite filepaths concept =
     split filepaths [] |> List.rev
   in
 
-  let run_parallel i file_block =
+  let run_async i file_block =
     let offset = List.length file_block * i in
+
     let spawn i file =
       let ch = Event.new_channel () in
-      let t = Thread.create (fun ch -> run offset i ch file) ch in
+      let t =
+        Thread.create (fun ch ->
+            let index = offset + i in
+            let stat = run index file in
+            Event.sync (Event.send ch stat)
+          ) ch
+      in
       (t, ch)
     in
 
@@ -264,7 +272,7 @@ let run_test_suite filepaths concept =
 
     results
   in
-  let stats = List.mapi run_parallel splitted |> List.flatten in
+  let stats = List.mapi run_async splitted |> List.flatten in
 
   show_reports suite_name filepaths stats;
   List.exists is_failure stats
