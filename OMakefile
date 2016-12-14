@@ -22,8 +22,7 @@
 # Phony targets are scoped, so you probably want to declare them first.
 #
 
-.PHONY: all test install clean unit_test e2e_test
-
+.PHONY: test clean
 
 ########################################################################
 # Subdirectories.
@@ -32,7 +31,6 @@
 #
 
 .SUBDIRS: rillc corelib stdlib test
-
 
 ########################################################################
 #

@@ -22,7 +22,7 @@
 # Phony targets are scoped, so you probably want to declare them first.
 #
 
-.PHONY: all unit_test install clean
+.PHONY: unit_test install clean
 
 
 ########################################################################

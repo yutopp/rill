@@ -127,25 +127,23 @@ parser_messages.ml:
 
 OCamlGeneratedFiles(lexer.ml)
 
-gen_config() =
-    stdout = $(fopen config.ml, w)
-    fsubst(config.ml.template)
-    case $"\?PREFIX" g
-        value "$(PREFIX)"
-    case $"\?BIN_DIR" g
-        value "$(BIN_DIR)"
-    case $"\?LIB_DIR" g
-        value "$(LIB_DIR)"
-    case $"\?INCLUDE_DIR" g
-        value "$(INCLUDE_DIR)"
-    case $"\?RELEASE" g
-	    value $(RELEASE)
-    case $"\?USE_LOCAL_DEV_LIB" g
-        value $(USE_LOCAL_DEV_LIB)
-    close($(stdout))
-
-config.ml:
-    gen_config()
+config.ml: :value: $(PREFIX) :value: $(BIN_DIR) :value: $(LIB_DIR) :value: $(INCLUDE_DIR) :value: $(RELEASE) :value: $(USE_LOCAL_DEV_LIB)
+    section
+        stdout = $(fopen config.ml, w)
+        fsubst(config.ml.template)
+        case $"\?PREFIX" g
+            value "$(PREFIX)"
+        case $"\?BIN_DIR" g
+            value "$(BIN_DIR)"
+        case $"\?LIB_DIR" g
+            value "$(LIB_DIR)"
+        case $"\?INCLUDE_DIR" g
+            value "$(INCLUDE_DIR)"
+        case $"\?RELEASE" g
+            value $(RELEASE)
+        case $"\?USE_LOCAL_DEV_LIB" g
+            value $(USE_LOCAL_DEV_LIB)
+        close($(stdout))
 
 ################################################
 # Build an OCaml program

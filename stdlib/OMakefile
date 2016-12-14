@@ -90,4 +90,4 @@ uninstall:
 
 clean:
     rm -f *~ *.opt *.cmi *.cmx *.cmxa *.o *.omc *.a *.out *.s *.bc *.log *.cache
-    rm -r lib
+    rm-if-exists(lib)

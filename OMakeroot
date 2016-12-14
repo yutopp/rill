@@ -31,7 +31,7 @@
 #
 open build/C
 open build/OCaml
-open build/LaTeX
+open configure/Configure
 
 #
 # The command-line variables are defined *after* the
@@ -40,38 +40,58 @@ open build/LaTeX
 DefineCommandVars()
 
 #
-if $(not $(defined RELEASE))
-   RELEASE = false
-   export
+.STATIC:
+    ConfMsgChecking(release mode)
+    export RELEASE
+    if $(not $(defined RELEASE))
+        RELEASE = false
+    RELEASE = $(RELEASE)
+    ConfMsgResult($(RELEASE))
 
-if $(not $(defined USE_LOCAL_DEV_LIB))
-   if $(equal $(RELEASE), true)
-       USE_LOCAL_DEV_LIB = false
-       export
-   else
-       USE_LOCAL_DEV_LIB = true
-       export
-   export
+    ConfMsgChecking(use local dev lib)
+    export USE_LOCAL_DEV_LIB
+    if $(not $(defined USE_LOCAL_DEV_LIB))
+        if $(equal $(RELEASE), true)
+            USE_LOCAL_DEV_LIB = false
+        else
+            USE_LOCAL_DEV_LIB = true
+    USE_LOCAL_DEV_LIB = $(USE_LOCAL_DEV_LIB)
+    ConfMsgResult($(USE_LOCAL_DEV_LIB))
 
-if $(not $(defined COVERAGE))
-   COVERAGE = false
-   export
+    ConfMsgChecking(take coverage)
+    export COVERAGE
+    if $(not $(defined COVERAGE))
+        COVERAGE = false
+    COVERAGE = $(COVERAGE)
+    ConfMsgResult($(COVERAGE))
 
-if $(not $(defined PREFIX))
-   PREFIX = /usr/local
-   export
+    ConfMsgChecking(prefix)
+    export PREFIX
+    if $(not $(defined PREFIX))
+        PREFIX = $(dir /usr/local)
+    PREFIX = $(dir $(PREFIX))
+    ConfMsgResult($(PREFIX))
 
-if $(not $(defined BIN_DIR))
-   BIN_DIR = $(PREFIX)/bin
-   export
+    ConfMsgChecking(bin dir)
+    export BIN_DIR
+    if $(not $(defined BIN_DIR))
+        BIN_DIR = $(PREFIX)/bin
+    BIN_DIR = $(dir $(BIN_DIR))
+    ConfMsgResult($(BIN_DIR))
 
-if $(not $(defined LIB_DIR))
-   LIB_DIR = $(PREFIX)/lib
-   export
+    ConfMsgChecking(lib dir)
+    export LIB_DIR
+    if $(not $(defined LIB_DIR))
+        LIB_DIR = $(PREFIX)/lib
+    LIB_DIR = $(dir $(LIB_DIR))
+    ConfMsgResult($(LIB_DIR))
 
-if $(not $(defined INCLUDE_DIR))
-   INCLUDE_DIR = $(PREFIX)/include
-   export
+    ConfMsgChecking(include dir)
+    export INCLUDE_DIR
+    if $(not $(defined INCLUDE_DIR))
+        INCLUDE_DIR = $(PREFIX)/include
+    INCLUDE_DIR = $(dir $(INCLUDE_DIR))
+    ConfMsgResult($(INCLUDE_DIR))
 
 RILLC_BIN = $(file rillc/src/rillc)
 

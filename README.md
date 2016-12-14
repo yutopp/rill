@@ -48,7 +48,7 @@ or `omake unit_test` and `omake e2e_test`
 ## Release
 ### Use OPAM
 ```
-opam pin add rill .
+opam pin -k git add rill .
 opam install rill.0.0.1
 ```
 and
@@ -66,17 +66,13 @@ omake install
 
 You can use these variables.
 
-|variable|default value|required|
+|variable|default value|
 |:--|:--|:--|
-|PREFIX|`/usr/local`|every time|
-|RELEASE|`false`|build time|
-|COVERAGE|`false`|build time|
+|PREFIX|`/usr/local`|
+|RELEASE|`false`|
+|COVERAGE|`false`|
 
-There is no configure file. Thus, you need to specify these variables every time. Ex,
-```
-omake RELEASE=true PREFIX=/usr
-omake PREFIX=/usr install
-```
+if you change these values, please run `omake clean` every time.
 
 ## License
 Boost License Version 1.0
