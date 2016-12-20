@@ -1,0 +1,6 @@
+import std.stdio;
+
+def main() {
+    val a = to!(uint8)(42u);
+    a.print();
+}

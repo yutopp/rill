@@ -64,7 +64,8 @@ build_corelib: lib/$(LIBNAME).a
 
 lib/$(LIBNAME).a: $(CORE_SRC_TARGET_OBJS)
     prepare-directory(lib)
-    $(AR $@) $(CORE_SRC_TARGET_OBJS)
+    rm-if-exists($@)
+    $(AR $@) $+
 
 install: lib/$(LIBNAME).a
     # copy srcs

@@ -11,7 +11,7 @@ open Sema_context
 
 let process_error err ctx =
   Printf.printf "\n===============================\n";
-  ErrorMsg.print err;
+  Error_msg.print err;
   store_error_message "" ctx;
   Printf.printf "\n===============================\n";
   ()

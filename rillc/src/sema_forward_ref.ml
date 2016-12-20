@@ -34,6 +34,9 @@ let rec solve_forward_refs ?(meta_variables=[])
   | Ast.ExprStmt ast ->
      TAst.ExprStmt (TAst.PrevPassNode ast)
 
+  | Ast.VoidExprStmt ast ->
+     TAst.VoidExprStmt (TAst.PrevPassNode ast)
+
   | Ast.ReturnStmt (ast) ->
      TAst.ReturnStmt ((Option.map (fun a -> TAst.PrevPassNode a) ast))
 
@@ -46,7 +49,7 @@ let rec solve_forward_refs ?(meta_variables=[])
        TAst.EmptyStmt
      end
 
-  | Ast.FunctionDefStmt (id_name, lt_specs, params, opt_ret_type, _, body, None, _) ->
+  | Ast.FunctionDefStmt (id_name, lt_specs, params, opt_ret_type, instance_cond, body, None, _) ->
      begin
        let loc = None in
        let fenv = declare_pre_function id_name meta_variables loc parent_env ctx in
@@ -55,8 +58,8 @@ let rec solve_forward_refs ?(meta_variables=[])
                       id_name,
                       lt_specs,
                       TAst.PrevPassNode params,
-                      Option.map (fun x -> TAst.PrevPassNode x) opt_ret_type,
-                      None,
+                      opt_ret_type |> Option.map (fun x -> TAst.PrevPassNode x),
+                      instance_cond |> Option.map (fun x -> TAst.PrevPassNode x),
                       TAst.PrevPassNode body,
                       opt_attr,
                       Some fenv
@@ -85,7 +88,7 @@ let rec solve_forward_refs ?(meta_variables=[])
        node
      end
 
-  | Ast.ExternFunctionDefStmt (id_name, lt_specs, params, ml, ret_type, extern_fname, None, _) ->
+  | Ast.ExternFunctionDefStmt (id_name, lt_specs, params, ml, ret_type, instance_cond, extern_fname, None, _) ->
      begin
        let loc = None in
        let fenv = declare_pre_function id_name meta_variables loc parent_env ctx in
@@ -96,6 +99,7 @@ let rec solve_forward_refs ?(meta_variables=[])
                       TAst.PrevPassNode params,
                       ml,
                       TAst.PrevPassNode ret_type,
+                      instance_cond |> Option.map (fun x -> TAst.PrevPassNode x),
                       extern_fname,
                       opt_attr,
                       Some fenv
@@ -342,7 +346,7 @@ and prepare_module pkg_names mod_name ctx =
           dir
        | ([], hist) ->
           let full_module_name = (String.concat "." pkg_names) ^ "." ^ mod_name in
-          fatal_error (ErrorMsg.PackageNotFound (full_module_name, hist))
+          fatal_error (Error_msg.PackageNotFound (full_module_name, hist))
        | _ -> failwith "[ICE]"
      in
      Debug.printf "import from = %s\n" target_dir;

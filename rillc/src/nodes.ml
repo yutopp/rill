@@ -32,14 +32,15 @@ module Make (Ctx : NodeContextType) =
        *)
       | StatementList of ast list
       | ExprStmt of ast
+      | VoidExprStmt of ast
       | ReturnStmt of ast option
       | ImportStmt of string list * string * ctx_t
       (* name, lifetimes, params, return_type?, instance_cond, body, attribute?, _ *)
       | FunctionDefStmt of Id_string.t * lifetime_def_specs * ast * ast option * ast option * ast * attr_tbl_t option * ctx_t
-      (* name, lifetimes, params, return_type?, body, attribute?, _ *)
+      (* name, lifetimes, params, quals, return_type?, body, attribute?, _ *)
       | MemberFunctionDefStmt of Id_string.t * lifetime_def_specs * ast * qual_t list * ast option * ast * attr_tbl_t option * ctx_t
-      (* name, lifetimes, params, return_type, meta_level, function name(TODO: change to AST), attribute?, _ *)
-      | ExternFunctionDefStmt of Id_string.t * lifetime_def_specs * ast * Meta_level.t * ast * string * attr_tbl_t option * ctx_t
+      (* name, lifetimes, params, meta_level, return_type, instance_cond, function name(TODO: change to AST), attribute?, _ *)
+      | ExternFunctionDefStmt of Id_string.t * lifetime_def_specs * ast * Meta_level.t * ast * ast option * string * attr_tbl_t option * ctx_t
       (* name, lifetime, body, attribute?, _ *)
       | ClassDefStmt of Id_string.t * lifetime_def_specs * ast * attr_tbl_t option * ctx_t
       (* name, lifetimes, params, class name(TODO: change to AST), body?, attribute?, _ *)
@@ -47,6 +48,7 @@ module Make (Ctx : NodeContextType) =
       (* VarInit, _ *)
       | VariableDefStmt of Meta_level.t * ast * ctx_t
       | MemberVariableDefStmt of ast * ctx_t
+
       (* name, template params, inner node *)
       | TemplateStmt of Id_string.t * ast * ast
       | EmptyStmt
@@ -64,8 +66,6 @@ module Make (Ctx : NodeContextType) =
       | ScopeExpr of ast
       | IfExpr of ast * ast * ast option * term_ctx_t
       | ForExpr of ast option * ast option * ast option * ast
-      | NewExpr of ast
-      | DeleteExpr of ast
       | StatementTraitsExpr of string * ast
 
       (* used for calling destructors *)
@@ -178,6 +178,9 @@ module Make (Ctx : NodeContextType) =
       | ExprStmt _ ->
          Debug.printf "ExprStmt\n"
 
+      | VoidExprStmt _ ->
+         Debug.printf "VoidExprStmt\n"
+
       | FunctionDefStmt (id, _, _, _, _, statements, _, ctx) ->
          begin
            Debug.printf "function def : ";
@@ -265,14 +268,6 @@ module Make (Ctx : NodeContextType) =
          begin
            Debug.printf "sub scripting\n"
          end
-      | NewExpr _ ->
-         begin
-           Debug.printf "new\n"
-         end
-      | DeleteExpr _ ->
-         begin
-           Debug.printf "delete\n"
-         end
       | StatementTraitsExpr _ ->
          begin
            Debug.printf "stmt traits\n"
@@ -283,7 +278,7 @@ module Make (Ctx : NodeContextType) =
          end
       | IntLit (v, bits, signed, _) ->
          begin
-           Printf.printf "Int32Lit %d\n" v
+           Debug.printf "Int32Lit %d\n" v
          end
       | BoolLit _ ->
          begin

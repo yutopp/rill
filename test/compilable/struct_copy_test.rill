@@ -1,0 +1,37 @@
+import std.assert;
+import std.stdio;
+
+def main() {
+    val p = &10;
+    assert(p == p);
+
+    val p2 = p;
+    assert(p == p2);
+
+    val a = init(p);
+    assert(sizeof('static A) == 16);
+
+    assert(a.v1 == 1024u);
+
+    "a.p1: ".print();
+    a.p1.print_addr();
+    "p   : ".print();
+    p.print_addr();
+
+    assert(a.p1 == p);
+
+    "passed".println();
+}
+
+class 'a A {
+    val v1: uint32;
+    val p1: 'a raw_ptr!int32;
+}
+
+def 'a init(p: 'a raw_ptr!(int32)): 'a A {
+    val mutable a = 'a A();
+    a.v1 = 1024u;
+    a.p1 = p;
+
+    return a;
+}

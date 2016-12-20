@@ -1,7 +1,7 @@
 import std.stdio;
 
 def main() {
-    for(val mutable i=1; i<20; ++i) {
+    for(val mutable i=1; i<20; ++i) with {
         if (i % 15 == 0) {
              println("FizzBuzz");
         } else if (i % 5 == 0) {
@@ -10,6 +10,6 @@ def main() {
              println("Fizz");
         } else {
             print(i);
-        };
+        }
     };
 }

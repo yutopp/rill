@@ -29,7 +29,6 @@ let compile co filepath =
   let cur_dir = Sys.getcwd () in
   let module_search_dirs = cur_dir :: module_search_dirs in
 
-  Debug.printf "===== PHASE = ANALYZE SEMANTICS\n";
   let (env, ctx) = Sema.make_default_state system_libs_dirs module_search_dirs in
   let mod_env =
     match Sema.load_module filepath env ctx with

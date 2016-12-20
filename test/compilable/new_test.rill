@@ -1,0 +1,30 @@
+import std.stdio;
+import std.assert;
+
+def p() {
+    val mutable p = new!(int32)();
+    return p;
+}
+
+def p2() {
+    val mutable p = new!(int32)();
+    p = new!(int32)();
+    return p;
+}
+
+//def p3() {
+//    val i = 32;
+//    return &32;
+//}
+
+def p_array() {
+    assert(sizeof(array!(uint32, 4u)) == 4 * 4);
+    val mutable p = new!(array!(uint32, 4u))();
+    return p;
+}
+
+def main() {
+   val p = p();
+   val p2 = p2();
+    //return 0;
+}

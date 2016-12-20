@@ -53,6 +53,7 @@ USE_OCAMLFIND = true
 OCAMLPACKS[] =
    oUnit
    batteries
+   stdint
    ocamlgraph
 
 #

@@ -8,7 +8,7 @@ def f(v: bool) {
 		val x = 30;
 		x.print();
 		return;
-	};
+	}
 }
 
 def main() {

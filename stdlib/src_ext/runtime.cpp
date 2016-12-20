@@ -6,25 +6,25 @@
 extern "C"
 void rill_print_int32(std::int32_t const v)
 {
-    std::cout << v << std::endl;
+    std::cout << v << std::flush;
 }
 
 extern "C"
 void rill_print_uint32(std::uint32_t const v)
 {
-    std::cout << v << std::endl;
+    std::cout << v << std::flush;
 }
 
 extern "C"
 void rill_print_bool(bool const v)
 {
-    std::cout << v << std::endl;
+    std::cout << v << std::flush;
 }
 
 extern "C"
 void rill_print_char(char const c)
 {
-    std::cout << c << std::endl;
+    std::cout << c << std::flush;
 }
 
 extern "C"
@@ -71,7 +71,6 @@ char rill_read_char()
 {
     char c;
     std::cin >> c;
-
     return c;
 }
 

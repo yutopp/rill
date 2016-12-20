@@ -1,0 +1,6 @@
+def main() {
+    val mutable s = 10;
+    if (false) s = 0;
+
+    if (false) 0;
+}

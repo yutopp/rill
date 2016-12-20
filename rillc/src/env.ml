@@ -18,7 +18,6 @@ type module_privacy =
   | ModPublic
   | ModPrivate
 
-
 module Kind =
   struct
     type t =
@@ -90,6 +89,7 @@ type 'ast env_t = {
 
    ms_instanced_args_cache_for_env  : (string, 'ast env_t) Hashtbl.t;
    ms_instanced_args_cache_for_node : (string, 'ast) Hashtbl.t;
+   ms_instanced_args_pre_caches     : (string, 'ast env_t list) Hashtbl.t;
  }
 
 
@@ -286,9 +286,11 @@ let find_on_env e name =
   let lt = get_lookup_table e in
   Hashtbl.find_option lt.scope name
 
-let rec find_all_on_env ?(checked_env=[]) env name =
+module EnvSet = Set.Make(EnvId)
+
+let rec find_all_on_env ?(checked_env=EnvSet.empty) env name =
   let ns_env = env.ns_env in
-  if List.mem ns_env.env_id checked_env then
+  if EnvSet.mem ns_env.env_id checked_env then
     failwith "[ERR] recursive package search";
 
   match find_on_env ns_env name with
@@ -309,27 +311,14 @@ let rec find_all_on_env ?(checked_env=[]) env name =
          | ModPublic ->
             (* if the module is public, find symbols recursively *)
             let res =
-              find_all_on_env ~checked_env:(ns_env.env_id::checked_env) mod_env name
+              find_all_on_env ~checked_env:(EnvSet.add ns_env.env_id checked_env) mod_env name
             in
             res @ envs
        in
        List.fold_left search_module [] lt.imported_mods
      end
 
-(*  *)
-(*let rec lookup e name =
-  let target = find_all_on_env e name in
-  match target with
-  | [] -> if is_root e then
-            failwith "[ICE] cannot find on root env"
-          else
-            let penv = parent_env e in
-            if is_root penv then
-              []
-            else
-              lookup penv name
-  | xs -> xs
- *)
+
 let rec kind_of_env e =
   match get_env_record e with
   | Root _ -> Kind.Other
@@ -606,6 +595,7 @@ module MultiSetOp =
                ms_template_instances = [];
                ms_instanced_args_cache_for_env = Hashtbl.create 0;
                ms_instanced_args_cache_for_node = Hashtbl.create 0;
+               ms_instanced_args_pre_caches = Hashtbl.create 0;
              }
          in
          let e = create_scoped_env env er None in

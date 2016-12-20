@@ -48,7 +48,7 @@ or `omake unit_test` and `omake e2e_test`
 ## Release
 ### Use OPAM
 ```
-opam pin -k git add rill .
+opam pin add rill .
 opam install rill.0.0.1
 ```
 and
@@ -71,7 +71,7 @@ You can use these variables.
 |PREFIX|`/usr/local`|
 |RELEASE|`false`|
 |COVERAGE|`false`|
-
+|USE_LOCAL_DEV_LIB|not $(RELEASE)|
 if you change these values, please run `omake clean` every time.
 
 ## License

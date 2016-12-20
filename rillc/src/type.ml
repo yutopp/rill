@@ -180,18 +180,6 @@ let rec to_string ty =
     | _ -> "undef"
   in
 
-  let aux_gs = match ty.ti_aux_generics_args with
-    | [] -> ""
-    | lx ->
-       Printf.sprintf "<%s>" (lx |> List.map Lifetime.to_string |> String.concat ", ")
-  in
-
-  let gs = match ty.ti_generics_args with
-    | [] -> ""
-    | lx ->
-       Printf.sprintf "<%s>" (lx |> List.map Lifetime.to_string |> String.concat ", ")
-  in
-
   let base_s = match type_sort ty with
     | UniqueTy cenv ->
        begin
@@ -211,7 +199,7 @@ let rec to_string ty =
                   Printf.sprintf "!(%s)" (String.concat ", " targs_s)
                 else ""
   in
-  Printf.sprintf "%s%s(%s(%s%s))%s" rv_s aux_gs mut_s base_s targs_s gs
+  Printf.sprintf "%s(%s(%s%s))" rv_s mut_s base_s targs_s
 
 
 and to_s_ctfe value =

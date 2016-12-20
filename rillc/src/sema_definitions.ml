@@ -7,15 +7,11 @@
  *)
 
 open Batteries
+open Stdint
 open Sema_context
 
 type type_gen_t = env_t Type.Generator.t
 
-type conv_filter_t =
-  | Trans of type_info_t
-  | ConvFunc of type_info_t * env_t * Lifetime.t list
-
-type earg_t = TAst.ast * TAst.term_aux_t
 
 let make_earg ast aux constraints =
   (ast, aux, constraints)
@@ -30,47 +26,6 @@ let split3 lists =
   (a |> List.rev, b |> List.rev, c |> List.rev)
 
 
-module FuncMatchLevel =
-  struct
-    type t =
-      | ExactMatch
-      | QualConv
-      | ImplicitConv
-      | NoMatch
-
-    let to_int = function
-      | ExactMatch      -> 0
-      | QualConv        -> 1
-      | ImplicitConv    -> 2
-      | NoMatch         -> 3
-
-    let of_int = function
-      | 0 -> ExactMatch
-      | 1 -> QualConv
-      | 2 -> ImplicitConv
-      | 3 -> NoMatch
-      | _ -> failwith "invalid"
-
-    let bottom a b =
-      of_int (max (to_int a) (to_int b))
-
-    (* ascending order, ExactMatch -> ... -> NoMatch *)
-    let compare a b =
-      compare (to_int a) (to_int b)
-
-    (* if 'a' is matched than 'b', returns true *)
-    let is_better a b =
-      (to_int a) < (to_int b)
-
-    let is_same a b =
-      (to_int a) = (to_int b)
-
-    let to_string = function
-      | ExactMatch      -> "ExactMatch"
-      | QualConv        -> "QualConv"
-      | ImplicitConv    -> "ImplicitConv"
-      | NoMatch         -> "NoMatch"
-  end
 
 
 let ctor_name = "ctor"
@@ -90,167 +45,69 @@ let default_ty_attr = {
 exception Instantiation_failed
 exception Template_type_mismatch
 
-let pos_of_earg earg =
-  let (_, aux) = earg in
-  TAst.Aux.loc aux
-
-let type_of_earg earg =
-  let (_, aux) = earg in
-  TAst.Aux.ty aux
-
-module ErrorMsg = struct
-  module ArgPosMap = Map.Make(Int)
-
-  type t =
-    (* num of params * num of args *)
-    | DifferentArgNum of int * int
-    (* target_type * source_arg * ErrorLevel *)
-    | ConvErr of (type_info_t * earg_t * FuncMatchLevel.t) ArgPosMap.t * env_t
-    | NoMatch of t list * Loc.t
-    | MemberNotFound of env_t * env_t list * Loc.t
-    | PackageNotFound of string * (string * string list) list
-
-    | Msg of string
-
-    | TmpError of string * env_t
-
-  let print_env_trace env =
-    let env_loc = env.Env.loc in
-    match Env.get_env_record env with
-    | Env.Module (lt, r) ->
-       Printf.printf "  module   : %s (%s)\n"
-                     r.Env.mod_name
-                     (Loc.to_string env_loc)
-    | Env.Function (lt, r) ->
-       let name = Id_string.to_string r.Env.fn_name in
-       let f pk =
-         match pk with
-         | Env.FnParamKindType ty -> Type.to_string ty
-       in
-       let params_s = r.Env.fn_param_kinds |> List.map f |> String.join ", " in
-       let ret_ty_s = r.Env.fn_return_type |> Type.to_string in
-       Printf.printf "  function : %s(%s): %s (%s)\n"
-                     name
-                     params_s
-                     ret_ty_s
-                     (Loc.to_string env_loc)
-    | Env.Class (lt, r) ->
-       let name = Id_string.to_string r.Env.cls_name in
-       Printf.printf "  class    : %s (%s)\n"
-                     name
-                     (Loc.to_string env_loc)
-    | Env.Scope _ ->
-       begin
-         Printf.printf "Scope\n"
-       end
-    | Env.Root _ -> ()
-    | Env.MetaVariable _ -> ()
-    | Env.MultiSet _ -> ()
-    | _ -> failwith "[ICE] unknown env"
-
-  let string_of_loc_region loc =
-    match loc with
-    | Some l ->
-       assert (l.Loc.pos_begin_cnum >= 0);
-       assert (l.Loc.pos_end_cnum >= 0);
-       assert (l.Loc.pos_end_cnum > l.Loc.pos_begin_cnum);
-       Debug.printf "begin = %d / end = %d\n" l.Loc.pos_begin_cnum l.Loc.pos_end_cnum;
-       Debug.printf "s = %s\n" (Loc.to_string (Some l));
-
-       let lines =
-         Batteries.File.with_file_in l.Loc.pos_fname
-                                     (fun input ->
-                                       let lines =
-                                         input
-                                         |> Batteries.IO.to_input_channel
-                                         |> input_lines
-                                       in
-                                       Enum.drop (l.Loc.pos_begin_lnum-1) lines;
-                                       let rng =
-                                         Enum.take (l.Loc.pos_end_lnum - l.Loc.pos_begin_lnum-1) lines
-                                       in
-                                       rng
-                                     )
-       in
-       lines |> List.of_enum |> String.join "\n"
-    | None -> "<unknown>"
-
-  let rec print ?(loc=None) err =
-    match err with
-    | DifferentArgNum (params_num, args_num) ->
-       Printf.printf "%s:\nError: requires %d but given %d\n"
-                     (Loc.to_string loc) params_num args_num
-
-    | ConvErr (m, f_env) ->
-       let p k (trg_ty, src_arg, level) =
-         let src_loc = pos_of_earg src_arg in
-         let src_ty = type_of_earg src_arg in
-
-         let msg = match level with
-           | FuncMatchLevel.NoMatch ->
-              Printf.sprintf "type '%s' of expr '%s' is not suitable for '%s'"
-                             (Type.to_string src_ty)
-                             (string_of_loc_region src_loc)
-                             (Type.to_string trg_ty)
-           | _ -> failwith ""
-         in
-         Printf.printf "  %dth arg: %s\n" k msg
-       in
-       ArgPosMap.iter p m
-
-    | NoMatch (errs, loc) ->
-       Printf.printf "%s:\nError: There is no matched function\n"
-                     (Loc.to_string loc);
-       List.iter (fun err -> print err) errs
-
-    | MemberNotFound (env, history, loc) ->
-       let env_name = Id_string.to_string (Env.get_name env) in
-
-       Printf.printf "%s:\nError: member \"%s\" is not found in %s\n"
-                     (Loc.to_string loc)
-                     (string_of_loc_region loc)
-                     env_name;
-       Printf.printf "Searched scopes are...\n";
-       List.iter (fun env -> print_env_trace env) history
-
-    | PackageNotFound (full_module_name, hist) ->
-       Printf.printf "Error: module \"%s\" is not found.\n" full_module_name;
-       hist |> List.iter
-                 (fun (package_name, dirs) ->
-                   Printf.printf " \"%s\" is not found in\n" package_name;
-                   dirs |> List.iter
-                             (fun d ->
-                               Printf.printf "  -> %s\n" d;
-                             );
-                   ()
-                 )
-
-    | Msg msg ->
-       Printf.printf "\n------------------\nError:\n %s\n\n-------------------\n" msg
-
-    | TmpError (msg, env) ->
-       Printf.printf "\n------------------\nError:\n %s\n\n-------------------\n" msg;
-       let history =
-         let rec f oe xs =
-           match oe with
-           | Some e -> f (Env.get_parent_env_opt e) (e :: xs)
-           | None -> xs
-         in
-         f (Some env) [] |> List.rev
-       in
-       List.iter (fun env -> print_env_trace env) history
-end
-
-exception Normal_error of ErrorMsg.t
+exception Normal_error of error_msg_t
 let error err =
   raise (Normal_error err)
 
 let error_msg msg =
-  raise (Normal_error (ErrorMsg.Msg msg))
+  raise (Normal_error (Error_msg.Msg msg))
 
-exception Fatal_error of ErrorMsg.t
+exception Fatal_error of error_msg_t
 let fatal_error err =
   raise (Fatal_error err)
 
 let fatal_error_msg msg =
-  raise (Fatal_error (ErrorMsg.Msg msg))
+  raise (Fatal_error (Error_msg.Msg msg))
+
+
+let calc_member_layouts member_vars : (Uint32.t * Uint32.t) list =
+  let f venv =
+    let venv_r = Env.VariableOp.get_record venv in
+    let var_ty = venv_r.Env.var_type in
+    let var_cenv = Type.as_unique var_ty in
+    let var_cenv_r = Env.ClassOp.get_record var_cenv in
+    let vsize = match var_cenv_r.Env.cls_size with
+      | Some v -> v
+      | None -> failwith "[ERR] member size is not determined yet"
+    in
+    let valign = match var_cenv_r.Env.cls_align with
+      | Some v -> v
+      | None -> failwith "[ERR] member align is not determined yet"
+    in
+    (vsize, valign)
+  in
+  List.map f member_vars
+
+let calc_max_align member_layouts =
+  let f max (_, valign) =
+    Uint32.(if valign > max then valign else max)
+  in
+  List.fold_left f (Uint32.zero) member_layouts
+
+let calc_class_layouts (member_layouts: (Uint32.t * Uint32.t) list) =
+  let open Uint32 in
+
+  let max_align = calc_max_align member_layouts in
+
+  let f (csize, offsets) (vsize, valign) =
+    let pad = match rem csize valign with
+      | n when n = zero -> n
+      | n -> valign - n
+    in
+    let offset = csize + pad in
+    (offset + vsize, offset :: offsets)
+  in
+  let (csize, offsets) =
+    List.fold_left f (zero, []) member_layouts
+  in
+
+  match max_align with
+  | n when n = zero ->
+     (zero, one, [])
+  | _ ->
+     let last_pad = match rem csize max_align with
+       | n when n = zero -> zero
+       | n -> max_align - n
+     in
+     let aligned_csize = csize + last_pad in
+     (aligned_csize, max_align, offsets |> List.rev)

@@ -64,13 +64,6 @@ let make_default_context root_env module_search_dirs =
     sc_errors = []
   } in
 
-  (**)
-  (*
-  let builtin_mod_e = load_builtin_module ctx in
-  ctx.sc_builtin_m_env <- Some builtin_mod_e;
-
-  cache_primitive_types builtin_mod_e ctx;
-   *)
   ctx
 
 let make_default_state system_libs_dirs user_srcs_dirs =
@@ -89,14 +82,20 @@ let analyze_module mod_env ctx =
   | _ -> None
 
 let load_module filename env ctx =
-  try
-    let m = prepare_module_from_filepath filename ctx in
-    analyze_module m ctx
-    |> Option.map (fun sem_node ->
-           Env.update_rel_ast m sem_node;
-           Env.update_status m Env.Complete;
-           m)
-  with
-  | Fatal_error err ->
-     Sema_error.process_error err ctx;
-     None
+  let timer = Debug.Timer.create () in
+  Debug.reportf "= LOAD_MODULE(%s)" filename;
+  let res =
+    try
+      let m = prepare_module_from_filepath filename ctx in
+      analyze_module m ctx
+      |> Option.map (fun sem_node ->
+             Env.update_rel_ast m sem_node;
+             Env.update_status m Env.Complete;
+             m)
+    with
+    | Fatal_error err ->
+       Sema_error.process_error err ctx;
+       None
+  in
+  Debug.reportf "= LOAD_MODULE(%s) %s" filename (Debug.Timer.string_of_elapsed timer);
+  res

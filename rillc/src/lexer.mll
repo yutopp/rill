@@ -54,6 +54,7 @@ rule token = parse
   | "for"               { KEYWORD_FOR }
   | "else"              { KEYWORD_ELSE }
   | "when"              { KEYWORD_WHEN }
+  | "with"              { KEYWORD_WITH }
   | "pre"               { KEYWORD_PRE }
   | "post"              { KEYWORD_POST }
   | "unary"             { KEYWORD_UNARY }

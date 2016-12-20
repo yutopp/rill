@@ -105,5 +105,12 @@ let (>=) lhs rhs =
      else
        failwith "[ERR] cannot compare"
 
+  | (Lifetime.LtUnmanaged, Lifetime.LtDynamic _) ->
+     true
+
+  | (Lifetime.LtStatic, Lifetime.LtUnmanaged)
+  | (Lifetime.LtUnmanaged, Lifetime.LtStatic) ->
+     true
+
   | (_, _) ->
      failwith @@ "uncomparable " ^ (Lifetime.to_string lhs) ^ " " ^ (Lifetime.to_string rhs)

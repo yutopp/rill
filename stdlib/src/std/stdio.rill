@@ -6,7 +6,7 @@ extern def print(val v: 'static raw_ptr!(uint8)): void = "rill_print_string";
 
 extern def println(val v: 'static raw_ptr!(uint8)): void = "rill_println_string";
 
-extern def print_addr!(T)(val v: 'static raw_ptr!(T)): void = "rill_print_addr";
+extern def print_addr!(T)(val v: raw_ptr!(T)): void = "rill_print_addr";
 
 extern def read_int32(): int32 = "rill_read_int32";
 extern def read_char(): uint8 = "rill_read_char";

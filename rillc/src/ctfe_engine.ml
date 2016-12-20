@@ -12,6 +12,8 @@ open Ctfe_value
 module L = Llvm
 module LE = Llvm_executionengine
 
+module TAst = Tagged_ast
+
 type t = {
   cg_ctx        : Codegen_llvm.ctx_t;
   exec_engine   : LE.llexecutionengine;
@@ -102,8 +104,10 @@ let invoke_function engine fname ret_ty type_sets =
        failwith "[ICE] this type is not supported"
      end
 
+let register_metavar engine ctfe_val is_addr env =
+  Codegen_llvm.register_metaval ctfe_val is_addr env engine.cg_ctx
 
-let execute engine expr_node expr_ty type_sets =
+let execute' engine expr_node expr_ty type_sets =
   let module CgCtx = Codegen_llvm.Ctx in
   (* TODO: add cache... *)
   (*Debug.printf "JIT ==== execute!!!\n";*)
@@ -136,7 +140,8 @@ let execute engine expr_node expr_ty type_sets =
   try
     begin
       let (expr_llval, _, is_addr) =
-        Codegen_llvm.generate_code expr_node engine.cg_ctx in
+        Codegen_llvm.generate_code expr_node engine.cg_ctx
+      in
       Debug.printf ">>> DUMP LLVM VALUE / is_addr: %b\n" is_addr;
       Codegen_llvm.debug_dump_value expr_llval;
       Debug.printf "===\n";
@@ -174,6 +179,45 @@ let execute engine expr_node expr_ty type_sets =
        (Ctfe_value.Undef uni_id, false)
      end
 
+(* TODO: implement cache *)
+let execute engine expr_node expr_ty type_sets =
+  match expr_node with
+  | TAst.GenericId (name, lt_args, Some rel_env) ->
+     begin
+       let { Env.er = er; _ } = rel_env in
+       match er with
+       | Env.Class (_, r) ->
+          let ty_attr_val_default = {
+              Type_attr.ta_ref_val = Type_attr.Val;
+              Type_attr.ta_mut = Type_attr.Const;
+            } in
+            (* generics *)
+            assert (List.length r.Env.cls_generics_vals >= List.length lt_args);
+            let generics_args =
+              let rec f pl al acc =
+                match (pl, al) with
+                | ([], []) -> acc
+                | ([], _) -> failwith ""
+                | (_::px, []) -> f px [] (Lifetime.LtUndef :: acc)  (* TODO: check undef *)
+                | (p::px, a::ax) -> f px ax (a :: acc)
+              in
+              f r.Env.cls_generics_vals lt_args [] |> List.rev
+            in
 
-let register_metavar engine ctfe_val is_addr env =
-  Codegen_llvm.register_metaval ctfe_val is_addr env engine.cg_ctx
+            (* type *)
+            let ty =
+              Type.Generator.generate_type type_sets.Type_sets.ts_type_gen
+                                           (Type_info.UniqueTy rel_env)
+                                           r.Env.cls_template_vals
+                                           generics_args
+                                           ty_attr_val_default
+            in
+
+            (Ctfe_value.Type ty, false)
+       | _ ->
+          execute' engine expr_node expr_ty type_sets
+     end
+
+  (* execute normally... *)
+  | _ ->
+    execute' engine expr_node expr_ty type_sets

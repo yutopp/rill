@@ -40,31 +40,35 @@ program_entry:
                 prog_module EOF { $1 }
 
 prog_module:
-                m = module_decl { m }
+                m = module_decl
+                body = top_level_statements
+                {
+                    let (pkg_names, mod_name, attr_opt) = m in
+                    let ast =
+                      Ast.Module (body, pkg_names, mod_name, Mi.full_filepath, ())
+                    in
+                    match attr_opt with
+                    | Some attr -> Ast.AttrWrapperStmt (attr, ast)
+                    | None -> ast
+                }
 
+%inline
 module_decl:
                 (* no module specifier *)
-                body = top_level_statements
                 {
                     let pkg_names = Mi.package_names in
                     let mod_name = Mi.module_name in
-                    Ast.Module (body, pkg_names, mod_name, Mi.full_filepath, ())
+                    (pkg_names, mod_name, None)
                 }
 
         |       attr_opt = attribute?
                 KEYWODD_MODULE
                 xs = separated_nonempty_list(DOT, rel_id_has_no_op_as_raw)
-                body = top_level_statements
                 {
                     let rev_xs = List.rev xs in
                     let pkg_names = List.rev (List.tl rev_xs) in
                     let mod_name = List.hd rev_xs in
-                    let ast =
-                        Ast.Module (body, pkg_names, mod_name, Mi.full_filepath, ())
-                    in
-                    match attr_opt with
-                    | Some attr -> Ast.AttrWrapperStmt (attr, ast)
-                    | None -> ast
+                    (pkg_names, mod_name, attr_opt)
                 }
 
 
@@ -98,7 +102,6 @@ import_statement:
                     Ast.ImportStmt (pkg_names, mod_name, ())
                 }
 
-
 function_decl_statement:
                 KEYWORD_DEF
                 lifetimes = lifetime_parameter_decl_list
@@ -114,7 +117,7 @@ function_decl_statement:
                 }
 
 when_cond:
-                KEYWORD_WHEN expression { $2 }
+                KEYWORD_WHEN logical_or_expression { $2 }
 
 function_decl_body_block:
                 function_body_block             { $1 }
@@ -347,10 +350,11 @@ extern_function_statement:
                 params = parameter_variables_decl_list
                 ml = meta_level
                 ret_type = type_specifier
+                t_cond = when_cond?
                 ASSIGN
                 body_name = STRING (*string_lit*)
                 {
-                    let n = Ast.ExternFunctionDefStmt (name, lifetimes, params, ml, ret_type, body_name, None, ()) in
+                    let n = Ast.ExternFunctionDefStmt (name, lifetimes, params, ml, ret_type, t_cond, body_name, None, ()) in
                     templatefy name n opt_tparams
                 }
 
@@ -380,11 +384,16 @@ program_body_statement:
                 attribute program_body_statement_ { Ast.AttrWrapperStmt ($1, $2) }
         |       program_body_statement_ { $1 }
 
-program_body_statement_:
+program_body_statement_p_(ExpStmt):
                 empty_statement { $1 }
-        |       expression_statement { $1 }
+        |       control_flow_statement { $1 }
+        |       scope_statement { $1 }
+        |       ExpStmt { $1 }
         |       variable_declaration_statement { $1 }
         |       return_statement { $1 }
+
+program_body_statement_:
+                program_body_statement_p_(expression_statement) { $1 }
 
 program_body_statements_list:
                 program_body_statement* { Ast.StatementList ($1) }
@@ -502,36 +511,62 @@ template_argument_list:
                 { [v] }
 
 (**)
+control_flow_statement:
+                if_statement { Ast.ExprStmt $1 }
+
+if_statement:
+                KEYWORD_IF
+                LPAREN cond = assign_expression RPAREN
+                then_n = if_clause_statement %prec IFX
+                {
+                    let then_ast = Ast.ScopeExpr (Ast.VoidExprStmt then_n) in
+                    Ast.IfExpr (cond, then_ast, None, pos $startpos $endpos)
+                }
+        |       KEYWORD_IF
+                LPAREN cond = assign_expression RPAREN
+                then_n = if_clause_statement
+                KEYWORD_ELSE
+                else_n = if_clause_statement
+                {
+                    let then_ast = Ast.ScopeExpr (Ast.VoidExprStmt then_n) in
+                    let else_ast = Ast.ScopeExpr (Ast.VoidExprStmt else_n) in
+                    Ast.IfExpr (cond, then_ast, Some else_ast, pos $startpos $endpos)
+                }
+
+if_clause_statement:
+                program_body_statement_p_(assign_expression_statement) { $1 }
+
+scope_statement:
+                scope_expression { Ast.ExprStmt $1 }
+
+(**)
 expression_statement:
                 expression SEMICOLON { Ast.ExprStmt $1 }
 
+%inline
+assign_expression_statement:
+                assign_expression SEMICOLON { Ast.ExprStmt $1 }
 
 (**)
 id_expression:
                 logical_or_expression { $1 }
 
-
 expression:
-                assign_expression { $1 }
+                control_flow_expression { $1 }
 
-assign_expression:  (* right to left *)
-                logical_or_expression { $1 }
-        |       logical_or_expression op = ASSIGN assign_expression
-                {
-                    let op_name = Id_string.BinaryOp op in
-                    let op_id = Ast.Id (op_name, [], pos $startpos(op) $endpos(op)) in
-                    Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
-                }
+control_flow_expression:
+                assign_expression { $1 }
         |       if_expression { $1 }
         |       for_expression { $1 }
+        |       KEYWORD_WITH scope_expression { $2 }
 
 if_expression:
                 KEYWORD_IF
-                LPAREN cond = expression RPAREN
+                LPAREN cond = assign_expression RPAREN
                 then_n = expression %prec IFX
                 { Ast.IfExpr (cond, then_n, None, pos $startpos $endpos) }
         |       KEYWORD_IF
-                LPAREN cond = expression RPAREN
+                LPAREN cond = assign_expression RPAREN
                 then_n = expression
                 KEYWORD_ELSE
                 else_n = expression
@@ -554,6 +589,21 @@ for_expression:
                       | None -> None
                     in
                     Ast.ForExpr (opt_decl_stmt, opt_cond, opt_inc, body)
+                }
+
+scope_expression:
+                LBLOCK
+                stmts = program_body_statements_list
+                RBLOCK
+                { Ast.ScopeExpr (stmts) }
+
+assign_expression:  (* right to left *)
+                logical_or_expression { $1 }
+        |       logical_or_expression op = ASSIGN assign_expression
+                {
+                    let op_name = Id_string.BinaryOp op in
+                    let op_id = Ast.Id (op_name, [], pos $startpos(op) $endpos(op)) in
+                    Ast.BinaryOpExpr ($1, op_id, $3, pos $startpos $endpos)
                 }
 
 logical_or_expression:
@@ -788,13 +838,6 @@ statement_traits_expression:
 primary_expression:
                 primary_value { $1 }
         |       LPAREN expression RPAREN { $2 }
-        |       scope_expression { $1 }
-
-scope_expression:
-                LBLOCK
-                stmts = program_body_statements_list
-                RBLOCK
-                { Ast.ScopeExpr (stmts) }
 
 (**)
 primary_value:

@@ -27,8 +27,8 @@ def gstring() {
 }
 
 def main() {
-    val res1 = if (true) 10 else { val a = 20; a + 5; };
-    val res2 = if (false) 10 else { val mutable a = 20; a = a + 5; val b = a; b; };
+    val res1 = if (true) 10 else with { val a = 20; a + 5; };
+    val res2 = if (false) 10 else with { val mutable a = 20; a = a + 5; val b = a; b; };
     res1.print();
     res2.print();
 
@@ -44,7 +44,10 @@ def main() {
 
     (if (true) fstring() else gstring()).print();
 
-    print(if (false) { fstring(); fint(); } else { fstring(); gint(); });
+    (if (false) with { fstring(); fint(); } else with { fstring(); gint(); }) + 10;
+    if (false) { fstring(); fint(); } else { fstring(); gint(); }
 
-    (if (false) { fint(); fstring(); } else { gint(); fstring(); }).print();
+    print(if (false) with { fstring(); fint(); } else with { fstring(); gint(); });
+
+    (if (false) with { fint(); fstring(); } else with { gint(); fstring(); }).print();
 }

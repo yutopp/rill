@@ -52,7 +52,7 @@ CORE_LIB_SRC_DIR = $(dir ../corelib/src)
 
 .SUBDIRS: src_ext
     %.o: %.cpp
-        $(CXX) -c $+ -o $@
+        $(CXX) -c $< -o $@
 
     clean:
         rm -f *~ *.o
@@ -66,7 +66,8 @@ build_stdlib: lib/$(LIBNAME).a
 
 lib/$(LIBNAME).a: $(STD_SRC_TARGET_OBJS)
     prepare-directory(lib)
-    $(AR $@) $(STD_SRC_TARGET_OBJS)
+    rm-if-exists($@)
+    $(AR $@) $+
 
 install: lib/$(LIBNAME).a
     # copy srcs

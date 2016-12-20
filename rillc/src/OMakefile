@@ -86,6 +86,7 @@ if $(equal $(RELEASE), true)
    # do nothing...
 else
    OCAMLFLAGS    += -g -bin-annot
+   OCAMLOPTFLAGS += -p
    export
 
 if $(equal $(COVERAGE), true)
@@ -163,6 +164,7 @@ FILES[] =
    syntax
    env
    env_system
+   function
    attribute
    sema
    sema_forward_ref
@@ -179,6 +181,8 @@ FILES[] =
    type_attr
    type_sets
    type_info
+   error_msg
+   aux
    ctfe_engine
    ctfe_value
    ctfe_exn
@@ -221,8 +225,8 @@ uninstall:
 
 clean:
     rm -f *~ *.opt *.cmi *.cmx *.cmt *.cmti *.cmp *.cmxa *.omc \
-		*.o *.a *.out *.s *.bc *.log *.cache $(PROGRAM) $(LIB) \
-		parser.ml parser.mli tokens.ml tokens.mli lexer.ml \
-		parser_messages.ml syntax.messages.pre \
-        config.ml \
-		*.conflicts *.automaton
+        *.o *.a *.out *.s *.bc *.log *.cache $(PROGRAM) $(LIB) \
+        parser.ml parser.mli tokens.ml tokens.mli lexer.ml \
+        parser_messages.ml syntax.messages.pre \
+        config.ml config.mli \
+        *.conflicts *.automaton

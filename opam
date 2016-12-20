@@ -14,7 +14,7 @@ build: [
   [ "omake" "RELEASE=true" "PREFIX=%{prefix}%" ]
 ]
 install: [
-  [ "omake" "install" "PREFIX=%{prefix}%" ]
+  [ "omake" "install" ]
 ]
 remove: [
   [ "omake" "uninstall" "PREFIX=%{prefix}%" ]

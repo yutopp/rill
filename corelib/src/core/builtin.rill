@@ -4,6 +4,9 @@
 module core.builtin;
 
 #[builtin]
+extern def operator==(lhs: type, rhs: type) onlymeta: bool = "__builtin_op_binary_==_type_type";
+
+#[builtin]
 extern def sizeof(t: type) onlymeta: int32 = "__builtin_sizeof";
 
 #[builtin]
@@ -20,13 +23,14 @@ extern def free!(T)(val :raw_ptr!(T)): void = "rill_core_free";
 // TODO: fix
 extern def memcpy(val :raw_ptr!(uint8), val :raw_ptr!(uint8), :int32): void = "rill_core_memcpy";
 extern def memset(val :raw_ptr!(uint8), val :uint8, val :int32): void = "rill_core_memset";
+extern def memset!(T)(val :raw_ptr!(T), val :uint8, val :int32): void = "rill_core_memset";
 
 #[builtin]
 extern def 'a unsafe_ptr_cast!(T)(val :'a untyped_raw_ptr): 'a raw_ptr!(T) = "__builtin_unsafe_ptr_cast";
 
-def new!(T)() {
-    val p = malloc(sizeof!(T)());
-    return p;
+def new!(T)(): 'unmanaged raw_ptr!(T) {
+    val p = malloc(sizeof(T));
+    return unsafe_ptr_cast!(T)(p);
 }
 
 //
@@ -35,12 +39,28 @@ extern def 'a operator unary& ('a ref :int32): 'a raw_ptr!(int32) = "__builtin_m
 
 
 //def to!(T)(v: int32) when T
+#[builtin]
+extern def to!(T)(val v: uint32): T when T == uint8 = "__builtin_cast_from_uint32_to_uint8";
+
+// TODO: fix
+#[builtin]
+extern def to_int32(val v: uint8): int32 = "__builtin_cast_from_uint8_to_int32";
+
+// TODO: fix
+#[builtin]
+extern def to_uint32(val v: uint32): uint32 = "__builtin_identity";
+#[builtin]
+extern def to_uint32(val v: int32): uint32 = "__builtin_cast_from_int32_to_uint32";
+#[builtin]
+extern def to_uint32(val v: bool): uint32 = "__builtin_cast_from_bool_to_uint32";
 
 // bool
 #[builtin, primitive, size = 1u, align = 1u]
 extern class bool = "__builtin_bool_type"
 #[builtin]
 extern def operator unary! (val :bool): bool = "__builtin_op_unary_pre_!_bool";
+#[builtin]
+extern def operator&&(val :bool, val :bool): int32 = "__builtin_op_binary_&&_bool_bool";
 
 // uint8
 #[builtin, primitive, size = 1u, align = 1u]
@@ -97,7 +117,8 @@ def operator pre--(ref mutable i:int32): void
     i = i - 1;
     return;
 }
-
+#[builtin]
+extern def operator unary-(val :int32): int32 = "__builtin_op_unary_pre_-_int";
 
 // uint32
 #[builtin, primitive, size = 4u, align = 4u]
@@ -182,6 +203,9 @@ extern def 'a operator+ !(T)(val :'a raw_ptr!(T), val :int32): 'a raw_ptr!(T) = 
 def operator- !(T)(p :raw_ptr!(T), n :int32): raw_ptr!(T) {
     return p + (0 - n);
 }
+
+#[builtin]
+extern def operator==!(T)(val lhs: raw_ptr!(T), val rhs: raw_ptr!(T)): bool = "__builtin_op_binary_==_ptr_ptr";
 
 // uint version. TODO: remove
 #[builtin]

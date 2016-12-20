@@ -72,6 +72,10 @@ let make_default_context ~type_sets ~uni_map ~target_module =
     ~target_module_id:(target_module |> Option.map Env.get_id)
 
 
+let llval_i1 v ctx =
+  let open Ctx in
+  L.const_int (L.i1_type ctx.ir_context) (if v then 1 else 0)
+
 let llval_i32 v ctx =
   let open Ctx in
   L.const_int_of_string (L.i32_type ctx.ir_context) (Int32.to_string v) 10
@@ -80,15 +84,19 @@ let llval_u32 v ctx =
   let open Ctx in
   L.const_int_of_string (L.i32_type ctx.ir_context) (Uint32.to_string v) 10
 
+let do_debug_print_flag = not Config.is_release && false
 
 let debug_dump_value v =
-  Debug.printf "%s\n" (L.string_of_llvalue v)
+  if do_debug_print_flag then
+    Debug.printf "%s\n" (L.string_of_llvalue v)
 
 let debug_dump_module m =
-  Debug.printf "%s\n" (L.string_of_llmodule m)
+  if do_debug_print_flag then
+    Debug.printf "%s\n" (L.string_of_llmodule m)
 
 let debug_dump_type t =
-  Debug.printf "%s\n" (L.string_of_lltype t)
+  if do_debug_print_flag then
+    Debug.printf "%s\n" (L.string_of_lltype t)
 
 type cg_aux_t =
     {
@@ -104,9 +112,7 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
 
   match node with
   | TAst.Module (inner, pkg_names, mod_name, base_dir, _) ->
-     begin
-       generate_code inner ctx
-     end
+     generate_code inner ctx
 
   | TAst.StatementList (nodes) ->
      let rec gen nx (v, t, p) = match nx with
@@ -118,15 +124,11 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
      gen nodes void_val
 
   | TAst.ExprStmt e ->
-     begin
-       generate_code e ctx
-     end
+     generate_code e ctx
 
-(*  | TAst.ScopeStmt (stmts) ->
-     begin
-       generate_code ~bb:bb stmts ctx
-     end
- *)
+  | TAst.VoidExprStmt e ->
+     let _ = generate_code e ctx in
+     (void_v, void_ty, false)
 
   | TAst.ReturnStmt (opt_e) ->
      begin
@@ -951,7 +953,7 @@ and ctfe_val_to_llval ctfe_val ctx =
      let llval =
        L.const_of_int64 (L.i32_type ctx.ir_context)
                         (Uint32.to_int64 i32)
-                        false (* not signed *)
+                        false (* unsigned *)
      in
      let ty = !(tsets.Type_sets.ts_int32_type_holder) in
      (llval, ty, false)
@@ -1610,6 +1612,32 @@ let inject_builtins ctx =
     register_builtin_func "__builtin_array_type_copy_ctor" f
   in*)
 
+  (* for type *)
+  let () =
+    let () = (* ==(:type, :type): bool *)
+      let f _ _ args ctx =
+        assert (Array.length args = 2);
+        let lhs_ty_val = args.(0) in
+        let lhs_ty = match L.int64_of_const lhs_ty_val with
+          | Some t_id ->
+             Type.Generator.find_type_by_cache_id ctx.type_sets.Type_sets.ts_type_gen t_id
+          | _ -> failwith "[ICE] failed to get a ctfed value"
+        in
+        let rhs_ty_val = args.(1) in
+        let rhs_ty = match L.int64_of_const rhs_ty_val with
+          | Some t_id ->
+             Type.Generator.find_type_by_cache_id ctx.type_sets.Type_sets.ts_type_gen t_id
+          | _ -> failwith "[ICE] failed to get a ctfed value"
+        in
+        let _ = lhs_ty in
+        let _ = rhs_ty in
+        llval_i1 (true) ctx (* TODO: fix *)
+      in
+      register_builtin_func "__builtin_op_binary_==_type_type" f
+    in
+    ()
+  in
+
   (* for int8 *)
   let () =
     let open Builtin_info in
@@ -1618,11 +1646,66 @@ let inject_builtins ctx =
     ()
   in
 
+  let () =
+    let open Builtin_info in
+
+    let () = (* identity *)
+      let f _ _ args ctx =
+        assert (Array.length args = 1);
+        args.(0)
+      in
+      register_builtin_func "__builtin_identity" f
+    in
+
+    let () = (* +(:uint32): uint8 *)
+      let f _ _ args ctx =
+        assert (Array.length args = 1);
+        L.build_intcast args.(0) (L.i8_type ctx.ir_context) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func "__builtin_cast_from_uint32_to_uint8" f
+    in
+
+    let () = (* +(:uint8): int32 *)
+      let f _ _ args ctx =
+        assert (Array.length args = 1);
+        L.build_intcast args.(0) (L.i32_type ctx.ir_context) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func "__builtin_cast_from_uint8_to_int32" f
+    in
+
+    let () = (* +(:int32): uint32 *)
+      let f _ _ args ctx =
+        assert (Array.length args = 1);
+        (* unsigned, use zext *)
+        L.build_zext_or_bitcast args.(0) (L.i32_type ctx.ir_context) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func "__builtin_cast_from_int32_to_uint32" f
+    in
+
+    let () = (* +(:bool): uint32 *)
+      let f _ _ args ctx =
+        assert (Array.length args = 1);
+        (* unsigned, use zext *)
+        L.build_zext_or_bitcast args.(0) (L.i32_type ctx.ir_context) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func "__builtin_cast_from_bool_to_uint32" f
+    in
+    ()
+  in
+
   (* for int32 *)
   let () =
     let open Builtin_info in
     let init _ = L.const_int (L.i32_type ctx.ir_context) 0 in
     define_special_members int32_type_i init;
+
+    let () = (* unary- (:int); int *)
+      let f _ _ args ctx =
+        assert (Array.length args = 1);
+        L.build_neg args.(0) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func "__builtin_op_unary_pre_-_int" f
+    in
 
     let () = (* +(:int, :int): int *)
       let f _ _ args ctx =
@@ -1904,6 +1987,13 @@ let inject_builtins ctx =
       in
       register_builtin_func "__builtin_op_unary_pre_!_bool" f
     in
+    let () = (* &&(:bool, :bool): bool *)
+      let f _ _ args ctx =
+        assert (Array.length args = 2);
+        L.build_and args.(0) args.(1) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func "__builtin_op_binary_&&_bool_bool" f
+    in
     ()
   in
 
@@ -1956,6 +2046,16 @@ let inject_builtins ctx =
       in
       register_builtin_template_func "__builtin_op_unary_pre_*_raw_ptr" f
     in
+
+    let () = (* ==(:raw_ptr!(T), :raw_ptr!(T)): bool *)
+      let f _ _ _ args ctx =
+        assert (Array.length args = 2);
+        let res = L.build_ptrdiff args.(0) args.(1) "" ctx.Ctx.ir_builder in
+        let zero = L.const_int (L.i64_type ctx.ir_context) 0 in
+        L.build_icmp L.Icmp.Eq res zero "" ctx.Ctx.ir_builder
+      in
+      register_builtin_template_func "__builtin_op_binary_==_ptr_ptr" f
+    in
     ()
   in
   ()
@@ -1966,7 +2066,9 @@ exception FailedToBuildBytecode
 let create_object_from_ctx ctx options out_filepath =
   let open Ctx in
 
-  Debug.printf "%s\n" out_filepath;
+  let timer = Debug.Timer.create () in
+  Debug.reportf "= GENERATE_OBJECT(%s)" out_filepath;
+
   let basic_name =
     try
       Filename.chop_extension out_filepath
@@ -1984,10 +2086,17 @@ let create_object_from_ctx ctx options out_filepath =
   let sc = Sys.command (Printf.sprintf "llc %s -filetype=obj -o %s" (Filename.quote bitcode_name) (Filename.quote bin_name)) in
   if sc <> 0 then raise FailedToBuildBytecode;
 
+  Debug.reportf "= GENERATE_OBJECT(%s) %s" out_filepath (Debug.Timer.string_of_elapsed timer);
+
   bin_name
 
 let create_object node out_filepath ctx =
   inject_builtins ctx;
+
+  let timer = Debug.Timer.create () in
+  Debug.reportf "= GENERATE_CODE(%s)" out_filepath;
   let _ = generate_code node ctx in
+  Debug.reportf "= GENERATE_CODE(%s) %s" out_filepath (Debug.Timer.string_of_elapsed timer);
+
   debug_dump_module ctx.Ctx.ir_module;
   create_object_from_ctx ctx [] out_filepath
