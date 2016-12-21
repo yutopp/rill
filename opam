@@ -25,7 +25,8 @@ depends: [
   "batteries"
   "ctypes-foreign"
   "stdint"
-  "llvm"        { = "3.8" }
+  "ocamlgraph"
+  "llvm"        { = "3.9" }
   "omake"       {build}
   "ocamlfind"   {build}
   "ounit"       {build}

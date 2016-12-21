@@ -20,7 +20,7 @@ test:
       -v $(pwd):/cibase
       -v $CIRCLE_ARTIFACTS:/artifacts
       yutopp/rill-build-env
-      /usr/bin/bash ./test/run.sh
+      /bin/bash ./test/run.sh
   post:
     - >
       docker run
@@ -28,4 +28,4 @@ test:
       -v $CIRCLE_ARTIFACTS:/artifacts
       -e "COVERALLS_REPO_TOKEN=$COVERALLS_REPO_TOKEN"
       yutopp/rill-build-env
-      /usr/bin/bash ./test/coverage.sh
+      /bin/bash ./test/coverage.sh
