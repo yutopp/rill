@@ -4,7 +4,7 @@ MAINTAINER yutopp
 
 # system
 RUN apt-get update -qq -y
-RUN apt-get install -qq -y git wget unzip
+RUN apt-get install -qq -y git wget curl unzip
 
 # get ocaml and opam
 RUN apt-get install -qq -y ocaml g++
@@ -19,6 +19,7 @@ RUN apt-get update -qq -y
 
 RUN wget -O - http://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
 RUN apt-get install -qq -y --allow-unauthenticated libllvm3.9 llvm-3.9 llvm-3.9-dev
+RUN update-alternatives --install /usr/bin/llc llc /usr/bin/llc-3.9 39
 
 RUN apt-get install -qq -y cmake python
 RUN apt-get install -qq -y m4
@@ -31,9 +32,6 @@ RUN OPAMDOWNLOADJOBS=1 opam install omake menhir batteries ctypes-foreign stdint
 RUN OPAMDOWNLOADJOBS=1 opam install llvm.3.9
 RUN OPAMDOWNLOADJOBS=1 opam install ounit                   # for unit testing
 RUN OPAMDOWNLOADJOBS=1 opam install bisect_ppx ocveralls    # for testing
-
-#
-RUN update-alternatives --install /usr/bin/llc llc /usr/bin/llc-3.9 39
 
 #
 RUN mkdir /cibase
