@@ -113,5 +113,5 @@ unit_test: $(PROGRAM)
     ./$(PROGRAM)
 
 clean:
-    rm -f *~ *.opt *.cmi *.cmx *.cmt *.cmti *.cmp *.cmxa *.omc \
-		*.o *.a *.out *.s *.bc *.log *.cache $(PROGRAM)
+    rm -f *~ *.opt *.cmi *.cmx *.cmt *.cmti *.cmp *.cmxa *.omc *.annot \
+          *.o *.a *.out *.s *.bc *.log *.cache $(PROGRAM)
