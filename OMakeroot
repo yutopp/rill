@@ -106,6 +106,9 @@ rmdir-if-empty(dir) =
    if $(equal $(length $(ls $(dir))), 0)
       rmdir -rv $(dir)
 
+# workaround...
+CXX = g++
+
 #
 # Include the OMakefile in this directory.
 #

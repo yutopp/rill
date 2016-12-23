@@ -21,13 +21,13 @@ Rill is designed for systems programming.
 ## Requirements
 + OCaml (>= 4.02.3) {build}
 + OPAM {build}
-+ LLVM (>= 3.8.0)
-+ GCC (>= 4.9.0?)
++ LLVM (>= 3.9.0)
++ GCC (>= 5.4.0)
 
 ## Development
 ### Preparation
 ```
-opam install omake menhir batteries ctypes-foreign stdint llvm.3.8
+opam install omake menhir batteries ctypes-foreign stdint ocamlgraph llvm.3.9
 opam install ounit                  # for unit testing
 opam install bisect_ppx ocveralls   # for coverage
 eval `opam config env`

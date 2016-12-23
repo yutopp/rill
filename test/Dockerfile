@@ -33,5 +33,8 @@ RUN OPAMDOWNLOADJOBS=1 opam install ounit                   # for unit testing
 RUN OPAMDOWNLOADJOBS=1 opam install bisect_ppx ocveralls    # for testing
 
 #
+RUN update-alternatives --install /usr/bin/llc llc /usr/bin/llc-3.9 39
+
+#
 RUN mkdir /cibase
 WORKDIR /cibase
