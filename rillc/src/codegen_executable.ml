@@ -11,7 +11,7 @@ exception FailedToLinkObjects
 (* output executable *)
 let link_objects bin_names options out_name =
   let escaped_commands =
-    (bin_names @ options @ ["-o"; out_name])
+    (bin_names @ options @ ["-pie"; "-o"; out_name])
     |> List.map Filename.quote
     |> String.concat " "
   in

@@ -2083,7 +2083,7 @@ let create_object_from_ctx ctx options out_filepath =
 
   (* build bitcode and output object file *)
   let bin_name = basic_name ^ ".o" in
-  let sc = Sys.command (Printf.sprintf "llc %s -filetype=obj -o %s" (Filename.quote bitcode_name) (Filename.quote bin_name)) in
+  let sc = Sys.command (Printf.sprintf "llc %s -filetype=obj -relocation-model=pic -o %s" (Filename.quote bitcode_name) (Filename.quote bin_name)) in
   if sc <> 0 then raise FailedToBuildBytecode;
 
   Debug.reportf "= GENERATE_OBJECT(%s) %s" out_filepath (Debug.Timer.string_of_elapsed timer);

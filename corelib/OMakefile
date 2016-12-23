@@ -46,7 +46,7 @@ LIBNAME = librillcore-rt
 
 .SUBDIRS: src_ext
     %.o: %.cpp
-        $(CXX) -std=c++14 -c $+ -o $@
+        $(CXX) -std=c++14 -fPIC -c $+ -o $@
 
     clean:
         rm -f *~ *.o
