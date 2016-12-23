@@ -15,14 +15,10 @@
 # THE USE OR OTHER DEALINGS IN THE FILE.
 
 ########################################################################
-# The standard OMakefile.
-# You will usually need to modify this file for your project.
-
-########################################################################
 # Phony targets are scoped, so you probably want to declare them first.
 #
 
-.PHONY: e2e_test clean clean_coverage
+.PHONY: e2e_test test clean clean_coverage
 
 ########################################################################
 # OCaml configuration.
@@ -40,15 +36,14 @@
 USE_OCAMLFIND = true
 
 #
-OCAMLPACKS[] =
-   batteries
-
-#
 if $(not $(OCAMLFIND_EXISTS))
    eprintln(This project requires ocamlfind, but is was not found.)
    eprintln(You need to install ocamlfind and run "omake --configure".)
    exit 1
 
+# for runner
+OCAMLPACKS[] =
+	batteries
 #
 # Include path
 #
@@ -57,32 +52,19 @@ if $(not $(OCAMLFIND_EXISTS))
 #
 # Various options
 #
-OCAMLFLAGS    += -thread -g
-# OCAMLCFLAGS   +=
+OCAMLFLAGS	  += -thread -g
 OCAMLOPTFLAGS += -thread -g
-# OCAML_LINK_FLAGS +=
-# OCAML_BYTE_LINK_FLAGS +=
-# OCAML_NATIVE_LINK_FLAGS +=
-
-################################################
-# Build an OCaml program
-#
 
 FILES[] =
-   run_tests
+	run_tests
 
-#
 PROGRAM = run_tests
-# OCAML_LIBS +=
-# OCAML_CLIBS +=
-# OCAML_OTHER_LIBS +=
-# OCAML_LIB_FLAGS +=
-#
 
-build_runner: $(OCamlProgram $(PROGRAM), $(FILES))
+OCamlProgram($(PROGRAM), $(FILES))
 
 ########################################################################
 #
+test: e2e_test
 
 e2e_test: clean_coverage $(PROGRAM) build_corelib build_stdlib build_rillc
 	./$(PROGRAM)

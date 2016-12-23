@@ -31,7 +31,6 @@
 #
 open build/C
 open build/OCaml
-open configure/Configure
 
 #
 # The command-line variables are defined *after* the

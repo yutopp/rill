@@ -15,10 +15,6 @@
 # THE USE OR OTHER DEALINGS IN THE FILE.
 
 ########################################################################
-# The standard OMakefile.
-# You will usually need to modify this file for your project.
-
-########################################################################
 # Phony targets are scoped, so you probably want to declare them first.
 #
 
