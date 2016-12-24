@@ -262,6 +262,12 @@ let get_scope_lifetime ?(aux_count=0) sub_nest env =
 let make_scope_lifetime ?(aux_count=0) env =
   get_scope_lifetime ~aux_count:aux_count env
 
+let is_closed e =
+  e.closed
+
+let overlap_closed_info closed env =
+  env.closed <- env.closed || closed;
+  env.ns_env.closed <- env.ns_env.closed || closed
 
 let is_root e =
   let { er = er; _ } = e in

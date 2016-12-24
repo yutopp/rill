@@ -170,6 +170,7 @@ FILES[] =
    sema_utils
    sema_error
    codegen_context
+   codegen_flowinfo
    codegen_llvm
    codegen_llvm_intrinsics
    codegen_executable

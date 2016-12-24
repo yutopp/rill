@@ -139,8 +139,8 @@ let execute' engine expr_node expr_ty type_sets =
   (* generate a LLVM value from the expression *)
   try
     begin
-      let (expr_llval, _, is_addr) =
-        Codegen_llvm.generate_code expr_node engine.cg_ctx
+      let (expr_llval, _, is_addr, _) =
+        Codegen_llvm.generate_code expr_node Codegen_flowinfo.empty engine.cg_ctx
       in
       Debug.printf ">>> DUMP LLVM VALUE / is_addr: %b\n" is_addr;
       Codegen_llvm.debug_dump_value expr_llval;

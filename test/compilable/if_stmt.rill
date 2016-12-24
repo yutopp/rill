@@ -3,4 +3,10 @@ def main() {
     if (false) s = 0;
 
     if (false) 0;
+
+    if (true) return;
+
+    if (true); else return;
+
+    if (true) return; else return;
 }

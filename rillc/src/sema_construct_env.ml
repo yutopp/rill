@@ -342,8 +342,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        let node = TAst.ReturnStmt (Some n_node) in
 
        (**)
-       parent_env.Env.closed <- true;
-       parent_env.Env.ns_env.Env.closed <- true;
+       Env.overlap_closed_info true parent_env;
 
        (node, void_t, parent_env)
      end
@@ -1696,8 +1695,7 @@ and analyze_expr ?(making_placeholder=false)
        let node = TAst.ScopeExpr n_node in
 
        (* propagete *)
-       parent_env.Env.closed <- scope_env.Env.closed;
-       parent_env.Env.ns_env.Env.closed <- scope_env.Env.closed;
+       Env.overlap_closed_info scope_env.Env.closed parent_env;
 
        (node, aux)
      end
@@ -1705,6 +1703,7 @@ and analyze_expr ?(making_placeholder=false)
   (* TODO: implement dtor *)
   | Ast.IfExpr (cond_expr, then_expr, opt_else_expr, loc) ->
      begin
+       (* base scope for if expr *)
        let scope_env =
          Env.create_scoped_env parent_env
                                (Env.Scope (Env.empty_lookup_table ()))
@@ -1721,15 +1720,39 @@ and analyze_expr ?(making_placeholder=false)
                               scope_env temp_obj_spec ctx attr
        in
 
+       (**)
        let analayze_clause node =
          let clause_scope_env =
            Env.create_scoped_env scope_env
                                  (Env.Scope (Env.empty_lookup_table ()))
                                  None
          in
-         analyze_expr node clause_scope_env temp_obj_spec ctx attr
+         let (expr, aux) =
+           analyze_expr node clause_scope_env temp_obj_spec ctx attr
+         in
+         (expr, aux, Env.is_closed clause_scope_env)
        in
 
+       (* then clause *)
+       let (nthen_expr, then_aux, then_closed) = analayze_clause then_expr in
+
+       (* else clause *)
+       let (opt_else_expr, else_aux, else_closed) = match opt_else_expr with
+         | Some else_expr ->
+            let (e, aux, is_closed) = analayze_clause else_expr in
+            (Some e, aux, is_closed)
+         | None -> (None, void_t, false) (* assume NOT closed flow *)
+       in
+
+       let then_ty = Aux.ty then_aux in
+       let else_ty = Aux.ty else_aux in
+       if not (Type.has_same_class then_ty else_ty) then
+         failwith @@ "[ERR] type of if expr " ^ (Type.to_string then_ty) ^ " / " ^ (Type.to_string else_ty) ^ " / loc: " ^ (Loc.to_string loc);
+
+       Env.overlap_closed_info (then_closed && else_closed) scope_env;
+       Env.overlap_closed_info (Env.is_closed scope_env) parent_env;
+
+       (**)
        let wrapped_type lhs rhs =
          let open Type_info in
          let open Type_attr in
@@ -1744,19 +1767,6 @@ and analyze_expr ?(making_placeholder=false)
                                       lhs (* or rhs *)
                                       attr
        in
-
-       let (nthen_expr, then_aux) = analayze_clause then_expr in
-       let (opt_else_expr, else_aux) = match opt_else_expr with
-         | Some else_expr ->
-            let (e, aux) = analayze_clause else_expr in
-            (Some e, aux)
-         | None -> (None, void_t)
-       in
-
-       let then_ty = Aux.ty then_aux in
-       let else_ty = Aux.ty else_aux in
-       if not (Type.has_same_class then_ty else_ty) then
-         failwith @@ "[ERR] type of if expr " ^ (Type.to_string then_ty) ^ " / " ^ (Type.to_string else_ty) ^ " / loc: " ^ (Loc.to_string loc);
 
        let if_ty = wrapped_type then_ty else_ty in
        let if_cat = VCatLValue in   (* TODO: fix *)
@@ -2989,8 +2999,7 @@ and check_and_insert_suitable_return ?(is_special_func=false) nbody env ctx opt_
            let empty_ret = TAst.ReturnStmt None in
            let (n_node, _, _) = construct_env empty_ret env ctx opt_attr in
            let ret_node = TAst.StatementList (stmts @ [n_node]) in
-           env.Env.closed <- true;
-           env.Env.ns_env.Env.closed <- true;
+           Env.overlap_closed_info true env;
            ret_node
         | _ ->
            failwith "[ICE]"

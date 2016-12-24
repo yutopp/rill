@@ -7,28 +7,27 @@
  *)
 
 type ref_val_t =
-    Ref of Id_string.t list
+  | Ref of Id_string.t list
   | Val
   | XRef
   | RefValUndef
 
 type mut_t =
-    Immutable
+  | Immutable
   | Const
   | Mutable
   | MutUndef
 
 type attr_t = {
-  ta_ref_val    : ref_val_t;
-  ta_mut        : mut_t;
-}
+    ta_ref_val    : ref_val_t;
+    ta_mut        : mut_t;
+  }
 
 
 let undef = {
-  ta_ref_val = RefValUndef;
-  ta_mut = MutUndef;
-}
-
+    ta_ref_val = RefValUndef;
+    ta_mut = MutUndef;
+  }
 
 let is_same lhs rhs =
   lhs.ta_ref_val = rhs.ta_ref_val &&

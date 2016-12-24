@@ -8,6 +8,7 @@
 
 open Batteries
 open Stdint
+module FI = Codegen_flowinfo
 module L = Llvm
 module LBW = Llvm_bitwriter
 
@@ -20,14 +21,14 @@ type type_gen_t = env_t Type.Generator.t
 type value_form_t = bool    (* is_address or not *)
 
 type builtin_func_params_t =
-    (type_info_t * value_form_t) list
+  (type_info_t * value_form_t) list
 type builtin_func_ret_t =
-    (type_info_t * value_form_t)
+  (type_info_t * value_form_t)
 type 'ctx builtin_func_def_t =
-    builtin_func_params_t -> builtin_func_ret_t -> L.llvalue array -> 'ctx -> L.llvalue
+  builtin_func_params_t -> builtin_func_ret_t -> L.llvalue array -> 'ctx -> L.llvalue
 type ('ty, 'ctx) builtin_template_func_def_t =
-    'ty Ctfe_value.t list ->
-    builtin_func_params_t -> builtin_func_ret_t -> L.llvalue array -> 'ctx -> L.llvalue
+  'ty Ctfe_value.t list ->
+  builtin_func_params_t -> builtin_func_ret_t -> L.llvalue array -> 'ctx -> L.llvalue
 
 type ('ty, 'ctx) record_value_t =
   | LLValue of (L.llvalue * value_form_t)
@@ -38,13 +39,16 @@ type ('ty, 'ctx) record_value_t =
   | BuiltinFuncGen of ('ty, 'ctx) builtin_template_func_def_t
   | TrivialAction
 
+type 'ty generated_value_t =
+  L.llvalue * 'ty * value_form_t * Codegen_flowinfo.t
+
 module CodeGeneratorType =
   struct
     type ir_context_t = L.llcontext
     type ir_builder_t = L.llbuilder
     type ir_module_t = L.llmodule
     type ir_intrinsics = Codegen_llvm_intrinsics.t
-    type 'ty ir_cache_value_t = L.llvalue * 'ty * bool
+    type 'ty ir_cache_value_t = 'ty generated_value_t
 
     type ('ty, 'ctx) value_t = ('ty, 'ctx) record_value_t
   end
@@ -84,7 +88,7 @@ let llval_u32 v ctx =
   let open Ctx in
   L.const_int_of_string (L.i32_type ctx.ir_context) (Uint32.to_string v) 10
 
-let do_debug_print_flag = not Config.is_release && false
+let do_debug_print_flag = not Config.is_release (*&& false*)
 
 let debug_dump_value v =
   if do_debug_print_flag then
@@ -98,45 +102,39 @@ let debug_dump_type t =
   if do_debug_print_flag then
     Debug.printf "%s\n" (L.string_of_lltype t)
 
-type cg_aux_t =
-    {
-      cg_returns_addr : bool;
-      cg_has_terminator: bool;
-    }
-
-let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t * bool) =
+let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
   let open Ctx in
   let void_v = L.undef (L.void_type ctx.ir_context) in
   let void_ty = ctx.type_sets.Type_sets.ts_void_type in
-  let void_val = (void_v, void_ty, false) in
+  let void_val fi = (void_v, void_ty, false, fi) in
 
   match node with
   | TAst.Module (inner, pkg_names, mod_name, base_dir, _) ->
-     generate_code inner ctx
+     generate_code inner prev_fi ctx
 
   | TAst.StatementList (nodes) ->
-     let rec gen nx (v, t, p) = match nx with
-       | [] -> (v, t, p)
+     let rec gen nx (v, t, p, fi) = match nx with
+       | [] -> (v, t, p, fi)
        | x :: xs ->
-          let l = generate_code x ctx in
+          let l = generate_code x fi ctx in
           gen xs l
      in
-     gen nodes void_val
+     gen nodes (void_val prev_fi)
 
   | TAst.ExprStmt e ->
-     generate_code e ctx
+     generate_code e prev_fi ctx
 
   | TAst.VoidExprStmt e ->
-     let _ = generate_code e ctx in
-     (void_v, void_ty, false)
+     let (_, _, _, fi) = generate_code e prev_fi ctx in
+     void_val fi
 
   | TAst.ReturnStmt (opt_e) ->
      begin
-       Debug.printf "ReturnStmt!!!!!!!!\n";
+       Debug.printf "ReturnStmt!!!!!!!!";
 
        let llval = match opt_e with
          | Some e ->
-            let (llval, ty, is_addr) = generate_code e ctx in
+            let (llval, ty, is_addr, fi) = generate_code e prev_fi ctx in
             if is_heavy_object ty || ty == void_ty then
               L.build_ret_void ctx.ir_builder
             else
@@ -146,11 +144,11 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
             L.build_ret_void ctx.ir_builder
        in
 
-       (llval, void_ty, false)
+       (llval, void_ty, false, prev_fi |> FI.set_has_terminator true)
      end
 
   | TAst.GenericFuncDef (opt_body, Some env) ->
-     if Ctx.is_env_defined ctx env then void_val else
+     if Ctx.is_env_defined ctx env then void_val prev_fi else
      begin
        Ctx.mark_env_as_defined ctx env;
 
@@ -278,7 +276,7 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
              L.position_at_end eib ctx.ir_builder;
 
              (**)
-             let _ = generate_code body ctx in
+             let _ = generate_code body prev_fi ctx in
 
              debug_dump_value f;
              Debug.printf "generated genric function(%b): %s\n" env.Env.closed name;
@@ -291,7 +289,7 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
        | Env.FnRecordNormal (def, kind, fenv_spec) ->
           begin
             define_current_function kind fenv_spec;
-            void_val
+            void_val prev_fi
           end
 
        | Env.FnRecordImplicit (def, kind, fenv_spec) ->
@@ -309,13 +307,13 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
                    | _ -> failwith "[ICE]"
                  in
                  Ctx.bind_val_to_env ctx r_value env;
-                 void_val
+                 void_val prev_fi
                end
             (* implicit & non-trivial *)
             | Env.FnDefDefaulted false ->
                begin
                  define_current_function kind fenv_spec;
-                 void_val
+                 void_val prev_fi
                end
             | _ -> failwith "[ICE] define implicit function"
           end
@@ -323,13 +321,13 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
        | Env.FnRecordExternal (def, kind, extern_fname) ->
           begin
             let _ = declare_current_function extern_fname in
-            void_val
+            void_val prev_fi
           end
 
        | Env.FnRecordBuiltin (def, kind, name) ->
           begin
             (* DO NOTHING *)
-            void_val
+            void_val prev_fi
           end
 
        | _ -> failwith "[ICE]"
@@ -338,7 +336,7 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
   | TAst.ClassDefStmt (
         name, _, body, opt_attr, Some env
       ) ->
-     if Ctx.is_env_defined ctx env then void_val else
+     if Ctx.is_env_defined ctx env then void_val prev_fi else
      begin
        Ctx.mark_env_as_defined ctx env;
 
@@ -368,14 +366,14 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
        debug_dump_type struct_ty;
 
        (* body *)
-       let _ = generate_code body ctx in
-       void_val
+       let _ = generate_code body prev_fi ctx in
+       void_val prev_fi
      end
 
   | TAst.ExternClassDefStmt (
         name, _, extern_cname, _, _, Some env
       ) ->
-     if Ctx.is_env_defined ctx env then void_val else
+     if Ctx.is_env_defined ctx env then void_val prev_fi else
      begin
        Ctx.mark_env_as_defined ctx env;
 
@@ -392,11 +390,11 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
          | _ -> failwith ""
        in
        Ctx.bind_val_to_env ctx (LLType ty) env;
-       void_val
+       void_val prev_fi
      end
 
   | TAst.VariableDefStmt (_, TAst.VarInit (var_init), Some env) ->
-     if Ctx.is_env_defined ctx env then void_val else
+     if Ctx.is_env_defined ctx env then void_val prev_fi else
      begin
        let venv = Env.VariableOp.get_record env in
        let var_type = venv.Env.var_type in
@@ -404,8 +402,7 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
        let (_, _, (_, opt_init_expr)) = var_init in
        let init_expr = Option.get opt_init_expr in
 
-       let (llval, expr_ty, is_addr) = generate_code init_expr ctx in
-
+       let (llval, expr_ty, is_addr, cg) = generate_code init_expr prev_fi ctx in
        Debug.printf "<><><>\nDefine variable: %s / is_addr: %b\n<><><>\n"
                     venv.Env.var_name
                     is_addr;
@@ -415,11 +412,11 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
        Ctx.bind_val_to_env ctx (LLValue (llval, is_addr)) env;
 
        Ctx.mark_env_as_defined ctx env;
-       void_val
+       void_val cg
      end
 
-  | TAst.MemberVariableDefStmt _ -> void_val
-  | TAst.EmptyStmt -> void_val
+  | TAst.MemberVariableDefStmt _ -> void_val prev_fi
+  | TAst.EmptyStmt -> void_val prev_fi
 
   | TAst.GenericCallExpr (storage_ref, args, Some caller_env, Some env) ->
      begin
@@ -433,7 +430,8 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
 
        let analyze_func_and_eval_args kind =
          let (param_tys, evaled_args) = normalize_params_and_args param_kinds args in
-         eval_args_for_func kind storage_ref param_tys ret_ty evaled_args caller_env ctx
+         eval_args_for_func kind storage_ref param_tys ret_ty evaled_args
+                            caller_env prev_fi ctx
        in
 
        let call_llfunc kind f =
@@ -478,7 +476,9 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
                      | TAst.StoAgg _
                      | TAst.StoArrayElem _
                      | TAst.StoMemberVar _ ->
-                        let (v, _, is_addr) = setup_storage storage_ref caller_env ctx in
+                        let (v, _, is_addr) =
+                          setup_storage storage_ref caller_env ctx
+                        in
                         (v, is_addr)
 
                      | _ ->
@@ -497,7 +497,7 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
                       begin
                         assert (List.length args = 1);
                         let rhs = List.hd args in
-                        let (llrhs, rhs_ty, is_ptr) = generate_code rhs ctx in
+                        let (llrhs, rhs_ty, is_ptr, cg) = generate_code rhs prev_fi ctx in
                         assert (is_ptr);
                         let sl = Type.size_of rhs_ty in
                         let al = Type.align_of rhs_ty in
@@ -560,12 +560,12 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
 
          | Env.FnUndef -> failwith "[ICE] codegen: undefined function record"
        in
-       (llval, ret_ty, returns_addr)
+       (llval, ret_ty, returns_addr, prev_fi(* TODO *))
      end
 
   | TAst.NestedExpr (lhs_node, _, rhs_ty, Some rhs_env) ->
      begin
-       let (ll_lhs, _, is_addr) = generate_code lhs_node ctx in
+       let (ll_lhs, _, is_addr, cg) = generate_code lhs_node prev_fi ctx in
        assert (is_addr);
 
        let v_record = try Ctx.find_val_by_env ctx rhs_env with
@@ -576,19 +576,19 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
          | _ -> failwith "[ICE]"
        in
        let llelem = L.build_struct_gep ll_lhs index "" ctx.ir_builder in
-       (llelem, rhs_ty, true)
+       (llelem, rhs_ty, true, cg(* TODO *))
      end
 
   | TAst.FinalyzeExpr (opt_act_node, final_exprs) ->
-     let (ll_lhs, ty, is_addr) = match opt_act_node with
-       | Some act_node -> generate_code act_node ctx
-       | None -> (void_v, void_ty, false)
+     let (ll_lhs, ty, is_addr, cg) = match opt_act_node with
+       | Some act_node -> generate_code act_node prev_fi ctx
+       | None -> void_val prev_fi
      in
-     List.iter (fun n -> let _ = generate_code n ctx in ()) final_exprs;
-     (ll_lhs, ty, is_addr)
+     List.iter (fun n -> let _ = generate_code n prev_fi ctx in ()) final_exprs;
+     (ll_lhs, ty, is_addr, cg(* TODO *))
 
   | TAst.SetCacheExpr (id, node) ->
-     let values = generate_code node ctx in
+     let values = generate_code node prev_fi ctx in
      Ctx.bind_values_to_cache_id ctx values id;
      values
 
@@ -600,7 +600,7 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
        let llty = L.i1_type ctx.ir_context in
        let llval = L.const_int llty (if v then 1 else 0) in
        let (llval, is_addr) = adjust_primitive_value storage llty llval ctx in
-       (llval, lit_ty, false)
+       (llval, lit_ty, is_addr, prev_fi)
      end
 
   | TAst.IntLit (v, bits, signed, lit_ty) ->
@@ -612,7 +612,7 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
        in
        let llval = L.const_int llty v in
        let (llval, is_addr) = adjust_primitive_value storage llty llval ctx in
-       (llval, lit_ty, is_addr)
+       (llval, lit_ty, is_addr, prev_fi)
      end
 
   | TAst.StringLit (str, lit_ty) ->
@@ -620,7 +620,7 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
        let llty = L.pointer_type (L.i8_type ctx.ir_context) in
        let llval = L.build_global_stringptr str "" ctx.ir_builder in
        let (llval, is_addr) = adjust_primitive_value storage llty llval ctx in
-       (llval, lit_ty, false)
+       (llval, lit_ty, is_addr, prev_fi)
      end
 
   | TAst.ArrayLit (elems, static_constructable, arr_ty) ->
@@ -630,11 +630,8 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
 
        if static_constructable then
          begin
-           let (ll_elems, tys, _) =
-             let res = elems |> List.map (fun n -> generate_code n ctx) in
-             List.fold_right (fun (v, t, p) (vs, ts, ps) -> (v::vs, t::ts, p::ps))
-                             res
-                             ([], [], [])
+           let (ll_elems, tys, _, _) =
+             generate_codes elems prev_fi ctx
            in
            let lit_ty = List.hd tys in
            let llty = lltype_of_typeinfo lit_ty ctx in
@@ -652,14 +649,14 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
              ctx.intrinsics.memcpy_i32 lltrg llsrc
                                        size_of align_of false ctx.ir_builder
            in
-           (ll_array_sto, arr_ty, true)
+           (ll_array_sto, arr_ty, true, prev_fi(* TODO *))
          end
        else
          begin
            Ctx.push_array_storage ctx (LLValue (ll_array_sto, true));
-           let _ = elems |> List.map (fun n -> generate_code n ctx) in
+           let _ = elems |> List.map (fun n -> generate_code n prev_fi ctx) in
            let _ = Ctx.pop_array_storage ctx in
-           (ll_array_sto, arr_ty, true)
+           (ll_array_sto, arr_ty, true, prev_fi(* TODO *))
          end
      end
 
@@ -696,7 +693,7 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
               | _ -> failwith "[ICE]"
             in
             let ty = r.Env.var_type in
-            (llval, ty, is_addr)
+            (llval, ty, is_addr, prev_fi(* TODO *))
           end
 
        | Env.Class (_, r) ->
@@ -737,7 +734,7 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
                                          Type_info.is_type_id_signed
             in
             let ty = ctx.type_sets.Type_sets.ts_type_type in
-            (llval, ty, false)
+            (llval, ty, false, prev_fi(* TODO *))
           end
 
        (* regards all values are NOT references *)
@@ -749,7 +746,7 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
             Debug.printf "LLVM codegen Env.MetaVariable = %d\n" uni_id;
             let (_, c) = Unification.search_value_until_terminal uni_map uni_id in
             match c with
-            | Unification.Val v -> ctfe_val_to_llval v ctx
+            | Unification.Val v -> ctfe_val_to_llval v prev_fi ctx
             | _ -> raise @@ Ctfe_exn.Meta_var_un_evaluatable uni_id
           end
 
@@ -762,13 +759,13 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
 
   | TAst.ScopeExpr (block) ->
      begin
-       generate_code block ctx
+       generate_code block prev_fi ctx
      end
 
   (* TODO: fix is_addr *)
   | TAst.IfExpr (cond_expr, then_expr, opt_else_expr, if_ty) ->
      begin
-       let (llcond, _, is_cond_addr) = generate_code cond_expr ctx in
+       let (llcond, _, is_cond_addr, cg) = generate_code cond_expr prev_fi ctx in
        let llcond = if is_cond_addr then
                       L.build_load llcond "" ctx.ir_builder
                     else
@@ -783,55 +780,74 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
        L.move_block_after tip eip;
        L.move_block_after eip fip;
 
-       let _ = match opt_else_expr with
-         | Some _ ->
+       (* make jump entry *)
+       let _ = match Option.is_some opt_else_expr with
+         | true ->
             (* true -> true block, false -> else block *)
             L.build_cond_br llcond tip eip ctx.ir_builder
-         | None ->
+         | false ->
             (* true -> true block, false -> final block *)
             L.build_cond_br llcond tip fip ctx.ir_builder
        in
 
        (* then node *)
-       L.position_at_end tip ctx.Ctx.ir_builder;
-       let (then_llval, then_ty, is_then_addr) = generate_code then_expr ctx in
-       let then_llval = adjust_llval_form if_ty then_ty then_llval ctx in
-       let then_llval =
-         adjust_addr_val then_llval then_ty is_then_addr ctx
-       in
-       let then_branch = if not (L.is_terminator then_llval) then
-                           ignore @@ L.build_br fip ctx.ir_builder;
-                         let cip = L.insertion_block ctx.ir_builder in
-                         (then_llval, cip)
+       let then_branch =
+         L.position_at_end tip ctx.Ctx.ir_builder;
+         let (then_llval, then_ty, is_then_addr, then_fi) =
+           generate_code then_expr prev_fi ctx
+         in
+         let then_llval = adjust_llval_form if_ty then_ty then_llval ctx in
+         let then_llval =
+           adjust_addr_val then_llval then_ty is_then_addr ctx
+         in
+         if not (FI.has_terminator then_fi) then
+           let _ = L.build_br fip ctx.ir_builder in
+           let cip = L.insertion_block ctx.ir_builder in
+           [(then_llval, cip)]
+         else
+           []
        in
 
-       let brs = match opt_else_expr with
+       (* else node *)
+       let else_branch =
+         match opt_else_expr with
          | Some else_expr ->
-            begin
-              L.position_at_end eip ctx.Ctx.ir_builder;
-              let (else_llval, else_ty, is_else_addr) = generate_code else_expr ctx in
-              let else_llval = adjust_llval_form if_ty else_ty else_llval ctx in
-              let else_llval =
-                adjust_addr_val else_llval else_ty is_else_addr ctx
-              in
-              if not (L.is_terminator else_llval) then
-                ignore @@ L.build_br fip ctx.ir_builder;
+            L.position_at_end eip ctx.Ctx.ir_builder;
+            let (else_llval, else_ty, is_else_addr, else_fi) =
+              generate_code else_expr prev_fi ctx
+            in
+            let else_llval = adjust_llval_form if_ty else_ty else_llval ctx in
+            let else_llval =
+              adjust_addr_val else_llval else_ty is_else_addr ctx
+            in
+            if not (FI.has_terminator else_fi) then
+              let _ = L.build_br fip ctx.ir_builder in
               let cip = L.insertion_block ctx.ir_builder in
-              [then_branch; (else_llval, cip)]
-            end
+              [(else_llval, cip)]
+            else
+              []
+
          | None ->
-            begin
-              L.remove_block eip;
-              [then_branch]
-            end
+            L.remove_block eip;
+            [(void_v, ip)]  (* pass through *)
        in
 
-       L.position_at_end fip ctx.Ctx.ir_builder;
-       if Type.has_same_class ctx.type_sets.Type_sets.ts_void_type then_ty then
-         void_val
-       else
-         let llret = L.build_phi brs "" ctx.ir_builder in
-         (llret, if_ty, is_address_representation if_ty)
+       (* make term *)
+       let branchs = then_branch @ else_branch in
+       Debug.printf "IF EXPR / branchs %d" (List.length branchs);
+
+       match branchs with
+       | [] ->
+          L.remove_block fip;
+          void_val (prev_fi |> FI.set_has_terminator true)
+       | _ ->
+          L.position_at_end fip ctx.Ctx.ir_builder;
+          if Type.has_same_class ctx.type_sets.Type_sets.ts_void_type if_ty then
+            void_val prev_fi
+          else
+            let llret = L.build_phi branchs "" ctx.ir_builder in
+            let is_addr = is_address_representation if_ty in
+            (llret, if_ty, is_addr, prev_fi(* TODO *))
      end
 
   (* FIX: is_addr *)
@@ -846,7 +862,7 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
        L.move_block_after sip eip;
 
        let _ = match opt_decl with
-         | Some decl -> ignore @@ generate_code decl ctx
+         | Some decl -> ignore @@ generate_code decl prev_fi ctx
          | None -> ()
        in
 
@@ -856,19 +872,19 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
        let _ = match opt_cond with
          | Some cond ->
             begin
-              let (llcond, _, _) = generate_code cond ctx in
+              let (llcond, _, _, _) = generate_code cond prev_fi ctx in
               ignore @@ L.build_cond_br llcond sip eip ctx.ir_builder;
               L.position_at_end sip ctx.Ctx.ir_builder;
             end
          | None -> L.remove_block sip;
        in
 
-       ignore @@ generate_code body ctx;
+       ignore @@ generate_code body prev_fi ctx;
 
        let _ = match opt_step with
          | Some step ->
             begin
-              ignore @@ generate_code step ctx
+              ignore @@ generate_code step prev_fi ctx
             end
          | None -> ();
        in
@@ -876,7 +892,7 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
        ignore @@ L.build_br bip ctx.ir_builder;
        L.position_at_end eip ctx.Ctx.ir_builder;
 
-       void_val
+       void_val prev_fi
      end
 
   | TAst.CtxNode ty ->
@@ -890,19 +906,19 @@ let rec generate_code ?(storage=None) node ctx : (L.llvalue * 'env Type.info_t *
                                     Type_info.is_type_id_signed
        in
        let ty = ctx.type_sets.Type_sets.ts_type_type in
-       (llval, ty, false)
+       (llval, ty, false, prev_fi)
      end
 
   | TAst.StorageWrapperExpr (sto, e) ->
      Debug.printf "STORAGE CHANGED\n";
      TAst.debug_print_storage (!sto);
 
-     generate_code ~storage:(Some !sto) e ctx
+     generate_code ~storage:(Some !sto) e prev_fi ctx
 
   | _ -> failwith "cannot generate : node"
 
 
-and ctfe_val_to_llval ctfe_val ctx =
+and ctfe_val_to_llval ctfe_val prev_fi ctx =
   let open Ctx in
   let tsets = ctx.type_sets in
   match ctfe_val with
@@ -925,7 +941,7 @@ and ctfe_val_to_llval ctfe_val ctx =
                                   Type_info.is_type_id_signed
                in
                let ty = tsets.Type_sets.ts_type_type in
-               (llval, ty, false)
+               (llval, ty, false, prev_fi)
             | None -> failwith "[ICE] codegen_llvm : has no type_id"
           end
        | _-> failwith "[ICE] codegen_llvm : type"
@@ -938,7 +954,7 @@ and ctfe_val_to_llval ctfe_val ctx =
                         false (* not signed *)
      in
      let ty = !(tsets.Type_sets.ts_bool_type_holder) in
-     (llval, ty, false)
+     (llval, ty, false, prev_fi)
 
   | Ctfe_value.Int32 i32 ->
      let llval =
@@ -947,7 +963,7 @@ and ctfe_val_to_llval ctfe_val ctx =
                         true (* signed *)
      in
      let ty = !(tsets.Type_sets.ts_int32_type_holder) in
-     (llval, ty, false)
+     (llval, ty, false, prev_fi)
 
   | Ctfe_value.Uint32 i32 ->
      let llval =
@@ -956,7 +972,7 @@ and ctfe_val_to_llval ctfe_val ctx =
                         false (* unsigned *)
      in
      let ty = !(tsets.Type_sets.ts_int32_type_holder) in
-     (llval, ty, false)
+     (llval, ty, false, prev_fi)
 
   | Ctfe_value.Undef ud_uni_id ->
      raise @@ Ctfe_exn.Meta_var_un_evaluatable ud_uni_id
@@ -978,13 +994,16 @@ and is_in_other_module ctx env =
        not env.Env.is_instantiated
 
 and generate_code_by_interrupt node ctx =
+  (* save current position *)
   let opt_ip = match L.insertion_block ctx.Ctx.ir_builder with
     | exception Not_found -> None
     | x -> Some x
   in
 
-  let _ = generate_code node ctx in
+  (* generate code independently *)
+  let _ = generate_code node FI.empty ctx in
 
+  (* resume position *)
   opt_ip |> Option.may (fun ip -> L.position_at_end ip ctx.Ctx.ir_builder)
 
 
@@ -1027,7 +1046,7 @@ and find_lltype_by_env_with_force_generation ctx env =
 
 
 and register_metaval value env ctx =
-  let (llval, _, _) = ctfe_val_to_llval value ctx in
+  let (llval, _, _, _) = ctfe_val_to_llval value FI.empty ctx in
   let cv = LLValue (llval, false) in
   Ctx.bind_metaval_to_env ctx cv env
 
@@ -1124,7 +1143,7 @@ and adjust_llval_form' trg_ty trg_chkf src_ty src_chkf skip_alloca llval ctx =
        L.build_load llval "" ctx.ir_builder)
 
 and adjust_llval_form trg_ty src_ty llval ctx =
-  Debug.printf "is_pointer rep?  trg: %b(%s), src: %b(%s)\n"
+  Debug.printf "is_pointer rep?  trg: %b(%s), src: %b(%s)"
                (is_address_representation trg_ty)
                (Type.to_string trg_ty)
                (is_address_representation src_ty)
@@ -1300,13 +1319,20 @@ and setup_storage sto caller_env ctx =
 
   | _ -> failwith "[ICE] cannot setup storage"
 
-and eval_args_for_func kind sto param_types ret_ty args caller_env ctx =
+and generate_codes nodes fi ctx =
+  let (llvals, tys, is_addrs, fi) =
+    let f (llvals, tys, is_addrs, fi) node =
+      let (llval, ty, is_addr, nfi) = generate_code node fi ctx in
+      (llval::llvals, ty::tys, is_addr::is_addrs, nfi)
+    in
+    List.fold_left f ([], [], [], fi) nodes
+  in
+  (llvals |> List.rev, tys |> List.rev, is_addrs |> List.rev, fi)
+
+and eval_args_for_func kind sto param_types ret_ty args caller_env prev_fi ctx =
   (* normal arguments *)
-  let (llvals, arg_tys, is_addrs) =
-    let res = args |> List.map (fun n -> generate_code n ctx) in
-    List.fold_right (fun (v, t, p) (vs, ts, ps) -> (v::vs, t::ts, p::ps))
-                    res
-                    ([], [], [])
+  let (llvals, arg_tys, is_addrs, fi) =
+    generate_codes args prev_fi ctx
   in
   (* special arguments *)
   let (llvals, arg_tys, is_addrs, param_types, returns_addr, skip_alloca) =
@@ -1360,6 +1386,7 @@ and eval_args_for_func kind sto param_types ret_ty args caller_env ctx =
   in
   let llargs = llargs |> Array.of_list in
   (param_types, llargs, is_addrs, returns_addr)
+
 
 let regenerate_module ctx =
   let ir_module = L.create_module ctx.Ctx.ir_context "Rill" in
@@ -2095,7 +2122,7 @@ let create_object node out_filepath ctx =
 
   let timer = Debug.Timer.create () in
   Debug.reportf "= GENERATE_CODE(%s)" out_filepath;
-  let _ = generate_code node ctx in
+  let _ = generate_code node FI.empty ctx in
   Debug.reportf "= GENERATE_CODE(%s) %s" out_filepath (Debug.Timer.string_of_elapsed timer);
 
   debug_dump_module ctx.Ctx.ir_module;
