@@ -1173,11 +1173,11 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                      (* TODO: check whether the variable is ctfeable.
                       * Ex. it must have trivial destructor *)
                      Debug.printf "=> CONSTEXPR\n";
-                     let (ctfe_v, is_addr) =
+                     let ctfe_v =
                        eval_texpr_as_ctfe conved_node var_ty var_metalevel
                                           parent_env ctx opt_chain_attr
                      in
-                     Ctfe_engine.register_metavar ctx.sc_ctfe_engine ctfe_v is_addr venv;
+                     Ctfe_engine.register_metavar ctx.sc_ctfe_engine ctfe_v venv;
                      tnode_of_ctfe_val ctfe_v ctx
                    end
                 | _ -> conved_node
@@ -1389,7 +1389,7 @@ and analyze_expr ?(making_placeholder=false)
                Aux.ta_type = ty;
                Aux.ta_ml = ret_ml;
              } = aux in
-             let (ctfe_v, _) =
+             let ctfe_v =
                eval_texpr_as_ctfe node ty ret_ml
                                   parent_env ctx None
              in
@@ -1527,7 +1527,7 @@ and analyze_expr ?(making_placeholder=false)
        (*parent_env.Env.generics_constraints <-
          Env.Constraint_record.merge parent_env.Env.generics_constraints gcs;*)
 
-       Debug.printf "= %s - %s\n" (Id_string.to_string name) (Meta_level.to_string ml);
+       Debug.printf "ID = %s - %s\n" (Id_string.to_string name) (Meta_level.to_string ml);
 
        (* both of id and instantiated_id will be id node *)
        let node = TAst.GenericId (name, gcs, Some trg_env) in
@@ -1837,7 +1837,7 @@ and analyze_expr ?(making_placeholder=false)
 
        if (not (Type.has_same_class ty ctx.sc_tsets.ts_type_type)) then
          error_msg "the argument must be type";
-       let (v, _) = eval_texpr_as_ctfe arg_expr ty ml parent_env ctx attr in
+       let v = eval_texpr_as_ctfe arg_expr ty ml parent_env ctx attr in
        let ty_val = match v with
          | Ctfe_value.Type ty -> ty
          | _ -> failwith "[ICE]"
@@ -1887,7 +1887,7 @@ and analyze_expr ?(making_placeholder=false)
 
        if (not (Type.has_same_class ty ctx.sc_tsets.ts_type_type)) then
          error_msg "the argument must be type";
-       let (v, _) = eval_texpr_as_ctfe arg_expr ty ml parent_env ctx attr in
+       let v = eval_texpr_as_ctfe arg_expr ty ml parent_env ctx attr in
        let ty_val = match v with
          | Ctfe_value.Type ty -> ty
          | _ -> failwith "[ICE]"
@@ -3195,7 +3195,7 @@ and resolve_type ?(making_placeholder=false) (expr:Ast.ast) env ctx attr : type_
 
 and resolve_texpr_type ?(making_placeholder=false) texpr sem_ty meta_level
                        env ctx attr : type_info_t =
-  let (ctfe_val, _) =
+  let ctfe_val =
     eval_texpr_as_ctfe ~making_placeholder:making_placeholder
                        texpr sem_ty meta_level env ctx attr
   in
@@ -3226,7 +3226,7 @@ and eval_expr_as_ctfe ?(making_placeholder=false) expr env ctx attr =
     Aux.ta_type = ty;
     Aux.ta_ml = ml;
   } = naux in
-  let (v, _) =
+  let v =
     eval_texpr_as_ctfe ~making_placeholder:making_placeholder
                        nexpr ty ml
                        env ctx attr
@@ -3250,7 +3250,7 @@ and eval_texpr_as_ctfe ?(making_placeholder=false)
        Ctfe_engine.execute ctx.sc_ctfe_engine texpr expr_ty ctx.sc_tsets
 
     | Type_info.NotDetermined _ ->
-       (Ctfe_value.Type expr_ty, false)
+       Ctfe_value.Type expr_ty
 
     | _ -> failwith (Printf.sprintf "[ICE] eval_expr_as_ctfe : couldn't resolve / %s"
                                     (Type.to_string expr_ty))
@@ -3948,7 +3948,7 @@ and complete_template_instance ?(making_placeholder=false)
                                 scope_env temp_obj_spec ctx attr
          in
          let conved_cond_ml = Aux.ml conved_cond_aux in
-         let (ctfe_v, _) =
+         let ctfe_v =
            eval_texpr_as_ctfe conved_cond_node bool_ty conved_cond_ml
                               scope_env ctx None
          in

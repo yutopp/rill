@@ -1026,9 +1026,9 @@ and find_lltype_by_env_with_force_generation ctx env =
   | _ -> failwith "[ICE] / find_lltype_by_env_with_force_generation"
 
 
-and register_metaval value is_addr env ctx =
+and register_metaval value env ctx =
   let (llval, _, _) = ctfe_val_to_llval value ctx in
-  let cv = LLValue (llval, is_addr) in
+  let cv = LLValue (llval, false) in
   Ctx.bind_metaval_to_env ctx cv env
 
 

@@ -104,8 +104,8 @@ let invoke_function engine fname ret_ty type_sets =
        failwith "[ICE] this type is not supported"
      end
 
-let register_metavar engine ctfe_val is_addr env =
-  Codegen_llvm.register_metaval ctfe_val is_addr env engine.cg_ctx
+let register_metavar engine ctfe_val env =
+  Codegen_llvm.register_metaval ctfe_val env engine.cg_ctx
 
 let execute' engine expr_node expr_ty type_sets =
   let module CgCtx = Codegen_llvm.Ctx in
@@ -145,6 +145,8 @@ let execute' engine expr_node expr_ty type_sets =
       Debug.printf ">>> DUMP LLVM VALUE / is_addr: %b\n" is_addr;
       Codegen_llvm.debug_dump_value expr_llval;
       Debug.printf "===\n";
+
+      (* CTFEed value must not be addressed form *)
       let expr_llval = match is_addr with
         | true -> L.build_load expr_llval "" ir_builder
         | faise -> expr_llval
@@ -170,13 +172,13 @@ let execute' engine expr_node expr_ty type_sets =
 
       L.delete_function f;
 
-      (ctfe_val, is_addr)
+      ctfe_val
     end
   with
   | Ctfe_exn.Meta_var_un_evaluatable uni_id ->
      begin
        L.delete_function f;
-       (Ctfe_value.Undef uni_id, false)
+       Ctfe_value.Undef uni_id
      end
 
 (* TODO: implement cache *)
@@ -213,7 +215,7 @@ let execute engine expr_node expr_ty type_sets =
                                            ty_attr_val_default
             in
 
-            (Ctfe_value.Type ty, false)
+            Ctfe_value.Type ty
        | _ ->
           execute' engine expr_node expr_ty type_sets
      end
