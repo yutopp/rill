@@ -8,6 +8,7 @@
 
 open Batteries
 open Compiler
+module COS = Codegen_option_spec
 
 let empty () =
   if Config.use_local_dev_lib then
@@ -60,10 +61,10 @@ let () =
      Arg.String (fun s -> co.user_import_dirs <- s :: co.user_import_dirs),
      "<dir> Specify modules directory");
     ("-L",
-     Arg.String (fun s -> co.options <- (Printf.sprintf "-L%s" s) :: co.options),
+     Arg.String (fun s -> co.options <- (COS.OsLinkDir s) :: co.options),
      "<option> Linker option");
     ("-l",
-     Arg.String (fun s -> co.options <- (Printf.sprintf "-l%s" s) :: co.options),
+     Arg.String (fun s -> co.options <- (COS.OsLinkLib s) :: co.options),
      "<option> Linker option");
     ("--no-corelib",
      Arg.Unit (fun b -> co.no_corelib <- true),
@@ -107,27 +108,10 @@ let () =
   assert (List.length co.input_files = 1);
   let filepath = List.hd filepaths in
 
-  let obj_file_name = compile co filepath in
+  let build_options = make_build_options co in
 
-  let build_options =
-    let core_lib_opts = if co.no_corelib then []
-                        else
-                          if Config.use_local_dev_lib then
-                            ["-L./corelib/lib"; "-lrillcore-rt"]
-                          else
-                            [Printf.sprintf "-L%s" Config.default_core_lib_dir;
-                             Printf.sprintf "-l%s" Config.default_core_lib_name]
-    in
-    let std_lib_opts = if co.no_corelib then []
-                       else
-                         if Config.use_local_dev_lib then
-                           ["-L./stdlib/lib"; "-lrillstd-rt"]
-                         else
-                           [Printf.sprintf "-L%s" Config.default_std_lib_dir;
-                            Printf.sprintf "-l%s" Config.default_std_lib_name]
-    in
-    core_lib_opts @ std_lib_opts @ co.options
-  in
+  let obj_file_name = compile co build_options filepath in
+
   if not co.compile_only then
     let executable_filepath =
       match co.output_file with

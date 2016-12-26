@@ -2,8 +2,8 @@ import std.stdio;
 import std.assert;
 
 def main() {
-    meta val s = 40;
-    meta val a = fib!(s)();
+    meta s = 40;
+    meta a = fib!(s)();
     assert( a == 102334155 );
     a.print();
 }
@@ -17,6 +17,6 @@ def fib!(v: int32)(): int32 when v == 1 {
 }
 
 def fib!(v: int32)(): int32 when v >= 2 {
-    meta val r = fib!(v-1)() + fib!(v-2)();
+    meta r = fib!(v-1)() + fib!(v-2)();
     return r;
 }

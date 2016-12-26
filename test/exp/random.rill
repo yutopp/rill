@@ -80,7 +80,7 @@ class Mt19937
     def init_genrand(s: uint32) {
         this.mt[0] = s;
         this.mti = 1u;
-        for(;this.mti < this.n;) {
+        for(;this.mti < this.n;) with {
             this.mt[this.mti] =
                    1812433253u * ( this.mt[this.mti-1u] ^ (this.mt[this.mti-1u] >> 30u) ) + this.mti;
             ++this.mti;
@@ -95,7 +95,7 @@ class Mt19937
         val mutable j = 0u;
         val mutable k = if (this.n > key_len) this.n else key_len;
 
-        for(; k>0u; ) {
+        for(; k>0u; ) with {
             this.mt[i] = this.mt[i] ^ (this.mt[i-1u] ^ (this.mt[i-1u] >> 30u) * 1664525u) + init_key[j] + j;
             ++i;
             ++j;
@@ -114,7 +114,7 @@ class Mt19937
 
         k = this.n - 1u;
 
-        for(; k>0u;) {
+        for(; k>0u;) with {
             this.mt[i] = this.mt[i] ^ (this.mt[i-1u] ^ (this.mt[i-1u] >> 30u) * 1566083941u) - i;
             ++i;
             if (i >= this.n) {
@@ -138,13 +138,13 @@ class Mt19937
 
            val mutable kk = 0u;
 
-           for(; kk<this.n - this.m;) {
+           for(; kk<this.n - this.m;) with {
                  y = (this.mt[kk] & this.upper_mask) | (this.mt[kk+1u] & this.lower_mask);
                  this.mt[kk] = (this.mt[kk+this.m] ^ (y >> 1u)) ^ mag01[y % 2u];
                  ++kk;
            };
 
-           for (;kk < this.n - 1u;) {
+           for (;kk < this.n - 1u;) with {
                 y = (this.mt[kk] & this.upper_mask) | (this.mt[kk+1u] & this.lower_mask);
                 this.mt[kk] = (this.mt[kk+this.m-this.n] ^ (y >> 1u)) ^ mag01[y % 2u];
                 ++kk;

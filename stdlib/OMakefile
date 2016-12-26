@@ -53,7 +53,7 @@ CORE_LIB_SRC_DIR = $(dir ../corelib/src)
     clean:
         rm -f *~ *.o
 
-.DEFAULT: lib/$(LIBNAME).a
+.DEFAULT: lib/$(LIBNAME).a lib/$(LIBNAME).so
 
 ########################################################################
 #
@@ -65,7 +65,12 @@ lib/$(LIBNAME).a: $(STD_SRC_TARGET_OBJS)
     rm-if-exists($@)
     $(AR $@) $+
 
-install: lib/$(LIBNAME).a
+lib/$(LIBNAME).so: $(STD_SRC_TARGET_OBJS)
+    prepare-directory(lib)
+    rm-if-exists($@)
+    $(CC) -shared -fPIC -o $@ $+
+
+install: lib/$(LIBNAME).a lib/$(LIBNAME).so
     # copy srcs
     prepare-directory($(INCLUDE_DIR)/rill)
     foreach(x => ..., $(filter %.rill, $(STD_SRC_FILES)))
@@ -76,6 +81,7 @@ install: lib/$(LIBNAME).a
     # copy libs
     prepare-directory($(LIB_DIR))
     cp -v lib/$(LIBNAME).a $(LIB_DIR)/.
+    cp -v lib/$(LIBNAME).so $(LIB_DIR)/.
 
 uninstall:
     # remove srcs

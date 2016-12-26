@@ -1,12 +1,17 @@
 def main() {
     meta res = f();
+    res.print();
 }
 
 import std.stdio;
 
 def f() {
     val a = [1, 2, 3, 4, 5];
-    val mutable pc = 0;
+    val pc = a[4];
     pc.print();
+
+    "".println();
+    "COMPILE TIME!!!".println();
+
     return 10;
 }

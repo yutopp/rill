@@ -8,14 +8,6 @@
 
 open Batteries
 
-type target_dir_t =
-    Compilable
-  | Runnable
-
-let string_of_tdir td = match td with
-  | Compilable -> "compilable"
-  | Runnable -> "runnable"
-
 type context_t = {
   compiler_bin:     string;
   compiler_options: string list;
@@ -317,9 +309,9 @@ let () =
   let test_dir = Sys.getcwd () in
   let extension = Str.regexp "^\\(.*\\)\\.rill$" in
 
-  let compilable_suite = {
-      suite_name = "compilable and runnable";
-      target_dir = Filename.concat test_dir "compilable";
+  let pass_suite = {
+      suite_name = "pass";
+      target_dir = Filename.concat test_dir "pass";
       extention = extension;
       status_checker =
         (fun ps ->
@@ -333,9 +325,9 @@ let () =
       run_context = ctx;
     } in
 
-  let compile_failure_suite = {
-      suite_name = "compile error";
-      target_dir = Filename.concat test_dir "compile_error";
+  let fail_compilation_suite = {
+      suite_name = "fail compilation";
+      target_dir = Filename.concat test_dir "fail_compilation";
       extention = extension;
       status_checker =
         (fun ps ->
@@ -349,5 +341,5 @@ let () =
       run_context = ctx;
     } in
 
-  let is_failed = batch_tests [compilable_suite; compile_failure_suite] in
+  let is_failed = batch_tests [pass_suite; fail_compilation_suite] in
   exit (if is_failed then 1 else 0)

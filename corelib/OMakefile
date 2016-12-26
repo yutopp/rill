@@ -51,7 +51,7 @@ LIBNAME = librillcore-rt
     clean:
         rm -f *~ *.o
 
-.DEFAULT: lib/$(LIBNAME).a
+.DEFAULT: lib/$(LIBNAME).a lib/$(LIBNAME).so
 
 ########################################################################
 #
@@ -63,7 +63,12 @@ lib/$(LIBNAME).a: $(CORE_SRC_TARGET_OBJS)
     rm-if-exists($@)
     $(AR $@) $+
 
-install: lib/$(LIBNAME).a
+lib/$(LIBNAME).so: $(CORE_SRC_TARGET_OBJS)
+    prepare-directory(lib)
+    rm-if-exists($@)
+    $(CC) -shared -fPIC -o $@ $+
+
+install: lib/$(LIBNAME).a lib/$(LIBNAME).so
     # copy srcs
     prepare-directory($(INCLUDE_DIR)/rill)
     foreach(x => ..., $(filter %.rill, $(CORE_SRC_FILES)))
@@ -74,6 +79,7 @@ install: lib/$(LIBNAME).a
     # copy libs
     prepare-directory($(LIB_DIR))
     cp -v lib/$(LIBNAME).a $(LIB_DIR)/.
+    cp -v lib/$(LIBNAME).so $(LIB_DIR)/.
 
 uninstall:
     # remove srcs

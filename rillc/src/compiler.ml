@@ -7,6 +7,7 @@
  *)
 
 open Batteries
+module COS = Codegen_option_spec
 
 type compile_options_t = {
     mutable input_files         : string list;
@@ -15,21 +16,47 @@ type compile_options_t = {
     mutable system_import_dirs  : string list;
     mutable user_import_dirs    : string list;
 
-    mutable options             : string list;
+    mutable options             : COS.t list;
     mutable no_corelib          : bool;
     mutable no_stdlib           : bool;
 
     mutable compile_only        : bool;
   }
 
-let compile co filepath =
+let make_build_options co =
+  let core_lib_opts = if co.no_corelib then
+                          []
+                        else
+                          if Config.use_local_dev_lib then
+                            [COS.OsLinkDir "./corelib/lib";
+                             COS.OsLinkLib "rillcore-rt"]
+                          else
+                            [COS.OsLinkDir Config.default_core_lib_dir;
+                             COS.OsLinkLib Config.default_core_lib_name]
+    in
+    let std_lib_opts = if co.no_corelib then
+                         []
+                       else
+                         if Config.use_local_dev_lib then
+                           [COS.OsLinkDir"./stdlib/lib";
+                            COS.OsLinkLib "rillstd-rt"]
+                         else
+                           [COS.OsLinkDir Config.default_std_lib_dir;
+                            COS.OsLinkLib Config.default_std_lib_name]
+    in
+    core_lib_opts @ std_lib_opts @ co.options
+
+let compile co build_options filepath =
   let system_libs_dirs = List.rev co.system_import_dirs in
 
   let module_search_dirs = List.rev co.user_import_dirs in
   let cur_dir = Sys.getcwd () in
   let module_search_dirs = cur_dir :: module_search_dirs in
 
-  let (env, ctx) = Sema.make_default_state system_libs_dirs module_search_dirs in
+  let (env, ctx) =
+    Sema.make_default_state system_libs_dirs module_search_dirs
+                            build_options (* for dynamic linking in ctfe *)
+  in
   let mod_env =
     match Sema.load_module filepath env ctx with
     | Some mod_env -> mod_env

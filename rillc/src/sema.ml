@@ -17,7 +17,7 @@ include Sema_construct_env
 let make_default_env () =
   Env.make_root_env ()
 
-let make_default_context root_env module_search_dirs =
+let make_default_context root_env module_search_dirs build_options =
   let open Sema_utils in
   let open Builtin_info in
 
@@ -48,7 +48,7 @@ let make_default_context root_env module_search_dirs =
   in
 
   let uni_map = Unification.empty () in
-  let ctfe_engine = Ctfe_engine.initialize tsets uni_map in
+  let ctfe_engine = Ctfe_engine.initialize tsets uni_map build_options in
   let ctx = {
     sc_root_env = root_env;
     sc_builtin_m_env = None;
@@ -66,11 +66,11 @@ let make_default_context root_env module_search_dirs =
 
   ctx
 
-let make_default_state system_libs_dirs user_srcs_dirs =
-  let module_search_dirs = system_libs_dirs @ user_srcs_dirs in
-
+let make_default_state system_libs_dirs user_srcs_dirs build_options =
   let env = make_default_env () in
-  let ctx = make_default_context env module_search_dirs in
+
+  let module_search_dirs = system_libs_dirs @ user_srcs_dirs in
+  let ctx = make_default_context env module_search_dirs build_options in
   (env, ctx)
 
 let analyze_module mod_env ctx =

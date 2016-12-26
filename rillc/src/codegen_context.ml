@@ -6,11 +6,15 @@
  * http://www.boost.org/LICENSE_1_0.txt)
  *)
 
+open Batteries
+
 module type CONTEXT_TYPE =
   sig
     type ir_context_t
     type ir_builder_t
     type ir_module_t
+    type ir_value_t
+
     type ir_intrinsics
     type 'ty ir_cache_value_t
 
@@ -50,6 +54,8 @@ module Make (Cgt : CONTEXT_TYPE) =
       uni_map                   : ('ty, 'v) Unification.t;
       target_module_id          : Env_system.EnvId.t option;
 
+      external_functions        : (string, Cgt.ir_value_t) Hashtbl.t;
+
       places_for_sto_array_elem : ('env, 'c_id, 'ty, 'v) value_t Stack.t;
     }
      and ('env, 'c_id, 'ty, 'v) value_t =
@@ -73,6 +79,8 @@ module Make (Cgt : CONTEXT_TYPE) =
         type_sets = type_sets;
         uni_map = uni_map;
         target_module_id = target_module_id;
+
+        external_functions = Hashtbl.create 32;
 
         places_for_sto_array_elem = Stack.create ();
       }
@@ -99,6 +107,17 @@ module Make (Cgt : CONTEXT_TYPE) =
 
     let find_val_by_name ctx name =
       Hashtbl.find ctx.name_to_record_tbl name
+
+
+    (**)
+    let bind_external_function ctx name f =
+      Hashtbl.add ctx.external_functions name f
+
+    let find_external_function_by_name ctx name =
+      Hashtbl.find ctx.external_functions name
+
+    let enum_of_external_function_names ctx =
+      Hashtbl.keys ctx.external_functions
 
 
     (**)

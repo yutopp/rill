@@ -6,19 +6,24 @@
  * http://www.boost.org/LICENSE_1_0.txt)
  *)
 
+open Batteries
 open Type_sets
 open Ctfe_value
 
 module L = Llvm
 module LE = Llvm_executionengine
+module COS = Codegen_option_spec
 
 module TAst = Tagged_ast
+module StringSet = Set.Make(String)
 
 type t = {
-  cg_ctx        : Codegen_llvm.ctx_t;
-  exec_engine   : LE.llexecutionengine;
+    cg_ctx                  : Codegen_llvm.ctx_t;
+    exec_engine             : LE.llexecutionengine;
+    build_options           : Codegen_option_spec.t list;
+    loaded_libs             : (string, Dl.library) Hashtbl.t;
+    mutable loaded_funcs    : StringSet.t;
 }
-
 
 module JITCounter =
   struct
@@ -33,8 +38,7 @@ module JITCounter =
       "__rill_jit_tmp_expr_" ^ (Int64.to_string c)
   end
 
-
-let initialize type_sets uni_map =
+let initialize type_sets uni_map build_options =
   if not (LE.initialize ()) then
     failwith "[ICE] Couldn't initialize LLVM backend";
 
@@ -51,7 +55,104 @@ let initialize type_sets uni_map =
   {
     cg_ctx = codegen_ctx;
     exec_engine = jit_engine;
+    build_options = build_options;
+    loaded_libs = Hashtbl.create 0;
+    loaded_funcs = StringSet.empty;
   }
+
+(* TODO: support Windows/Mac environment *)
+let make_shared_lib_name basename =
+  "lib" ^ basename ^ ".so"
+
+let find_dyn_lib_from_path search_dirs filename =
+  try
+    let search search_dir =
+      let path = Filename.concat search_dir filename in
+      if Sys.file_exists path then
+        Some path
+      else
+        None
+    in
+    List.find_map search search_dirs |> Option.some
+  with
+    Not_found -> None
+
+(* First, try to find the lib from user provided dirs.
+ * If the lib is found, use the found path.
+ * Otherwise, use the libname immediately and rely on dlopen search algorithm *)
+let load_dyn_lib search_dirs lib_name =
+  let shared_lib_name = make_shared_lib_name lib_name in
+  let shared_lib_path =
+    match find_dyn_lib_from_path search_dirs shared_lib_name with
+    | Some path -> path
+    | None -> shared_lib_name
+  in
+  Dl.dlopen ~filename:shared_lib_path ~flags:[Dl.RTLD_LAZY]
+
+let prepare_dyn_libs engine =
+  match Hashtbl.is_empty engine.loaded_libs with
+  | false ->
+     Hashtbl.values engine.loaded_libs |> List.of_enum
+  | true ->
+     let search_dirs =
+       engine.build_options
+       |> List.filter_map (fun o -> match o with COS.OsLinkDir s -> Some s | _ -> None)
+     in
+     let lib_names =
+       engine.build_options
+       |> List.filter_map (fun o -> match o with COS.OsLinkLib s -> Some s | _ -> None)
+     in
+
+     let load_lib lib_name =
+       let lib = load_dyn_lib search_dirs lib_name in
+       Hashtbl.add engine.loaded_libs lib_name lib;
+       lib
+     in
+     List.map load_lib lib_names
+
+let load_dyn_libs engine =
+  let module CgCtx = Codegen_llvm.Ctx in
+
+  let libs = prepare_dyn_libs engine in
+
+  let ext_func_names =
+    CgCtx.enum_of_external_function_names engine.cg_ctx
+    |> StringSet.of_enum
+  in
+  let diff_func_names =
+    StringSet.diff ext_func_names engine.loaded_funcs
+  in
+
+  Debug.printf "CtfeENGINE: load funcs / NUM = %d (Loaded = %d)"
+               (StringSet.cardinal ext_func_names)
+               (StringSet.cardinal engine.loaded_funcs);
+  let load_func name s =
+    Debug.printf "CtfeENGINE: load func = %s" name;
+
+    let try_to_load lib =
+      try
+        Dl.dlsym ~handle:lib ~symbol:name
+        |> Option.some
+      with
+      | Dl.DL_error _ -> None
+    in
+    try
+      let f = List.find_map try_to_load libs in
+      let fp = Cstubs_internals.make_ptr Ctypes.void f in
+      let gv = CgCtx.find_external_function_by_name engine.cg_ctx name in
+      LE.add_global_mapping gv fp engine.exec_engine;
+
+      StringSet.add name s
+    with
+    | Not_found ->
+       failwith ("[ERR] function " ^ name ^ " coultn't be loaded")
+  in
+  let new_set =
+    StringSet.fold load_func diff_func_names engine.loaded_funcs
+  in
+  engine.loaded_funcs <- new_set;
+
+  ()
 
 
 let invoke_function engine fname ret_ty type_sets =
@@ -142,24 +243,21 @@ let execute' engine expr_node expr_ty type_sets =
       let (expr_llval, _, is_addr, _) =
         Codegen_llvm.generate_code expr_node Codegen_flowinfo.empty engine.cg_ctx
       in
-      Debug.printf ">>> DUMP LLVM VALUE / is_addr: %b\n" is_addr;
-      Codegen_llvm.debug_dump_value expr_llval;
-      Debug.printf "===\n";
-
       (* CTFEed value must not be addressed form *)
       let expr_llval = match is_addr with
         | true -> L.build_load expr_llval "" ir_builder
         | faise -> expr_llval
       in
-      Codegen_llvm.debug_dump_value expr_llval;
-      Debug.printf "<<< DUMP LLVM VALUE\n";
       ignore @@ L.build_ret expr_llval ir_builder;
 
+      Debug.printf ">>> CtfeENGINE: DUMP FUNC";
       Llvm_analysis.assert_valid_function f;
       Codegen_llvm.debug_dump_value f;
 
       (**)
       LE.add_module ir_mod engine.exec_engine;
+
+      let _ = load_dyn_libs engine in
 
       (**)
       let ctfe_val = invoke_function engine tmp_expr_fname expr_ty type_sets in

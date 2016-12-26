@@ -53,6 +53,7 @@ OCAMLPACKS[] =
    llvm.analysis
    llvm.executionengine
    ctypes
+   ctypes.stubs
    stdint
    ocamlgraph
 
@@ -171,6 +172,7 @@ FILES[] =
    sema_error
    codegen_context
    codegen_flowinfo
+   codegen_option_spec
    codegen_llvm
    codegen_llvm_intrinsics
    codegen_executable

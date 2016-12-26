@@ -25,6 +25,11 @@ Rill is designed for systems programming.
 + GCC (>= 5.4.0)
 
 ## Development
+### Supported Environments
+
+- Arch Linux (x86_64)
+- Ubuntu 16.04 (x86_64)
+
 ### Preparation
 ```
 opam install omake menhir batteries ctypes-foreign stdint ocamlgraph llvm.3.9
@@ -43,7 +48,7 @@ eval `opam config env`
 or `omake unit_test` and `omake e2e_test`
 
 ### Try
-`rillc/src/rillc test/compilable/hello_world.rill && ./a.out`
+`rillc/src/rillc test/pass/hello_world.rill && ./a.out`
 
 ## Release
 ### Use OPAM

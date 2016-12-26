@@ -2108,7 +2108,7 @@ and make_call_instruction ?(sub_nest=0)
          in
          if not (List.length param_ty.Type_info.ti_generics_args = List.length arg_ty.Type_info.ti_generics_args) then
            begin
-             Debug.printf "length of generics params is different: %s / PARAMS: %s / ARGS: %s\n" (Id_string.to_string f_er.Env.fn_name) (Type.to_string param_ty) (Type.to_string arg_ty);
+             Debug.printf "length of generics params is different: %s / PARAMS: %s / ARGS: %s" (Id_string.to_string f_er.Env.fn_name) (Type.to_string param_ty) (Type.to_string arg_ty);
              failwith "[ERR]"
            end;
 
@@ -2123,7 +2123,7 @@ and make_call_instruction ?(sub_nest=0)
   in
 
   let cc (trg, src) =
-    Debug.printf "LIFETIME %s <- %s\n" (Lifetime.to_string trg) (Lifetime.to_string src);
+    Debug.printf "LIFETIME %s <- %s" (Lifetime.to_string trg) (Lifetime.to_string src);
     let ss = match src with
       | Lifetime.LtVar (var_id, _, _, _, _, _) ->
          None
@@ -2146,13 +2146,13 @@ and make_call_instruction ?(sub_nest=0)
        ()
   in
   List.iter cc bo;
-  Debug.printf "= LIFETIME ARG MATCH = FINISH <<<<< %s\n\n" (Id_string.to_string (Env.get_name f_env));
+  Debug.printf "= LIFETIME ARG MATCH = FINISH <<<<< %s" (Id_string.to_string (Env.get_name f_env));
 
   (* TODO: check all generics values are bound *)
   let c lt =
-    Debug.printf "BINDED? %s <-\n" (Lifetime.to_string lt);
+    Debug.printf "BINDED? %s <-" (Lifetime.to_string lt);
     let tr = solve_var lt mm in
-    Debug.printf "BOUND <- %s\n" (Lifetime.to_string tr);
+    Debug.printf "BOUND <- %s" (Lifetime.to_string tr);
   in
   List.iter c f_er.Env.fn_generics_vals;
 
@@ -2160,14 +2160,14 @@ and make_call_instruction ?(sub_nest=0)
   if not (is_valid_type f_ret_ty) then
     failwith @@ "[ERR] type of this function is not determined : " ^ (Type.to_string f_ret_ty);
 
-  Debug.printf "= LIFETIME CONSTRAINT = START >>>>> %s\n\n" (Id_string.to_string (Env.get_name f_env));
+  Debug.printf "= LIFETIME CONSTRAINT = START >>>>> %s" (Id_string.to_string (Env.get_name f_env));
   (* check constraint map *)
   let f constr =
     match constr with
     (* TODO: lt > rt. lt will live longer than rt *)
     | Lifetime.LtMin (lt, rt) ->
-       Debug.printf "LT: %s > %s\n" (Lifetime.to_string lt) (Lifetime.to_string rt);
-       Debug.printf "  : %s > %s\n" (Lifetime.to_string @@ solve_var lt mm) (Lifetime.to_string @@ solve_var rt mm);
+       Debug.printf "LT: %s > %s" (Lifetime.to_string lt) (Lifetime.to_string rt);
+       Debug.printf "  : %s > %s" (Lifetime.to_string @@ solve_var lt mm) (Lifetime.to_string @@ solve_var rt mm);
 
        let b =
          let (>=) = Lifetime_constraints.(>=) in
@@ -2177,7 +2177,7 @@ and make_call_instruction ?(sub_nest=0)
          failwith "[ERR] constraints"
   in
   List.iter f f_env.Env.generics_constraints;
-  Debug.printf "= LIFETIME CONSTRAINT = FINISH <<<<< %s\n\n" (Id_string.to_string (Env.get_name f_env));
+  Debug.printf "= LIFETIME CONSTRAINT = FINISH <<<<< %s" (Id_string.to_string (Env.get_name f_env));
 
   (* check return type lifetime *)
 
@@ -2190,7 +2190,7 @@ and make_call_instruction ?(sub_nest=0)
   let aux_gs = List.map (f "aux") f_ret_ty.Type_info.ti_aux_generics_args in
   let gs = List.map (f "gen") f_ret_ty.Type_info.ti_generics_args in
   let f_ret_ty = Type.Generator.update_attr_r3 ctx.sc_tsets.ts_type_gen f_ret_ty aux_gs gs in
-  Debug.printf "= LIFETIME RETURN = FINISH <<<<< %s / %s\n\n" (Id_string.to_string (Env.get_name f_env)) (Type.to_string f_ret_ty);
+  Debug.printf "= LIFETIME RETURN = FINISH <<<<< %s / %s" (Id_string.to_string (Env.get_name f_env)) (Type.to_string f_ret_ty);
 
   let arg_lts =
     let g param_ty =
@@ -2198,8 +2198,8 @@ and make_call_instruction ?(sub_nest=0)
     in
     g f_ret_ty
   in
-  List.map (Lifetime.to_string) arg_lts |> String.join ", " |> Debug.printf "PP = %s\n";
-  List.map (Lifetime.to_string) ((aux_gs @ gs)) |> String.join ", " |> Debug.printf "CR = %s\n";
+  List.map (Lifetime.to_string) arg_lts |> String.join ", " |> Debug.printf "PP = %s";
+  List.map (Lifetime.to_string) ((aux_gs @ gs)) |> String.join ", " |> Debug.printf "CR = %s";
 
   let ret_ty_cenv = Type.as_unique f_ret_ty in
 
@@ -2216,7 +2216,7 @@ and make_call_instruction ?(sub_nest=0)
   let aux_lt_count = SubExprSpec.allocate_aux_count temp_obj_spec in
   let f_ret_lt =
     (* TODO: fix
-     * set new lifetime only when return values are VALUE  *)
+     * set new lifetime only when return values are VALUE *)
     let sub_nest_lt = (Lifetime.LtSlNormal 0) in
     Env.get_scope_lifetime ~aux_count:aux_lt_count sub_nest_lt parent_env
   in
@@ -2224,7 +2224,7 @@ and make_call_instruction ?(sub_nest=0)
 
   let node_aux = Aux.make f_ret_ty f_ret_val_cat f_ret_lt f_ret_ml loc in
   (* TODO: fix
-   * set new lifetime only when return values are VALUE  *)
+   * set new lifetime only when return values are VALUE *)
   let n_node =
     SubExprSpec.register_temporary temp_obj_spec aux_lt_count (node, node_aux)
   in

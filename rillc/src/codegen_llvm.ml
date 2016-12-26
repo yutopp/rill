@@ -47,6 +47,8 @@ module CodeGeneratorType =
     type ir_context_t = L.llcontext
     type ir_builder_t = L.llbuilder
     type ir_module_t = L.llmodule
+    type ir_value_t = L.llvalue
+
     type ir_intrinsics = Codegen_llvm_intrinsics.t
     type 'ty ir_cache_value_t = 'ty generated_value_t
 
@@ -87,6 +89,11 @@ let llval_i32 v ctx =
 let llval_u32 v ctx =
   let open Ctx in
   L.const_int_of_string (L.i32_type ctx.ir_context) (Uint32.to_string v) 10
+
+let llval_string v ctx =
+  let open Ctx in
+  (* null terminated *)
+  L.const_stringz ctx.ir_context v
 
 let do_debug_print_flag = not Config.is_release (*&& false*)
 
@@ -202,7 +209,10 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
            end;
 
          if is_in_other_module ctx env && not force_inline then
-           ()
+           begin
+             Ctx.bind_external_function ctx name f;
+             ()
+           end
          else
            begin
              (* entry block *)
@@ -320,7 +330,8 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
 
        | Env.FnRecordExternal (def, kind, extern_fname) ->
           begin
-            let _ = declare_current_function extern_fname in
+            let f = declare_current_function extern_fname in
+            Ctx.bind_external_function ctx extern_fname f;
             void_val prev_fi
           end
 
@@ -915,7 +926,8 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
 
      generate_code ~storage:(Some !sto) e prev_fi ctx
 
-  | _ -> failwith "cannot generate : node"
+  | _ ->
+     failwith "cannot generate : node"
 
 
 and ctfe_val_to_llval ctfe_val prev_fi ctx =
