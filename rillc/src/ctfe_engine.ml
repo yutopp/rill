@@ -138,7 +138,7 @@ let load_dyn_libs engine =
     in
     try
       let f = List.find_map try_to_load libs in
-      let fp = Cstubs_internals.make_ptr Ctypes.void f in
+      let fp = Ctypes.ptr_of_raw_address f in
       let gv = CgCtx.find_external_function_by_name engine.cg_ctx name in
       LE.add_global_mapping gv fp engine.exec_engine;
 
