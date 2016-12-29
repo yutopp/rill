@@ -63,8 +63,6 @@ let string_of_loc_region loc =
      assert (l.Loc.pos_begin_cnum >= 0);
      assert (l.Loc.pos_end_cnum >= 0);
      assert (l.Loc.pos_end_cnum > l.Loc.pos_begin_cnum);
-     Printf.printf "begin = %d / end = %d\n" l.Loc.pos_begin_cnum l.Loc.pos_end_cnum;
-     Printf.printf "s = %s\n" (Loc.to_string (Some l));
 
      let lines =
        Batteries.File.with_file_in l.Loc.pos_fname

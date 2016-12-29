@@ -425,33 +425,32 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        (**)
        let (lt_params, lt_cx) = declare_generics_specs lifetime_specs env in
 
-       (**)
-       let member_qual =
+       (* *)
+       let member_qual default_qual =
          let f qual =
            match qual with
            | Nodes.QualMutable -> Some Type_attr.Mutable
            | Nodes.QualConst -> Some Type_attr.Const
            | Nodes.QualImmutable -> Some Type_attr.Immutable
          in
-         let tas = List.filter_map f quals in
+         let qual_attrs = List.filter_map f quals in
          let f opt_mut ty_mut =
            match opt_mut with
            | None -> Some ty_mut
-           | Some mut when mut = ty_mut ->
-              Some ty_mut
-           | _ ->
-              failwith "[ERR]"
+           | Some mut when mut = ty_mut -> Some ty_mut
+           | _ -> failwith "[ERR]"
          in
-         let mut = List.fold_left f None tas in
-         (* member func mutability / default: mutable *)
-         Option.default Type_attr.Mutable mut
+         List.fold_left f None qual_attrs |> Option.default default_qual
        in
 
        match name with
        | Id_string.Pure s when s = ctor_name ->
           begin
             (* this function is constructor. *)
-            let ret_ty = make_class_type ctx_env Type_attr.Val Type_attr.Const env ctx in
+            let ret_ty =
+              let attr = Type_attr.make Type_attr.Val Type_attr.Const in
+              make_class_type ctx_env attr env ctx
+            in
 
             (* check parameters *)
             let (params, param_kinds, param_venvs, implicit_aux_lts, implicit_lts) =
@@ -468,9 +467,10 @@ let rec construct_env node parent_env ctx opt_chain_attr =
               param_kinds Meta_level.Meta ret_ty false;
 
             (* prepare "this" special var *)(* TODO: consider member qual *)
-            let this_ty = make_class_type ctx_env
-                                          (Type_attr.Ref []) Type_attr.Mutable
-                                          env ctx in
+            let this_ty =
+              let attr = Type_attr.make (Type_attr.Ref []) Type_attr.Mutable in
+              make_class_type ctx_env attr env ctx
+            in
             Debug.printf "$ ctor of %s || this: %s\n" (Id_string.to_string (Env.get_name ctx_env)) (Type.to_string this_ty);
 
             let (name, this_venv) = make_parameter_venv env "this" this_ty ctx in
@@ -568,11 +568,9 @@ let rec construct_env node parent_env ctx opt_chain_attr =
             let this_param =
               let attr = {
                 Type_attr.ta_ref_val = Type_attr.Ref [];
-                Type_attr.ta_mut = member_qual;
+                Type_attr.ta_mut = member_qual Type_attr.Const; (* default const *)
               } in
-              let this_ty = make_class_type ctx_env
-                                            (Type_attr.Ref []) member_qual
-                                            env ctx in
+              let this_ty = make_class_type ctx_env attr env ctx in
               ((attr, Some "this", (None, None)), this_ty)
             in
 
@@ -3331,7 +3329,7 @@ and solve_function_overload eargs template_args mset_env ext_env loc ctx attr =
     (* has no template args *)
     | [] ->
        begin
-         let (normal_f_level, normal_fs_and_args, _) =
+         let (normal_f_level, normal_fs_and_args, err_n) =
            find_suitable_functions mset_record.Env.ms_normal_instances
                                    eargs
                                    ext_env ctx attr
@@ -3370,16 +3368,16 @@ and solve_function_overload eargs template_args mset_env ext_env loc ctx attr =
                                args_type_value instanced_envs;
                    instanced_envs
               in
-              let (instanced_f_level, instanced_fs_and_args, errs) =
+              let (instanced_f_level, instanced_fs_and_args, errs_i) =
                 find_suitable_functions instanced_envs eargs ext_env ctx attr
               in
               Debug.printf "!! instanced function candidates = %s / %d"
                            (Function.MatchLevel.to_string instanced_f_level)
                            (List.length instanced_fs_and_args);
               if Function.MatchLevel.is_better instanced_f_level normal_f_level then
-                (instanced_f_level, instanced_fs_and_args, errs)
+                (instanced_f_level, instanced_fs_and_args, err_n @ errs_i)
               else
-                (normal_f_level, normal_fs_and_args, errs)
+                (normal_f_level, normal_fs_and_args, err_n @ errs_i)
             end
      end
 
@@ -4073,11 +4071,12 @@ and raise_error_if_type_is_invalid ty =
   assert_valid_type ty;
   ()
 
-and make_class_type ?(new_instance=false) cenv rv mut env ctx =
-  let attr = {
-    Type_attr.ta_ref_val = rv;
-    Type_attr.ta_mut = mut;
-  } in
+and make_class_type ?(new_instance=false) cenv attr env ctx =
+  let {
+      Type_attr.ta_ref_val = rv;
+      Type_attr.ta_mut = mut;
+    } = attr
+  in
   let ts = Type_info.UniqueTy cenv in
 
   let cr = Env.ClassOp.get_record cenv in
@@ -4128,7 +4127,11 @@ and declare_checked_default_ctor cenv ctx =
   let fenv = declare_incomplete_ctor cenv in
 
   (* interface of default constructor: () -> TYPE *)
-  let ret_ty = make_class_type cenv Type_attr.Val Type_attr.Const fenv ctx in
+
+  let ret_ty =
+    let attr = Type_attr.make Type_attr.Val Type_attr.Const in
+    make_class_type cenv attr fenv ctx
+  in
   let {
     Type_info.ti_aux_generics_args = aux_generics_args;
     Type_info.ti_generics_args = generics_args;
@@ -4146,7 +4149,10 @@ and declare_checked_copy_ctor ?(has_ptr_constraints=false) cenv ctx =
   let fenv = declare_incomplete_ctor cenv in
 
   (* interface of copy constructor: (TYPE) -> TYPE *)
-  let ret_ty = make_class_type cenv Type_attr.Val Type_attr.Const fenv ctx in
+  let ret_ty =
+    let attr = Type_attr.make Type_attr.Val Type_attr.Const in
+    make_class_type cenv attr fenv ctx
+  in
   let {
     Type_info.ti_aux_generics_args = ret_aux_generics_args;
     Type_info.ti_generics_args = ret_generics_args;
@@ -4162,8 +4168,8 @@ and declare_checked_copy_ctor ?(has_ptr_constraints=false) cenv ctx =
        in
 
        let rhs_ty =
-         make_class_type ~new_instance:true
-                         cenv (Type_attr.Ref []) Type_attr.Const fenv ctx
+         let attr = Type_attr.make (Type_attr.Ref []) Type_attr.Const in
+         make_class_type ~new_instance:true cenv attr fenv ctx
        in
        let ty_lt = match rhs_ty.Type_info.ti_generics_args with
          | [lt] -> lt
@@ -4191,7 +4197,10 @@ and declare_checked_copy_ctor ?(has_ptr_constraints=false) cenv ctx =
        (rhs_ty, [n_ty_lt; n_r1_lt], [Lifetime.LtMin (n_ty_lt, ret_ty_lt)])
 
     | false ->
-       let rhs_ty = make_class_type cenv (Type_attr.Ref []) Type_attr.Const fenv ctx in
+       let rhs_ty =
+         let attr = Type_attr.make (Type_attr.Ref []) Type_attr.Const in
+         make_class_type cenv attr fenv ctx
+       in
        let {
            Type_info.ti_aux_generics_args = rhs_aux_generics_args;
            Type_info.ti_generics_args = rhs_generics_args;
@@ -4233,7 +4242,8 @@ and constructor_kind param_kinds cenv ctx =
   | 1 ->
      begin
        let ref_self_ty =
-         make_class_type cenv (Type_attr.Ref []) Type_attr.Const cenv ctx (* XXX: *)
+         let attr = Type_attr.make (Type_attr.Ref []) Type_attr.Const in
+         make_class_type cenv attr cenv ctx (* XXX: *)
        in
        match List.hd required_params with
        (* copy ctor *)
@@ -4256,7 +4266,10 @@ and destructor_kind param_kinds =
 
 and declare_this_variable fenv cenv ctx =
   (* prepare "this" special var *)(* TODO: consider member qual *)
-  let this_ty = make_class_type cenv (Type_attr.Ref []) Type_attr.Mutable fenv ctx in
+  let this_ty =
+    let attr = Type_attr.make (Type_attr.Ref []) Type_attr.Mutable in
+    make_class_type cenv attr fenv ctx
+  in
   let (this_name, this_venv) = make_parameter_venv fenv "this" this_ty ctx in
   Env.add_inner_env fenv this_name this_venv;
   (this_ty, this_venv)
@@ -4588,12 +4601,12 @@ and define_trivial_copy_assign_for_builtin ?(has_ptr_constraints=false)
     (* ('a: 'r1, 'r1, 'r2) op=('r1 ref :'a ty, 'r2 ref :'a rhs_ty) *)
     | true ->
        let ty =
-         make_class_type ~new_instance:true
-                         cenv (Type_attr.Ref []) Type_attr.Mutable cenv ctx (* XXX: *)
+         let attr = Type_attr.make (Type_attr.Ref []) Type_attr.Mutable in
+         make_class_type ~new_instance:true cenv attr cenv ctx (* XXX: *)
        in
        let rhs_ty =
-         make_class_type ~new_instance:true
-                         cenv (Type_attr.Ref []) Type_attr.Const cenv ctx (* XXX: *)
+         let attr = Type_attr.make (Type_attr.Ref []) Type_attr.Const in
+         make_class_type ~new_instance:true cenv attr cenv ctx (* XXX: *)
        in
 
        let ty_lt = match ty.Type_info.ti_generics_args with
@@ -4633,8 +4646,14 @@ and define_trivial_copy_assign_for_builtin ?(has_ptr_constraints=false)
        (ty, rhs_ty, [n_ty_lt; n_r1_lt; n_r2_lt], [Lifetime.LtMin (n_ty_lt, n_r1_lt)])
 
     | false ->
-       let ty = make_class_type cenv (Type_attr.Ref []) Type_attr.Mutable cenv ctx  (* XXX: *) in
-       let rhs_ty = make_class_type cenv (Type_attr.Ref []) Type_attr.Const cenv ctx  (* XXX: *) in
+       let ty =
+         let attr = Type_attr.make (Type_attr.Ref []) Type_attr.Mutable in
+         make_class_type cenv attr cenv ctx  (* XXX: *)
+       in
+       let rhs_ty =
+         let attr = Type_attr.make (Type_attr.Ref []) Type_attr.Const in
+         make_class_type cenv attr cenv ctx  (* XXX: *)
+       in
 
        (* TODO: add lifetimes of ty and rhs_ty *)
        (ty, rhs_ty, [], [])

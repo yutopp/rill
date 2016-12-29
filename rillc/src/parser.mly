@@ -594,6 +594,7 @@ for_expression:
 scope_expression:
                 LBLOCK
                 stmts = program_body_statements_list
+                (*expr = option(expression)*)
                 RBLOCK
                 { Ast.ScopeExpr (stmts) }
 

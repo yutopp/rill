@@ -1,7 +1,7 @@
 class 'a A {
       val p: 'a raw_ptr!(int32);
 
-      def ('z: 'a) update(rhs: 'z raw_ptr!(int32)) {
+      def ('z: 'a) update(rhs: 'z raw_ptr!(int32)) mutable {
           this.p = rhs;
       }
 }

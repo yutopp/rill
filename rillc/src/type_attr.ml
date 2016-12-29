@@ -23,16 +23,20 @@ type attr_t = {
     ta_mut        : mut_t;
   }
 
-
 let undef = {
     ta_ref_val = RefValUndef;
     ta_mut = MutUndef;
   }
 
+let make ref_val mut =
+  {
+    ta_ref_val = ref_val;
+    ta_mut = mut;
+  }
+
 let is_same lhs rhs =
   lhs.ta_ref_val = rhs.ta_ref_val &&
     lhs.ta_mut = rhs.ta_mut
-
 
 let int_of_mut m = match m with
   | Immutable -> 0
@@ -48,7 +52,6 @@ let mut_of_int n = match n with
 
 let mut_strong a b =
   mut_of_int (min (int_of_mut a) (int_of_mut b))
-
 
 let int_of_rv m = match m with
   | Val -> 0

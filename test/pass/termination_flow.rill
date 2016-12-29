@@ -1,0 +1,17 @@
+def main() { f1(); f2(); f3(); }
+
+def f1() {
+    f(with {return 10; 10;});
+}
+
+def f2() {
+    return with {return 10; 10;};
+}
+
+def f3() {
+    if ((with {return 10; false;})) {
+         f(10);
+    }
+}
+
+def f(v: int32) {}

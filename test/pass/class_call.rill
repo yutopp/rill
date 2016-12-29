@@ -12,7 +12,7 @@ def main() : void
 class a1
 {
     val a: int32;
-    def yo(): void {
+    def yo() mutable: void {
         this.a = 10;
         return;
     }

@@ -70,6 +70,10 @@ module Make (Ctx : NodeContextType) =
 
       (* used for calling destructors *)
       | FinalyzeExpr of ast option * ast list
+
+      (**)
+      | TerminalExpr of ast
+
       (* set cache id for only needed ones. will be used for memo needed by destructor *)
       | SetCacheExpr of CachedNodeCounter.t * ast
       | GetCacheExpr of CachedNodeCounter.t

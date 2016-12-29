@@ -109,12 +109,18 @@ let debug_dump_type t =
   if do_debug_print_flag then
     Debug.printf "%s\n" (L.string_of_lltype t)
 
+exception Discontinue_code_generation of FI.t
+let discontinue_when_expr_terminated fi =
+  if FI.has_terminator fi then
+    raise (Discontinue_code_generation fi)
+
 let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
   let open Ctx in
   let void_v = L.undef (L.void_type ctx.ir_context) in
   let void_ty = ctx.type_sets.Type_sets.ts_void_type in
   let void_val fi = (void_v, void_ty, false, fi) in
 
+  if FI.has_terminator prev_fi then void_val prev_fi else
   match node with
   | TAst.Module (inner, pkg_names, mod_name, base_dir, _) ->
      generate_code inner prev_fi ctx
@@ -123,7 +129,13 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
      let rec gen nx (v, t, p, fi) = match nx with
        | [] -> (v, t, p, fi)
        | x :: xs ->
-          let l = generate_code x fi ctx in
+          let l =
+            try
+              generate_code x fi ctx
+            with
+            | Discontinue_code_generation nfi ->
+               void_val nfi
+          in
           gen xs l
      in
      gen nodes (void_val prev_fi)
@@ -139,19 +151,20 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
      begin
        Debug.printf "ReturnStmt!!!!!!!!";
 
-       let llval = match opt_e with
+       let (llval, fi) = match opt_e with
          | Some e ->
             let (llval, ty, is_addr, fi) = generate_code e prev_fi ctx in
+            discontinue_when_expr_terminated fi;
             if is_heavy_object ty || ty == void_ty then
-              L.build_ret_void ctx.ir_builder
+              (L.build_ret_void ctx.ir_builder, fi)
             else
               let llval = adjust_addr_val llval ty is_addr ctx in
-              L.build_ret llval ctx.ir_builder
+              (L.build_ret llval ctx.ir_builder, fi)
          | None ->
-            L.build_ret_void ctx.ir_builder
+            (L.build_ret_void ctx.ir_builder, prev_fi)
        in
 
-       (llval, void_ty, false, prev_fi |> FI.set_has_terminator true)
+       (llval, void_ty, false, fi |> FI.set_has_terminator true)
      end
 
   | TAst.GenericFuncDef (opt_body, Some env) ->
@@ -160,7 +173,9 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
        Ctx.mark_env_as_defined ctx env;
 
        let fenv_r = Env.FunctionOp.get_record env in
-       Debug.printf "\n\n\n\n<><><><>\nDefine: %s\n<><><><>\n%s\n\n\n\n" (fenv_r.Env.fn_mangled |> Option.get) (Env_system.EnvId.to_string env.Env.env_id);
+       Debug.printf "<><><><> Define Function: %s (%s)"
+                    (fenv_r.Env.fn_mangled |> Option.get)
+                    (Env_system.EnvId.to_string env.Env.env_id);
 
        let declare_current_function name =
          (* if this class returns non primitive object,
@@ -769,21 +784,19 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
      end
 
   | TAst.ScopeExpr (block) ->
-     begin
-       generate_code block prev_fi ctx
-     end
+     generate_code block prev_fi ctx
 
-  (* TODO: fix is_addr *)
   | TAst.IfExpr (cond_expr, then_expr, opt_else_expr, if_ty) ->
      begin
-       let (llcond, _, is_cond_addr, cg) = generate_code cond_expr prev_fi ctx in
+       let (llcond, _, is_cond_addr, fi) = generate_code cond_expr prev_fi ctx in
+       discontinue_when_expr_terminated fi;
        let llcond = if is_cond_addr then
                       L.build_load llcond "" ctx.ir_builder
                     else
                       llcond
        in
 
-       let ip =  L.insertion_block ctx.Ctx.ir_builder in
+       let ip  = L.insertion_block ctx.ir_builder in
        let tip = L.insert_block ctx.ir_context "then" ip in (* then *)
        let eip = L.insert_block ctx.ir_context "else" ip in (* else *)
        let fip = L.insert_block ctx.ir_context "term" ip in (* final *)
@@ -805,13 +818,13 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
        let then_branch =
          L.position_at_end tip ctx.Ctx.ir_builder;
          let (then_llval, then_ty, is_then_addr, then_fi) =
-           generate_code then_expr prev_fi ctx
-         in
-         let then_llval = adjust_llval_form if_ty then_ty then_llval ctx in
-         let then_llval =
-           adjust_addr_val then_llval then_ty is_then_addr ctx
+           generate_code then_expr fi ctx
          in
          if not (FI.has_terminator then_fi) then
+           let then_llval = adjust_llval_form if_ty then_ty then_llval ctx in
+           let then_llval =
+             adjust_addr_val then_llval then_ty is_then_addr ctx
+           in
            let _ = L.build_br fip ctx.ir_builder in
            let cip = L.insertion_block ctx.ir_builder in
            [(then_llval, cip)]
@@ -825,13 +838,13 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
          | Some else_expr ->
             L.position_at_end eip ctx.Ctx.ir_builder;
             let (else_llval, else_ty, is_else_addr, else_fi) =
-              generate_code else_expr prev_fi ctx
-            in
-            let else_llval = adjust_llval_form if_ty else_ty else_llval ctx in
-            let else_llval =
-              adjust_addr_val else_llval else_ty is_else_addr ctx
+              generate_code else_expr fi ctx
             in
             if not (FI.has_terminator else_fi) then
+              let else_llval = adjust_llval_form if_ty else_ty else_llval ctx in
+              let else_llval =
+                adjust_addr_val else_llval else_ty is_else_addr ctx
+              in
               let _ = L.build_br fip ctx.ir_builder in
               let cip = L.insertion_block ctx.ir_builder in
               [(else_llval, cip)]
@@ -850,15 +863,15 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
        match branchs with
        | [] ->
           L.remove_block fip;
-          void_val (prev_fi |> FI.set_has_terminator true)
+          void_val (fi |> FI.set_has_terminator true)
        | _ ->
           L.position_at_end fip ctx.Ctx.ir_builder;
           if Type.has_same_class ctx.type_sets.Type_sets.ts_void_type if_ty then
-            void_val prev_fi
+            void_val fi
           else
             let llret = L.build_phi branchs "" ctx.ir_builder in
             let is_addr = is_address_representation if_ty in
-            (llret, if_ty, is_addr, prev_fi(* TODO *))
+            (llret, if_ty, is_addr, fi)
      end
 
   (* FIX: is_addr *)
@@ -1341,22 +1354,24 @@ and generate_codes nodes fi ctx =
   in
   (llvals |> List.rev, tys |> List.rev, is_addrs |> List.rev, fi)
 
-and eval_args_for_func kind sto param_types ret_ty args caller_env prev_fi ctx =
+and eval_args_for_func kind ret_sto param_types ret_ty args caller_env prev_fi ctx =
   (* normal arguments *)
   let (llvals, arg_tys, is_addrs, fi) =
     generate_codes args prev_fi ctx
   in
+  discontinue_when_expr_terminated fi;
+
   (* special arguments *)
-  let (llvals, arg_tys, is_addrs, param_types, returns_addr, skip_alloca) =
-    match sto with
+  let (opt_head, (returns_addr, skip_alloca)) =
+    match ret_sto with
     | TAst.StoStack _
     | TAst.StoAgg _
     | TAst.StoArrayElem _
     | TAst.StoArrayElemFromThis _
     | TAst.StoMemberVar _ ->
-       let (v, ty, is_addr) = setup_storage sto caller_env ctx in
+       let (v, ty, is_addr) = setup_storage ret_sto caller_env ctx in
        let sa = is_primitive ty in
-       (v::llvals, ty::arg_tys, is_addr::is_addrs, ty::param_types, true, sa)
+       (Some (v, ty, is_addr), (true, sa))
 
     | TAst.StoImm ->
        let (returns_addr, sa) =
@@ -1364,37 +1379,43 @@ and eval_args_for_func kind sto param_types ret_ty args caller_env prev_fi ctx =
          | Env.FnKindFree ->
             (is_address_representation ret_ty, false)
 
+         (* for special functions with immediate(primitive) *)
          | _ ->
-            let (returns_addr, skip_alloca) = match (is_addrs, arg_tys) with
-              (* Case for constructors of primitives *)
-              | ([], []) -> (false, false)
-              (* Case for normal constructors
-               * An address flag of first arg(hp) means
-               *   "is the return value pointer?"
-               * And if the first type of arguments is a primitive,
-               *   do not allocate storage for optimization
-               *)
-              | (hp::_, aty::_) -> (hp, is_primitive aty)
-              | _ -> failwith "[ICE]"
+            let returns_addr = match is_addrs with
+              | [] -> false
+              | hp :: _ -> hp
+            in
+            let skip_alloca = match param_types with
+              | [] -> false
+              | x :: _ -> is_primitive x
             in
             (returns_addr, skip_alloca)
        in
-       (llvals, arg_tys, is_addrs, param_types, returns_addr, sa)
+       (None, (returns_addr, sa))
 
-    | _ -> failwith (Printf.sprintf "[ICE] special arguments %s"
-                                    (TAst.string_of_stirage sto))
+    | _ ->
+       failwith (Printf.sprintf "[ICE] special arguments %s"
+                                (TAst.string_of_stirage ret_sto))
   in
+
+  let (llvals, arg_tys, is_addrs, param_types) = match opt_head with
+    | Some (v, ty, is_addr) ->
+       (v::llvals, ty::arg_tys, is_addr::is_addrs, ty::param_types)
+    | None ->
+       (llvals, arg_tys, is_addrs, param_types)
+  in
+
   let llargs =
     Debug.printf "conv funcs skip_alloca = %b\n" skip_alloca;
-    let rec make param_tys arg_tys is_addrs llvals =
+    let rec make param_tys arg_tys is_addrs llvals sa =
       match (param_tys, arg_tys, is_addrs, llvals) with
       | ([], [], [], []) -> []
       | (pt::pts, at::ats, ia::ias, lv::lvs) ->
-         let llarg = adjust_arg_llval_form pt at ia skip_alloca lv ctx in
-         llarg::(make pts ats ias lvs)
+         let llarg = adjust_arg_llval_form pt at ia sa lv ctx in
+         llarg::(make pts ats ias lvs sa)
       | _ -> failwith ""
     in
-    make param_types arg_tys is_addrs llvals
+    make param_types arg_tys is_addrs llvals skip_alloca
   in
   let llargs = llargs |> Array.of_list in
   (param_types, llargs, is_addrs, returns_addr)
