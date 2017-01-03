@@ -45,7 +45,7 @@ prog_module:
                 {
                     let (pkg_names, mod_name, attr_opt) = m in
                     let ast =
-                      Ast.Module (body, pkg_names, mod_name, Mi.full_filepath, ())
+                      Ast.Module (body, pkg_names, mod_name, Mi.full_filepath, pos $startpos $endpos)
                     in
                     match attr_opt with
                     | Some attr -> Ast.AttrWrapperStmt (attr, ast)
@@ -99,7 +99,7 @@ import_statement:
                     let rev_xs = List.rev xs in
                     let pkg_names = List.rev (List.tl rev_xs) in
                     let mod_name = List.hd rev_xs in
-                    Ast.ImportStmt (pkg_names, mod_name, ())
+                    Ast.ImportStmt (pkg_names, mod_name, pos $startpos $endpos)
                 }
 
 function_decl_statement:
@@ -112,7 +112,7 @@ function_decl_statement:
                 t_cond = when_cond?
                 body = function_decl_body_block
                 {
-                    let n = Ast.FunctionDefStmt (name, lifetimes, params, ret_type, t_cond, body, None, ()) in
+                    let n = Ast.FunctionDefStmt (name, lifetimes, params, ret_type, t_cond, body, None, pos $startpos $endpos) in
                     templatefy name n opt_tparams
                 }
 
@@ -145,7 +145,7 @@ member_function_declaration_statement:
                 ret_type = type_specifier?
                 body = function_decl_body_block
                 {
-                    let n = Ast.MemberFunctionDefStmt (name, lifetimes, params, quals, ret_type, body, None, ()) in
+                    let n = Ast.MemberFunctionDefStmt (name, lifetimes, params, quals, ret_type, body, None, pos $startpos $endpos) in
                     templatefy name n opt_tparams
                 }
 
@@ -278,7 +278,7 @@ class_decl_statement_:
                 ml = meta_level
                 body = class_decl_body_block
                 {
-                    let n = Ast.ClassDefStmt (name, lifetimes, body, None, () ) in
+                    let n = Ast.ClassDefStmt (name, lifetimes, body, None, pos $startpos $endpos) in
                     templatefy name n opt_tparams
                 }
 
@@ -307,7 +307,7 @@ class_body_statements_list:
 member_variable_declaration_statement:
                 member_variable_declararion SEMICOLON
                 {
-                    Ast.MemberVariableDefStmt ($1, ())
+                    Ast.MemberVariableDefStmt ($1, pos $startpos $endpos)
                 }
 
 member_variable_declararion:
@@ -354,7 +354,7 @@ extern_function_statement:
                 ASSIGN
                 body_name = STRING (*string_lit*)
                 {
-                    let n = Ast.ExternFunctionDefStmt (name, lifetimes, params, ml, ret_type, t_cond, body_name, None, ()) in
+                    let n = Ast.ExternFunctionDefStmt (name, lifetimes, params, ml, ret_type, t_cond, body_name, None, pos $startpos $endpos) in
                     templatefy name n opt_tparams
                 }
 
@@ -368,7 +368,7 @@ extern_class_statement:
                 body_name = STRING (*string_lit*)
                 opt_body = class_decl_body_block?
                 {
-                    let n = Ast.ExternClassDefStmt (name, lifetimes, body_name, opt_body, None, ()) in
+                    let n = Ast.ExternClassDefStmt (name, lifetimes, body_name, opt_body, None, pos $startpos $endpos) in
                     templatefy name n opt_tparams
                 }
 
@@ -445,7 +445,7 @@ variable_declaration_statement:
                 SEMICOLON
                 {
                     let (vinit, ml) = decl in
-                    Ast.VariableDefStmt (ml, vinit, ())
+                    Ast.VariableDefStmt (ml, vinit, pos $startpos $endpos)
                 }
 
 (* TODO: change rel_id_has_no_op_as_raw to generic_rel_id_has_no_op to support template variables *)
@@ -585,7 +585,7 @@ for_expression:
                 {
                     let opt_decl_stmt = match opt_decl with
                       | Some (vinit, ml) ->
-                          Some (Ast.VariableDefStmt (ml, vinit, ()))
+                          Some (Ast.VariableDefStmt (ml, vinit, pos $startpos $endpos))
                       | None -> None
                     in
                     Ast.ForExpr (opt_decl_stmt, opt_cond, opt_inc, body)
@@ -893,6 +893,7 @@ rel_id_as_s:
         |       unary_operator_as_s { $1 }
         |       rel_id_has_no_op_as_s { $1 }
 
+%inline
 binary_operator_as_raw:
                 PLUS { $1 }
         |       MINUS { $1 }
@@ -915,15 +916,18 @@ binary_operator_as_raw:
         |       BITWISE_XOR { $1 }
         |       LBRACKET RBRACKET { "[]" }
 
+%inline
 binary_operator_as_s:
                 KEYWORD_OPERATOR
                 op = binary_operator_as_raw
                 { Id_string.BinaryOp op }
 
+%inline
 unary_operator_as_raw:
                 INCREMENT { $1 }
         |       DECREMENT { $1 }
 
+%inline
 unary_pre_operator_as_raw:
                 NOT { $1 }
         |       MINUS { $1 }

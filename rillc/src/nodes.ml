@@ -72,7 +72,7 @@ module Make (Ctx : NodeContextType) =
       | FinalyzeExpr of ast option * ast list
 
       (**)
-      | TerminalExpr of ast
+      (*| TerminalExpr of ast*)
 
       (* set cache id for only needed ones. will be used for memo needed by destructor *)
       | SetCacheExpr of CachedNodeCounter.t * ast
@@ -90,7 +90,7 @@ module Make (Ctx : NodeContextType) =
       | ArrayLit of ast list * bool * term_ctx_t
 
       (* error *)
-      | Error
+      | ErrorTerm
 
       (* special *)
       | ParamsList of param_init_t list
@@ -106,7 +106,7 @@ module Make (Ctx : NodeContextType) =
 
       (* *)
       | GenericId of Id_string.t * Lifetime.t list * ctx_t
-      (* object construction, args, ctx *)
+      (* object construction, args, caller env, ctx *)
       | GenericCallExpr of storage_t * ast list * ctx_t * ctx_t
       (* body, ctx *)
       | GenericFuncDef of ast option * ctx_t
@@ -296,7 +296,7 @@ module Make (Ctx : NodeContextType) =
          begin
            Debug.printf "ArrayLit\n"
          end
-      | Error ->
+      | ErrorTerm ->
          begin
            Debug.printf "Error\n"
          end

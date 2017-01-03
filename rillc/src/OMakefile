@@ -180,6 +180,7 @@ FILES[] =
    type_sets
    type_info
    error_msg
+   error_msg_printer
    aux
    ctfe_engine
    ctfe_value

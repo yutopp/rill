@@ -167,7 +167,7 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
        (llval, void_ty, false, fi |> FI.set_has_terminator true)
      end
 
-  | TAst.GenericFuncDef (opt_body, Some env) ->
+  | TAst.GenericFuncDef (opt_body, (_, Some env)) ->
      if Ctx.is_env_defined ctx env then void_val prev_fi else
      begin
        Ctx.mark_env_as_defined ctx env;
@@ -360,7 +360,7 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
      end
 
   | TAst.ClassDefStmt (
-        name, _, body, opt_attr, Some env
+        name, _, body, opt_attr, (_, Some env)
       ) ->
      if Ctx.is_env_defined ctx env then void_val prev_fi else
      begin
@@ -397,7 +397,7 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
      end
 
   | TAst.ExternClassDefStmt (
-        name, _, extern_cname, _, _, Some env
+        name, _, extern_cname, _, _, (_, Some env)
       ) ->
      if Ctx.is_env_defined ctx env then void_val prev_fi else
      begin
@@ -419,7 +419,7 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
        void_val prev_fi
      end
 
-  | TAst.VariableDefStmt (_, TAst.VarInit (var_init), Some env) ->
+  | TAst.VariableDefStmt (_, TAst.VarInit (var_init), (_, Some env)) ->
      if Ctx.is_env_defined ctx env then void_val prev_fi else
      begin
        let venv = Env.VariableOp.get_record env in
@@ -444,7 +444,7 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
   | TAst.MemberVariableDefStmt _ -> void_val prev_fi
   | TAst.EmptyStmt -> void_val prev_fi
 
-  | TAst.GenericCallExpr (storage_ref, args, Some caller_env, Some env) ->
+  | TAst.GenericCallExpr (storage_ref, args, (_, Some caller_env), (_, Some env)) ->
      begin
        let f_er = Env.FunctionOp.get_record env in
        let {
@@ -589,7 +589,7 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
        (llval, ret_ty, returns_addr, prev_fi(* TODO *))
      end
 
-  | TAst.NestedExpr (lhs_node, _, rhs_ty, Some rhs_env) ->
+  | TAst.NestedExpr (lhs_node, _, rhs_ty, (_, Some rhs_env)) ->
      begin
        let (ll_lhs, _, is_addr, cg) = generate_code lhs_node prev_fi ctx in
        assert (is_addr);
@@ -686,7 +686,7 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
          end
      end
 
-  | TAst.GenericId (name, lt_args, Some rel_env) ->
+  | TAst.GenericId (name, lt_args, (_, Some rel_env)) ->
      begin
        let { Env.er = er; _ } = rel_env in
        match er with
@@ -1299,7 +1299,7 @@ and setup_storage sto caller_env ctx =
      in
      (array_elem_ptr, ty, true)
 
-  | TAst.StoArrayElemFromThis (ty, Some this_env, index) ->
+  | TAst.StoArrayElemFromThis (ty, (_, Some this_env), index) ->
      Debug.printf "setup_storage: StoArrayElemFromThis ty=%s\n"
                   (Type.to_string ty);
      let (array_sto, is_f_addr) =
@@ -1316,7 +1316,7 @@ and setup_storage sto caller_env ctx =
      in
      (array_elem_ptr, ty, true)
 
-  | TAst.StoMemberVar (ty, Some venv, Some parent_fenv) ->
+  | TAst.StoMemberVar (ty, (_, Some venv), (_, Some parent_fenv)) ->
      Debug.printf "setup_storage: StoMemberVar ty=%s\n"
                   (Type.to_string ty);
      let (reciever_llval, is_addr) =

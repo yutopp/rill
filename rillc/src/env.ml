@@ -72,7 +72,7 @@ type 'ast env_t = {
   | Unknown
 
  and 'ast type_info_t = 'ast env_t Type_info.t
-
+ and 'ast error_msg_t = ('ast type_info_t, 'ast env_t) Error_msg.t
  and 'ast name_env_mapping = (string, 'ast env_t) Hashtbl.t
 
  and 'ast lookup_table_t = {
@@ -89,7 +89,8 @@ type 'ast env_t = {
 
    ms_instanced_args_cache_for_env  : (string, 'ast env_t) Hashtbl.t;
    ms_instanced_args_cache_for_node : (string, 'ast) Hashtbl.t;
-   ms_instanced_args_pre_caches     : (string, 'ast env_t list) Hashtbl.t;
+
+   ms_instanced_args_pre_caches     : (string, ('ast env_t list * 'ast error_msg_t list)) Hashtbl.t;
  }
 
 

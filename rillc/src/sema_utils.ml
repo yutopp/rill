@@ -166,8 +166,10 @@ let register_builtin_type name inner_name mangled_name
     in
     env.Env.meta_level <- meta_level;
 
+    let loc = None in
+
     let lifetime_spec = [] in
-    let node = TAst.ExternClassDefStmt (name, lifetime_spec, inner_name, None, None, Some env) in
+    let node = TAst.ExternClassDefStmt (name, lifetime_spec, inner_name, None, None, (loc, Some env)) in
 
     let detail_r = Env.ClsRecordExtern {
                        Env.cls_e_name = inner_name;

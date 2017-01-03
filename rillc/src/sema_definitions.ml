@@ -42,7 +42,7 @@ let default_ty_attr = {
   Type_attr.ta_mut = Type_attr.Const;
 }
 
-exception Instantiation_failed
+exception Instantiation_failed of string
 exception Template_type_mismatch
 
 exception Normal_error of error_msg_t

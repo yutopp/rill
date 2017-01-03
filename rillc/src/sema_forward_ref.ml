@@ -49,9 +49,8 @@ let rec solve_forward_refs ?(meta_variables=[])
        TAst.EmptyStmt
      end
 
-  | Ast.FunctionDefStmt (id_name, lt_specs, params, opt_ret_type, instance_cond, body, None, _) ->
+  | Ast.FunctionDefStmt (id_name, lt_specs, params, opt_ret_type, instance_cond, body, None, loc) ->
      begin
-       let loc = None in
        let fenv = declare_pre_function id_name meta_variables loc parent_env ctx in
 
        let node = TAst.FunctionDefStmt (
@@ -62,15 +61,14 @@ let rec solve_forward_refs ?(meta_variables=[])
                       instance_cond |> Option.map (fun x -> TAst.PrevPassNode x),
                       TAst.PrevPassNode body,
                       opt_attr,
-                      Some fenv
+                      (loc, Some fenv)
                     ) in
        Env.update_rel_ast fenv node;
        node
      end
 
-  | Ast.MemberFunctionDefStmt (id_name, lt_specs, params, quals, opt_ret_type, body, None, _) ->
+  | Ast.MemberFunctionDefStmt (id_name, lt_specs, params, quals, opt_ret_type, body, None, loc) ->
      begin
-       let loc = None in
        let fenv = declare_pre_function id_name meta_variables loc parent_env ctx in
        Env.ClassOp.push_member_function parent_env fenv;
 
@@ -82,15 +80,14 @@ let rec solve_forward_refs ?(meta_variables=[])
                       Option.map (fun x -> TAst.PrevPassNode x) opt_ret_type,
                       TAst.PrevPassNode body,
                       opt_attr,
-                      Some fenv
+                      (loc, Some fenv)
                     ) in
        Env.update_rel_ast fenv node;
        node
      end
 
-  | Ast.ExternFunctionDefStmt (id_name, lt_specs, params, ml, ret_type, instance_cond, extern_fname, None, _) ->
+  | Ast.ExternFunctionDefStmt (id_name, lt_specs, params, ml, ret_type, instance_cond, extern_fname, None, loc) ->
      begin
-       let loc = None in
        let fenv = declare_pre_function id_name meta_variables loc parent_env ctx in
 
        let node = TAst.ExternFunctionDefStmt (
@@ -102,15 +99,14 @@ let rec solve_forward_refs ?(meta_variables=[])
                       instance_cond |> Option.map (fun x -> TAst.PrevPassNode x),
                       extern_fname,
                       opt_attr,
-                      Some fenv
+                      (loc, Some fenv)
                     ) in
        Env.update_rel_ast fenv node;
        node
      end
 
-  | Ast.ClassDefStmt (id_name, lt_spec, body, None, _) ->
+  | Ast.ClassDefStmt (id_name, lt_spec, body, None, loc) ->
      begin
-       let loc = None in
        let cenv = declare_pre_class id_name meta_variables loc parent_env ctx in
        let cenv_r = Env.ClassOp.get_record cenv in
 
@@ -127,15 +123,14 @@ let rec solve_forward_refs ?(meta_variables=[])
                       lt_spec,
                       nbody,
                       opt_attr,
-                      Some cenv
+                      (loc, Some cenv)
                     ) in
        Env.update_rel_ast cenv node;
        node
      end
 
-  | Ast.ExternClassDefStmt (id_name, lifetime_spec, extern_cname, opt_body, None, _) ->
+  | Ast.ExternClassDefStmt (id_name, lifetime_spec, extern_cname, opt_body, None, loc) ->
      begin
-       let loc = None in
        let cenv = declare_pre_class id_name meta_variables loc parent_env ctx in
 
        let node = TAst.ExternClassDefStmt (
@@ -144,15 +139,14 @@ let rec solve_forward_refs ?(meta_variables=[])
                       extern_cname,
                       opt_body |> Option.map (fun a -> TAst.PrevPassNode a),
                       opt_attr,
-                      Some cenv
+                      (loc, Some cenv)
                     ) in
        Env.update_rel_ast cenv node;
        node
      end
 
-  | Ast.MemberVariableDefStmt (v, _) ->
+  | Ast.MemberVariableDefStmt (v, loc) ->
      begin
-       let loc = None in
        let (_, var_name, _) =
          match v with
          | Ast.VarInit vi -> vi
@@ -168,13 +162,13 @@ let rec solve_forward_refs ?(meta_variables=[])
        Env.add_inner_env parent_env var_name venv;
        Env.ClassOp.push_member_variable parent_env venv;
 
-       let node = TAst.MemberVariableDefStmt (TAst.PrevPassNode v, Some venv) in
+       let node = TAst.MemberVariableDefStmt (TAst.PrevPassNode v, (loc, Some venv)) in
        Env.update_rel_ast venv node;    (* this node will be updated later... *)
        node
      end
 
-  | Ast.VariableDefStmt (ml, v, _) ->
-     TAst.VariableDefStmt (ml, TAst.PrevPassNode v, None)
+  | Ast.VariableDefStmt (ml, v, loc) ->
+     TAst.VariableDefStmt (ml, TAst.PrevPassNode v, (loc, None))
 
   | Ast.TemplateStmt (id_name, template_params, inner_node) ->
      begin
@@ -300,7 +294,7 @@ and prepare_module_from_filepath ?(def_mod_info=None) filepath ctx =
     let res_node = solve_forward_refs body env ctx in
 
     (* make and save tmp TAst to env *)
-    let node = TAst.Module (res_node, pkg_names, mod_name, base_dir, Some env) in
+    let node = TAst.Module (res_node, pkg_names, mod_name, base_dir, (loc, Some env)) in
     Env.update_rel_ast env node;
 
     env
@@ -308,8 +302,8 @@ and prepare_module_from_filepath ?(def_mod_info=None) filepath ctx =
 
   let rec load_ast ast attr =
     match ast with
-    | Ast.Module (inner, pkg_names, mod_name, base_dir, _) ->
-       load_module_ast inner pkg_names mod_name base_dir attr None
+    | Ast.Module (inner, pkg_names, mod_name, base_dir, loc) ->
+       load_module_ast inner pkg_names mod_name base_dir attr loc
     | Ast.AttrWrapperStmt (attr, ast) ->
        load_ast ast attr
     | _ -> failwith "[ICE] ast is not module"

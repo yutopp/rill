@@ -11,8 +11,7 @@ module TAst = Tagged_ast
 type env_t = TAst.t Env.env_t
 type type_info_t = env_t Type.info_t
 type ctfe_val_t = type_info_t Ctfe_value.t
-type earg_t = (TAst.t, type_info_t) Function.earg_t
-type error_msg_t = (type_info_t, env_t, earg_t) Error_msg.t
+type error_msg_t = (type_info_t, env_t) Error_msg.t
 
 type ctx_t = {
   sc_root_env               : env_t;

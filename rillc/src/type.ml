@@ -114,6 +114,7 @@ module Generator =
       new_id
 
     let generate_type ?(aux_generics_args=[])
+                      ?(loc=Loc.dummy)
                       gen type_sort template_args generics_args ty_attr =
       (* TODO: implement cache *)
       let tid = make_fresh_id gen in
@@ -124,6 +125,7 @@ module Generator =
         ti_aux_generics_args = aux_generics_args;
         ti_generics_args = generics_args;
         ti_attr = ty_attr;
+        ti_loc = loc;
       } in
       Hashtbl.add gen.cache_table tid ty;
       ty

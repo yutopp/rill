@@ -282,7 +282,7 @@ let execute' engine expr_node expr_ty type_sets =
 (* TODO: implement cache *)
 let execute engine expr_node expr_ty type_sets =
   match expr_node with
-  | TAst.GenericId (name, lt_args, Some rel_env) ->
+  | TAst.GenericId (name, lt_args, (_, Some rel_env)) ->
      begin
        let { Env.er = er; _ } = rel_env in
        match er with
