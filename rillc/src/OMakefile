@@ -169,6 +169,7 @@ FILES[] =
    sema_context
    sema_utils
    sema_error
+   sema_lifetime
    codegen_context
    codegen_flowinfo
    codegen_option_spec

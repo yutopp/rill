@@ -15,41 +15,6 @@ open Sema_context
 open Sema_forward_ref
 open Sema_utils
 
-module LifetimeMap =
-  struct
-    module M = Map.Make(Lifetime.Var_id)
-
-    type 'v t = {
-      ltm_map:  'v M.t;
-      ltm_list: 'v list;
-    }
-
-    let empty =
-      {
-        ltm_map = M.empty;
-        ltm_list = [];
-      }
-
-    let find key m =
-      let { ltm_map = mm } = m in
-      M.find key mm
-
-    let mem key m =
-      let { ltm_map = mm } = m in
-      M.mem key mm
-
-    let append key value m =
-      let { ltm_map = mm; ltm_list = gsl } = m in
-      {
-        ltm_map = M.add key value mm;
-        ltm_list = value :: gsl;    (* NOTE: save as reversed order *)
-      }
-
-    let to_list m =
-      let { ltm_list = gsl } = m in
-      gsl |> List.rev
-  end
-
 module EArgErrMap = Map.Make(Int)
 
 type storage_operation =
@@ -227,135 +192,9 @@ module SpecialMemberStates = struct
     s
 end
 
-let rec solve_generics_var m lt =
-  match lt with
-  | Lifetime.LtVar (var_id, _, _, _, _, _)
-  | Lifetime.LtVarPlaceholder (var_id, _) ->
-     begin
-       try
-         let v = LifetimeMap.find var_id m in
-         solve_generics_var m v
-       with
-       | Not_found -> lt
-     end
-  | _ -> lt
 
-let rec solve_var lt mm =
-  solve_generics_var mm lt
-(*  match lt with
-  | Lifetime.LtVar (var_id, _, _, _, _, _)
-  | Lifetime.LtVarPlaceholder (var_id, _) ->
-     begin
-       try LifetimeMap.find var_id mm with
-       | Not_found ->
-          error (Error_msg.TmpError ("[ERR] lifetime not found", LifetimeMap.get_env mm))
-     end
-  | _ ->
-     lt*)
 
-let rec map_generics_args ?(m=LifetimeMap.empty) generis_params generics_args =
-  match (generis_params, generics_args) with
-  | ([], []) ->
-     m
-  | ([], _) ->
-     failwith "[ERR]"
-  | (_, []) ->
-     m
-  | (p::px, a::ax) ->
-     begin
-       match p with
-       | Lifetime.LtVar (var_id, _, _, _, _, _) when not (Lifetime.is_undef a) ->
-          Debug.printf " try REGISTER(mg) ARG %s <- %s\n"
-                       (Lifetime.Var_id.to_string var_id) (Lifetime.to_string a);
 
-          let nm = match (var_id, a) with
-            | (var_id, Lifetime.LtVar (rhs_var_id, _, _, _, _, _)) when var_id = rhs_var_id ->
-               Debug.printf " -> skip";
-               m
-            | _ ->
-               LifetimeMap.append var_id a m
-          in
-          map_generics_args ~m:nm px ax
-       | _ -> failwith ""
-     end
-
-let lifetime_check_constraint mm c =
-  match c with
-  (* TODO: lt > rt. lt will live longer than rt *)
-  | Lifetime.LtMin (lt, rt) ->
-     Debug.printf "LT: %s > %s"
-                  (Lifetime.to_string lt) (Lifetime.to_string rt);
-     Debug.printf "  : %s > %s"
-                  (Lifetime.to_string @@ solve_var lt mm)
-                  (Lifetime.to_string @@ solve_var rt mm);
-
-     let b =
-       let (>=) = Lifetime_constraints.(>=) in
-       (solve_var lt mm) >= (solve_var rt mm)
-     in
-     if not b then
-       failwith "[ERR] constraints"
-
-exception Lifetime_param_length_is_different of type_info_t * type_info_t
-
-let lifetime_a mm params eargs =
-  let f (acc, mm) pk earg =
-    let (_, arg_aux) = earg in
-    let {
-      Aux.ta_type = arg_ty;
-      Aux.ta_lt = arg_lt;
-    } = arg_aux in
-    match pk with
-    | Env.FnParamKindType param_ty ->
-       (* fix check aux *)
-       let (aux_unify_list, mm) =
-         match param_ty.Type_info.ti_aux_generics_args with
-         | [] -> ([], mm)
-         | [aux_generics_val] ->
-            begin
-              match aux_generics_val with
-              | Lifetime.LtVar (var_id, _, _, _, _, _) ->
-                 Debug.printf " REGISTER AUX %s <- %s\n" (Lifetime.Var_id.to_string var_id) (Lifetime.to_string arg_lt);
-                 ([(aux_generics_val, arg_lt)], LifetimeMap.append var_id arg_lt mm)
-              | _ -> failwith "[ICE]"
-            end
-         | _ -> failwith "[ICE]"
-       in
-
-       (**)
-       let f (acc, mm) param_generics_val arg_lt =
-         let is_registerd var_id = LifetimeMap.mem var_id mm in
-
-         match param_generics_val with
-         | Lifetime.LtVar (var_id, _, _, _, _, _) ->
-            Debug.printf " REGISTER PARAM %s <- %s | %b\n"
-                         (Lifetime.Var_id.to_string var_id)
-                         (Lifetime.to_string arg_lt)
-                         (is_registerd var_id);
-
-            let nm =
-              if not (is_registerd var_id) then
-                LifetimeMap.append var_id arg_lt mm
-              else
-                let p = solve_var param_generics_val mm in
-                let lt = Lifetime_constraints.min p arg_lt in
-                LifetimeMap.append var_id lt mm
-            in
-            (acc, nm)
-         | _ ->
-            (((param_generics_val, arg_lt)) :: acc, mm)
-       in
-       if not (List.length param_ty.Type_info.ti_generics_args = List.length arg_ty.Type_info.ti_generics_args) then
-         raise (Lifetime_param_length_is_different (param_ty, arg_ty));
-
-       let (unify_lists, mm) =
-         List.fold_left2 f ([], mm)
-                         param_ty.Type_info.ti_generics_args
-                         arg_ty.Type_info.ti_generics_args
-       in
-       (aux_unify_list @ unify_lists @ acc, mm)
-  in
-  List.fold_left2 f ([], mm) params eargs
 
 (*
 * this function will raise exceptions. NError or Fatal_error.
@@ -1605,7 +1444,7 @@ and analyze_expr ?(making_placeholder=false)
                Debug.printf "= select_member_element === generated map\n";
 
                let f3 lt =
-                 solve_generics_var cls_generics_map lt
+                 Sema_lifetime.solve_var lt cls_generics_map
                in
                let new_generics_args = List.map f3 rhs_ty.Type_info.ti_generics_args in
                List.iter f new_generics_args;
@@ -1696,7 +1535,7 @@ and analyze_expr ?(making_placeholder=false)
        Debug.printf "ID = %s - %s\n" (Id_string.to_string name) (Meta_level.to_string ml);
 
        (* both of id and instantiated_id will be id node *)
-       let generics_args = LifetimeMap.to_list lt_map in
+       let generics_args = Sema_lifetime.LifetimeMap.to_list lt_map in
        let node = TAst.GenericId (name, generics_args, (loc, Some trg_env)) in
        let aux = Aux.make ty VCatLValue lt ml loc in
        (node, aux)
@@ -2146,7 +1985,7 @@ and is_all_generics_bound m generis_params =
 
 and make_call_instruction ?(sub_nest=0)
                           ?(generics_args=[])
-                          ?(mm=LifetimeMap.empty)
+                          ?(mm=Sema_lifetime.LifetimeMap.empty)
                           (f_env, conv_filters, eargs)
                           loc opt_sto parent_env temp_obj_spec ctx =
   Debug.printf "= make_call_instruction >>>>> %s\n\n" (Id_string.to_string (Env.get_name f_env));
@@ -2182,13 +2021,13 @@ and make_call_instruction ?(sub_nest=0)
    * if the number of arguments is larger then the number of params, it becomes error
    *)
   let mm =
-    map_generics_args ~m:mm f_er.Env.fn_generics_vals generics_args
+    Sema_lifetime.map_generics_args ~m:mm f_er.Env.fn_generics_vals generics_args
   in
-  let (_, mm) =
+  let mm =
     try
-      lifetime_a mm f_er.Env.fn_param_kinds n_eargs
+      Sema_lifetime.lifetime_map_generics_in_params mm f_er.Env.fn_param_kinds n_eargs
     with
-    | Lifetime_param_length_is_different (param_ty, arg_ty) ->
+    | Sema_lifetime.Lifetime_param_length_is_different (param_ty, arg_ty) ->
        Debug.printf "length of generics params is different: %s / PARAMS: %s / ARGS: %s"
                     (Id_string.to_string f_er.Env.fn_name)
                     (Type.to_string param_ty)
@@ -2199,7 +2038,7 @@ and make_call_instruction ?(sub_nest=0)
   (* TODO: check all generics values are bound *)
   let c lt =
     Debug.printf "BINDED? %s <-" (Lifetime.to_string lt);
-    let tr = solve_var lt mm in
+    let tr = Sema_lifetime.solve_var lt mm in
     Debug.printf "BOUND <- %s" (Lifetime.to_string tr);
   in
   List.iter c f_er.Env.fn_generics_vals;
@@ -2211,7 +2050,7 @@ and make_call_instruction ?(sub_nest=0)
   Debug.printf "= LIFETIME CONSTRAINT = START >>>>> %s"
                (Id_string.to_string (Env.get_name f_env));
   (* lifetime: check constraints *)
-  List.iter (lifetime_check_constraint mm) f_env.Env.generics_constraints;
+  List.iter (Sema_lifetime.lifetime_check_constraint mm) f_env.Env.generics_constraints;
   Debug.printf "= LIFETIME CONSTRAINT = FINISH <<<<< %s"
                (Id_string.to_string (Env.get_name f_env));
 
@@ -2219,7 +2058,7 @@ and make_call_instruction ?(sub_nest=0)
 
   let f s lt =
     Debug.printf "LIFETIME 3 %s : %s\n" s (Lifetime.to_string lt);
-    let tr = solve_var lt mm in
+    let tr = Sema_lifetime.solve_var lt mm in
     Debug.printf "-> %s\n" (Lifetime.to_string tr);
     tr
   in
@@ -2530,7 +2369,7 @@ and solve_identifier ?(do_rec_search=true)
                      ?(making_placeholder=false)
                      ?(exclude=[])
                      id_node env ctx attr
-    : (type_info_t * env_t * Lifetime.t * Meta_level.t * 'v LifetimeMap.t) option * env_t list
+    : (type_info_t * env_t * Lifetime.t * Meta_level.t * 'v Sema_lifetime.LifetimeMap.t) option * env_t list
   =
   match id_node with
   | Ast.Id (name, generics_args, loc) ->
@@ -2564,7 +2403,7 @@ and solve_basic_identifier ?(do_rec_search=true)
                            ?(making_placeholder=false)
                            ?(exclude=[])
                            name generics_specs search_base_env ctx attr
-    : (type_info_t * 'env * Lifetime.t * Meta_level.t *'v LifetimeMap.t) option * env_t list =
+    : (type_info_t * 'env * Lifetime.t * Meta_level.t *'v Sema_lifetime.LifetimeMap.t) option * env_t list =
   let type_ty = ctx.sc_tsets.ts_type_type in
   let ty_cenv = Type.as_unique type_ty in
 
@@ -2596,7 +2435,7 @@ and solve_basic_identifier ?(do_rec_search=true)
     let cenv_r = Env.ClassOp.get_record cenv in
     let generics_params = cenv_r.Env.cls_generics_vals in
 
-    let lt_map = map_generics_args generics_params generics_args in
+    let lt_map = Sema_lifetime.map_generics_args generics_params generics_args in
     Debug.printf "= LIFETIME ASSIGN basic assign = FINISH <<<<<\n\n";
     Debug.printf "CLASS GEN =>=>=> %d\n" (List.length generics_args);
 
@@ -2605,7 +2444,7 @@ and solve_basic_identifier ?(do_rec_search=true)
 
   (* TODO: implement merging *)
   let solve (prev_ty, prev_opt_env, _, _, _) env
-      : (type_info_t * 'env * Lifetime.t * Meta_level.t * 'v LifetimeMap.t) =
+      : (type_info_t * 'env * Lifetime.t * Meta_level.t * 'v Sema_lifetime.LifetimeMap.t) =
     let { Env.er = env_r } = env in
     match env_r with
     | Env.MultiSet (record) ->
@@ -2626,7 +2465,7 @@ and solve_basic_identifier ?(do_rec_search=true)
                                                   generics_args
                                                   Type_attr.undef
                    in
-                   (ty, env, Lifetime.LtStatic, ty_cenv.Env.meta_level, LifetimeMap.empty)
+                   (ty, env, Lifetime.LtStatic, ty_cenv.Env.meta_level, Sema_lifetime.LifetimeMap.empty)
                 | xs ->
                    if making_placeholder then
                      begin
@@ -2656,7 +2495,7 @@ and solve_basic_identifier ?(do_rec_search=true)
                                                       []    (* TODO *)
                                                       Type_attr.undef
                        in
-                       (ty, env, Lifetime.LtStatic, ty_cenv.Env.meta_level, LifetimeMap.empty)
+                       (ty, env, Lifetime.LtStatic, ty_cenv.Env.meta_level, Sema_lifetime.LifetimeMap.empty)
                      end
                    else
                      begin
@@ -2694,7 +2533,7 @@ and solve_basic_identifier ?(do_rec_search=true)
                                                Type_attr.ta_ref_val = Type_attr.Ref [];
                                              }
               in
-              (ty, env, Lifetime.LtStatic, env.Env.meta_level, LifetimeMap.empty)
+              (ty, env, Lifetime.LtStatic, env.Env.meta_level, Sema_lifetime.LifetimeMap.empty)
             end
          | _ -> failwith "unexpected env : multi-set kind"
        end
@@ -2711,7 +2550,7 @@ and solve_basic_identifier ?(do_rec_search=true)
          } = vr in
          (* TODO: check class variable *)
 
-         (var_ty, env, var_lt, env.Env.meta_level, LifetimeMap.empty)
+         (var_ty, env, var_lt, env.Env.meta_level, Sema_lifetime.LifetimeMap.empty)
        end
 
     (* returns **type** of MetaVariable, NOT value *)
@@ -2722,7 +2561,7 @@ and solve_basic_identifier ?(do_rec_search=true)
          in
          match c with
          | (Unification.Val ty) ->
-            (ty, env, Lifetime.LtStatic, env.Env.meta_level, LifetimeMap.empty)
+            (ty, env, Lifetime.LtStatic, env.Env.meta_level, Sema_lifetime.LifetimeMap.empty)
          | (Unification.Undef) ->
             let ty =
               Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
@@ -2731,13 +2570,13 @@ and solve_basic_identifier ?(do_rec_search=true)
                                            generics_args
                                            Type_attr.undef
             in
-            (ty, env, Lifetime.LtStatic, env.Env.meta_level, LifetimeMap.empty)
+            (ty, env, Lifetime.LtStatic, env.Env.meta_level, Sema_lifetime.LifetimeMap.empty)
          | _ -> failwith "[ICE] meta ver"
        end
 
     | Env.LifetimeVariable _ ->
        let ty = type_ty in (* TODO: change to lifetime_ty *)
-       (ty, env, Lifetime.LtStatic, Meta_level.OnlyMeta, LifetimeMap.empty)
+       (ty, env, Lifetime.LtStatic, Meta_level.OnlyMeta, Sema_lifetime.LifetimeMap.empty)
 
     | _ -> failwith "solve_simple_identifier: unexpected env"
   in
@@ -2753,7 +2592,7 @@ and solve_basic_identifier ?(do_rec_search=true)
     | [] ->
        None
     | envs ->
-       let init = (Type_info.undef_ty, Env.undef (), Lifetime.LtUndef, Meta_level.Runtime, LifetimeMap.empty) in
+       let init = (Type_info.undef_ty, Env.undef (), Lifetime.LtUndef, Meta_level.Runtime, Sema_lifetime.LifetimeMap.empty) in
        Some (List.fold_left solve init envs)
   in
   (opt_trg_env, search_env_history)
@@ -3129,7 +2968,7 @@ and apply_conv_filter ?(opt_operation=None)
        let recv_ty_cenv_er = Env.ClassOp.get_record recv_ty_cenv in
        let recv_ty_cenv_generics_params = recv_ty_cenv_er.Env.cls_generics_vals in
        let cls_generics_map =
-         map_generics_args recv_ty_cenv_generics_params generics_args
+         Sema_lifetime.map_generics_args recv_ty_cenv_generics_params generics_args
        in
        let call_inst =
          make_call_instruction ~generics_args:generics_args
@@ -3760,7 +3599,7 @@ and prepare_template_params params_node ctx =
 *)
 and select_member_element ?(universal_search=false)
                           recv_aux t_id env ctx attr
-  : (type_info_t * 'env * Lifetime.t * Meta_level.t * 'v LifetimeMap.t) option * env_t list =
+  : (type_info_t * 'env * Lifetime.t * Meta_level.t * 'v Sema_lifetime.LifetimeMap.t) option * env_t list =
   let recv_ty = Aux.ty recv_aux in
   let recv_cenv = Type.as_unique recv_ty in
 
@@ -4416,7 +4255,7 @@ and define_implicit_default_ctor cenv ctx =
 
   complete_function_env fenv node ctor_id_name detail ctx
 
-and make_ctor_generics_map ty : 'v LifetimeMap.t=
+and make_ctor_generics_map ty : 'v Sema_lifetime.LifetimeMap.t=
   let {
       Type_info.ti_generics_args = generics_args;
     } = ty in
@@ -4431,7 +4270,7 @@ and make_ctor_generics_map ty : 'v LifetimeMap.t=
     in
     List.iter f generics_args
   in
-  map_generics_args ty_cenv_generics_params generics_args
+  Sema_lifetime.map_generics_args ty_cenv_generics_params generics_args
 
 and define_implicit_default_ctor_for_array cenv elem_ty total_num ctx =
   let (fenv, ret_ty) = declare_checked_default_ctor cenv ctx in
