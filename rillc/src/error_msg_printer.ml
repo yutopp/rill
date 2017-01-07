@@ -123,6 +123,11 @@ let rec print ?(loc=None) err =
                  ()
                )
 
+  | Ambiguous (_, f_envs, loc) ->
+     Printf.printf "%s:\nError: Ambiguous\n"
+                   (Loc.to_string loc);
+     List.iter (fun env -> print_env_trace env) f_envs
+
   | Msg msg ->
      Printf.printf "\n------------------\nError:\n %s\n\n-------------------\n" msg
 

@@ -14,7 +14,13 @@ extern def stringof!(T)(ref p: T): 'static raw_ptr!(uint8) = "__builtin_stringof
 
 #[builtin]
 extern def 'a address_of!(T)('a ref :T): 'a raw_ptr!(val(T)) = "__builtin_make_ptr_from_ref";
-//extern def 'a operator unary& !(T)('a ref :T): 'a raw_ptr!(val(T)) = "__builtin_make_ptr_from_ref";
+
+#[builtin]
+extern def 'a operator unary& ('a ref :int32): 'a raw_ptr!(int32) = "__builtin_make_ptr_from_ref";
+#[builtin]
+extern def 'a operator unary& !(T, N: uint32)('a ref _v:array!(T, N)): 'a raw_ptr!T = "__builtin_take_address_from_array";
+#[builtin]
+extern def 'a operator unary& !(T)('a ref :T): 'a raw_ptr!(val(T)) = "__builtin_make_ptr_from_ref";
 
 // TODO: move to else where
 extern def malloc(val :int32): 'unmanaged untyped_raw_ptr = "rill_core_malloc";
@@ -33,10 +39,6 @@ def new!(T)(): 'unmanaged raw_ptr!(T) {
     val p = malloc(sizeof(T));
     return unsafe_ptr_cast!(T)(p);
 }
-
-//
-#[builtin]
-extern def 'a operator unary& ('a ref :int32): 'a raw_ptr!(int32) = "__builtin_make_ptr_from_ref";
 
 
 //def to!(T)(v: int32) when T
@@ -174,8 +176,6 @@ def operator pre--(ref mutable i: uint32): void
 // array
 #[builtin, array_type]
 extern class array!(T, N: uint32) = "__builtin_array_type"
-#[builtin]
-extern def 'a operator unary& !(T, N: uint32)('a ref _v:array!(T, N)): 'a raw_ptr!T = "__builtin_take_address_from_array";
 #[force_inline]
 def 'a operator[] !(T, N: uint32)('a ref arr :array!(T, N), index: int32): 'a ref(T) => *(&arr + index);
 // uint version. TODO: remove

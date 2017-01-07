@@ -15,7 +15,24 @@ open Sema_context
 open Sema_forward_ref
 open Sema_utils
 
-module EArgErrMap = Map.Make(Int)
+module EArgConvMap =
+  struct
+    module M = Map.Make(Int)
+    include M
+
+    let to_locmap m =
+      let conv key (trg_ty, src_arg, level) =
+        match level with
+        | Function.MatchLevel.NoMatch ->
+           let (_, aux) = src_arg in
+           let src_loc = Aux.loc aux in
+           let src_ty = Aux.ty aux in
+           Some (trg_ty, (src_ty, src_loc), level)
+        | _ ->
+           None
+      in
+      filter_map conv m
+  end
 
 type storage_operation =
   | SoExitScope
@@ -191,10 +208,6 @@ module SpecialMemberStates = struct
     in
     s
 end
-
-
-
-
 
 (*
 * this function will raise exceptions. NError or Fatal_error.
@@ -1250,8 +1263,7 @@ and analyze_expr ?(making_placeholder=false)
        in
        match res with
        | Ok v -> v
-       | Bad err ->
-          error err;
+       | Bad err -> error err
      end
 
   | Ast.UnaryOpExpr (op, expr, loc) ->
@@ -1263,8 +1275,7 @@ and analyze_expr ?(making_placeholder=false)
        in
        match res with
        | Ok v -> v
-       | Bad err ->
-          error err
+       | Bad err -> error err
      end
 
   | Ast.SubscriptingExpr (receiver, opt_arg, loc) ->
@@ -1280,9 +1291,7 @@ and analyze_expr ?(making_placeholder=false)
        in
        match res with
        | Ok v -> v
-       | Bad err ->
-          (* TODO: error message *)
-          failwith "subscripting operator is not found"
+       | Bad err -> error err
      end
 
   | Ast.CallExpr (receiver, args, loc) ->
@@ -2781,7 +2790,8 @@ and convert_type trg_ty src_arg ext_env ctx attr =
          (level, Function.Trans trg_ty)
        end
 
-    | _ -> failwith ""
+    | _ ->
+       failwith "[ICE]"
 
   end else begin
     (* TODO: implement type conversion *)
@@ -3178,7 +3188,7 @@ and find_suitable_operator ?(universal_search=false)
     match ty_sort with
     | Type_info.FunctionSetTy menv ->
        begin
-         match solve_function_overload eargs template_args menv env None ctx attr with
+         match solve_function_overload eargs template_args menv env loc ctx attr with
          | v -> Ok v
          | exception (Normal_error v) -> Bad v
        end
@@ -3274,8 +3284,9 @@ and solve_function_overload eargs template_args mset_env ext_env loc ctx attr =
       error (Error_msg.NoMatch (errs, loc));
     end;
 
+  let envs = List.map (fun (e, _, _) -> e) fs_and_args in
   if (List.length fs_and_args) > 1 then
-    error (Error_msg.Msg "[ERR] ambiguous");
+    error (Error_msg.Ambiguous (f_level, envs, loc));
 
   assert (List.length fs_and_args = 1);
   List.hd fs_and_args
@@ -3296,23 +3307,16 @@ and find_suitable_functions f_candidates args ext_env ctx attr
        let args_num = List.length args in
        if args_num <> params_num then
          let err = Error_msg.DifferentArgNum (params_num, args_num) in
-         (Function.MatchLevel.NoMatch, f_env, [], args, Some err)
+         (Function.MatchLevel.NoMatch, f_env, [], args, EArgConvMap.empty, Some err)
        else
          (* convert types of args *)
-         let (match_levels, conv_funcs, _, errmap) =
-           let conv trg_ty src_arg (match_levels, conv_funcs, idx, errmap) =
+         let (match_levels, conv_funcs, _, convmap) =
+           let conv trg_ty src_arg (match_levels, conv_funcs, idx, convmap) =
              let (l, f) = convert_type trg_ty src_arg ext_env ctx attr in
-             let errmap = match l with
-               | Function.MatchLevel.NoMatch ->
-                  let m = Option.default EArgErrMap.empty errmap in
-                  let m = EArgErrMap.add idx (trg_ty, src_arg, l) m in
-                  Some m
-               | _ ->
-                  errmap (* as is *)
-             in
-             (l::match_levels, f::conv_funcs, (idx+1), errmap)
+             let convmap = EArgConvMap.add idx (trg_ty, src_arg, l) convmap in
+             (l::match_levels, f::conv_funcs, (idx+1), convmap)
            in
-           List.fold_right2 conv param_types args ([], [], 0, None)
+           List.fold_right2 conv param_types args ([], [], 0, EArgConvMap.empty)
          in
 
          (* most unmatch level of parameters becomes function match level *)
@@ -3322,32 +3326,24 @@ and find_suitable_functions f_candidates args ext_env ctx attr
          in
 
          let err =
-           let conv_errmap_to_locmap m =
-             let loc_m =
-               let f (trg_ty, src_arg, level) =
-                 let (_, aux) = src_arg in
-                 let src_loc = Aux.loc aux in
-                 let src_ty = Aux.ty aux in
-                 (trg_ty, (src_ty, src_loc), level)
-               in
-               EArgErrMap.map f m
-             in
-             Error_msg.ConvErr (loc_m, f_env)
-           in
-           Option.map conv_errmap_to_locmap errmap
+           match EArgConvMap.to_locmap convmap with
+           | loc_m when Error_msg.ArgLocMap.cardinal loc_m = 0 ->
+              None
+           | loc_m ->
+              Some (Error_msg.ConvErr (loc_m, f_env))
          in
-         (total_f_level, f_env, conv_funcs, args, err)
+         (total_f_level, f_env, conv_funcs, args, convmap, err)
 
     | None ->
        let params_num = List.length f_record.Env.fn_param_kinds in
        let args_num = List.length args in
        let err = Error_msg.DifferentArgNum (params_num, args_num) in
-       (Function.MatchLevel.NoMatch, f_env, [], args, Some err)
+       (Function.MatchLevel.NoMatch, f_env, [], args, EArgConvMap.empty, Some err)
   in
 
   let collect (cur_order, fs_and_args, errs) candidate
       : (TAst.t, type_info_t, env_t, error_msg_t) Function.function_info_err =
-    let (total_f_level, f_env, conv_funcs, args, err) =
+    let (total_f_level, f_env, conv_funcs, args, _, err) =
       calc_match_level candidate
     in
     let errs = match err with
