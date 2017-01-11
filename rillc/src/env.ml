@@ -36,40 +36,40 @@ module Kind =
   end
 
 type 'ast env_t = {
-    env_id                      : EnvId.t;
-    parent_env                  : 'ast env_t option;
-    context_env                 : 'ast env_t;
-    ns_env                      : 'ast env_t;
-    module_env                  : 'ast env_t option;
-    er                          : 'ast env_record_t;
-    mutable state               : checked_state_t;
-    mutable closed              : bool;
-    mutable generics_constraints: Lifetime.constraint_t list;
-    mutable meta_level          : Meta_level.t;
-    mutable rel_node            : 'ast option;
-    mutable callee_when_exit    : 'ast list;    (* TODO: rename *)
-    nest_level                  : NestLevel.t;
-    is_instantiated             : bool;
+  env_id                        : EnvId.t;
+  parent_env                    : 'ast env_t option;
+  context_env                   : 'ast env_t;
+  ns_env                        : 'ast env_t;
+  module_env                    : 'ast env_t option;
+  er                            : 'ast env_record_t;
+  mutable state                 : checked_state_t;
+  mutable closed                : bool;
+  mutable generics_constraints  : Lifetime.constraint_t list;
+  mutable meta_level            : Meta_level.t;
+  mutable rel_node              : 'ast option;
+  mutable callee_when_exit      : 'ast list;    (* TODO: rename *)
+  nest_level                    : NestLevel.t;
+  is_instantiated               : bool;
 
-   (* information for error message *)
-    loc                         : Loc.t;
+  (* information for error message *)
+  loc                         : Loc.t;
 }
 
  and 'ast env_record_t =
-  | Root of 'ast lookup_table_t
-  | MultiSet of 'ast multiset_record
-  | Template of 'ast template_record
+   | Root of 'ast lookup_table_t
+   | MultiSet of 'ast multiset_record
+   | Template of 'ast template_record
 
-  | Module of 'ast lookup_table_t * module_record
-  | Function of 'ast lookup_table_t * 'ast function_record
-  | Class of 'ast lookup_table_t * 'ast class_record
-  | Variable of 'ast variable_record
-  | Scope of 'ast lookup_table_t
+   | Module of 'ast lookup_table_t * module_record
+   | Function of 'ast lookup_table_t * 'ast function_record
+   | Class of 'ast lookup_table_t * 'ast class_record
+   | Variable of 'ast variable_record
+   | Scope of 'ast lookup_table_t
 
-  | MetaVariable of Unification.id_t
-  | LifetimeVariable of lifetime_record
+   | MetaVariable of Unification.id_t
+   | LifetimeVariable of lifetime_record
 
-  | Unknown
+   | Unknown
 
  and 'ast type_info_t = 'ast env_t Type_info.t
  and 'ast error_msg_t = ('ast type_info_t, 'ast env_t) Error_msg.t
@@ -123,6 +123,9 @@ type 'ast env_t = {
    mutable fn_return_type           : 'ast type_info_t;
    mutable fn_is_auto_return_type   : bool;
    mutable fn_detail                : 'ast function_record_var;
+
+   mutable fn_has_constraints       : bool;
+   mutable fn_specialized_levels    : int list;
  }
  and 'ast function_record_var =
    | FnRecordNormal of function_def_var * 'ast function_kind_var * 'ast function_spec
@@ -670,6 +673,8 @@ module FunctionOp =
         fn_return_type = Type_info.undef_ty;
         fn_is_auto_return_type = false;
         fn_detail = FnUndef;
+        fn_has_constraints = false;
+        fn_specialized_levels = [];
       }
 
     let string_of_kind kind =
@@ -681,6 +686,19 @@ module FunctionOp =
       | FnKindDestructor _ -> "destructor"
       | FnKindFree -> "free"
       | FnKindMember -> "member"
+
+    let update_template_specs env ~has_constraints ~specialized_levels =
+      let er = get_record env in
+      er.fn_has_constraints <- has_constraints;
+      er.fn_specialized_levels <- specialized_levels
+
+    let has_constraints env =
+      let er = get_record env in
+      er.fn_has_constraints
+
+    let specialized_levels env =
+      let er = get_record env in
+      er.fn_specialized_levels
   end
 
 

@@ -13,9 +13,9 @@ let print_env_trace env =
   let env_loc = env.Env.loc in
   match Env.get_env_record env with
   | Env.Module (lt, r) ->
-     Printf.printf "  module   : %s (%s)\n"
-                   r.Env.mod_name
-                   (Loc.to_string env_loc)
+     Printf.sprintf "  module   : %s (%s)"
+                    r.Env.mod_name
+                    (Loc.to_string env_loc)
   | Env.Function (lt, r) ->
      let name = Id_string.to_string r.Env.fn_name in
      let f pk =
@@ -24,23 +24,23 @@ let print_env_trace env =
      in
      let params_s = r.Env.fn_param_kinds |> List.map f |> String.join ", " in
      let ret_ty_s = r.Env.fn_return_type |> Type.to_string in
-     Printf.printf "  function : %s(%s): %s (%s)\n"
-                   name
-                   params_s
-                   ret_ty_s
-                   (Loc.to_string env_loc)
+     Printf.sprintf "  function : %s(%s): %s (%s)"
+                    name
+                    params_s
+                    ret_ty_s
+                    (Loc.to_string env_loc)
   | Env.Class (lt, r) ->
      let name = Id_string.to_string r.Env.cls_name in
-     Printf.printf "  class    : %s (%s)\n"
-                   name
-                   (Loc.to_string env_loc)
+     Printf.sprintf "  class    : %s (%s)"
+                    name
+                    (Loc.to_string env_loc)
   | Env.Scope _ ->
      begin
-       Printf.printf "Scope\n"
+       Printf.sprintf "Scope"
      end
-  | Env.Root _ -> ()
-  | Env.MetaVariable _ -> ()
-  | Env.MultiSet _ -> ()
+  | Env.Root _ -> ""
+  | Env.MetaVariable _ -> ""
+  | Env.MultiSet _ -> ""
   | _ -> failwith "[ICE] unknown env"
 
 let string_of_loc_region loc =
@@ -82,24 +82,27 @@ let rec print ?(loc=None) err =
                    (Loc.to_string loc) params_num args_num
 
   | ConvErr (m, f_env) ->
+     Printf.printf "Type mismatch to call %s:\n"
+                   (print_env_trace f_env);
      let p k (trg_ty, (src_ty, src_loc), level) =
-       let msg = match level with
+       Printf.printf "  %dth arg\n" k;
+       let _ = match level with
          | Function.MatchLevel.NoMatch ->
-            Printf.sprintf "type '%s' of expr '%s' is not suitable for '%s'"
-                           (Type.to_string src_ty)
-                           (string_of_loc_region src_loc)
-                           (Type.to_string trg_ty)
-         | _ -> failwith "[ERR] not supported"
+            Printf.printf "    expr   :  %s (%s)\n"
+                          (string_of_loc_region src_loc) (Loc.to_string src_loc);
+            Printf.printf "    found  :  %s\n" (Type.to_string src_ty);
+            Printf.printf "    expect :  %s\n" (Type.to_string trg_ty);
+         | _ ->
+            failwith "[ERR] not supported"
        in
-       Printf.printf "  %dth arg: %s\n" k msg
+       ()
      in
      ArgLocMap.iter p m
 
   | NoMatch (errs, loc) ->
-     Printf.printf "%s:\nError: There is no matched function [%d]\n"
-                   (Loc.to_string loc)
-                   (List.length errs);
-     List.iter (fun err -> print err) errs
+     Printf.printf "%s:\nError: There is no matched function\n"
+                   (Loc.to_string loc);
+     List.iter (fun err -> print err; Printf.printf "\n") errs
 
   | MemberNotFound (env, history, loc) ->
      let env_name = Id_string.to_string (Env.get_name env) in
@@ -109,7 +112,7 @@ let rec print ?(loc=None) err =
                    (string_of_loc_region loc)
                    env_name;
      Printf.printf "Searched scopes are...\n";
-     List.iter (fun env -> print_env_trace env) history
+     List.iter (fun env -> print_env_trace env |> Printf.printf "%s\n") history
 
   | PackageNotFound (full_module_name, hist) ->
      Printf.printf "Error: module \"%s\" is not found.\n" full_module_name;
@@ -126,7 +129,7 @@ let rec print ?(loc=None) err =
   | Ambiguous (_, f_envs, loc) ->
      Printf.printf "%s:\nError: Ambiguous\n"
                    (Loc.to_string loc);
-     List.iter (fun env -> print_env_trace env) f_envs
+     List.iter (fun env -> print_env_trace env |> Printf.printf "%s\n") f_envs
 
   | Msg msg ->
      Printf.printf "\n------------------\nError:\n %s\n\n-------------------\n" msg
@@ -141,4 +144,4 @@ let rec print ?(loc=None) err =
        in
        f (Some env) [] |> List.rev
      in
-     List.iter (fun env -> print_env_trace env) history
+     List.iter (fun env -> print_env_trace env |> Printf.printf "%s\n") history

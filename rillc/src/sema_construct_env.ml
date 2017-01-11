@@ -2482,26 +2482,27 @@ and solve_basic_identifier ?(do_rec_search=true)
                        let uni_id =
                          Unification.generate_uni_id ctx.sc_unification_ctx in
 
-                       (* set type*)
+                       (* set type as 'type' to uni_id *)
                        Unification.update_type ctx.sc_unification_ctx
                                                uni_id ctx.sc_tsets.ts_type_type;
 
-                       (* set value *)
+                       (* set value to uni_id *)
                        let ty =
                          Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
                                                       (Type_info.ClassSetTy env)
-                                                      template_args
-                                                      []    (* TODO *)
+                                                      template_args (* ... *)
+                                                      []            (* TODO *)
                                                       Type_attr.undef
                        in
                        Unification.update_value ctx.sc_unification_ctx
                                                 uni_id (Ctfe_value.Type ty);
+
                        (**)
                        let ty =
                          Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
                                                       (Type_info.NotDetermined uni_id)
-                                                      template_args
-                                                      []    (* TODO *)
+                                                      template_args (* ... *)
+                                                      []            (* TODO *)
                                                       Type_attr.undef
                        in
                        (ty, env, Lifetime.LtStatic, ty_cenv.Env.meta_level, Sema_lifetime.LifetimeMap.empty)
@@ -2607,7 +2608,7 @@ and solve_basic_identifier ?(do_rec_search=true)
   (opt_trg_env, search_env_history)
 
 
-and make_notdetermined_type uni_id ctx =
+and make_not_determined_type uni_id ctx =
   Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
                                (Type_info.NotDetermined uni_id)
                                [] (* TODO: currenyly, meta var has no template args. support template template parameters *)
@@ -2620,7 +2621,7 @@ and normalize_mata_var_as_type uni_id ctx =
   in
   match c with
   | (Unification.Val ty) -> ty
-  | (Unification.Undef) -> make_notdetermined_type uni_id ctx
+  | (Unification.Undef) -> make_not_determined_type uni_id ctx
   | _ -> failwith "[ICE] meta ver"
 
 
@@ -2656,7 +2657,9 @@ and convert_type trg_ty src_arg ext_env ctx attr =
     Aux.ta_lt = src_lt;
     Aux.ta_ml = src_ml;
   } = src_aux in
-  Debug.printf "TRY convert_type from %s to %s\n" (Type.to_string src_ty) (Type.to_string trg_ty);
+  Debug.printf "TRY convert_type from %s to %s\n"
+               (Type.to_string src_ty)
+               (Type.to_string trg_ty);
 
   if is_type_convertible_to src_ty trg_ty then begin
     (* same type *)
@@ -3041,11 +3044,13 @@ and resolve_type_with_qual ?(making_placeholder=false)
                  error (Error_msg.MemberNotFound (env, hist, None))
             in
             res
-         | _ -> failwith "[ERR]"
+         | _ ->
+            failwith "[ERR]"
        end
     | Type_attr.Val ->
        None
-    | _ -> failwith "[ICE]"
+    | _ ->
+       failwith "[ICE]"
   in
   let aux_lt_specs = [aux_lt_spec] |> List.filter_map identity in
 
@@ -3284,6 +3289,39 @@ and solve_function_overload eargs template_args mset_env ext_env loc ctx attr =
       error (Error_msg.NoMatch (errs, loc));
     end;
 
+  let fs_and_args =
+    assert (List.length fs_and_args <> 0);
+
+    let _ =
+      let f (e, _, _) =
+        Debug.printf "SPCIALIZED_LEVELS -> %s"
+                     (Env.FunctionOp.specialized_levels e
+                      |> List.map string_of_int |> String.join ", ")
+      in
+      List.iter f fs_and_args
+    in
+
+    (* specialzed level filtering *)
+    let max_levels =
+      fs_and_args
+      |> List.fold_left (fun lv (e, _, _) ->
+                         max lv (Env.FunctionOp.specialized_levels e)
+                        ) []
+    in
+    let fs_and_args =
+      fs_and_args
+      |> List.filter (fun (e, _, _) -> (Env.FunctionOp.specialized_levels e) = max_levels)
+    in
+
+    (* filter has constraints *)
+    let f (e, _, _) =
+      Env.FunctionOp.has_constraints e
+    in
+    match List.filter f fs_and_args with
+    | [] -> fs_and_args
+    | xs -> xs
+  in
+
   let envs = List.map (fun (e, _, _) -> e) fs_and_args in
   if (List.length fs_and_args) > 1 then
     error (Error_msg.Ambiguous (f_level, envs, loc));
@@ -3310,13 +3348,16 @@ and find_suitable_functions f_candidates args ext_env ctx attr
          (Function.MatchLevel.NoMatch, f_env, [], args, EArgConvMap.empty, Some err)
        else
          (* convert types of args *)
-         let (match_levels, conv_funcs, _, convmap) =
-           let conv trg_ty src_arg (match_levels, conv_funcs, idx, convmap) =
-             let (l, f) = convert_type trg_ty src_arg ext_env ctx attr in
-             let convmap = EArgConvMap.add idx (trg_ty, src_arg, l) convmap in
-             (l::match_levels, f::conv_funcs, (idx+1), convmap)
+         let (match_levels, conv_funcs, convmap) =
+           let conv (match_levels, conv_funcs, idx, convmap) trg_ty src_arg =
+             let (match_level, f) = convert_type trg_ty src_arg ext_env ctx attr in
+             let convmap = EArgConvMap.add idx (trg_ty, src_arg, match_level) convmap in
+             (match_level::match_levels, f::conv_funcs, (idx+1), convmap)
            in
-           List.fold_right2 conv param_types args ([], [], 0, EArgConvMap.empty)
+           let (match_levels, conv_funcs, _, convmap) =
+             List.fold_left2 conv ([], [], 0, EArgConvMap.empty) param_types args
+           in
+           (match_levels |> List.rev, conv_funcs |> List.rev, convmap)
          in
 
          (* most unmatch level of parameters becomes function match level *)
@@ -3390,17 +3431,20 @@ and instantiate_function_templates menv template_args arg_auxs ext_env ctx attr 
       | Ast.MemberFunctionDefStmt (name, lt_specs, Ast.ParamsList params, _, _, _, _, _) ->
          let is_special = match name with
            | Id_string.Pure s when s = ctor_name -> true
+           (* TODO: support destructors *)
            | _ -> false
          in
          (lt_specs, params, None, if is_special then 0 else 1)
       | _ -> failwith "[ICE]"
     in
 
+    (* TODO: implement *)
     let (lt_params, _) = declare_generics_specs lifetime_specs temp_env in
     let _ = lt_params in
 
     let param_types =
-      List.map (fun decl -> get_param_type decl temp_env ctx attr) parameters
+      parameters
+      |> List.map (fun decl -> get_template_function_param_type decl temp_env ctx attr)
     in
 
     (* debug print *)
@@ -3414,22 +3458,35 @@ and instantiate_function_templates menv template_args arg_auxs ext_env ctx attr 
     in
 
     (* *)
-    let params_type_value =
+    let param_type_values =
       param_types
       |> List.map (fun x -> Ctfe_value.Type x)
-      |> List.enum
     in
-    let args_type_value =
+    let arg_type_values =
       arg_auxs
       |> List.map Aux.ty
       |> List.map (fun ty -> Ctfe_value.Type ty)
-      |> List.enum
     in
-    Enum.drop dn args_type_value;
-    Enum.iter2 (unify_arg_value ctx) params_type_value args_type_value;
 
-    List.iter (fun c -> debug_print_meta_var c ctx) uni_ids;
-    Debug.printf "       REACHED / unify_arg_value \n";
+    (* eval specialized levels *)
+    let specialized_levels =
+      List.map (count_specialized_level_of_param ctx) param_type_values
+      |> List.sort compare
+    in
+
+    (* unify types in parameters and args *)
+    let _ =
+      let param_type_values' = param_type_values |> List.enum in
+      let arg_type_values' = arg_type_values |> List.enum in
+      Enum.drop dn arg_type_values';
+      Enum.iter2 (unify_arg_value ctx) param_type_values' arg_type_values';
+    in
+
+    (* debug *)
+    let _ =
+      List.iter (fun c -> debug_print_meta_var c ctx) uni_ids;
+      Debug.printf "       REACHED / unify_arg_value \n";
+    in
 
     let cache_cookie =
       param_types
@@ -3439,15 +3496,21 @@ and instantiate_function_templates menv template_args arg_auxs ext_env ctx attr 
     in
 
     (**)
-    complete_template_instance menv t_env_record
-                               meta_var_names uni_ids cache_cookie
-                               temp_env opt_cond
-                               ctx attr
+    let f_env =
+      complete_template_instance menv t_env_record
+                                 meta_var_names uni_ids cache_cookie
+                                 temp_env opt_cond
+                                 ctx attr
+    in
+    Env.FunctionOp.update_template_specs f_env
+                                         ~has_constraints:(Option.is_some opt_cond)
+                                         ~specialized_levels:specialized_levels;
+    f_env
   in
   try_to_instantiate_candidates menv instantiate
 
 
-and get_param_type (var_attr, _, init) env ctx attr =
+and get_template_function_param_type (var_attr, _, init) env ctx attr =
   match init with
   | (Some ty_node, _) ->
      let (param_kind, _, _) =
@@ -3456,7 +3519,9 @@ and get_param_type (var_attr, _, init) env ctx attr =
                                                        env ctx attr
      in
      param_kind
-  | _ -> failwith "not implemented / param nodes"
+
+  | _ ->
+     failwith "[ICE] not implemented / param nodes"
 
 
 and get_uni_ids_from_type ty =
@@ -3538,6 +3603,52 @@ and unify_type_value ctx lhs rhs =
      Debug.printf "rhs == %s" (Type.to_string rhs);
      failwith "[ICE] unify_value_type"
 
+and count_specialized_level_of_param ?(pre_uni_id=Unification.dummy_uni_id) ctx tv =
+  match tv with
+  | Ctfe_value.Undef _ ->
+     0
+
+  | Ctfe_value.Type ty ->
+     begin
+       let open Type_info in
+       let uni_map = ctx.sc_unification_ctx in
+       let _ = uni_map in
+       match ty with
+       | {ti_sort = UniqueTy _; ti_template_args = args} ->
+          let nn =
+            args
+            |> List.fold_left (fun n a -> n + count_specialized_level_of_param ctx a) 0
+          in
+          1 + nn
+
+       | {ti_sort = NotDetermined uni_id} when uni_id = pre_uni_id ->
+          0 (* skip *)
+
+       | {ti_sort = NotDetermined uni_id; ti_template_args = holder_args} ->
+          let nn =
+            holder_args
+            |> List.fold_left (fun n a -> n + count_specialized_level_of_param ctx a) 0
+          in
+          let concrete_n =
+            match Unification.search_value_until_terminal uni_map uni_id with
+            | (found_uni_id, Unification.Val ctv) ->
+               count_specialized_level_of_param ~pre_uni_id:found_uni_id ctx ctv
+            | _ ->
+               0
+          in
+          concrete_n + nn
+
+       | {ti_sort = ClassSetTy _; (* ignore template args *)} ->
+          1
+
+       | _ ->
+          failwith "[ICE]"
+     end
+
+  | _ ->
+     (* a concrete value is counted as specialized *)
+     1
+
 and normalize_type ctx ty =
   match Type.type_sort ty with
   | Type_info.UniqueTy _ -> ty
@@ -3555,15 +3666,18 @@ and unify_arg_value ctx lhs rhs =
   match (lhs, rhs) with
   | (Ctfe_value.Type lhs_ty, Ctfe_value.Type rhs_ty) ->
      unify_type_value ctx lhs_ty rhs_ty;
+
   | (Ctfe_value.Undef _, Ctfe_value.Undef _) ->
      failwith "[ERR]"
+
   | (Ctfe_value.Undef uni_id, v)
   | (v, Ctfe_value.Undef uni_id) ->
-     begin
-       Debug.printf "!! unify_arg_value(T|V) / %d -> value\n" uni_id;
-       Unification.update_value ctx.sc_unification_ctx uni_id v
-     end
-  | _ -> failwith "[ICE] not implemented (unify_arg_value)"
+     Debug.printf "!! unify_arg_value(T|V) / %d -> value\n" uni_id;
+     Unification.update_value ctx.sc_unification_ctx uni_id v
+
+  | _ ->
+     (* TODO: check types of template params and args *)
+     failwith @@ "[ICE] not implemented (unify_arg_value) : " ^ (Ctfe_util.to_string lhs) ^ " / " ^ (Ctfe_util.to_string rhs)
 
 
 and prepare_template_params params_node ctx =
@@ -3669,7 +3783,7 @@ and prepare_instantiate_template t_env_record template_args ext_env ctx attr =
   (* *)
   let (meta_var_names, meta_var_inits) = List.split template_params in
 
-  (* temporary environment for evaluate meta variables.
+  (* This is a temporary environment to evaluate meta variables.
    * DO NOT append this env to the parent_env.
    *)
   let temp_env =
@@ -3684,7 +3798,7 @@ and prepare_instantiate_template t_env_record template_args ext_env ctx attr =
       let loc = None in
       let uni_id = Unification.generate_uni_id ctx.sc_unification_ctx in
       let mv_env = Env.create_context_env temp_env (Env.MetaVariable uni_id) loc in
-      let mv_ty = make_notdetermined_type uni_id ctx in
+      let mv_ty = make_not_determined_type uni_id ctx in
       (uni_id, (mv_ty, mv_env))
     in
     List.map generate_meta_var meta_var_names |> List.split
@@ -3708,17 +3822,22 @@ and prepare_instantiate_template t_env_record template_args ext_env ctx attr =
     (* = V *)
     | Some (None, Some value) ->
        failwith "= V / not supported"
+
     (* :U = V *)
     | Some (Some ty, Some value) ->
        failwith ":U = V / not supported"
-    (**)
-    | Some (None, None) -> failwith "[ICE] unexpected"
 
+    (**)
+    | Some (None, None) ->
+       failwith "[ICE] unexpected"
+
+    (* if not specified, treat as :type is specified *)
     | None ->
        begin
          match Type.type_sort var_ty with
-         | Type_info.NotDetermined uni_t_id ->
-            unify_type ctx var_ty ctx.sc_tsets.ts_type_type
+         | Type_info.NotDetermined _ ->
+            let type_ty = ctx.sc_tsets.ts_type_type in
+            unify_type ctx var_ty type_ty
          | _ ->
             failwith "[ICE] unexpected"
        end
@@ -3729,26 +3848,29 @@ and prepare_instantiate_template t_env_record template_args ext_env ctx attr =
   List.iter (fun c -> debug_print_meta_var c ctx) uni_ids;
 
   (* set values of meta var(template variables) *)
-  let set_default_value_to_meta_var uni_id =
-    let ty = normalize_mata_var_as_type uni_id ctx in
-    let ctfe_val =
-      if Type.has_same_class ty ctx.sc_tsets.ts_type_type then
-        let ud_ty = make_notdetermined_type uni_id ctx in
-        let type_val = Ctfe_value.Type ud_ty in
-        type_val
-      else
-        let undef_val = Ctfe_value.Undef uni_id in
-        undef_val
+  let template_params_default_values =
+    let set_default_value_to_meta_var uni_id =
+      let ty = normalize_mata_var_as_type uni_id ctx in
+      let ctfe_val =
+        if Type.has_same_class ty ctx.sc_tsets.ts_type_type then
+          (* if the value has 'type' type, set 'not_determined_type' value *)
+          let ud_ty = make_not_determined_type uni_id ctx in
+          let type_val = Ctfe_value.Type ud_ty in
+          type_val
+        else
+          (* otherwise, set 'undef' value *)
+          let undef_val = Ctfe_value.Undef uni_id in
+          undef_val
+      in
+      Unification.update_value ctx.sc_unification_ctx uni_id ctfe_val;
+      ctfe_val
     in
-    Unification.update_value ctx.sc_unification_ctx uni_id ctfe_val;
-    ctfe_val
+    List.map set_default_value_to_meta_var uni_ids
   in
-  let template_params_default_values = List.map set_default_value_to_meta_var uni_ids in
+  Debug.printf "\nREACHED / set_default_value\n";
 
   Debug.printf "== PRINT META VARIABLES (after default value set)\n";
   List.iter (fun c -> debug_print_meta_var c ctx) uni_ids;
-
-  Debug.printf "\nREACHED / set_default_value\n";
 
   Debug.printf "len(template_params_default_values) = %d\n"
                (List.length template_params_default_values);
@@ -3864,16 +3986,31 @@ and complete_template_instance ?(making_placeholder=false)
   List.iter (fun i -> debug_print_meta_var i ctx) uni_ids;
 
   let mangled_sym =
-    uni_ids
-    |> List.map (Unification.get_as_value ctx.sc_unification_ctx)
-    |> (fun x -> Mangle.s_of_template_args x ctx.sc_tsets)
+    let sym =
+      uni_ids
+      |> List.map (Unification.get_as_value ctx.sc_unification_ctx)
+      |> (fun x -> Mangle.s_of_template_args x ctx.sc_tsets)
+    in
+    let sym = Printf.sprintf "%s|%s" sym cache_cookie in
+    let sym =
+      match opt_cond with
+      | Some _ ->
+         sym
+      | None ->
+         Printf.sprintf "%s|NO_CONSTRAINTS" sym
+    in
+    sym
   in
-  let mangled_sym = Printf.sprintf "%s|%s" mangled_sym cache_cookie in
   Debug.printf "TRY making an instance! -> %s\n" mangled_sym;
 
   let mset_record = Env.MultiSetOp.get_record menv in
   let env_cache =
-    Hashtbl.find_option mset_record.Env.ms_instanced_args_cache_for_env mangled_sym
+    match opt_cond with
+    | Some _ ->
+       (* if a decl has a template constraints, do not use cache *)
+       None
+    | None ->
+       Hashtbl.find_option mset_record.Env.ms_instanced_args_cache_for_env mangled_sym
   in
   match env_cache with
   | Some env ->
@@ -3886,11 +4023,17 @@ and complete_template_instance ?(making_placeholder=false)
 
        let snode =
          let node_cache =
-           Hashtbl.find_option mset_record.Env.ms_instanced_args_cache_for_node
-                               mangled_sym
+           match opt_cond with
+           | Some _ ->
+              None
+           | None ->
+              Hashtbl.find_option mset_record.Env.ms_instanced_args_cache_for_node
+                                  mangled_sym
          in
          match node_cache with
-         | Some n -> Debug.printf "USE NODE CACHE\n"; n
+         | Some n ->
+            Debug.printf "USE NODE CACHE\n";
+            n
          | None ->
             Debug.printf "MAKE NODE CACHE\n";
             let n =
@@ -3904,6 +4047,8 @@ and complete_template_instance ?(making_placeholder=false)
 
        (* instantiate! *)
        let (n_ast, _, _) = construct_env snode env_parent ctx inner_attr in
+
+       (* take an environment *)
        let i_env = match n_ast with
          | TAst.GenericFuncDef (_, (_, Some e))
          | TAst.FunctionDefStmt (_, _, _, _, _, _, _, (_, Some e))
@@ -3917,6 +4062,7 @@ and complete_template_instance ?(making_placeholder=false)
 
        (* memoize *)
        Hashtbl.add mset_record.Env.ms_instanced_args_cache_for_env mangled_sym i_env;
+
        i_env
      end
 

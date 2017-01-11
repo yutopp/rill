@@ -10,11 +10,13 @@ open Batteries
 
 type id_t = int
 
+(* TODO: rename to t *)
 type 'v chain_t =
   | Undef
   | Link of id_t
   | Val of 'v
 
+(* TODO: rename to context_t *)
 type ('ty, 'v) t = {
   mutable fresh_id  : id_t;
   type_map          : (id_t, 'ty chain_t) Hashtbl.t;
@@ -22,9 +24,11 @@ type ('ty, 'v) t = {
 }
 
 
+let dummy_uni_id = 0
+
 let empty () =
   {
-    fresh_id = 0;
+    fresh_id = 1;
     type_map = Hashtbl.create 10;
     value_map = Hashtbl.create 10;
   }
@@ -32,6 +36,8 @@ let empty () =
 
 let new_fresh_id holder =
   let cur_uni_id = holder.fresh_id in
+  if cur_uni_id = Int.max_num then
+    failwith "[ICE]";
   holder.fresh_id <- holder.fresh_id + 1;
   cur_uni_id
 
@@ -45,16 +51,14 @@ let generate_uni_id holder =
 let rec search_until_terminal ?(debug_s="") mapping uni_id =
   let c = Hashtbl.find mapping uni_id in
   match c with
-  | Val _ | Undef ->
-             begin
-               (*Printf.printf "@%s@ val or undef [%d]\n" debug_s uni_id;*)
-               (uni_id, c)
-             end
+  | Val _
+  | Undef ->
+     (*Printf.printf "@%s@ val or undef [%d]\n" debug_s uni_id;*)
+     (uni_id, c)
+
   | Link link_t_id ->
-     begin
-       (*Printf.printf "@%s@ link to [%d] -> \n" debug_s uni_id;*)
-       search_until_terminal mapping link_t_id
-     end
+     (*Printf.printf "@%s@ link to [%d] -> \n" debug_s uni_id;*)
+     search_until_terminal mapping link_t_id
 
 
 let link ?(debug_s="") holder mapping uni_id_a uni_id_b =

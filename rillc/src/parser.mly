@@ -968,7 +968,7 @@ boolean_literal:
         |       LIT_FALSE { Ast.BoolLit (false, pos $startpos $endpos) }
 
 numeric_literal:
-                INT  {
+                INT {
                     let (v, bits, signed) = $1 in
                     Ast.IntLit (v, bits, signed, pos $startpos $endpos)
                 }

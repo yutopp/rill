@@ -13,7 +13,29 @@
   exception UnexpectedToken of char
   exception LexerError of string
 
-  let _lex_string_lit_buffer = Buffer.create 80
+  module LitBuffer =
+    struct
+      type t = {
+        start_p: position;
+        buffer:  Buffer.t;
+      }
+
+      let create capacity lexbuf =
+        {
+          start_p = lexbuf.lex_start_p;
+          buffer = Buffer.create capacity;
+        }
+
+      let add_char buf c =
+        Buffer.add_char buf.buffer c
+
+      let add_string buf str =
+        Buffer.add_string buf.buffer str
+
+      let settle_buffer buf lexbuf =
+        lexbuf.lex_start_p <- buf.start_p;
+        Buffer.contents buf.buffer
+    end
 }
 
 let blank = [' ' '\t']+
@@ -68,8 +90,9 @@ rule token = parse
   | "=>"                { FAT_ARROW }
 
   (* string state *)
-  | '"'                 { Buffer.clear _lex_string_lit_buffer;
-                          read_string_lit _lex_string_lit_buffer lexbuf
+  | '"'                 {
+                          let buf = LitBuffer.create 80 lexbuf in
+                          read_string_lit buf lexbuf
                         }
 
   | numeric_10 as i 'i' (num_bits as b) { INT (int_of_string i, int_of_string b, true) }
@@ -141,15 +164,15 @@ rule token = parse
   | _ as s              { raise (UnexpectedToken s) }
 
 and read_string_lit buf = parse
-  | '"'             { STRING (Buffer.contents buf) }
-  | '\\' '"'        { Buffer.add_char buf '"'; read_string_lit buf lexbuf }
-  | '\\' '\\'       { Buffer.add_char buf '\\'; read_string_lit buf lexbuf }
-  | '\\' 'n'        { Buffer.add_char buf '\n'; read_string_lit buf lexbuf }
-  | '\\' 'r'        { Buffer.add_char buf '\r'; read_string_lit buf lexbuf }
-  | '\\' 't'        { Buffer.add_char buf '\t'; read_string_lit buf lexbuf }
+  | '"'             { let str = LitBuffer.settle_buffer buf lexbuf in STRING (str) }
+  | '\\' '"'        { LitBuffer.add_char buf '"'; read_string_lit buf lexbuf }
+  | '\\' '\\'       { LitBuffer.add_char buf '\\'; read_string_lit buf lexbuf }
+  | '\\' 'n'        { LitBuffer.add_char buf '\n'; read_string_lit buf lexbuf }
+  | '\\' 'r'        { LitBuffer.add_char buf '\r'; read_string_lit buf lexbuf }
+  | '\\' 't'        { LitBuffer.add_char buf '\t'; read_string_lit buf lexbuf }
   | '\\' _          { raise (LexerError ("Illegal escape character in string: " ^ Lexing.lexeme lexbuf)) }
   | [^ '"' '\\']+
-    { Buffer.add_string buf (Lexing.lexeme lexbuf);
+    { LitBuffer.add_string buf (Lexing.lexeme lexbuf);
       read_string_lit buf lexbuf
     }
   | '\\' | eof      { raise (LexerError ("String is not terminated")) }
