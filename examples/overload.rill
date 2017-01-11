@@ -1,0 +1,55 @@
+class A!(T, U: int32) {}
+
+import std.stdio;
+import std.assert;
+
+def main() {
+    assert(foo(10) == 12);
+    assert(foo(A!(int32, 10)()) == 22);
+    assert(foo(A!(int32, 10)(), A!(int32, 10)()) == 39);
+}
+
+// ==========
+// one params
+def foo!(T)(v: T) => 10;
+def foo!(T)(v: T) when T == int32 => 11;
+def foo(v: int32) => 12;
+
+// ==========
+// two params in template params
+def foo!(T, U: int32)(v: A!(T, U)) => 20;
+// -> 1
+def foo!(T, U: int32)(v: A!(T, U)) when T == int32 => 21;
+// -> 1
+def foo!(U: int32)(v: A!(int32, U)) => 22;
+// -> 2
+
+// ==========
+// two params in both of template and function params
+def foo!(T, U)(v: T, w: U) => 30;
+// -> 0, 0
+
+def foo!(T, N: int32, U, M: int32)(v: A!(T, N), t: A!(U, M)) => 31;
+// -> 1, 1
+
+def foo!(T, N: int32, U, M: int32)(v: A!(T, N), t: A!(U, M)) when U == int32 => 32;
+// -> 1, 1
+
+def foo!(T, N: int32, M: int32)(v: A!(T, N), t: A!(int32, M)) => 33;
+// -> 1, 2
+
+// -----
+def foo!(T, N: int32, U, M: int32)(v: A!(T, N), t: A!(U, M)) when T == int32 => 34;
+// -> 1, 1
+def foo!(N: int32, U, M: int32)(v: A!(int32, N), t: A!(U, M)) => 35;
+// -> 2, 1
+
+// -----
+def foo!(T, N: int32, U, M: int32)(v: A!(T, N), t: A!(U, M)) when T == int32 && U == int32 => 36;
+// -> 1, 1
+def foo!(T, N: int32, M: int32)(v: A!(T, N), t: A!(int32, M)) when T == int32 => 37;
+// -> 1, 2
+def foo!(N: int32, U, M: int32)(v: A!(int32, N), t: A!(U, M)) when U == int32 => 38;
+// -> 2, 1
+def foo!(N: int32, M: int32)(v: A!(int32, N), t: A!(int32, M)) => 39;
+// -> 2, 2
