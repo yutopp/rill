@@ -63,7 +63,7 @@ extern class bool = "__builtin_bool_type"
 #[builtin]
 extern def operator unary! (val :bool): bool = "__builtin_op_unary_pre_!_bool";
 #[builtin]
-extern def operator&&(val :bool, val :bool): int32 = "__builtin_op_binary_&&_bool_bool";
+extern def operator&&(val :bool, val :bool): bool = "__builtin_op_binary_&&_bool_bool";
 
 // uint8
 #[builtin, primitive, size = 1u, align = 1u]
