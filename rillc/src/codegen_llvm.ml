@@ -251,7 +251,7 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
                      | Env.FnKindDefaultConstructor (Some venv)
                      | Env.FnKindDestructor (Some venv) ->
                       let venv_r = Env.VariableOp.get_record venv in
-                      let var_name = venv_r.Env.var_name in
+                      let var_name = Id_string.to_string venv_r.Env.var_name in
                       L.set_value_name var_name agg;
                       Ctx.bind_val_to_env ctx (LLValue (agg, true)) venv
                    | _ ->
@@ -289,7 +289,7 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
                | Some env ->
                   begin
                     let venv = Env.VariableOp.get_record env in
-                    let var_name = venv.Env.var_name in
+                    let var_name = Id_string.to_string venv.Env.var_name in
                     L.set_value_name var_name llvar;
                     Ctx.bind_val_to_env ctx (LLValue (llvar, is_addr)) env
                   end
@@ -430,11 +430,12 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
 
        let (llval, expr_ty, is_addr, cg) = generate_code init_expr prev_fi ctx in
        Debug.printf "<><><>\nDefine variable: %s / is_addr: %b\n<><><>\n"
-                    venv.Env.var_name
+                    (Id_string.to_string venv.Env.var_name)
                     is_addr;
        Type.debug_print var_type;
 
-       L.set_value_name venv.Env.var_name llval;
+       let var_name = Id_string.to_string venv.Env.var_name in
+       L.set_value_name var_name llval;
        Ctx.bind_val_to_env ctx (LLValue (llval, is_addr)) env;
 
        Ctx.mark_env_as_defined ctx env;

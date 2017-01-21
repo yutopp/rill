@@ -10,7 +10,7 @@ open Batteries
 open Env_system
 
 type checked_state_t =
-    InComplete
+  | InComplete
   | Checking
   | Complete
 
@@ -204,7 +204,7 @@ type 'ast env_t = {
   *
   *)
  and 'ast variable_record = {
-     var_name             : string;
+     var_name             : Id_string.t;
      mutable var_lifetime : Lifetime.t;
      mutable var_type     : 'ast type_info_t;
      mutable var_detail   : 'ast variable_record_var;
@@ -216,6 +216,7 @@ type 'ast env_t = {
  and 'ast variable_record_normal = unit
 
  and lifetime_record = Lifetime.t
+
 
 let undef () =
   let rec e = {
@@ -362,10 +363,47 @@ let rec lookup ?(exclude=[]) e name =
   (res, List.rev history)
 
 (*  *)
-let add_inner_env target_env name e =
-  let t = get_symbol_table target_env in
-  Hashtbl.add t name e
+type dup_check_t =
+  | DupCheckNone
+  | DupCheckOnEnv
+  | DupCheckDeep
 
+let add_inner_env_with_callback ~dup_check ~f target_env id_name =
+  let name = Id_string.to_string id_name in
+  let checked_dup =
+    match dup_check with
+    | DupCheckNone ->
+       None
+    | DupCheckOnEnv ->
+       find_on_env target_env name
+    | DupCheckDeep ->
+       None (* TODO: implement *)
+  in
+  match checked_dup with
+  | None ->
+     let env = f () in
+     let sym_tbl = get_symbol_table target_env in
+     Hashtbl.add sym_tbl name env;
+     Ok ()
+  | Some e ->
+     Bad (`Duplicated e)
+
+(* Add a env 'e' which is named 'name' to the env 'target_env',
+   if result of dup_check is Ok.
+
+   'dup_check' is a flag to check duplication.
+   DupCheckNone -> always returns 'Ok ()'
+   DupCheckOnEnv -> if a env which has a name same as given 'name' is found on
+                    'target_env', returns 'Bad (`Duplicated found_env)'.
+                    Otherwise, returns 'Ok ()'.
+   DupCheckDeep -> if a env which has a name same as given 'name' is found on
+                   'target_env' and parents of it, returns 'Bad (`Duplicated found_env)'.
+                   Otherwise, returns 'Ok ()'.
+ *)
+let add_inner_env ?(dup_check=DupCheckOnEnv) target_env id_name e =
+  add_inner_env_with_callback ~dup_check:dup_check
+                              ~f: (fun () -> e)
+                              target_env id_name
 
 let import_module ?(privacy=ModPrivate) env mod_env =
   let lt = get_lookup_table env in
@@ -609,7 +647,7 @@ module MultiSetOp =
              }
          in
          let e = create_scoped_env env er None in
-         add_inner_env env name e;
+         let _ = add_inner_env env id_name e in
          (e, true)
 
     let get_record env =

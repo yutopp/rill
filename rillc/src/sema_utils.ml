@@ -10,6 +10,7 @@ open Batteries
 open Value_category
 open Sema_definitions
 open Sema_context
+open Sema_env
 
 let ret_val_category ty ctx =
   let open Type_attr in
@@ -183,9 +184,10 @@ let register_builtin_type name inner_name mangled_name
     env
   in
 
+  let loc = None in
   let id_name = Id_string.Pure name in
   let cenv = create_extern_primitive_class id_name inner_name in
-  Env.add_inner_env root_env name cenv;
+  Env.add_inner_env root_env id_name cenv |> error_if_env_is_dupped loc;
 
   Type.Generator.generate_type type_gen
                                (Type_info.UniqueTy cenv)
@@ -199,7 +201,8 @@ let register_builtin_type name inner_name mangled_name
 let register_builtin_lifetime name lt root_env =
   let loc = None in
   let env = Env.create_context_env root_env (Env.LifetimeVariable lt) loc in
-  Env.add_inner_env root_env name env
+  Env.add_inner_env root_env name env |> ignore;
+  ()
 
 
 let print_error_msg msg ctx =

@@ -1,0 +1,4 @@
+def main() {
+}
+
+def f(a: int32, a: int32) {}

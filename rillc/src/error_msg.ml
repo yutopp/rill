@@ -21,6 +21,8 @@ type ('ty, 'env) t =
   | PackageNotFound of string * (string * string list) list
   | Ambiguous of (Function.MatchLevel.t * 'env list * Loc.t)
 
+  | MultiSymbol of 'env * Loc.t
+
   | Msg of string
 
   | TmpError of string * 'env

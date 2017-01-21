@@ -66,6 +66,7 @@ module Make (Ctx : NodeContextType) =
       | ScopeExpr of ast
       | IfExpr of ast * ast * ast option * term_ctx_t
       | ForExpr of ast option * ast option * ast option * ast
+
       | StatementTraitsExpr of string * ast
 
       (* used for calling destructors *)
@@ -114,11 +115,11 @@ module Make (Ctx : NodeContextType) =
       | StorageWrapperExpr of storage_t ref * ast
 
      (* attr * id? * value *)
-     and param_init_t = Type_attr.attr_t * string option * value_init_t
+     and param_init_t = Type_attr.attr_t * Id_string.t option * value_init_t
      (* id * value? *)
-     and template_param_init_t = string * value_init_t option
+     and template_param_init_t = Id_string.t * value_init_t option
      (* attr * id * value *)
-     and var_init_t = var_aux_t * string * value_init_t
+     and var_init_t = var_aux_t * Id_string.t * value_init_t
      and var_aux_t = Type_attr.attr_t
 
      and lifetime_specs = Id_string.t list

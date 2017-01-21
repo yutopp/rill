@@ -78,6 +78,8 @@ if $(not $(OCAMLFIND_EXISTS))
 #
 # Various options
 #
+OCAMLFLAGS    += -warn-error A
+
 if $(equal $(RELEASE), true)
    # do nothing...
 else
@@ -170,6 +172,7 @@ FILES[] =
    sema_utils
    sema_error
    sema_lifetime
+   sema_env
    codegen_context
    codegen_flowinfo
    codegen_option_spec
@@ -181,7 +184,6 @@ FILES[] =
    type_sets
    type_info
    error_msg
-   error_msg_printer
    aux
    ctfe_engine
    ctfe_value

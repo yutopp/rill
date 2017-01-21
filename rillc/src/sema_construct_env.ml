@@ -14,6 +14,8 @@ open Sema_definitions
 open Sema_context
 open Sema_forward_ref
 open Sema_utils
+open Sema_env
+open Sema_error
 
 module EArgConvMap =
   struct
@@ -492,8 +494,10 @@ let rec construct_env node parent_env ctx opt_chain_attr =
             in
             Debug.printf "$ ctor of %s || this: %s\n" (Id_string.to_string (Env.get_name ctx_env)) (Type.to_string this_ty);
 
-            let (name, this_venv) = make_parameter_venv env "this" this_ty ctx in
-            Env.add_inner_env env name this_venv;
+            let (id_name, this_venv) =
+              make_parameter_venv env (Id_string.Pure "this") this_ty ctx
+            in
+            Env.add_inner_env env id_name this_venv |> error_if_env_is_dupped Loc.dummy;
 
             (* analyze body *)
             let nbody = analyze_inner body env ctx opt_attr in
@@ -590,7 +594,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                 Type_attr.ta_mut = member_qual Type_attr.Const; (* default const *)
               } in
               let this_ty = make_class_type ctx_env attr env ctx in
-              ((attr, Some "this", (None, None)), this_ty)
+              ((attr, Some (Id_string.Pure "this"), (None, None)), this_ty)
             in
 
             (* check parameters *)
@@ -1083,7 +1087,6 @@ let rec construct_env node parent_env ctx opt_chain_attr =
          | Ast.VarInit vi -> vi
          | _ -> failwith "unexpected node"
        in
-       check_id_is_defined_uniquely parent_env var_name;
 
        let venv_r = Env.VariableOp.empty_record var_name in
        let venv = Env.create_scoped_env ~has_ns:false
@@ -1212,10 +1215,13 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        (**)
        List.iter (Env.append_callee_when_exit parent_env) dtors_when_exit;
 
-       Debug.printf "||||||| %s => %s | %s\n" var_name (Type.to_string var_ty) (Meta_level.to_string var_metalevel);
+       Debug.printf "DEFINE_VARIABLE %s: %s (%s)"
+                    (Id_string.to_string var_name)
+                    (Type.to_string var_ty)
+                    (Meta_level.to_string var_metalevel);
 
        (* register the variable to the environments *)
-       Env.add_inner_env parent_env var_name venv;
+       Env.add_inner_env parent_env var_name venv |> error_if_env_is_dupped loc;
 
        let value_node = TAst.FinalyzeExpr(Some value_node, dtor_calls) in
        let node = TAst.VariableDefStmt (
@@ -2165,7 +2171,7 @@ and analyze_param f_env param ctx attr =
   let nparam: TAst.param_init_t = (var_attr, var_name, ninit_part) in
   (nparam, param_kind, aux_lacking_envs, lacking_envs)
 
-and make_parameter_venv f_env param_name param_ty ctx =
+and make_parameter_venv f_env param_id_name param_ty ctx : (Id_string.t * 'env) =
   let loc = None in
   let lifetime = match param_ty.Type_info.ti_attr.Type_attr.ta_ref_val with
     | Type_attr.Val ->
@@ -2181,7 +2187,7 @@ and make_parameter_venv f_env param_name param_ty ctx =
   in
 
   let venv_r = {
-    Env.var_name = param_name;
+    Env.var_name = param_id_name;
     Env.var_lifetime = lifetime;
     Env.var_type = param_ty;
     Env.var_detail = Env.VarRecordNormal ();
@@ -2191,7 +2197,7 @@ and make_parameter_venv f_env param_name param_ty ctx =
                                     loc
   in
   Env.update_status venv Env.Complete;
-  (param_name, venv)
+  (param_id_name, venv)
 
 
 and prepare_params env ?(special_params=[]) params_node ctx attr =
@@ -2269,13 +2275,15 @@ and declare_function_params f_env special_params params ctx attr =
          ty.Type_info.ti_generics_args
          |> List.iter (fun lt -> Debug.printf "PARAM LT -> %s\n" (Lifetime.to_string lt));
 
-         opt_name |> Option.map (fun name -> make_parameter_venv f_env name ty ctx)
+         opt_name
+         |> Option.map (fun name -> make_parameter_venv f_env name ty ctx)
     in
-    let declare_env (name, venv) =
-      Env.add_inner_env f_env name venv;
+    let declare_env (id_name, venv) =
+      Env.add_inner_env f_env id_name venv |> error_if_env_is_dupped Loc.dummy;
       venv
     in
-    List.map2 make_env nparams param_kinds |> List.map (Option.map declare_env)
+    List.map2 make_env nparams param_kinds
+    |> List.map (Option.map declare_env)
   in
 
   (* declare lacking envs for lifetimes.
@@ -2283,8 +2291,8 @@ and declare_function_params f_env special_params params ctx attr =
   let lacking_envs = implicit_lt_envs @ implicit_aux_lt_envs in
   let _ =
     let declare_lt i lt_env =
-      let name = Printf.sprintf "`__%d" i in
-      Env.add_inner_env f_env name lt_env;
+      let id_name = Id_string.Pure (Printf.sprintf "`__%d" i) in
+      Env.add_inner_env f_env id_name lt_env |> error_if_env_is_dupped Loc.dummy;
     in
     List.iteri declare_lt lacking_envs
   in
@@ -2295,7 +2303,11 @@ and declare_function_params f_env special_params params ctx attr =
     | _ -> failwith ""
   in
 
-  (nparams, param_kinds, param_envs, implicit_aux_lt_envs |> List.map to_lt_from_env, implicit_lt_envs |> List.map to_lt_from_env)
+  (nparams,
+   param_kinds,
+   param_envs,
+   implicit_aux_lt_envs |> List.map to_lt_from_env,
+   implicit_lt_envs |> List.map to_lt_from_env)
 
 and check_function_params f_env param_kinds =
   let check kind =
@@ -3781,7 +3793,9 @@ and prepare_instantiate_template t_env_record template_args ext_env ctx attr =
   (* In this context, value of MetaVar is treated as TYPE *)
 
   (* *)
-  let (meta_var_names, meta_var_inits) = List.split template_params in
+  let (meta_var_id_names, meta_var_inits) =
+    List.split template_params
+  in
 
   (* This is a temporary environment to evaluate meta variables.
    * DO NOT append this env to the parent_env.
@@ -3794,18 +3808,19 @@ and prepare_instantiate_template t_env_record template_args ext_env ctx attr =
 
   let (uni_ids, meta_specs) =
     (* generate meta variables which have no value and no type *)
-    let generate_meta_var name =
+    let generate_meta_var id_name =
       let loc = None in
       let uni_id = Unification.generate_uni_id ctx.sc_unification_ctx in
       let mv_env = Env.create_context_env temp_env (Env.MetaVariable uni_id) loc in
       let mv_ty = make_not_determined_type uni_id ctx in
       (uni_id, (mv_ty, mv_env))
     in
-    List.map generate_meta_var meta_var_names |> List.split
+    List.map generate_meta_var meta_var_id_names |> List.split
   in
   (* declare *)
-  List.iter2 (fun n (_, e) -> Env.add_inner_env temp_env n e)
-             meta_var_names meta_specs;
+  List.iter2 (fun id_name (_, e) ->
+              Env.add_inner_env temp_env id_name e |> error_if_env_is_dupped Loc.dummy)
+             meta_var_id_names meta_specs;
 
   (* set types of meta var(template variables) *)
   let set_type_to_meta_var (var_ty, env) opt_init =
@@ -3885,7 +3900,7 @@ and prepare_instantiate_template t_env_record template_args ext_env ctx attr =
   Debug.printf "\nREACHED / unify_arg_value\n";
 
   (* TODO: assign default template parameter values *)
-  (temp_env, meta_var_names, uni_ids)
+  (temp_env, meta_var_id_names, uni_ids)
 
 
 and complete_template_instance ?(making_placeholder=false)
@@ -4316,8 +4331,10 @@ and declare_this_variable fenv cenv ctx =
     let attr = Type_attr.make (Type_attr.Ref []) Type_attr.Mutable in
     make_class_type cenv attr fenv ctx
   in
-  let (this_name, this_venv) = make_parameter_venv fenv "this" this_ty ctx in
-  Env.add_inner_env fenv this_name this_venv;
+  let (this_id_name, this_venv) =
+    make_parameter_venv fenv (Id_string.Pure "this") this_ty ctx
+  in
+  Env.add_inner_env fenv this_id_name this_venv |> error_if_env_is_dupped Loc.dummy;
   (this_ty, this_venv)
 
 
@@ -4503,17 +4520,19 @@ and define_implicit_copy_ctor cenv ctx =
   let (fenv, rhs_ty, ret_ty) = declare_checked_copy_ctor cenv ctx in
   let (this_ty, this_venv) = declare_this_variable fenv cenv ctx in
 
-  let (rhs_name, rhs_venv) = make_parameter_venv fenv "rhs" rhs_ty ctx in
-  Env.add_inner_env fenv rhs_name rhs_venv;
+  let (rhs_id_name, rhs_venv) =
+    make_parameter_venv fenv (Id_string.Pure "rhs") rhs_ty ctx
+  in
+  Env.add_inner_env fenv rhs_id_name rhs_venv |> error_if_env_is_dupped Loc.dummy;
 
   let call_inst =
-    let src_node = Ast.Id (Id_string.Pure rhs_name, [], None) in
+    let src_node = Ast.Id (rhs_id_name, [], None) in
     let make_call_copyctor_inst venv =
       let venv_r = Env.VariableOp.get_record venv in
 
       let rhs_elem =
         let sub_expr_spec = SubExprSpec.empty () in
-        let trg_node = Ast.Id (Id_string.Pure venv_r.Env.var_name, [], None) in
+        let trg_node = Ast.Id (venv_r.Env.var_name, [], None) in
         let rhs_node = Ast.ElementSelectionExpr (src_node, trg_node, None) in
         analyze_expr ~making_placeholder:false rhs_node fenv sub_expr_spec ctx None
       in
@@ -4572,8 +4591,10 @@ and define_implicit_copy_ctor_for_array cenv elem_ty total_num ctx =
   let (fenv, rhs_ty, ret_ty) = declare_checked_copy_ctor cenv ctx in
   let (this_ty, this_venv) = declare_this_variable fenv cenv ctx in
 
-  let (rhs_name, rhs_venv) = make_parameter_venv fenv "rhs" rhs_ty ctx in
-  Env.add_inner_env fenv rhs_name rhs_venv;
+  let (rhs_id_name, rhs_venv) =
+    make_parameter_venv fenv (Id_string.Pure "rhs") rhs_ty ctx
+  in
+  Env.add_inner_env fenv rhs_id_name rhs_venv |> error_if_env_is_dupped Loc.dummy;
 
   let call_inst =
     let elem_ty_cenv = Type.as_unique elem_ty in
@@ -4583,7 +4604,7 @@ and define_implicit_copy_ctor_for_array cenv elem_ty total_num ctx =
       | None -> failwith "[ICE] no ctor for class of elements"
     in
 
-    let src_node = Ast.Id (Id_string.Pure rhs_name, [], None) in
+    let src_node = Ast.Id (rhs_id_name, [], None) in
     let make_call_copyctor_inst idx =
       let idx = Uint32.to_int idx in (* TODO: fix *)
       let elem_call_fs_and_args =
@@ -4996,7 +5017,7 @@ and declare_generics_specs lifetime_sorts parent_env =
       let (lt, lt_id) = Lifetime.make_placeholder lt_s in
       (* TODO: check duplication *)
       let lt_env = Env.create_context_env tmp_env (Env.LifetimeVariable lt) None in
-      Env.add_inner_env tmp_env (Id_string.to_string lt_id) lt_env;
+      Env.add_inner_env tmp_env lt_id lt_env |> error_if_env_is_dupped Loc.dummy;
       lt
     in
     List.map f lifetime_sorts
@@ -5028,7 +5049,7 @@ and declare_generics_specs lifetime_sorts parent_env =
   let _ =
     let f spec lt =
       let lt_env = Env.create_context_env parent_env (Env.LifetimeVariable lt) None in
-      Env.add_inner_env parent_env (Id_string.to_string spec) lt_env
+      Env.add_inner_env parent_env spec lt_env |> error_if_env_is_dupped Loc.dummy;
     in
     let lifetime_ids =
       lifetime_sorts

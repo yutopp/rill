@@ -8,8 +8,9 @@
 
 open Batteries
 open Type_sets
-open Sema_definitions
 open Sema_context
+open Sema_env
+open Sema_error
 
 let rec solve_forward_refs ?(meta_variables=[])
                            ?(opt_attr=None)
@@ -25,6 +26,7 @@ let rec solve_forward_refs ?(meta_variables=[])
          TAst.StatementList tagged_nodes
        with
        | Normal_error err ->
+          (* TODO: fix *)
           failwith "[ICE] normal error"
        | Fatal_error err as exn ->
           Sema_error.process_error err ctx;
@@ -147,19 +149,19 @@ let rec solve_forward_refs ?(meta_variables=[])
 
   | Ast.MemberVariableDefStmt (v, loc) ->
      begin
-       let (_, var_name, _) =
+       let (_, var_id_name, _) =
          match v with
          | Ast.VarInit vi -> vi
          | _ -> failwith "unexpected node"
        in
 
-       let var_r = Env.VariableOp.empty_record var_name in
+       let var_r = Env.VariableOp.empty_record var_id_name in
        let venv = Env.create_context_env parent_env (
                                            Env.Variable (var_r)
                                          )
                                          loc
        in
-       Env.add_inner_env parent_env var_name venv;
+       Env.add_inner_env parent_env var_id_name venv |> error_if_env_is_dupped loc;
        Env.ClassOp.push_member_variable parent_env venv;
 
        let node = TAst.MemberVariableDefStmt (TAst.PrevPassNode v, (loc, Some venv)) in
@@ -269,20 +271,14 @@ and prepare_module_from_filepath ?(def_mod_info=None) filepath ctx =
                                      loc
     in
     (* TODO: fix g_name *)
-    let g_name = String.concat "." (pkg_names @ [mod_name]) in
-    Env.add_inner_env root_env g_name env;
+    let g_id_name = Id_string.Pure (String.concat "." (pkg_names @ [mod_name])) in
+    Env.add_inner_env root_env g_id_name env |> error_if_env_is_dupped loc;
 
     (* register module*)
     let mod_id = Module_info.Bag.register ctx.sc_module_bag pkg_names mod_name env in
     ignore mod_id;
 
     let no_builtin = Attribute.find_bool_val (Some attr) "no_builtin" ctx in
-    (* import builtins for all modules, if the builtin modules loaded *)
-    (*
-    if do_import_builtin then
-      Option.may (fun bm -> Env.import_module env bm) ctx.sc_builtin_m_env;
-     *)
-
     if not no_builtin then
       begin
         (* import incomplete builtin module *)
@@ -349,11 +345,11 @@ and prepare_module pkg_names mod_name ctx =
      prepare_module_from_filepath ~def_mod_info:(Some (pkg_names, mod_name))
                                   filepath ctx
 
-and declare_meta_var env ctx (name, uni_id) =
+and declare_meta_var env ctx (id_name, uni_id) =
   let loc = None in
   let meta_e = Env.MetaVariable uni_id in
   let e = Env.create_context_env env meta_e loc in
-  Env.add_inner_env env name e;
+  Env.add_inner_env env id_name e |> error_if_env_is_dupped loc;
 
   Unification.get_as_value ctx.sc_unification_ctx uni_id
 

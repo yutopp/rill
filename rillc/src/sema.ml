@@ -9,10 +9,26 @@
 open Batteries
 open Type_sets
 
-include Sema_definitions
-include Sema_context
-include Sema_forward_ref
-include Sema_construct_env
+module Definitions =
+  struct
+    include Sema_definitions
+  end
+module Context =
+  struct
+    include Sema_context
+  end
+module Forward_ref =
+  struct
+    include Sema_forward_ref
+  end
+module Construct_env =
+  struct
+    include Sema_construct_env
+  end
+module Error =
+  struct
+    include Sema_error
+  end
 
 let make_default_env () =
   Env.make_root_env ()
@@ -20,6 +36,7 @@ let make_default_env () =
 let make_default_context root_env module_search_dirs build_options =
   let open Sema_utils in
   let open Builtin_info in
+  let open Context in
 
   let type_gen = Type.Generator.default () in
 
@@ -42,9 +59,12 @@ let make_default_context root_env module_search_dirs build_options =
   let tsets = Type_sets.make type_gen type_type void_type in
 
   let _ =
-    register_builtin_lifetime "`static" (Lifetime.LtStatic) root_env;
-    register_builtin_lifetime "`unmanaged" (Lifetime.LtUnmanaged) root_env;
-    register_builtin_lifetime "`gc" (Lifetime.LtGc) root_env;
+    register_builtin_lifetime (Id_string.Pure "`static")
+                              (Lifetime.LtStatic) root_env;
+    register_builtin_lifetime (Id_string.Pure "`unmanaged")
+                              (Lifetime.LtUnmanaged) root_env;
+    register_builtin_lifetime (Id_string.Pure "`gc")
+                              (Lifetime.LtGc) root_env;
   in
 
   let uni_map = Unification.empty () in
@@ -74,7 +94,10 @@ let make_default_state system_libs_dirs user_srcs_dirs build_options =
   (env, ctx)
 
 let analyze_module mod_env ctx =
+  let open Context in
+  let open Construct_env in
   assert (Env.is_incomplete mod_env);
+
   let mod_node = Option.get mod_env.Env.rel_node in
   let (node, _, _) = construct_env mod_node ctx.sc_root_env ctx None in
   match List.length ctx.sc_errors with
@@ -82,6 +105,9 @@ let analyze_module mod_env ctx =
   | _ -> None
 
 let load_module filename env ctx =
+  let open Forward_ref in
+  let open Error in
+
   let timer = Debug.Timer.create () in
   Debug.reportf "= LOAD_MODULE(%s)" filename;
   let res =

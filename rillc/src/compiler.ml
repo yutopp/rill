@@ -68,8 +68,8 @@ let compile co build_options filepath =
 
   Debug.printf "===== PHASE = CODEGEN\n";
   let code_ctx =
-    Codegen_llvm.make_default_context ~type_sets:ctx.Sema.sc_tsets
-                                      ~uni_map:ctx.Sema.sc_unification_ctx
+    Codegen_llvm.make_default_context ~type_sets:ctx.Sema.Context.sc_tsets
+                                      ~uni_map:ctx.Sema.Context.sc_unification_ctx
                                       ~target_module:(Some mod_env)
   in
   let object_filepath =

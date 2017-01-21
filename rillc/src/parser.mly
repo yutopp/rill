@@ -172,8 +172,9 @@ parameter_variable_declaration:
 
 parameter_variable_initializer_unit:
                 parameter_variable_decl_introducer
-                rel_id_has_no_op_as_raw?
-                value_initializer_unit { ($1, $2, $3) }
+                rel_id_has_no_op_as_s?
+                value_initializer_unit
+                { ($1, $2, $3) }
 
 
 (**)
@@ -248,7 +249,7 @@ template_parameter_variable_declaration:
                 template_parameter_variable_initializer_unit { $1 }
 
 template_parameter_variable_initializer_unit:
-                rel_id_has_no_op_as_raw
+                rel_id_has_no_op_as_s
                 value_initializer_unit? { ($1, $2) }
 
 
@@ -319,8 +320,9 @@ member_variable_declararion:
 (* TODO: change rel_id_has_no_op_as_raw to generic_rel_id_has_no_op to support template variables *)
 member_variable_initializer_unit:
                 member_variable_decl_introducer
-                rel_id_has_no_op_as_raw
-                value_initializer_unit { ($1, $2, $3) }
+                rel_id_has_no_op_as_s
+                value_initializer_unit
+                { ($1, $2, $3) }
 
 member_variable_decl_introducer:
                 rv = rv_attr_val
@@ -448,10 +450,10 @@ variable_declaration_statement:
                     Ast.VariableDefStmt (ml, vinit, pos $startpos $endpos)
                 }
 
-(* TODO: change rel_id_has_no_op_as_raw to generic_rel_id_has_no_op to support template variables *)
+(* TODO: change rel_id_has_no_op_as_s to generic_rel_id_has_no_op to support template variables *)
 variable_declararion:
                 intr = variable_decl_introducer
-                id = rel_id_has_no_op_as_raw
+                id = rel_id_has_no_op_as_s
                 vunit = value_initializer_unit
                 {
                     let (attr, ml) = intr in
@@ -461,7 +463,7 @@ variable_declararion:
 
 variable_runtime_declararion:
                 intr = variable_decl_runtime_introducer
-                id = rel_id_has_no_op_as_raw
+                id = rel_id_has_no_op_as_s
                 vunit = value_initializer_unit
                 {
                     let (attr, ml) = intr in
