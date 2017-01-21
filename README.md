@@ -48,7 +48,7 @@ eval `opam config env`
 or `omake unit_test` and `omake e2e_test`
 
 ### Try
-`rillc/src/rillc test/pass/hello_world.rill && ./a.out`
+`rillc/src/rillc test/pass/hello_world.rill -o a.out && ./a.out`
 
 ## Release
 ### Use OPAM
