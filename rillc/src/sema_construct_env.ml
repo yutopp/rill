@@ -4020,12 +4020,7 @@ and complete_template_instance ?(making_placeholder=false)
 
   let mset_record = Env.MultiSetOp.get_record menv in
   let env_cache =
-    match opt_cond with
-    | Some _ ->
-       (* if a decl has a template constraints, do not use cache *)
-       None
-    | None ->
-       Hashtbl.find_option mset_record.Env.ms_instanced_args_cache_for_env mangled_sym
+    Hashtbl.find_option mset_record.Env.ms_instanced_args_cache_for_env mangled_sym
   in
   match env_cache with
   | Some env ->
@@ -4038,12 +4033,8 @@ and complete_template_instance ?(making_placeholder=false)
 
        let snode =
          let node_cache =
-           match opt_cond with
-           | Some _ ->
-              None
-           | None ->
-              Hashtbl.find_option mset_record.Env.ms_instanced_args_cache_for_node
-                                  mangled_sym
+           Hashtbl.find_option mset_record.Env.ms_instanced_args_cache_for_node
+                               mangled_sym
          in
          match node_cache with
          | Some n ->
