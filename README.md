@@ -32,7 +32,7 @@ Rill is designed for systems programming.
 
 ### Preparation
 ```
-opam install omake menhir batteries ctypes-foreign stdint ocamlgraph llvm.3.9
+opam install omake.0.9.8.6-0.rc1 menhir batteries ctypes-foreign stdint ocamlgraph llvm.3.9
 opam install ounit                  # for unit testing
 opam install bisect_ppx ocveralls   # for coverage
 eval `opam config env`
@@ -53,12 +53,12 @@ or `omake unit_test` and `omake e2e_test`
 ## Release
 ### Use OPAM
 ```
-opam pin add rill .
-opam install rill.0.0.1
+opam pin add rill-dev .
+opam install rill-dev.0.0.1
 ```
 and
 ```
-opam upgrade rill.0.0.1
+opam upgrade rill-dev.0.0.1
 ```
 
 ### Use OMake directly

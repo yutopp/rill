@@ -26,9 +26,9 @@ RUN apt-get install -qq -y m4
 RUN apt-get install -qq -y pkg-config
 
 RUN opam init -y -a
-RUN opam switch 4.03.0
+RUN opam switch 4.04.0
 
-RUN OPAMDOWNLOADJOBS=1 opam install omake menhir batteries ctypes-foreign stdint ocamlgraph
+RUN OPAMDOWNLOADJOBS=1 opam install omake.0.9.8.6-0.rc1 menhir batteries ctypes-foreign stdint ocamlgraph
 RUN OPAMDOWNLOADJOBS=1 opam install llvm.3.9
 RUN OPAMDOWNLOADJOBS=1 opam install ounit                   # for unit testing
 RUN OPAMDOWNLOADJOBS=1 opam install bisect_ppx ocveralls    # for testing

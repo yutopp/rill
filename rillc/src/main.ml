@@ -42,6 +42,9 @@ let empty () =
       compile_only = false;
     }
 
+let show_version_and_exit () =
+  Printf.printf "rillc %s\n%!" Config.version;
+  exit 0
 
 let () =
   Debug.record_backtrace ();
@@ -67,14 +70,17 @@ let () =
      Arg.String (fun s -> co.options <- (COS.OsLinkLib s) :: co.options),
      "<option> Linker option");
     ("--no-corelib",
-     Arg.Unit (fun b -> co.no_corelib <- true),
+     Arg.Unit (fun () -> co.no_corelib <- true),
      " Do not link corelib");
     ("--no-stdlib",
-     Arg.Unit (fun b -> co.no_stdlib <- true),
+     Arg.Unit (fun () -> co.no_stdlib <- true),
      " Do not link stdlib");
     ("-c",
-     Arg.Unit (fun b -> co.compile_only <- true),
+     Arg.Unit (fun () -> co.compile_only <- true),
      " Compile only");
+    ("--version",
+     Arg.Unit show_version_and_exit,
+     " Show version");
   ] in
   Arg.parse (speclist |> Arg.align)
             (fun s -> co.input_files <- s :: co.input_files)

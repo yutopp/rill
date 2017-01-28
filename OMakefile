@@ -21,6 +21,9 @@
 .PHONY: clean
 
 ########################################################################
+RILL_VERSION = 0.0.1-dev
+
+########################################################################
 # Subdirectories.
 # You may want to include some subdirectories in this project.
 # If so, define the subdirectory targets and uncomment this section.

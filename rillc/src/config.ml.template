@@ -16,6 +16,7 @@ module Build_info = struct
  let include_dir = ?INCLUDE_DIR
 end
 
+let version = ?VERSION
 let is_release = ?RELEASE
 let use_local_dev_lib = ?USE_LOCAL_DEV_LIB
 let default_includes = [Filename.concat Build_info.include_dir "rill"]

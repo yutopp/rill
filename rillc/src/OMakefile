@@ -142,6 +142,8 @@ config.ml: :value: $(PREFIX) :value: $(BIN_DIR) :value: $(LIB_DIR) :value: $(INC
             value $(RELEASE)
         case $"\?USE_LOCAL_DEV_LIB" g
             value $(USE_LOCAL_DEV_LIB)
+        case $"\?VERSION" g
+            value "$(RILL_VERSION)"
         close($(stdout))
 
 ################################################
