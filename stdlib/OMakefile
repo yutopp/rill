@@ -31,6 +31,9 @@ STD_SRC_TARGET_OBJS = $(replacesuffixes .rill .cpp, .o .o, $(STD_SRC_TARGET_FILE
 
 LIBNAME = librillstd-rt
 
+CXXFLAGS += -std=c++14 -fPIC
+CFLAGS += -shared -fPIC
+
 ########################################################################
 # Subdirectories.
 # You may want to include some subdirectories in this project.
@@ -48,7 +51,7 @@ CORE_LIB_SRC_DIR = $(dir ../corelib/src)
 
 .SUBDIRS: src_ext
     %.o: %.cpp
-        $(CXX) -std=c++14 -fPIC -c $< -o $@
+        $(CXX) $(CXXFLAGS) -c $< -o $@
 
     clean:
         rm -f *~ *.o
@@ -68,7 +71,7 @@ lib/$(LIBNAME).a: $(STD_SRC_TARGET_OBJS)
 lib/$(LIBNAME).so: $(STD_SRC_TARGET_OBJS)
     prepare-directory(lib)
     rm-if-exists($@)
-    $(CC) -shared -fPIC -o $@ $+
+    $(CC) $(CFLAGS) -o $@ $+
 
 install: lib/$(LIBNAME).a lib/$(LIBNAME).so
     # copy srcs
