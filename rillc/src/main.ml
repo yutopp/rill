@@ -81,6 +81,9 @@ let () =
     ("--version",
      Arg.Unit show_version_and_exit,
      " Show version");
+    ("--llc-path",
+     Arg.String (fun s -> Unix.putenv "RILL_LLC_PATH" s),
+     "<path> put llc path to RILL_LLC_PATH env variable. This option will be removed in the future.")
   ] in
   Arg.parse (speclist |> Arg.align)
             (fun s -> co.input_files <- s :: co.input_files)
