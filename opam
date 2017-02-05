@@ -1,6 +1,6 @@
 opam-version: "1.2"
 name: "rill"
-version: "0.0.1"
+version: "0.0.1-dev"
 maintainer: "yutopp <yutopp@gmail.com>"
 author: "yutopp <yutopp@gmail.com>"
 homepage: "https://github.com/yutopp/rill"
@@ -8,7 +8,7 @@ bug-reports: "https://github.com/yutopp/rill/issues"
 license: "Boost License Version 1.0"
 dev-repo: "https://github.com/yutopp/rill.git"
 
-available: [ocaml-version >= "4.02.3"]
+available: [ocaml-version >= "4.04.0"]
 
 build: [
   [ "omake" "RELEASE=true" "PREFIX=%{prefix}%" ]
@@ -26,8 +26,8 @@ depends: [
   "ctypes-foreign"
   "stdint"
   "ocamlgraph"
-  "llvm"        { = "3.9" }
-  "omake"       {build}
+  "llvm"        {= "3.9"}
+  "omake"       {build & = "0.10.2"}
   "ocamlfind"   {build}
   "ounit"       {build}
   "bisect_ppx"  {build}
