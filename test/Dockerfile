@@ -2,7 +2,7 @@ FROM ubuntu:16.04
 
 MAINTAINER yutopp
 
-# add LLVM repository (3.9) and keys
+# add LLVM repository (3.9)
 RUN echo "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-3.9 main" \
          >> /etc/apt/sources.list && \
     echo "deb-src http://apt.llvm.org/xenial/ llvm-toolchain-xenial-3.9 main" \
