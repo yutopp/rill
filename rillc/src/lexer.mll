@@ -184,6 +184,7 @@ and oneline_comment = parse
 
 and multiline_comment = parse
   | "*/"            { token lexbuf }
+  | newline         { new_line lexbuf; multiline_comment lexbuf }
   | eof             { EOF }
   | _               { multiline_comment lexbuf }
 
@@ -195,5 +196,6 @@ and nested_multiline_comment n = parse
                           nested_multiline_comment (n-1) lexbuf
                     }
   | "/+"            { nested_multiline_comment (n+1) lexbuf }
+  | newline         { new_line lexbuf; nested_multiline_comment n lexbuf }
   | eof             { EOF }
   | _               { nested_multiline_comment n lexbuf }
