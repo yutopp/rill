@@ -791,26 +791,12 @@ unary_expression:
                     let op_id = Ast.Id (op_name, [], pos $startpos(op) $endpos(op)) in
                     Ast.UnaryOpExpr (op_id, $2, pos $startpos $endpos)
                 }
+        |       type_qual_expression { $1 }
+        |       meta_spec_expression { $1 }
 
-postfix_expression:
-                primary_expression { $1 }
-        |       postfix_expression DOT rel_generic_id
-                { Ast.ElementSelectionExpr ($1, $3, pos $startpos($3) $endpos($3)) }
-        |       postfix_expression LBRACKET expression? RBRACKET
-                { Ast.SubscriptingExpr ($1, $3, pos $startpos($2) $endpos($4)) }
-        |       traits_expression { $1 }
-        |       call_expression { $1 }
-        |       postfix_expression op = unary_operator_as_raw
-                {
-                    let op_name = Id_string.UnaryPostOp op in
-                    let op_id = Ast.Id (op_name, [], pos $startpos(op) $endpos(op)) in
-                    Ast.UnaryOpExpr (op_id, $1, pos $startpos $endpos)
-                }
-
-call_expression:
-                postfix_expression argument_list
-                { Ast.CallExpr ($1, $2, pos $startpos $endpos) }
-        |       KEYWORD_REF args = argument_list
+%inline
+type_qual_expression:
+                KEYWORD_REF args = argument_list
                 { Ast.TypeRVConv (Type_attr.Ref [], args, pos $startpos $endpos) }
         |       lts = lifetime_single_arg KEYWORD_REF args = argument_list
                 { Ast.TypeRVConv (Type_attr.Ref lts, args, pos $startpos $endpos) }
@@ -822,9 +808,31 @@ call_expression:
                 { Ast.TypeQualConv (Type_attr.Const, args, pos $startpos $endpos) }
         |       KEYWORD_MUTABLE args = argument_list
                 { Ast.TypeQualConv (Type_attr.Mutable, args, pos $startpos $endpos) }
+
+%inline
+meta_spec_expression:
         |       KEYWORD_META args = argument_list
                 { Ast.MetaLevelConv (Meta_level.Meta, args, pos $startpos $endpos) }
 
+postfix_expression:
+                primary_expression { $1 }
+        |       postfix_expression op = unary_operator_as_raw
+                {
+                    let op_name = Id_string.UnaryPostOp op in
+                    let op_id = Ast.Id (op_name, [], pos $startpos(op) $endpos(op)) in
+                    Ast.UnaryOpExpr (op_id, $1, pos $startpos $endpos)
+                }
+        |       postfix_expression DOT rel_generic_id
+                { Ast.ElementSelectionExpr ($1, $3, pos $startpos($3) $endpos($3)) }
+        |       postfix_expression LBRACKET expression? RBRACKET
+                { Ast.SubscriptingExpr ($1, $3, pos $startpos($2) $endpos($4)) }
+        |       traits_expression { $1 }
+        |       call_expression { $1 }
+
+%inline
+call_expression:
+                postfix_expression argument_list
+                { Ast.CallExpr ($1, $2, pos $startpos $endpos) }
 
 traits_expression:
                 statement_traits_expression { $1 }
