@@ -42,9 +42,9 @@ let rec solve_forward_refs ?(meta_variables=[])
   | Ast.ReturnStmt (ast) ->
      TAst.ReturnStmt ((Option.map (fun a -> TAst.PrevPassNode a) ast))
 
-  | Ast.ImportStmt (pkg_names, mod_name, _) ->
+  | Ast.ImportStmt (pkg_names, mod_name, loc) ->
      begin
-       let mod_env = prepare_module pkg_names mod_name ctx in
+       let mod_env = prepare_module ~loc:loc pkg_names mod_name ctx in
        Env.import_module parent_env mod_env;
 
        (* remove import statements *)
@@ -307,7 +307,7 @@ and prepare_module_from_filepath ?(def_mod_info=None) filepath ctx =
   load_ast mod_ast (Hashtbl.create 0)
 
 
-and prepare_module pkg_names mod_name ctx =
+and prepare_module ~loc pkg_names mod_name ctx =
   let mod_env = Module_info.Bag.search_module ctx.sc_module_bag
                                               pkg_names mod_name in
   match mod_env with
@@ -336,7 +336,7 @@ and prepare_module pkg_names mod_name ctx =
           dir
        | ([], hist) ->
           let full_module_name = (String.concat "." pkg_names) ^ "." ^ mod_name in
-          fatal_error (Error_msg.PackageNotFound (full_module_name, hist))
+          fatal_error (Error_msg.PackageNotFound (full_module_name, hist, loc))
        | _ -> failwith "[ICE]"
      in
      Debug.printf "import from = %s\n" target_dir;
@@ -409,7 +409,7 @@ and declare_pre_class id_name meta_variables loc parent_env ctx =
 
 and prepare_builtin_module ctx =
   try
-    prepare_module ["core"] "builtin" ctx
+    prepare_module ~loc:Loc.dummy ["core"] "builtin" ctx
   with
   | Fatal_error err as exn ->
      Sema_error.process_error err ctx;

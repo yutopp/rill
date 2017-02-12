@@ -13,8 +13,8 @@ let is_type_id_signed = true
 
 type 'env type_sort_t =
   | UniqueTy of 'env
-  | ClassSetTy of 'env      (* for specialize *)
-  | FunctionSetTy of 'env   (* for overload *)
+  | ClassSetTy of 'env          (* for specialize *)
+  | FunctionSetTy of 'env list  (* for overload, overloadset of multiset *)
   | Undef
   | NotDetermined of Unification.id_t
 

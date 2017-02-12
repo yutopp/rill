@@ -292,44 +292,6 @@ let get_parent_env e =
       Some penv -> penv
     | None -> failwith ""
 
-(* *)
-let find_on_env e name =
-  let lt = get_lookup_table e in
-  Hashtbl.find_option lt.scope name
-
-module EnvSet = Set.Make(EnvId)
-
-let rec find_all_on_env ?(checked_env=EnvSet.empty) env name =
-  let ns_env = env.ns_env in
-  if EnvSet.mem ns_env.env_id checked_env then
-    failwith "[ERR] recursive package search";
-
-  match find_on_env ns_env name with
-  | Some e -> [e]
-  | None ->
-     begin
-       let lt = get_lookup_table ns_env in
-       (* find from import tables *)
-       let search_module envs (mod_env, priv) =
-         match priv with
-         | ModPrivate ->
-            (* if the module is private, find symbols from only the imported module *)
-            begin
-              match find_on_env mod_env name with
-              | Some e -> e :: envs
-              | None -> envs
-            end
-         | ModPublic ->
-            (* if the module is public, find symbols recursively *)
-            let res =
-              find_all_on_env ~checked_env:(EnvSet.add ns_env.env_id checked_env) mod_env name
-            in
-            res @ envs
-       in
-       List.fold_left search_module [] lt.imported_mods
-     end
-
-
 let rec kind_of_env e =
   match get_env_record e with
   | Root _ -> Kind.Other
@@ -339,8 +301,53 @@ let rec kind_of_env e =
   | Scope _ -> Kind.Other
   | _ -> failwith ""
 
+module EnvSet = Set.Make(EnvId)
 
-let rec lookup' ?(exclude=[]) env name acc =
+(* find symbol only on the env *)
+let find_on_env e id_name =
+  let lt = get_lookup_table e in
+  Hashtbl.find_option lt.scope (Id_string.to_string id_name)
+
+(* find symbol only on the env and imports *)
+let rec find_all_on_env ?(checked_env=EnvSet.empty) env id_name =
+  let ns_env = env.ns_env in
+  if EnvSet.mem ns_env.env_id checked_env then
+    failwith "[ERR] recursive package search";
+
+  (**)
+  let envs =
+    match find_on_env ns_env id_name with
+    | Some e -> [e]
+    | None -> []
+  in
+
+  (* find some envs from import tables *)
+  let external_envs =
+    let search_env_in_module envs (mod_env, priv) =
+      match priv with
+      | ModPrivate ->
+         (* if the module is private, find symbols from only the imported module *)
+         begin
+           match find_on_env mod_env id_name with
+           | Some e -> e :: envs
+           | None -> envs
+         end
+      | ModPublic ->
+         (* if the module is public, find symbols recursively in the module *)
+         let res =
+           find_all_on_env ~checked_env:(EnvSet.add ns_env.env_id checked_env)
+                           mod_env id_name
+         in
+         res @ envs
+    in
+    let lt = get_lookup_table ns_env in
+    List.fold_left search_env_in_module [] lt.imported_mods
+  in
+
+  envs @ external_envs
+
+(* find symbol recursively *)
+let rec lookup' ?(exclude=[]) env id_name acc =
   let ns_env = env.ns_env in
   let skip e exk =
     if (kind_of_env e) = exk then
@@ -349,18 +356,19 @@ let rec lookup' ?(exclude=[]) env name acc =
     else e
   in
   let e = List.fold_left skip ns_env exclude in
-  let target = find_all_on_env e name in
+  let target = find_all_on_env e id_name in
   match target with
   | [] -> if is_root e then
             ([], e :: acc)
           else
             let penv = get_parent_env e in
-            lookup' penv name (e :: acc)
+            lookup' penv id_name (e :: acc)
   | xs -> (xs, e :: acc)
 
-let rec lookup ?(exclude=[]) e name =
-  let (res, history) = lookup' ~exclude:exclude e name [] in
+let rec lookup ?(exclude=[]) e id_name =
+  let (res, history) = lookup' ~exclude:exclude e id_name [] in
   (res, List.rev history)
+
 
 (*  *)
 type dup_check_t =
@@ -369,13 +377,12 @@ type dup_check_t =
   | DupCheckDeep
 
 let add_inner_env_with_callback ~dup_check ~f target_env id_name =
-  let name = Id_string.to_string id_name in
   let checked_dup =
     match dup_check with
     | DupCheckNone ->
        None
     | DupCheckOnEnv ->
-       find_on_env target_env name
+       find_on_env target_env id_name
     | DupCheckDeep ->
        None (* TODO: implement *)
   in
@@ -383,7 +390,7 @@ let add_inner_env_with_callback ~dup_check ~f target_env id_name =
   | None ->
      let env = f () in
      let sym_tbl = get_symbol_table target_env in
-     Hashtbl.add sym_tbl name env;
+     Hashtbl.add sym_tbl (Id_string.to_string id_name) env;
      Ok ()
   | Some e ->
      Bad (`Duplicated e)
@@ -625,8 +632,7 @@ module ModuleOp =
 module MultiSetOp =
   struct
     let find_or_add env id_name k =
-      let name = Id_string.to_string id_name in
-      let oe = find_on_env env name in
+      let oe = find_on_env env id_name in
       match oe with
       (* Found *)
       | Some ({ er = (MultiSet { ms_kind = k; _ }); _} as e) ->
@@ -868,7 +874,7 @@ let debug_print env =
          Debug.printf "%sMultiSet - %s\n" indent (Kind.to_string r.ms_kind);
          f nindent;
        end
-    | Unknown->
+    | Unknown ->
        Debug.printf "%sUnknown\n" indent;
        f nindent;
 

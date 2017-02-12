@@ -1332,7 +1332,7 @@ and analyze_expr ?(making_placeholder=false)
        Debug.printf "=>=>=> %d\n" (List.length generics_args);
        let ((node, aux), f_ml) = match ty_sort with
          (* normal function call *)
-         | Type_info.FunctionSetTy menv ->
+         | Type_info.FunctionSetTy m_envs ->
             begin
               (* consider nested expr *)
               let (arg_exprs, arg_auxs) = match recv_node with
@@ -1344,7 +1344,7 @@ and analyze_expr ?(making_placeholder=false)
               in
               let args = List.combine arg_exprs arg_auxs in
               let call_trg_finfo =
-                solve_function_overload args template_args menv parent_env loc ctx attr
+                solve_function_overload args template_args m_envs parent_env loc ctx attr
               in
               let call_inst =
                 match make_call_instruction call_trg_finfo loc None parent_env temp_obj_spec ctx with
@@ -1378,13 +1378,17 @@ and analyze_expr ?(making_placeholder=false)
               let (res, _) = solve_basic_identifier ~do_rec_search:false
                                                     ~loc:loc
                                                     ctor_id_name [] recv_cenv ctx attr in
-              let (_, ctor_env, _, _, _) = match res with
+              let (ctor_ty, _, _, _, _) = match res with
                 | Some v -> v
-                | None -> failwith "constructor not found"
+                | None -> failwith "[ERR] constructor not found"
+              in
+              let ctor_envs = match Type.type_sort ctor_ty with
+                | Type_info.FunctionSetTy es -> es
+                | _ -> failwith "[ERR] constructor must be function"
               in
               let call_trg_finfo =
                 solve_function_overload eargs []
-                                        ctor_env parent_env loc ctx attr
+                                        ctor_envs parent_env loc ctx attr
               in
               let call_inst =
                 match make_call_instruction ~mm:cls_generics_map call_trg_finfo loc (Some f_sto) parent_env temp_obj_spec ctx with
@@ -1598,7 +1602,9 @@ and analyze_expr ?(making_placeholder=false)
          Type_attr.ta_ref_val = Type_attr.Val;
          Type_attr.ta_mut = Type_attr.Immutable;
        } in
+       (* val(immutable(uint8)) *)
        let elem_ty = get_builtin_int_type ~bits:8 ~signed:false attr ctx in
+       (* val(immutable(raw_ptr!(val(immutable(uint8)))) *)
        let ptr_ty = get_builtin_raw_ptr_type elem_ty attr ctx in
        assert_valid_type ptr_ty;
 
@@ -2393,58 +2399,114 @@ and solve_identifier ?(do_rec_search=true)
     : (type_info_t * env_t * Lifetime.t * Meta_level.t * 'v Sema_lifetime.LifetimeMap.t) option * env_t list
   =
   match id_node with
-  | Ast.Id (name, generics_args, loc) ->
+  | Ast.Id (name, generics_specs, loc) ->
+     let generics_args =
+       List.map (fun s -> lifetime_spec_to_value s env ctx attr)
+                generics_specs
+     in
      solve_basic_identifier ~do_rec_search:do_rec_search
                             ~loc:loc
                             ~making_placeholder:making_placeholder
                             ~exclude:exclude
                             name generics_args env ctx attr
 
-  | Ast.InstantiatedId (name, template_args, generics_args, loc) ->
-     begin
-       Debug.printf "$$$$$ Ast.InstantiatedId: %s\n" (Id_string.to_string name);
-       let (evaled_t_args, _) =
-         template_args
-         |> List.map (fun e -> eval_expr_as_ctfe e env ctx attr)
-         |> List.split
-       in
-       solve_basic_identifier ~do_rec_search:do_rec_search
-                              ~loc:loc
-                              ~template_args:evaled_t_args
-                              ~making_placeholder:making_placeholder
-                              ~exclude:exclude
-                              name generics_args env ctx attr
-     end
+  | Ast.InstantiatedId (name, template_args, generics_specs, loc) ->
+     Debug.printf "$$$$$ Ast.InstantiatedId: %s\n" (Id_string.to_string name);
+     let generics_args =
+       List.map (fun s -> lifetime_spec_to_value s env ctx attr)
+                generics_specs
+     in
+
+     let (evaled_t_args, _) =
+       template_args
+       |> List.map (fun e -> eval_expr_as_ctfe e env ctx attr)
+       |> List.split
+     in
+     solve_basic_identifier ~do_rec_search:do_rec_search
+                            ~loc:loc
+                            ~template_args:evaled_t_args
+                            ~making_placeholder:making_placeholder
+                            ~exclude:exclude
+                            name generics_args env ctx attr
 
   | _ -> failwith "unsupported ID type"
+
+and lifetime_spec_to_value spec current_env ctx attr =
+  let (opt_aux, hist) = solve_basic_identifier spec [] current_env ctx attr in
+  let res = match opt_aux with
+    | Some (ty, env, _, _, _) ->
+       (* assert ty is lifetime *)
+       let v_lt = match Env.get_env_record env with
+         | Env.LifetimeVariable lt -> lt
+         | _ -> failwith ""
+       in
+       v_lt
+    | None ->
+       (* TODO: fix error *)
+       error (Error_msg.MemberNotFound (current_env, hist, None))
+  in
+  res
 
 and solve_basic_identifier ?(do_rec_search=true)
                            ?(loc=Loc.dummy)
                            ?(template_args=[])
                            ?(making_placeholder=false)
                            ?(exclude=[])
-                           name generics_specs search_base_env ctx attr
-    : (type_info_t * 'env * Lifetime.t * Meta_level.t *'v Sema_lifetime.LifetimeMap.t) option * env_t list =
+                           id_name generics_args search_base_env ctx attr
+    : (type_info_t * env_t * Lifetime.t * Meta_level.t *'v Sema_lifetime.LifetimeMap.t) option * env_t list =
+
+  let name = Id_string.to_string id_name in
+  Debug.printf "-> finding identifier = %s : rec = %b\n" name do_rec_search;
+
+  let (oenv, search_env_history) =
+    if do_rec_search then
+      Env.lookup ~exclude:exclude search_base_env id_name
+    else
+      (Env.find_all_on_env search_base_env id_name, [search_base_env])
+  in
+
+  let opt_trg_env =
+    match oenv with
+    | [] ->
+       None
+    | envs ->
+       let init = (
+         Type_info.undef_ty,
+         Env.undef (),
+         Lifetime.LtUndef,
+         Meta_level.Runtime,
+         Sema_lifetime.LifetimeMap.empty
+       ) in
+
+       let to_detail e =
+         env_to_detail e template_args generics_args
+                       making_placeholder id_name search_base_env ctx attr
+       in
+       Some (List.fold_left (fun acc e -> merge_envs acc (to_detail e) ctx) init envs)
+  in
+  (opt_trg_env, search_env_history)
+
+and merge_envs p_d d ctx =
+  let (p_ty, p_env, p_lt, p_ml, p_lt_map) = p_d in
+  let (ty, env, lt, ml, lt_map) = d in
+  match (Type.type_sort p_ty, Type.type_sort ty) with
+  | (Type_info.Undef, _) ->
+     (* if prev detail is initial value, ignore it *)
+     d
+  | (Type_info.FunctionSetTy p_m_envs, Type_info.FunctionSetTy m_envs) ->
+     (* overload set *)
+     let n_ty_sort = Type_info.FunctionSetTy (p_m_envs @ m_envs) in
+     let n_ty = Type.Generator.update_sort ctx.sc_tsets.ts_type_gen ty n_ty_sort in
+     (n_ty, env, lt, ml, lt_map)
+  | _ ->
+     failwith "unsupported"
+
+and env_to_detail env template_args generics_args making_placeholder name cur_env ctx attr
+    : (type_info_t * 'env * Lifetime.t * Meta_level.t * 'v Sema_lifetime.LifetimeMap.t) =
+
+  (* type of type *)
   let type_ty = ctx.sc_tsets.ts_type_type in
   let ty_cenv = Type.as_unique type_ty in
-
-  (* PIN 1 *)
-  let f arg =
-    let (opt_aux, hist) = solve_basic_identifier arg [] search_base_env ctx attr in
-    let res = match opt_aux with
-      | Some (ty, env, _, _, _) ->
-         (* assert ty is lifetime *)
-         let v_lt = match Env.get_env_record env with
-           | Env.LifetimeVariable lt -> lt
-           | _ -> failwith ""
-         in
-         v_lt
-      | None ->
-         error (Error_msg.MemberNotFound (search_base_env, hist, None))
-    in
-    res
-  in
-  let generics_args = List.map f generics_specs in
 
   (* Class is a value of type, thus returns "type" of type, and corresponding env.
    * Ex, "int" -> { type: type, value: int }
@@ -2463,161 +2525,142 @@ and solve_basic_identifier ?(do_rec_search=true)
     (type_ty, cenv, Lifetime.LtStatic, ty_cenv.Env.meta_level, lt_map)
   in
 
-  (* TODO: implement merging *)
-  let solve (prev_ty, prev_opt_env, _, _, _) env
-      : (type_info_t * 'env * Lifetime.t * Meta_level.t * 'v Sema_lifetime.LifetimeMap.t) =
-    let { Env.er = env_r } = env in
-    match env_r with
-    | Env.MultiSet (record) ->
-       begin
-         match record.Env.ms_kind with
-         | Env.Kind.Class ->
-            begin
-              (* classes will not be overloaded. However, template classes may have
-               * some definitions (because of specialization). Thus, type may be unclear...
-               *)
-              if List.length record.Env.ms_templates <> 0 then
-                match template_args with
-                | [] ->
-                   let ty =
-                     Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
-                                                  (Type_info.ClassSetTy env)
-                                                  template_args
-                                                  generics_args
-                                                  Type_attr.undef
-                   in
-                   (ty, env, Lifetime.LtStatic, ty_cenv.Env.meta_level, Sema_lifetime.LifetimeMap.empty)
-                | xs ->
-                   if making_placeholder then
-                     begin
-                       (* TODO: fix it *)
-                       let uni_id =
-                         Unification.generate_uni_id ctx.sc_unification_ctx in
+  let { Env.er = env_r } = env in
+  match env_r with
+  | Env.MultiSet (record) ->
+     begin
+       match record.Env.ms_kind with
+       | Env.Kind.Class ->
+          begin
+            (* classes will not be overloaded. However, template classes may have
+             * some definitions (because of specialization). Thus, type may be unclear...
+             *)
+            if List.length record.Env.ms_templates <> 0 then
+              match template_args with
+              | [] ->
+                 let ty =
+                   Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
+                                                (Type_info.ClassSetTy env)
+                                                template_args
+                                                generics_args
+                                                Type_attr.undef
+                 in
+                 (ty, env, Lifetime.LtStatic, ty_cenv.Env.meta_level, Sema_lifetime.LifetimeMap.empty)
+              | xs ->
+                 if making_placeholder then
+                   begin
+                     (* TODO: fix it *)
+                     let uni_id =
+                       Unification.generate_uni_id ctx.sc_unification_ctx in
 
-                       (* set type as 'type' to uni_id *)
-                       Unification.update_type ctx.sc_unification_ctx
-                                               uni_id ctx.sc_tsets.ts_type_type;
+                     (* set type as 'type' to uni_id *)
+                     Unification.update_type ctx.sc_unification_ctx
+                                             uni_id ctx.sc_tsets.ts_type_type;
 
-                       (* set value to uni_id *)
-                       let ty =
-                         Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
-                                                      (Type_info.ClassSetTy env)
-                                                      template_args (* ... *)
-                                                      []            (* TODO *)
-                                                      Type_attr.undef
-                       in
-                       Unification.update_value ctx.sc_unification_ctx
-                                                uni_id (Ctfe_value.Type ty);
+                     (* set value to uni_id *)
+                     let ty =
+                       Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
+                                                    (Type_info.ClassSetTy env)
+                                                    template_args (* ... *)
+                                                    []            (* TODO *)
+                                                    Type_attr.undef
+                     in
+                     Unification.update_value ctx.sc_unification_ctx
+                                              uni_id (Ctfe_value.Type ty);
 
-                       (**)
-                       let ty =
-                         Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
-                                                      (Type_info.NotDetermined uni_id)
-                                                      template_args (* ... *)
-                                                      []            (* TODO *)
-                                                      Type_attr.undef
-                       in
-                       (ty, env, Lifetime.LtStatic, ty_cenv.Env.meta_level, Sema_lifetime.LifetimeMap.empty)
-                     end
-                   else
-                     begin
-                       let (instances, _) =
-                         instantiate_class_templates env xs
-                                                     search_base_env ctx attr
-                       in
-                       match instances with
-                       | [single_cenv] -> single_type_id_node name single_cenv
-                       | _ -> failwith "[ERR] ambiguous definitions"
-                     end
+                     (**)
+                     let ty =
+                       Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
+                                                    (Type_info.NotDetermined uni_id)
+                                                    template_args (* ... *)
+                                                    []            (* TODO *)
+                                                    Type_attr.undef
+                     in
+                     (ty, env, Lifetime.LtStatic, ty_cenv.Env.meta_level, Sema_lifetime.LifetimeMap.empty)
+                   end
+                 else
+                   begin
+                     let (instances, _) =
+                       instantiate_class_templates env xs
+                                                   cur_env ctx attr
+                     in
+                     match instances with
+                     | [single_cenv] -> single_type_id_node name single_cenv
+                     | _ -> failwith "[ERR] ambiguous definitions"
+                   end
 
-              else begin
-                if (List.length template_args <> 0) then
-                  failwith "[ERR] there is no template class";
+            else begin
+              if (List.length template_args <> 0) then
+                failwith "[ERR] there is no template class";
 
-                match record.Env.ms_normal_instances with
-                | [single_cenv] ->
-                   single_type_id_node name single_cenv
-                | _ -> failwith "[ICE] unexpected : class / multi-set"
+              match record.Env.ms_normal_instances with
+              | [single_cenv] ->
+                 single_type_id_node name single_cenv
+              | _ -> failwith "[ICE] unexpected : class / multi-set"
               end
-            end
+          end
 
-         | Env.Kind.Function ->
-            begin
-              (* functions will be overloaded *)
-              Debug.printf "FUNC GEN =>=>=> %d\n" (List.length generics_args);
-              let ty =
-                Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
-                                             (Type_info.FunctionSetTy env)
-                                             template_args
-                                             generics_args
-                                             {
-                                               Type_attr.ta_mut = Type_attr.Immutable;
-                                               Type_attr.ta_ref_val = Type_attr.Ref [];
-                                             }
-              in
-              (ty, env, Lifetime.LtStatic, env.Env.meta_level, Sema_lifetime.LifetimeMap.empty)
-            end
-         | _ -> failwith "unexpected env : multi-set kind"
-       end
+       | Env.Kind.Function ->
+          (* functions will be overloaded *)
+          Debug.printf "FUNC GEN =>=>=> %d\n" (List.length generics_args);
+          let ty =
+            Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
+                                         (Type_info.FunctionSetTy [env])
+                                         template_args
+                                         generics_args
+                                         {
+                                           Type_attr.ta_mut = Type_attr.Immutable;
+                                           Type_attr.ta_ref_val = Type_attr.Ref [];
+                                         }
+          in
+          (ty, Env.undef (), Lifetime.LtStatic, env.Env.meta_level, Sema_lifetime.LifetimeMap.empty)
 
-    (* only builtin classes may be matched *)
-    | Env.Class (_) -> single_type_id_node name env
+       | _ -> failwith "unexpected env : multi-set kind"
+     end
 
-    | Env.Variable (vr) ->
-       begin
-         assume_env_is_checked env ctx;
-         let {
-           Env.var_type = var_ty;
-           Env.var_lifetime = var_lt;
-         } = vr in
-         (* TODO: check class variable *)
+  (* only builtin classes may be matched *)
+  | Env.Class (_) -> single_type_id_node name env
 
-         (var_ty, env, var_lt, env.Env.meta_level, Sema_lifetime.LifetimeMap.empty)
-       end
+  | Env.Variable (vr) ->
+     begin
+       assume_env_is_checked env ctx;
+       let {
+         Env.var_type = var_ty;
+         Env.var_lifetime = var_lt;
+       } = vr in
+       (* TODO: check class variable *)
 
-    (* returns **type** of MetaVariable, NOT value *)
-    | Env.MetaVariable (uni_id) ->
-       begin
-         let (term_uni_id, c) =
-           Unification.search_type_until_terminal ctx.sc_unification_ctx uni_id
-         in
-         match c with
-         | (Unification.Val ty) ->
-            (ty, env, Lifetime.LtStatic, env.Env.meta_level, Sema_lifetime.LifetimeMap.empty)
-         | (Unification.Undef) ->
-            let ty =
-              Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
-                                           (Type_info.NotDetermined uni_id)
-                                           template_args
-                                           generics_args
-                                           Type_attr.undef
-            in
-            (ty, env, Lifetime.LtStatic, env.Env.meta_level, Sema_lifetime.LifetimeMap.empty)
-         | _ -> failwith "[ICE] meta ver"
-       end
+       (var_ty, env, var_lt, env.Env.meta_level, Sema_lifetime.LifetimeMap.empty)
+     end
 
-    | Env.LifetimeVariable _ ->
-       let ty = type_ty in (* TODO: change to lifetime_ty *)
-       (ty, env, Lifetime.LtStatic, Meta_level.OnlyMeta, Sema_lifetime.LifetimeMap.empty)
+  (* returns **type** of MetaVariable, NOT value *)
+  | Env.MetaVariable (uni_id) ->
+     begin
+       let (term_uni_id, c) =
+         Unification.search_type_until_terminal ctx.sc_unification_ctx uni_id
+       in
+       match c with
+       | (Unification.Val ty) ->
+          (ty, env, Lifetime.LtStatic, env.Env.meta_level, Sema_lifetime.LifetimeMap.empty)
+       | (Unification.Undef) ->
+          let ty =
+            Type.Generator.generate_type ctx.sc_tsets.ts_type_gen
+                                         (Type_info.NotDetermined uni_id)
+                                         template_args
+                                         generics_args
+                                         Type_attr.undef
+          in
+          (ty, env, Lifetime.LtStatic, env.Env.meta_level, Sema_lifetime.LifetimeMap.empty)
+       | _ -> failwith "[ICE] meta ver"
+     end
 
-    | _ -> failwith "solve_simple_identifier: unexpected env"
-  in
+  | Env.LifetimeVariable _ ->
+     let ty = type_ty in (* TODO: change to lifetime_ty *)
+     (ty, env, Lifetime.LtStatic, Meta_level.OnlyMeta, Sema_lifetime.LifetimeMap.empty)
 
-  let name_s = Id_string.to_string name in
-  Debug.printf "-> finding identitifer = %s : rec = %b\n" name_s do_rec_search;
-  let (oenv, search_env_history) = if do_rec_search then
-                    Env.lookup ~exclude:exclude search_base_env name_s
-                  else
-                    (Env.find_all_on_env search_base_env name_s, [search_base_env])
-  in
-  let opt_trg_env = match oenv with
-    | [] ->
-       None
-    | envs ->
-       let init = (Type_info.undef_ty, Env.undef (), Lifetime.LtUndef, Meta_level.Runtime, Sema_lifetime.LifetimeMap.empty) in
-       Some (List.fold_left solve init envs)
-  in
-  (opt_trg_env, search_env_history)
+  | _ -> failwith "solve_simple_identifier: unexpected env"
+
+
 
 
 and make_not_determined_type uni_id ctx =
@@ -2684,9 +2727,14 @@ and convert_type trg_ty src_arg ext_env ctx attr =
          let cenv = Type.as_unique trg_ty in
          let (res, _) = solve_basic_identifier ~do_rec_search:false
                                                ctor_id_name [] cenv ctx attr in
-         let (_, ctor_env, _, _, _) = match res with
+         let (ctor_ty, _, _, _, _) = match res with
            | Some v -> v
            | None -> failwith "[ERR] constructor not found"
+         in
+         let ctor_env = match Type.type_sort ctor_ty with
+           | Type_info.FunctionSetTy [e] -> e
+           | Type_info.FunctionSetTy _ -> failwith "[ERR] ctor must be defined in same module"
+           | _ -> failwith "[ERR] constructor must be function"
          in
          let m_r = Env.MultiSetOp.get_record ctor_env in
          (* m_r.Env.ms_kind *)
@@ -3042,20 +3090,7 @@ and resolve_type_with_qual ?(making_placeholder=false)
          | [] ->
             Some (Lifetime.LtUndef)
          | [param_name] ->
-            (* PIN: 1 *)
-            let (opt_aux, hist) = solve_basic_identifier param_name [] env ctx attr in
-            let res = match opt_aux with
-              | Some (ty, env, _, _, _) ->
-                 (* assert ty is lifetime *)
-                 let v_ml = match Env.get_env_record env with
-                   | Env.LifetimeVariable lt -> lt
-                   | _ -> failwith ""
-                 in
-                 Some v_ml
-              | None ->
-                 error (Error_msg.MemberNotFound (env, hist, None))
-            in
-            res
+            Some (lifetime_spec_to_value param_name env ctx attr)
          | _ ->
             failwith "[ERR]"
        end
@@ -3203,9 +3238,9 @@ and find_suitable_operator ?(universal_search=false)
       Type_info.ti_template_args = template_args;
     } = callee_f_ty in
     match ty_sort with
-    | Type_info.FunctionSetTy menv ->
+    | Type_info.FunctionSetTy m_envs ->
        begin
-         match solve_function_overload eargs template_args menv env loc ctx attr with
+         match solve_function_overload eargs template_args m_envs env loc ctx attr with
          | v -> Ok v
          | exception (Normal_error v) -> Bad v
        end
@@ -3216,8 +3251,40 @@ and find_suitable_operator ?(universal_search=false)
 
 
 (* returns Env of function,
- * this function raies esception*)
-and solve_function_overload eargs template_args mset_env ext_env loc ctx attr =
+ * this function raises an exception *)
+and solve_function_overload eargs template_args m_env_set ext_env loc ctx attr =
+  assert (List.length m_env_set > 0);
+
+  (* solve overload for each overload set *)
+  let results =
+    let solve m_env =
+      try
+        let e =
+          solve_function_overload' eargs template_args m_env ext_env loc ctx attr
+        in
+        Ok e
+      with
+      | Normal_error _ as exn ->
+         Bad exn
+    in
+    List.map solve m_env_set
+  in
+
+  let envs = List.filter_map Result.to_option results in
+  match envs with
+  | [e] ->
+     (* found an only one result in the overload set *)
+     e
+
+  | [] ->
+     (* ERROR: all overload resolutions in the overload set are failed *)
+     failwith "[ERR] there is no result in the overload set"
+
+  | _ ->
+     (* ERROR: there are many results in the overload set. *)
+     failwith "[ERR] there are many results in the overload set"
+
+and solve_function_overload' eargs template_args mset_env ext_env loc ctx attr =
   let (args, arg_auxs) = List.split eargs in
   let mset_record = match mset_env.Env.er with
     | Env.MultiSet r -> r
@@ -3725,29 +3792,26 @@ and select_member_element ?(universal_search=false)
   let recv_ty = Aux.ty recv_aux in
   let recv_cenv = Type.as_unique recv_ty in
 
-  let (opt_ty_ctx, hist) = solve_identifier ~do_rec_search:false
-                                            t_id recv_cenv ctx attr in
+  let (opt_ty_ctx, hist) =
+    solve_identifier ~do_rec_search:false t_id recv_cenv ctx attr
+  in
 
   match opt_ty_ctx with
   | Some ty_ctx ->
-     begin
-       (* member env named id is found in recv_ty_r! *)
-       (Some ty_ctx, hist)
-     end
+     (* member env named id is found in recv_ty_r! *)
+     (Some ty_ctx, hist)
 
   | None ->
-     begin
-       (* not found *)
-       (* first, find the member function like "opDispatch" in recv_ty_r *)
-       (* TODO: implement *)
+     (* not found *)
+     (* first, find the member function like "opDispatch" in recv_ty_r *)
+     (* TODO: implement *)
 
-       (* second, do universal_search *)
-       if universal_search then begin
-         solve_identifier ~exclude:[Env.Kind.Class] t_id env ctx attr
-
-       end else
-         (None, hist)
-     end
+     (* second, do universal_search *)
+     if universal_search then
+       (* apply ufcs *)
+       solve_identifier ~exclude:[Env.Kind.Class] t_id env ctx attr
+     else
+       (None, hist)
 
 
 and propagate_type_attrs dest_ty src_ty ctx =
@@ -5020,11 +5084,11 @@ and declare_generics_specs lifetime_sorts parent_env =
       match lt_s with
       | Lifetime.LtSingle _ -> None
       | Lifetime.LtLongerThan (lhs_id, rhs_id) ->
-         let lhs = match Env.lookup tmp_env (Id_string.to_string lhs_id) with
+         let lhs = match Env.lookup tmp_env lhs_id with
            | ([v], _) -> Env.LifetimeVariableOp.as_lifetime v
            | _ -> failwith ""
          in
-         let rhs = match Env.lookup tmp_env (Id_string.to_string rhs_id) with
+         let rhs = match Env.lookup tmp_env rhs_id with
            | ([v], _) -> Env.LifetimeVariableOp.as_lifetime v
            | _ -> failwith ""
          in

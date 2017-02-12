@@ -95,17 +95,6 @@ let () =
       exit 1
     end;
 
-  let filepaths =
-    let cur_dir = Sys.getcwd () in
-    let f filename =
-      if Filename.is_relative filename then
-        Filename.concat cur_dir filename
-      else
-        filename
-    in
-    List.map f co.input_files
-  in
-
   (* TODO: fix *)
   if List.length co.input_files > 1 then
     begin
@@ -113,9 +102,9 @@ let () =
                      (co.input_files |> String.join ", ");
       exit 1
     end;
-
   assert (List.length co.input_files = 1);
-  let filepath = List.hd filepaths in
+
+  let filepath = List.hd co.input_files in (* TODO: support multiple files *)
 
   let build_options = make_build_options co in
 
@@ -126,7 +115,6 @@ let () =
       match co.output_file with
       | Some path -> path
       | None ->
-         let filepath = List.hd filepaths in
          try
            filepath
            |> Filename.basename

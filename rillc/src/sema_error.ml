@@ -143,8 +143,10 @@ let rec print ?(loc=None) err =
      Printf.printf "Searched scopes are...\n";
      List.iter (fun env -> show_env env |> Printf.printf "%s\n") history
 
-  | PackageNotFound (full_module_name, hist) ->
-     Printf.printf "Error: module \"%s\" is not found.\n" full_module_name;
+  | PackageNotFound (full_module_name, hist, loc) ->
+     Printf.printf "%s:\nError: module \"%s\" is not found.\n"
+                   (Loc.to_string loc)
+                   full_module_name;
      hist |> List.iter
                (fun (package_name, dirs) ->
                  Printf.printf " \"%s\" is not found in\n" package_name;

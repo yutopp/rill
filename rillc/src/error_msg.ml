@@ -18,7 +18,7 @@ type ('ty, 'env) t =
   (* errors * loc *)
   | NoMatch of ('ty, 'env) t list * Loc.t
   | MemberNotFound of 'env * 'env list * Loc.t
-  | PackageNotFound of string * (string * string list) list
+  | PackageNotFound of string * (string * string list) list * Loc.t
   | Ambiguous of (Function.MatchLevel.t * 'env list * Loc.t)
 
   | MultiSymbol of 'env * Loc.t

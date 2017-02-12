@@ -134,6 +134,9 @@ module Generator =
       generate_type ~aux_generics_args:ty.ti_aux_generics_args
                     gen ty.ti_sort ty.ti_template_args ty.ti_generics_args ty.ti_attr
 
+    let update_sort gen ty sort =
+      register_type gen { ty with ti_sort = sort; }
+
     let update_attr_r gen ty attr =
       register_type gen { ty with ti_attr = attr; }
 

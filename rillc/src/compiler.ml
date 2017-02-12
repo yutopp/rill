@@ -23,35 +23,48 @@ type compile_options_t = {
     mutable compile_only        : bool;
   }
 
+let to_fullpath path =
+  let cur_dir = Sys.getcwd () in
+  if Filename.is_relative path then
+    Filename.concat cur_dir path
+  else
+    path
+
 let make_build_options co =
   let core_lib_opts = if co.no_corelib then
-                          []
+                        []
+                      else
+                        if Config.use_local_dev_lib then
+                          [COS.OsLinkDir "./corelib/lib";
+                           COS.OsLinkLib "rillcore-rt"]
                         else
-                          if Config.use_local_dev_lib then
-                            [COS.OsLinkDir "./corelib/lib";
-                             COS.OsLinkLib "rillcore-rt"]
-                          else
-                            [COS.OsLinkDir Config.default_core_lib_dir;
-                             COS.OsLinkLib Config.default_core_lib_name]
-    in
-    let std_lib_opts = if co.no_corelib then
-                         []
+                          [COS.OsLinkDir Config.default_core_lib_dir;
+                           COS.OsLinkLib Config.default_core_lib_name]
+  in
+  let std_lib_opts = if co.no_corelib then
+                       []
+                     else
+                       if Config.use_local_dev_lib then
+                         [COS.OsLinkDir "./stdlib/lib";
+                          COS.OsLinkLib "rillstd-rt"]
                        else
-                         if Config.use_local_dev_lib then
-                           [COS.OsLinkDir"./stdlib/lib";
-                            COS.OsLinkLib "rillstd-rt"]
-                         else
-                           [COS.OsLinkDir Config.default_std_lib_dir;
-                            COS.OsLinkLib Config.default_std_lib_name]
-    in
-    core_lib_opts @ std_lib_opts @ co.options
+                         [COS.OsLinkDir Config.default_std_lib_dir;
+                          COS.OsLinkLib Config.default_std_lib_name]
+  in
+  core_lib_opts @ std_lib_opts @ co.options
 
-let compile co build_options filepath =
-  let system_libs_dirs = List.rev co.system_import_dirs in
+let compile co build_options filepath' =
+  let filepath = to_fullpath filepath' in
 
-  let module_search_dirs = List.rev co.user_import_dirs in
-  let cur_dir = Sys.getcwd () in
-  let module_search_dirs = cur_dir :: module_search_dirs in
+  let system_libs_dirs =
+    List.rev co.system_import_dirs
+    |> List.map to_fullpath
+  in
+
+  let module_search_dirs =
+    Sys.getcwd () :: List.rev co.user_import_dirs
+    |> List.map to_fullpath
+  in
 
   let (env, ctx) =
     Sema.make_default_state system_libs_dirs module_search_dirs

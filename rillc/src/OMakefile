@@ -83,7 +83,7 @@ OCAMLFLAGS    += -warn-error A
 if $(equal $(RELEASE), true)
    # do nothing...
 else
-   OCAMLFLAGS    += -g -bin-annot
+   OCAMLFLAGS    += -g -bin-annot -annot
    OCAMLOPTFLAGS += -p
    export
 
@@ -230,7 +230,7 @@ uninstall:
 
 clean:
     rm -f *~ *.opt *.cmi *.cmx *.cmt *.cmti *.cmp *.cmxa *.omc \
-        *.o *.a *.out *.s *.bc *.log *.cache $(PROGRAM) $(LIB) \
+        *.o *.a *.out *.s *.bc *.log *.cache *.annot $(PROGRAM) $(LIB) \
         parser.ml parser.mli tokens.ml tokens.mli lexer.ml \
         parser_messages.ml syntax.messages.pre \
         config.ml config.mli \
