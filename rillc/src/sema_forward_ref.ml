@@ -244,20 +244,21 @@ let rec solve_forward_refs ?(meta_variables=[])
 
 and prepare_module_from_filepath ?(def_mod_info=None) filepath ctx =
   let root_env = ctx.sc_root_env in
-  let (raw_pkg_names, raw_mod_name) =
-    Option.default ([], filepath |> Filename.basename |> Filename.chop_extension)
-                   def_mod_info
-  in
+  let simple_module_name = filepath |> Filename.basename |> Filename.chop_extension in
   let mod_ast =
-    Syntax.make_ast_from_file ~default_pkg_names:raw_pkg_names
-                              ~default_mod_name:raw_mod_name
+    Syntax.make_ast_from_file ~default_pkg_names:[]
+                              ~default_mod_name:simple_module_name
                               filepath
   in
 
   let load_module_ast body pkg_names mod_name base_dir attr loc =
-    let check_mod_name (raw_pkg_names, raw_mod_name) =
-      if not (pkg_names = raw_pkg_names && mod_name = raw_mod_name) then
-        fatal_error_msg "package/module names are different"
+    let check_mod_name expect_mod_head =
+      let (expect_pkg_names, expect_mod_name) = expect_mod_head in
+      if not (pkg_names = expect_pkg_names && mod_name = expect_mod_name) then
+        let err =
+          Error_msg.ModuleNameDifferent (expect_mod_head, (pkg_names, mod_name))
+        in
+        fatal_error err
     in
     Option.may check_mod_name def_mod_info;
 
@@ -308,14 +309,15 @@ and prepare_module_from_filepath ?(def_mod_info=None) filepath ctx =
 
 
 and prepare_module ~loc pkg_names mod_name ctx =
-  let mod_env = Module_info.Bag.search_module ctx.sc_module_bag
-                                              pkg_names mod_name in
+  let mod_env =
+    Module_info.Bag.search_module ctx.sc_module_bag pkg_names mod_name
+  in
   match mod_env with
   | Some r ->
      (* return cached module *)
      r
   | None ->
-     let pp (dirs, hist) dir_name =
+     let dig_pkgs (dirs, hist) dir_name =
        let dir_exists dir =
          let dir_name = Filename.concat dir dir_name in
          Sys.file_exists dir_name
@@ -330,13 +332,13 @@ and prepare_module ~loc pkg_names mod_name ctx =
        (next_dir, (dir_name, dirs) :: hist)
      in
      let search_dirs = ctx.sc_module_search_dirs in
-     let target_dirs = List.fold_left pp (search_dirs, []) pkg_names in
+     let target_dirs = List.fold_left dig_pkgs (search_dirs, []) pkg_names in
      let target_dir = match target_dirs with
        | ([dir], _) ->
           dir
        | ([], hist) ->
           let full_module_name = (String.concat "." pkg_names) ^ "." ^ mod_name in
-          fatal_error (Error_msg.PackageNotFound (full_module_name, hist, loc))
+          fatal_error (Error_msg.ModuleNotFound (full_module_name, hist, loc))
        | _ -> failwith "[ICE]"
      in
      Debug.printf "import from = %s\n" target_dir;

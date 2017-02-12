@@ -40,19 +40,20 @@ CFLAGS += -shared -fPIC
 # If so, define the subdirectory targets and uncomment this section.
 #
 
+CORE_LIB_SRC_DIR = $(dir src)
 .SUBDIRS: src/core
     %.o: %.rill $(RILLC_BIN)
-        $(RILLC_BIN) -c $< --no-corelib --no-stdlib --system-lib $(dir src) -o $@
+        $(RILLC_BIN) -c $< --no-corelib --no-stdlib --system-lib $(CORE_LIB_SRC_DIR) -o $@
 
     clean:
-        rm -f *~ *.o *.ll *.bc
+        rm -f *~ *.o *.ll *.bc *.out
 
 .SUBDIRS: src_ext
     %.o: %.cpp
         $(CXX) $(CXXFLAGS) -c $+ -o $@
 
     clean:
-        rm -f *~ *.o
+        rm -f *~ *.o *.out
 
 .DEFAULT: lib/$(LIBNAME).a lib/$(LIBNAME).so
 

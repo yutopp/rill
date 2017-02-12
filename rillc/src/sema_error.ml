@@ -143,7 +143,7 @@ let rec print ?(loc=None) err =
      Printf.printf "Searched scopes are...\n";
      List.iter (fun env -> show_env env |> Printf.printf "%s\n") history
 
-  | PackageNotFound (full_module_name, hist, loc) ->
+  | ModuleNotFound (full_module_name, hist, loc) ->
      Printf.printf "%s:\nError: module \"%s\" is not found.\n"
                    (Loc.to_string loc)
                    full_module_name;
@@ -156,6 +156,16 @@ let rec print ?(loc=None) err =
                            );
                  ()
                )
+
+  | ModuleNameDifferent (expect_mod_head, actual_mod_head) ->
+     let loc = Loc.dummy in
+     let to_string (pkg_names, mod_name) =
+       String.join "." (pkg_names @ [mod_name])
+     in
+     Printf.printf "%s:\nError: module \"%s\" should be \"%s\".\n"
+                   (Loc.to_string loc)
+                   (to_string actual_mod_head)
+                   (to_string expect_mod_head);
 
   | Ambiguous (_, f_envs, loc) ->
      Printf.printf "%s:\nError: Ambiguous\n"

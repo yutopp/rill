@@ -27,6 +27,7 @@
 %token                  LIT_TRUE LIT_FALSE
                         KEYWORD_DEF
                         KEYWORD_CLASS
+                        KEYWODD_PACKAGE
                         KEYWODD_MODULE
                         KEYWORD_VAL
                         KEYWORD_REF

@@ -60,6 +60,7 @@ rule token = parse
   | "import"            { KEYWORD_IMPORT }
   | "def"               { KEYWORD_DEF }
   | "class"             { KEYWORD_CLASS }
+  | "package"           { KEYWODD_PACKAGE }
   | "module"            { KEYWODD_MODULE }
   | "val"               { KEYWORD_VAL }
   | "ref"               { KEYWORD_REF }

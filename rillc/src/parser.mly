@@ -62,6 +62,15 @@ module_decl:
                 }
 
         |       attr_opt = attribute?
+                KEYWODD_PACKAGE
+                xs = separated_nonempty_list(DOT, rel_id_has_no_op_as_raw)
+                {
+                    let pkg_names = List.rev xs in
+                    let mod_name = Mi.module_name in
+                    (pkg_names, mod_name, attr_opt)
+                }
+
+        |       attr_opt = attribute?
                 KEYWODD_MODULE
                 xs = separated_nonempty_list(DOT, rel_id_has_no_op_as_raw)
                 {
@@ -70,6 +79,7 @@ module_decl:
                     let mod_name = List.hd rev_xs in
                     (pkg_names, mod_name, attr_opt)
                 }
+
 
 
 top_level_statements:
