@@ -49,9 +49,9 @@ USE_OCAMLFIND = true
 OCAMLPACKS[] =
    batteries
    llvm
-   llvm.bitwriter
    llvm.analysis
    llvm.executionengine
+   llvm.all_backends
    ctypes
    stdint
    ocamlgraph
@@ -174,12 +174,15 @@ FILES[] =
    sema_utils
    sema_error
    sema_lifetime
+   sema_class
+   sema_type
    sema_env
    codegen_context
    codegen_flowinfo
    codegen_option_spec
    codegen_llvm
    codegen_llvm_intrinsics
+   codegen_llvm_object
    codegen_executable
    type
    type_attr
@@ -209,11 +212,59 @@ OCamlLibrary($(LIB), $(FILES))
 
 #
 PROGRAM = rillc
+
+# C++ extentions (using LLVM)
+.SUBDIRS: cpp_ext
+    FILES[] =
+        codegen_llvm_object
+
+    OCAMLFIND_LLVM_VERSION = $(shell $(OCAMLFIND) query -format "%v" llvm)
+    LLVM_VERSION_LIST = $(split ., $(OCAMLFIND_LLVM_VERSION))
+    LLVM_MAJOR_VERSION = $(nth 0, $(LLVM_VERSION_LIST))
+    LLVM_MINOR_VERSION = $(nth 1, $(LLVM_VERSION_LIST))
+    # string like "3.9"
+    LLVM_VERSION = $(LLVM_MAJOR_VERSION).$(LLVM_MINOR_VERSION)
+
+    SelectLLVMConfig() =
+        candidates[] =
+            llvm-config-$(LLVM_VERSION)
+            llvm-config-mp-$(LLVM_VERSION)
+            llvm-config
+        foreach(bin => ..., $(candidates))
+            if $(exists-in-path $(bin))
+                return $(bin)
+        # error if llvm-config is not found in PATH
+        eprintln(llvm-config is not found in PATH:)
+        foreach(bin => ..., $(candidates))
+            eprintln(-> $(bin))
+        exit(1)
+    LLVM_CONFIG = $(SelectLLVMConfig)
+
+    CXXFLAGS += -std=c++11
+    INCLUDES += $(shell $(LLVM_CONFIG) --includedir)
+
+    %.o: %.cpp
+        ln -sf $^ $(replacesuffixes .o, .c, $@) # ocamlc cannot recognize "cpp" files...
+        # build object files
+        # leave linking of LLVM and stdlibc++ to ocaml bindings for llvm...
+        $(OCAMLC) -cc $(CXX) \
+            $(mapprefix -ccopt, $(CXXFLAGS)) \
+            $(mapprefix -I, $(INCLUDES)) \
+            -c $(replacesuffixes .cpp, .c, $^)
+
+    cpp_ext_lib.a: $(addsuffix .o, $(FILES))
+        rm-if-exists($@)
+        $(AR $@) $+
+
+    clean:
+        rm *.c *.o *.a
+
 # OCAML_LIBS +=
-# OCAML_CLIBS +=
+OCAML_CLIBS += cpp_ext/cpp_ext_lib
 # OCAML_OTHER_LIBS +=
 # OCAML_LIB_FLAGS +=
 #
+
 .DEFAULT: $(OCamlProgram $(PROGRAM), $(FILES))
 
 ########################################################################

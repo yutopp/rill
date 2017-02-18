@@ -10,7 +10,6 @@ open Batteries
 open Stdint
 module FI = Codegen_flowinfo
 module L = Llvm
-module LBW = Llvm_bitwriter
 
 module TAst = Tagged_ast
 type env_t = TAst.t Env.env_t
@@ -59,7 +58,21 @@ type ctx_t = (env_t, Nodes.CachedNodeCounter.t, type_info_t, ctfe_val_t) Ctx.t
 
 let agg_recever_name = "agg.receiver"
 
+let initialize_llvm_backends =
+  let is_initialized = ref false in
+  let initialize () =
+    match !is_initialized with
+    | false ->
+       Llvm_all_backends.initialize ();
+       is_initialized := true
+    | true ->
+       ()
+  in
+  initialize
+
 let make_default_context ~type_sets ~uni_map ~target_module =
+  initialize_llvm_backends();
+
   let ir_context = L.global_context () in
   let ir_module = L.create_module ir_context "Rill" in
   let ir_builder = L.builder ir_context in
@@ -2136,25 +2149,12 @@ let create_object_from_ctx ctx options out_filepath =
     with
     | Invalid_argument _ -> out_filepath
   in
-  let bitcode_name = basic_name ^ ".bc" in
 
-  (* output LLVM bitcode to the file *)
-  let bc_wrote = LBW.write_bitcode_file ctx.ir_module bitcode_name in
-  if not bc_wrote then raise FailedToWriteBitcode;
+  (* TODO: support '-emit-llvm' option *)
 
-  (* build bitcode and output object file *)
+  (* output object file from llvm module *)
   let bin_name = basic_name ^ ".o" in
-  let llc_path =
-    try Sys.getenv "RILL_LLC_PATH" with
-    | Not_found -> "llc"
-  in
-  let sc =
-    Sys.command (Printf.sprintf "%s %s -filetype=obj -relocation-model=pic -o %s"
-                                (Filename.quote llc_path)
-                                (Filename.quote bitcode_name)
-                                (Filename.quote bin_name))
-  in
-  if sc <> 0 then raise FailedToBuildBytecode;
+  Codegen_llvm_object.emit_file bin_name ctx.ir_module;
 
   Debug.reportf "= GENERATE_OBJECT(%s) %s"
                 out_filepath (Debug.Timer.string_of_elapsed timer);
