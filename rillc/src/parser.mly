@@ -920,6 +920,7 @@ binary_operator_as_raw:
         |       TIMES { $1 }
         |       DIV { $1 }
         |       MOD { $1 }
+        |       ASSIGN { $1 }
         |       GT { $1 }
         |       GTE { $1 }
         |       LT { $1 }
