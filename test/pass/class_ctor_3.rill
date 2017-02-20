@@ -5,5 +5,6 @@ def main() {
 
 class B { val v: A; }
 class A {
+    def ctor() {}
     def ctor(rhs: A) {}
 }

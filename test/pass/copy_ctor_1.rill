@@ -1,8 +1,10 @@
 class A {
-      def ctor(rhs: A) {
-          this.p = rhs.p;
-      }
-      val p: int32;
+    def ctor() {};
+
+    def ctor(rhs: A) {
+        this.p = rhs.p;
+    }
+    val p: int32;
 }
 
 def f() => A();

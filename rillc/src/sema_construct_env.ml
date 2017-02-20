@@ -42,18 +42,45 @@ type storage_operation =
   | SoBind
   | SoArrayElement of int
 
+(* TODO: fix *)
+module LifetimeEnv =
+  struct
+    type t = int
+
+    let init () =
+      0
+
+    let add_nest lt_env =
+      lt_env + 1
+
+    let nest_level lt_env =
+      Some (Env_system.NestLevel.of_int lt_env)
+  end
+
+(* TODO: fix *)
 module SubExprSpec =
   struct
     type 'n t = {
+      env_id: Env_system.EnvId.t;
+      nest_level: Env_system.NestLevel.t;
       mutable aux_count: int;
       store: (int, 'n) Hashtbl.t;
     }
 
-    let empty () =
+    let create base_env lt_env =
+      let nest_level =
+        Env.calc_nest_level ~ext_nest_level:(LifetimeEnv.nest_level lt_env)
+                            base_env
+      in
       {
+        env_id = Env.get_id base_env;
+        nest_level = nest_level;
         aux_count = 0;
         store = Hashtbl.create 10;
       }
+
+    let make_scope_lifetime ?(aux_count=0) spec sub_nest_level =
+      Lifetime.LtDynamic (spec.env_id, spec.nest_level, sub_nest_level, aux_count)
 
     let register_temporary spec id (node, aux) =
       let cache_node_id = Nodes.CachedNodeCounter.generate () in
@@ -90,167 +117,54 @@ module SubExprSpec =
          ([], Hashtbl.values spec.store |> List.of_enum)
   end
 
-module SpecialMemberStates = struct
-  type state_t = {
-    is_explicitly_defined   : bool;
-    is_callable             : bool;
-    is_trivial              : bool;
-    is_provided_by_user     : bool;
-  }
-
-  let init_scanner =
-    {
-      is_explicitly_defined = false;
-      is_callable = true;
-      is_trivial = true;
-      is_provided_by_user = false;
-    }
-
-  let merge_special_func_state ?(explicit=false) diagnosis state =
-    match state with
-    | Env.FnDefDefaulted b ->
-       { diagnosis with
-         is_explicitly_defined = explicit;
-         is_callable = true && diagnosis.is_callable;
-         is_trivial = b && diagnosis.is_trivial;
-       }
-    | Env.FnDefProvidedByUser ->
-       {
-         is_explicitly_defined = explicit;
-         is_callable = true && diagnosis.is_callable;
-         is_trivial = false && diagnosis.is_trivial;
-         is_provided_by_user = true;
-       }
-    | Env.FnDefDeleted ->
-       { diagnosis with
-         is_explicitly_defined = explicit;
-         is_callable = false && diagnosis.is_callable;
-         is_trivial = false && diagnosis.is_trivial;
-       }
-
-  (* use this function after diagnose *)
-  let diagnosis_to_trait diagnosis has_user_defined =
-    match diagnosis with
-    (* if class has user defined ctor/dtor,
-     * user must provide default/copy/move ctor/dtor explicitly *)
-    | { is_explicitly_defined = e } when has_user_defined && not e ->
-       Env.FnDefDeleted
-
-    | { is_explicitly_defined = true; is_callable = true;
-        is_trivial = b; is_provided_by_user = true } ->
-       assert(not b);
-       Env.FnDefProvidedByUser
-
-    | { is_callable = true; is_trivial = b } ->
-       Env.FnDefDefaulted b
-
-    | _ ->
-       Env.FnDefDeleted
-
-  let string_of_state s =
-    Printf.sprintf "is_explicit = %b; is_callable = %b;\n is_trivial = %b; is_provided_by_user = %b" s.is_explicitly_defined s.is_callable s.is_trivial s.is_provided_by_user
-
-  type t =
-      {
-        default_ctor_diagnosis  : state_t;
-        copy_ctor_diagnosis     : state_t;
-        has_user_defined_ctor   : bool;     (* has constructors except for default/copy/move *)
-        dtor_diagnosis          : state_t;
-      }
-
-  let init_states =
-    {
-      default_ctor_diagnosis = init_scanner;
-      copy_ctor_diagnosis = init_scanner;
-      has_user_defined_ctor = false;
-
-      dtor_diagnosis = init_scanner;
-    }
-
-  let merge_special_func_traits diagnoses traits =
-    {
-      diagnoses with
-      default_ctor_diagnosis =
-        merge_special_func_state diagnoses.default_ctor_diagnosis
-                                 traits.Env.cls_traits_default_ctor_state;
-      copy_ctor_diagnosis =
-        merge_special_func_state diagnoses.copy_ctor_diagnosis
-                                 traits.Env.cls_traits_copy_ctor_state;
-
-      dtor_diagnosis =
-        merge_special_func_state diagnoses.dtor_diagnosis
-                                 traits.Env.cls_traits_dtor_state;
-    }
-
-  let diagnoses_to_traits traits states =
-    {
-      traits with
-
-      Env.cls_traits_default_ctor_state =
-        diagnosis_to_trait states.default_ctor_diagnosis states.has_user_defined_ctor;
-      Env.cls_traits_copy_ctor_state =
-        diagnosis_to_trait states.copy_ctor_diagnosis states.has_user_defined_ctor;
-
-      Env.cls_traits_dtor_state =
-        diagnosis_to_trait states.dtor_diagnosis false; (* dtor has no user_defined one *)
-    }
-
-  let string_of_states ss =
-    let s = Printf.sprintf "default_ctor_state -> %s\n"
-                           (string_of_state ss.default_ctor_diagnosis)
-    in
-    let s = s ^ Printf.sprintf "copy_ctor_state -> %s\n"
-                               (string_of_state ss.copy_ctor_diagnosis)
-    in
-    let s = s ^ Printf.sprintf "has_user_defined_ctor -> %b\n"
-                               ss.has_user_defined_ctor
-    in
-    let s = s ^ Printf.sprintf "dtor_state -> %s\n"
-                               (string_of_state ss.dtor_diagnosis)
-    in
-    s
-end
 
 (*
 * this function will raise exceptions. NError or Fatal_error.
 *)
-let rec construct_env node parent_env ctx opt_chain_attr =
+let rec construct_env node parent_env lt_env ctx opt_chain_attr
+  : (TAst.ast * TAst.term_aux_t * env_t * LifetimeEnv.t) =
   let void_t = get_void_aux ctx in
+  let as_checked env = (Env.get_rel_ast env, void_t, parent_env, lt_env) in
+
   match node with
   | TAst.Module (inner, pkg_names, mod_name, base_dir, (loc, Some env)) ->
      begin
        cache_primitive_types env ctx;
-       construct_env inner env ctx opt_chain_attr
+       construct_env inner env lt_env ctx opt_chain_attr
      end
 
   | TAst.StatementList (nodes) ->
-     let (nodes, last_ty, last_env) =
-       let construct_env_with_error_check n env =
+     let (nodes, last_ty, last_env, last_lt_env) =
+       let construct_env_with_error_check node env lt_env =
          try
-           construct_env n env ctx opt_chain_attr
+           construct_env node env lt_env ctx opt_chain_attr
          with
          | Normal_error err when ctx.sc_handle_error ->
             Sema_error.process_error err ctx;
-            (TAst.ErrorTerm, void_t, env)
+            (TAst.ErrorTerm, void_t, env, lt_env)
        in
-       let rec p nodes env = match nodes with
+       (* TODO: TCO *)
+       let rec p nodes env lt_env =
+         match nodes with
          (* if there are no statements, it is void_type *)
-         | [] -> ([], void_t, env)
+         | [] -> ([], void_t, env, lt_env)
          (* if there is only one statement, evaluate it and type is of that *)
          | [x] ->
-            let (n, s, e) = construct_env_with_error_check x env in
-            ([n], s, e)
+            let (n, s, e, le) = construct_env_with_error_check x env lt_env in
+            ([n], s, e, le)
          | x :: xs ->
-            let (n, _, e) = construct_env_with_error_check x env in
-            let (ns, last_ty, last_env) = p xs e in
-            ((n :: ns), last_ty, last_env)
+            let (n, _, _, le) = construct_env_with_error_check x env lt_env in
+            let (ns, last_ty, last_env, last_lt_env) = p xs env le in
+            ((n :: ns), last_ty, last_env, last_lt_env)
        in
-       p nodes parent_env
+       p nodes parent_env lt_env
      in
-     (TAst.StatementList nodes, last_ty, last_env)
+     (TAst.StatementList nodes, last_ty, last_env, last_lt_env)
 
   | TAst.ExprStmt (TAst.PrevPassNode e) ->
-     let temp_obj_spec = SubExprSpec.empty () in
+     let temp_obj_spec =
+       SubExprSpec.create parent_env lt_env
+     in
      let (node, aux) =
        analyze_expr ~making_placeholder:false
                     ~sub_nest:0
@@ -258,28 +172,29 @@ let rec construct_env node parent_env ctx opt_chain_attr =
      in
 
      let ((bound_lts, bound_dtor_calls), (_, dtor_calls)) =
-       collect_temp_objs temp_obj_spec None parent_env ctx
+       collect_temp_objs temp_obj_spec None parent_env lt_env ctx
      in
      assert (List.length bound_lts = 0);
      assert (List.length bound_dtor_calls = 0);
 
      let n_node = TAst.FinalyzeExpr (Some node, dtor_calls) in
-     (TAst.ExprStmt n_node, aux, parent_env)
+     (TAst.ExprStmt n_node, aux, parent_env, lt_env)
 
   | TAst.VoidExprStmt (TAst.PrevPassNode e) ->
-     let (n_node, _, n_env) =
-       analyze_t ~opt_attr:opt_chain_attr e parent_env ctx
+     let (n_node, _, n_env, n_lt_env) =
+       analyze_t ~opt_attr:opt_chain_attr e parent_env lt_env ctx
      in
-     (TAst.VoidExprStmt n_node, void_t, n_env)
+     (TAst.VoidExprStmt n_node, void_t, n_env, n_lt_env)
 
   | TAst.ReturnStmt (opt_e) ->
      begin
-       let temp_obj_spec = SubExprSpec.empty () in
+       let temp_obj_spec = SubExprSpec.create parent_env lt_env in
 
        let (opt_expr, expr_aux) = match opt_e with
          | Some (TAst.PrevPassNode e) ->
             let (expr, aux) =
               analyze_expr ~making_placeholder:false
+                           ~sub_nest:0
                            e parent_env temp_obj_spec ctx opt_chain_attr
             in
             (Some expr, aux)
@@ -289,7 +204,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
             let ty = get_builtin_void_type default_ty_attr ctx in
             let val_cat = Value_category.VCatPrValue in
             let sub_nest_lt = (Lifetime.LtSlNormal 0) in
-            let lt = Env.get_scope_lifetime sub_nest_lt parent_env in
+            let lt = SubExprSpec.make_scope_lifetime temp_obj_spec sub_nest_lt in
             let ml = Meta_level.Meta in (* TODO: fix *)
             (None, Aux.make ty val_cat lt ml Loc.dummy)
 
@@ -363,14 +278,14 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        (**)
        Env.overlap_closed_info true parent_env;
 
-       (node, void_t, parent_env)
+       (node, void_t, parent_env, lt_env)
      end
 
   | TAst.FunctionDefStmt (
         name, lifetime_specs, params_node, opt_ret_type, opt_cond, body, opt_attr,
         (loc, Some env)
       ) ->
-     if Env.is_checked env then (Env.get_rel_ast env, void_t, parent_env) else
+     if Env.is_checked env then as_checked env else
      begin
        (* TODO: check duplicate *)
        let name_s = Id_string.to_string name in
@@ -389,7 +304,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        check_function_params env param_kinds;
 
        (* check body and check return type *)
-       let _ =
+       let () =
          let (ret_type, is_auto) =
            determine_function_return_type opt_ret_type
                                           lt_params implicit_lts implicit_aux_lts
@@ -400,12 +315,15 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        in
 
        (* analyze body *)
-       let nbody = analyze_inner body env ctx opt_attr in
+       let nbody = analyze_inner body env lt_env ctx opt_attr in
 
        let _ = post_check_function_return_type env ctx in
-       let nbody = check_and_insert_suitable_return nbody env ctx opt_attr in
+       let nbody =
+         check_and_insert_suitable_return nbody env ctx opt_attr
+       in
 
-       Debug.printf "function %s - complete / %s\n" name_s (Env_system.EnvId.to_string env.Env.env_id);
+       Debug.printf "function %s - complete / %s\n"
+                    name_s (Env_system.EnvId.to_string env.Env.env_id);
        let node = TAst.GenericFuncDef (Some nbody, (Loc.dummy, Some env)) in
 
        (* update record *)
@@ -421,14 +339,14 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                                                   Env.FnKindFree,
                                                   fn_spec))
                              ctx;
-       (node, void_t, parent_env)
+       (node, void_t, parent_env, lt_env)
      end
 
   | TAst.MemberFunctionDefStmt (
         name, lifetime_specs, params_node, quals, opt_ret_type, body, opt_attr,
         (loc, Some env)
       ) ->
-     if Env.is_checked env then (Env.get_rel_ast env, void_t, parent_env) else
+     if Env.is_checked env then as_checked env else
      begin
        (* TODO: check duplicate *)
        let name_s = Id_string.to_string name in
@@ -470,7 +388,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
             (* this function is constructor. *)
             let ret_ty =
               let attr = Type_attr.make Type_attr.Val Type_attr.Const in
-              make_class_type ctx_env attr env ctx
+              Sema_type.make_class_type ctx_env attr env ctx
             in
 
             (* check parameters *)
@@ -478,7 +396,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
               prepare_params env params_node ctx opt_attr
             in
             let implicit_generics_params = implicit_lts @ implicit_aux_lts in
-            let _ = match opt_ret_type with
+            let () = match opt_ret_type with
               | Some _ -> failwith "[ERR] constructor cannot have return type"
               | None -> ()
             in
@@ -490,7 +408,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
             (* prepare "this" special var *)(* TODO: consider member qual *)
             let this_ty =
               let attr = Type_attr.make (Type_attr.Ref []) Type_attr.Mutable in
-              make_class_type ctx_env attr env ctx
+              Sema_type.make_class_type ctx_env attr env ctx
             in
             Debug.printf "$ ctor of %s || this: %s\n" (Id_string.to_string (Env.get_name ctx_env)) (Type.to_string this_ty);
 
@@ -500,7 +418,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
             Env.add_inner_env env id_name this_venv |> error_if_env_is_dupped Loc.dummy;
 
             (* analyze body *)
-            let nbody = analyze_inner body env ctx opt_attr in
+            let nbody = analyze_inner body env lt_env ctx opt_attr in
             let _ = post_check_function_return_type env ctx in
             let nbody =
               check_and_insert_suitable_return ~is_special_func:true
@@ -510,12 +428,12 @@ let rec construct_env node parent_env ctx opt_chain_attr =
             Debug.printf "function %s - complete\n" name_s;
             let node = TAst.GenericFuncDef (Some nbody, (loc, Some env)) in
 
-            let kind = match constructor_kind param_kinds parent_env ctx with
-              | Env.FnKindDefaultConstructor _ ->
+            let kind = match Sema_class.constructor_kind param_kinds parent_env ctx with
+              | Sema_class.SfDefaultCtor ->
                  Env.FnKindDefaultConstructor (Some this_venv)
-              | Env.FnKindCopyConstructor _ ->
+              | Sema_class.SfCopyCtor ->
                  Env.FnKindCopyConstructor (Some this_venv)
-              | Env.FnKindConstructor _ ->
+              | Sema_class.SfUserDefinedCtor ->
                  Env.FnKindConstructor (Some this_venv)
               | _ -> failwith "[ERR] not supported kind of constructor"
             in
@@ -530,7 +448,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
             in
             complete_function_env env node ctor_id_name detail ctx;
 
-            (node, void_t, parent_env)
+            (node, void_t, parent_env, lt_env)
           end
 
        | Id_string.Pure s when s = dtor_name ->
@@ -544,12 +462,12 @@ let rec construct_env node parent_env ctx opt_chain_attr =
           let implicit_generics_params = implicit_lts @ implicit_aux_lts in
 
           (* default parametes is also not allowed *)
-          let _ = match param_kinds with
+          let () = match param_kinds with
             | [] -> ()
             | _ -> failwith "[ERR] destructor cannot have parameters"
           in
           (* check return type *)
-          let _ = match opt_ret_type with
+          let () = match opt_ret_type with
             | None -> ()
             | Some _ -> failwith "[ERR] destructor cannot have return type"
           in
@@ -563,7 +481,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
             param_kinds Meta_level.Meta ret_ty false;
 
           (* analyze body *)
-          let nbody = analyze_inner body env ctx opt_attr in
+          let nbody = analyze_inner body env lt_env ctx opt_attr in
           let _ = post_check_function_return_type env ctx in
           let nbody =
             check_and_insert_suitable_return ~is_special_func:true
@@ -583,7 +501,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
           in
           complete_function_env env node dtor_id_name detail ctx;
 
-          (node, void_t, parent_env)
+          (node, void_t, parent_env, lt_env)
 
        | _ ->
           begin
@@ -593,7 +511,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                 Type_attr.ta_ref_val = Type_attr.Ref [];
                 Type_attr.ta_mut = member_qual Type_attr.Const; (* default const *)
               } in
-              let this_ty = make_class_type ctx_env attr env ctx in
+              let this_ty = Sema_type.make_class_type ctx_env attr env ctx in
               ((attr, Some (Id_string.Pure "this"), (None, None)), this_ty)
             in
 
@@ -613,10 +531,12 @@ let rec construct_env node parent_env ctx opt_chain_attr =
               lt_cx param_types Meta_level.Meta ret_type is_auto;
 
             (* analyze body *)
-            let nbody = analyze_inner body env ctx opt_attr in
+            let nbody = analyze_inner body env lt_env ctx opt_attr in
 
             let _ = post_check_function_return_type env ctx in
-            let nbody = check_and_insert_suitable_return nbody env ctx opt_attr in
+            let nbody =
+              check_and_insert_suitable_return nbody env ctx opt_attr
+            in
 
             Debug.printf "function %s - complete\n" name_s;
             let node = TAst.GenericFuncDef (Some nbody, (loc, Some env)) in
@@ -632,7 +552,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                                                        Env.FnKindMember,
                                                        fn_spec))
                                   ctx;
-            (node, void_t, parent_env)
+            (node, void_t, parent_env, lt_env)
           end
        end
 
@@ -640,7 +560,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
         name, lifetime_specs, params_node, ml, ret_type, _, extern_fname, opt_attr,
         (loc, Some env)
       ) ->
-     if Env.is_checked env then (Env.get_rel_ast env, void_t, parent_env) else
+     if Env.is_checked env then as_checked env else
      begin
        (* TODO: check duplicate *)
        let name_s = Id_string.to_string name in
@@ -682,14 +602,14 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        in
        complete_function_env env node name record ctx;
 
-       (node, void_t, parent_env)
+       (node, void_t, parent_env, lt_env)
      end
 
   | TAst.ClassDefStmt (
         name, lifetime_specs, body, opt_attr, (loc, Some cenv)
       ) ->
-     if Env.is_checked cenv then (Env.get_rel_ast cenv, void_t, parent_env)
-     else begin
+     if Env.is_checked cenv then as_checked cenv else
+     begin
        (* TODO: check duplicate *)
        let name_s = Id_string.to_string name in
        Debug.printf "class %s - unchecked\n" name_s;
@@ -702,10 +622,10 @@ let rec construct_env node parent_env ctx opt_chain_attr =
 
        (* resolve member variables first *)
        let cenv_r = Env.ClassOp.get_record cenv in
-       let _ =
+       let () =
          let f venv =
            let node = Env.get_rel_ast venv in
-           ignore (construct_env node cenv ctx opt_attr)
+           ignore (construct_env node cenv lt_env ctx opt_attr)
          in
          List.iter f cenv_r.Env.cls_member_vars
        in
@@ -721,119 +641,38 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        (*
         * First, scan special functions traits of member variables
         *)
-       let member_vars_sf_diagnoses =
-         let f diagnoses venv =
-           let venv_r = Env.VariableOp.get_record venv in
-           let var_ty = venv_r.Env.var_type in
-           let vcenv = Type.as_unique var_ty in
-           let vcenv_r = Env.ClassOp.get_record vcenv in
-           let vcls_traits = vcenv_r.Env.cls_traits in
-
-           SpecialMemberStates.merge_special_func_traits diagnoses vcls_traits
-         in
-         List.fold_left f SpecialMemberStates.init_states cenv_r.Env.cls_member_vars
-       in
+       let member_vars_sf_diagnoses = Sema_class.scan_variables cenv_r in
 
        (* body *)
-       let (nbody, _, _) = construct_env body cenv ctx opt_attr in
+       let (nbody, _, _, _) =
+         construct_env body cenv lt_env ctx opt_attr
+       in
 
        (* TODO: check class characteristics *)
-       let _ =
-         let open SpecialMemberStates in
-         let memorize_and_scan_ctor diagnoses fenv =
-           match Env.get_env_record fenv with
-           (* if there are template constructors at least 1, class has user-defined constructor *)
-           | Env.Template r ->
-              begin
-                match r.Env.tl_name with
-                (* template has ctor name *)
-                | Id_string.Pure n when n = ctor_name ->
-                   { diagnoses with
-                     has_user_defined_ctor = true
-                   }
-                | _ ->
-                   diagnoses
-              end
-
-           (* normal functions *)
-           | Env.Function (_, r)  ->
-              begin
-                match r.Env.fn_name with
-                | Id_string.Pure n when n = ctor_name ->
-                   begin
-                     let k = constructor_kind r.Env.fn_param_kinds cenv ctx in
-                     match k with
-                     | Env.FnKindDefaultConstructor _ ->
-                        Sema_utils.register_default_ctor_to_class_env cenv fenv;
-                        { diagnoses with
-                          default_ctor_diagnosis =
-                            merge_special_func_state
-                              ~explicit:true
-                              diagnoses.default_ctor_diagnosis
-                              (Env.FunctionOp.get_definition_status fenv);
-                      }
-                     | Env.FnKindCopyConstructor _ ->
-                        Sema_utils.register_copy_ctor_to_class_env cenv fenv;
-                        { diagnoses with
-                          copy_ctor_diagnosis =
-                            merge_special_func_state
-                              ~explicit:true
-                              diagnoses.copy_ctor_diagnosis
-                              (Env.FunctionOp.get_definition_status fenv);
-                        }
-                     | Env.FnKindConstructor _ ->
-                        { diagnoses with
-                          has_user_defined_ctor = true;
-                        }
-                     | _ -> failwith "[ICE] not supported from"
-                   end
-                | Id_string.Pure n when n = dtor_name ->
-                   begin
-                     let k = destructor_kind r.Env.fn_param_kinds in
-                     match k with
-                     | Env.FnKindDestructor _ ->
-                        Sema_utils.register_dtor_to_class_env cenv fenv;
-                        { diagnoses with
-                          dtor_diagnosis =
-                            merge_special_func_state
-                              ~explicit:true
-                              diagnoses.dtor_diagnosis
-                              (Env.FunctionOp.get_definition_status fenv)
-                        }
-                     | _ -> failwith "[ICE]"
-                   end
-                | _ -> diagnoses
-              end
-
-           | _ -> Env.debug_print fenv; failwith "[ICE]"
-         in
+       let () =
          let class_states =
-           List.fold_left memorize_and_scan_ctor
-                          member_vars_sf_diagnoses cenv_r.Env.cls_member_funcs
+           Sema_class.scan_member_funcs member_vars_sf_diagnoses name_s cenv_r cenv ctx
          in
-         Debug.printf "MEMBERS\n";
-         Debug.printf "= CLASS: %s\n%s\n" name_s (string_of_states member_vars_sf_diagnoses);
-         Debug.printf "CTORS\n";
-         Debug.printf "= CLASS: %s\n%s\n" name_s (string_of_states class_states);
+
          cenv_r.Env.cls_traits <-
-           diagnoses_to_traits cenv_r.Env.cls_traits class_states
+           Sema_class.SpecialMemberStates.diagnoses_to_traits cenv_r.Env.cls_traits class_states
        in
 
        (**)
        let define_special_members () =
-         let _ = match cenv_r.Env.cls_traits.Env.cls_traits_default_ctor_state with
+         let () = match cenv_r.Env.cls_traits.Env.cls_traits_default_ctor_state with
            | Env.FnDefDefaulted true ->
               define_trivial_default_ctor cenv ctx
            | Env.FnDefDefaulted false ->
-              define_implicit_default_ctor cenv ctx
+              define_implicit_default_ctor cenv lt_env ctx
            | _ -> ()
          in
 
-         let _ = match cenv_r.Env.cls_traits.Env.cls_traits_copy_ctor_state with
+         let () = match cenv_r.Env.cls_traits.Env.cls_traits_copy_ctor_state with
            | Env.FnDefDefaulted true ->
               define_trivial_copy_ctor cenv ctx
            | Env.FnDefDefaulted false ->
-              define_implicit_copy_ctor cenv ctx
+              define_implicit_copy_ctor cenv lt_env ctx
            | _ -> ()
          in
 
@@ -875,14 +714,14 @@ let rec construct_env node parent_env ctx opt_chain_attr =
          Env.cls_traits_is_primitive = is_primitive;
        };
 
-       (node, void_t, parent_env)
+       (node, void_t, parent_env, lt_env)
      end
 
   | TAst.ExternClassDefStmt (
         name, lifetime_specs, extern_cname, opt_body, opt_attr, (loc, Some cenv)
       ) ->
-     if Env.is_checked cenv then (Env.get_rel_ast cenv, void_t, parent_env)
-     else begin
+     if Env.is_checked cenv then as_checked cenv else
+     begin
        (* TODO: check duplicate *)
        let name_s = Id_string.to_string name in
        Debug.printf "extern class %s - unchecked\n" name_s;
@@ -974,7 +813,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
              in
 
              (* default constructor *)
-             let _ = match tval_ty_traits.Env.cls_traits_default_ctor_state with
+             let () = match tval_ty_traits.Env.cls_traits_default_ctor_state with
                (* elements has TRIVIAL default constructor.
                 * So we do not need to call default ctors of elements *)
                | Env.FnDefDefaulted true ->
@@ -987,7 +826,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                 *)
                | Env.FnDefDefaulted false
                | Env.FnDefProvidedByUser ->
-                  define_implicit_default_ctor_for_array cenv tval_ty tval_num ctx;
+                  define_implicit_default_ctor_for_array cenv lt_env tval_ty tval_num ctx;
                   cenv_r.Env.cls_traits <- {
                     cenv_r.Env.cls_traits with
                     Env.cls_traits_default_ctor_state = Env.FnDefDefaulted false;
@@ -1002,7 +841,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
              in
 
              (* copy constructor *)
-             let _ = match tval_ty_traits.Env.cls_traits_copy_ctor_state with
+             let () = match tval_ty_traits.Env.cls_traits_copy_ctor_state with
                | Env.FnDefDefaulted true ->
                   define_trivial_copy_ctor_for_builtin cenv extern_cname ctx;
                   cenv_r.Env.cls_traits <- {
@@ -1011,7 +850,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
                   };
                | Env.FnDefDefaulted false
                | Env.FnDefProvidedByUser ->
-                  define_implicit_copy_ctor_for_array cenv tval_ty tval_num ctx;
+                  define_implicit_copy_ctor_for_array cenv lt_env tval_ty tval_num ctx;
                   cenv_r.Env.cls_traits <- {
                     cenv_r.Env.cls_traits with
                     Env.cls_traits_copy_ctor_state = Env.FnDefDefaulted false;
@@ -1041,13 +880,13 @@ let rec construct_env node parent_env ctx opt_chain_attr =
          Env.cls_traits_is_primitive = is_primitive;
        };
 
-       (node, void_t, parent_env)
+       (node, void_t, parent_env, lt_env)
      end
 
   (* *)
   | TAst.MemberVariableDefStmt (v, (loc, Some env)) ->
-     if Env.is_checked env then (Env.get_rel_ast env, void_t, parent_env)
-     else begin
+     if Env.is_checked env then as_checked env else
+     begin
        (* TODO: implement *)
        let (var_attr, var_name, init_term) = match extract_prev_pass_node v with
          | Ast.VarInit vi -> vi
@@ -1076,7 +915,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        r.Env.var_type <- var_ty;
 
        complete_env env node;
-       (node, void_t, parent_env)
+       (node, void_t, parent_env, lt_env)
      end
 
   (* scoped declare *)
@@ -1090,17 +929,20 @@ let rec construct_env node parent_env ctx opt_chain_attr =
 
        let venv_r = Env.VariableOp.empty_record var_name in
        let venv = Env.create_scoped_env ~has_ns:false
+                                        ~ext_nest_level:(LifetimeEnv.nest_level lt_env)
                                         parent_env
                                         (Env.Variable (venv_r))
                                         loc
        in
 
-       let temp_obj_spec = SubExprSpec.empty () in
+       let temp_obj_spec = SubExprSpec.create parent_env lt_env in
        let (opt_type, opt_init_value) = init_term in
        let opt_init_value_res =
          opt_init_value
          |> Option.map (fun node ->
-                        analyze_expr node parent_env temp_obj_spec ctx opt_chain_attr)
+                        analyze_expr ~sub_nest:0
+                                     node parent_env temp_obj_spec ctx opt_chain_attr
+                       )
        in
 
        (* type check for the variable *)
@@ -1209,7 +1051,7 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        check_env venv var_metalevel;
 
        let ((_, dtors_when_exit), (_, dtor_calls)) =
-         collect_temp_objs temp_obj_spec (Some value_aux) parent_env ctx
+         collect_temp_objs temp_obj_spec (Some value_aux) parent_env lt_env ctx
        in
 
        (**)
@@ -1233,28 +1075,28 @@ let rec construct_env node parent_env ctx opt_chain_attr =
        let var_lt = match var_attr.Type_attr.ta_ref_val with
          | Type_attr.Ref _  ->
             (* TODO: fix *)
-            Env.get_scope_lifetime (Lifetime.LtSlNormal 0) parent_env
+            SubExprSpec.make_scope_lifetime temp_obj_spec (Lifetime.LtSlNormal 0)
          | Type_attr.Val ->
-            Env.get_scope_lifetime (Lifetime.LtSlNormal 0) parent_env
+            SubExprSpec.make_scope_lifetime temp_obj_spec (Lifetime.LtSlNormal 0)
          | _ -> failwith "[ICE]"
        in
        let detail_r = Env.VarRecordNormal () in
+       (* TODO: recheck var_lt *)
        complete_variable_env venv node var_ty var_lt detail_r ctx;
 
-       (node, void_t, (*parent_env*)venv(**))
+       let n_lt_env = LifetimeEnv.add_nest lt_env in
+       (node, void_t, (*parent_env*)venv(**), n_lt_env)
      end
 
   | TAst.EmptyStmt ->
-     (node, get_void_aux ctx, parent_env)
+     (node, void_t, parent_env, lt_env)
 
   | _ ->
-     begin
-       TAst.print node;
-       failwith "construct_env: unsupported node or nodes have no valid env"
-     end
+     TAst.print node;
+     failwith "construct_env: unsupported node or nodes have no valid env"
 
 and analyze_expr ?(making_placeholder=false)
-                 ?(sub_nest=0)
+                 ~sub_nest
                  ?(enable_ufcs=false)
                  node parent_env temp_obj_spec ctx attr
     : ('node * TAst.term_aux_t) =
@@ -1444,7 +1286,6 @@ and analyze_expr ?(making_placeholder=false)
             in
             match opt_rhs_ty_node with
             | Some (rhs_ty, rhs_env, rhs_lt, rhs_ml, _) ->
-
                let {
                  Aux.ta_type = recv_ty;
                } = lhs_aux in
@@ -1474,7 +1315,10 @@ and analyze_expr ?(making_placeholder=false)
                let prop_ty = create_updated_type ~generics_args:new_generics_args
                                                  prop_ty ctx in
                Debug.printf "= select_member_element === %s\n" (Type.to_string prop_ty);
-               let lt = Env.get_scope_lifetime (Lifetime.LtSlNormal 0) parent_env in (* TODO: fix *)
+               let lt =
+                 (* TODO: fix *)
+                 SubExprSpec.make_scope_lifetime temp_obj_spec (Lifetime.LtSlNormal 0)
+               in
                let ml = Meta_level.Runtime in (* TODO: fix *)
                let aux = Aux.make prop_ty VCatLValue lt ml loc in
                (node, aux)
@@ -1504,8 +1348,6 @@ and analyze_expr ?(making_placeholder=false)
             in
             assert_valid_type ty;
 
-            Debug.printf "\n\n\n\n\n STATEMENT TRAIT\n\n\n\n\n\n\n";
-
             let test () =
               (* A temporary environment for checking whether semantics is valid or not.
                * DO NOT append this env to the parent_env.
@@ -1516,11 +1358,14 @@ and analyze_expr ?(making_placeholder=false)
                                       (Env.Scope (Env.empty_lookup_table ()))
                                       None
               in
-              ignore @@ analyze_expr block temp_env temp_obj_spec ctx_tmp attr;
+              let (_, _) =
+                analyze_expr ~sub_nest:sub_nest
+                             block temp_env temp_obj_spec ctx_tmp attr
+              in
               true
             in
             let could_compile =
-              try test() with
+              try test () with
               | e ->
                  Debug.printf "STATEMENT TRAIT ERROR: %s\n"
                               (Printexc.to_string e);
@@ -1528,7 +1373,8 @@ and analyze_expr ?(making_placeholder=false)
             in
             let node = TAst.BoolLit (could_compile, ty) in
             let sub_nest_lt = (Lifetime.LtSlNormal sub_nest) in
-            let aux = Aux.make ty VCatPrValue (Env.get_scope_lifetime sub_nest_lt parent_env) Meta_level.Meta loc in
+            let lt = SubExprSpec.make_scope_lifetime temp_obj_spec sub_nest_lt in
+            let aux = Aux.make ty VCatPrValue lt Meta_level.Meta loc in
             (node, aux)
           end
        | _ -> failwith @@ "__statement_traits : not implemented / " ^ keyword
@@ -1572,7 +1418,7 @@ and analyze_expr ?(making_placeholder=false)
 
        let vc = VCatPrValue in
        let sub_nest_lt = (Lifetime.LtSlNormal sub_nest) in
-       let lt = Env.make_scope_lifetime sub_nest_lt parent_env in
+       let lt = SubExprSpec.make_scope_lifetime temp_obj_spec sub_nest_lt in
        let ml = Meta_level.Meta in
        let aux = Aux.make ty vc lt ml loc in
        (node, aux)
@@ -1590,7 +1436,7 @@ and analyze_expr ?(making_placeholder=false)
 
        let vc = VCatPrValue in
        let sub_nest_lt = (Lifetime.LtSlNormal sub_nest) in
-       let lt = Env.make_scope_lifetime sub_nest_lt parent_env in
+       let lt = SubExprSpec.make_scope_lifetime temp_obj_spec sub_nest_lt in
        let ml = Meta_level.Meta in
        let aux = Aux.make ty vc lt ml loc in
        (node, aux)
@@ -1611,7 +1457,7 @@ and analyze_expr ?(making_placeholder=false)
        let n_ptr = TAst.StringLit (str, ptr_ty) in
        let vc = VCatPrValue in
        let sub_nest_lt = (Lifetime.LtSlNormal sub_nest) in
-       let lt = Env.make_scope_lifetime sub_nest_lt parent_env in
+       let lt = SubExprSpec.make_scope_lifetime temp_obj_spec sub_nest_lt in
        let ml = Meta_level.Meta in
        let aux = Aux.make ptr_ty vc lt ml loc in
        (n_ptr, aux)
@@ -1624,6 +1470,7 @@ and analyze_expr ?(making_placeholder=false)
        (* evaluate all elementes *)
        let nargs =
          elems |> List.map (fun e -> analyze_expr ~making_placeholder:making_placeholder
+                                                  ~sub_nest:sub_nest (* TODO: *)
                                                   e parent_env temp_obj_spec ctx attr)
        in
 
@@ -1702,7 +1549,7 @@ and analyze_expr ?(making_placeholder=false)
        let n_array = TAst.ArrayLit (n_nodes, statically_constructable, array_ty) in
        (* TODO: FIX *)
        let sub_nest_lt = (Lifetime.LtSlNormal sub_nest) in
-       let lt = Env.get_scope_lifetime sub_nest_lt parent_env in
+       let lt = SubExprSpec.make_scope_lifetime temp_obj_spec sub_nest_lt in
        let aux = Aux.make array_ty VCatPrValue lt Meta_level.Meta loc in
        (n_array, aux)
      end
@@ -1715,7 +1562,8 @@ and analyze_expr ?(making_placeholder=false)
                                (Env.Scope (Env.empty_lookup_table ()))
                                loc
        in
-       let (nblock, aux, _) = analyze_t block scope_env ctx in
+       let lt_env = LifetimeEnv.init () in
+       let (nblock, aux, _, _) = analyze_t block scope_env lt_env ctx in
 
        (**)
        let df_nodes = Env.get_callee_funcs_when_scope_exit scope_env in
@@ -1739,7 +1587,8 @@ and analyze_expr ?(making_placeholder=false)
        in
 
        let (n_cond_expr, cond_aux) =
-         analyze_expr cond_expr scope_env temp_obj_spec ctx attr
+         analyze_expr ~sub_nest:sub_nest (* TODO: *)
+                      cond_expr scope_env temp_obj_spec ctx attr
        in
 
        let bool_ty = get_builtin_bool_type default_ty_attr ctx in
@@ -1756,7 +1605,8 @@ and analyze_expr ?(making_placeholder=false)
                                  None
          in
          let (expr, aux) =
-           analyze_expr node clause_scope_env temp_obj_spec ctx attr
+           analyze_expr ~sub_nest:sub_nest (* TODO: *)
+                        node clause_scope_env temp_obj_spec ctx attr
          in
          (expr, aux, Env.is_closed clause_scope_env)
        in
@@ -1799,7 +1649,7 @@ and analyze_expr ?(making_placeholder=false)
        let if_ty = wrapped_type then_ty else_ty in
        let if_cat = VCatLValue in   (* TODO: fix *)
        let sub_nest_lt = (Lifetime.LtSlNormal sub_nest) in
-       let if_mt = Env.get_scope_lifetime sub_nest_lt parent_env in (* TODO: fix *)
+       let if_mt = SubExprSpec.make_scope_lifetime temp_obj_spec sub_nest_lt in (* TODO: fix *)
        let if_ml = Meta_level.Meta in   (* TODO: fix *)
        let if_loc = loc in
        let if_aux = Aux.make if_ty if_cat if_mt if_ml if_loc in
@@ -1817,10 +1667,11 @@ and analyze_expr ?(making_placeholder=false)
                                (Env.Scope (Env.empty_lookup_table ()))
                                loc
        in
+       let lt_env = LifetimeEnv.init () in
 
        let nopt_var_decl =
          let f var_decl =
-           analyze var_decl scope_env ctx
+           analyze var_decl scope_env lt_env ctx
          in
          Option.map f opt_var_decl
        in
@@ -1828,7 +1679,8 @@ and analyze_expr ?(making_placeholder=false)
        let nopt_cond =
          let f cond =
            let (nexpr, aux) =
-             analyze_expr cond scope_env temp_obj_spec ctx attr
+             analyze_expr ~sub_nest:sub_nest (* TODO: *)
+                          cond scope_env temp_obj_spec ctx attr
            in
            nexpr
          in
@@ -1838,7 +1690,8 @@ and analyze_expr ?(making_placeholder=false)
        let nopt_step =
          let f step =
            let (nexpr, aux) =
-             analyze_expr step scope_env temp_obj_spec ctx attr
+             analyze_expr ~sub_nest:sub_nest (* TODO: *)
+                          step scope_env temp_obj_spec ctx attr
            in
            nexpr
          in
@@ -1851,7 +1704,8 @@ and analyze_expr ?(making_placeholder=false)
                                None
        in
        let (nbody, body_aux) =
-         analyze_expr body body_env temp_obj_spec ctx attr
+         analyze_expr ~sub_nest:sub_nest (* TODO: *)
+                      body body_env temp_obj_spec ctx attr
        in
 
        let node = TAst.ForExpr (nopt_var_decl, nopt_cond, nopt_step, nbody) in
@@ -2114,7 +1968,7 @@ and make_call_instruction ?(sub_nest=0)
     (* TODO: fix
      * set new lifetime only when return values are VALUE *)
     let sub_nest_lt = (Lifetime.LtSlNormal 0) in
-    Env.get_scope_lifetime ~aux_count:aux_lt_count sub_nest_lt parent_env
+    SubExprSpec.make_scope_lifetime ~aux_count:aux_lt_count temp_obj_spec sub_nest_lt
   in
   let f_ret_ml = ret_ty_cenv.Env.meta_level in
 
@@ -2127,9 +1981,9 @@ and make_call_instruction ?(sub_nest=0)
   Ok (n_node, node_aux)
 
 
-and analyze_inner node parent_env ctx opt_chain_attr =
+and analyze_inner node parent_env lt_env ctx opt_chain_attr =
   let pre_node = extract_prev_pass_node node in
-  analyze ~opt_attr:opt_chain_attr pre_node parent_env ctx
+  analyze ~opt_attr:opt_chain_attr pre_node parent_env lt_env ctx
 
 and pre_analyze_inner node parent_env ctx opt_chain_attr =
   let pre_node = extract_prev_pass_node node in
@@ -2238,19 +2092,7 @@ and adjust_param_types' param_kinds args acc =
   | ([], []) -> Some acc
   | ([], _) -> None
 
-and exclude_optional_params param_kinds =
-  let rec exclude_optional_params' param_kinds acc =
-    match param_kinds with
-    | [] -> acc
-    | (k :: ks) ->
-       begin
-         match k with
-         | Env.FnParamKindType ty ->
-            exclude_optional_params' ks (ty :: acc)
-       end
-  in
-  exclude_optional_params' param_kinds []
-  |> List.rev
+
 
 (**)
 and declare_function_params f_env special_params params ctx attr =
@@ -2295,7 +2137,7 @@ and declare_function_params f_env special_params params ctx attr =
   (* declare lacking envs for lifetimes.
    * aux envs are appened at last *)
   let lacking_envs = implicit_lt_envs @ implicit_aux_lt_envs in
-  let _ =
+  let () =
     let declare_lt i lt_env =
       let id_name = Id_string.Pure (Printf.sprintf "`__%d" i) in
       Env.add_inner_env f_env id_name lt_env |> error_if_env_is_dupped Loc.dummy;
@@ -2324,7 +2166,7 @@ and check_function_params f_env param_kinds =
   in
   List.iter check param_kinds
 
-and collect_temp_objs spec opt_last_v parent_env ctx =
+and collect_temp_objs spec opt_last_v parent_env lt_env ctx =
   let opt_aux_id = match opt_last_v with
     | Some last_v ->
        begin
@@ -2338,13 +2180,13 @@ and collect_temp_objs spec opt_last_v parent_env ctx =
   let (captured_objs, temp_objs) = SubExprSpec.to_lists spec opt_aux_id in
   let make_dtor_pairs obj_list =
     obj_list
-    |> List.map (find_destructor_node parent_env ctx)
+    |> List.map (find_destructor_node parent_env lt_env ctx)
     |> List.filter_map identity
     |> List.split
   in
   (captured_objs |> make_dtor_pairs, temp_objs |> make_dtor_pairs)
 
-and find_destructor_node ext_env ctx (cache_node_id, node_aux) =
+and find_destructor_node ext_env lt_env ctx (cache_node_id, node_aux) =
   let ty = Aux.ty node_aux in
   let cenv = Type.as_unique ty in
   let cenv_r = Env.ClassOp.get_record cenv in
@@ -2374,7 +2216,7 @@ and find_destructor_node ext_env ctx (cache_node_id, node_aux) =
        | _ -> failwith "[ERR]"
      in
      let (t_ast, _) =
-       let temp_obj_spec = SubExprSpec.empty () in
+       let temp_obj_spec = SubExprSpec.create ext_env lt_env in
        match make_call_instruction fs_and_args None None ext_env temp_obj_spec ctx with
        (* TODO: check wheater temp_obj_spec is empty *)
        | Ok res -> res
@@ -2687,7 +2529,8 @@ and construct_env_with_check ~checker env ctx =
     | Some (node) ->
        begin
          let parent_env = Option.get env.Env.parent_env in
-         ignore @@ construct_env node parent_env ctx None;
+         let lt_env = LifetimeEnv.init () in (* TODO: *)
+         ignore @@ construct_env node parent_env lt_env ctx None;
          if not (checker env) then
            failwith "? recursice definition is appeared"; (* TODO: exception *)
          ()
@@ -2932,7 +2775,8 @@ and post_check_function_return_type env ctx =
   in
   new_ret_ty
 
-and check_and_insert_suitable_return ?(is_special_func=false) nbody env ctx opt_attr =
+and check_and_insert_suitable_return ?(is_special_func=false)
+                                     nbody env ctx opt_attr =
   let fr = Env.FunctionOp.get_record env in
   if not env.Env.closed || is_special_func then
     let void_ty = get_builtin_void_type default_ty_attr ctx in
@@ -2942,8 +2786,9 @@ and check_and_insert_suitable_return ?(is_special_func=false) nbody env ctx opt_
         (* insert an empty return statement *)
         match nbody with
         | TAst.StatementList stmts ->
+           let lt_env = LifetimeEnv.init () in
            let empty_ret = TAst.ReturnStmt None in
-           let (n_node, _, _) = construct_env empty_ret env ctx opt_attr in
+           let (n_node, _, _, _) = construct_env empty_ret env lt_env ctx opt_attr in
            let ret_node = TAst.StatementList (stmts @ [n_node]) in
            Env.overlap_closed_info true env;
            ret_node
@@ -3161,9 +3006,11 @@ and extract_ctfe_val_as_type ctfe_val : type_info_t =
 
 
 and eval_expr_as_ctfe ?(making_placeholder=false) expr env ctx attr =
-  let sub_expr_spec = SubExprSpec.empty () in
+  let lt_env = LifetimeEnv.init () in
+  let sub_expr_spec = SubExprSpec.create env lt_env in
   let (nexpr, naux) =
     analyze_expr ~making_placeholder:making_placeholder
+                 ~sub_nest:0 (* TODO: *)
                  expr env sub_expr_spec ctx attr
   in
   let {
@@ -3180,7 +3027,7 @@ and eval_expr_as_ctfe ?(making_placeholder=false) expr env ctx attr =
 and eval_texpr_as_ctfe ?(making_placeholder=false)
                        texpr expr_ty expr_ml
                        env ctx attr =
-  let _ = match expr_ml with
+  let () = match expr_ml with
     | Meta_level.OnlyRuntime
     | Meta_level.Runtime ->
        TAst.print texpr;
@@ -3278,10 +3125,12 @@ and solve_function_overload eargs template_args m_env_set ext_env loc ctx attr =
 
   | [] ->
      (* ERROR: all overload resolutions in the overload set are failed *)
+     (* TODO: make suitable errors *)
      failwith "[ERR] there is no result in the overload set"
 
   | _ ->
      (* ERROR: there are many results in the overload set. *)
+     (* TODO: make suitable errors *)
      failwith "[ERR] there are many results in the overload set"
 
 and solve_function_overload' eargs template_args mset_env ext_env loc ctx attr =
@@ -3371,7 +3220,7 @@ and solve_function_overload' eargs template_args mset_env ext_env loc ctx attr =
   let fs_and_args =
     assert (List.length fs_and_args <> 0);
 
-    let _ =
+    let () =
       let f (e, _, _) =
         Debug.printf "SPCIALIZED_LEVELS -> %s"
                      (Env.FunctionOp.specialized_levels e
@@ -3409,7 +3258,10 @@ and solve_function_overload' eargs template_args mset_env ext_env loc ctx attr =
   List.hd fs_and_args
 
 
-and find_suitable_functions f_candidates args ext_env ctx attr
+and find_suitable_functions f_candidates
+                            args
+                            ext_env
+                            ctx attr
     : (TAst.t, type_info_t, env_t, error_msg_t) Function.function_info_err =
   Debug.printf "number of candidates = %d\n" (List.length f_candidates);
 
@@ -3527,7 +3379,7 @@ and instantiate_function_templates menv template_args arg_auxs ext_env ctx attr 
     in
 
     (* debug print *)
-    let _ =
+    let () =
       List.iteri (fun i ty -> Debug.printf "%d: %s\n" i (Type.to_string ty)) param_types;
       Debug.printf "REACHED / get_function_param_types\n";
       arg_auxs
@@ -3554,7 +3406,7 @@ and instantiate_function_templates menv template_args arg_auxs ext_env ctx attr 
     in
 
     (* unify types in parameters and args *)
-    let _ =
+    let () =
       let param_type_values' = param_type_values |> List.enum in
       let arg_type_values' = arg_type_values |> List.enum in
       Enum.drop dn arg_type_values';
@@ -3562,7 +3414,7 @@ and instantiate_function_templates menv template_args arg_auxs ext_env ctx attr 
     in
 
     (* debug *)
-    let _ =
+    let () =
       List.iter (fun c -> debug_print_meta_var c ctx) uni_ids;
       Debug.printf "       REACHED / unify_arg_value \n";
     in
@@ -4028,10 +3880,12 @@ and complete_template_instance ?(making_placeholder=false)
                 Env.create_scoped_env temp_env
                                       (Env.Scope (Env.empty_lookup_table ()))
               in*)
-         let temp_obj_spec = SubExprSpec.empty () in
+         let lt_env = LifetimeEnv.init () in
+         let temp_obj_spec = SubExprSpec.create temp_env lt_env in
          let scope_env = temp_env in
          let (n_cond_expr, cond_aux) =
-           analyze_expr cond scope_env temp_obj_spec ctx attr
+           analyze_expr ~sub_nest:0
+                        cond scope_env temp_obj_spec ctx attr
          in
          let bool_ty = get_builtin_bool_type default_ty_attr ctx in
          let (conved_cond_node, conved_cond_aux) =
@@ -4054,7 +3908,7 @@ and complete_template_instance ?(making_placeholder=false)
     | None ->
        Ok ()
   in
-  let _ = match instantiable with
+  let () = match instantiable with
     | Bad _ ->
        raise (Instantiation_failed "")
     | _ ->
@@ -4116,7 +3970,8 @@ and complete_template_instance ?(making_placeholder=false)
        in
 
        (* instantiate! *)
-       let (n_ast, _, _) = construct_env snode env_parent ctx inner_attr in
+       let lt_env = LifetimeEnv.init () in
+       let (n_ast, _, _, _) = construct_env snode env_parent lt_env ctx inner_attr in
 
        (* take an environment *)
        let i_env = match n_ast with
@@ -4187,39 +4042,7 @@ and raise_error_if_type_is_invalid ty =
   assert_valid_type ty;
   ()
 
-and make_class_type ?(new_instance=false) cenv attr env ctx =
-  let {
-      Type_attr.ta_ref_val = rv;
-      Type_attr.ta_mut = mut;
-    } = attr
-  in
-  let ts = Type_info.UniqueTy cenv in
 
-  let cr = Env.ClassOp.get_record cenv in
-  let template_args = cr.Env.cls_template_vals in
-
-  let aux_generics_args = match rv with
-    | Type_attr.Ref [] -> [create_new_lt_var ~tmp:new_instance (Id_string.Pure "`_") env]
-    | Type_attr.Val -> []
-    | _ -> failwith "[ICE]"
-  in
-  let generics_args =
-    match new_instance with
-    | true ->
-       let gen_same_name_lt_var lt =
-         match lt with
-         | Lifetime.LtVar (_, spec, _, _, _, _) ->
-            create_new_lt_var ~tmp:true spec cenv
-         | _ -> failwith ""
-       in
-       cr.Env.cls_generics_vals |> List.map gen_same_name_lt_var
-    | false ->
-       cr.Env.cls_generics_vals
-  in
-
-  Type.Generator.generate_type ~aux_generics_args:aux_generics_args
-                               ctx.sc_tsets.ts_type_gen
-                               ts template_args generics_args attr
 
 
 (*
@@ -4246,7 +4069,7 @@ and declare_checked_default_ctor cenv ctx =
 
   let ret_ty =
     let attr = Type_attr.make Type_attr.Val Type_attr.Const in
-    make_class_type cenv attr fenv ctx
+    Sema_type.make_class_type cenv attr fenv ctx
   in
   let {
     Type_info.ti_aux_generics_args = aux_generics_args;
@@ -4267,7 +4090,7 @@ and declare_checked_copy_ctor ?(has_ptr_constraints=false) cenv ctx =
   (* interface of copy constructor: (TYPE) -> TYPE *)
   let ret_ty =
     let attr = Type_attr.make Type_attr.Val Type_attr.Const in
-    make_class_type cenv attr fenv ctx
+    Sema_type.make_class_type cenv attr fenv ctx
   in
   let {
     Type_info.ti_aux_generics_args = ret_aux_generics_args;
@@ -4285,7 +4108,7 @@ and declare_checked_copy_ctor ?(has_ptr_constraints=false) cenv ctx =
 
        let rhs_ty =
          let attr = Type_attr.make (Type_attr.Ref []) Type_attr.Const in
-         make_class_type ~new_instance:true cenv attr fenv ctx
+         Sema_type.make_class_type ~new_instance:true cenv attr fenv ctx
        in
        let ty_lt = match rhs_ty.Type_info.ti_generics_args with
          | [lt] -> lt
@@ -4315,7 +4138,7 @@ and declare_checked_copy_ctor ?(has_ptr_constraints=false) cenv ctx =
     | false ->
        let rhs_ty =
          let attr = Type_attr.make (Type_attr.Ref []) Type_attr.Const in
-         make_class_type cenv attr fenv ctx
+         Sema_type.make_class_type cenv attr fenv ctx
        in
        let {
            Type_info.ti_aux_generics_args = rhs_aux_generics_args;
@@ -4348,43 +4171,14 @@ and declare_incomple_assign cenv =
   fenv
 
 
-and constructor_kind param_kinds cenv ctx =
-  let required_params = exclude_optional_params param_kinds in
-  match List.length required_params with
-  (* default constructor *)
-  | 0 ->
-     Env.FnKindDefaultConstructor None
-  (* copy/mode constructor *)
-  | 1 ->
-     begin
-       let ref_self_ty =
-         let attr = Type_attr.make (Type_attr.Ref []) Type_attr.Const in
-         make_class_type cenv attr cenv ctx (* XXX: *)
-       in
-       match List.hd required_params with
-       (* copy ctor *)
-       | ty when Type.is_same_class_ref ref_self_ty ty ->
-          Env.FnKindCopyConstructor None
-       | _ ->
-          Env.FnKindConstructor None
-     end
-  | _ ->
-     Env.FnKindConstructor None
 
-and destructor_kind param_kinds =
-  (* destructor disallows default paramaters, thus use param_kinds directly *)
-  match List.length param_kinds with
-  | 1 -> (* 'this' param *)
-     Env.FnKindDestructor None
-  | _ ->
-     failwith "[ERR] has no dtor"
 
 
 and declare_this_variable fenv cenv ctx =
   (* prepare "this" special var *)(* TODO: consider member qual *)
   let this_ty =
     let attr = Type_attr.make (Type_attr.Ref []) Type_attr.Mutable in
-    make_class_type cenv attr fenv ctx
+    Sema_type.make_class_type cenv attr fenv ctx
   in
   let (this_id_name, this_venv) =
     make_parameter_venv fenv (Id_string.Pure "this") this_ty ctx
@@ -4420,7 +4214,7 @@ and define_trivial_default_ctor cenv ctx =
   in
   complete_function_env fenv node ctor_id_name detail ctx
 
-and define_implicit_default_ctor cenv ctx =
+and define_implicit_default_ctor cenv lt_env ctx =
   let (fenv, ret_ty) = declare_checked_default_ctor cenv ctx in
   let (this_ty, this_venv) = declare_this_variable fenv cenv ctx in
 
@@ -4436,7 +4230,7 @@ and define_implicit_default_ctor cenv ctx =
       in
       let var_call_fs_and_args = (var_defctor, [], []) in
 
-      let temp_obj_spec = SubExprSpec.empty () in
+      let temp_obj_spec = SubExprSpec.create cenv lt_env in
       let f_sto = TAst.StoMemberVar (var_ty, (Loc.dummy, Some venv), (Loc.dummy, Some fenv)) in
       let (t_ast, _) =
         match make_call_instruction var_call_fs_and_args None (Some f_sto) fenv temp_obj_spec ctx with
@@ -4478,7 +4272,7 @@ and make_ctor_generics_map ty : 'v Sema_lifetime.LifetimeMap.t=
   let ty_cenv_generics_params = ty_cenv_er.Env.cls_generics_vals in
 
   Debug.printf "CLS =>=>=> %d\n" (List.length generics_args);
-  let _ =
+  let () =
     let f l =
       Debug.printf "generics args of type => %s\n" (Lifetime.to_string l)
     in
@@ -4486,7 +4280,7 @@ and make_ctor_generics_map ty : 'v Sema_lifetime.LifetimeMap.t=
   in
   Sema_lifetime.map_generics_args ty_cenv_generics_params generics_args
 
-and define_implicit_default_ctor_for_array cenv elem_ty total_num ctx =
+and define_implicit_default_ctor_for_array cenv lt_env elem_ty total_num ctx =
   let (fenv, ret_ty) = declare_checked_default_ctor cenv ctx in
   let (this_ty, this_venv) = declare_this_variable fenv cenv ctx in
 
@@ -4502,7 +4296,7 @@ and define_implicit_default_ctor_for_array cenv elem_ty total_num ctx =
       let idx = Uint32.to_int idx in (* TODO: fix *)
       let elem_call_fs_and_args = (elem_defctor, [], []) in
 
-      let temp_obj_spec = SubExprSpec.empty () in
+      let temp_obj_spec = SubExprSpec.create cenv lt_env in
       (* this.buffer[idx] is initialized by ctor *)
       let f_sto = TAst.StoArrayElemFromThis (elem_ty, (Loc.dummy, Some this_venv), idx) in
       let (t_ast, _) =
@@ -4571,7 +4365,7 @@ and define_trivial_copy_ctor cenv ctx =
   in
   complete_function_env fenv node ctor_id_name detail ctx
 
-and define_implicit_copy_ctor cenv ctx =
+and define_implicit_copy_ctor cenv lt_env ctx =
   let (fenv, rhs_ty, ret_ty) = declare_checked_copy_ctor cenv ctx in
   let (this_ty, this_venv) = declare_this_variable fenv cenv ctx in
 
@@ -4582,14 +4376,19 @@ and define_implicit_copy_ctor cenv ctx =
 
   let call_inst =
     let src_node = Ast.Id (rhs_id_name, [], None) in
+    (* this.VARNAME.ctor(rhs.VARNAME); *)
     let make_call_copyctor_inst venv =
       let venv_r = Env.VariableOp.get_record venv in
 
+      let sub_expr_spec = SubExprSpec.create fenv lt_env in
+
+      (* rhs.VAR_NAME *)
       let rhs_elem =
-        let sub_expr_spec = SubExprSpec.empty () in
         let trg_node = Ast.Id (venv_r.Env.var_name, [], None) in
         let rhs_node = Ast.ElementSelectionExpr (src_node, trg_node, None) in
-        analyze_expr ~making_placeholder:false rhs_node fenv sub_expr_spec ctx None
+        analyze_expr ~making_placeholder:false
+                     ~sub_nest:0 (* TODO: *)
+                     rhs_node fenv sub_expr_spec ctx None
       in
 
       let venv_r = Env.VariableOp.get_record venv in
@@ -4606,11 +4405,12 @@ and define_implicit_copy_ctor cenv ctx =
       assert (List.length fs_and_args = 1);
       let fs_and_args = List.hd fs_and_args in
 
-      let temp_obj_spec = SubExprSpec.empty () in
-      let f_sto = TAst.StoMemberVar (var_ty, (Loc.dummy, Some venv), (Loc.dummy, Some fenv)) in
+      let f_sto =
+        TAst.StoMemberVar (var_ty, (Loc.dummy, Some venv), (Loc.dummy, Some fenv))
+      in
       let (t_ast, _) =
         let call_inst =
-          make_call_instruction fs_and_args None (Some f_sto) fenv temp_obj_spec ctx
+          make_call_instruction fs_and_args None (Some f_sto) fenv sub_expr_spec ctx
         in
         match call_inst with
         | Ok res -> res
@@ -4642,7 +4442,7 @@ and define_implicit_copy_ctor cenv ctx =
 
   complete_function_env fenv node ctor_id_name detail ctx
 
-and define_implicit_copy_ctor_for_array cenv elem_ty total_num ctx =
+and define_implicit_copy_ctor_for_array cenv lt_env elem_ty total_num ctx =
   let (fenv, rhs_ty, ret_ty) = declare_checked_copy_ctor cenv ctx in
   let (this_ty, this_venv) = declare_this_variable fenv cenv ctx in
 
@@ -4660,14 +4460,19 @@ and define_implicit_copy_ctor_for_array cenv elem_ty total_num ctx =
     in
 
     let src_node = Ast.Id (rhs_id_name, [], None) in
+    (* this[idx].ctor(rhs[idx]) *)
     let make_call_copyctor_inst idx =
       let idx = Uint32.to_int idx in (* TODO: fix *)
+
+      let sub_expr_spec = SubExprSpec.create fenv lt_env in
+
       let elem_call_fs_and_args =
         let rhs_elem =
-          let sub_expr_spec = SubExprSpec.empty () in
           let index_node = Ast.IntLit (idx, 32, false, None) in
           let rhs_node = Ast.SubscriptingExpr (src_node, (Some index_node), None) in
-          analyze_expr ~making_placeholder:false rhs_node fenv sub_expr_spec ctx None
+          analyze_expr ~making_placeholder:false
+                       ~sub_nest:0
+                       rhs_node fenv sub_expr_spec ctx None
         in
         let (_, fs_and_args, _) =
           find_suitable_functions [elem_copyctor] [rhs_elem] fenv ctx None
@@ -4676,12 +4481,11 @@ and define_implicit_copy_ctor_for_array cenv elem_ty total_num ctx =
         List.hd fs_and_args
       in
 
-      let temp_obj_spec = SubExprSpec.empty () in
       (* this.buffer[idx] is initialized by using rhs.buffer[idx] *)
       let f_sto = TAst.StoArrayElemFromThis (elem_ty, (Loc.dummy, Some this_venv), idx) in
       let (t_ast, _) =
         let cls_generics_map = make_ctor_generics_map elem_ty in
-        match make_call_instruction ~mm:cls_generics_map elem_call_fs_and_args None (Some f_sto) fenv temp_obj_spec ctx with
+        match make_call_instruction ~mm:cls_generics_map elem_call_fs_and_args None (Some f_sto) fenv sub_expr_spec ctx with
         | Ok res -> res
         | Bad err -> failwith ""
       in
@@ -4724,11 +4528,11 @@ and define_trivial_copy_assign_for_builtin ?(has_ptr_constraints=false)
     | true ->
        let ty =
          let attr = Type_attr.make (Type_attr.Ref []) Type_attr.Mutable in
-         make_class_type ~new_instance:true cenv attr cenv ctx (* XXX: *)
+         Sema_type.make_class_type ~new_instance:true cenv attr cenv ctx (* XXX: *)
        in
        let rhs_ty =
          let attr = Type_attr.make (Type_attr.Ref []) Type_attr.Const in
-         make_class_type ~new_instance:true cenv attr cenv ctx (* XXX: *)
+         Sema_type.make_class_type ~new_instance:true cenv attr cenv ctx (* XXX: *)
        in
 
        let ty_lt = match ty.Type_info.ti_generics_args with
@@ -4770,11 +4574,11 @@ and define_trivial_copy_assign_for_builtin ?(has_ptr_constraints=false)
     | false ->
        let ty =
          let attr = Type_attr.make (Type_attr.Ref []) Type_attr.Mutable in
-         make_class_type cenv attr cenv ctx  (* XXX: *)
+         Sema_type.make_class_type cenv attr cenv ctx  (* XXX: *)
        in
        let rhs_ty =
          let attr = Type_attr.make (Type_attr.Ref []) Type_attr.Const in
-         make_class_type cenv attr cenv ctx  (* XXX: *)
+         Sema_type.make_class_type cenv attr cenv ctx  (* XXX: *)
        in
 
        (* TODO: add lifetimes of ty and rhs_ty *)
@@ -5023,20 +4827,21 @@ and make_type_default_form ?(rv=Type_attr.Val)
   | true -> Some trg_ty
   | false -> None
 
-and analyze ?(meta_variables=[]) ?(opt_attr=None) node env ctx =
-  let (node, _, _) = analyze_t ~meta_variables:meta_variables
-                               ~opt_attr:opt_attr
-                               node env ctx
+and analyze ?(meta_variables=[]) ?(opt_attr=None) node env lt_env ctx =
+  let (node, _, _, _) =
+    analyze_t ~meta_variables:meta_variables
+              ~opt_attr:opt_attr
+              node env lt_env ctx
   in
   node
 
-and analyze_t ?(meta_variables=[]) ?(opt_attr=None) node env ctx =
+and analyze_t ?(meta_variables=[]) ?(opt_attr=None) node env lt_env ctx =
   let snode =
     solve_forward_refs ~meta_variables:meta_variables
                        ~opt_attr:opt_attr
                        node env ctx
   in
-  construct_env snode env ctx opt_attr
+  construct_env snode env lt_env ctx opt_attr
 
 
 and get_void_aux ctx =
@@ -5044,18 +4849,10 @@ and get_void_aux ctx =
   let aux = Aux.make ty VCatPrValue Lifetime.LtStatic Meta_level.Meta None in
   aux
 
-and create_new_lt_var ?(tmp=false) lt_name parent_env =
-  let ctx_env = parent_env.Env.context_env in
-  let var_id = Lifetime.Var_id.generate () in
-  let lt = match tmp with
-      false -> Lifetime.LtVar (var_id, lt_name, ctx_env.Env.env_id, Int32.of_int 0, [var_id], Loc.dummy)
-    | true -> Lifetime.LtVarPlaceholder (var_id, Loc.dummy)
-  in
-  lt
 
 and create_generics_spec lt_name parent_env =
   let loc = None in
-  let lt = create_new_lt_var lt_name parent_env in
+  let lt = Sema_type.create_new_lt_var lt_name parent_env in
   let lt_env = Env.create_context_env parent_env (Env.LifetimeVariable lt) loc in
   (lt_env, lt)
 
@@ -5101,7 +4898,7 @@ and declare_generics_specs lifetime_sorts parent_env =
   let new_lts = Lifetime.convert tmp_lts lt_var_id_constraints (Env.get_id parent_env) in
 
   (* insert lifetimes into the actual env *)
-  let _ =
+  let () =
     let f spec lt =
       let lt_env = Env.create_context_env parent_env (Env.LifetimeVariable lt) None in
       Env.add_inner_env parent_env spec lt_env |> error_if_env_is_dupped Loc.dummy;

@@ -66,6 +66,7 @@ def main(): void
     }));
     // ref mutable <- val const: NG
     assert(!__statement_traits(semantics, {
+        pp;
         ref mutable r = c;
     }));
     // ref mutable <- val mutable: OK

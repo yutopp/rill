@@ -259,13 +259,9 @@ let get_symbol_table env =
   let lt = get_lookup_table env in
   lt.scope
 
-
 let get_scope_lifetime ?(aux_count=0) sub_nest env =
   let ctx_env = env.context_env in
   Lifetime.LtDynamic (ctx_env.env_id, env.nest_level, sub_nest, aux_count)
-
-let make_scope_lifetime ?(aux_count=0) env =
-  get_scope_lifetime ~aux_count:aux_count env
 
 let is_closed e =
   e.closed
@@ -423,9 +419,15 @@ let empty_lookup_table ?(init=8) () =
     imported_mods = [];
   }
 
+let calc_nest_level ?(ext_nest_level=None) env =
+  NestLevel.add env.nest_level
+                (Option.default (NestLevel.zero) ext_nest_level)
+
 (* create an env as new context.
  * it will be used for functions, classes and so on... *)
-let create_context_env ?(is_instantiated=false) parent_env er loc =
+let create_context_env ?(is_instantiated=false)
+                       ?(ext_nest_level=None)
+                       parent_env er loc =
   let cur_id = EnvUniqId.generate () in
 
   let opt_mod_env = match parent_env.er with
@@ -447,7 +449,8 @@ let create_context_env ?(is_instantiated=false) parent_env er loc =
     rel_node = None;
     callee_when_exit = [];
 
-    nest_level = NestLevel.add parent_env.nest_level NestLevel.one;
+    nest_level = NestLevel.add (NestLevel.add parent_env.nest_level NestLevel.one)
+                               (Option.default (NestLevel.zero) ext_nest_level);
     is_instantiated = is_instantiated;
 
     loc = loc;
@@ -456,7 +459,10 @@ let create_context_env ?(is_instantiated=false) parent_env er loc =
 
 (* create an env which is a part of the parent_env.
  * it will be used for block, if_scope and so on... *)
-let create_scoped_env ?(has_ns=true) ?(is_instantiated=false) parent_env er loc =
+let create_scoped_env ?(has_ns=true)
+                      ?(is_instantiated=false)
+                      ?(ext_nest_level=None)
+                      parent_env er loc =
   let cur_id = EnvUniqId.generate () in
 
   let opt_mod_env = match parent_env.er with
@@ -478,7 +484,8 @@ let create_scoped_env ?(has_ns=true) ?(is_instantiated=false) parent_env er loc 
     rel_node = None;
     callee_when_exit = [];
 
-    nest_level = NestLevel.add parent_env.nest_level NestLevel.one;
+    nest_level = NestLevel.add (NestLevel.add parent_env.nest_level NestLevel.one)
+                               (Option.default (NestLevel.zero) ext_nest_level);
     is_instantiated = is_instantiated;
 
     loc = loc;
@@ -577,6 +584,7 @@ let get_name env =
   | Module (_, r) -> Id_string.Pure r.mod_name
   | Template (r) -> r.tl_name
   | Function (_, r) -> r.fn_name
+  | Variable (r) -> r.var_name
   | Class (_, r) -> r.cls_name
   | Scope _ -> (Id_string.Pure "[scope]")
   | _ -> failwith (Printf.sprintf "get_name : not supported / %s" (string_of_env_record env))

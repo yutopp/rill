@@ -99,7 +99,8 @@ let analyze_module mod_env ctx =
   assert (Env.is_incomplete mod_env);
 
   let mod_node = Option.get mod_env.Env.rel_node in
-  let (node, _, _) = construct_env mod_node ctx.sc_root_env ctx None in
+  let lt_env = Sema_construct_env.LifetimeEnv.init () in
+  let (node, _, _, _) = construct_env mod_node ctx.sc_root_env lt_env ctx None in
   match List.length ctx.sc_errors with
   | 0 -> Some node
   | _ -> None

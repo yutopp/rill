@@ -9,6 +9,8 @@ def main() {
 
 class A {
     val a: int32;
+
+    def ctor() {}
     def ctor(rhs: A) {
         // dummy
         this.a = rhs.a;

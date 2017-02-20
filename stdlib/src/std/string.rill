@@ -2,7 +2,9 @@ package std;
 
 class string
 {
-    def ctor(s: 'static raw_ptr!(uint8)) {
+    def ctor() {}
+
+    def 'a ctor(s: 'a raw_ptr!(uint8)) {
         //val l = s.strlen();
         //val ptr = malloc(l+1);
         //val ptr2 = ptr.unsafe_ptr_cast!(uint8)();
@@ -16,9 +18,6 @@ class string
         //this.p.strlen().print();
         //this.p.print_addr();
     }
-
-    def ctor() {}
-    def ctor(s: string) {}
 
 /*
     def insert(c: uint8, index: int32): void {
@@ -51,7 +50,7 @@ def println(s: string): void {
 }
 
 def 'a to_string(p: 'a raw_ptr!uint8) {
-    return 0;
+    return string(p);
 }
 
 // experimental !!!!!!!

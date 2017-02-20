@@ -1,0 +1,39 @@
+//class Trivial {
+//    val p: int32;
+//}
+//
+//def trivial_implcit_copy() {
+//    val mutable a = Trivial();
+//    a.p = 10;
+//    val b = a;
+//    assert(b.p == 10);
+//}
+
+class Num {
+    def ctor(n: int32) { this.n = n; }
+    def ctor(rhs: Num) { this.n = rhs.n; }
+
+    // TODO: auto generate
+    def operator=(rhs: Num) mutable { this.n = rhs.n; }
+
+    val n: int32;
+}
+
+class NonTrivial {
+    def ctor() { this.p = Num(0); }
+    val p: Num;
+}
+
+def non_trivial_implcit_copy() {
+    val mutable a = NonTrivial();
+//    a.p.n = 10;
+//    val b = a;
+//    assert(b.p.n == 10);
+}
+
+import std.assert;
+
+def main() {
+//    trivial_implcit_copy();
+    non_trivial_implcit_copy();
+}

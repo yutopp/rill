@@ -83,7 +83,7 @@ OCAMLFLAGS    += -warn-error A
 if $(equal $(RELEASE), true)
    # do nothing...
 else
-   OCAMLFLAGS    += -g -bin-annot -annot
+   OCAMLFLAGS    += -g -bin-annot
    OCAMLOPTFLAGS += -p
    export
 
