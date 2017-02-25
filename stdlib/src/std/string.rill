@@ -1,22 +1,31 @@
+/*
+* experimental...
+*/
+
 package std;
 
 class string
 {
-    def ctor() {}
-
     def 'a ctor(s: 'a raw_ptr!(uint8)) {
-        //val l = s.strlen();
-        //val ptr = malloc(l+1);
-        //val ptr2 = ptr.unsafe_ptr_cast!(uint8)();
-        //
-        //memcpy(ptr2, s, l+1);
-        //
-        //this.p = ptr2;
-        //
-        //"ctor".println();
-        //this.p.println();
-        //this.p.strlen().print();
-        //this.p.print_addr();
+        val l = s.strlen();
+        val ptr = malloc(l+1);
+        val ptr2 = ptr.unsafe_ptr_cast!(uint8)();
+        memcpy(ptr2, s, l+1);
+
+        this.p = ptr2;
+    }
+
+    def ctor(rhs: string) {
+        val l = rhs.size();
+        val ptr = malloc(l+1);
+        val ptr2 = ptr.unsafe_ptr_cast!(uint8)();
+        memcpy(ptr2, rhs.p, l+1);
+
+        this.p = ptr2;
+    }
+
+    def dtor() {
+        free(this.p);
     }
 
 /*
@@ -39,7 +48,11 @@ class string
         this.p = ptr;
     }
 */
-    val p: 'static raw_ptr!(uint8);
+    def size(): int32 {
+        return strlen(this.p);
+    }
+
+    val p: 'unmanaged raw_ptr!(uint8);
 }
 
 // TODO: fix

@@ -34,7 +34,7 @@ module Make (Ctx : NodeContextType) =
       | ExprStmt of ast
       | VoidExprStmt of ast
       | ReturnStmt of ast option
-      | ImportStmt of string list * string * ctx_t
+      | ImportStmt of string list * string * bool * ctx_t
       (* name, lifetimes, params, return_type?, instance_cond, body, attribute?, _ *)
       | FunctionDefStmt of Id_string.t * lifetime_def_specs * ast * ast option * ast option * ast * attr_tbl_t option * ctx_t
       (* name, lifetimes, params, quals, return_type?, body, attribute?, _ *)

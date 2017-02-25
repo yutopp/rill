@@ -103,13 +103,18 @@ empty_statement:
                 SEMICOLON { Ast.EmptyStmt }
 
 import_statement:
+                opt_public = KEYWORD_PUBLIC?
                 KEYWORD_IMPORT
                 xs = separated_nonempty_list(DOT, rel_id_has_no_op_as_raw)
                 {
                     let rev_xs = List.rev xs in
                     let pkg_names = List.rev (List.tl rev_xs) in
                     let mod_name = List.hd rev_xs in
-                    Ast.ImportStmt (pkg_names, mod_name, pos $startpos $endpos)
+                    let is_public = match opt_public with
+                      | Some _ -> true
+                      | None -> false
+                    in
+                    Ast.ImportStmt (pkg_names, mod_name, is_public, pos $startpos $endpos)
                 }
 
 function_decl_statement:

@@ -112,15 +112,25 @@ let do_debug_print_flag = not Config.is_release (*&& false*)
 
 let debug_dump_value v =
   if do_debug_print_flag then
-    Debug.printf "%s\n" (L.string_of_llvalue v)
+    Debug.printf "%s" (L.string_of_llvalue v)
 
 let debug_dump_module m =
   if do_debug_print_flag then
-    Debug.printf "%s\n" (L.string_of_llmodule m)
+    Debug.printf "%s" (L.string_of_llmodule m)
 
 let debug_dump_type t =
   if do_debug_print_flag then
-    Debug.printf "%s\n" (L.string_of_lltype t)
+    Debug.printf "%s" (L.string_of_lltype t)
+
+let debug_params_and_args param_tys_and_addrs args =
+  if not Config.is_release then
+    List.iter2 (fun (ty, is_addr) llval ->
+                Debug.printf "type: %s / is_addr: %b"
+                             (Type.to_string ty)
+                             is_addr;
+                debug_dump_value llval
+               ) param_tys_and_addrs (Array.to_list args);
+
 
 exception Discontinue_code_generation of FI.t
 let discontinue_when_expr_terminated fi =
@@ -259,10 +269,10 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
                  let agg = Option.get opt_agg in
                  let _ = match kind with
                    | Env.FnKindConstructor (Some venv)
-                     | Env.FnKindCopyConstructor (Some venv)
-                     | Env.FnKindMoveConstructor (Some venv)
-                     | Env.FnKindDefaultConstructor (Some venv)
-                     | Env.FnKindDestructor (Some venv) ->
+                   | Env.FnKindCopyConstructor (Some venv)
+                   | Env.FnKindMoveConstructor (Some venv)
+                   | Env.FnKindDefaultConstructor (Some venv)
+                   | Env.FnKindDestructor (Some venv) ->
                       let venv_r = Env.VariableOp.get_record venv in
                       let var_name = Id_string.to_string venv_r.Env.var_name in
                       L.set_value_name var_name agg;
@@ -493,7 +503,9 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
          (* normal function *)
          | Env.FnRecordNormal (_, kind, _) ->
             begin
-              Debug.printf "gen value: debug / function normal %s\n" fn_s_name;
+              Debug.printf "gen value: debug / function normal %s / kind: %s"
+                           fn_s_name
+                           (Env.FunctionOp.string_of_kind kind);
 
               let r_value = force_target_generation ctx env in
               match r_value with
@@ -504,7 +516,9 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
          | Env.FnRecordImplicit (def, kind, _) ->
             begin
               let open Codegen_llvm_intrinsics in
-              Debug.printf "gen value: debug / function implicit %s\n" fn_s_name;
+              Debug.printf "gen value: debug / function implicit %s / kind: %s"
+                           fn_s_name
+                           (Env.FunctionOp.string_of_kind kind);
 
               let r_value = force_target_generation ctx env in
               match r_value with
@@ -558,8 +572,10 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
          (* external function *)
          | Env.FnRecordExternal (def, kind, extern_name) ->
             begin
-              Debug.printf "CALL FUNC / extern  %s = \"%s\"\n"
-                            fn_s_name extern_name;
+              Debug.printf "CALL FUNC / extern  %s = \"%s\" / kind: %s\n"
+                           fn_s_name
+                           extern_name
+                           (Env.FunctionOp.string_of_kind kind);
               let (_, llargs, _, returns_addr) =
                 analyze_func_and_eval_args kind
               in
@@ -573,8 +589,10 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
 
          | Env.FnRecordBuiltin (def, kind, extern_name) ->
             begin
-              Debug.printf "CALL FUNC / builtin %s = \"%s\"\n"
-                           fn_s_name extern_name;
+              Debug.printf "CALL FUNC / builtin %s = \"%s\" / kind: %s\n"
+                           fn_s_name
+                           extern_name
+                           (Env.FunctionOp.string_of_kind kind);
               TAst.debug_print_storage (storage_ref);
               let (param_tys, llargs, is_addrs, returns_addr) =
                 analyze_func_and_eval_args kind
@@ -600,6 +618,7 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
 
          | Env.FnUndef -> failwith "[ICE] codegen: undefined function record"
        in
+       Debug.printf "is_addr: %b" returns_addr;
        (llval, ret_ty, returns_addr, prev_fi(* TODO *))
      end
 
@@ -1178,8 +1197,7 @@ and adjust_llval_form' trg_ty trg_chkf src_ty src_chkf skip_alloca llval ctx =
      if skip_alloca then
        llval
      else
-       (debug_dump_value llval;
-       L.build_load llval "" ctx.ir_builder)
+       L.build_load llval "" ctx.ir_builder
 
 and adjust_llval_form trg_ty src_ty llval ctx =
   Debug.printf "is_pointer rep?  trg: %b(%s), src: %b(%s)"
@@ -1196,16 +1214,16 @@ and adjust_llval_form trg_ty src_ty llval ctx =
 and adjust_arg_llval_form trg_ty src_ty src_is_addr skip_alloca llval ctx =
   if is_primitive trg_ty then
     begin
-      Debug.printf "ARG: is_pointer_arg rep?  trg: %b(%s), src: %b, %b(%s)\n"
+      Debug.printf "ARG: is_pointer_arg rep?  trg: [%b](%s), src: [%b]<%b>(%s) ->"
                    (is_address_representation_param trg_ty)
                    (Type.to_string trg_ty)
-                   (is_address_representation src_ty)
                    src_is_addr
+                   (is_address_representation src_ty)
                    (Type.to_string src_ty);
       debug_dump_value llval;
+      Debug.printf "<-";
 
       let trg_check_f = is_address_representation_param in
-      let src_check_f = is_address_representation in (ignore @@ src_check_f);
       let src_check_f = fun _ -> src_is_addr in
       adjust_llval_form' trg_ty trg_check_f src_ty src_check_f skip_alloca llval ctx
     end
@@ -1369,6 +1387,9 @@ and generate_codes nodes fi ctx =
   (llvals |> List.rev, tys |> List.rev, is_addrs |> List.rev, fi)
 
 and eval_args_for_func kind ret_sto param_types ret_ty args caller_env prev_fi ctx =
+  Debug.printf "eval_args_for_func: storage %s"
+               (TAst.string_of_stirage ret_sto);
+
   (* normal arguments *)
   let (llvals, arg_tys, is_addrs, fi) =
     generate_codes args prev_fi ctx
@@ -1392,6 +1413,16 @@ and eval_args_for_func kind ret_sto param_types ret_ty args caller_env prev_fi c
          match kind with
          | Env.FnKindFree ->
             (is_address_representation ret_ty, false)
+
+         | Env.FnKindMember ->
+            let returns_addr =
+              is_address_representation ret_ty
+            in
+            let skip_alloca = match param_types with
+              | [] -> false
+              | x :: _ -> is_primitive x
+            in
+            (returns_addr, skip_alloca)
 
          (* for special functions with immediate(primitive) *)
          | _ ->
@@ -1631,7 +1662,8 @@ let inject_builtins ctx =
     let normalize_store_value param_tys_and_addrs args =
       assert (List.length param_tys_and_addrs = Array.length args);
       let (_, rhs_is_addr) = List.at param_tys_and_addrs 1 in
-      Debug.printf "COPY => %b\n" rhs_is_addr;
+      Debug.printf "is_addr? => %b" rhs_is_addr;
+      debug_dump_value args.(1);
       if rhs_is_addr then
         L.build_load args.(1) "" ctx.ir_builder
       else
@@ -1654,6 +1686,15 @@ let inject_builtins ctx =
     let () = (* copy constructor *)
       let f param_tys_and_addrs _ args ctx =
         assert (List.length param_tys_and_addrs = Array.length args);
+        Debug.printf "copy ctor: %s (%d)"
+                     (builtin_info.internal_name)
+                     (Array.length args);
+        List.iter (fun (ty, is_addr) -> Debug.printf "ty %s: %b"
+                                                     (Type.to_string ty)
+                                                     is_addr)
+                  param_tys_and_addrs;
+        Array.iter debug_dump_value args;
+
         match Array.length args with
         | 2 ->
            let store_val = normalize_store_value param_tys_and_addrs args in
@@ -1668,6 +1709,11 @@ let inject_builtins ctx =
     let () = (* copy assign *)
       let f param_tys_and_addrs _ args ctx =
         assert (Array.length args = 2);
+        Debug.printf "copy assign: %s (args length = %d)"
+                     (builtin_info.internal_name)
+                     (Array.length args);
+        debug_params_and_args param_tys_and_addrs args;
+
         let store_val = normalize_store_value param_tys_and_addrs args in
         L.build_store store_val args.(0) ctx.Ctx.ir_builder
       in

@@ -16,6 +16,7 @@ type ('ty, 'env) t =
   (* target_type * (source_type * source_loc) * ErrorLevel *)
   | ConvErr of ('ty * ('ty * Loc.t) * Function.MatchLevel.t) ArgLocMap.t * 'env
   (* errors * loc *)
+  | NoOverloadSet of ('ty, 'env) t list * Loc.t
   | NoMatch of ('ty, 'env) t list * Loc.t
   | MemberNotFound of 'env * 'env list * Loc.t
   | ModuleNotFound of string * (string * string list) list * Loc.t

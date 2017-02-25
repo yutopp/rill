@@ -64,6 +64,7 @@ rule token = parse
   | "module"            { KEYWODD_MODULE }
   | "val"               { KEYWORD_VAL }
   | "ref"               { KEYWORD_REF }
+  | "public"            { KEYWORD_PUBLIC }
   | "immutable"         { KEYWORD_IMMUTABLE }
   | "const"             { KEYWORD_CONST }
   | "mutable"           { KEYWORD_MUTABLE }

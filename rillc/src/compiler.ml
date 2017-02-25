@@ -51,7 +51,7 @@ let make_build_options co =
                          [COS.OsLinkDir Config.default_std_lib_dir;
                           COS.OsLinkLib Config.default_std_lib_name]
   in
-  core_lib_opts @ std_lib_opts @ co.options
+  co.options @ std_lib_opts @ core_lib_opts
 
 let compile co build_options filepath' =
   let filepath = to_fullpath filepath' in

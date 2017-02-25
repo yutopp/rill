@@ -42,6 +42,13 @@ type storage_operation =
   | SoBind
   | SoArrayElement of int
 
+let string_of_storage_operation sto_op =
+  match sto_op with
+  | SoExitScope -> "SoExitScope"
+  | SoParamPassing -> "SoParamPassing"
+  | SoBind -> "SoBind"
+  | SoArrayElement i -> Printf.sprintf "SoArrayElement[%d]" i
+
 (* TODO: fix *)
 module LifetimeEnv =
   struct
@@ -528,7 +535,7 @@ let rec construct_env node parent_env lt_env ctx opt_chain_attr
                                              env ctx opt_attr
             in
             check_function_env2 env (lt_params @ implicit_generics_params)
-              lt_cx param_types Meta_level.Meta ret_type is_auto;
+                                lt_cx param_types Meta_level.Meta ret_type is_auto;
 
             (* analyze body *)
             let nbody = analyze_inner body env lt_env ctx opt_attr in
@@ -643,6 +650,15 @@ let rec construct_env node parent_env lt_env ctx opt_chain_attr
         *)
        let member_vars_sf_diagnoses = Sema_class.scan_variables cenv_r in
 
+
+
+       (* TODO: improve *)
+       let is_primitive = Attribute.find_bool_val opt_attr "primitive" ctx in
+       cenv_r.Env.cls_traits <- {
+         cenv_r.Env.cls_traits with
+         Env.cls_traits_is_primitive = is_primitive;
+       };
+
        (* body *)
        let (nbody, _, _, _) =
          construct_env body cenv lt_env ctx opt_attr
@@ -692,27 +708,7 @@ let rec construct_env node parent_env lt_env ctx opt_chain_attr
        (* update record *)
        let detail_r = Env.ClsRecordNormal in
 
-       (* TODO: improve *)
-       let is_primitive = match opt_attr with
-         | Some tbl ->
-            begin
-              let v = Hashtbl.find_option tbl "primitive" in
-              match v with
-                Some vv ->
-                begin
-                  match vv with
-                  | None -> true
-                  | _ -> failwith "[ERR] primitive attrbute is not able to have some value"
-                end
-              | None -> false
-            end
-         | None -> false
-       in
        complete_class_env cenv node detail_r (Some (class_size, class_align));
-       cenv_r.Env.cls_traits <- {
-         cenv_r.Env.cls_traits with
-         Env.cls_traits_is_primitive = is_primitive;
-       };
 
        (node, void_t, parent_env, lt_env)
      end
@@ -749,6 +745,10 @@ let rec construct_env node parent_env lt_env ctx opt_chain_attr
        in
        let has_ptr_constraints = Attribute.find_bool_val opt_attr "ptr_constraints" ctx
        in
+       cenv_r.Env.cls_traits <- {
+         cenv_r.Env.cls_traits with
+         Env.cls_traits_is_primitive = is_primitive;
+       };
 
        let define_special_members_and_calc_layout () =
          if not is_array_type then
@@ -875,10 +875,6 @@ let rec construct_env node parent_env lt_env ctx opt_chain_attr
                         } in
 
        complete_class_env cenv node detail_r opt_layout;
-       cenv_r.Env.cls_traits <- {
-         cenv_r.Env.cls_traits with
-         Env.cls_traits_is_primitive = is_primitive;
-       };
 
        (node, void_t, parent_env, lt_env)
      end
@@ -1956,6 +1952,8 @@ and make_call_instruction ?(sub_nest=0)
   let ret_ty_sto =
     Option.default_delayed (fun () -> suitable_storage f_ret_ty ctx) opt_sto
   in
+  Debug.printf "storage = %s" (TAst.string_of_stirage ret_ty_sto);
+
   let node = TAst.GenericCallExpr (
                  ret_ty_sto,
                  n_earg_exprs,
@@ -2341,6 +2339,8 @@ and merge_envs p_d d ctx =
      let n_ty = Type.Generator.update_sort ctx.sc_tsets.ts_type_gen ty n_ty_sort in
      (n_ty, env, lt, ml, lt_map)
   | _ ->
+     Debug.printf "primary: %s" (Type.to_string p_ty);
+     Debug.printf "new    : %s" (Type.to_string ty);
      failwith "unsupported"
 
 and env_to_detail env template_args generics_args making_placeholder name cur_env ctx attr
@@ -2851,6 +2851,7 @@ and suitable_storage ?(opt_operation=None)
                      trg_ty ctx =
   match opt_operation with
   | Some operation ->
+     Debug.printf "suitable_storage: %s" (string_of_storage_operation operation);
      begin
        match operation with
        | SoExitScope ->
@@ -2867,6 +2868,7 @@ and suitable_storage ?(opt_operation=None)
           TAst.StoArrayElem (trg_ty, index)
      end
   | None ->
+     Debug.printf "suitable_storage: no_operation";
      suitable_storage' ~exit_scope:false
                        ~param_passing:false
                        trg_ty ctx
@@ -3103,21 +3105,21 @@ and solve_function_overload eargs template_args m_env_set ext_env loc ctx attr =
   assert (List.length m_env_set > 0);
 
   (* solve overload for each overload set *)
-  let results =
-    let solve m_env =
+  let (envs, errs) =
+    let solve (envs, errs) m_env =
       try
         let e =
           solve_function_overload' eargs template_args m_env ext_env loc ctx attr
         in
-        Ok e
+        (e :: envs, errs)
       with
-      | Normal_error _ as exn ->
-         Bad exn
+      | Normal_error err ->
+         (envs, err :: errs)
     in
-    List.map solve m_env_set
+    let (vs, es) = List.fold_left solve ([], []) m_env_set in
+    (List.rev vs, List.rev es)
   in
 
-  let envs = List.filter_map Result.to_option results in
   match envs with
   | [e] ->
      (* found an only one result in the overload set *)
@@ -3125,8 +3127,7 @@ and solve_function_overload eargs template_args m_env_set ext_env loc ctx attr =
 
   | [] ->
      (* ERROR: all overload resolutions in the overload set are failed *)
-     (* TODO: make suitable errors *)
-     failwith "[ERR] there is no result in the overload set"
+     error (Error_msg.NoOverloadSet (errs, loc))
 
   | _ ->
      (* ERROR: there are many results in the overload set. *)
@@ -4577,7 +4578,16 @@ and define_trivial_copy_assign_for_builtin ?(has_ptr_constraints=false)
          Sema_type.make_class_type cenv attr cenv ctx  (* XXX: *)
        in
        let rhs_ty =
-         let attr = Type_attr.make (Type_attr.Ref []) Type_attr.Const in
+         Debug.printf "define_trivial_copy_assign_for_builtin: no ptr: %s (%b)"
+                      (Id_string.to_string @@ Env.get_name cenv)
+                      (Env.ClassOp.is_primitive cenv);
+         let attr =
+           match Env.ClassOp.is_primitive cenv with
+           | true ->
+              Type_attr.make (Type_attr.Val) Type_attr.Const
+           | false ->
+              Type_attr.make (Type_attr.Ref []) Type_attr.Const
+         in
          Sema_type.make_class_type cenv attr cenv ctx  (* XXX: *)
        in
 

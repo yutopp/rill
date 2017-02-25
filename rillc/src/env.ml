@@ -241,6 +241,15 @@ let undef () =
   e
 
 
+let get_id env =
+  env.env_id
+
+let get_module_env env =
+  env.module_env
+
+let get_module_env_id env =
+  env |> get_module_env |> Option.map get_id
+
 let get_env_record env =
   let { er = er; _ } = env in
   er
@@ -258,6 +267,33 @@ let get_lookup_table env =
 let get_symbol_table env =
   let lt = get_lookup_table env in
   lt.scope
+
+
+let string_of_env_record env =
+  let er = get_env_record env in
+  match er with
+  | Root _ -> "root"
+  | MultiSet _ -> "multiset"
+  | Template _ -> "template"
+  | Module _ -> "module"
+  | Function _ -> "function"
+  | Class _ -> "class"
+  | Variable _ -> "variable"
+  | Scope _ -> "scope"
+  | MetaVariable _ -> "meta_variable"
+  | LifetimeVariable _ -> "lifetime_variable"
+  | Unknown -> "unknown"
+
+let get_name env =
+  let er = get_env_record env in
+  match er with
+  | Module (_, r) -> Id_string.Pure r.mod_name
+  | Template (r) -> r.tl_name
+  | Function (_, r) -> r.fn_name
+  | Variable (r) -> r.var_name
+  | Class (_, r) -> r.cls_name
+  | Scope _ -> (Id_string.Pure "[scope]")
+  | _ -> failwith (Printf.sprintf "get_name : not supported / %s" (string_of_env_record env))
 
 let get_scope_lifetime ?(aux_count=0) sub_nest env =
   let ctx_env = env.context_env in
@@ -319,8 +355,17 @@ let rec find_all_on_env ?(checked_env=EnvSet.empty) env id_name =
 
   (* find some envs from import tables *)
   let external_envs =
-    let search_env_in_module envs (mod_env, priv) =
-      match priv with
+    let search_env_in_module ?(opt_force_priv=None) envs (mod_env, priv) =
+      let m_priv = Option.default priv opt_force_priv in
+      Debug.printf "-> %s / %s (%s)"
+                   (Id_string.to_string (get_name mod_env))
+                   (match priv with
+                    | ModPrivate -> "private"
+                    | ModPublic -> "public")
+                   (match m_priv with
+                    | ModPrivate -> "private"
+                    | ModPublic -> "public");
+      match m_priv with
       | ModPrivate ->
          (* if the module is private, find symbols from only the imported module *)
          begin
@@ -336,11 +381,16 @@ let rec find_all_on_env ?(checked_env=EnvSet.empty) env id_name =
          in
          res @ envs
     in
+    let search_env_in_module_top envs (mod_env, priv) =
+      search_env_in_module ~opt_force_priv:(Some ModPublic)
+                           envs (mod_env, priv)
+    in
     let lt = get_lookup_table ns_env in
-    List.fold_left search_env_in_module [] lt.imported_mods
+    List.fold_left search_env_in_module_top [] lt.imported_mods
   in
-
-  envs @ external_envs
+  let target_envs = envs @ external_envs in
+  (* remove duplicates *)
+  List.sort_unique (fun a b -> compare (get_id a) (get_id b)) target_envs
 
 (* find symbol recursively *)
 let rec lookup' ?(exclude=[]) env id_name acc =
@@ -408,7 +458,7 @@ let add_inner_env ?(dup_check=DupCheckOnEnv) target_env id_name e =
                               ~f: (fun () -> e)
                               target_env id_name
 
-let import_module ?(privacy=ModPrivate) env mod_env =
+let import_module ~privacy env mod_env =
   let lt = get_lookup_table env in
   lt.imported_mods <- (mod_env, privacy) :: lt.imported_mods
 
@@ -552,43 +602,9 @@ let make_root_env () =
   } in
   e
 
-let string_of_env_record env =
-  let er = get_env_record env in
-  match er with
-  | Root _ -> "root"
-  | MultiSet _ -> "multiset"
-  | Template _ -> "template"
-  | Module _ -> "module"
-  | Function _ -> "function"
-  | Class _ -> "class"
-  | Variable _ -> "variable"
-  | Scope _ -> "scope"
-  | MetaVariable _ -> "meta_variable"
-  | LifetimeVariable _ -> "lifetime_variable"
-  | Unknown -> "unknown"
 
 
 (**)
-let get_id env =
-  env.env_id
-
-let get_module_env env =
-  env.module_env
-
-let get_module_env_id env =
-  env |> get_module_env |> Option.map get_id
-
-let get_name env =
-  let er = get_env_record env in
-  match er with
-  | Module (_, r) -> Id_string.Pure r.mod_name
-  | Template (r) -> r.tl_name
-  | Function (_, r) -> r.fn_name
-  | Variable (r) -> r.var_name
-  | Class (_, r) -> r.cls_name
-  | Scope _ -> (Id_string.Pure "[scope]")
-  | _ -> failwith (Printf.sprintf "get_name : not supported / %s" (string_of_env_record env))
-
 let get_generics_vals env =
   let er = get_env_record env in
   match er with

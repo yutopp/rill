@@ -42,10 +42,11 @@ let rec solve_forward_refs ?(meta_variables=[])
   | Ast.ReturnStmt (ast) ->
      TAst.ReturnStmt ((Option.map (fun a -> TAst.PrevPassNode a) ast))
 
-  | Ast.ImportStmt (pkg_names, mod_name, loc) ->
+  | Ast.ImportStmt (pkg_names, mod_name, is_public, loc) ->
      begin
        let mod_env = prepare_module ~loc:loc pkg_names mod_name ctx in
-       Env.import_module parent_env mod_env;
+       let privacy = if is_public then Env.ModPublic else Env.ModPrivate in
+       Env.import_module ~privacy:privacy parent_env mod_env;
 
        (* remove import statements *)
        TAst.EmptyStmt
@@ -284,7 +285,7 @@ and prepare_module_from_filepath ?(def_mod_info=None) filepath ctx =
       begin
         (* import incomplete builtin module *)
         let builtin_mod_e = prepare_builtin_module ctx in
-        Env.import_module env builtin_mod_e
+        Env.import_module ~privacy:Env.ModPrivate env builtin_mod_e
       end;
 
     (* solve forward references *)

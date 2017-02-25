@@ -1,18 +1,11 @@
 import std.stdio;
+import std.string;
 
 def main() {
-//    val s = "abcdef";
-//    s[0].print();
-//
-    val i = f();
-//      f2();
+    val s = f().to_string();
+    s.println();
 }
 
 def f() {
-    //return "";
+    return "moji ga tsukaeru friends nanndane!";
 }
-
-//def f2(): 'static raw_ptr2!(int32) {
-//    val i = 100;
-//    return address_of2(100);
-//}

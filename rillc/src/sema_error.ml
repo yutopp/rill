@@ -128,6 +128,9 @@ let rec print ?(loc=None) err =
      in
      ArgLocMap.iter p m
 
+  | NoOverloadSet (errs, _loc) ->
+     List.iter (fun err -> print err; Printf.printf "\n") errs
+
   | NoMatch (errs, loc) ->
      Printf.printf "%s:\nError: There is no matched function\n"
                    (Loc.to_string loc);

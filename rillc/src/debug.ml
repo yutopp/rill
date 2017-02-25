@@ -49,3 +49,25 @@ let reportf fmt =
 
 let record_backtrace () =
   Printexc.record_backtrace true
+
+module List =
+  struct
+    let iter f xs =
+      if not Config.is_release then
+        List.iter f xs
+
+    let iter2 f xs1 xs2 =
+      if not Config.is_release then
+        List.iter2 f xs1 xs2
+  end
+
+module Array =
+  struct
+    let iter f arr =
+      if not Config.is_release then
+        Array.iter f arr
+
+    let iter2 f arr1 arr2 =
+      if not Config.is_release then
+        Array.iter2 f arr1 arr2
+  end

@@ -54,4 +54,5 @@
                         KEYWORD_STATIC
                         KEYWORD_GC
                         KEYWORD_UNMANAGED
+                        KEYWORD_PUBLIC
 %%

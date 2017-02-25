@@ -86,3 +86,13 @@ char* rill_read_string()
 
     return p;
 }
+
+// TODO: move to elsewhere
+extern "C"
+void _Rill_main();
+
+extern "C"
+int main() {
+    _Rill_main();
+    return 0;
+}

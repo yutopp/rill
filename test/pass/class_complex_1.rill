@@ -1,0 +1,20 @@
+class ccc
+{
+    def fff(): int32 => 10;
+}
+
+def ggg(): int32 => 20;
+
+def main() {
+    ref ccc_v = ccc();
+    val a1 = ccc_v.fff();
+    val a2 = ggg();
+
+    val mutable v1 = aaa();
+    val v2 = aaa();
+    v1.a = v2.a;
+}
+
+class aaa {
+    val a: int32;
+}
