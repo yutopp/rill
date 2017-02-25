@@ -1,6 +1,5 @@
 #!/bin/bash
-set -e
-set -o pipefail
+set -e -o pipefail -o xtrace
 
 eval `opam config env`
 
