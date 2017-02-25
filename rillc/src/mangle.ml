@@ -61,7 +61,7 @@ and s_of_id_string full_module_name id_name =
   let mod_num = List.length full_module_name in
   let s_name = id_name |> s_of_symbol in
   match full_module_name with
-  | ["core"; "builtin"] ->  (* TODO: fix *)
+  | ["core"; "basic_types"] ->  (* TODO: fix *)
      Printf.sprintf "B%s" s_name
   | _ ->
      let s_mod_name = full_module_name |> List.map s_of_string |> String.concat "" in
