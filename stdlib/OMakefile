@@ -41,10 +41,12 @@ CFLAGS += -shared -fPIC
 #
 
 CORE_LIB_SRC_DIR = $(dir ../corelib/src)
+CORE_LIB_LIB_DIR = $(dir ../corelib/lib)
 STD_LIB_SRC_DIR = $(dir src)
 .SUBDIRS: src/std
-    %.o: %.rill $(RILLC_BIN)
+    %.o: %.rill build_rillc build_corelib
         $(RILLC_BIN) -c $< --no-stdlib --system-lib $(CORE_LIB_SRC_DIR) \
+                                       -L $(CORE_LIB_LIB_DIR) \
                                        --system-lib $(STD_LIB_SRC_DIR) -o $@
 
     clean:
@@ -57,12 +59,12 @@ STD_LIB_SRC_DIR = $(dir src)
     clean:
         rm -f *~ *.o *.out
 
-.DEFAULT: lib/$(LIBNAME).a lib/$(LIBNAME).so
+.DEFAULT: build_stdlib
 
 ########################################################################
 #
 
-build_stdlib: lib/$(LIBNAME).a
+build_stdlib: lib/$(LIBNAME).a lib/$(LIBNAME).so
 
 lib/$(LIBNAME).a: $(STD_SRC_TARGET_OBJS)
     prepare-directory(lib)

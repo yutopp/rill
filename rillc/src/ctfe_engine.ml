@@ -68,6 +68,7 @@ let find_dyn_lib_from_path search_dirs filename =
   try
     let search search_dir =
       let path = Filename.concat search_dir filename in
+      Debug.printf "Search dyn lib: %s" path;
       if Sys.file_exists path then
         Some path
       else
@@ -87,6 +88,7 @@ let load_dyn_lib search_dirs lib_name =
     | Some path -> path
     | None -> shared_lib_name
   in
+  Debug.printf "Load dyn lib: %s" shared_lib_path;
   Dl.dlopen ~filename:shared_lib_path ~flags:[Dl.RTLD_LAZY]
 
 let prepare_dyn_libs engine =

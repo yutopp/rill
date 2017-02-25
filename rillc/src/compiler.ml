@@ -41,7 +41,7 @@ let make_build_options co =
                           [COS.OsLinkDir Config.default_core_lib_dir;
                            COS.OsLinkLib Config.default_core_lib_name]
   in
-  let std_lib_opts = if co.no_corelib then
+  let std_lib_opts = if co.no_stdlib then
                        []
                      else
                        if Config.use_local_dev_lib then
