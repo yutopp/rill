@@ -12,9 +12,16 @@ dependencies:
     - mkdir -p ~/docker
     - docker save yutopp/rill-build-env > ~/docker/cacheimg.tar
 
+compile:
+  override:
+    - >
+      docker run
+      -v $(pwd):/cibase
+      yutopp/rill-build-env
+      /bin/bash ./test/build.sh
+
 test:
   override:
-    - ls -la
     - >
       docker run
       -v $(pwd):/cibase
