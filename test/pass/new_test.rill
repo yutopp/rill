@@ -18,7 +18,7 @@ def p2() {
 //}
 
 def p_array() {
-    assert(sizeof(array!(uint32, 4u)) == 4 * 4);
+    assert(sizeof(array!(uint32, 4u)) == 4u * 4u);
     val mutable p = new!(array!(uint32, 4u))();
     return p;
 }

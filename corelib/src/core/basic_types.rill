@@ -7,7 +7,7 @@ module core.basic_types;
 extern def operator==(lhs: type, rhs: type) onlymeta: bool = "__builtin_op_binary_==_type_type";
 
 #[builtin]
-extern def sizeof(t: type) onlymeta: int32 = "__builtin_sizeof";
+extern def sizeof(t: type) onlymeta: uint32 = "__builtin_sizeof";
 
 #[builtin]
 extern def stringof!(T)(ref p: T): 'static raw_ptr!(uint8) = "__builtin_stringof";

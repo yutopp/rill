@@ -24,15 +24,13 @@
 #
 
 CORE_SRC_FILES = $(find src -name *.rill)
-CORE_SRC_EXT_FILES = $(find src_ext -name *.cpp)
+CORE_SRC_EXT_FILES = $(find src_ext -name *.c)
 
 CORE_SRC_TARGET_FILES = $(CORE_SRC_FILES) $(CORE_SRC_EXT_FILES)
-CORE_SRC_TARGET_OBJS = $(replacesuffixes .rill .cpp, .o .o, $(CORE_SRC_TARGET_FILES))
+CORE_SRC_TARGET_OBJS = $(replacesuffixes .rill .c, .o .o, $(CORE_SRC_TARGET_FILES))
 
 LIBNAME = librillcore-rt
-
-CXXFLAGS += -std=c++14 -fPIC
-CFLAGS += -shared -fPIC
+CFLAGS += -fPIC -nostdlib -std=c11
 
 ########################################################################
 # Subdirectories.
@@ -49,8 +47,8 @@ CORE_LIB_SRC_DIR = $(dir src)
         rm -f *~ *.o *.ll *.bc *.out
 
 .SUBDIRS: src_ext
-    %.o: %.cpp
-        $(CXX) $(CXXFLAGS) -c $+ -o $@
+    %.o: %.c
+        $(CC) $(CFLAGS) -c $+ -o $@
 
     clean:
         rm -f *~ *.o *.out
@@ -70,7 +68,7 @@ lib/$(LIBNAME).a: $(CORE_SRC_TARGET_OBJS)
 lib/$(LIBNAME).so: $(CORE_SRC_TARGET_OBJS)
     prepare-directory(lib)
     rm-if-exists($@)
-    $(CC) $(CFLAGS) -o $@ $+
+    $(LD) --shared -lc $+ -o $@
 
 install: lib/$(LIBNAME).a lib/$(LIBNAME).so
     # copy srcs

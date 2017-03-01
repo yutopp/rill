@@ -1175,10 +1175,9 @@ and analyze_expr ?(making_placeholder=false)
               (* consider nested expr *)
               let (arg_exprs, arg_auxs) = match recv_node with
                 | TAst.NestedExpr (lhs_node, lhs_aux, _, _) ->
-                   let args = lhs_node :: arg_exprs in
-                   let arg_auxs = lhs_aux :: arg_auxs in
-                   (args, arg_auxs)
-                | _ -> (arg_exprs, arg_auxs)
+                   (lhs_node :: arg_exprs, lhs_aux :: arg_auxs)
+                | _ ->
+                   (arg_exprs, arg_auxs)
               in
               let args = List.combine arg_exprs arg_auxs in
               let call_trg_finfo =
@@ -3056,7 +3055,11 @@ and tnode_of_ctfe_val ctfe_val ctx =
   match ctfe_val with
   | Ctfe_value.Int32 v ->
      TAst.IntLit (Int32.to_int v, 32, true, get_builtin_int32_type default_ty_attr ctx)
-  | _ -> failwith ""
+  | Ctfe_value.Uint32 v ->
+     TAst.IntLit (Uint32.to_int v, 32, false, get_builtin_uint32_type default_ty_attr ctx)
+  | _ ->
+     failwith (Printf.sprintf "[ICE] tnode_of_ctfe_val: unsupported ctfe value %s"
+                              (Type.to_s_ctfe ctfe_val))
 
 
 and evaluate_invocation_args ~sub_nest args env sss ctx attr =
@@ -3198,23 +3201,22 @@ and solve_function_overload' eargs template_args mset_env ext_env loc ctx attr =
               else
                 (normal_f_level, normal_fs_and_args, errs_n @ errs_i @ errs_e)
             end
-     end
+       end
 
-  (* has template args *)
-  | _ ->
-     begin
-       let (instanced_envs, _) =
-         instantiate_function_templates mset_env template_args arg_auxs
-                                        ext_env ctx attr
-       in
-       Debug.printf "%%%%%%%%%%%%%%%% instanced_envs -> %d\n" (List.length instanced_envs);
-       find_suitable_functions instanced_envs eargs ext_env ctx attr
-     end
+    (* has template args *)
+    | _ ->
+       begin
+         let (instanced_envs, _) =
+           instantiate_function_templates mset_env template_args arg_auxs
+                                          ext_env ctx attr
+         in
+         Debug.printf "%%%%%%%%%%%%%%%% instanced_envs -> %d\n" (List.length instanced_envs);
+         find_suitable_functions instanced_envs eargs ext_env ctx attr
+       end
   in
 
   if f_level = Function.MatchLevel.NoMatch then
     begin
-      assert (List.length errs <> 0);
       error (Error_msg.NoMatch (errs, loc));
     end;
 
@@ -4627,6 +4629,9 @@ and get_builtin_bool_type attr ctx : 'env type_info =
 
 and get_builtin_int32_type attr ctx : 'env type_info =
   get_builtin_int_type ~bits:32 ~signed:true attr ctx
+
+and get_builtin_uint32_type attr ctx : 'env type_info =
+  get_builtin_int_type ~bits:32 ~signed:false attr ctx
 
 and get_builtin_int_type ~bits ~signed attr ctx : 'env type_info =
   let ty = match bits with

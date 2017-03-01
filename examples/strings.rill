@@ -2,10 +2,33 @@ import std.stdio;
 import std.string;
 
 def main() {
-    val s = f().to_string();
+    val mutable s = f().to_string();
+    s.println();
+    s.append("yatta-!");
     s.println();
 }
 
 def f() {
+    test();
     return "moji ga tsukaeru friends nanndane!";
+}
+
+import std.assert;
+def test() {
+    val mutable s = "".to_string();
+    assert(s.size() == 0u);
+    assert(s == "");
+    s.println();
+
+    s.append("a");
+    assert(s.size() == 1u);
+    assert(s == "a");
+    s.println();
+
+    s.append("123");
+    assert(s.size() == 4u);
+    assert(s == "a123");
+    s.println();
+
+    s == "";
 }

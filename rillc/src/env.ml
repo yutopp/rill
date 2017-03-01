@@ -408,7 +408,7 @@ let rec lookup' ?(exclude=[]) env id_name acc =
             ([], e :: acc)
           else
             let penv = get_parent_env e in
-            lookup' penv id_name (e :: acc)
+            lookup' ~exclude:exclude penv id_name (e :: acc)
   | xs -> (xs, e :: acc)
 
 let rec lookup ?(exclude=[]) e id_name =

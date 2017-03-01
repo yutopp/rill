@@ -51,7 +51,7 @@ OCAMLPACKS[] =
    llvm
    llvm.analysis
    llvm.executionengine
-   llvm.all_backends
+   llvm_X86
    ctypes
    stdint
    ocamlgraph

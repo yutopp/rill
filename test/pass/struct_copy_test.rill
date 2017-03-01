@@ -9,7 +9,7 @@ def main() {
     assert(p == p2);
 
     val a = init(p);
-    assert(sizeof('static A) == 16);
+    assert(sizeof('static A) == 16u);
 
     assert(a.v1 == 1024u);
 

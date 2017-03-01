@@ -30,7 +30,11 @@ end =
   end
 
 let out_ch =
-  if Config.is_release then
+  let ignore_debug_log =
+    try Sys.getenv "RILL_IGNORE_DEBUG_LOG" <> "" with
+    | Not_found -> false
+  in
+  if Config.is_release || ignore_debug_log then
     stdnull
   else
     stderr
