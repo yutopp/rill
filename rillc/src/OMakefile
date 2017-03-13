@@ -192,7 +192,6 @@ FILES[] =
    aux
    ctfe_engine
    ctfe_value
-   ctfe_exn
    ctfe_util
    value_category
    unification
@@ -257,7 +256,7 @@ PROGRAM = rillc
         $(AR $@) $+
 
     clean:
-        rm *.c *.o *.a
+        rm -f *.c *.o *.a
 
 # OCAML_LIBS +=
 OCAML_CLIBS += cpp_ext/cpp_ext_lib

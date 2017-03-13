@@ -174,7 +174,8 @@ let invoke_function engine fname ret_ty type_sets =
        let ret_val = call_by_type cfunc_ty in
 
        let ty =
-         Type.Generator.find_type_by_cache_id type_sets.ts_type_gen ret_val in
+         Type.Generator.find_type_by_cache_id type_sets.ts_type_gen ret_val
+       in
        Ctfe_value.Type ty
      end
 
@@ -222,7 +223,6 @@ let execute' engine expr_node expr_ty type_sets =
   (*Codegen_llvm.regenerate_module engine.cg_ctx;*)
 
   (* alias *)
-  let ir_ctx = engine.cg_ctx.CgCtx.ir_context in
   let ir_mod = engine.cg_ctx.CgCtx.ir_module in
   let ir_builder = engine.cg_ctx.CgCtx.ir_builder in
 
@@ -233,53 +233,66 @@ let execute' engine expr_node expr_ty type_sets =
   let tmp_expr_fname = JITCounter.generate_fresh_name () in
 
   (* declare temporary funtion : unit -> (typeof expr) *)
-  let f_ty = L.function_type expr_llty [||] in
-  let f = L.declare_function tmp_expr_fname f_ty ir_mod in
+  let (f, evaluatable) =
+    let f_ty = L.function_type expr_llty [||] in
+    let f = L.declare_function tmp_expr_fname f_ty ir_mod in
+    let blocks = Codegen_llvm.setup_function_entry f engine.cg_ctx in
 
-  let bb = L.append_block ir_ctx "entry" f in
-  L.position_at_end bb ir_builder;
+    let evaluatable =
+      try
+        (* generate a LLVM value from the expression *)
+        let (expr_llval, _, is_addr, _) =
+          Codegen_llvm.generate_code expr_node Codegen_flowinfo.empty engine.cg_ctx
+        in
+        (* CTFEed value must not be addressed form *)
+        let expr_llval = match is_addr with
+          | true -> L.build_load expr_llval "" ir_builder
+          | faise -> expr_llval
+        in
+        ignore @@ L.build_ret expr_llval ir_builder;
+        Ok ()
+      with
+      | Codegen_llvm.Meta_var_un_evaluatable uni_id ->
+         Bad (Ctfe_value.Undef uni_id)
+    in
 
-  (* generate a LLVM value from the expression *)
-  try
-    begin
-      let (expr_llval, _, is_addr, _) =
-        Codegen_llvm.generate_code expr_node Codegen_flowinfo.empty engine.cg_ctx
-      in
-      (* CTFEed value must not be addressed form *)
-      let expr_llval = match is_addr with
-        | true -> L.build_load expr_llval "" ir_builder
-        | faise -> expr_llval
-      in
-      ignore @@ L.build_ret expr_llval ir_builder;
+    Codegen_llvm.connect_function_entry f blocks engine.cg_ctx;
 
-      Debug.printf ">>> CtfeENGINE: DUMP FUNC";
-      Llvm_analysis.assert_valid_function f;
-      Codegen_llvm.debug_dump_value f;
+    Debug.printf ">>> CtfeENGINE: DUMP FUNC";
+    let () =
+      match evaluatable with
+      | Ok _ ->
+         Llvm_analysis.assert_valid_function f;
+         Codegen_llvm.debug_dump_value f
+      | Bad _ ->
+         ()
+    in
 
-      (**)
-      LE.add_module ir_mod engine.exec_engine;
+    (f, evaluatable)
+  in
 
-      let _ = load_dyn_libs engine in
+  (**)
+  let ctfe_val =
+    match evaluatable with
+    | Ok () ->
+       LE.add_module ir_mod engine.exec_engine;
+       let _ = load_dyn_libs engine in
+       let v = invoke_function engine tmp_expr_fname expr_ty type_sets in
+       (* Remove the module for this tmporary function from execution engine.
+        * However, the module will be used until next time.
+        *)
+       LE.remove_module ir_mod engine.exec_engine;
+       v
+    | Bad v ->
+       v
+  in
 
-      (**)
-      let ctfe_val = invoke_function engine tmp_expr_fname expr_ty type_sets in
+  (* Codegen_llvm.debug_dump_module engine.cg_ctx.CgCtx.ir_module; *)
 
-      (* Remove the module for this tmporary function from execution engine.
-       * However, the module will be used until next time.
-       *)
-      LE.remove_module ir_mod engine.exec_engine;
-      (* Codegen_llvm.debug_dump_module engine.cg_ctx.CgCtx.ir_module; *)
+  L.delete_function f;
 
-      L.delete_function f;
+  ctfe_val
 
-      ctfe_val
-    end
-  with
-  | Ctfe_exn.Meta_var_un_evaluatable uni_id ->
-     begin
-       L.delete_function f;
-       Ctfe_value.Undef uni_id
-     end
 
 (* TODO: implement cache *)
 let execute engine expr_node expr_ty type_sets =

@@ -153,8 +153,8 @@ type 'ast env_t = {
    | FnKindDestructor of 'ast env_t option
 
  and 'ast function_spec = {
-     fn_spec_param_envs     : 'ast env_t option list;
-     fn_spec_force_inline   : bool;
+   fn_spec_param_envs     : 'ast env_t option list;
+   fn_spec_force_inline   : bool;
  }
 
 

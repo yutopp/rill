@@ -45,7 +45,6 @@ module Make (Cgt : CONTEXT_TYPE) =
       env_to_record_tbl         : (EnvIdOrd.t, ('env, 'c_id, 'ty, 'v) value_t) Hashtbl.t;
       name_to_record_tbl        : (string, ('env, 'c_id, 'ty, 'v) value_t) Hashtbl.t;
 
-
       env_to_meta_record_tbl    : (EnvIdOrd.t, ('env, 'c_id, 'ty, 'v) value_t) Hashtbl.t;
       cache_id_to_cache_tbl     : ('c_id, 'ty Cgt.ir_cache_value_t) Hashtbl.t;
 
@@ -55,6 +54,7 @@ module Make (Cgt : CONTEXT_TYPE) =
       target_module_id          : Env_system.EnvId.t option;
 
       external_functions        : (string, Cgt.ir_value_t) Hashtbl.t;
+      processing_functions      : Cgt.ir_value_t Stack.t;
 
       places_for_sto_array_elem : ('env, 'c_id, 'ty, 'v) value_t Stack.t;
     }
@@ -81,6 +81,7 @@ module Make (Cgt : CONTEXT_TYPE) =
         target_module_id = target_module_id;
 
         external_functions = Hashtbl.create 32;
+        processing_functions = Stack.create ();
 
         places_for_sto_array_elem = Stack.create ();
       }
@@ -133,6 +134,16 @@ module Make (Cgt : CONTEXT_TYPE) =
 
     let find_values_by_cache_id ctx cache_id =
       Hashtbl.find ctx.cache_id_to_cache_tbl cache_id
+
+    (**)
+    let push_processing_function ctx f =
+      Stack.push f ctx.processing_functions
+
+    let pop_processing_function ctx =
+      Stack.pop ctx.processing_functions
+
+    let current_processing_function ctx =
+      Stack.top ctx.processing_functions
 
     (**)
     let push_array_storage ctx array_value =
