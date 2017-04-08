@@ -38,7 +38,7 @@ let show_env env =
                     r.Env.mod_name
                     (Loc.to_string env_loc)
   | Env.Function (lt, r) ->
-     let name = Id_string.to_string r.Env.fn_name in
+     let name = Env.get_name env |> Id_string.to_string in
      let f pk =
        match pk with
        | Env.FnParamKindType ty -> Type.to_string ty

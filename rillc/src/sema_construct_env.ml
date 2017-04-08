@@ -924,11 +924,12 @@ let rec construct_env node parent_env lt_env ctx opt_chain_attr
        in
 
        let venv_r = Env.VariableOp.empty_record var_name in
-       let venv = Env.create_scoped_env ~has_ns:false
-                                        ~ext_nest_level:(LifetimeEnv.nest_level lt_env)
-                                        parent_env
-                                        (Env.Variable (venv_r))
-                                        loc
+       let venv =
+         Env.create_scoped_env ~has_ns:false
+                               ~ext_nest_level:(LifetimeEnv.nest_level lt_env)
+                               parent_env var_name
+                               (Env.Variable (venv_r))
+                               loc
        in
 
        let temp_obj_spec = SubExprSpec.create parent_env lt_env in
@@ -1349,7 +1350,7 @@ and analyze_expr ?(making_placeholder=false)
                *)
               let ctx_tmp = Sema_context.make_temporary_context ctx in
               let temp_env =
-                Env.create_scoped_env parent_env
+                Env.create_scoped_env parent_env (Id_string.Pure "<tmp>")
                                       (Env.Scope (Env.empty_lookup_table ()))
                                       None
               in
@@ -1553,7 +1554,7 @@ and analyze_expr ?(making_placeholder=false)
      begin
        let loc = None in
        let scope_env =
-         Env.create_scoped_env parent_env
+         Env.create_scoped_env parent_env (Id_string.Pure "<scope>")
                                (Env.Scope (Env.empty_lookup_table ()))
                                loc
        in
@@ -1576,7 +1577,7 @@ and analyze_expr ?(making_placeholder=false)
      begin
        (* base scope for if expr *)
        let scope_env =
-         Env.create_scoped_env parent_env
+         Env.create_scoped_env parent_env (Id_string.Pure "<if_scope>")
                                (Env.Scope (Env.empty_lookup_table ()))
                                loc
        in
@@ -1595,7 +1596,7 @@ and analyze_expr ?(making_placeholder=false)
        (**)
        let analayze_clause node =
          let clause_scope_env =
-           Env.create_scoped_env scope_env
+           Env.create_scoped_env scope_env (Id_string.Pure "<if_scope>")
                                  (Env.Scope (Env.empty_lookup_table ()))
                                  None
          in
@@ -1658,7 +1659,7 @@ and analyze_expr ?(making_placeholder=false)
      begin
        let loc = None in
        let scope_env =
-         Env.create_scoped_env parent_env
+         Env.create_scoped_env parent_env (Id_string.Pure "<for_scope>")
                                (Env.Scope (Env.empty_lookup_table ()))
                                loc
        in
@@ -1694,7 +1695,7 @@ and analyze_expr ?(making_placeholder=false)
        in
 
        let body_env =
-         Env.create_scoped_env scope_env
+         Env.create_scoped_env scope_env (Id_string.Pure "<for_scope>")
                                (Env.Scope (Env.empty_lookup_table ()))
                                None
        in
@@ -1899,7 +1900,7 @@ and make_call_instruction ?(sub_nest=0)
     with
     | Sema_lifetime.Lifetime_param_length_is_different (param_ty, arg_ty) ->
        Debug.printf "length of generics params is different: %s / PARAMS: %s / ARGS: %s"
-                    (Id_string.to_string f_er.Env.fn_name)
+                    (Env.get_name f_env |> Id_string.to_string)
                     (Type.to_string param_ty)
                     (Type.to_string arg_ty);
        failwith "[ERR]"
@@ -1995,29 +1996,24 @@ and extract_prev_pass_node node =
 and analyze_param f_env param ctx attr =
   let (var_attr, var_name, init_part) = param in
 
-  let (param_kind, aux_lacking_envs, lacking_envs) = match init_part with
+  let (param_kind, aux_lacking_envs, lacking_envs) =
+    match init_part with
     (* Ex. :int = 10 *)
     | (Some type_expr, Some defalut_val) ->
-       begin
-         failwith "declare_function_params : not implemented / default value of param"
-       end
+       failwith "declare_function_params : not implemented / default value of param"
 
     (* Ex. :int *)
     | (Some type_expr, None) ->
-       begin
-         let (ty, aux_lacking_envs, lacking_envs) =
-           resolve_type_with_qual_and_generics_placeholder var_attr type_expr
-                                                           f_env ctx attr
-         in
-         (Env.FnParamKindType ty, aux_lacking_envs, lacking_envs)
-       end
+       let (ty, aux_lacking_envs, lacking_envs) =
+         resolve_type_with_qual_and_generics_placeholder var_attr type_expr
+                                                         f_env ctx attr
+       in
+       (Env.FnParamKindType ty, aux_lacking_envs, lacking_envs)
 
     (* Ex. = 10 *)
     | (None, Some defalut_val) ->
-       begin
-         (* type is inferenced from defalut_val *)
-         failwith "declare_function_params : not implemented / infer type from value"
-       end
+       (* type is inferenced from defalut_val *)
+       failwith "declare_function_params : not implemented / infer type from value"
 
     | _ ->
        (* TODO: change to exception *)
@@ -2049,20 +2045,19 @@ and make_parameter_venv f_env param_id_name param_ty ctx : (Id_string.t * 'env) 
     Env.var_type = param_ty;
     Env.var_detail = Env.VarRecordNormal ();
   } in
-  let venv = Env.create_context_env f_env
-                                    (Env.Variable (venv_r))
-                                    loc
+  let venv =
+    Env.create_context_env f_env param_id_name
+                           (Env.Variable (venv_r))
+                           loc
   in
   Env.update_status venv Env.Complete;
   (param_id_name, venv)
-
 
 and prepare_params env ?(special_params=[]) params_node ctx attr =
   match extract_prev_pass_node params_node with
   | Ast.ParamsList ps ->
      declare_function_params env special_params ps ctx attr
   | _ -> failwith "[ICE] check_params / unexpected"
-
 
 and typeinfo_of_paramkind pk =
   match pk with
@@ -2090,6 +2085,21 @@ and adjust_param_types' param_kinds args acc =
   | ([], _) -> None
 
 
+and analyze_parameters ?(special_params=[]) params parent_env ctx attr =
+  let (nparams, param_kinds, implicit_aux_lt_envs, implicit_lt_envs) =
+    let special_param_info_list =
+      special_params
+      |> List.map (fun (init, ty) -> (init, Env.FnParamKindType ty, [], []))
+    in
+    let param_info_list =
+      (params |> List.map (fun p -> analyze_param parent_env p ctx attr))
+    in
+    let split (a, b, c, d) (ax, bx, cx, dx) =
+      (a::ax, b::bx, c @ cx, d @ dx)
+    in
+    List.fold_right split (special_param_info_list @ param_info_list) ([], [], [], [])
+  in
+  (nparams, param_kinds, implicit_aux_lt_envs, implicit_lt_envs)
 
 (**)
 and declare_function_params f_env special_params params ctx attr =
@@ -2115,6 +2125,9 @@ and declare_function_params f_env special_params params ctx attr =
       let (_, opt_name, _) = param in
       match kind with
       | Env.FnParamKindType ty ->
+         Debug.printf "params -> %s: %s"
+                      (Option.map_default Id_string.to_string "<opt>" opt_name)
+                      (ty |> Type.to_string);
          ty.Type_info.ti_aux_generics_args
          |> List.iter (fun lt -> Debug.printf "PARAM AUX LT -> %s\n" (Lifetime.to_string lt));
          ty.Type_info.ti_generics_args
@@ -2770,7 +2783,7 @@ and post_check_function_return_type env ctx =
        fr.Env.fn_return_type <- void_ty;
        void_ty
     | _ -> failwith @@ "[ERR] type couldn't be determined / " ^
-                         (Id_string.to_string fr.Env.fn_name)
+                         (Env.get_name env |> Id_string.to_string)
   in
   new_ret_ty
 
@@ -3383,12 +3396,12 @@ and instantiate_function_templates menv template_args arg_auxs ext_env ctx attr 
 
     (* debug print *)
     let () =
-      List.iteri (fun i ty -> Debug.printf "%d: %s\n" i (Type.to_string ty)) param_types;
-      Debug.printf "REACHED / get_function_param_types\n";
+      List.iteri (fun i ty -> Debug.printf "func_param; %d: %s" i (Type.to_string ty)) param_types;
+      Debug.printf "REACHED / get_function_param_types";
       arg_auxs
       |> List.map Aux.ty
-      |> List.iteri (fun i ty -> Debug.printf "%d: %s\n" i (Type.to_string ty));
-      Debug.printf "REACHED / get_function_arg_types\n";
+      |> List.iteri (fun i ty -> Debug.printf "%d: %s" i (Type.to_string ty));
+      Debug.printf "REACHED / get_function_arg_types";
     in
 
     (* *)
@@ -3447,12 +3460,13 @@ and instantiate_function_templates menv template_args arg_auxs ext_env ctx attr 
 and get_template_function_param_type (var_attr, _, init) env ctx attr =
   match init with
   | (Some ty_node, _) ->
-     let (param_kind, _, _) =
+     let (param_ty, _, _) =
        resolve_type_with_qual_and_generics_placeholder ~making_placeholder:true
                                                        var_attr ty_node
                                                        env ctx attr
      in
-     param_kind
+     Debug.printf "template_function_ty : %s" (Type.to_string param_ty);
+     param_ty
 
   | _ ->
      failwith "[ICE] not implemented / param nodes"
@@ -3720,7 +3734,7 @@ and prepare_instantiate_template t_env_record template_args ext_env ctx attr =
    * DO NOT append this env to the parent_env.
    *)
   let temp_env =
-    Env.create_scoped_env ext_env
+    Env.create_scoped_env ext_env (Id_string.Pure "<tmp>")
                           (Env.Scope (Env.empty_lookup_table ()))
                           None
   in
@@ -3730,7 +3744,9 @@ and prepare_instantiate_template t_env_record template_args ext_env ctx attr =
     let generate_meta_var id_name =
       let loc = None in
       let uni_id = Unification.generate_uni_id ctx.sc_unification_ctx in
-      let mv_env = Env.create_context_env temp_env (Env.MetaVariable uni_id) loc in
+      let mv_env =
+        Env.create_context_env temp_env id_name (Env.MetaVariable uni_id) loc
+      in
       let mv_ty = make_not_determined_type uni_id ctx in
       (uni_id, (mv_ty, mv_env))
     in
@@ -3921,7 +3937,17 @@ and complete_template_instance ?(making_placeholder=false)
   Debug.printf "\n--\ncomplete_template_instance: debug_print_meta_var\n--\n";
   List.iter (fun i -> debug_print_meta_var i ctx) uni_ids;
 
-  let mangled_sym =
+  let instence_cache_key =
+    (*TODO: fix*)
+    let cache_cookie =
+      match inner_node with
+      | Ast.FunctionDefStmt (_, _, Ast.ParamsList ps, _, _, _, _, _) ->
+         let (_, pks, _, _) = analyze_parameters ps temp_env ctx attr in
+         let tys = pks |> List.map typeinfo_of_paramkind in
+         tys |> List.map Type.to_string |> String.concat "--"
+      | _ -> cache_cookie
+    in
+
     let sym =
       uni_ids
       |> List.map (Unification.get_as_value ctx.sc_unification_ctx)
@@ -3937,15 +3963,15 @@ and complete_template_instance ?(making_placeholder=false)
     in
     sym
   in
-  Debug.printf "TRY making an instance! -> %s\n" mangled_sym;
+  Debug.printf "TRY making an instance! -> %s\n" instence_cache_key;
 
   let mset_record = Env.MultiSetOp.get_record menv in
   let env_cache =
-    Hashtbl.find_option mset_record.Env.ms_instanced_args_cache_for_env mangled_sym
+    Hashtbl.find_option mset_record.Env.ms_instanced_args_cache_for_env instence_cache_key
   in
   match env_cache with
   | Some env ->
-     Debug.printf "USED ENV CACHE for %s\n" mangled_sym;
+     Debug.printf "USED ENV CACHE for %s\n" instence_cache_key;
      env (* DO NOTHING, because this template is already generated *)
   | None ->
      begin
@@ -3955,7 +3981,7 @@ and complete_template_instance ?(making_placeholder=false)
        let snode =
          let node_cache =
            Hashtbl.find_option mset_record.Env.ms_instanced_args_cache_for_node
-                               mangled_sym
+                               instence_cache_key
          in
          match node_cache with
          | Some n ->
@@ -3968,7 +3994,7 @@ and complete_template_instance ?(making_placeholder=false)
                                  ~opt_attr:inner_attr
                                  inner_node env_parent ctx
             in
-            Hashtbl.add mset_record.Env.ms_instanced_args_cache_for_node mangled_sym n;
+            Hashtbl.add mset_record.Env.ms_instanced_args_cache_for_node instence_cache_key n;
             n
        in
 
@@ -3983,13 +4009,19 @@ and complete_template_instance ?(making_placeholder=false)
          | TAst.MemberFunctionDefStmt (_, _, _, _, _, _, _, (_, Some e))
          | TAst.ExternFunctionDefStmt (_, _, _, _, _, _, _, _, (_, Some e))
          | TAst.ClassDefStmt (_, _, _, _, (_, Some e))
-         | TAst.ExternClassDefStmt (_, _, _, _, _, (_, Some e)) -> e
+         | TAst.ExternClassDefStmt (_, _, _, _, _, (_, Some e)) ->
+            e
          | _ ->
             failwith "[ICE] complete template / cache ..."
        in
+       Debug.printf "INSTANTIATE: %s / instence_cache_key: %s / cache_cookie: %s"
+                    (Option.default (i_env.Env.name |> Id_string.to_string)
+                                    i_env.Env.mangled_name)
+                    instence_cache_key
+                    cache_cookie;
 
        (* memoize *)
-       Hashtbl.add mset_record.Env.ms_instanced_args_cache_for_env mangled_sym i_env;
+       Hashtbl.add mset_record.Env.ms_instanced_args_cache_for_env instence_cache_key i_env;
 
        i_env
      end
@@ -4056,11 +4088,12 @@ and declare_incomplete_ctor cenv =
   let (base_env, _) = Env.MultiSetOp.find_or_add cenv ctor_id_name Env.Kind.Function in
   let fenv_r = Env.FunctionOp.empty_record ctor_id_name in
 
-  let fenv = Env.create_context_env cenv
-                                    (Env.Function (
-                                         Env.empty_lookup_table ~init:0 (),
-                                         fenv_r))
-                                    loc
+  let fenv =
+    Env.create_context_env cenv ctor_id_name
+                           (Env.Function (
+                                Env.empty_lookup_table ~init:0 (),
+                                fenv_r))
+                           loc
   in
   Env.MultiSetOp.add_normal_instances base_env fenv;
   fenv
@@ -4164,17 +4197,15 @@ and declare_incomple_assign cenv =
   let (base_env, _) = Env.MultiSetOp.find_or_add cenv assign_name Env.Kind.Function in
   let fenv_r = Env.FunctionOp.empty_record assign_name in
 
-  let fenv = Env.create_context_env cenv
-                                    (Env.Function (
-                                         Env.empty_lookup_table ~init:0 (),
-                                         fenv_r))
-                                    loc
+  let fenv =
+    Env.create_context_env cenv assign_name
+                           (Env.Function (
+                                Env.empty_lookup_table ~init:0 (),
+                                fenv_r))
+                           loc
   in
   Env.MultiSetOp.add_normal_instances base_env fenv;
   fenv
-
-
-
 
 
 and declare_this_variable fenv cenv ctx =
@@ -4864,16 +4895,16 @@ and get_void_aux ctx =
   let aux = Aux.make ty VCatPrValue Lifetime.LtStatic Meta_level.Meta None in
   aux
 
-
+(* no-effect to parent_env *)
 and create_generics_spec lt_name parent_env =
   let loc = None in
   let lt = Sema_type.create_new_lt_var lt_name parent_env in
-  let lt_env = Env.create_context_env parent_env (Env.LifetimeVariable lt) loc in
+  let lt_env = Env.create_context_env parent_env lt_name (Env.LifetimeVariable lt) loc in
   (lt_env, lt)
 
 and declare_generics_specs lifetime_sorts parent_env =
   let tmp_env =
-    Env.create_scoped_env parent_env
+    Env.create_scoped_env parent_env (Id_string.Pure "<tmp>")
                           (Env.Scope (Env.empty_lookup_table ()))
                           None
   in
@@ -4883,7 +4914,7 @@ and declare_generics_specs lifetime_sorts parent_env =
     let f lt_s =
       let (lt, lt_id) = Lifetime.make_placeholder lt_s in
       (* TODO: check duplication *)
-      let lt_env = Env.create_context_env tmp_env (Env.LifetimeVariable lt) None in
+      let lt_env = Env.create_context_env tmp_env lt_id (Env.LifetimeVariable lt) None in
       Env.add_inner_env tmp_env lt_id lt_env |> error_if_env_is_dupped Loc.dummy;
       lt
     in
@@ -4915,7 +4946,9 @@ and declare_generics_specs lifetime_sorts parent_env =
   (* insert lifetimes into the actual env *)
   let () =
     let f spec lt =
-      let lt_env = Env.create_context_env parent_env (Env.LifetimeVariable lt) None in
+      let lt_env =
+        Env.create_context_env parent_env spec (Env.LifetimeVariable lt) None
+      in
       Env.add_inner_env parent_env spec lt_env |> error_if_env_is_dupped Loc.dummy;
     in
     let lifetime_ids =

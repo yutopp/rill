@@ -42,6 +42,10 @@ type 'ast env_t = {
   ns_env                        : 'ast env_t;
   module_env                    : 'ast env_t option;
   er                            : 'ast env_record_t;
+
+  name                          : Id_string.t;
+  mutable mangled_name          : string option;
+
   mutable state                 : checked_state_t;
   mutable closed                : bool;
   mutable generics_constraints  : Lifetime.constraint_t list;
@@ -114,8 +118,6 @@ type 'ast env_t = {
   *
   *)
  and 'ast function_record = {
-   fn_name                          : Id_string.t;
-   mutable fn_mangled               : string option;
    mutable fn_generics_vals         : Lifetime.t list;
    mutable fn_template_vals         : ('ast type_info_t Ctfe_value.t) list;
 
@@ -163,7 +165,6 @@ type 'ast env_t = {
   *)
  and 'ast class_record = {
    cls_name             : Id_string.t;
-   mutable cls_mangled  : string option;
    mutable cls_generics_vals    : Lifetime.t list;
    mutable cls_template_vals    : ('ast type_info_t Ctfe_value.t) list;
    mutable cls_detail           : class_record_var;
@@ -226,6 +227,10 @@ let undef () =
     ns_env = e;
     module_env = None;
     er = Unknown;
+
+    name = Id_string.Pure "<undef>";
+    mangled_name = None;
+
     state = InComplete;
     closed = false;
     generics_constraints = [];
@@ -285,15 +290,7 @@ let string_of_env_record env =
   | Unknown -> "unknown"
 
 let get_name env =
-  let er = get_env_record env in
-  match er with
-  | Module (_, r) -> Id_string.Pure r.mod_name
-  | Template (r) -> r.tl_name
-  | Function (_, r) -> r.fn_name
-  | Variable (r) -> r.var_name
-  | Class (_, r) -> r.cls_name
-  | Scope _ -> (Id_string.Pure "[scope]")
-  | _ -> failwith (Printf.sprintf "get_name : not supported / %s" (string_of_env_record env))
+  env.name
 
 let get_scope_lifetime ?(aux_count=0) sub_nest env =
   let ctx_env = env.context_env in
@@ -477,7 +474,7 @@ let calc_nest_level ?(ext_nest_level=None) env =
  * it will be used for functions, classes and so on... *)
 let create_context_env ?(is_instantiated=false)
                        ?(ext_nest_level=None)
-                       parent_env er loc =
+                       parent_env name er loc =
   let cur_id = EnvUniqId.generate () in
 
   let opt_mod_env = match parent_env.er with
@@ -491,6 +488,9 @@ let create_context_env ?(is_instantiated=false)
     ns_env = e;         (* self reference *)
     module_env = opt_mod_env;
     er = er;
+
+    name = name;
+    mangled_name = None;
 
     state = InComplete;
     closed = false;
@@ -512,7 +512,7 @@ let create_context_env ?(is_instantiated=false)
 let create_scoped_env ?(has_ns=true)
                       ?(is_instantiated=false)
                       ?(ext_nest_level=None)
-                      parent_env er loc =
+                      parent_env name er loc =
   let cur_id = EnvUniqId.generate () in
 
   let opt_mod_env = match parent_env.er with
@@ -526,6 +526,9 @@ let create_scoped_env ?(has_ns=true)
     ns_env = e; (* self reference *)
     module_env = opt_mod_env;
     er = er;
+
+    name = name;
+    mangled_name = None;
 
     state = InComplete;
     closed = parent_env.closed;
@@ -586,8 +589,11 @@ let make_root_env () =
     context_env = e;    (* self reference *)
     ns_env = e;         (* self reference *)
     module_env = None;
-
     er = Root (tbl);
+
+    name = Id_string.Pure "<root>";
+    mangled_name = None;
+
     state = Complete;
     closed = false;
     generics_constraints = [];
@@ -676,7 +682,7 @@ module MultiSetOp =
                ms_instanced_args_pre_caches = Hashtbl.create 0;
              }
          in
-         let e = create_scoped_env env er None in
+         let e = create_scoped_env env (Id_string.Pure "") er None in
          let _ = add_inner_env env id_name e in
          (e, true)
 
@@ -733,8 +739,6 @@ module FunctionOp =
 
     let empty_record id_name =
       {
-        fn_name = id_name;
-        fn_mangled = None;
         fn_generics_vals = [];
         fn_template_vals = [];
         fn_param_kinds = [];
@@ -789,7 +793,6 @@ module ClassOp =
       } in
       {
          cls_name = name;
-         cls_mangled = None;
          cls_generics_vals = [];
          cls_template_vals = [];
          cls_detail = ClsUndef;
@@ -870,7 +873,7 @@ let debug_print env =
        end
     | Function (lt, r) ->
        begin
-         let name = Id_string.to_string r.fn_name in
+         let name = get_name env |> Id_string.to_string in
          Debug.printf "%sFunction - %s\n" indent name;
          print_table lt.scope indent;
          f nindent;

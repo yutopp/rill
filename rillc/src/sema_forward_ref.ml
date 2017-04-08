@@ -157,10 +157,10 @@ let rec solve_forward_refs ?(meta_variables=[])
        in
 
        let var_r = Env.VariableOp.empty_record var_id_name in
-       let venv = Env.create_context_env parent_env (
-                                           Env.Variable (var_r)
-                                         )
-                                         loc
+       let venv =
+         Env.create_context_env parent_env var_id_name
+                                (Env.Variable (var_r))
+                                loc
        in
        Env.add_inner_env parent_env var_id_name venv |> error_if_env_is_dupped loc;
        Env.ClassOp.push_member_variable parent_env venv;
@@ -207,7 +207,7 @@ let rec solve_forward_refs ?(meta_variables=[])
                 (* will be member function *)
                 | Env.Kind.Function ->
                    let fenv =
-                     Env.create_context_env base_env
+                     Env.create_context_env base_env id_name
                                             (Env.Template template_env_r)
                                             loc
                    in
@@ -263,17 +263,18 @@ and prepare_module_from_filepath ?(def_mod_info=None) filepath ctx =
     in
     Option.may check_mod_name def_mod_info;
 
-    let env = Env.create_context_env root_env (
-                                       Env.Module (Env.empty_lookup_table (),
-                                                   {
-                                                     Env.mod_name = mod_name;
-                                                     Env.mod_pkg_names = pkg_names;
-                                                  })
-                                     )
-                                     loc
-    in
     (* TODO: fix g_name *)
     let g_id_name = Id_string.Pure (String.concat "." (pkg_names @ [mod_name])) in
+    let env =
+      Env.create_context_env root_env g_id_name
+                             (Env.Module (Env.empty_lookup_table (),
+                                          {
+                                            Env.mod_name = mod_name;
+                                            Env.mod_pkg_names = pkg_names;
+                                          })
+                             )
+                             loc
+    in
     Env.add_inner_env root_env g_id_name env |> error_if_env_is_dupped loc;
 
     (* register module*)
@@ -350,8 +351,8 @@ and prepare_module ~loc pkg_names mod_name ctx =
 
 and declare_meta_var env ctx (id_name, uni_id) =
   let loc = None in
-  let meta_e = Env.MetaVariable uni_id in
-  let e = Env.create_context_env env meta_e loc in
+  let meta_er = Env.MetaVariable uni_id in
+  let e = Env.create_context_env env id_name meta_er loc in
   Env.add_inner_env env id_name e |> error_if_env_is_dupped loc;
 
   Unification.get_as_value ctx.sc_unification_ctx uni_id
@@ -364,12 +365,13 @@ and declare_pre_function id_name meta_variables loc parent_env ctx =
   let (base_env, _) = Env.MultiSetOp.find_or_add parent_env id_name Env.Kind.Function in
 
   let fenv_r = Env.FunctionOp.empty_record id_name in
-  let fenv = Env.create_context_env ~is_instantiated:in_template
-                                    parent_env
-                                    (Env.Function (
-                                         Env.empty_lookup_table (),
-                                         fenv_r))
-                                    loc
+  let fenv =
+    Env.create_context_env ~is_instantiated:in_template
+                           parent_env id_name
+                           (Env.Function (
+                                Env.empty_lookup_table (),
+                                fenv_r))
+                           loc
   in
 
   (* declare meta variables if exist *)
@@ -391,12 +393,13 @@ and declare_pre_class id_name meta_variables loc parent_env ctx =
   let (base_env, _) = Env.MultiSetOp.find_or_add parent_env id_name Env.Kind.Class in
 
   let cenv_r = Env.ClassOp.empty_record id_name in
-  let cenv = Env.create_context_env ~is_instantiated:in_template
-                                    parent_env
-                                    (Env.Class (
-                                         Env.empty_lookup_table (),
-                                         cenv_r))
-                                    loc
+  let cenv =
+    Env.create_context_env ~is_instantiated:in_template
+                           parent_env id_name
+                           (Env.Class (
+                                Env.empty_lookup_table (),
+                                cenv_r))
+                           loc
   in
 
   (* declare meta variables if exist *)

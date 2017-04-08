@@ -199,7 +199,7 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
 
        let fenv_r = Env.FunctionOp.get_record env in
        Debug.printf "<><><><> Define Function: %s (%s)"
-                    (fenv_r.Env.fn_mangled |> Option.get)
+                    (env.Env.mangled_name |> Option.get)
                     (Env_system.EnvId.to_string env.Env.env_id);
 
        let declare_current_function name =
@@ -282,7 +282,7 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
 
        let struct_ty =
          L.named_struct_type ctx.Ctx.ir_context
-                             (Option.get cenv_r.Env.cls_mangled)
+                             (env.Env.mangled_name |> Option.get)
        in
        L.struct_set_body struct_ty (Array.of_list member_lltypes)
                          false (* not packed *);
@@ -349,7 +349,6 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
      begin
        let f_er = Env.FunctionOp.get_record env in
        let {
-         Env.fn_name = fn_name;
          Env.fn_detail = detail;
          Env.fn_param_kinds = param_kinds;
          Env.fn_return_type = ret_ty;
@@ -375,7 +374,7 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
             (llval, returns_addr)
        in
 
-       let fn_s_name = Id_string.to_string fn_name in
+       let fn_s_name = Env.get_name env |> Id_string.to_string in
        let (llval, returns_addr) = match detail with
          (* normal function *)
          | Env.FnRecordNormal (_, kind, _) ->
@@ -608,7 +607,7 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
             failwith @@ "[ICE] TAst.Id: function "
                         ^ (Id_string.to_string name)
                         ^ " // "
-                        ^ (Id_string.to_string r.Env.fn_name)
+                        ^ (Id_string.to_string (Env.get_name rel_env))
           end
 
        | Env.Variable (r) ->
@@ -1406,7 +1405,7 @@ and define_function kind fn_spec opt_body fenv fi ctx =
   let param_envs = fn_spec.Env.fn_spec_param_envs in
   let force_inline = fn_spec.Env.fn_spec_force_inline in
 
-  let name = fenv_r.Env.fn_mangled |> Option.get in
+  let name = fenv.Env.mangled_name |> Option.get in
   let f = declare_function name fenv ctx in
 
   if force_inline then
@@ -1498,7 +1497,10 @@ and define_function kind fn_spec opt_body fenv fi ctx =
       connect_function_entry f (ebb, pbb) ctx;
 
       debug_dump_value f;
-      Debug.printf "generated genric function(%b): %s\n" fenv.Env.closed name;
+      Debug.printf "generated genric function(%b): %s [%s]\n"
+                   fenv.Env.closed
+                   name
+                   (fenv.Env.env_id |> Env_system.EnvId.to_string);
 
       Llvm_analysis.assert_valid_function f
     end

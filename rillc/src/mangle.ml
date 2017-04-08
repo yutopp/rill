@@ -19,8 +19,7 @@ let rec s_of_ctfe_val value tset =
 
 and s_of_type ty =
   let c_env = Type.as_unique ty in
-  let cr = Env.ClassOp.get_record c_env in
-  let symbol = Option.get cr.Env.cls_mangled in
+  let symbol = c_env.Env.mangled_name |> Option.get in
 
   let ta = ty.Type_info.ti_attr in
   let rv_s = match ta.Type_attr.ta_ref_val with

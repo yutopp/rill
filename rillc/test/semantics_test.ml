@@ -4,7 +4,9 @@ open Stdint
 
 let test_test_1 test_ctxt =
   let root = Env.make_root_env() in
-  let env = Env.create_context_env root Env.Unknown None in
+  let env =
+    Env.create_context_env root (Id_string.Pure "") Env.Unknown None
+  in
   let envs = Env.collect_dependee_envs env in
   let f a b =
     assert_equal ~cmp:(==) a b;

@@ -51,7 +51,7 @@ let complete_function_env env node id_name f_detail ctx =
     | Id_string.Pure s when s = Builtin_info.entrypoint_name ->
        begin
          (* TODO: check param_types and return_type *)
-         r.Env.fn_mangled <- Some Builtin_info.entrypoint_export_name
+         env.Env.mangled_name <- Some Builtin_info.entrypoint_export_name
        end
     | _ ->
        begin
@@ -61,7 +61,7 @@ let complete_function_env env node id_name f_detail ctx =
                                 r.Env.fn_param_kinds r.Env.fn_return_type
                                 ctx.sc_tsets
          in
-         r.Env.fn_mangled <- Some mangled
+         env.Env.mangled_name <- Some mangled
        end
   in
   complete_env env node
@@ -75,7 +75,7 @@ let check_class_env env generics_vals ctx =
     Mangle.s_of_class (Env.get_full_module_name env)
                       id_name template_args ctx.sc_tsets
   in
-  r.Env.cls_mangled <- Some mangled;
+  env.Env.mangled_name <- Some mangled;
   r.Env.cls_generics_vals <- generics_vals;
   check_env env Meta_level.Meta
 
@@ -157,14 +157,13 @@ let register_builtin_type name inner_name mangled_name
                           root_env type_gen =
   let create_extern_primitive_class name inner_name =
     let env_r = Env.ClassOp.empty_record name in
-    env_r.Env.cls_mangled <- Some mangled_name;
-
-    let env = Env.create_context_env root_env (
-                                       Env.Class (Env.empty_lookup_table ~init:0 (),
-                                                  env_r)
-                                     )
-                                     None
+    let env =
+      Env.create_context_env root_env name
+                             (Env.Class (Env.empty_lookup_table ~init:0 (),
+                                         env_r))
+                             None
     in
+    env.Env.mangled_name <- Some mangled_name;
     env.Env.meta_level <- meta_level;
 
     let loc = None in
@@ -200,7 +199,7 @@ let register_builtin_type name inner_name mangled_name
 
 let register_builtin_lifetime name lt root_env =
   let loc = None in
-  let env = Env.create_context_env root_env (Env.LifetimeVariable lt) loc in
+  let env = Env.create_context_env root_env name (Env.LifetimeVariable lt) loc in
   Env.add_inner_env root_env name env |> ignore;
   ()
 

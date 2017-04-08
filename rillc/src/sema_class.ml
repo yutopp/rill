@@ -216,7 +216,7 @@ let special_func_kind fenv cenv ctx =
   (* normal functions *)
   | Env.Function (_, r)  ->
      begin
-       match r.Env.fn_name with
+       match Env.get_name fenv with
        | Id_string.Pure n when n = ctor_name ->
           constructor_kind r.Env.fn_param_kinds cenv ctx
 

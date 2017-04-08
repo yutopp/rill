@@ -57,6 +57,10 @@ extern def operator&&(val :bool, val :bool): bool = "__builtin_op_binary_&&_bool
 // uint8
 #[builtin, primitive, size = 1u, align = 1u]
 extern class uint8 = "__builtin_uint8_type"
+#[builtin]
+extern def operator==(val :uint8, val :uint8): bool = "__builtin_op_binary_==_uint_uint";
+#[builtin]
+extern def operator!=(val :uint8, val :uint8): bool = "__builtin_op_binary_!=_uint_uint";
 
 // int32
 #[builtin, primitive, size = 4u, align = 4u]

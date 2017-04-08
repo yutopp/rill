@@ -1,0 +1,12 @@
+def main() {
+    foo(A!int32());
+    wrapper(A!int32());
+}
+
+def wrapper!(S)(s: S) {
+    foo(s);
+}
+
+def foo!(T)(foo_s: A!T) => 0;
+
+class A!(T) {}
