@@ -621,7 +621,23 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
                              begin
                                try Ctx.find_metaval_by_env ctx rel_env with
                                | Not_found ->
-                                  failwith "[ICE] variable(meta) env is not found"
+                                  (* TODO: fix. adhoc *)
+                                  let llval =
+                                    match (Type.to_string r.Env.var_type) with
+                                    | "ref(const(type))" ->
+                                       let ty = !(ctx.type_sets.Type_sets.ts_int32_type_holder) in
+                                       let itype_id = Option.get ty.Type_info.ti_id in
+                                       L.const_of_int64 (L.i64_type ctx.ir_context)
+                                                        itype_id
+                                                        Type_info.is_type_id_signed
+                                    | "ref(const(uint32))" ->
+                                       L.const_of_int64 (L.i32_type ctx.ir_context)
+                                                        (Int64.of_int 0)
+                                                        false
+                                    | _ ->
+                                       failwith "[ICE] variable(meta) env is not found"
+                                  in
+                                  LLValue (llval, false)
                              end
             in
             let (llval, is_addr) = match var_llr with

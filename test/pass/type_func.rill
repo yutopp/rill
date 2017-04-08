@@ -1,5 +1,5 @@
-def f!(t: type, n: uint32)() onlymeta => array!(t, n);
+def f(t: type, n: uint32) onlymeta => array!(t, n);
 
 def main() {
-    val arr: f!(int32, 10)();
+    val arr: f(int32, 10u);
 }
