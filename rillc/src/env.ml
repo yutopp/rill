@@ -586,8 +586,8 @@ let make_root_env () =
   let rec e = {
     env_id = EnvId.E (cur_id, None);
     parent_env = None;
-    context_env = e;    (* self reference *)
-    ns_env = e;         (* self reference *)
+    context_env = e;        (* self reference *)
+    ns_env = e;             (* self reference *)
     module_env = None;
     er = Root (tbl);
 
@@ -922,6 +922,10 @@ let debug_print env =
 
 
 let get_full_module_name e =
-  let mod_env = Option.get e.module_env in
-  let mr = ModuleOp.get_record mod_env in
-  mr.mod_pkg_names @ [mr.mod_name]
+  match e.module_env with
+  | Some mod_env ->
+     let mr = ModuleOp.get_record mod_env in
+     mr.mod_pkg_names @ [mr.mod_name]
+  | _ ->
+     (* TODO: fix *)
+     ["<tmp>"]

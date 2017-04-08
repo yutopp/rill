@@ -35,8 +35,8 @@ module Make (Ctx : NodeContextType) =
       | VoidExprStmt of ast
       | ReturnStmt of ast option
       | ImportStmt of string list * string * bool * ctx_t
-      (* name, lifetimes, params, return_type?, instance_cond, body, attribute?, _ *)
-      | FunctionDefStmt of Id_string.t * lifetime_def_specs * ast * ast option * ast option * ast * attr_tbl_t option * ctx_t
+      (* name, lifetimes, params, meta_level, return_type?, instance_cond, body, attribute?, _ *)
+      | FunctionDefStmt of Id_string.t * lifetime_def_specs * ast * Meta_level.t * ast option * ast option * ast * attr_tbl_t option * ctx_t
       (* name, lifetimes, params, quals, return_type?, body, attribute?, _ *)
       | MemberFunctionDefStmt of Id_string.t * lifetime_def_specs * ast * qual_t list * ast option * ast * attr_tbl_t option * ctx_t
       (* name, lifetimes, params, meta_level, return_type, instance_cond, function name(TODO: change to AST), attribute?, _ *)
@@ -92,6 +92,7 @@ module Make (Ctx : NodeContextType) =
 
       (* error *)
       | ErrorTerm
+      | Undef of term_ctx_t
 
       (* special *)
       | ParamsList of param_init_t list
@@ -186,7 +187,7 @@ module Make (Ctx : NodeContextType) =
       | VoidExprStmt _ ->
          Debug.printf "VoidExprStmt\n"
 
-      | FunctionDefStmt (id, _, _, _, _, statements, _, ctx) ->
+      | FunctionDefStmt (id, _, _, _, _, _, statements, _, ctx) ->
          begin
            Debug.printf "function def : ";
            Debug.printf "%s\n" (Id_string.to_string id);
@@ -301,6 +302,9 @@ module Make (Ctx : NodeContextType) =
          begin
            Debug.printf "Error\n"
          end
+      | Undef _ ->
+         Debug.printf "Undef\n"
+
       | ParamsList _ ->
          begin
            Debug.printf "ParamsList\n"

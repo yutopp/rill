@@ -123,11 +123,12 @@ function_decl_statement:
                 name = rel_id_as_s
                 opt_tparams = template_parameter_variables_decl_list
                 params = parameter_variables_decl_list
-                ret_type = type_specifier?
+                opt_ret_type = type_specifier?
+                ml = meta_level
                 t_cond = when_cond?
                 body = function_decl_body_block
                 {
-                    let n = Ast.FunctionDefStmt (name, lifetimes, params, ret_type, t_cond, body, None, pos $startpos $endpos) in
+                    let n = Ast.FunctionDefStmt (name, lifetimes, params, ml, opt_ret_type, t_cond, body, None, pos $startpos $endpos) in
                     templatefy name n opt_tparams
                 }
 
@@ -450,7 +451,7 @@ mut_attr_mutable_def:
 
 
 meta_level:
-                { Meta_level.Runtime }  (* default *)
+                { Meta_level.Meta }     (* default *)
         |       KEYWORD_ONLY_META       { Meta_level.OnlyMeta }
         |       KEYWORD_META            { Meta_level.Meta }
         |       KEYWORD_RUNTIME         { Meta_level.Runtime }

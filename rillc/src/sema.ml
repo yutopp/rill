@@ -84,6 +84,12 @@ let make_default_context root_env module_search_dirs build_options =
     sc_errors = []
   } in
 
+  (* TODO: fix *)
+  (* copy ctor for type *)
+  define_trivial_copy_ctor_for_builtin
+    ~has_ptr_constraints:false
+    (Type.as_unique type_type) "__builtin_type_type" ctx;
+
   ctx
 
 let make_default_state system_libs_dirs user_srcs_dirs build_options =

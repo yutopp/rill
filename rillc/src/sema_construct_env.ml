@@ -289,7 +289,7 @@ let rec construct_env node parent_env lt_env ctx opt_chain_attr
      end
 
   | TAst.FunctionDefStmt (
-        name, lifetime_specs, params_node, opt_ret_type, opt_cond, body, opt_attr,
+        name, lifetime_specs, params_node, ml, opt_ret_type, opt_cond, body, opt_attr,
         (loc, Some env)
       ) ->
      if Env.is_checked env then as_checked env else
@@ -318,7 +318,7 @@ let rec construct_env node parent_env lt_env ctx opt_chain_attr
                                           env ctx opt_attr
          in
          check_function_env2 env (lt_params @ implicit_generics_params) lt_cx
-                             param_kinds Meta_level.Meta ret_type is_auto
+                             param_kinds ml ret_type is_auto
        in
 
        (* analyze body *)
@@ -965,7 +965,7 @@ let rec construct_env node parent_env lt_env ctx opt_chain_attr
                 | None ->
                    begin
                      (* TODO: implement call default constructor *)
-                     failwith "not implemented //"
+                     (TAst.Undef var_ty, Aux.make var_ty Value_category.VCatPrValue Lifetime.LtStatic Meta_level.Meta None)
                    end
               in
               (* TODO: fix var_metalevel *)
@@ -976,9 +976,10 @@ let rec construct_env node parent_env lt_env ctx opt_chain_attr
          | None ->
             begin
               let (expr_node, expr_aux) = match opt_init_value_res with
-                | Some v -> v
-                (* TODO: call default constructor *)
-                | None -> failwith "[ERROR] initial value is required";
+                | Some v ->
+                   v
+                | None ->
+                   failwith "[ERROR] initial value is required";
               in
               let {
                   Aux.ta_type = expr_ty;
@@ -1169,7 +1170,7 @@ and analyze_expr ?(making_placeholder=false)
          Type_info.ti_generics_args = generics_args;
        } = recv_type_info in
        Debug.printf "=>=>=> %d\n" (List.length generics_args);
-       let ((node, aux), f_ml) = match ty_sort with
+       let ((node, aux), f_env, f_ml) = match ty_sort with
          (* normal function call *)
          | Type_info.FunctionSetTy m_envs ->
             begin
@@ -1193,7 +1194,7 @@ and analyze_expr ?(making_placeholder=false)
               let (f_env, conv_filters, args) = call_trg_finfo in
               let f_ml = f_env.Env.meta_level in
 
-              (call_inst, f_ml)
+              (call_inst, f_env, f_ml)
             end
 
          (* constructor / operator call *)
@@ -1237,27 +1238,27 @@ and analyze_expr ?(making_placeholder=false)
               let (f_env, conv_filters, eargs) = call_trg_finfo in
               let f_ml = f_env.Env.meta_level in
 
-              (call_inst, f_ml)
+              (call_inst, f_env, f_ml)
             end
 
          | _ -> failwith "not implemented//" (* TODO: call ctor OR operator() *)
        in
        let mled_node = match f_ml with
          | Meta_level.OnlyMeta ->
-           begin
-             (* TODO: check whether the variable is ctfeable.
-              * Ex. it must have trivial destructor *)
-             let {
-               Aux.ta_type = ty;
-               Aux.ta_ml = ret_ml;
-             } = aux in
-             let ctfe_v =
-               eval_texpr_as_ctfe node ty ret_ml
-                                  parent_env ctx None
-             in
-             tnode_of_ctfe_val ctfe_v ctx
-           end
-         | _ -> node
+            (* TODO: check whether the variable is ctfeable.
+             * Ex. it must have trivial destructor *)
+            Debug.printf "ONLYMETA CTFE: %s" (Env.get_name f_env |> Id_string.to_string);
+            let {
+              Aux.ta_type = ty;
+              Aux.ta_ml = ret_ml;
+            } = aux in
+            let ctfe_v =
+              eval_texpr_as_ctfe node ty ret_ml
+                                 parent_env ctx None
+            in
+            tnode_of_ctfe_val ctfe_v ctx
+         | _ ->
+            node
        in
        (mled_node, aux)
      end
@@ -2770,23 +2771,6 @@ and determine_function_return_type opt_ret_type
 
   | _ -> failwith "[ICE]"
 
-and post_check_function_return_type env ctx =
-  let fr = Env.FunctionOp.get_record env in
-  let ret_ty = fr.Env.fn_return_type in
-  let new_ret_ty = match Type.type_sort ret_ty with
-    | Type_info.UniqueTy _ ->
-       assert_valid_type ret_ty;
-       ret_ty
-    | Type_info.Undef ->
-       (* if type is not determined, it should be void *)
-       let void_ty = get_builtin_void_type default_ty_attr ctx in
-       fr.Env.fn_return_type <- void_ty;
-       void_ty
-    | _ -> failwith @@ "[ERR] type couldn't be determined / " ^
-                         (Env.get_name env |> Id_string.to_string)
-  in
-  new_ret_ty
-
 and check_and_insert_suitable_return ?(is_special_func=false)
                                      nbody env ctx opt_attr =
   let fr = Env.FunctionOp.get_record env in
@@ -3070,6 +3054,8 @@ and tnode_of_ctfe_val ctfe_val ctx =
      TAst.IntLit (Int32.to_int v, 32, true, get_builtin_int32_type default_ty_attr ctx)
   | Ctfe_value.Uint32 v ->
      TAst.IntLit (Uint32.to_int v, 32, false, get_builtin_uint32_type default_ty_attr ctx)
+  | Ctfe_value.Type ty ->
+     TAst.CtxNode ty
   | _ ->
      failwith (Printf.sprintf "[ICE] tnode_of_ctfe_val: unsupported ctfe value %s"
                               (Type.to_s_ctfe ctfe_val))
@@ -3371,7 +3357,7 @@ and instantiate_function_templates menv template_args arg_auxs ext_env ctx attr 
       | _ -> failwith "[ICE] unexpected not instantiated node"
     in
     let (lifetime_specs, parameters, opt_cond, dn) = match inner_node with
-      | Ast.FunctionDefStmt (_, lt_specs, Ast.ParamsList params, _, c, _, _, _) ->
+      | Ast.FunctionDefStmt (_, lt_specs, Ast.ParamsList params, _, _, c, _, _, _) ->
          (lt_specs, params, c, 0)
       | Ast.ExternFunctionDefStmt (_, lt_specs, Ast.ParamsList params, _, _, c, _, _, _) ->
          (lt_specs, params, c, 0)
@@ -3941,7 +3927,7 @@ and complete_template_instance ?(making_placeholder=false)
     (*TODO: fix*)
     let cache_cookie =
       match inner_node with
-      | Ast.FunctionDefStmt (_, _, Ast.ParamsList ps, _, _, _, _, _) ->
+      | Ast.FunctionDefStmt (_, _, Ast.ParamsList ps, _, _, _, _, _, _) ->
          let (_, pks, _, _) = analyze_parameters ps temp_env ctx attr in
          let tys = pks |> List.map typeinfo_of_paramkind in
          tys |> List.map Type.to_string |> String.concat "--"
@@ -4005,7 +3991,7 @@ and complete_template_instance ?(making_placeholder=false)
        (* take an environment *)
        let i_env = match n_ast with
          | TAst.GenericFuncDef (_, (_, Some e))
-         | TAst.FunctionDefStmt (_, _, _, _, _, _, _, (_, Some e))
+         | TAst.FunctionDefStmt (_, _, _, _, _, _, _, _, (_, Some e))
          | TAst.MemberFunctionDefStmt (_, _, _, _, _, _, _, (_, Some e))
          | TAst.ExternFunctionDefStmt (_, _, _, _, _, _, _, _, (_, Some e))
          | TAst.ClassDefStmt (_, _, _, _, (_, Some e))
@@ -4072,125 +4058,7 @@ and map_conversions ?(param_passing=false)
   in
   List.map2 f filters eargs
 
-and raise_error_if_type_is_invalid ty =
-  (* TODO: implement *)
-  assert_valid_type ty;
-  ()
 
-
-
-
-(*
- * helpers for defining ctor/dtor/assignments
- *)
-and declare_incomplete_ctor cenv =
-  let loc = None in
-  let (base_env, _) = Env.MultiSetOp.find_or_add cenv ctor_id_name Env.Kind.Function in
-  let fenv_r = Env.FunctionOp.empty_record ctor_id_name in
-
-  let fenv =
-    Env.create_context_env cenv ctor_id_name
-                           (Env.Function (
-                                Env.empty_lookup_table ~init:0 (),
-                                fenv_r))
-                           loc
-  in
-  Env.MultiSetOp.add_normal_instances base_env fenv;
-  fenv
-
-and declare_checked_default_ctor cenv ctx =
-  let fenv = declare_incomplete_ctor cenv in
-
-  (* interface of default constructor: () -> TYPE *)
-
-  let ret_ty =
-    let attr = Type_attr.make Type_attr.Val Type_attr.Const in
-    Sema_type.make_class_type cenv attr fenv ctx
-  in
-  let {
-    Type_info.ti_aux_generics_args = aux_generics_args;
-    Type_info.ti_generics_args = generics_args;
-  } = ret_ty in
-  assert (aux_generics_args = []);
-  check_function_env2 fenv [] [] [] Meta_level.Meta ret_ty false;
-
-  let new_ret_ty = post_check_function_return_type fenv ctx in
-
-  Sema_utils.register_default_ctor_to_class_env cenv fenv;
-
-  (fenv, new_ret_ty)
-
-and declare_checked_copy_ctor ?(has_ptr_constraints=false) cenv ctx =
-  let fenv = declare_incomplete_ctor cenv in
-
-  (* interface of copy constructor: (TYPE) -> TYPE *)
-  let ret_ty =
-    let attr = Type_attr.make Type_attr.Val Type_attr.Const in
-    Sema_type.make_class_type cenv attr fenv ctx
-  in
-  let {
-    Type_info.ti_aux_generics_args = ret_aux_generics_args;
-    Type_info.ti_generics_args = ret_generics_args;
-  } = ret_ty in
-  assert (ret_aux_generics_args = []);
-
-  let (rhs_ty, lts, lt_constraints) =
-    match has_ptr_constraints with
-    | true ->
-       let ret_ty_lt = match ret_generics_args with
-         | [lt] -> lt
-         | _ -> failwith "[ICE]"
-       in
-
-       let rhs_ty =
-         let attr = Type_attr.make (Type_attr.Ref []) Type_attr.Const in
-         Sema_type.make_class_type ~new_instance:true cenv attr fenv ctx
-       in
-       let ty_lt = match rhs_ty.Type_info.ti_generics_args with
-         | [lt] -> lt
-         | _ -> failwith "[ICE]"
-       in
-       let r1_lt = match rhs_ty.Type_info.ti_aux_generics_args with
-         | [lt] -> lt
-         | _ -> failwith "[ICE]"
-       in
-
-       let new_lts =
-         Lifetime.convert [ty_lt; r1_lt] [(ty_lt, ret_ty_lt)] (Env.get_id cenv)
-       in
-
-       let (n_ty_lt, n_r1_lt) = match new_lts with
-         | [a; b] -> (a, b)
-         | _ -> failwith "[ICE]"
-       in
-
-       let rhs_ty =
-         Type.Generator.update_attr_r3 ctx.sc_tsets.ts_type_gen rhs_ty [n_r1_lt] [n_ty_lt]
-       in
-
-       (* TODO: add lifetimes of rest of ty and rhs_ty *)
-       (rhs_ty, [n_ty_lt; n_r1_lt], [Lifetime.LtMin (n_ty_lt, ret_ty_lt)])
-
-    | false ->
-       let rhs_ty =
-         let attr = Type_attr.make (Type_attr.Ref []) Type_attr.Const in
-         Sema_type.make_class_type cenv attr fenv ctx
-       in
-       let {
-           Type_info.ti_aux_generics_args = rhs_aux_generics_args;
-           Type_info.ti_generics_args = rhs_generics_args;
-         } = rhs_ty in
-       (* TODO: add lifetimes of rest of ty and rhs_ty *)
-       (rhs_ty, rhs_generics_args @ rhs_aux_generics_args, [])
-  in
-  check_function_env2 fenv lts lt_constraints
-    [Env.FnParamKindType rhs_ty] Meta_level.Meta ret_ty false;
-
-  let new_ret_ty = post_check_function_return_type fenv ctx in  (* TODO *)
-
-  Sema_utils.register_copy_ctor_to_class_env cenv fenv;
-
-  (fenv, rhs_ty, new_ret_ty)
 
 and declare_incomple_assign cenv =
   let loc = None in
@@ -4369,20 +4237,6 @@ and define_implicit_default_ctor_for_array cenv lt_env elem_ty total_num ctx =
 
 
 (** for copy constructors **)
-and define_trivial_copy_ctor_for_builtin ?(has_ptr_constraints=false)
-                                         cenv extern_cname ctx =
-  let (fenv, rhs_ty, ret_ty) =
-    declare_checked_copy_ctor ~has_ptr_constraints:has_ptr_constraints
-                              cenv ctx
-  in
-
-  let node = TAst.GenericFuncDef (None, (Loc.dummy, Some fenv)) in
-  let detail =
-    Env.FnRecordBuiltin (Env.FnDefDefaulted true,
-                         Env.FnKindCopyConstructor None,
-                         (Builtin_info.make_builtin_copy_ctor_name extern_cname))
-  in
-  complete_function_env fenv node ctor_id_name detail ctx
 
 and define_trivial_copy_ctor cenv ctx =
   let (fenv, rhs_ty, ret_ty) = declare_checked_copy_ctor cenv ctx in
@@ -4642,16 +4496,6 @@ and define_trivial_copy_assign_for_builtin ?(has_ptr_constraints=false)
 
   let node = TAst.GenericFuncDef (None, (Loc.dummy, Some fenv)) in
   complete_function_env fenv node assign_name detail ctx
-
-
-(* TODO: fix them *)
-and get_builtin_void_incomplete_type ctx : 'env type_info =
-  ctx.sc_tsets.ts_void_type
-
-and get_builtin_void_type attr ctx : 'env type_info =
-  let ty = get_builtin_void_incomplete_type ctx in
-  Type.Generator.update_attr_r ctx.sc_tsets.ts_type_gen ty attr
-
 
 and get_builtin_bool_type attr ctx : 'env type_info =
   let ty = !(ctx.sc_tsets.ts_bool_type_holder) in

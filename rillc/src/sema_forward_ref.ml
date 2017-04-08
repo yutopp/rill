@@ -52,7 +52,7 @@ let rec solve_forward_refs ?(meta_variables=[])
        TAst.EmptyStmt
      end
 
-  | Ast.FunctionDefStmt (id_name, lt_specs, params, opt_ret_type, instance_cond, body, None, loc) ->
+  | Ast.FunctionDefStmt (id_name, lt_specs, params, ml, opt_ret_type, instance_cond, body, None, loc) ->
      begin
        let fenv = declare_pre_function id_name meta_variables loc parent_env ctx in
 
@@ -60,6 +60,7 @@ let rec solve_forward_refs ?(meta_variables=[])
                       id_name,
                       lt_specs,
                       TAst.PrevPassNode params,
+                      ml,
                       opt_ret_type |> Option.map (fun x -> TAst.PrevPassNode x),
                       instance_cond |> Option.map (fun x -> TAst.PrevPassNode x),
                       TAst.PrevPassNode body,

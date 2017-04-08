@@ -620,7 +620,8 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
                           | Not_found ->
                              begin
                                try Ctx.find_metaval_by_env ctx rel_env with
-                               | Not_found -> failwith "[ICE] variable env is not found"
+                               | Not_found ->
+                                  failwith "[ICE] variable(meta) env is not found"
                              end
             in
             let (llval, is_addr) = match var_llr with
@@ -847,6 +848,10 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
      TAst.debug_print_storage (!sto);
 
      generate_code ~storage:(Some !sto) e prev_fi ctx
+
+  | TAst.Undef ty ->
+     let llty = lltype_of_typeinfo ty ctx in
+     (L.undef llty, ty, false, prev_fi)
 
   | _ ->
      failwith "cannot generate : node"
@@ -1795,6 +1800,11 @@ let inject_builtins ctx =
 
   (* for type *)
   let () =
+    let open Builtin_info in
+    (* TODO: fix *)
+    let init _ = L.const_int (L.i64_type ctx.ir_context) 0 in
+    define_special_members type_type_i init;
+
     let () = (* ==(:type, :type): bool *)
       let f _ _ args ctx =
         assert (Array.length args = 2);
