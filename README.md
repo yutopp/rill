@@ -6,7 +6,7 @@
 [![Circle CI](https://circleci.com/gh/yutopp/rill.png?style=badge)](https://circleci.com/gh/yutopp/rill)
 [![Coverage Status](https://coveralls.io/repos/github/yutopp/rill/badge.svg?branch=master)](https://coveralls.io/github/yutopp/rill?branch=master)
 
-Rill-lang is a programming language for java sparrow.
+Rill-lang is a programming language for java sparrow.  
 This repository contains the implementation of Rill language.
 
 Rill is designed for systems programming.
@@ -77,7 +77,7 @@ opam upgrade rill-dev.0.0.1-dev
 
 ### Use OMake directly
 
-First, please install libraries and packages. See [Requirements](#requirements) and [Preparation](#preparation).
+First, please install libraries and packages. See [Requirements](#requirements) and [Preparation](#preparation).  
 Next, run the commands below.
 
 ```
