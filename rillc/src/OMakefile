@@ -78,7 +78,7 @@ if $(not $(OCAMLFIND_EXISTS))
 #
 # Various options
 #
-OCAMLFLAGS    += -warn-error A
+OCAMLFLAGS    += -warn-error A -color always
 
 if $(equal $(RELEASE), true)
    # do nothing...
