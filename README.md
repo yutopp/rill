@@ -25,7 +25,7 @@ Rill is designed for systems programming.
 + OCaml {build} (>= 4.04.0)
 + OPAM {build} (>= 1.2)
 + OMake {build} (= 0.10.2)
-+ LLVM (>= 3.9.0)
++ LLVM (>= 4.0.0)
 + GCC (>= 5.4.0)
 
 ## Development
@@ -38,7 +38,7 @@ Rill is designed for systems programming.
 ### Preparation
 
 ```
-opam install omake.0.10.2 menhir batteries ctypes-foreign stdint ocamlgraph llvm.3.9
+opam install omake.0.10.2 menhir batteries ctypes-foreign stdint ocamlgraph llvm.4.0.0
 opam install ounit                  # for unit testing
 opam install bisect_ppx ocveralls   # for coverage
 eval `opam config env`

@@ -133,8 +133,8 @@ let debug_params_and_args param_tys_and_addrs args =
                 debug_dump_value llval
                ) param_tys_and_addrs (Array.to_list args);
 
-
 exception Discontinue_code_generation of FI.t
+
 let discontinue_when_expr_terminated fi =
   if FI.has_terminator fi then
     raise (Discontinue_code_generation fi)
@@ -1431,8 +1431,10 @@ and define_function kind fn_spec opt_body fenv fi ctx =
 
   if force_inline then
     begin
-      L.add_function_attr f L.Attribute.Alwaysinline;
-      L.add_function_attr f L.Attribute.Nounwind;
+      let always_inline = L.create_enum_attr ctx.ir_context "alwaysinline" 0L in
+      L.add_function_attr f always_inline L.AttrIndex.Function;
+      let no_unwind = L.create_enum_attr ctx.ir_context "nounwind" 0L in
+      L.add_function_attr f no_unwind L.AttrIndex.Function;
       L.set_linkage L.Linkage.Private f;
       ()
     end;
