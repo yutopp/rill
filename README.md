@@ -37,6 +37,10 @@ Rill is designed for systems programming.
 
 ### Preparation
 
+Install packages to a host machine directly or use docker.
+
+#### Install packages directly
+
 ```
 opam install omake.0.10.2 menhir batteries ctypes-foreign stdint ocamlgraph llvm.4.0.0
 opam install ounit                  # for unit testing
@@ -44,7 +48,18 @@ opam install bisect_ppx ocveralls   # for coverage
 eval `opam config env`
 ```
 
-`opam update` might be required to install these packages.
+`opam update` might be required to install these packages.  
+NOTE: Some packages(e.g. LLVM) required native libraries. Please build or install native libraries before installing opam packages.
+
+#### Use docker
+
+The docker image `yutopp/rill-build-env` will provide an enviroment which satisfies requirements for developing the Rill language. Build or download the image like below.
+`docker build --squash -t yutopp/rill-build-env -f ./test/Dockerfile ./test`
+or
+`docker pull yutopp/rill-build-env:latest`
+
+Then, enter into the container.
+`docker run -it --rm -v $(pwd):/cibase yutopp/rill-build-env`
 
 ### Build
 

@@ -1,6 +1,6 @@
 FROM ubuntu:16.04
 
-MAINTAINER yutopp
+LABEL maintainer yutopp
 
 # Setup
 RUN apt-get update -qq -y && \
@@ -9,10 +9,12 @@ RUN apt-get update -qq -y && \
     apt-get clean -qq -y && \
     rm -rf /var/lib/apt/lists/*
 
-# Download LLVM 3.9.1
-# https://llvm.org/svn/llvm-project/llvm/tags/RELEASE_391/final/CMakeLists.txt
-RUN wget -q http://www.llvm.org/releases/3.9.1/llvm-3.9.1.src.tar.xz -O - | tar -xJ
-RUN cd llvm-3.9.1.src && \
+# Download LLVM 4.0.0
+# https://llvm.org/svn/llvm-project/llvm/tags/RELEASE_400/final/CMakeLists.txt
+ENV llvm_version 4.0.0
+
+RUN wget -q http://www.llvm.org/releases/${llvm_version}/llvm-${llvm_version}.src.tar.xz -O - | tar -xJ
+RUN cd llvm-${llvm_version}.src && \
     mkdir build && \
     cd build && \
     cmake -G 'Unix Makefiles' \
@@ -35,22 +37,22 @@ RUN cd llvm-3.9.1.src && \
           ..
 
 # Build LLVM for static lib
-RUN cd llvm-3.9.1.src/build && \
+RUN cd llvm-${llvm_version}.src/build && \
     cmake --build . --target package/fast -- -j4 && \
     cmake --build . --target llvm-config/fast -- -j4
-RUN cd llvm-3.9.1.src/build && \
+RUN cd llvm-${llvm_version}.src/build && \
     cmake --build . --target install && \
     cp bin/llvm-config /usr/local/bin/.
 
 # Clean up LLVM src
-RUN rm -rf llvm-3.9.1.src
+RUN rm -rf llvm-${llvm_version}.src
 
 # Install OCaml and packages
 RUN wget https://raw.github.com/ocaml/opam/master/shell/opam_installer.sh -O - | sh -s /usr/local/bin && \
     OPAMKEEPBUILDDIR=false OPAMBUILDDOC=false opam init -y -a --comp=4.04.0 && \
     OPAMKEEPBUILDDIR=false OPAMBUILDDOC=false OPAMDOWNLOADJOBS=1 \
     opam install omake.0.10.2 menhir batteries ctypes-foreign \
-                 stdint ocamlgraph llvm.3.9 \
+                 stdint ocamlgraph llvm.${llvm_version} \
                  ounit bisect_ppx ocveralls && \
     \
     rm ~/.opam/archives/* && \

@@ -1,38 +1,21 @@
-machine:
-  services:
-    - docker
+version: 2
+jobs:
+  build:
+    docker:
+      - image: yutopp/rill-build-env:latest
 
-dependencies:
-  cache_directories:
-    - "~/docker"
-  override:
-    - docker info
-    - if [ -e ~/docker/cacheimg.tar ]; then docker load < ~/docker/cacheimg.tar; fi
-    - docker pull yutopp/rill-build-env
-    - mkdir -p ~/docker
-    - docker save yutopp/rill-build-env > ~/docker/cacheimg.tar
+    working_directory: /cibase
 
-compile:
-  override:
-    - >
-      docker run
-      -v $(pwd):/cibase
-      yutopp/rill-build-env
-      /bin/bash ./test/build.sh
-
-test:
-  override:
-    - >
-      docker run
-      -v $(pwd):/cibase
-      -v $CIRCLE_ARTIFACTS:/artifacts
-      yutopp/rill-build-env
-      /bin/bash ./test/run.sh
-  post:
-    - >
-      docker run
-      -v $(pwd):/cibase
-      -v $CIRCLE_ARTIFACTS:/artifacts
-      -e "COVERALLS_REPO_TOKEN=$COVERALLS_REPO_TOKEN"
-      yutopp/rill-build-env
-      /bin/bash ./test/coverage.sh
+    steps:
+      - checkout
+      - run:
+          name: build
+          command: ./test/build.sh
+      - run:
+          name: test
+          command: ./test/run.sh
+      - run:
+          name: coverage
+          command: ./test/coverage.sh
+      - store_artifacts:
+          path: /artifacts
