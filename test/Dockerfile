@@ -38,7 +38,8 @@ RUN cd llvm-${llvm_version}.src && \
 
 # Build LLVM for static lib
 RUN cd llvm-${llvm_version}.src/build && \
-    cmake --build . --target package/fast -- -j4 && \
+    cmake --build . --target package/fast -- -j4
+RUN cd llvm-${llvm_version}.src/build && \
     cmake --build . --target llvm-config/fast -- -j4
 RUN cd llvm-${llvm_version}.src/build && \
     cmake --build . --target install && \
@@ -48,19 +49,26 @@ RUN cd llvm-${llvm_version}.src/build && \
 RUN rm -rf llvm-${llvm_version}.src
 
 # Install OCaml and packages
-RUN wget https://raw.github.com/ocaml/opam/master/shell/opam_installer.sh -O - | sh -s /usr/local/bin && \
-    OPAMKEEPBUILDDIR=false OPAMBUILDDOC=false opam init -y -a --comp=4.04.0 && \
-    OPAMKEEPBUILDDIR=false OPAMBUILDDOC=false OPAMDOWNLOADJOBS=1 \
-    opam install omake.0.10.2 menhir batteries ctypes-foreign \
-                 stdint ocamlgraph llvm.${llvm_version} \
-                 ounit bisect_ppx ocveralls && \
-    \
-    rm ~/.opam/archives/* && \
+RUN wget https://raw.github.com/ocaml/opam/master/shell/opam_installer.sh -O - | sh -s /usr/local/bin
+ENV OPAMKEEPBUILDDIR false
+ENV OPAMBUILDDOC false
+ENV OPAMDOWNLOADJOBS 1
+RUN opam init -y -a --comp=4.04.0
+RUN opam install omake.0.10.2 menhir batteries ctypes-foreign stdint ocamlgraph
+RUN opam install ounit bisect_ppx ocveralls
+RUN opam install llvm.${llvm_version}
+RUN cp ~/.opam/4.04.0/lib/llvm/static/*.cmxa ~/.opam/4.04.0/lib/llvm/. # adhoc
+RUN rm ~/.opam/archives/* && \
     rm ~/.opam/repo/default/archives/* && \
     rm ~/.opam/4.04.0/bin/*.byte && \
     rm -r ~/.opam/repo/default/packages/* && \
     rm -r ~/.opam/repo/default/compilers/*
 
 #
+RUN echo 'eval `opam config env`' > ~/.bashrc
+
+#
 RUN mkdir /cibase
 WORKDIR /cibase
+
+ENTRYPOINT ["/bin/bash"]
