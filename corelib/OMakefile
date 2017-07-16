@@ -41,7 +41,9 @@ CFLAGS += -fPIC -nostdlib -std=c11
 CORE_LIB_SRC_DIR = $(dir src)
 .SUBDIRS: src/core
     %.o: %.rill build_rillc
-        $(RILLC_BIN) -c $< --no-corelib --no-stdlib --system-lib $(CORE_LIB_SRC_DIR) -o $@
+        $(RILLC_BIN) -c $< --ignore-default-system-import \
+                           --system-import-dir $(CORE_LIB_SRC_DIR) \
+                           --no-link-corelib --no-link-stdlib  -o $@
 
     clean:
         rm -f *~ *.o *.ll *.bc *.out

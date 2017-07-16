@@ -19,7 +19,8 @@ end
 let version = ?VERSION
 let is_release = ?RELEASE
 let use_local_dev_lib = ?USE_LOCAL_DEV_LIB
-let default_includes = [Filename.concat Build_info.include_dir "rill"]
+let default_system_import_dirs = [Filename.concat Build_info.include_dir "rill"]
+
 (* TODO: fix constant. check static/shared lib *)
 let default_core_lib_dir = Build_info.lib_dir
 let default_core_lib_name = "rillcore-rt"

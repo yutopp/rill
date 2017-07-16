@@ -51,7 +51,7 @@ module Make (Cgt : CONTEXT_TYPE) =
       mutable defined_env       : EnvIdSet.t;
       type_sets                 : 'env Type_sets.type_sets_t;
       uni_map                   : ('ty, 'v) Unification.t;
-      target_module_id          : Env_system.EnvId.t option;
+      target_module             : 'env option;
 
       external_functions        : (string, Cgt.ir_value_t) Hashtbl.t;
       processing_functions      : Cgt.ir_value_t Stack.t;
@@ -61,8 +61,13 @@ module Make (Cgt : CONTEXT_TYPE) =
      and ('env, 'c_id, 'ty, 'v) value_t =
        ('ty, (('env, 'c_id, 'ty, 'v) t)) Cgt.value_t
 
-    let init ~ir_context ~ir_builder ~ir_module ~ir_intrinsics
-             ~type_sets ~uni_map ~target_module_id =
+    let init ~ir_context
+             ~ir_builder
+             ~ir_module
+             ~ir_intrinsics
+             ~type_sets
+             ~uni_map
+             ~target_module =
       {
         ir_context = ir_context;
         ir_builder = ir_builder;
@@ -78,13 +83,16 @@ module Make (Cgt : CONTEXT_TYPE) =
         defined_env = EnvIdSet.empty;
         type_sets = type_sets;
         uni_map = uni_map;
-        target_module_id = target_module_id;
+        target_module = target_module;
 
         external_functions = Hashtbl.create 32;
         processing_functions = Stack.create ();
 
         places_for_sto_array_elem = Stack.create ();
       }
+
+    let target_module ctx =
+      ctx.target_module
 
     (**)
     let mark_env_as_defined ctx env =

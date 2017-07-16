@@ -43,9 +43,10 @@ CORE_LIB_LIB_DIR = $(dir ../corelib/lib)
 STD_LIB_SRC_DIR = $(dir src)
 .SUBDIRS: src/std
     %.o: %.rill build_rillc build_corelib
-        $(RILLC_BIN) -c $< --no-stdlib --system-lib $(CORE_LIB_SRC_DIR) \
-                                       -L $(CORE_LIB_LIB_DIR) \
-                                       --system-lib $(STD_LIB_SRC_DIR) -o $@
+        $(RILLC_BIN) -c $< --ignore-default-system-import \
+                           --system-import-dir $(CORE_LIB_SRC_DIR) -L $(CORE_LIB_LIB_DIR) \
+                           --system-import-dir $(STD_LIB_SRC_DIR) \
+                           --no-link-stdlib -o $@
 
     clean:
         rm -f *~ *.o *.ll *.bc *.out

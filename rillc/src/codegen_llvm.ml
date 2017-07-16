@@ -90,7 +90,7 @@ let make_default_context ~type_sets ~uni_map ~target_module =
     ~ir_intrinsics:ir_intrinsics
     ~type_sets:type_sets
     ~uni_map:uni_map
-    ~target_module_id:(target_module |> Option.map Env.get_id)
+    ~target_module:target_module
 
 
 let llval_i1 v ctx =
@@ -936,9 +936,10 @@ and ctfe_val_to_llval ctfe_val prev_fi ctx =
 
 and is_in_other_module ctx env =
   let open Ctx in
-  match ctx.target_module_id with
+  match Ctx.target_module ctx with
   | None -> false
-  | Some target_module_id ->
+  | Some target_module ->
+     let target_module_id = Env.get_id target_module in
      let module_env_id = match Env.get_module_env_id env with
        | Some e -> e
        | None -> failwith "[ICE]"
@@ -2275,7 +2276,7 @@ exception FailedToBuildBytecode
 let create_object_from_ctx ctx options out_filepath =
   let open Ctx in
 
-  let timer = Debug.Timer.create () in
+
   Debug.reportf "= GENERATE_OBJECT(%s)" out_filepath;
 
   let basic_name =
@@ -2289,20 +2290,49 @@ let create_object_from_ctx ctx options out_filepath =
 
   (* output object file from llvm module *)
   let bin_name = basic_name ^ ".o" in
-  Codegen_llvm_object.emit_file bin_name ctx.ir_module;
-
-  Debug.reportf "= GENERATE_OBJECT(%s) %s"
-                out_filepath (Debug.Timer.string_of_elapsed timer);
+  Codegen_llvm_object.emit_file bin_name ctx.ir_module Codegen_format.OfObject;
 
   bin_name
 
-let create_object node out_filepath ctx =
+let emit ~type_sets ~uni_map ~target_module
+         triple format out_filepath =
+  let ctx =
+    make_default_context ~type_sets:type_sets
+                         ~uni_map:uni_map
+                         ~target_module:(Some target_module)
+  in
   inject_builtins ctx;
 
-  let timer = Debug.Timer.create () in
-  Debug.reportf "= GENERATE_CODE(%s)" out_filepath;
-  let _ = generate_code node FI.empty ctx in
-  Debug.reportf "= GENERATE_CODE(%s) %s" out_filepath (Debug.Timer.string_of_elapsed timer);
+  let node = target_module.Env.rel_node |> Option.get in
+
+  let _ =
+    let timer = Debug.Timer.create () in
+    Debug.reportf "= GENERATE_CODE(%s)"
+                  out_filepath;
+    let _ = generate_code node FI.empty ctx in
+    Debug.reportf "= GENERATE_CODE(%s) %s"
+                  out_filepath
+                  (Debug.Timer.string_of_elapsed timer)
+  in
+
+  (* TODO: fix *)
+  let _ =
+    (*let triple = LT.Target.default_triple () in*)
+    L.set_target_triple triple ctx.Ctx.ir_module
+  in
+
+  let _ =
+    let timer = Debug.Timer.create () in
+    Debug.reportf "= GENERATE_OBJECT(%s)" out_filepath;
+    let () = Codegen_llvm_object.emit_file out_filepath ctx.Ctx.ir_module format in
+    Debug.reportf "= GENERATE_OBJECT(%s) %s"
+                  out_filepath
+                  (Debug.Timer.string_of_elapsed timer)
+  in
+  Ok out_filepath
+
+let create_object node out_filepath ctx =
+  inject_builtins ctx;
 
   debug_dump_module ctx.Ctx.ir_module;
   create_object_from_ctx ctx [] out_filepath

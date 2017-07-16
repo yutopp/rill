@@ -10,9 +10,14 @@ open Batteries
 module L = Llvm
 module LT = Llvm_target
 
+type file_type =
+  | FtAssembly
+  | FtObject
+
+(* at cpp_ext *)
 external rillc_initialize_llvm_codegen : unit -> unit
   = "rillc_cg_initialize_llvm_codegen"
-external rillc_emit_file_for_target : L.llmodule -> string -> unit
+external rillc_emit_file_for_target : L.llmodule -> file_type -> string -> unit
   = "rillc_cg_emit_file_for_target_machine"
 
 let initialize_codegen =
@@ -27,19 +32,24 @@ let initialize_codegen =
   in
   initialize
 
+let () =
+  initialize_codegen ()
+
 (* TODO: support many options *)
-let emit_file filepath m =
-  (* TODO: set this on elsewhere *)
-  let triple = LT.Target.default_triple () in
-  L.set_target_triple triple m;
+let emit_file filepath m object_format =
+  (*let _ =
+    LT.Target.all ()
+    |> List.map LT.Target.name
+    |> List.map (Debug.printf "-> %s")
+  in*)
 
   (* data layout *)
   (* let dl = LT.TargetMachine.data_layout target_machine in
   L.set_data_layout (LT.DataLayout.as_string dl) m;*)
 
   Debug.printf "module: TRIPLE: %s / DATA_LAYOUT: %s\n%!"
-                (triple)
-                (L.data_layout m);
+               (L.target_triple m)
+               (L.data_layout m);
 
   let () =
     match Llvm_analysis.verify_module m with
@@ -47,5 +57,11 @@ let emit_file filepath m =
     | None     -> ()
   in
 
-  initialize_codegen ();
-  rillc_emit_file_for_target m filepath
+  let file_type =
+    match object_format with
+    | Codegen_format.OfAssembly -> FtAssembly
+    | Codegen_format.OfObject -> FtObject
+    | _ -> failwith "[ERR]"
+  in
+
+  rillc_emit_file_for_target m file_type filepath

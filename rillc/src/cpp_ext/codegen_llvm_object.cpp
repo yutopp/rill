@@ -12,10 +12,12 @@
 #include <caml/mlvalues.h>
 #include <llvm-c/Core.h>    // LLVMModuleRef
 #include <llvm/CodeGen/Passes.h>
+#include <llvm/CodeGen/TargetPassConfig.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Target/TargetMachine.h>
+#include <llvm/Support/TargetSelect.h> // InitializeAllTargets, InitializeAllTargetMCs
 #include <llvm/Support/TargetRegistry.h>
 #include <llvm/Support/CodeGen.h>
 #include <llvm/Support/ToolOutputFile.h>
@@ -30,12 +32,19 @@ namespace detail {
     //
     void initialize_codegen()
     {
+        llvm::InitializeAllTargetInfos();
+        llvm::InitializeAllTargets();
+        llvm::InitializeAllTargetMCs();     // for object
+        llvm::InitializeAllAsmPrinters();   // for assembly
+
         llvm::PassRegistry& pass_registry = *llvm::PassRegistry::getPassRegistry();
         llvm::initializeCodeGen(pass_registry);
     }
 
     //
-    void emit_file_for_target_machine(llvm::Module& m, char const* const output_path)
+    void emit_for_target_machine(llvm::Module& m,
+                                 llvm::TargetMachine::CodeGenFileType const file_type,
+                                 llvm::raw_pwrite_stream& out)
     {
         auto const arch_name = "";
         auto triple = llvm::Triple(m.getTargetTriple());
@@ -44,6 +53,7 @@ namespace detail {
         llvm::Target const* target =
             llvm::TargetRegistry::lookupTarget(arch_name, triple, error_msg);
         if (error_msg != "") {
+            // TODO: add error handling
             std::cerr << "error: " << error_msg << std::endl;
         }
 
@@ -51,7 +61,7 @@ namespace detail {
         std::string cpu_name = "";
         std::string features = "";
         llvm::TargetOptions options;
-        llvm::Reloc::Model reloc_model = llvm::Reloc::PIC_;
+        llvm::Optional<llvm::Reloc::Model> reloc_model = llvm::Reloc::PIC_;
         llvm::CodeModel::Model code_model = llvm::CodeModel::Default;
         llvm::CodeGenOpt::Level opt_level = llvm::CodeGenOpt::Default;
 
@@ -65,8 +75,12 @@ namespace detail {
                                         code_model,
                                         opt_level);
         if (target_machine == nullptr) {
+            // TODO: add error handling
             std::cerr << "couldn't create target machine";
         }
+
+        // data layout
+        m.setDataLayout(target_machine->createDataLayout());
 
         //
         llvm::legacy::PassManager pm;
@@ -79,18 +93,12 @@ namespace detail {
         // TODO: add passes
 
         //
-        auto const open_flags = llvm::sys::fs::F_None; // llvm::sys::fs::F_Text;
-        std::error_code ec;
-        llvm::raw_fd_ostream out_buf{output_path, ec, open_flags};
-        if (ec) {
-            std::cerr << "out_buf" << error_msg << std::endl;
+        if (target_machine->addPassesToEmitFile(pm, out, file_type)) {
+            // TODO: add error handling
+            std::cerr << "failed to addPassesToEmitFile" << std::endl;
         }
 
-        auto const file_type = llvm::TargetMachine::CGFT_ObjectFile;
-        if (target_machine->addPassesToEmitFile(pm, out_buf, file_type)) {
-            std::cerr << "fail" << std::endl;
-        }
-
+        //
         pm.run(m);
     }
 }
@@ -105,10 +113,36 @@ extern "C" {
     }
 
     CAMLprim value
-    rillc_cg_emit_file_for_target_machine(LLVMModuleRef c_module, value output_path_rep)
+    rillc_cg_emit_file_for_target_machine(LLVMModuleRef c_module,
+                                          value file_type_rep,
+                                          value output_path_rep)
     {
         llvm::Module& m = *llvm::unwrap(c_module);
-        detail::emit_file_for_target_machine(m, String_val(output_path_rep));
+
+        auto file_type = llvm::TargetMachine::CGFT_Null;
+        switch (Int_val(file_type_rep)) {
+        case 0:
+            file_type = llvm::TargetMachine::CGFT_AssemblyFile;
+            break;
+        case 1:
+            file_type = llvm::TargetMachine::CGFT_ObjectFile;
+            break;
+        default:
+            // TODO: add error handling
+            std::cerr << "unknown file_type: " << Int_val(file_type_rep) << std::endl;
+            return Val_unit;
+        };
+
+        //
+        auto const open_flags = llvm::sys::fs::F_None;
+        std::error_code ec;
+        llvm::raw_fd_ostream out_buf{String_val(output_path_rep), ec, open_flags};
+        if (ec) {
+            // TODO: add error handling
+            std::cerr << "out_buf" << ec << std::endl;
+        }
+
+        detail::emit_for_target_machine(m, file_type, out_buf);
 
         return Val_unit;
     }

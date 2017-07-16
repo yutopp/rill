@@ -25,6 +25,13 @@
 RILL_VERSION = 0.0.1-dev
 
 ########################################################################
+# TODO: select suitable one
+# RILL_HOST = x86_64-unknown-linux
+# RILL_TARGETS[] =
+#     x86_64-unknown-linux
+#     wasm32-unknown-unknown
+
+########################################################################
 # Subdirectories.
 # You may want to include some subdirectories in this project.
 # If so, define the subdirectory targets and uncomment this section.

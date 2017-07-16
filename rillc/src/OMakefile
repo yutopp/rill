@@ -126,7 +126,7 @@ parser_messages.ml:
 
 OCamlGeneratedFiles(lexer.ml)
 
-config.ml: :value: $(PREFIX) :value: $(BIN_DIR) :value: $(LIB_DIR) :value: $(INCLUDE_DIR) :value: $(RELEASE) :value: $(USE_LOCAL_DEV_LIB)
+config.ml: config.ml.template :value: $(PREFIX) :value: $(BIN_DIR) :value: $(LIB_DIR) :value: $(INCLUDE_DIR) :value: $(RELEASE) :value: $(USE_LOCAL_DEV_LIB)
     section
         stdout = $(fopen config.ml, w)
         fsubst(config.ml.template)
@@ -178,6 +178,7 @@ FILES[] =
    sema_type
    sema_env
    codegen_context
+   codegen_format
    codegen_flowinfo
    codegen_option_spec
    codegen_llvm
@@ -212,32 +213,36 @@ OCamlLibrary($(LIB), $(FILES))
 #
 PROGRAM = rillc
 
+### LLVM specific
+OCAMLFIND_LLVM_VERSION = $(shell $(OCAMLFIND) query -format "%v" llvm)
+LLVM_VERSION_LIST = $(split ., $(OCAMLFIND_LLVM_VERSION))
+LLVM_MAJOR_VERSION = $(nth 0, $(LLVM_VERSION_LIST))
+LLVM_MINOR_VERSION = $(nth 1, $(LLVM_VERSION_LIST))
+# string like "4.0"
+LLVM_VERSION = $(LLVM_MAJOR_VERSION).$(LLVM_MINOR_VERSION)
+
+SelectLLVMConfig() =
+    candidates[] =
+        llvm-config-$(LLVM_VERSION)
+        llvm-config-mp-$(LLVM_VERSION)
+        llvm-config
+    foreach(bin => ..., $(candidates))
+        if $(exists-in-path $(bin))
+            return $(bin)
+    # error if llvm-config is not found in PATH
+    eprintln(llvm-config is not found in PATH:)
+    foreach(bin => ..., $(candidates))
+        eprintln(-> $(bin))
+    exit(1)
+LLVM_CONFIG = $(SelectLLVMConfig)
+
+LLVM_SHARED_MODE = $(shell $(LLVM_CONFIG) --shared-mode)
+LLVM_LIBFILES = $(shell $(LLVM_CONFIG) --libfiles)
+
 # C++ extentions (using LLVM)
 .SUBDIRS: cpp_ext
     FILES[] =
         codegen_llvm_object
-
-    OCAMLFIND_LLVM_VERSION = $(shell $(OCAMLFIND) query -format "%v" llvm)
-    LLVM_VERSION_LIST = $(split ., $(OCAMLFIND_LLVM_VERSION))
-    LLVM_MAJOR_VERSION = $(nth 0, $(LLVM_VERSION_LIST))
-    LLVM_MINOR_VERSION = $(nth 1, $(LLVM_VERSION_LIST))
-    # string like "3.9"
-    LLVM_VERSION = $(LLVM_MAJOR_VERSION).$(LLVM_MINOR_VERSION)
-
-    SelectLLVMConfig() =
-        candidates[] =
-            llvm-config-$(LLVM_VERSION)
-            llvm-config-mp-$(LLVM_VERSION)
-            llvm-config
-        foreach(bin => ..., $(candidates))
-            if $(exists-in-path $(bin))
-                return $(bin)
-        # error if llvm-config is not found in PATH
-        eprintln(llvm-config is not found in PATH:)
-        foreach(bin => ..., $(candidates))
-            eprintln(-> $(bin))
-        exit(1)
-    LLVM_CONFIG = $(SelectLLVMConfig)
 
     CXXFLAGS += -std=c++11
     INCLUDES += $(shell $(LLVM_CONFIG) --includedir)
@@ -263,6 +268,18 @@ OCAML_CLIBS += cpp_ext/cpp_ext_lib
 # OCAML_OTHER_LIBS +=
 # OCAML_LIB_FLAGS +=
 #
+
+# add link insts for LLVM
+switch $(LLVM_SHARED_MODE)
+case static
+    OCAML_CLIBS += $(rootname $(LLVM_LIBFILES))
+    export
+case shared
+    OCAMLOPTFLAGS += -ccopt -l$(LLVM_LIBFILES)
+    export
+default
+    eprintln(unknown mode: $(LLVM_SHARED_MODE))
+    exit 1
 
 .DEFAULT: $(OCamlProgram $(PROGRAM), $(FILES))
 
