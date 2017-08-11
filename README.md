@@ -80,14 +80,14 @@ or `omake unit_test` and `omake e2e_test`
 ### Use OPAM
 
 ```
-opam pin add rill-dev .
-opam install rill-dev.0.0.1-dev
+opam pin add rill .
+opam install rill.0.0.1-dev
 ```
 
 and
 
 ```
-opam upgrade rill-dev.0.0.1-dev
+opam upgrade rill.0.0.1-dev
 ```
 
 ### Use OMake directly

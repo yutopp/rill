@@ -1,4 +1,4 @@
-opam-version: "1.2"
+opam-version: "1.2.2"
 name: "rill"
 version: "0.0.1-dev"
 maintainer: "yutopp <yutopp@gmail.com>"
@@ -13,6 +13,9 @@ available: [ocaml-version >= "4.04.0"]
 build: [
   [ "omake" "RELEASE=true" "PREFIX=%{prefix}%" ]
 ]
+build-test: [
+  [ "omake" test]
+]
 install: [
   [ "omake" "install" ]
 ]
@@ -21,14 +24,16 @@ remove: [
 ]
 
 depends: [
-  "menhir"
-  "batteries"
-  "ctypes-foreign"
-  "stdint"
-  "ocamlgraph"
-  "llvm"        {= "3.9"}
-  "omake"       {build & = "0.10.2"}
-  "ocamlfind"   {build}
-  "ounit"       {build}
-  "bisect_ppx"  {build}
+  "menhir"         {>= "20170712"}
+  "batteries"      {>= "2.6.0"   }
+  "ctypes"         {>= "0.4"     }
+  "ctypes-foreign" {>= "0.4.0"   }
+  "stdint"         {>= "0.3.0-0" }
+  "ocamlgraph"     {>= "1.8.7"   }
+  "llvm"           {>= "4.0.0"   }
+  "omake"          {build & >= "0.10.2"}
+  "ounit"          {test & >= "2.0.0" }
+  "bisect_ppx"     {test & >= "1.2.0" }
+  "ocamlbuild"     {build & >= "0.11.0"}
+  "ocamlfind"      {build & >= "1.7.3" }
 ]
