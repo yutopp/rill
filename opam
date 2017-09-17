@@ -30,7 +30,7 @@ depends: [
   "ctypes-foreign" {>= "0.4.0"   }
   "stdint"         {>= "0.3.0-0" }
   "ocamlgraph"     {>= "1.8.7"   }
-  "llvm"           {>= "4.0.0"   }
+  "llvm"           {>= "5.0.0"   }
   "omake"          {build & >= "0.10.2"}
   "ounit"          {test & >= "2.0.0" }
   "bisect_ppx"     {test & >= "1.2.0" }

@@ -9,9 +9,9 @@ RUN apt-get update -qq -y && \
     apt-get clean -qq -y && \
     rm -rf /var/lib/apt/lists/*
 
-# Download LLVM 4.0.0
-# https://llvm.org/svn/llvm-project/llvm/tags/RELEASE_400/final/CMakeLists.txt
-ENV llvm_version 4.0.0
+# Download LLVM 5.0.0
+# https://llvm.org/svn/llvm-project/llvm/tags/RELEASE_500/final/CMakeLists.txt
+ENV llvm_version 5.0.0
 
 RUN wget -q http://www.llvm.org/releases/${llvm_version}/llvm-${llvm_version}.src.tar.xz -O - | tar -xJ
 RUN cd llvm-${llvm_version}.src && \
