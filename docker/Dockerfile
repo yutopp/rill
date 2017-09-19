@@ -3,69 +3,80 @@ FROM ubuntu:16.04
 LABEL maintainer yutopp
 
 # Setup
-RUN apt-get update -qq -y && \
-    apt-get install -qq -y git wget curl unzip \
-                           g++ aspcud  cmake python m4 pkg-config libffi-dev && \
-    apt-get clean -qq -y && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update -y && \
+    apt-get install -y git wget curl unzip \
+                       g++ aspcud  cmake ninja-build python m4 pkg-config libffi-dev
 
-# Download LLVM 5.0.0
 # https://llvm.org/svn/llvm-project/llvm/tags/RELEASE_500/final/CMakeLists.txt
 ENV llvm_version 5.0.0
 
-RUN wget -q http://www.llvm.org/releases/${llvm_version}/llvm-${llvm_version}.src.tar.xz -O - | tar -xJ
+# Download LLVM 5.0.0
+RUN wget http://www.llvm.org/releases/${llvm_version}/llvm-${llvm_version}.src.tar.xz -O - | tar -xJ
 RUN cd llvm-${llvm_version}.src && \
     mkdir build && \
     cd build && \
-    cmake -G 'Unix Makefiles' \
+    cmake -G 'Ninja' \
           -DCMAKE_INSTALL_PREFIX=/usr/local \
           -DCMAKE_BUILD_TYPE=Release \
           -DLLVM_TARGETS_TO_BUILD="X86" \
-          -LLVM_TARGETS_WITH_JIT="X86" \
+          -DLLVM_TARGETS_WITH_JIT="X86" \
           -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD="WebAssembly" \
-          -LLVM_ENABLE_TERMINFO=OFF \
-          -LLVM_ENABLE_ZLIB=OFF \
-          -LLVM_INSTALL_TOOLCHAIN_ONLY=ON \
+          -DLLVM_ENABLE_TERMINFO=OFF \
+          -DLLVM_ENABLE_ZLIB=OFF \
+#          -DLLVM_INSTALL_TOOLCHAIN_ONLY=ON \
           -DLLVM_BUILD_TOOLS=OFF \
           -DLLVM_INCLUDE_UTILS=OFF \
-          -LLVM_BUILD_UTILS=OFF \
+          -DLLVM_BUILD_UTILS=OFF \
           -DLLVM_INCLUDE_EXAMPLES=OFF \
           -DLLVM_INCLUDE_TESTS=OFF \
           -DLLVM_INCLUDE_GO_TESTS=OFF \
-          -LLVM_INCLUDE_DOCS=OFF \
-          -LLVM_BUILD_DOCS=OFF \
+          -DLLVM_INCLUDE_DOCS=OFF \
+          -DLLVM_BUILD_DOCS=OFF \
           ..
 
 # Build LLVM for static lib
 RUN cd llvm-${llvm_version}.src/build && \
-    cmake --build . --target package/fast -- -j4
+    ninja package
 RUN cd llvm-${llvm_version}.src/build && \
-    cmake --build . --target llvm-config/fast -- -j4
+    ninja llvm-config
+
+# Install LLVM
 RUN cd llvm-${llvm_version}.src/build && \
-    cmake --build . --target install && \
-    cp bin/llvm-config /usr/local/bin/.
+    ninja install && \
+    cp bin/llvm-config /usr/local/bin/. # adhoc
 
 # Clean up LLVM src
 RUN rm -rf llvm-${llvm_version}.src
+
+# OCaml version
+ENV ocaml_version 4.04.2
 
 # Install OCaml and packages
 RUN wget https://raw.github.com/ocaml/opam/master/shell/opam_installer.sh -O - | sh -s /usr/local/bin
 ENV OPAMKEEPBUILDDIR false
 ENV OPAMBUILDDOC false
 ENV OPAMDOWNLOADJOBS 1
-RUN opam init -y -a --comp=4.04.0
+RUN opam init -y -a --comp=${ocaml_version}
 RUN opam install omake.0.10.2 menhir batteries ctypes-foreign stdint ocamlgraph
 RUN opam install ounit bisect_ppx ocveralls
-RUN opam install llvm.${llvm_version}
-RUN cp ~/.opam/4.04.0/lib/llvm/static/*.cmxa ~/.opam/4.04.0/lib/llvm/. # adhoc
+# RUN opam install llvm.${llvm_version}
+# BEGIN: adhoc for WebAssembly
+RUN opam install llvm.${llvm_version} --fake
+COPY patches ~/patches
+RUN patch ~/.opam/packages/llvm/llvm.${llvm_version}/files/install.sh ~/patches/opam_llvm.5.0.0_install.sh.patch
+RUN opam reinstall llvm.${llvm_version}
+# END: adhoc for WebAssembly
+RUN cp ~/.opam/${ocaml_version}/lib/llvm/static/*.cmxa ~/.opam/${ocaml_version}/lib/llvm/. # adhoc
 RUN rm ~/.opam/archives/* && \
     rm ~/.opam/repo/default/archives/* && \
-    rm ~/.opam/4.04.0/bin/*.byte && \
+    rm ~/.opam/${ocaml_version}/bin/*.byte && \
     rm -r ~/.opam/repo/default/packages/* && \
     rm -r ~/.opam/repo/default/compilers/*
 
 #
 RUN echo 'eval `opam config env`' > ~/.bashrc
+
+RUN apt-get clean -qq -y && rm -rf /var/lib/apt/lists/*
 
 #
 RUN mkdir /cibase

@@ -53,10 +53,10 @@ NOTE: Some packages(e.g. LLVM) required native libraries. Please build or instal
 
 #### Use docker
 
-The docker image `yutopp/rill-build-env` will provide an enviroment which satisfies requirements for developing the Rill language. Build or download the image like below.
-`docker build --squash -t yutopp/rill-build-env -f ./test/Dockerfile ./test`
-or
-`docker pull yutopp/rill-build-env:latest`
+The docker image `yutopp/rill-build-env` will provide an enviroment which satisfies requirements for developing the Rill language. Pull or build the image like below.
+`docker pull yutopp/rill-build-env:latest`  
+or  
+`docker build --squash -t yutopp/rill-build-env -f ./docker/Dockerfile ./docker`
 
 Then, enter into the container.
 `docker run -it --rm -v $(pwd):/cibase yutopp/rill-build-env`
