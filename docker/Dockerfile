@@ -23,7 +23,6 @@ RUN cd llvm-${llvm_version}.src && \
           -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD="WebAssembly" \
           -DLLVM_ENABLE_TERMINFO=OFF \
           -DLLVM_ENABLE_ZLIB=OFF \
-#          -DLLVM_INSTALL_TOOLCHAIN_ONLY=ON \
           -DLLVM_BUILD_TOOLS=OFF \
           -DLLVM_INCLUDE_UTILS=OFF \
           -DLLVM_BUILD_UTILS=OFF \
@@ -36,7 +35,7 @@ RUN cd llvm-${llvm_version}.src && \
 
 # Build LLVM for static lib
 RUN cd llvm-${llvm_version}.src/build && \
-    ninja package
+    ninja
 RUN cd llvm-${llvm_version}.src/build && \
     ninja llvm-config
 
@@ -59,12 +58,16 @@ ENV OPAMDOWNLOADJOBS 1
 RUN opam init -y -a --comp=${ocaml_version}
 RUN opam install omake.0.10.2 menhir batteries ctypes-foreign stdint ocamlgraph
 RUN opam install ounit bisect_ppx ocveralls
-# RUN opam install llvm.${llvm_version}
 # BEGIN: adhoc for WebAssembly
-RUN opam install llvm.${llvm_version} --fake
-COPY patches ~/patches
-RUN patch ~/.opam/packages/llvm/llvm.${llvm_version}/files/install.sh ~/patches/opam_llvm.5.0.0_install.sh.patch
-RUN opam reinstall llvm.${llvm_version}
+RUN opam install llvm.${llvm_version} --deps-only
+RUN mkdir opam_source && \
+    cd opam_source && \
+    opam source llvm.${llvm_version}
+COPY patches /patches
+RUN cd opam_source/llvm.${llvm_version} && \
+    patch install.sh /patches/opam_llvm.5.0.0_install.sh.patch && \
+    patch opam /patches/opam_llvm.5.0.0_opam.patch && \
+    opam pin add llvm-custom . --kind=path
 # END: adhoc for WebAssembly
 RUN cp ~/.opam/${ocaml_version}/lib/llvm/static/*.cmxa ~/.opam/${ocaml_version}/lib/llvm/. # adhoc
 RUN rm ~/.opam/archives/* && \
