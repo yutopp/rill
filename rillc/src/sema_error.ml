@@ -110,7 +110,15 @@ let rec print ?(loc=None) err =
      Printf.printf "%s:\nError: requires %d but given %d\n"
                    (Loc.to_string loc) params_num args_num
 
-  | ConvErr (m, f_env) ->
+  | ConvErr (trg_ty, (src_ty, src_loc), env) ->
+     Printf.printf "Type mismatch at %s:\n"
+                   (show_env env);
+     Printf.printf "    expr   :  %s (%s)\n"
+                   (string_of_loc_region src_loc) (Loc.to_string src_loc);
+     Printf.printf "    found  :  %s\n" (Type.to_string src_ty);
+     Printf.printf "    expect :  %s\n" (Type.to_string trg_ty);
+
+  | ArgConvErr (m, f_env) ->
      Printf.printf "Type mismatch to call %s:\n"
                    (show_env f_env);
      let p k (trg_ty, (src_ty, src_loc), level) =
@@ -132,8 +140,9 @@ let rec print ?(loc=None) err =
      List.iter (fun err -> print err; Printf.printf "\n") errs
 
   | NoMatch (errs, loc) ->
-     Printf.printf "%s:\nError: There is no matched function\n"
-                   (Loc.to_string loc);
+     Printf.printf "%s:\nError: There are no matched functions (candidate: %d)\n"
+                   (Loc.to_string loc)
+                   (List.length errs);
      List.iter (fun err -> print err; Printf.printf "\n") errs
 
   | MemberNotFound (env, history, loc) ->
@@ -197,9 +206,17 @@ let rec print ?(loc=None) err =
      in
      List.iter (fun env -> show_env env |> Printf.printf "%s\n") history
 
+let store_error_message err ctx =
+  ctx.sc_errors <- err :: ctx.sc_errors
+
 let process_error err ctx =
   Printf.printf "\n===============================\n";
   print err;
-  store_error_message "" ctx;
+  store_error_message err ctx;
   Printf.printf "\n===============================\n";
   ()
+
+let print_errors ctx =
+  List.iter (fun err ->
+             process_error err ctx
+            ) ctx.sc_errors

@@ -202,7 +202,7 @@ module Make (Ctx : NodeContextType) =
 
       | EmptyStmt ->
          begin
-           Debug.printf "EMPTY\n";
+           Debug.printf "EmptyStmt\n";
          end
 
       | BinaryOpExpr (lhs, op, rhs, _) ->

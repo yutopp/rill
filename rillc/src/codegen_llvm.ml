@@ -616,29 +616,14 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
             Debug.printf "variable %s / type => %s\n"
                          (Id_string.to_string name)
                          (Type.to_string r.Env.var_type);
-            let var_llr = try Ctx.find_val_by_env ctx rel_env with
-                          | Not_found ->
-                             begin
-                               try Ctx.find_metaval_by_env ctx rel_env with
-                               | Not_found ->
-                                  (* TODO: fix. adhoc *)
-                                  let llval =
-                                    match (Type.to_string r.Env.var_type) with
-                                    | "ref(const(type))" ->
-                                       let ty = !(ctx.type_sets.Type_sets.ts_int32_type_holder) in
-                                       let itype_id = Option.get ty.Type_info.ti_id in
-                                       L.const_of_int64 (L.i64_type ctx.ir_context)
-                                                        itype_id
-                                                        Type_info.is_type_id_signed
-                                    | "ref(const(uint32))" ->
-                                       L.const_of_int64 (L.i32_type ctx.ir_context)
-                                                        (Int64.of_int 0)
-                                                        false
-                                    | _ ->
-                                       failwith "[ICE] variable(meta) env is not found"
-                                  in
-                                  LLValue (llval, false)
-                             end
+            let var_llr =
+              try Ctx.find_val_by_env ctx rel_env with
+              | Not_found ->
+                 try Ctx.find_metaval_by_env ctx rel_env with
+                 | Not_found ->
+                    failwith (Printf.sprintf "[ICE] variable(meta) env is not found: %s, %s"
+                                             (Meta_level.to_string rel_env.Env.meta_level)
+                                             (Type.to_string r.Env.var_type))
             in
             let (llval, is_addr) = match var_llr with
               | LLValue v -> v
@@ -686,6 +671,7 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
                                          Type_info.is_type_id_signed
             in
             let ty = ctx.type_sets.Type_sets.ts_type_type in
+
             (llval, ty, false, prev_fi(* TODO *))
           end
 
@@ -1638,17 +1624,16 @@ let inject_builtins ctx =
    *)
   let () =
     (* sizeof is onlymeta function *)
-    let f _ _ args ctx =
-      assert (Array.length args = 1);
-      let ty_val = args.(0) in
-      let ty = match L.int64_of_const ty_val with
-        | Some t_id ->
-           Type.Generator.find_type_by_cache_id ctx.type_sets.Type_sets.ts_type_gen t_id
+    let f template_args _ _ _args ctx =
+      assert (List.length template_args = 1);
+      assert (Array.length _args = 0);
+      let ty = match List.nth template_args 0 with
+        | Ctfe_value.Type ty -> ty
         | _ -> failwith "[ICE] failed to get a ctfed value"
       in
       llval_u32 (Type.size_of ty) ctx
     in
-    register_builtin_func "__builtin_sizeof" f
+    register_builtin_template_func "__builtin_sizeof" f
   in
 
   let () =
@@ -1824,26 +1809,24 @@ let inject_builtins ctx =
     let init _ = L.const_int (L.i64_type ctx.ir_context) 0 in
     define_special_members type_type_i init;
 
-    let () = (* ==(:type, :type): bool *)
-      let f _ _ args ctx =
-        assert (Array.length args = 2);
-        let lhs_ty_val = args.(0) in
-        let lhs_ty = match L.int64_of_const lhs_ty_val with
-          | Some t_id ->
-             Type.Generator.find_type_by_cache_id ctx.type_sets.Type_sets.ts_type_gen t_id
+    let () = (* ==(:type, :type) onlymeta: bool *)
+      let f template_args _ _ _args ctx =
+        assert (List.length template_args = 2);
+        assert (Array.length _args = 0);
+        let lhs_ty = match List.nth template_args 0 with
+          | Ctfe_value.Type ty -> ty
           | _ -> failwith "[ICE] failed to get a ctfed value"
         in
-        let rhs_ty_val = args.(1) in
-        let rhs_ty = match L.int64_of_const rhs_ty_val with
-          | Some t_id ->
-             Type.Generator.find_type_by_cache_id ctx.type_sets.Type_sets.ts_type_gen t_id
+        let rhs_ty = match List.nth template_args 1 with
+          | Ctfe_value.Type ty -> ty
           | _ -> failwith "[ICE] failed to get a ctfed value"
         in
         let _ = lhs_ty in
         let _ = rhs_ty in
-        llval_i1 (true) ctx (* TODO: fix *)
+        (* TODO: IMPLEMENT! *)
+        llval_i1 (true) ctx
       in
-      register_builtin_func "__builtin_op_binary_==_type_type" f
+      register_builtin_template_func "__builtin_op_binary_==_type_type" f
     in
     ()
   in

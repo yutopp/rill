@@ -55,6 +55,7 @@ OCAMLPACKS[] =
    ctypes
    stdint
    ocamlgraph
+   loga
 
 #
 if $(not $(OCAMLFIND_EXISTS))
@@ -83,7 +84,7 @@ OCAMLFLAGS    += -warn-error A -color always
 if $(equal $(RELEASE), true)
    # do nothing...
 else
-   OCAMLFLAGS    += -g -bin-annot
+   OCAMLFLAGS    += -g -bin-annot -annot
    OCAMLOPTFLAGS += -p
    export
 
@@ -177,6 +178,7 @@ FILES[] =
    sema_class
    sema_type
    sema_env
+   sema_builtin
    codegen_context
    codegen_format
    codegen_flowinfo

@@ -23,14 +23,14 @@ module Kind =
     type t =
         Module
       | Class
-      | Function
+      | Function of Meta_level.t
       | Variable
       | Other
 
     let to_string = function
       | Module -> "module"
       | Class -> "class"
-      | Function -> "function"
+      | Function _ -> "function"
       | Variable -> "variable"
       | Other -> "other"
   end
@@ -325,7 +325,7 @@ let rec kind_of_env e =
   match get_env_record e with
   | Root _ -> Kind.Other
   | Module _ -> Kind.Other
-  | Function _ -> Kind.Function
+  | Function _ -> Kind.Function e.meta_level
   | Class _ -> Kind.Class
   | Scope _ -> Kind.Other
   | _ -> failwith ""
@@ -474,6 +474,7 @@ let calc_nest_level ?(ext_nest_level=None) env =
  * it will be used for functions, classes and so on... *)
 let create_context_env ?(is_instantiated=false)
                        ?(ext_nest_level=None)
+                       ?(meta_level=Meta_level.Meta)
                        parent_env name er loc =
   let cur_id = EnvUniqId.generate () in
 
@@ -495,7 +496,7 @@ let create_context_env ?(is_instantiated=false)
     state = InComplete;
     closed = false;
     generics_constraints = [];
-    meta_level = Meta_level.Meta;
+    meta_level = meta_level;
     rel_node = None;
     callee_when_exit = [];
 
@@ -661,13 +662,15 @@ module ModuleOp =
 
 module MultiSetOp =
   struct
+    (* return (env, false) if env is found. otherwise return (new_env, true) *)
     let find_or_add env id_name k =
       let oe = find_on_env env id_name in
       match oe with
       (* Found *)
       | Some ({ er = (MultiSet { ms_kind = k; _ }); _} as e) ->
          (e, false)
-      | Some _ -> failwith "[ERR] suitable multienv is not found"
+      | Some _ ->
+         failwith "[ERR] suitable multienv is not found"
 
       (* *)
       | None ->
@@ -682,7 +685,7 @@ module MultiSetOp =
                ms_instanced_args_pre_caches = Hashtbl.create 0;
              }
          in
-         let e = create_scoped_env env (Id_string.Pure "") er None in
+         let e = create_scoped_env env id_name er None in
          let _ = add_inner_env env id_name e in
          (e, true)
 
@@ -691,7 +694,6 @@ module MultiSetOp =
       match er with
       | MultiSet (r) -> r
       | _ -> failwith "MultiSetOp.get_record : not multiset"
-
 
     let add_normal_instances menv env =
       let record = get_record menv in

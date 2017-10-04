@@ -188,7 +188,10 @@ let post_check_function_return_type env ctx =
  *)
 let declare_incomplete_ctor cenv =
   let loc = None in
-  let (base_env, _) = Env.MultiSetOp.find_or_add cenv ctor_id_name Env.Kind.Function in
+  let ml = Meta_level.Meta in
+  let (base_env, _) =
+    Env.MultiSetOp.find_or_add cenv ctor_id_name (Env.Kind.Function ml)
+  in
   let fenv_r = Env.FunctionOp.empty_record ctor_id_name in
 
   let fenv =

@@ -14,6 +14,7 @@ open Sema_error
 
 let rec solve_forward_refs ?(meta_variables=[])
                            ?(opt_attr=None)
+                           ?(execution_level=Meta_level.Runtime)
                            node parent_env ctx =
   match node with
   | Ast.StatementList (nodes) ->
@@ -29,7 +30,7 @@ let rec solve_forward_refs ?(meta_variables=[])
           (* TODO: fix *)
           failwith "[ICE] normal error"
        | Fatal_error err as exn ->
-          Sema_error.process_error err ctx;
+          Sema_error.store_error_message err ctx;
           raise exn
      end
 
@@ -54,26 +55,74 @@ let rec solve_forward_refs ?(meta_variables=[])
 
   | Ast.FunctionDefStmt (id_name, lt_specs, params, ml, opt_ret_type, instance_cond, body, None, loc) ->
      begin
-       let fenv = declare_pre_function id_name meta_variables loc parent_env ctx in
+       match (ml, execution_level) with
+       | (Meta_level.OnlyMeta, Meta_level.Runtime) ->
+          let base_kind = Env.Kind.Function Meta_level.OnlyMeta in
+          let (base_env, is_env_created) =
+            Env.MultiSetOp.find_or_add parent_env id_name base_kind
+          in
 
-       let node = TAst.FunctionDefStmt (
-                      id_name,
-                      lt_specs,
-                      TAst.PrevPassNode params,
-                      ml,
-                      opt_ret_type |> Option.map (fun x -> TAst.PrevPassNode x),
-                      instance_cond |> Option.map (fun x -> TAst.PrevPassNode x),
-                      TAst.PrevPassNode body,
-                      opt_attr,
-                      (loc, Some fenv)
-                    ) in
-       Env.update_rel_ast fenv node;
-       node
+          let param_inits =
+            match params with
+            | Ast.ParamsList param_inits -> param_inits
+            | _ -> failwith "[ICE]"
+          in
+          let template_param_inits =
+            param_inits
+            |> List.mapi (fun n (attr, opt_id, value_init) ->
+                          let id =
+                            Option.default_delayed
+                              (fun () -> Id_string.Pure (Printf.sprintf "_%d" n))
+                              opt_id
+                          in
+                          (id, Some value_init)
+                        )
+          in
+
+          let inner_node =
+            Ast.FunctionDefStmt (id_name,
+                                 lt_specs,
+                                 Ast.ParamsList [],
+                                 ml,
+                                 opt_ret_type,
+                                 instance_cond,
+                                 body,
+                                 None,
+                                 loc)
+          in
+          let template_params = Ast.TemplateParamsList template_param_inits in
+          let template_env_r = {
+            Env.tl_name = id_name;
+            Env.tl_params = TAst.NotInstantiatedNode (template_params, None);
+            Env.tl_inner_node = TAst.NotInstantiatedNode (inner_node, opt_attr);
+          } in
+          let base_env_r = Env.MultiSetOp.get_record base_env in
+          base_env_r.Env.ms_templates <- template_env_r :: base_env_r.Env.ms_templates;
+
+          (* regards as no statement *)
+          TAst.EmptyStmt
+       | _ ->
+          let fenv = declare_pre_function id_name ml meta_variables loc parent_env ctx in
+
+          let node = TAst.FunctionDefStmt (
+                         id_name,
+                         lt_specs,
+                         TAst.PrevPassNode params,
+                         ml,
+                         opt_ret_type |> Option.map (fun x -> TAst.PrevPassNode x),
+                         instance_cond |> Option.map (fun x -> TAst.PrevPassNode x),
+                         TAst.PrevPassNode body,
+                         opt_attr,
+                         (loc, Some fenv)
+                       ) in
+          Env.update_rel_ast fenv node;
+          node
      end
 
   | Ast.MemberFunctionDefStmt (id_name, lt_specs, params, quals, opt_ret_type, body, None, loc) ->
      begin
-       let fenv = declare_pre_function id_name meta_variables loc parent_env ctx in
+       let ml = Meta_level.Runtime in
+       let fenv = declare_pre_function id_name ml meta_variables loc parent_env ctx in
        Env.ClassOp.push_member_function parent_env fenv;
 
        let node = TAst.MemberFunctionDefStmt (
@@ -92,21 +141,68 @@ let rec solve_forward_refs ?(meta_variables=[])
 
   | Ast.ExternFunctionDefStmt (id_name, lt_specs, params, ml, ret_type, instance_cond, extern_fname, None, loc) ->
      begin
-       let fenv = declare_pre_function id_name meta_variables loc parent_env ctx in
+       match (ml, execution_level) with
+       | (Meta_level.OnlyMeta, Meta_level.Runtime) ->
+          let base_kind = Env.Kind.Function Meta_level.OnlyMeta in
+          let (base_env, is_env_created) =
+            Env.MultiSetOp.find_or_add parent_env id_name base_kind
+          in
 
-       let node = TAst.ExternFunctionDefStmt (
-                      id_name,
-                      lt_specs,
-                      TAst.PrevPassNode params,
-                      ml,
-                      TAst.PrevPassNode ret_type,
-                      instance_cond |> Option.map (fun x -> TAst.PrevPassNode x),
-                      extern_fname,
-                      opt_attr,
-                      (loc, Some fenv)
-                    ) in
-       Env.update_rel_ast fenv node;
-       node
+          let param_inits =
+            match params with
+            | Ast.ParamsList param_inits -> param_inits
+            | _ -> failwith "[ICE]"
+          in
+          let template_param_inits =
+            param_inits
+            |> List.mapi (fun n (attr, opt_id, value_init) ->
+                          let id =
+                            Option.default_delayed
+                              (fun () -> Id_string.Pure (Printf.sprintf "_%d" n))
+                              opt_id
+                          in
+                          (id, Some value_init)
+                        )
+          in
+
+          let inner_node =
+            Ast.ExternFunctionDefStmt (id_name,
+                                       lt_specs,
+                                       Ast.ParamsList [],
+                                       ml,
+                                       ret_type,
+                                       instance_cond,
+                                       extern_fname,
+                                       None,
+                                       loc
+                                      )
+          in
+          let template_params = Ast.TemplateParamsList template_param_inits in
+          let template_env_r = {
+            Env.tl_name = id_name;
+            Env.tl_params = TAst.NotInstantiatedNode (template_params, None);
+            Env.tl_inner_node = TAst.NotInstantiatedNode (inner_node, opt_attr);
+          } in
+          let base_env_r = Env.MultiSetOp.get_record base_env in
+          base_env_r.Env.ms_templates <- template_env_r :: base_env_r.Env.ms_templates;
+
+          (* regards as no statement *)
+          TAst.EmptyStmt
+       | _ ->
+          let fenv = declare_pre_function id_name ml meta_variables loc parent_env ctx in
+          let node = TAst.ExternFunctionDefStmt (
+                         id_name,
+                         lt_specs,
+                         TAst.PrevPassNode params,
+                         ml,
+                         TAst.PrevPassNode ret_type,
+                         instance_cond |> Option.map (fun x -> TAst.PrevPassNode x),
+                         extern_fname,
+                         opt_attr,
+                         (loc, Some fenv)
+                       ) in
+          Env.update_rel_ast fenv node;
+          node
      end
 
   | Ast.ClassDefStmt (id_name, lt_spec, body, None, loc) ->
@@ -180,13 +276,14 @@ let rec solve_forward_refs ?(meta_variables=[])
        let base_kind = match inner_node with
          | Ast.FunctionDefStmt _
          | Ast.ExternFunctionDefStmt _
-         | Ast.MemberFunctionDefStmt _ -> Env.Kind.Function
+         | Ast.MemberFunctionDefStmt _ ->
+            (* TODO: fix metalevel *)
+            Env.Kind.Function Meta_level.Meta
          | Ast.ClassDefStmt _
-         | Ast.ExternClassDefStmt _ -> Env.Kind.Class
+         | Ast.ExternClassDefStmt _ ->
+            Env.Kind.Class
          | _ ->
-            begin
-              failwith "[ICE] template of this statement is not supported."
-            end
+            failwith "[ICE] template of this statement is not supported."
        in
        let (base_env, is_env_created) =
          Env.MultiSetOp.find_or_add parent_env id_name base_kind
@@ -199,14 +296,14 @@ let rec solve_forward_refs ?(meta_variables=[])
        let base_env_r = Env.MultiSetOp.get_record base_env in
        base_env_r.Env.ms_templates <- template_env_r :: base_env_r.Env.ms_templates;
 
-       let _ =
+       let () =
          let register_member_info () =
            match Env.kind_of_env parent_env with
            | Env.Kind.Class ->
               begin
                 match base_kind with
                 (* will be member function *)
-                | Env.Kind.Function ->
+                | Env.Kind.Function _ ->
                    let fenv =
                      Env.create_context_env base_env id_name
                                             (Env.Template template_env_r)
@@ -218,7 +315,8 @@ let rec solve_forward_refs ?(meta_variables=[])
               end
            | _ -> ()
          in
-         if is_env_created then register_member_info ()
+         if is_env_created then
+           register_member_info ()
        in
 
        (* regards as no statement *)
@@ -359,11 +457,13 @@ and declare_meta_var env ctx (id_name, uni_id) =
   Unification.get_as_value ctx.sc_unification_ctx uni_id
 
 
-and declare_pre_function id_name meta_variables loc parent_env ctx =
+and declare_pre_function id_name ml meta_variables loc parent_env ctx =
   let in_template = List.length meta_variables > 0 in
 
   (* accept multiple definition for overload *)
-  let (base_env, _) = Env.MultiSetOp.find_or_add parent_env id_name Env.Kind.Function in
+  let (base_env, _) =
+    Env.MultiSetOp.find_or_add parent_env id_name (Env.Kind.Function ml)
+  in
 
   let fenv_r = Env.FunctionOp.empty_record id_name in
   let fenv =
@@ -419,5 +519,5 @@ and prepare_builtin_module ctx =
     prepare_module ~loc:Loc.dummy ["core"] "builtin" ctx
   with
   | Fatal_error err as exn ->
-     Sema_error.process_error err ctx;
+     Sema_error.store_error_message err ctx;
      raise exn

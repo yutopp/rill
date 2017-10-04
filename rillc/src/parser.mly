@@ -253,12 +253,12 @@ qual_spec:
 template_parameter_variables_decl_list:
                 { None }
         |       NOT
-                template_parameter_variables_decl_list2
+                template_parameter_variables_decl_list_impl
                 { (Some $2) }
 
-template_parameter_variables_decl_list2:
+template_parameter_variables_decl_list_impl:
                 LPAREN
-                separated_nonempty_list(COMMA, template_parameter_variable_declaration)
+                separated_list(COMMA, template_parameter_variable_declaration)
                 RPAREN { Ast.TemplateParamsList $2 }
 
 template_parameter_variable_declaration:
@@ -451,7 +451,7 @@ mut_attr_mutable_def:
 
 
 meta_level:
-                { Meta_level.Meta }     (* default *)
+                { Meta_level.Runtime }     (* default *)
         |       KEYWORD_ONLY_META       { Meta_level.OnlyMeta }
         |       KEYWORD_META            { Meta_level.Meta }
         |       KEYWORD_RUNTIME         { Meta_level.Runtime }
@@ -521,7 +521,7 @@ argument_list:
 
 template_argument_list:
                 LPAREN
-                l = separated_nonempty_list(COMMA, expression)
+                l = separated_list(COMMA, expression)
                 RPAREN
                 { l }
 

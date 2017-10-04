@@ -31,7 +31,7 @@ type ctx_t = {
 
   (* errors *)
   sc_handle_error   : bool;
-  mutable sc_errors : string list;
+  mutable sc_errors : error_msg_t list;
 }
 
 (* TODO: currently, this implementation doesn't deep copy *)
@@ -40,6 +40,3 @@ let make_temporary_context ctx =
     ctx with
     sc_handle_error = false;
   }
-
-let store_error_message msg ctx =
-  ctx.sc_errors <- msg :: ctx.sc_errors
