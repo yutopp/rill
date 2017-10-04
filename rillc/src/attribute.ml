@@ -10,7 +10,7 @@ open Batteries
 open Stdint
 
 let analyze_boot_expr node ctx attr : 'ty Ctfe_value.t =
-  match node with
+  match Ast.kind_of node with
   | Ast.IntLit (i, bits, signed, loc) ->
      begin
        match bits with

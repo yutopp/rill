@@ -56,7 +56,7 @@ type 'ast env_t = {
   is_instantiated               : bool;
 
   (* information for error message *)
-  loc                         : Loc.t;
+  loc                           : Loc.t;
 }
 
  and 'ast env_record_t =

@@ -8,8 +8,8 @@
 
 module Context =
   struct
-    type 'a current_ctx_t = Loc.t
-    type 'a term_ctx_t = Loc.t
+    type 'a current_ctx_t = unit
+    type 'a term_ctx_t = unit
     type 'a prev_ctx_t = unit
     type 'a term_aux_t = unit
     type 'a attr_value_t = 'a

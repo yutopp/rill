@@ -206,6 +206,13 @@ let rec print ?(loc=None) err =
      in
      List.iter (fun env -> show_env env |> Printf.printf "%s\n") history
 
+  | DiffExecLevel {loc; expect; actual} ->
+     Printf.printf "%s:\nError: Cannot execute in execution context\n"
+                   (Loc.to_string loc);
+     Printf.printf "    expr   :  %s\n" (string_of_loc_region loc);
+     Printf.printf "    actual :  %s\n" (Meta_level.to_string actual);
+     Printf.printf "    expect :  %s\n" (Meta_level.to_string expect)
+
 let store_error_message err ctx =
   ctx.sc_errors <- err :: ctx.sc_errors
 

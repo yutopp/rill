@@ -28,7 +28,7 @@ type ('ty, 'env) t =
 
   | MultiSymbol of 'env * Loc.t
 
-  | DiffExecLevel of Loc.t * Meta_level.t * Meta_level.t
+  | DiffExecLevel of {loc: Loc.t; expect: Meta_level.t; actual: Meta_level.t}
 
   | Msg of string
 

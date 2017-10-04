@@ -296,28 +296,28 @@ let execute' engine expr_node expr_ty type_sets =
 
 (* TODO: implement cache *)
 let execute engine expr_node expr_ty type_sets =
-  match expr_node with
-  | TAst.GenericId (name, lt_args, (_, Some rel_env)) ->
+  match TAst.kind_of expr_node with
+  | TAst.GenericId (name, lt_args, Some rel_env) ->
      begin
        let { Env.er = er; _ } = rel_env in
        match er with
        | Env.Class (_, r) ->
           let ty_attr_val_default = {
-              Type_attr.ta_ref_val = Type_attr.Val;
-              Type_attr.ta_mut = Type_attr.Const;
-            } in
-            (* generics *)
-            assert (List.length r.Env.cls_generics_vals >= List.length lt_args);
-            let generics_args =
-              let rec f pl al acc =
-                match (pl, al) with
-                | ([], []) -> acc
-                | ([], _) -> failwith ""
-                | (_::px, []) -> f px [] (Lifetime.LtUndef :: acc)  (* TODO: check undef *)
-                | (p::px, a::ax) -> f px ax (a :: acc)
-              in
-              f r.Env.cls_generics_vals lt_args [] |> List.rev
+            Type_attr.ta_ref_val = Type_attr.Val;
+            Type_attr.ta_mut = Type_attr.Const;
+          } in
+          (* generics *)
+          assert (List.length r.Env.cls_generics_vals >= List.length lt_args);
+          let generics_args =
+            let rec f pl al acc =
+              match (pl, al) with
+              | ([], []) -> acc
+              | ([], _) -> failwith ""
+              | (_::px, []) -> f px [] (Lifetime.LtUndef :: acc)  (* TODO: check undef *)
+              | (p::px, a::ax) -> f px ax (a :: acc)
             in
+            f r.Env.cls_generics_vals lt_args [] |> List.rev
+          in
 
             (* type *)
             let ty =
