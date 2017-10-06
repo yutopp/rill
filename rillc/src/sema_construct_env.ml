@@ -26,8 +26,8 @@ module EArgConvMap =
       let conv key (trg_ty, src_arg, level) =
         match level with
         | Function.MatchLevel.NoMatch ->
-           let (_, aux) = src_arg in
-           let src_loc = Aux.loc aux in
+           let (tast, aux) = src_arg in
+           let src_loc = TAst.loc_of tast in
            let src_ty = Aux.ty aux in
            Some (trg_ty, (src_ty, src_loc), level)
         | _ ->
@@ -215,7 +215,7 @@ let rec construct_env node parent_env lt_env ctx opt_chain_attr
             let sub_nest_lt = (Lifetime.LtSlNormal 0) in
             let lt = SubExprSpec.make_scope_lifetime temp_obj_spec sub_nest_lt in
             let ml = Meta_level.Runtime in (* TODO: fix *)
-            (None, Aux.make ty val_cat lt ml Loc.dummy)
+            (None, Aux.make ty val_cat lt ml)
 
          | _ -> failwith "[ICE]"
        in
@@ -983,7 +983,7 @@ let rec construct_env node parent_env lt_env ctx opt_chain_attr
                 | None ->
                    begin
                      (* TODO: implement call default constructor *)
-                     (TAst.{kind = TAst.Undef var_ty; loc = Loc.dummy}, Aux.make var_ty Value_category.VCatPrValue Lifetime.LtStatic Meta_level.Runtime None)
+                     (TAst.{kind = TAst.Undef var_ty; loc = Loc.dummy}, Aux.make var_ty Value_category.VCatPrValue Lifetime.LtStatic Meta_level.Runtime)
                    end
               in
               (* TODO: fix var_metalevel *)
@@ -1355,7 +1355,7 @@ and analyze_expr ?(making_placeholder=false)
                  SubExprSpec.make_scope_lifetime temp_obj_spec (Lifetime.LtSlNormal 0)
                in
                let ml = Meta_level.Runtime in (* TODO: fix *)
-               let aux = Aux.make prop_ty VCatLValue lt ml loc in
+               let aux = Aux.make prop_ty VCatLValue lt ml in
                (node, aux)
 
             | None ->
@@ -1408,7 +1408,7 @@ and analyze_expr ?(making_placeholder=false)
             let node = TAst.{kind = BoolLit (could_compile, ty); loc} in
             let sub_nest_lt = (Lifetime.LtSlNormal sub_nest) in
             let lt = SubExprSpec.make_scope_lifetime temp_obj_spec sub_nest_lt in
-            let aux = Aux.make ty VCatPrValue lt Meta_level.Meta loc in
+            let aux = Aux.make ty VCatPrValue lt Meta_level.Meta in
             (node, aux)
           end
        | _ -> failwith @@ "__statement_traits : not implemented / " ^ keyword
@@ -1436,7 +1436,7 @@ and analyze_expr ?(making_placeholder=false)
        (* both of id and instantiated_id will be id node *)
        let generics_args = Sema_lifetime.LifetimeMap.to_list lt_map in
        let node = TAst.{kind = GenericId (name, generics_args, Some trg_env); loc} in
-       let aux = Aux.make ty VCatLValue lt ml loc in
+       let aux = Aux.make ty VCatLValue lt ml in
        (node, aux)
      end
 
@@ -1454,7 +1454,7 @@ and analyze_expr ?(making_placeholder=false)
        let sub_nest_lt = (Lifetime.LtSlNormal sub_nest) in
        let lt = SubExprSpec.make_scope_lifetime temp_obj_spec sub_nest_lt in
        let ml = Meta_level.Meta in
-       let aux = Aux.make ty vc lt ml loc in
+       let aux = Aux.make ty vc lt ml in
        (node, aux)
      end
 
@@ -1472,7 +1472,7 @@ and analyze_expr ?(making_placeholder=false)
        let sub_nest_lt = (Lifetime.LtSlNormal sub_nest) in
        let lt = SubExprSpec.make_scope_lifetime temp_obj_spec sub_nest_lt in
        let ml = Meta_level.Meta in
-       let aux = Aux.make ty vc lt ml loc in
+       let aux = Aux.make ty vc lt ml in
        (node, aux)
      end
 
@@ -1493,7 +1493,7 @@ and analyze_expr ?(making_placeholder=false)
        let sub_nest_lt = (Lifetime.LtSlNormal sub_nest) in
        let lt = SubExprSpec.make_scope_lifetime temp_obj_spec sub_nest_lt in
        let ml = Meta_level.Meta in
-       let aux = Aux.make ptr_ty vc lt ml loc in
+       let aux = Aux.make ptr_ty vc lt ml in
        (n_ptr, aux)
      end
 
@@ -1584,7 +1584,7 @@ and analyze_expr ?(making_placeholder=false)
        (* TODO: FIX *)
        let sub_nest_lt = (Lifetime.LtSlNormal sub_nest) in
        let lt = SubExprSpec.make_scope_lifetime temp_obj_spec sub_nest_lt in
-       let aux = Aux.make array_ty VCatPrValue lt Meta_level.Meta loc in
+       let aux = Aux.make array_ty VCatPrValue lt Meta_level.Meta in
        (n_array, aux)
      end
 
@@ -1684,8 +1684,7 @@ and analyze_expr ?(making_placeholder=false)
        let sub_nest_lt = (Lifetime.LtSlNormal sub_nest) in
        let if_mt = SubExprSpec.make_scope_lifetime temp_obj_spec sub_nest_lt in (* TODO: fix *)
        let if_ml = Meta_level.Meta in   (* TODO: fix *)
-       let if_loc = loc in
-       let if_aux = Aux.make if_ty if_cat if_mt if_ml if_loc in
+       let if_aux = Aux.make if_ty if_cat if_mt if_ml in
 
        let node =
          TAst.{kind = IfExpr (conved_cond_node, nthen_expr, opt_else_expr, if_ty); loc}
@@ -1899,7 +1898,8 @@ and make_call_instruction ?(sub_nest=0)
                           ?(mm=Sema_lifetime.LifetimeMap.empty)
                           (f_env, conv_filters, eargs)
                           loc opt_sto parent_env temp_obj_spec ctx =
-  Debug.printf "= make_call_instruction >>>>> %s\n\n" (Id_string.to_string (Env.get_name f_env));
+  [%Loga.debug "= make_call_instruction >>>>> %s"
+               (Id_string.to_string (Env.get_name f_env))];
 
   let n_eargs =
     map_conversions ~param_passing:true
@@ -2010,7 +2010,7 @@ and make_call_instruction ?(sub_nest=0)
   in
   let f_ret_ml = ret_ty_cenv.Env.meta_level in
 
-  let node_aux = Aux.make f_ret_ty f_ret_val_cat f_ret_lt f_ret_ml loc in
+  let node_aux = Aux.make f_ret_ty f_ret_val_cat f_ret_lt f_ret_ml in
   (* TODO: fix
    * set new lifetime only when return values are VALUE *)
   let n_node =
@@ -2250,11 +2250,10 @@ and find_destructor_node ext_env lt_env ctx (cache_node_id, node_aux) =
          Aux.ta_vcat = cat;
          Aux.ta_lt = lt;
          Aux.ta_ml = ml;
-         Aux.ta_loc = loc;
        } = node_aux in
        (* in destructor, full access to 'this' variable is allowed *)
        let n_ty = force_change_type_mut ty Type_attr.Mutable ctx in
-       let aux = Aux.make n_ty cat lt ml loc in
+       let aux = Aux.make n_ty cat lt ml in
        aux
      in
      let c_node = TAst.{kind = GetCacheExpr cache_node_id; loc = Loc.dummy} in
@@ -2961,7 +2960,7 @@ and adjust_expr_for_type ?(action=None)
     convert_type trg_ty (src_expr, src_aux) ext_env ctx attr
   in
   if match_level = Function.MatchLevel.NoMatch then
-    Sema_error.error (Error_msg.ConvErr (trg_ty, (Aux.ty src_aux, Aux.loc src_aux), ext_env));
+    Sema_error.error (Error_msg.ConvErr (trg_ty, (Aux.ty src_aux, TAst.loc_of src_expr), ext_env));
 
   apply_conv_filter ~opt_operation:action
                     m_filter (src_expr, src_aux) ext_env temp_obj_spec ctx
@@ -3243,8 +3242,8 @@ and solve_function_overload' ml eargs template_args mset_env ext_env loc ctx att
                              ) eargs
               in
               List.iter (fun earg ->
-                         let (_ast, aux) = earg in
-                         let loc = Aux.loc aux in
+                         let (ast, aux) = earg in
+                         let loc = TAst.loc_of ast in
 
                          [%Loga.debug "=> %s (%s)"
                                       (Meta_level.to_string (Aux.ml aux))
@@ -4854,7 +4853,7 @@ and analyze_t ?(meta_variables=[]) ?(opt_attr=None) (node: Ast.t) env lt_env ctx
 
 and get_void_aux ctx =
   let ty = get_builtin_void_type default_ty_attr ctx in
-  let aux = Aux.make ty VCatPrValue Lifetime.LtStatic Meta_level.Meta None in
+  let aux = Aux.make ty VCatPrValue Lifetime.LtStatic Meta_level.Meta in
   aux
 
 (* no-effect to parent_env *)
