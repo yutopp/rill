@@ -29,6 +29,16 @@ end =
       Printf.sprintf "%fs" e;
   end
 
+let () =
+  let ignore_debug_log =
+    try Sys.getenv "RILL_IGNORE_DEBUG_LOG" <> "" with
+    | Not_found -> false
+  in
+  if Config.is_release || ignore_debug_log then
+    Loga.set_base_severity Loga_severity.Emergency
+  else
+    Loga.set_base_severity Loga_severity.Debug
+
 let out_ch =
   let ignore_debug_log =
     try Sys.getenv "RILL_IGNORE_DEBUG_LOG" <> "" with
@@ -53,25 +63,3 @@ let reportf fmt =
 
 let record_backtrace () =
   Printexc.record_backtrace true
-
-module List =
-  struct
-    let iter f xs =
-      if not Config.is_release then
-        List.iter f xs
-
-    let iter2 f xs1 xs2 =
-      if not Config.is_release then
-        List.iter2 f xs1 xs2
-  end
-
-module Array =
-  struct
-    let iter f arr =
-      if not Config.is_release then
-        Array.iter f arr
-
-    let iter2 f arr1 arr2 =
-      if not Config.is_release then
-        Array.iter2 f arr1 arr2
-  end
