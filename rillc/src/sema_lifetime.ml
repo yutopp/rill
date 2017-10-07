@@ -50,7 +50,16 @@ let rec solve_var lt m =
   | Lifetime.LtVarPlaceholder (var_id, _) ->
      begin
        try
+         [%Loga.debug "lt = %s" (Lifetime.Var_id.to_string var_id)];
          let v = LifetimeMap.find var_id m in
+         let () =
+           match v with
+           | Lifetime.LtVar (id, _, _, _, _, _)
+           | Lifetime.LtVarPlaceholder (id, _) when id = var_id ->
+              failwith "[ICE] Solve same lifetime ids"
+           | _ ->
+              ()
+         in
          solve_var v m
        with
        | Not_found -> lt
@@ -69,7 +78,7 @@ let rec map_generics_args ?(m=LifetimeMap.empty) generis_params generics_args =
      begin
        match p with
        | Lifetime.LtVar (var_id, _, _, _, _, _) when not (Lifetime.is_undef a) ->
-          Debug.printf " try REGISTER(mg) ARG %s <- %s\n"
+          Debug.printf " try REGISTER(mg) ARG %s -> %s\n"
                        (Lifetime.Var_id.to_string var_id) (Lifetime.to_string a);
 
           let nm = match (var_id, a) with
@@ -119,7 +128,7 @@ let lifetime_map_generics_in_params mm params eargs : 'v LifetimeMap.t =
             begin
               match aux_generics_val with
               | Lifetime.LtVar (var_id, _, _, _, _, _) ->
-                 Debug.printf " REGISTER AUX %s <- %s\n" (Lifetime.Var_id.to_string var_id) (Lifetime.to_string arg_lt);
+                 Debug.printf " REGISTER AUX %s -> %s\n" (Lifetime.Var_id.to_string var_id) (Lifetime.to_string arg_lt);
                  LifetimeMap.append var_id arg_lt mm
               | _ ->
                  failwith "[ICE]"
@@ -158,3 +167,6 @@ let lifetime_map_generics_in_params mm params eargs : 'v LifetimeMap.t =
                        arg_ty.Type_info.ti_generics_args
   in
   List.fold_left2 for_type mm params eargs
+
+let clone_for_all lts =
+  lts |> List.map Lifetime.clone

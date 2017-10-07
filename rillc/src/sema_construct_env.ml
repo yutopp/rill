@@ -259,8 +259,14 @@ let rec construct_env node parent_env lt_env ctx opt_chain_attr
                  if Type.has_same_class cur_ret_ty expr_ty then
                    expr_ty
                  else
-                   failwith "[ERR]: return type must be same"
-
+                   let error_loc =
+                     (match opt_expr with
+                      | Some e -> e
+                      | None -> node) |> TAst.loc_of
+                   in
+                   error (Error_msg.DiffReturnType {loc = error_loc;
+                                                    expect = cur_ret_ty;
+                                                    actual = expr_ty})
               | _ -> failwith "[ICE]"
           end
 
@@ -1270,14 +1276,6 @@ and analyze_expr ?(making_placeholder=false)
        let (f_env, conv_filters, eargs) = call_trg_finfo in
        let f_ml = f_env.Env.meta_level in
 
-       [%Loga.debug "RES ML => %s" (Meta_level.to_string f_ml)];
-       [%Loga.debug "AUX ML => %s" (Meta_level.to_string (Aux.ml aux))];
-
-       let res_ml = calc_bottom_meta_level f_ml eargs in
-       let aux = {aux with Aux.ta_ml = res_ml} in
-
-       [%Loga.debug "MOD ML => %s" (Meta_level.to_string res_ml)];
-
        let mled_node = match f_ml with
          | Meta_level.OnlyMeta ->
             (* TODO: check whether the variable is ctfeable.
@@ -1922,7 +1920,6 @@ and make_call_instruction ?(sub_nest=0)
 
   (* make generics rel map *)
 
-
   (* TODO: check all generics values are bound
    * if explicit parameters are not filled, treat as error
    * if implicit parameters are not filled, treat as ICE
@@ -1948,7 +1945,7 @@ and make_call_instruction ?(sub_nest=0)
 
   (* TODO: check all generics values are bound *)
   let c lt =
-    Debug.printf "BINDED? %s <-" (Lifetime.to_string lt);
+    [%Loga.debug "BINDED? -> %s" (Lifetime.to_string lt)];
     let tr = Sema_lifetime.solve_var lt mm in
     [%Loga.debug "BOUND <- %s" (Lifetime.to_string tr)];
   in
@@ -1956,7 +1953,7 @@ and make_call_instruction ?(sub_nest=0)
 
   let f_ret_ty = f_er.Env.fn_return_type in
   if not (is_valid_type f_ret_ty) then
-    failwith @@ "[ERR] type of this function is not determined : " ^ (Type.to_string f_ret_ty);
+    error (Error_msg.ReturnTypeIsNotDetermined {loc = loc; env = f_env});
 
   Debug.printf "= LIFETIME CONSTRAINT = START >>>>> %s"
                (Id_string.to_string (Env.get_name f_env));
@@ -1987,8 +1984,6 @@ and make_call_instruction ?(sub_nest=0)
   List.map (Lifetime.to_string) arg_lts |> String.join ", " |> Debug.printf "PP = %s";
   List.map (Lifetime.to_string) ((aux_gs @ gs)) |> String.join ", " |> Debug.printf "CR = %s";
 
-  let ret_ty_cenv = Type.as_unique f_ret_ty in
-
   let ret_ty_sto =
     Option.default_delayed (fun () -> suitable_storage f_ret_ty ctx) opt_sto
   in
@@ -2008,14 +2003,24 @@ and make_call_instruction ?(sub_nest=0)
     let sub_nest_lt = (Lifetime.LtSlNormal 0) in
     SubExprSpec.make_scope_lifetime ~aux_count:aux_lt_count temp_obj_spec sub_nest_lt
   in
-  let f_ret_ml = ret_ty_cenv.Env.meta_level in
 
-  let node_aux = Aux.make f_ret_ty f_ret_val_cat f_ret_lt f_ret_ml in
+  let f_ml = f_env.Env.meta_level in
+  let arg_mls = n_eargs |> List.map (fun (_, aux) -> Aux.ml aux) in
+  let bottom_ml = List.fold_left Meta_level.bottom f_ml arg_mls in
+
+  [%Loga.debug "FUNC ML => %s" (Meta_level.to_string f_ml)];
+  List.iter (fun ml ->
+             [%Loga.debug "ARG ML => %s" (Meta_level.to_string ml)]
+            ) arg_mls;
+  [%Loga.debug "BTM ML => %s" (Meta_level.to_string bottom_ml)];
+
+  let node_aux = Aux.make f_ret_ty f_ret_val_cat f_ret_lt bottom_ml in
   (* TODO: fix
    * set new lifetime only when return values are VALUE *)
   let n_node =
     SubExprSpec.register_temporary temp_obj_spec aux_lt_count (node, node_aux)
   in
+
   Ok (n_node, node_aux)
 
 
@@ -2835,7 +2840,7 @@ and check_and_insert_suitable_return ?(is_special_func=false)
            failwith "[ICE]"
       end
     else
-      failwith "[ERR] there is no return statements in this control flow"
+      error (Error_msg.NoReturnStmts {loc = TAst.loc_of nbody; env});
   else
     nbody
 
@@ -3197,16 +3202,6 @@ and solve_function_overload ml eargs template_args m_env_set ext_env loc ctx att
      (* TODO: make suitable errors *)
      failwith "[ERR] there are many results in the overload set"
 
-and calc_bottom_meta_level base_ml eargs =
-  List.fold_left (fun ml earg ->
-                  let (arg_expr, arg_aux) = earg in
-                  match Meta_level.meta_than_or_equal_to ml (Aux.ml arg_aux) with
-                  | true ->
-                     (Aux.ml arg_aux)
-                  | false ->
-                     ml
-                 ) base_ml eargs
-
 and solve_function_overload' ml eargs template_args mset_env ext_env loc ctx attr =
   [%Loga.debug "MetaLevel = %s, Name = %s"
                (Meta_level.to_string ml)
@@ -3351,9 +3346,9 @@ and solve_function_overload' ml eargs template_args mset_env ext_env loc ctx att
 
     let () =
       let f (e, _, _) =
-        Debug.printf "SPCIALIZED_LEVELS -> %s"
+        [%Loga.debug "SPECIALIED_LEVELS -> %s"
                      (Env.FunctionOp.specialized_levels e
-                      |> List.map string_of_int |> String.join ", ")
+                      |> List.map string_of_int |> String.join ", ")];
       in
       List.iter f fs_and_args
     in

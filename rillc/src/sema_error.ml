@@ -213,6 +213,22 @@ let rec print ?(loc=None) err =
      Printf.printf "    actual :  %s\n" (Meta_level.to_string actual);
      Printf.printf "    expect :  %s\n" (Meta_level.to_string expect)
 
+  | DiffReturnType {loc; expect; actual} ->
+     Printf.printf "%s:\nError: Return type must be same\n"
+                   (Loc.to_string loc);
+     Printf.printf "    expr   :  %s\n" (string_of_loc_region loc);
+     Printf.printf "    actual :  %s\n" (Type.to_string actual);
+     Printf.printf "    expect :  %s\n" (Type.to_string expect)
+
+  | NoReturnStmts {loc: Loc.t; env} ->
+     (* HINT: when some errors are happened in the function *)
+     Printf.printf "%s:\nError: There is no return statements in this control flow\n"
+                   (Loc.to_string loc)
+  | ReturnTypeIsNotDetermined {loc: Loc.t; env} ->
+     (* HINT: when the function is recursive called *)
+     Printf.printf "%s:\nError: Type of this function is not determined\n"
+                   (Loc.to_string loc)
+
 let store_error_message err ctx =
   ctx.sc_errors <- err :: ctx.sc_errors
 

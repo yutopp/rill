@@ -28,6 +28,18 @@ type t =
   | LtVarPlaceholder of Var_id.t * Loc.t
   | LtUndef
 
+let clone lt =
+  match lt with
+  | LtVar (var_id, name, env, nest_level, constraints, loc) ->
+     LtVar (Var_id.generate(), name, env, nest_level, constraints, loc)
+  | _ ->
+     failwith "[ICE] clone not supported other LtVal"
+
+let get_var_id lt = match lt with
+  | LtVarPlaceholder (id, _) -> id
+  | LtVar (id, _, rhs_env_id, _, _, _) -> id
+  | _ -> failwith ""
+
 type constraint_t =
   | LtMin of t * t
 
@@ -51,11 +63,13 @@ let to_string lt = match lt with
      Printf.sprintf "`DYNAMIC(env: %s, nest: %d, %s, %d)"
        (Env_system.EnvId.to_string env_id) (Int32.to_int nest) s aux
   | LtVar (id, name, env_id, nest, rhs_comparable, loc) ->
-     Printf.sprintf "`VAR(%s[%s] | env: %s, nest: %d, [%s], loc: %s)"
-       (Var_id.to_string id) (Id_string.to_string name)
-       (Env_system.EnvId.to_string env_id) (Int32.to_int nest)
-       (rhs_comparable |> List.map Var_id.to_string |> String.join ", ")
-       (Loc.to_string loc)
+     Printf.sprintf "`VAR(%s[%s] | env: %s, nest: %d, compareble: [%s], loc: %s)"
+                    (Var_id.to_string id)
+                    (Id_string.to_string name)
+                    (Env_system.EnvId.to_string env_id)
+                    (Int32.to_int nest)
+                    (rhs_comparable |> List.map Var_id.to_string |> String.join ", ")
+                    (Loc.to_string loc)
   | LtVarPlaceholder (id, _) ->
      Printf.sprintf "`PLACEHOLDER(%s)" (Var_id.to_string id)
   | LtUndef -> "`UNDEF"
@@ -160,11 +174,6 @@ let convert raw_lts lt_constaints base_env_id =
   in
 
   let to_ltvar (p_lt, v, rhs_cmps) =
-    let get_var_id lt = match lt with
-      | LtVarPlaceholder (id, _) -> id
-      | LtVar (id, _, rhs_env_id, _, _, _) -> id
-      | _ -> failwith ""
-    in
     let get_loc lt = match lt with
       | LtVarPlaceholder (_, loc) -> loc
       | LtVar (_, _, _, _, _, loc) -> loc

@@ -1858,6 +1858,14 @@ let inject_builtins ctx =
       register_builtin_func "__builtin_cast_from_uint32_to_uint8" f
     in
 
+    let () = (* +(:int32): uint8 *)
+      let f _ _ args ctx =
+        assert (Array.length args = 1);
+        L.build_intcast args.(0) (L.i8_type ctx.ir_context) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func "__builtin_cast_from_int32_to_uint8" f
+    in
+
     let () = (* +(:uint8): int32 *)
       let f _ _ args ctx =
         assert (Array.length args = 1);

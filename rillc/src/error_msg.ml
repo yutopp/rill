@@ -29,7 +29,10 @@ type ('ty, 'env) t =
   | MultiSymbol of 'env * Loc.t
 
   | DiffExecLevel of {loc: Loc.t; expect: Meta_level.t; actual: Meta_level.t}
+  | DiffReturnType of {loc: Loc.t; expect: 'ty; actual: 'ty}
+
+  | NoReturnStmts of {loc: Loc.t; env: 'env}
+  | ReturnTypeIsNotDetermined of {loc: Loc.t; env: 'env}
 
   | Msg of string
-
   | TmpError of string * 'env
