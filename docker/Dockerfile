@@ -5,13 +5,15 @@ LABEL maintainer yutopp
 # Setup
 RUN apt-get update -y && \
     apt-get install -y git wget curl unzip \
-                       g++ aspcud  cmake ninja-build python m4 pkg-config libffi-dev
+                       g++ aspcud cmake ninja-build python m4 pkg-config libffi-dev
 
 # https://llvm.org/svn/llvm-project/llvm/tags/RELEASE_500/final/CMakeLists.txt
 ENV llvm_version 5.0.0
 
-# Download LLVM 5.0.0
+# Download LLVM/Clang 5.0.0
 RUN wget http://www.llvm.org/releases/${llvm_version}/llvm-${llvm_version}.src.tar.xz -O - | tar -xJ
+RUN wget http://www.llvm.org/releases/${llvm_version}/cfe-${llvm_version}.src.tar.xz -O - | tar -xJ
+RUN mv cfe-${llvm_version}.src llvm-${llvm_version}.src/tools/clang
 RUN cd llvm-${llvm_version}.src && \
     mkdir build && \
     cd build && \
@@ -23,7 +25,7 @@ RUN cd llvm-${llvm_version}.src && \
           -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD="WebAssembly" \
           -DLLVM_ENABLE_TERMINFO=OFF \
           -DLLVM_ENABLE_ZLIB=OFF \
-          -DLLVM_BUILD_TOOLS=OFF \
+          -DLLVM_BUILD_TOOLS=clang,llc \
           -DLLVM_INCLUDE_UTILS=OFF \
           -DLLVM_BUILD_UTILS=OFF \
           -DLLVM_INCLUDE_EXAMPLES=OFF \
@@ -46,6 +48,11 @@ RUN cd llvm-${llvm_version}.src/build && \
 
 # Clean up LLVM src
 RUN rm -rf llvm-${llvm_version}.src
+
+
+
+
+
 
 # OCaml version
 ENV ocaml_version 4.04.2

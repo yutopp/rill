@@ -943,7 +943,8 @@ let rec construct_env node parent_env lt_env ctx opt_chain_attr
        in
 
        (* type check for the variable *)
-       let (type_node, value_node, value_aux, var_ty, var_metalevel) = match opt_type with
+       let (type_node, value_node, value_aux, var_ty, var_metalevel) =
+         match opt_type with
          (* variable type is specified *)
          | Some var_type_node ->
             begin
