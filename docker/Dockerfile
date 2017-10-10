@@ -35,24 +35,20 @@ RUN cd llvm-${llvm_version}.src && \
           -DLLVM_BUILD_DOCS=OFF \
           ..
 
-# Build LLVM for static lib
+# Build LLVM for static lib, Clang
 RUN cd llvm-${llvm_version}.src/build && \
     ninja
 RUN cd llvm-${llvm_version}.src/build && \
     ninja llvm-config
 
-# Install LLVM
+# Install LLVM, Clang (with adhoc cp)
 RUN cd llvm-${llvm_version}.src/build && \
     ninja install && \
-    cp bin/llvm-config /usr/local/bin/. # adhoc
+    ninja install llc && \
+    cp bin/llvm-config /usr/local/bin/.
 
 # Clean up LLVM src
 RUN rm -rf llvm-${llvm_version}.src
-
-
-
-
-
 
 # OCaml version
 ENV ocaml_version 4.04.2
