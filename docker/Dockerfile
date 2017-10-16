@@ -59,7 +59,7 @@ ENV OPAMKEEPBUILDDIR false
 ENV OPAMBUILDDOC false
 ENV OPAMDOWNLOADJOBS 1
 RUN opam init -y -a --comp=${ocaml_version}
-RUN opam install omake.0.10.2 menhir batteries ctypes-foreign stdint ocamlgraph
+RUN opam install omake.0.10.2 menhir batteries ctypes-foreign stdint ocamlgraph loga
 RUN opam install ounit bisect_ppx ocveralls
 # BEGIN: adhoc for WebAssembly
 RUN opam install llvm.${llvm_version} --deps-only

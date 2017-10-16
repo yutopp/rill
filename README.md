@@ -42,7 +42,7 @@ Install packages to a host machine directly or use docker.
 #### Install packages directly
 
 ```
-opam install omake.0.10.2 menhir batteries ctypes-foreign stdint ocamlgraph llvm.5.0.0
+opam install omake.0.10.2 menhir batteries ctypes-foreign stdint ocamlgraph llvm.5.0.0 loga
 opam install ounit                  # for unit testing
 opam install bisect_ppx ocveralls   # for coverage
 eval `opam config env`
