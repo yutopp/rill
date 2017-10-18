@@ -28,9 +28,10 @@ CORE_SRC_EXT_FILES = $(find src_ext -name *.c)
 
 CORE_SRC_TARGET_FILES = $(CORE_SRC_FILES) $(CORE_SRC_EXT_FILES)
 CORE_SRC_TARGET_OBJS = $(replacesuffixes .rill .c, .o .o, $(CORE_SRC_TARGET_FILES))
+CORE_SRC_TARGET_BCFILES = $(replacesuffixes .rill .c, .bc .bc, $(CORE_SRC_TARGET_FILES))
 
 LIBNAME = librillcore-rt
-CFLAGS += -fPIC -nostdlib -std=c11
+CFLAGS += -fPIC -nostdlib -std=c99
 
 ########################################################################
 # Subdirectories.
@@ -43,7 +44,16 @@ CORE_LIB_SRC_DIR = $(dir src)
     %.o: %.rill build_rillc
         $(RILLC_BIN) -c $< --ignore-default-system-import \
                            --system-import-dir $(CORE_LIB_SRC_DIR) \
-                           --no-link-corelib --no-link-stdlib  -o $@
+                           --no-link-corelib --no-link-stdlib -o $@
+
+    %.ll: %.rill build_rillc
+        $(RILLC_BIN) -c $< --ignore-default-system-import \
+                           --system-import-dir $(CORE_LIB_SRC_DIR) \
+                           --no-link-corelib --no-link-stdlib \
+                           --target=wasm32 --format=llvm -o $@
+
+    %.bc: %.ll
+        llvm-as -o $@ $<
 
     clean:
         rm -f *~ *.o *.ll *.bc *.out
@@ -52,15 +62,24 @@ CORE_LIB_SRC_DIR = $(dir src)
     %.o: %.c
         $(CC) $(CFLAGS) -c $+ -o $@
 
+    %.ll: %.c
+        clang $(CFLAGS) -I/cibase/musl/arch/wasm32 -I/cibase/musl/arch/generic \
+              -I/cibase/musl/obj/src/internal -I/cibase/musl/src/internal \
+              -I/cibase/musl/obj/include -I/cibase/musl/include \
+              -nostdinc -ffreestanding -S --target=wasm32 -emit-llvm -c $+ -o $@
+
+    %.bc: %.ll
+        llvm-as -o $@ $<
+
     clean:
-        rm -f *~ *.o *.out
+        rm -f *~ *.o *.ll *.bc *.out
 
 .DEFAULT: build_corelib
 
 ########################################################################
 #
 
-build_corelib: lib/$(LIBNAME).a lib/$(LIBNAME).so
+build_corelib: lib/$(LIBNAME).a lib/$(LIBNAME).so lib/$(LIBNAME).bc
 
 lib/$(LIBNAME).a: $(CORE_SRC_TARGET_OBJS)
     prepare-directory(lib)
@@ -71,6 +90,11 @@ lib/$(LIBNAME).so: $(CORE_SRC_TARGET_OBJS)
     prepare-directory(lib)
     rm-if-exists($@)
     $(LD) --shared -lc $+ -o $@
+
+lib/$(LIBNAME).bc: $(CORE_SRC_TARGET_BCFILES)
+    prepare-directory(lib)
+    rm-if-exists($@)
+    llvm-link -o $@ $(CORE_SRC_TARGET_BCFILES)
 
 install: lib/$(LIBNAME).a lib/$(LIBNAME).so
     # copy srcs

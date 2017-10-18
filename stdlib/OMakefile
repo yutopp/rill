@@ -28,9 +28,10 @@ STD_SRC_EXT_FILES = $(find src_ext -name *.c)
 
 STD_SRC_TARGET_FILES = $(STD_SRC_FILES) $(STD_SRC_EXT_FILES)
 STD_SRC_TARGET_OBJS = $(replacesuffixes .rill .c, .o .o, $(STD_SRC_TARGET_FILES))
+STD_SRC_TARGET_BCFILES = $(replacesuffixes .rill .c, .bc .bc, $(STD_SRC_TARGET_FILES))
 
 LIBNAME = librillstd-rt
-CFLAGS += -fPIC -nostdlib -std=c11
+CFLAGS += -fPIC -nostdlib -std=c99
 
 ########################################################################
 # Subdirectories.
@@ -48,6 +49,16 @@ STD_LIB_SRC_DIR = $(dir src)
                            --system-import-dir $(STD_LIB_SRC_DIR) \
                            --no-link-stdlib -o $@
 
+    %.ll: %.rill build_rillc build_corelib
+        $(RILLC_BIN) -c $< --ignore-default-system-import \
+                           --system-import-dir $(CORE_LIB_SRC_DIR) -L $(CORE_LIB_LIB_DIR) \
+                           --system-import-dir $(STD_LIB_SRC_DIR) \
+                           --no-link-stdlib \
+                           --target=wasm32 --format=llvm -o $@
+
+    %.bc: %.ll
+        llvm-as -o $@ $<
+
     clean:
         rm -f *~ *.o *.ll *.bc *.out
 
@@ -55,15 +66,24 @@ STD_LIB_SRC_DIR = $(dir src)
     %.o: %.c
         $(CC) $(CFLAGS) -c $< -o $@
 
+    %.ll: %.c
+        clang $(CFLAGS) -I/cibase/musl/arch/wasm32 -I/cibase/musl/arch/generic \
+              -I/cibase/musl/obj/src/internal -I/cibase/musl/src/internal \
+              -I/cibase/musl/obj/include -I/cibase/musl/include \
+              -nostdinc -ffreestanding -S --target=wasm32 -emit-llvm -c $+ -o $@
+
+    %.bc: %.ll
+        llvm-as -o $@ $<
+
     clean:
-        rm -f *~ *.o *.out
+        rm -f *~ *.o *.ll *.bc *.out
 
 .DEFAULT: build_stdlib
 
 ########################################################################
 #
 
-build_stdlib: lib/$(LIBNAME).a lib/$(LIBNAME).so
+build_stdlib: lib/$(LIBNAME).a lib/$(LIBNAME).so lib/$(LIBNAME).bc
 
 lib/$(LIBNAME).a: $(STD_SRC_TARGET_OBJS)
     prepare-directory(lib)
@@ -74,6 +94,11 @@ lib/$(LIBNAME).so: $(STD_SRC_TARGET_OBJS)
     prepare-directory(lib)
     rm-if-exists($@)
     $(CC) --shared $+ -o $@
+
+lib/$(LIBNAME).bc: $(STD_SRC_TARGET_BCFILES)
+    prepare-directory(lib)
+    rm-if-exists($@)
+    llvm-link -o $@ $(STD_SRC_TARGET_BCFILES)
 
 install: lib/$(LIBNAME).a lib/$(LIBNAME).so
     # copy srcs

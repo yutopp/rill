@@ -46,6 +46,11 @@ namespace detail {
                                  llvm::TargetMachine::CodeGenFileType const file_type,
                                  llvm::raw_pwrite_stream& out)
     {
+        if (file_type == llvm::TargetMachine::CGFT_Null) {
+            m.print(out, nullptr);
+            return;
+        }
+
         auto const arch_name = "";
         auto triple = llvm::Triple(m.getTargetTriple());
 
@@ -126,6 +131,8 @@ extern "C" {
             break;
         case 1:
             file_type = llvm::TargetMachine::CGFT_ObjectFile;
+            break;
+        case 2:
             break;
         default:
             // TODO: add error handling

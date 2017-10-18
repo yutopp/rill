@@ -52,9 +52,31 @@ and s_of_string s =
 
 
 and s_of_symbol sym =
-  let s = Id_string.to_string sym in
+  let s =
+    match sym with
+    | Id_string.Pure s -> s
+    | Id_string.UnaryPreOp s -> s_of_unary_pre_op s
+    | Id_string.UnaryPostOp s -> s_of_unary_post_op s
+    | Id_string.BinaryOp s -> s_of_binary_op s
+  in
   s_of_string s
 
+and s_of_unary_pre_op s =
+  (* TODO: implement *)
+  match s with
+  | _ -> "op_u_pre_" ^ s
+
+and s_of_unary_post_op s =
+  (* TODO: implement *)
+  match s with
+  | _ -> "op_u_post_" ^ s
+
+and s_of_binary_op s =
+  (* TODO: implement, fix *)
+  match s with
+  | "-"  -> "op_b_ma"
+  | "==" -> "op_b_eq"
+  | _ -> "op_b_" ^ s
 
 and s_of_id_string full_module_name id_name =
   let mod_num = List.length full_module_name in
@@ -65,7 +87,6 @@ and s_of_id_string full_module_name id_name =
   | _ ->
      let s_mod_name = full_module_name |> List.map s_of_string |> String.concat "" in
      Printf.sprintf "M%d_%s_%s" mod_num s_mod_name s_name
-
 
 and s_of_class full_module_name id_name template_args tset =
   let s_sym = s_of_id_string full_module_name id_name in

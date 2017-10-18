@@ -13,6 +13,7 @@ module LT = Llvm_target
 type file_type =
   | FtAssembly
   | FtObject
+  | FtRaw
 
 (* at cpp_ext *)
 external rillc_initialize_llvm_codegen : unit -> unit
@@ -42,10 +43,28 @@ let emit_file filepath m object_format =
     |> List.map LT.Target.name
     |> List.map (Debug.printf "-> %s")
   in*)
+  let triple = L.target_triple m in
+
+  let target =
+    try LT.Target.by_triple triple with
+    | Llvm_target.Error error ->
+       failwith error
+  in
+
+  (* TODO: set triple when instantiate a module *)
+  let target_machine =
+    Llvm_target.TargetMachine.create ~triple:triple
+                                     ~cpu:""
+                                     ~features:""
+                                     ~level:LT.CodeGenOptLevel.Default
+                                     ~reloc_mode:LT.RelocMode.PIC
+                                     ~code_model:LT.CodeModel.Default
+                                     target
+  in
 
   (* data layout *)
-  (* let dl = LT.TargetMachine.data_layout target_machine in
-  L.set_data_layout (LT.DataLayout.as_string dl) m;*)
+  let dl = LT.TargetMachine.data_layout target_machine in
+  L.set_data_layout (LT.DataLayout.as_string dl) m;
 
   Debug.printf "module: TRIPLE: %s / DATA_LAYOUT: %s\n%!"
                (L.target_triple m)
@@ -60,8 +79,8 @@ let emit_file filepath m object_format =
   let file_type =
     match object_format with
     | Codegen_format.OfAssembly -> FtAssembly
-    | Codegen_format.OfObject -> FtObject
-    | _ -> failwith "[ERR]"
+    | Codegen_format.OfObject   -> FtObject
+    | Codegen_format.OfLlvm     -> FtRaw
+    | _ -> failwith "[ERR] unsupported object_format"
   in
-
   rillc_emit_file_for_target m file_type filepath
