@@ -17,6 +17,7 @@ type info_t = {
 }
 
 type t = info_t option
+
 let dummy = None
 
 let to_string opt_loc =

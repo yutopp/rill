@@ -51,6 +51,7 @@ OCAMLPACKS[] =
    batteries
    stdint
    ocamlgraph
+   loga
 
 if $(equal $(COVERAGE), true)
    OCAMLPACKS += bisect_ppx

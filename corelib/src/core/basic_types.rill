@@ -33,6 +33,8 @@ extern def 'a unsafe_ptr_cast!(T)(val :'a untyped_raw_ptr): 'a raw_ptr!(T)
 //def to!(T)(v: int32) when T
 #[builtin]
 extern def to!(T)(val v: uint32): T when T == uint8 = "__builtin_cast_from_uint32_to_uint8";
+#[builtin]
+extern def to!(T)(val v: int32): T when T == uint8 = "__builtin_cast_from_int32_to_uint8";
 
 // TODO: fix
 #[builtin]

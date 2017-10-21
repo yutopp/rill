@@ -14,8 +14,9 @@ open Sema_error
 
 let rec solve_forward_refs ?(meta_variables=[])
                            ?(opt_attr=None)
-                           node parent_env ctx =
-  match node with
+                           ?(execution_level=Meta_level.Runtime)
+                           node (parent_env : env_t) ctx =
+  match Ast.kind_of node with
   | Ast.StatementList (nodes) ->
      begin
        try
@@ -23,95 +24,218 @@ let rec solve_forward_refs ?(meta_variables=[])
            nodes
            |> List.map (fun n -> solve_forward_refs n parent_env ctx)
          in
-         TAst.StatementList tagged_nodes
+         TAst.StatementList tagged_nodes |> wrap_of node
        with
        | Normal_error err ->
           (* TODO: fix *)
           failwith "[ICE] normal error"
        | Fatal_error err as exn ->
-          Sema_error.process_error err ctx;
+          Sema_error.store_error_message err ctx;
           raise exn
      end
 
   | Ast.ExprStmt ast ->
-     TAst.ExprStmt (TAst.PrevPassNode ast)
+     TAst.ExprStmt (as_prev_pass ast) |> wrap_of node
 
   | Ast.VoidExprStmt ast ->
-     TAst.VoidExprStmt (TAst.PrevPassNode ast)
+     TAst.VoidExprStmt (as_prev_pass ast) |> wrap_of node
 
-  | Ast.ReturnStmt (ast) ->
-     TAst.ReturnStmt ((Option.map (fun a -> TAst.PrevPassNode a) ast))
+  | Ast.ReturnStmt opt_ast ->
+     TAst.ReturnStmt (opt_ast |> Option.map as_prev_pass) |> wrap_of node
 
   | Ast.ImportStmt (pkg_names, mod_name, is_public, loc) ->
      begin
+       let loc = Ast.loc_of node in
        let mod_env = prepare_module ~loc:loc pkg_names mod_name ctx in
        let privacy = if is_public then Env.ModPublic else Env.ModPrivate in
        Env.import_module ~privacy:privacy parent_env mod_env;
 
        (* remove import statements *)
-       TAst.EmptyStmt
+       TAst.EmptyStmt |> wrap_of node
      end
 
   | Ast.FunctionDefStmt (id_name, lt_specs, params, ml, opt_ret_type, instance_cond, body, None, loc) ->
      begin
-       let fenv = declare_pre_function id_name meta_variables loc parent_env ctx in
+       match (ml, execution_level) with
+       | (Meta_level.OnlyMeta, Meta_level.Runtime) ->
+          let env_kind = Env.Kind.Function Meta_level.OnlyMeta in
+          let (base_env, is_env_created) =
+            Env.MultiSetOp.find_or_add parent_env id_name env_kind
+          in
 
-       let node = TAst.FunctionDefStmt (
-                      id_name,
-                      lt_specs,
-                      TAst.PrevPassNode params,
-                      ml,
-                      opt_ret_type |> Option.map (fun x -> TAst.PrevPassNode x),
-                      instance_cond |> Option.map (fun x -> TAst.PrevPassNode x),
-                      TAst.PrevPassNode body,
-                      opt_attr,
-                      (loc, Some fenv)
-                    ) in
-       Env.update_rel_ast fenv node;
-       node
+          let param_inits =
+            match Ast.kind_of params with
+            | Ast.ParamsList param_inits -> param_inits
+            | _ -> failwith "[ICE]"
+          in
+          let template_param_inits =
+            param_inits
+            |> List.mapi (fun n (attr, opt_id, value_init) ->
+                          let id =
+                            Option.default_delayed
+                              (fun () -> Id_string.Pure (Printf.sprintf "_%d" n))
+                              opt_id
+                          in
+                          (id, Some value_init)
+                        )
+          in
+
+          let inner_node =
+            Ast.{kind = Ast.FunctionDefStmt (id_name,
+                                             lt_specs,
+                                             Ast.{kind = Ast.ParamsList [];
+                                                  loc = Ast.loc_of params},
+                                             ml,
+                                             opt_ret_type,
+                                             instance_cond,
+                                             body,
+                                             None,
+                                             loc);
+                 loc = Ast.loc_of node}
+          in
+          let template_params =
+            Ast.{kind = Ast.TemplateParamsList template_param_inits;
+                 loc = Ast.loc_of params}
+          in
+          let template_env_r = {
+            Env.tl_name = id_name;
+            Env.tl_params = template_params |> as_not_instantiated None;
+            Env.tl_inner_node = inner_node |> as_not_instantiated opt_attr;
+          } in
+          let base_env_r = Env.MultiSetOp.get_record base_env in
+          base_env_r.Env.ms_templates <- template_env_r :: base_env_r.Env.ms_templates;
+
+          (* regards as no statement *)
+          TAst.EmptyStmt |> wrap_of node
+       | _ ->
+          let fenv =
+            declare_pre_function ~loc:(Ast.loc_of node)
+                                 id_name ml meta_variables parent_env ctx
+          in
+
+          let node =
+            TAst.FunctionDefStmt (
+                id_name,
+                lt_specs,
+                params |> as_prev_pass,
+                ml,
+                opt_ret_type |> Option.map as_prev_pass,
+                instance_cond |> Option.map as_prev_pass,
+                body |> as_prev_pass,
+                opt_attr,
+                Some fenv
+              ) |> wrap_of node
+          in
+          Env.update_rel_ast fenv node;
+          node
      end
 
   | Ast.MemberFunctionDefStmt (id_name, lt_specs, params, quals, opt_ret_type, body, None, loc) ->
      begin
-       let fenv = declare_pre_function id_name meta_variables loc parent_env ctx in
+       let ml = Meta_level.Runtime in
+       let fenv =
+         declare_pre_function ~loc:(Ast.loc_of node)
+                              id_name ml meta_variables parent_env ctx
+       in
        Env.ClassOp.push_member_function parent_env fenv;
 
-       let node = TAst.MemberFunctionDefStmt (
-                      id_name,
-                      lt_specs,
-                      TAst.PrevPassNode params,
-                      quals,
-                      Option.map (fun x -> TAst.PrevPassNode x) opt_ret_type,
-                      TAst.PrevPassNode body,
-                      opt_attr,
-                      (loc, Some fenv)
-                    ) in
+       let node =
+         TAst.MemberFunctionDefStmt (
+             id_name,
+             lt_specs,
+             params |> as_prev_pass,
+             quals,
+             opt_ret_type |> Option.map as_prev_pass,
+             body |> as_prev_pass,
+             opt_attr,
+             Some fenv
+           ) |> wrap_of node
+       in
        Env.update_rel_ast fenv node;
        node
      end
 
   | Ast.ExternFunctionDefStmt (id_name, lt_specs, params, ml, ret_type, instance_cond, extern_fname, None, loc) ->
      begin
-       let fenv = declare_pre_function id_name meta_variables loc parent_env ctx in
+       match (ml, execution_level) with
+       | (Meta_level.OnlyMeta, Meta_level.Runtime) ->
+          let env_kind = Env.Kind.Function Meta_level.OnlyMeta in
+          let (base_env, is_env_created) =
+            Env.MultiSetOp.find_or_add parent_env id_name env_kind
+          in
 
-       let node = TAst.ExternFunctionDefStmt (
-                      id_name,
-                      lt_specs,
-                      TAst.PrevPassNode params,
-                      ml,
-                      TAst.PrevPassNode ret_type,
-                      instance_cond |> Option.map (fun x -> TAst.PrevPassNode x),
-                      extern_fname,
-                      opt_attr,
-                      (loc, Some fenv)
-                    ) in
-       Env.update_rel_ast fenv node;
-       node
+          let param_inits =
+            match Ast.kind_of params with
+            | Ast.ParamsList param_inits -> param_inits
+            | _ -> failwith "[ICE]"
+          in
+          let template_param_inits =
+            param_inits
+            |> List.mapi (fun n (attr, opt_id, value_init) ->
+                          let id =
+                            Option.default_delayed
+                              (fun () -> Id_string.Pure (Printf.sprintf "_%d" n))
+                              opt_id
+                          in
+                          (id, Some value_init)
+                        )
+          in
+
+          let inner_node =
+            Ast.{kind = Ast.ExternFunctionDefStmt (id_name,
+                                                   lt_specs,
+                                                   Ast.{kind = Ast.ParamsList [];
+                                                        loc = Ast.loc_of params},
+                                                   ml,
+                                                   ret_type,
+                                                   instance_cond,
+                                                   extern_fname,
+                                                   None,
+                                                   loc);
+                 loc = Ast.loc_of node}
+          in
+          let template_params =
+            Ast.{kind = Ast.TemplateParamsList template_param_inits;
+                 loc = Ast.loc_of params}
+          in
+          let template_env_r = {
+            Env.tl_name = id_name;
+            Env.tl_params = template_params |> as_not_instantiated None;
+            Env.tl_inner_node = inner_node |> as_not_instantiated opt_attr;
+          } in
+          let base_env_r = Env.MultiSetOp.get_record base_env in
+          base_env_r.Env.ms_templates <- template_env_r :: base_env_r.Env.ms_templates;
+
+          (* regards as no statement *)
+          TAst.EmptyStmt |> wrap_of node
+       | _ ->
+          let fenv =
+            declare_pre_function ~loc:(Ast.loc_of node)
+                                 id_name ml meta_variables parent_env ctx
+          in
+          let node =
+            TAst.ExternFunctionDefStmt (
+                id_name,
+                lt_specs,
+                params |> as_prev_pass,
+                ml,
+                ret_type |> as_prev_pass,
+                instance_cond |> Option.map as_prev_pass,
+                extern_fname,
+                opt_attr,
+                Some fenv
+              ) |> wrap_of node
+          in
+          Env.update_rel_ast fenv node;
+          node
      end
 
   | Ast.ClassDefStmt (id_name, lt_spec, body, None, loc) ->
      begin
-       let cenv = declare_pre_class id_name meta_variables loc parent_env ctx in
+       let cenv =
+         declare_pre_class ~loc:(Ast.loc_of node)
+                           id_name meta_variables parent_env ctx
+       in
        let cenv_r = Env.ClassOp.get_record cenv in
 
        (* class members are forward referencable *)
@@ -122,29 +246,36 @@ let rec solve_forward_refs ?(meta_variables=[])
        cenv_r.Env.cls_member_vars <- List.rev cenv_r.Env.cls_member_vars;
        cenv_r.Env.cls_member_funcs <- List.rev cenv_r.Env.cls_member_funcs;
 
-       let node = TAst.ClassDefStmt (
-                      id_name,
-                      lt_spec,
-                      nbody,
-                      opt_attr,
-                      (loc, Some cenv)
-                    ) in
+       let node =
+         TAst.ClassDefStmt (
+             id_name,
+             lt_spec,
+             nbody,
+             opt_attr,
+             Some cenv
+           ) |> wrap_of node
+       in
        Env.update_rel_ast cenv node;
        node
      end
 
   | Ast.ExternClassDefStmt (id_name, lifetime_spec, extern_cname, opt_body, None, loc) ->
      begin
-       let cenv = declare_pre_class id_name meta_variables loc parent_env ctx in
+       let cenv =
+         declare_pre_class ~loc:(Ast.loc_of node)
+                           id_name meta_variables parent_env ctx
+       in
 
-       let node = TAst.ExternClassDefStmt (
-                      id_name,
-                      lifetime_spec,
-                      extern_cname,
-                      opt_body |> Option.map (fun a -> TAst.PrevPassNode a),
-                      opt_attr,
-                      (loc, Some cenv)
-                    ) in
+       let node =
+         TAst.ExternClassDefStmt (
+             id_name,
+             lifetime_spec,
+             extern_cname,
+             opt_body |> Option.map as_prev_pass,
+             opt_attr,
+             Some cenv
+           ) |> wrap_of node
+       in
        Env.update_rel_ast cenv node;
        node
      end
@@ -152,7 +283,7 @@ let rec solve_forward_refs ?(meta_variables=[])
   | Ast.MemberVariableDefStmt (v, loc) ->
      begin
        let (_, var_id_name, _) =
-         match v with
+         match Ast.kind_of v with
          | Ast.VarInit vi -> vi
          | _ -> failwith "unexpected node"
        in
@@ -161,52 +292,56 @@ let rec solve_forward_refs ?(meta_variables=[])
        let venv =
          Env.create_context_env parent_env var_id_name
                                 (Env.Variable (var_r))
-                                loc
+                                (Ast.loc_of node)
        in
-       Env.add_inner_env parent_env var_id_name venv |> error_if_env_is_dupped loc;
+       Env.add_inner_env parent_env var_id_name venv |> error_if_env_is_dupped (Ast.loc_of node);
        Env.ClassOp.push_member_variable parent_env venv;
 
-       let node = TAst.MemberVariableDefStmt (TAst.PrevPassNode v, (loc, Some venv)) in
+       let node =
+         TAst.MemberVariableDefStmt (v |> as_prev_pass, Some venv)
+         |> wrap_of node
+       in
        Env.update_rel_ast venv node;    (* this node will be updated later... *)
        node
      end
 
   | Ast.VariableDefStmt (ml, v, loc) ->
-     TAst.VariableDefStmt (ml, TAst.PrevPassNode v, (loc, None))
+     TAst.VariableDefStmt (ml, v |> as_prev_pass, None) |> wrap_of node
 
   | Ast.TemplateStmt (id_name, template_params, inner_node) ->
      begin
        let loc = None in
-       let base_kind = match inner_node with
+       let env_kind = match Ast.kind_of inner_node with
          | Ast.FunctionDefStmt _
          | Ast.ExternFunctionDefStmt _
-         | Ast.MemberFunctionDefStmt _ -> Env.Kind.Function
+         | Ast.MemberFunctionDefStmt _ ->
+            (* TODO: fix metalevel *)
+            Env.Kind.Function Meta_level.Meta
          | Ast.ClassDefStmt _
-         | Ast.ExternClassDefStmt _ -> Env.Kind.Class
+         | Ast.ExternClassDefStmt _ ->
+            Env.Kind.Class
          | _ ->
-            begin
-              failwith "[ICE] template of this statement is not supported."
-            end
+            failwith "[ICE] template of this statement is not supported."
        in
        let (base_env, is_env_created) =
-         Env.MultiSetOp.find_or_add parent_env id_name base_kind
+         Env.MultiSetOp.find_or_add parent_env id_name env_kind
        in
        let template_env_r = {
          Env.tl_name = id_name;
-         Env.tl_params = TAst.NotInstantiatedNode (template_params, None);
-         Env.tl_inner_node = TAst.NotInstantiatedNode (inner_node, opt_attr);
+         Env.tl_params = template_params |> as_not_instantiated None;
+         Env.tl_inner_node = inner_node |> as_not_instantiated opt_attr;
        } in
        let base_env_r = Env.MultiSetOp.get_record base_env in
        base_env_r.Env.ms_templates <- template_env_r :: base_env_r.Env.ms_templates;
 
-       let _ =
+       let () =
          let register_member_info () =
            match Env.kind_of_env parent_env with
            | Env.Kind.Class ->
               begin
-                match base_kind with
+                match env_kind with
                 (* will be member function *)
-                | Env.Kind.Function ->
+                | Env.Kind.Function _ ->
                    let fenv =
                      Env.create_context_env base_env id_name
                                             (Env.Template template_env_r)
@@ -218,14 +353,16 @@ let rec solve_forward_refs ?(meta_variables=[])
               end
            | _ -> ()
          in
-         if is_env_created then register_member_info ()
+         if is_env_created then
+           register_member_info ()
        in
 
        (* regards as no statement *)
-       TAst.EmptyStmt
+       TAst.EmptyStmt |> wrap_of node
      end
 
-  | Ast.EmptyStmt -> TAst.EmptyStmt
+  | Ast.EmptyStmt ->
+     TAst.EmptyStmt |> wrap_of node
 
   | Ast.AttrWrapperStmt (attr_tbl, ast) ->
      begin
@@ -244,6 +381,15 @@ let rec solve_forward_refs ?(meta_variables=[])
        failwith "solve_forward_refs: unsupported node"
      end
 
+and as_prev_pass ast =
+  TAst.{kind = TAst.PrevPassNode ast; loc = Ast.loc_of ast}
+
+and as_not_instantiated opt_attr ast =
+  TAst.{kind = TAst.NotInstantiatedNode (ast, opt_attr); loc = Ast.loc_of ast}
+
+and wrap_of ast kind =
+  TAst.{kind; loc = Ast.loc_of ast}
+
 and prepare_module_from_filepath ?(def_mod_info=None) filepath ctx =
   let root_env = ctx.sc_root_env in
   let simple_module_name = filepath |> Filename.basename |> Filename.chop_extension in
@@ -253,7 +399,8 @@ and prepare_module_from_filepath ?(def_mod_info=None) filepath ctx =
                               filepath
   in
 
-  let load_module_ast body pkg_names mod_name base_dir attr loc =
+  let load_module_ast body pkg_names mod_name base_dir attr =
+    let loc = Ast.loc_of body in
     let check_mod_name expect_mod_head =
       let (expect_pkg_names, expect_mod_name) = expect_mod_head in
       if not (pkg_names = expect_pkg_names && mod_name = expect_mod_name) then
@@ -294,16 +441,18 @@ and prepare_module_from_filepath ?(def_mod_info=None) filepath ctx =
     let res_node = solve_forward_refs body env ctx in
 
     (* make and save tmp TAst to env *)
-    let node = TAst.Module (res_node, pkg_names, mod_name, base_dir, (loc, Some env)) in
+    let node =
+      TAst.{kind = TAst.Module (res_node, pkg_names, mod_name, base_dir, Some env); loc}
+    in
     Env.update_rel_ast env node;
 
     env
   in
 
   let rec load_ast ast attr =
-    match ast with
+    match Ast.kind_of ast with
     | Ast.Module (inner, pkg_names, mod_name, base_dir, loc) ->
-       load_module_ast inner pkg_names mod_name base_dir attr loc
+       load_module_ast inner pkg_names mod_name base_dir attr
     | Ast.AttrWrapperStmt (attr, ast) ->
        load_ast ast attr
     | _ -> failwith "[ICE] ast is not module"
@@ -359,11 +508,13 @@ and declare_meta_var env ctx (id_name, uni_id) =
   Unification.get_as_value ctx.sc_unification_ctx uni_id
 
 
-and declare_pre_function id_name meta_variables loc parent_env ctx =
+and declare_pre_function ~loc id_name ml meta_variables parent_env ctx =
   let in_template = List.length meta_variables > 0 in
 
   (* accept multiple definition for overload *)
-  let (base_env, _) = Env.MultiSetOp.find_or_add parent_env id_name Env.Kind.Function in
+  let (base_env, _) =
+    Env.MultiSetOp.find_or_add parent_env id_name (Env.Kind.Function ml)
+  in
 
   let fenv_r = Env.FunctionOp.empty_record id_name in
   let fenv =
@@ -387,7 +538,7 @@ and declare_pre_function id_name meta_variables loc parent_env ctx =
   fenv
 
 
-and declare_pre_class id_name meta_variables loc parent_env ctx =
+and declare_pre_class ~loc id_name meta_variables parent_env ctx =
   let in_template = List.length meta_variables > 0 in
 
   (* accept multiple definition for specialization *)
@@ -419,5 +570,5 @@ and prepare_builtin_module ctx =
     prepare_module ~loc:Loc.dummy ["core"] "builtin" ctx
   with
   | Fatal_error err as exn ->
-     Sema_error.process_error err ctx;
+     Sema_error.store_error_message err ctx;
      raise exn

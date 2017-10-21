@@ -24,71 +24,71 @@ type qual_t =
 
 module Make (Ctx : NodeContextType) =
   struct
-    type ast =
-        Module of ast * string list * string * string * ctx_t
+    type kind_t =
+        Module of t * string list * string * string * ctx_t
 
       (*
        * statements
        *)
-      | StatementList of ast list
-      | ExprStmt of ast
-      | VoidExprStmt of ast
-      | ReturnStmt of ast option
+      | StatementList of t list
+      | ExprStmt of t
+      | VoidExprStmt of t
+      | ReturnStmt of t option
       | ImportStmt of string list * string * bool * ctx_t
       (* name, lifetimes, params, meta_level, return_type?, instance_cond, body, attribute?, _ *)
-      | FunctionDefStmt of Id_string.t * lifetime_def_specs * ast * Meta_level.t * ast option * ast option * ast * attr_tbl_t option * ctx_t
+      | FunctionDefStmt of Id_string.t * lifetime_def_specs * t * Meta_level.t * t option * t option * t * attr_tbl_t option * ctx_t
       (* name, lifetimes, params, quals, return_type?, body, attribute?, _ *)
-      | MemberFunctionDefStmt of Id_string.t * lifetime_def_specs * ast * qual_t list * ast option * ast * attr_tbl_t option * ctx_t
+      | MemberFunctionDefStmt of Id_string.t * lifetime_def_specs * t * qual_t list * t option * t * attr_tbl_t option * ctx_t
       (* name, lifetimes, params, meta_level, return_type, instance_cond, function name(TODO: change to AST), attribute?, _ *)
-      | ExternFunctionDefStmt of Id_string.t * lifetime_def_specs * ast * Meta_level.t * ast * ast option * string * attr_tbl_t option * ctx_t
+      | ExternFunctionDefStmt of Id_string.t * lifetime_def_specs * t * Meta_level.t * t * t option * string * attr_tbl_t option * ctx_t
       (* name, lifetime, body, attribute?, _ *)
-      | ClassDefStmt of Id_string.t * lifetime_def_specs * ast * attr_tbl_t option * ctx_t
+      | ClassDefStmt of Id_string.t * lifetime_def_specs * t * attr_tbl_t option * ctx_t
       (* name, lifetimes, params, class name(TODO: change to AST), body?, attribute?, _ *)
-      | ExternClassDefStmt of Id_string.t * lifetime_def_specs * string * ast option * attr_tbl_t option * ctx_t
+      | ExternClassDefStmt of Id_string.t * lifetime_def_specs * string * t option * attr_tbl_t option * ctx_t
       (* VarInit, _ *)
-      | VariableDefStmt of Meta_level.t * ast * ctx_t
-      | MemberVariableDefStmt of ast * ctx_t
+      | VariableDefStmt of Meta_level.t * t * ctx_t
+      | MemberVariableDefStmt of t * ctx_t
 
       (* name, template params, inner node *)
-      | TemplateStmt of Id_string.t * ast * ast
+      | TemplateStmt of Id_string.t * t * t
       | EmptyStmt
-      | AttrWrapperStmt of attr_tbl_t * ast
+      | AttrWrapperStmt of attr_tbl_t * t
 
       (*
        * expressions
        *)
-      | BinaryOpExpr of ast * ast * ast * term_ctx_t    (* lhs * op * rhs *)
-      | UnaryOpExpr of ast * ast * term_ctx_t           (* op * rhs *)
+      | BinaryOpExpr of t * t * t * term_ctx_t    (* lhs * op * rhs *)
+      | UnaryOpExpr of t * t * term_ctx_t           (* op * rhs *)
 
-      | ElementSelectionExpr of ast * ast * term_ctx_t
-      | SubscriptingExpr of ast * ast option * term_ctx_t
-      | CallExpr of ast * ast list * term_ctx_t
-      | ScopeExpr of ast
-      | IfExpr of ast * ast * ast option * term_ctx_t
-      | ForExpr of ast option * ast option * ast option * ast
+      | ElementSelectionExpr of t * t * term_ctx_t
+      | SubscriptingExpr of t * t option * term_ctx_t
+      | CallExpr of t * t list * term_ctx_t
+      | ScopeExpr of t
+      | IfExpr of t * t * t option * term_ctx_t
+      | ForExpr of t option * t option * t option * t
 
-      | StatementTraitsExpr of string * ast
+      | StatementTraitsExpr of string * t
 
       (* used for calling destructors *)
-      | FinalyzeExpr of ast option * ast list
+      | FinalyzeExpr of t option * t list
 
       (**)
       (*| TerminalExpr of ast*)
 
       (* set cache id for only needed ones. will be used for memo needed by destructor *)
-      | SetCacheExpr of CachedNodeCounter.t * ast
+      | SetCacheExpr of CachedNodeCounter.t * t
       | GetCacheExpr of CachedNodeCounter.t
 
       (*
        * values
        *)
       | Id of Id_string.t * lifetime_specs * term_ctx_t
-      | InstantiatedId of Id_string.t * ast list * lifetime_specs * term_ctx_t
+      | InstantiatedId of Id_string.t * t list * lifetime_specs * term_ctx_t
 
       | IntLit of int * int * bool * term_ctx_t (* value * bits * signed *)
       | StringLit of string * term_ctx_t
       | BoolLit of bool * term_ctx_t
-      | ArrayLit of ast list * bool * term_ctx_t
+      | ArrayLit of t list * bool * term_ctx_t
 
       (* error *)
       | ErrorTerm
@@ -102,18 +102,18 @@ module Make (Ctx : NodeContextType) =
       | NotInstantiatedNode of pctx_t * attr_tbl_t option
 
       | CtxNode of term_ctx_t
-      | TypeRVConv of Type_attr.ref_val_t * ast list * term_ctx_t
-      | TypeQualConv of Type_attr.mut_t * ast list * term_ctx_t
-      | MetaLevelConv of Meta_level.t * ast list * term_ctx_t
+      | TypeRVConv of Type_attr.ref_val_t * t list * term_ctx_t
+      | TypeQualConv of Type_attr.mut_t * t list * term_ctx_t
+      | MetaLevelConv of Meta_level.t * t list * term_ctx_t
 
       (* *)
       | GenericId of Id_string.t * Lifetime.t list * ctx_t
       (* object construction, args, caller env, ctx *)
-      | GenericCallExpr of storage_t * ast list * ctx_t * ctx_t
+      | GenericCallExpr of storage_t * t list * ctx_t * ctx_t
       (* body, ctx *)
-      | GenericFuncDef of ast option * ctx_t
-      | NestedExpr of ast * term_aux_t * term_ctx_t * ctx_t
-      | StorageWrapperExpr of storage_t ref * ast
+      | GenericFuncDef of t option * ctx_t
+      | NestedExpr of t * term_aux_t * term_ctx_t * ctx_t
+      | StorageWrapperExpr of storage_t ref * t
 
      (* attr * id? * value *)
      and param_init_t = Type_attr.attr_t * Id_string.t option * value_init_t
@@ -127,15 +127,15 @@ module Make (Ctx : NodeContextType) =
      and lifetime_def_specs = Lifetime.sort list
 
      (* type * default value *)
-     and value_init_t = ast option * ast option
+     and value_init_t = t option * t option
 
      and attr_tbl_t = (string, attr_value_t option) Hashtbl.t
 
-     and ctx_t = ast Ctx.current_ctx_t
-     and term_ctx_t = ast Ctx.term_ctx_t
-     and pctx_t = ast Ctx.prev_ctx_t
-     and term_aux_t = ast Ctx.term_aux_t
-     and attr_value_t = ast Ctx.attr_value_t
+     and ctx_t = t Ctx.current_ctx_t
+     and term_ctx_t = t Ctx.term_ctx_t
+     and pctx_t = t Ctx.prev_ctx_t
+     and term_aux_t = t Ctx.term_aux_t
+     and attr_value_t = t Ctx.attr_value_t
 
      and storage_t =
        | StoStack of term_ctx_t
@@ -151,7 +151,22 @@ module Make (Ctx : NodeContextType) =
        (* *)
        | StoMemberVar of term_ctx_t * ctx_t * ctx_t
 
-    type t = ast
+     and t = {
+       kind: kind_t;
+       loc: Loc.t
+     }
+
+    let kind_of node =
+      let {kind} = node in
+      kind
+
+    let loc_of node =
+      let {loc} = node in
+      loc
+
+    let map f node =
+      let {kind; loc} = node in
+      {kind = f kind; loc}
 
     let string_of_stirage sto =
       match sto with
@@ -167,8 +182,8 @@ module Make (Ctx : NodeContextType) =
     let debug_print_storage sto =
       Debug.printf "%s\n" (string_of_stirage sto)
 
-    let rec print ast =
-      match ast with
+    let rec print node =
+      match kind_of node with
       | Module (a, _, _, _, ctx) ->
          begin
            Debug.printf "module\n";
@@ -202,7 +217,7 @@ module Make (Ctx : NodeContextType) =
 
       | EmptyStmt ->
          begin
-           Debug.printf "EMPTY\n";
+           Debug.printf "EmptyStmt\n";
          end
 
       | BinaryOpExpr (lhs, op, rhs, _) ->

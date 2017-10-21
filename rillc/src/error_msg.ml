@@ -13,8 +13,9 @@ module ArgLocMap = Map.Make(Int)
 type ('ty, 'env) t =
   (* num of params * num of args *)
   | DifferentArgNum of int * int
+  | ConvErr of ('ty * ('ty * Loc.t) * 'env)
   (* target_type * (source_type * source_loc) * ErrorLevel *)
-  | ConvErr of ('ty * ('ty * Loc.t) * Function.MatchLevel.t) ArgLocMap.t * 'env
+  | ArgConvErr of ('ty * ('ty * Loc.t) * Function.MatchLevel.t) ArgLocMap.t * 'env
   (* errors * loc *)
   | NoOverloadSet of ('ty, 'env) t list * Loc.t
   | NoMatch of ('ty, 'env) t list * Loc.t
@@ -27,6 +28,11 @@ type ('ty, 'env) t =
 
   | MultiSymbol of 'env * Loc.t
 
-  | Msg of string
+  | DiffExecLevel of {loc: Loc.t; expect: Meta_level.t; actual: Meta_level.t}
+  | DiffReturnType of {loc: Loc.t; expect: 'ty; actual: 'ty}
 
+  | NoReturnStmts of {loc: Loc.t; env: 'env}
+  | ReturnTypeIsNotDetermined of {loc: Loc.t; env: 'env}
+
+  | Msg of string
   | TmpError of string * 'env

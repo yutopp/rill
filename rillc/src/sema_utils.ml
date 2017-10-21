@@ -188,7 +188,10 @@ let post_check_function_return_type env ctx =
  *)
 let declare_incomplete_ctor cenv =
   let loc = None in
-  let (base_env, _) = Env.MultiSetOp.find_or_add cenv ctor_id_name Env.Kind.Function in
+  let ml = Meta_level.Meta in
+  let (base_env, _) =
+    Env.MultiSetOp.find_or_add cenv ctor_id_name (Env.Kind.Function ml)
+  in
   let fenv_r = Env.FunctionOp.empty_record ctor_id_name in
 
   let fenv =
@@ -304,7 +307,9 @@ let define_trivial_copy_ctor_for_builtin ?(has_ptr_constraints=false)
                               cenv ctx
   in
 
-  let node = TAst.GenericFuncDef (None, (Loc.dummy, Some fenv)) in
+  let node =
+    TAst.{kind = TAst.GenericFuncDef (None, Some fenv); loc = Loc.dummy}
+  in
   let detail =
     Env.FnRecordBuiltin (Env.FnDefDefaulted true,
                          Env.FnKindCopyConstructor None,
@@ -330,7 +335,9 @@ let register_builtin_type name inner_name mangled_name
     let loc = None in
 
     let lifetime_spec = [] in
-    let node = TAst.ExternClassDefStmt (name, lifetime_spec, inner_name, None, None, (loc, Some env)) in
+    let node =
+      TAst.{kind = TAst.ExternClassDefStmt (name, lifetime_spec, inner_name, None, None, Some env); loc}
+    in
 
     let detail_r = Env.ClsRecordExtern {
                        Env.cls_e_name = inner_name;

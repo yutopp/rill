@@ -6,3 +6,4 @@ PKG ctypes
 PKG stdint
 PKG oUnit
 PKG ocamlgraph
+PKG loga

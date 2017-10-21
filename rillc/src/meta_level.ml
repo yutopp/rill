@@ -25,6 +25,10 @@ let of_int = function
   | 3 -> OnlyRuntime
   | _ -> failwith "invalid"
 
+let meta_than_or_equal_to a b =
+  (to_int a) <= (to_int b)
+
+(* returns ml near to runtime *)
 let bottom a b =
   of_int (max (to_int a) (to_int b))
 

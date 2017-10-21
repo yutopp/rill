@@ -146,7 +146,7 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
   let void_val fi = (void_v, void_ty, false, fi) in
 
   if FI.has_terminator prev_fi then void_val prev_fi else
-  match node with
+  match TAst.kind_of node with
   | TAst.Module (inner, pkg_names, mod_name, base_dir, _) ->
      generate_code inner prev_fi ctx
 
@@ -192,7 +192,7 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
        (llval, void_ty, false, fi |> FI.set_has_terminator true)
      end
 
-  | TAst.GenericFuncDef (opt_body, (_, Some env)) ->
+  | TAst.GenericFuncDef (opt_body, Some env) ->
      if Ctx.is_env_defined ctx env then void_val prev_fi else
      begin
        Ctx.mark_env_as_defined ctx env;
@@ -260,7 +260,7 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
      end
 
   | TAst.ClassDefStmt (
-        name, _, body, opt_attr, (_, Some env)
+        name, _, body, opt_attr, Some env
       ) ->
      if Ctx.is_env_defined ctx env then void_val prev_fi else
      begin
@@ -297,7 +297,7 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
      end
 
   | TAst.ExternClassDefStmt (
-        name, _, extern_cname, _, _, (_, Some env)
+        name, _, extern_cname, _, _, Some env
       ) ->
      if Ctx.is_env_defined ctx env then void_val prev_fi else
      begin
@@ -319,7 +319,7 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
        void_val prev_fi
      end
 
-  | TAst.VariableDefStmt (_, TAst.VarInit (var_init), (_, Some env)) ->
+  | TAst.VariableDefStmt (_, TAst.{kind = TAst.VarInit (var_init); _}, Some env) ->
      if Ctx.is_env_defined ctx env then void_val prev_fi else
      begin
        let venv = Env.VariableOp.get_record env in
@@ -345,7 +345,7 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
   | TAst.MemberVariableDefStmt _ -> void_val prev_fi
   | TAst.EmptyStmt -> void_val prev_fi
 
-  | TAst.GenericCallExpr (storage_ref, args, (_, Some caller_env), (_, Some env)) ->
+  | TAst.GenericCallExpr (storage_ref, args, Some caller_env, Some env) ->
      begin
        let f_er = Env.FunctionOp.get_record env in
        let {
@@ -498,7 +498,7 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
        (llval, ret_ty, returns_addr, prev_fi(* TODO *))
      end
 
-  | TAst.NestedExpr (lhs_node, _, rhs_ty, (_, Some rhs_env)) ->
+  | TAst.NestedExpr (lhs_node, _, rhs_ty, Some rhs_env) ->
      begin
        let (ll_lhs, _, is_addr, cg) = generate_code lhs_node prev_fi ctx in
        assert (is_addr);
@@ -595,7 +595,7 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
          end
      end
 
-  | TAst.GenericId (name, lt_args, (_, Some rel_env)) ->
+  | TAst.GenericId (name, lt_args, Some rel_env) ->
      begin
        let { Env.er = er; _ } = rel_env in
        match er with
@@ -616,29 +616,14 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
             Debug.printf "variable %s / type => %s\n"
                          (Id_string.to_string name)
                          (Type.to_string r.Env.var_type);
-            let var_llr = try Ctx.find_val_by_env ctx rel_env with
-                          | Not_found ->
-                             begin
-                               try Ctx.find_metaval_by_env ctx rel_env with
-                               | Not_found ->
-                                  (* TODO: fix. adhoc *)
-                                  let llval =
-                                    match (Type.to_string r.Env.var_type) with
-                                    | "ref(const(type))" ->
-                                       let ty = !(ctx.type_sets.Type_sets.ts_int32_type_holder) in
-                                       let itype_id = Option.get ty.Type_info.ti_id in
-                                       L.const_of_int64 (L.i64_type ctx.ir_context)
-                                                        itype_id
-                                                        Type_info.is_type_id_signed
-                                    | "ref(const(uint32))" ->
-                                       L.const_of_int64 (L.i32_type ctx.ir_context)
-                                                        (Int64.of_int 0)
-                                                        false
-                                    | _ ->
-                                       failwith "[ICE] variable(meta) env is not found"
-                                  in
-                                  LLValue (llval, false)
-                             end
+            let var_llr =
+              try Ctx.find_val_by_env ctx rel_env with
+              | Not_found ->
+                 try Ctx.find_metaval_by_env ctx rel_env with
+                 | Not_found ->
+                    failwith (Printf.sprintf "[ICE] variable(meta) env is not found: %s, %s"
+                                             (Meta_level.to_string rel_env.Env.meta_level)
+                                             (Type.to_string r.Env.var_type))
             in
             let (llval, is_addr) = match var_llr with
               | LLValue v -> v
@@ -686,6 +671,7 @@ let rec generate_code ?(storage=None) node prev_fi ctx : 'ty generated_value_t =
                                          Type_info.is_type_id_signed
             in
             let ty = ctx.type_sets.Type_sets.ts_type_type in
+
             (llval, ty, false, prev_fi(* TODO *))
           end
 
@@ -1229,7 +1215,7 @@ and setup_storage sto caller_env ctx =
      in
      (array_elem_ptr, ty, true)
 
-  | TAst.StoArrayElemFromThis (ty, (_, Some this_env), index) ->
+  | TAst.StoArrayElemFromThis (ty, Some this_env, index) ->
      Debug.printf "setup_storage: StoArrayElemFromThis ty=%s\n"
                   (Type.to_string ty);
      let (array_sto, is_f_addr) =
@@ -1246,7 +1232,7 @@ and setup_storage sto caller_env ctx =
      in
      (array_elem_ptr, ty, true)
 
-  | TAst.StoMemberVar (ty, (_, Some venv), (_, Some parent_fenv)) ->
+  | TAst.StoMemberVar (ty, Some venv, Some parent_fenv) ->
      Debug.printf "setup_storage: StoMemberVar ty=%s\n"
                   (Type.to_string ty);
      let (reciever_llval, is_addr) =
@@ -1638,17 +1624,16 @@ let inject_builtins ctx =
    *)
   let () =
     (* sizeof is onlymeta function *)
-    let f _ _ args ctx =
-      assert (Array.length args = 1);
-      let ty_val = args.(0) in
-      let ty = match L.int64_of_const ty_val with
-        | Some t_id ->
-           Type.Generator.find_type_by_cache_id ctx.type_sets.Type_sets.ts_type_gen t_id
+    let f template_args _ _ _args ctx =
+      assert (List.length template_args = 1);
+      assert (Array.length _args = 0);
+      let ty = match List.nth template_args 0 with
+        | Ctfe_value.Type ty -> ty
         | _ -> failwith "[ICE] failed to get a ctfed value"
       in
       llval_u32 (Type.size_of ty) ctx
     in
-    register_builtin_func "__builtin_sizeof" f
+    register_builtin_template_func "__builtin_sizeof" f
   in
 
   let () =
@@ -1824,26 +1809,24 @@ let inject_builtins ctx =
     let init _ = L.const_int (L.i64_type ctx.ir_context) 0 in
     define_special_members type_type_i init;
 
-    let () = (* ==(:type, :type): bool *)
-      let f _ _ args ctx =
-        assert (Array.length args = 2);
-        let lhs_ty_val = args.(0) in
-        let lhs_ty = match L.int64_of_const lhs_ty_val with
-          | Some t_id ->
-             Type.Generator.find_type_by_cache_id ctx.type_sets.Type_sets.ts_type_gen t_id
+    let () = (* ==(:type, :type) onlymeta: bool *)
+      let f template_args _ _ _args ctx =
+        assert (List.length template_args = 2);
+        assert (Array.length _args = 0);
+        let lhs_ty = match List.nth template_args 0 with
+          | Ctfe_value.Type ty -> ty
           | _ -> failwith "[ICE] failed to get a ctfed value"
         in
-        let rhs_ty_val = args.(1) in
-        let rhs_ty = match L.int64_of_const rhs_ty_val with
-          | Some t_id ->
-             Type.Generator.find_type_by_cache_id ctx.type_sets.Type_sets.ts_type_gen t_id
+        let rhs_ty = match List.nth template_args 1 with
+          | Ctfe_value.Type ty -> ty
           | _ -> failwith "[ICE] failed to get a ctfed value"
         in
         let _ = lhs_ty in
         let _ = rhs_ty in
-        llval_i1 (true) ctx (* TODO: fix *)
+        (* TODO: IMPLEMENT! *)
+        llval_i1 (true) ctx
       in
-      register_builtin_func "__builtin_op_binary_==_type_type" f
+      register_builtin_template_func "__builtin_op_binary_==_type_type" f
     in
     ()
   in
@@ -1873,6 +1856,14 @@ let inject_builtins ctx =
         L.build_intcast args.(0) (L.i8_type ctx.ir_context) "" ctx.Ctx.ir_builder
       in
       register_builtin_func "__builtin_cast_from_uint32_to_uint8" f
+    in
+
+    let () = (* +(:int32): uint8 *)
+      let f _ _ args ctx =
+        assert (Array.length args = 1);
+        L.build_intcast args.(0) (L.i8_type ctx.ir_context) "" ctx.Ctx.ir_builder
+      in
+      register_builtin_func "__builtin_cast_from_int32_to_uint8" f
     in
 
     let () = (* +(:uint8): int32 *)

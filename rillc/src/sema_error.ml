@@ -110,7 +110,15 @@ let rec print ?(loc=None) err =
      Printf.printf "%s:\nError: requires %d but given %d\n"
                    (Loc.to_string loc) params_num args_num
 
-  | ConvErr (m, f_env) ->
+  | ConvErr (trg_ty, (src_ty, src_loc), env) ->
+     Printf.printf "Type mismatch at %s:\n"
+                   (show_env env);
+     Printf.printf "    expr   :  %s (%s)\n"
+                   (string_of_loc_region src_loc) (Loc.to_string src_loc);
+     Printf.printf "    found  :  %s\n" (Type.to_string src_ty);
+     Printf.printf "    expect :  %s\n" (Type.to_string trg_ty);
+
+  | ArgConvErr (m, f_env) ->
      Printf.printf "Type mismatch to call %s:\n"
                    (show_env f_env);
      let p k (trg_ty, (src_ty, src_loc), level) =
@@ -132,8 +140,9 @@ let rec print ?(loc=None) err =
      List.iter (fun err -> print err; Printf.printf "\n") errs
 
   | NoMatch (errs, loc) ->
-     Printf.printf "%s:\nError: There is no matched function\n"
-                   (Loc.to_string loc);
+     Printf.printf "%s:\nError: There are no matched functions (candidate: %d)\n"
+                   (Loc.to_string loc)
+                   (List.length errs);
      List.iter (fun err -> print err; Printf.printf "\n") errs
 
   | MemberNotFound (env, history, loc) ->
@@ -197,9 +206,40 @@ let rec print ?(loc=None) err =
      in
      List.iter (fun env -> show_env env |> Printf.printf "%s\n") history
 
+  | DiffExecLevel {loc; expect; actual} ->
+     Printf.printf "%s:\nError: Cannot execute in execution context\n"
+                   (Loc.to_string loc);
+     Printf.printf "    expr   :  %s\n" (string_of_loc_region loc);
+     Printf.printf "    actual :  %s\n" (Meta_level.to_string actual);
+     Printf.printf "    expect :  %s\n" (Meta_level.to_string expect)
+
+  | DiffReturnType {loc; expect; actual} ->
+     Printf.printf "%s:\nError: Return type must be same\n"
+                   (Loc.to_string loc);
+     Printf.printf "    expr   :  %s\n" (string_of_loc_region loc);
+     Printf.printf "    actual :  %s\n" (Type.to_string actual);
+     Printf.printf "    expect :  %s\n" (Type.to_string expect)
+
+  | NoReturnStmts {loc: Loc.t; env} ->
+     (* HINT: when some errors are happened in the function *)
+     Printf.printf "%s:\nError: There is no return statements in this control flow\n"
+                   (Loc.to_string loc)
+  | ReturnTypeIsNotDetermined {loc: Loc.t; env} ->
+     (* HINT: when the function is recursive called *)
+     Printf.printf "%s:\nError: Type of this function is not determined\n"
+                   (Loc.to_string loc)
+
+let store_error_message err ctx =
+  ctx.sc_errors <- err :: ctx.sc_errors
+
 let process_error err ctx =
   Printf.printf "\n===============================\n";
   print err;
-  store_error_message "" ctx;
+  store_error_message err ctx;
   Printf.printf "\n===============================\n";
   ()
+
+let print_errors ctx =
+  List.iter (fun err ->
+             process_error err ctx
+            ) ctx.sc_errors

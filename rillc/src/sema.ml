@@ -127,8 +127,9 @@ let load_module filename env ctx =
              m)
     with
     | Fatal_error err ->
-       Sema_error.process_error err ctx;
+       Sema_error.store_error_message err ctx;
        None
   in
   Debug.reportf "= LOAD_MODULE(%s) %s" filename (Debug.Timer.string_of_elapsed timer);
+  Sema_error.print_errors ctx;
   res
