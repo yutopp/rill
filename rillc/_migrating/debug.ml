@@ -6,7 +6,7 @@
  * http://www.boost.org/LICENSE_1_0.txt)
  *)
 
-open Batteries
+open Base
 
 module Timer : sig
   type t
@@ -18,11 +18,11 @@ end =
     type t = float
 
     let create () =
-      Sys.time()
+      Unix.time()
 
     (* seconds *)
     let elapsed t =
-      Sys.time() -. t
+      Unix.time() -. t
 
     let string_of_elapsed t =
       let e = elapsed t in
@@ -30,9 +30,9 @@ end =
   end
 
 let () =
-  let ignore_debug_log =
-    try Sys.getenv "RILL_IGNORE_DEBUG_LOG" <> "" with
-    | Not_found -> false
+  let ignore_debug_log : bool =
+    try String.equal (Unix.getenv "RILL_IGNORE_DEBUG_LOG") "" with
+    | Not_found_s _ -> false
   in
   if Config.is_release || ignore_debug_log then
     Loga.set_base_severity Loga_severity.Emergency
@@ -41,8 +41,8 @@ let () =
 
 let out_ch =
   let ignore_debug_log =
-    try Sys.getenv "RILL_IGNORE_DEBUG_LOG" <> "" with
-    | Not_found -> false
+    try String.equal (Unix.getenv "RILL_IGNORE_DEBUG_LOG") "" with
+    | Not_found_s _ -> false
   in
   if Config.is_release || ignore_debug_log then
     stdnull

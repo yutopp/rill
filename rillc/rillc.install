@@ -1,0 +1,19 @@
+lib: [
+  "_build/install/default/lib/rillc/META" {"META"}
+  "_build/install/default/lib/rillc/opam" {"opam"}
+  "_build/install/default/lib/rillc/rillc.a" {"rillc.a"}
+  "_build/install/default/lib/rillc/rillc.cma" {"rillc.cma"}
+  "_build/install/default/lib/rillc/rillc.cmi" {"rillc.cmi"}
+  "_build/install/default/lib/rillc/rillc.cmt" {"rillc.cmt"}
+  "_build/install/default/lib/rillc/rillc.cmx" {"rillc.cmx"}
+  "_build/install/default/lib/rillc/rillc.cmxa" {"rillc.cmxa"}
+  "_build/install/default/lib/rillc/rillc.cmxs" {"rillc.cmxs"}
+  "_build/install/default/lib/rillc/rillc.dune" {"rillc.dune"}
+  "_build/install/default/lib/rillc/rillc.ml" {"rillc.ml"}
+]
+bin: [
+  "_build/install/default/bin/rillc" {"rillc"}
+]
+doc: [
+  "_build/install/default/doc/rillc/README.md"
+]

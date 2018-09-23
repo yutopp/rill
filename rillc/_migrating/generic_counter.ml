@@ -24,7 +24,7 @@ module type COUNTER_SIG =
     val one :  t
     val max_int : t
 
-    val add : t -> t -> t
+    (*val ( + ) : t -> t -> t*)
     val to_string : t -> string
     val compare : t -> t -> int
   end
@@ -44,7 +44,7 @@ module Counter(C : COUNTER_SIG) : GENERIC_COUNTER =
       let cur_id = !id_counter in
       if cur_id = C.max_int then
         failwith "counter is reached to limit";
-      id_counter := C.add !id_counter C.one;
+      id_counter := C.(+) !id_counter C.one;
       cur_id
 
     let to_string id =

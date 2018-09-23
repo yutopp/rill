@@ -6,7 +6,7 @@
  * http://www.boost.org/LICENSE_1_0.txt)
  *)
 
-open Batteries
+open Base
 open Stdint
 module L = Llvm
 

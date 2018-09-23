@@ -6,7 +6,7 @@
  * http://www.boost.org/LICENSE_1_0.txt)
  *)
 
-open Batteries
+open Base
 
 type id_t = int
 
@@ -29,27 +29,27 @@ let dummy_uni_id = 0
 let empty () =
   {
     fresh_id = 1;
-    type_map = Hashtbl.create 10;
-    value_map = Hashtbl.create 10;
+    type_map = Hashtbl.create ~size:10 (module Int);
+    value_map = Hashtbl.create ~size:10 (module Int);
   }
 
 
 let new_fresh_id holder =
   let cur_uni_id = holder.fresh_id in
-  if cur_uni_id = Int.max_num then
+  if cur_uni_id = Int.max_value then
     failwith "[ICE]";
   holder.fresh_id <- holder.fresh_id + 1;
   cur_uni_id
 
 let generate_uni_id holder =
   let new_uni_id = new_fresh_id holder in
-  Hashtbl.add holder.type_map new_uni_id Undef;
-  Hashtbl.add holder.value_map new_uni_id Undef;
+  let _ = Hashtbl.add holder.type_map ~key:new_uni_id ~data:Undef in
+  let _ = Hashtbl.add holder.value_map ~key:new_uni_id ~data:Undef in
   new_uni_id
 
 
 let rec search_until_terminal ?(debug_s="") mapping uni_id =
-  let c = Hashtbl.find mapping uni_id in
+  let c = Hashtbl.find_exn mapping uni_id in
   match c with
   | Val _
   | Undef ->

@@ -1,0 +1,22 @@
+opam-version: "2.0"
+name: "rillc"
+version: "0.0.1"
+synopsis: "One-line description"
+description: """
+Longer description
+"""
+maintainer: "yutopp <yutopp@gmail.com>"
+author: "yutopp <yutopp@gmail.com>"
+license: "Boost License Version 1.0"
+homepage: "https://github.com/yutopp/rill"
+bug-reports: "https://github.com/yutopp/rill/issues"
+dev-repo: "https://github.com/yutopp/rill.git"
+depends: [
+  "ocaml"       {build & >= "4.06.0"}
+  "ocamlfind"   {build}
+  "base"
+  "menhir"      {>= "20180905"}
+  "stdint"
+  "llvm"
+]
+build: ["dune" "build" "-p" name]

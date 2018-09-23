@@ -11,7 +11,7 @@ let make_lexedbuf_from_input input =
   input |> BatIO.to_input_channel |> Lexing.from_channel
 
 let make_ast full_filepath pkg_names mod_name lexedbuf =
-  let module P = Parser.Make(struct
+  let module P = Syntax.Make(struct
                               let full_filepath = full_filepath
                               let package_names = pkg_names
                               let module_name = mod_name
