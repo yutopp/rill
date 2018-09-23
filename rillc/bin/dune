@@ -1,0 +1,7 @@
+(executables
+ (names main)
+ (libraries rillc))
+
+(install
+ (section bin)
+ (files (main.exe as rillc)))
