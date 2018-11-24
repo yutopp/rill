@@ -1,6 +1,6 @@
 (executables
  (names main)
- (libraries rillc))
+ (libraries rillc base stdio sexplib))
 
 (install
  (section bin)

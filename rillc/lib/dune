@@ -1,17 +1,19 @@
 (library
  (public_name     rillc)
- (libraries       base stdint llvm))
+ (libraries       base stdio stdint)
+ (preprocess
+  (pps ppx_sexp_conv)))
 
-;(ocamllex lexer)
+(ocamllex lexer)
 
-;(menhir
-; (flags   --only-tokens)
-; (modules tokens))
-;
-;(menhir
-; (merge_into syntax)
-; (flags      (--external-tokens Tokens -v --explain))
-; (modules    tokens syntax))
+(menhir
+ (flags   --only-tokens)
+ (modules tokens))
+
+(menhir
+ (merge_into syntax)
+ (flags      (--external-tokens Tokens -v --explain))
+ (modules    tokens syntax))
 
 ;(rule
 ; (targets c_flags.sexp c_library_flags.sexp)

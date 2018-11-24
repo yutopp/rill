@@ -12,11 +12,13 @@ homepage: "https://github.com/yutopp/rill"
 bug-reports: "https://github.com/yutopp/rill/issues"
 dev-repo: "https://github.com/yutopp/rill.git"
 depends: [
-  "ocaml"       {build & >= "4.06.0"}
-  "ocamlfind"   {build}
-  "base"
-  "menhir"      {>= "20180905"}
-  "stdint"
-  "llvm"
+  "base"            {>= "v0.11.0"}
+  "stdio"           {>= "v0.11.0"}
+  "menhir"          {>= "20180905"}
+  "stdint"          {>= "0.5.1"}
+  "llvm"            {>= "7.0.0"}
+  "ocaml"           {build & >= "4.07.0"}
+  "ocamlfind"       {build}
+  "ppx_sexp_conv"   {build}
 ]
 build: ["dune" "build" "-p" name]
