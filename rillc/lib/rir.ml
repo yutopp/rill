@@ -11,7 +11,6 @@ open! Base
 type t = {
   funcs: func_t list;
 }
-[@@deriving sexp]
 
 and func_t = {
   name: string;
@@ -49,10 +48,14 @@ and terminator_t =
   | Ret of placeholder_t
 
 and placeholder_t = string * int option
+[@@deriving sexp]
 
 module Builder = struct
 end
 
 let generate hir =
   let k_norm = Rir_k_norm.generate hir in
-  ()
+  (*let _ = Stdio.printf "K = \n%s\n" (Rir_k_norm.sexp_of_t k_norm |> Sexp.to_string_hum ~indent:2) in*)
+  {
+    funcs = [];
+  }

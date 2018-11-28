@@ -10,6 +10,7 @@ module Ast = Ast
 module Parser = Parser
 module Sema = Sema
 module Hir = Hir
+module Rir = Rir
 module Diagnostics = Diagnostics
 
 let test () =

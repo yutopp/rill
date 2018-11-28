@@ -80,41 +80,42 @@ let rec sem node =
   sem' node (Context.empty ())
 
 and sem_fold' nodes ctx =
-  let ((ctx', errs_stack), nodes') =
-    List.fold_map nodes
-                  ~init:(ctx, [])
-                  ~f:(fun (c, es) n -> match sem' n c with
-                                       | Ok (n', c') -> ((c', es), n')
-                                       | Error errs -> ((c, errs :: es), Hir.{kind = Empty; ty = Ty.Unknown})
-                     )
+  let (ctx', nodes_res_rev) =
+    List.fold_left nodes
+                   ~init:(ctx, [])
+                   ~f:(fun (c, rs) n ->
+                        match sem' n c with
+                        | Ok (n', c') -> (c', (Either.First n') :: rs)
+                        | Error errs -> (c, (Either.Second errs) :: rs))
   in
-  match errs_stack with
-  | [] -> Ok (nodes', ctx')
-  | _  -> Error (errs_stack |> List.rev |> List.concat)
+  match List.exists nodes_res_rev ~f:Either.is_second with
+  | true  -> Error (nodes_res_rev |> List.filter_map ~f:Either.Second.to_option |> List.rev |> List.concat)
+  | false -> Ok (nodes_res_rev |> List.filter_map ~f:Either.First.to_option |> List.rev, ctx')
 
 and sem' node ctx : ((Hir.t * Context.t), Diagnostics.t list) Result.t =
-  match node.Ast.kind with
-  | Ast.Module nodes ->
+  match node with
+  | Ast.{kind = Module nodes; span} ->
      let env = Context.get_env ctx in
      let menv = Env.create "" Env.Module (Some env) in
      begin match sem_fold' nodes ctx with
      | Ok (nodes', ctx') ->
         let env = Env.insert env menv in
         let ctx' = Context.set_env ctx' env in
-        Ok (Hir.{kind = Module nodes'; ty = Ty.Module}, ctx')
+        Ok (Hir.{kind = Module nodes'; ty = Ty.Module; span}, ctx')
      | Error errs ->
         Error errs
      end
 
-  | Ast.FunctionDeclStmt {name; params; ret_ty} ->
+  | Ast.{kind = FunctionDeclStmt {name; params; ret_ty}; span} ->
      let env = Context.get_env ctx in
      let fenv = Env.create "" Env.Module (Some env) in
      Ok (Hir.{
            kind = FunctionDeclStmt {name};
            ty = Ty.Function;
+           span;
          }, ctx)
 
-  | Ast.ExternFunctionDeclStmt {name; params; ret_ty; symbol_name} ->
+  | Ast.{kind = ExternFunctionDeclStmt {name; params; ret_ty; symbol_name}; span} ->
      let env = Context.get_env ctx in
      let fenv = Env.create name Env.Module (Some env) in
      let env = Env.insert env fenv in
@@ -122,57 +123,64 @@ and sem' node ctx : ((Hir.t * Context.t), Diagnostics.t list) Result.t =
      Ok (Hir.{
            kind = FunctionDeclStmt {name};
            ty = Ty.Function;
+           span;
          }, ctx')
 
-  | Ast.FunctionDefStmt {name; params; ret_ty; body} ->
+  | Ast.{kind = FunctionDefStmt {name; params; ret_ty; body}; span} ->
      let fctx = Context.create_env ctx in
      begin match sem' body fctx with
      | Ok (body', fctx') ->
         Ok (Hir.{
               kind = FunctionDefStmt {name; body = body'};
               ty = Ty.Function;
+              span;
             }, ctx)
      | Error errs ->
         Error errs
      end
 
-  | Ast.StmtExpr expr ->
+  | Ast.{kind = StmtExpr expr; span} ->
      begin match sem' expr ctx with
      | Ok (expr', ctx') ->
-        Ok (Hir.{kind = StmtExpr expr'; ty = Ty.Unit}, ctx')
+        Ok (Hir.{kind = StmtExpr expr'; ty = Ty.Unit; span}, ctx')
      | Error errs ->
         Error errs
      end
 
-  | Ast.ExprCompound exprs ->
+  | Ast.{kind = ExprCompound exprs; span} ->
      begin match sem_fold' exprs ctx with
      | Ok (exprs', ctx') ->
-        Ok (Hir.{kind = ExprCompound exprs'; ty = Ty.Module}, ctx')
+        Ok (Hir.{kind = ExprCompound exprs'; ty = Ty.Module; span}, ctx')
      | Error errs ->
         Error errs
      end
 
-  | Ast.ExprCall (r, args) ->
+  | Ast.{kind = ExprCall (r, args); span} ->
      begin match sem' r ctx with
-     | Ok (expr', ctx') ->
-        Ok (Hir.{kind = StmtExpr expr'; ty = Ty.Unit}, ctx')
+     | Ok (r', ctx') ->
+        begin match sem_fold' args ctx' with
+        | Ok (args', ctx') ->
+           Ok (Hir.{kind = ExprCall (r', args'); ty = Ty.Unit; span}, ctx')
+        | Error errs ->
+           Error errs
+        end
      | Error errs ->
         Error errs
      end
 
-  | Ast.LitString s ->
-     Ok (Hir.{kind = LitString s; ty = Ty.String}, ctx)
+  | Ast.{kind = LitString s; span} ->
+     Ok (Hir.{kind = LitString s; ty = Ty.String; span}, ctx)
 
-  | Ast.ID name ->
+  | Ast.{kind = ID name; span} ->
      let env = Context.get_env ctx in
      let env_res = Env.lookup env name in
      begin match env_res with
      | Ok env ->
-        Ok (Hir.{kind = ID name; ty = Env.ty env}, ctx)
+        Ok (Hir.{kind = ID name; ty = Env.ty env; span}, ctx)
      | Error history ->
         let d =
           Diagnostics.create ~reason:(Diagnostics.Id_not_found (name))
-                             ~span:node.Ast.span
+                             ~span:span
         in
         Error [d]
      end
@@ -180,4 +188,4 @@ and sem' node ctx : ((Hir.t * Context.t), Diagnostics.t list) Result.t =
   | k ->
      failwith @@
        Printf.sprintf "Unknown node: %s"
-                      (k |> Ast.sexp_of_kind |> Sexp.to_string_hum ~indent:2)
+                      (k |> Ast.sexp_of_t |> Sexp.to_string_hum ~indent:2)

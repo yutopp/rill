@@ -21,6 +21,7 @@ end
 type t = {
   kind: kind_t;
   ty: Ty.t;
+  span: Span.t;
 }
 [@@deriving sexp]
 
@@ -35,6 +36,7 @@ and kind_t =
   }
   | StmtExpr of t
   | ExprCompound of t list
+  | ExprCall of t * t list
   | LitString of string
   | ID of string
   | Empty

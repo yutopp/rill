@@ -30,14 +30,15 @@ let () =
   in
   Stdio.eprintf "AST = \n%s\n" (Rillc.Ast.sexp_of_t ast |> Sexplib.Sexp.to_string_hum ~indent:2);
 
-  let _ =
-    begin match Rillc.Sema.sem ast with
+  let _ = match Rillc.Sema.sem ast with
     | Ok (ast', _) ->
-       Stdio.printf "AST = \n%s\n" (Rillc.Hir.sexp_of_t ast' |> Sexplib.Sexp.to_string_hum ~indent:2)
+       let _ = Stdio.printf "SEMA = \n%s\n" (Rillc.Hir.sexp_of_t ast' |> Sexp.to_string_hum ~indent:2) in
+       let rir' = Rillc.Rir.generate ast' in
+       let _ = Stdio.printf "RIR = \n%s\n" (Rillc.Rir.sexp_of_t rir' |> Sexp.to_string_hum ~indent:2) in
+       ()
     | Error errs ->
        Stdio.eprintf "Errors - (%d)\n" (List.length errs);
        List.iter ~f:(fun e -> Stdio.eprintf "-> %s\n" (Rillc.Diagnostics.to_string e)) errs
-    end
   in
 
   Rillc.test ()
