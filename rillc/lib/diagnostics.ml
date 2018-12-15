@@ -15,6 +15,7 @@ type t = {
 }
 
 and reason_t =
+  | InvalidToken of string
   | UnexpectedToken of char
   | InvalidSyntax
   | Id_not_found of string
@@ -37,6 +38,8 @@ let create ?phase ~reason ~span =
 
 let rec to_string d =
   match d with
+  | {reason = InvalidToken detail; span; _} ->
+     Printf.sprintf "%s: Invalid token: \"%s\"" (Span.to_string span) detail
   | {reason = UnexpectedToken c; span; _} ->
      Printf.sprintf "%s: Unexpected charactor: \"%c\"" (Span.to_string span) c
   |  {reason = InvalidSyntax; span; _} ->
@@ -48,5 +51,4 @@ let rec to_string d =
   |  {reason = InternalException e; span; _} ->
      Printf.sprintf "%s: ICE(InternalException)\n%s" (Span.to_string span) (Exn.to_string e)
   |  {reason = Multiple ds; span; _} ->
-     let _ = List.map ds ~f:to_string in
-     ""
+      List.map ds ~f:to_string |> String.concat ~sep:""
