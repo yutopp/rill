@@ -79,7 +79,7 @@ let rec sem node =
   let node = Sema_forward_ref_solver.g node in
   sem' node (Context.empty ())
 
-and sem_fold' nodes ctx =
+and sem_fold' nodes ctx span =
   let (ctx', nodes_res_rev) =
     List.fold_left nodes
                    ~init:(ctx, [])
@@ -89,21 +89,25 @@ and sem_fold' nodes ctx =
                         | Error errs -> (c, (Either.Second errs) :: rs))
   in
   match List.exists nodes_res_rev ~f:Either.is_second with
-  | true  -> Error (nodes_res_rev |> List.filter_map ~f:Either.Second.to_option |> List.rev |> List.concat)
-  | false -> Ok (nodes_res_rev |> List.filter_map ~f:Either.First.to_option |> List.rev, ctx')
+  | true  ->
+     let ds = nodes_res_rev |> List.filter_map ~f:Either.Second.to_option |> List.rev in
+     let reason = Diagnostics.Multiple ds in
+     Error (Diagnostics.create ~reason ~span ~phase:Diagnostics.PhaseSema)
+  | false ->
+     Ok (nodes_res_rev |> List.filter_map ~f:Either.First.to_option |> List.rev, ctx')
 
-and sem' node ctx : ((Hir.t * Context.t), Diagnostics.t list) Result.t =
+and sem' node ctx : ((Hir.t * Context.t), Diagnostics.t) Result.t =
   match node with
   | Ast.{kind = Module nodes; span} ->
      let env = Context.get_env ctx in
      let menv = Env.create "" Env.Module (Some env) in
-     begin match sem_fold' nodes ctx with
+     begin match sem_fold' nodes ctx span with
      | Ok (nodes', ctx') ->
         let env = Env.insert env menv in
         let ctx' = Context.set_env ctx' env in
         Ok (Hir.{kind = Module nodes'; ty = Ty.Module; span}, ctx')
-     | Error errs ->
-        Error errs
+     | Error d ->
+        Error d
      end
 
   | Ast.{kind = FunctionDeclStmt {name; params; ret_ty}; span} ->
@@ -135,37 +139,37 @@ and sem' node ctx : ((Hir.t * Context.t), Diagnostics.t list) Result.t =
               ty = Ty.Function;
               span;
             }, ctx)
-     | Error errs ->
-        Error errs
+     | Error d ->
+        Error d
      end
 
   | Ast.{kind = StmtExpr expr; span} ->
      begin match sem' expr ctx with
      | Ok (expr', ctx') ->
         Ok (Hir.{kind = StmtExpr expr'; ty = Ty.Unit; span}, ctx')
-     | Error errs ->
-        Error errs
+     | Error d ->
+        Error d
      end
 
   | Ast.{kind = ExprCompound exprs; span} ->
-     begin match sem_fold' exprs ctx with
+     begin match sem_fold' exprs ctx span with
      | Ok (exprs', ctx') ->
         Ok (Hir.{kind = ExprCompound exprs'; ty = Ty.Module; span}, ctx')
-     | Error errs ->
-        Error errs
+     | Error d ->
+        Error d
      end
 
   | Ast.{kind = ExprCall (r, args); span} ->
      begin match sem' r ctx with
      | Ok (r', ctx') ->
-        begin match sem_fold' args ctx' with
+        begin match sem_fold' args ctx' span with
         | Ok (args', ctx') ->
            Ok (Hir.{kind = ExprCall (r', args'); ty = Ty.Unit; span}, ctx')
-        | Error errs ->
-           Error errs
+        | Error d ->
+           Error d
         end
-     | Error errs ->
-        Error errs
+     | Error d ->
+        Error d
      end
 
   | Ast.{kind = LitString s; span} ->
@@ -178,11 +182,8 @@ and sem' node ctx : ((Hir.t * Context.t), Diagnostics.t list) Result.t =
      | Ok env ->
         Ok (Hir.{kind = ID name; ty = Env.ty env; span}, ctx)
      | Error history ->
-        let d =
-          Diagnostics.create ~reason:(Diagnostics.Id_not_found (name))
-                             ~span:span
-        in
-        Error [d]
+        let reason = Diagnostics.Id_not_found name in
+        Error (Diagnostics.create ~reason ~span ~phase:Diagnostics.PhaseSema)
      end
 
   | k ->

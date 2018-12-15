@@ -23,7 +23,7 @@ and kind_t =
   | Var of string
   | LitString of string
   | Undef
-[@@deriving sexp]
+[@@deriving sexp_of]
 
 let fresh_id =
   let i = ref 0 in
@@ -47,28 +47,26 @@ let insert_let k_form k =
        span
      }
 
-let rec generate node =
-  match node.Hir.kind with
-  | Hir.Module nodes ->
-     let m = () in
-     let m' = List.fold_left nodes ~init:m ~f:generate' in
-     m'
+let rec generate tnode : (t, Diagnostics.t) Result.t =
+  match tnode with
+  | Hir.{kind = Module nodes; ty; span} ->
+     let ctx = () in
+     let nodes' = List.map nodes ~f:(generate' ctx) in
+     Ok ({kind = Module {nodes = nodes'}; ty; span})
 
   | k ->
      failwith @@
        Printf.sprintf "Unknown node: %s"
-                      (k |> Hir.sexp_of_kind_t |> Sexp.to_string_hum ~indent:2)
+                      (k |> Hir.sexp_of_t |> Sexp.to_string_hum ~indent:2)
 
-and generate' ctx node =
+and generate' ctx node : t =
   match node with
-  | Hir.{kind = FunctionDeclStmt _; _} ->
-     ctx
+  | Hir.{kind = FunctionDeclStmt _; span; _} ->
+     {kind = Undef; ty = Hir.Ty.Unknown; span}
 
   | Hir.{kind = FunctionDefStmt {name; body}; _} ->
      let expr = generate_expr ctx body in
-     Stdio.printf "Expr %s = %s\n" name
-                  (expr |> sexp_of_t |> Sexp.to_string_hum ~indent:2);
-     ctx
+     expr
 
   | k ->
      failwith @@

@@ -30,6 +30,9 @@ let to_pos p =
 let create ~b ~e =
   Raw (b |> to_pos, e |> to_pos)
 
+let from_lexbuf lexbuf =
+  create ~b:(Lexing.lexeme_start_p lexbuf) ~e:(Lexing.lexeme_end_p lexbuf)
+
 let to_string span =
   match span with
   | Raw (b, e) ->
@@ -39,5 +42,6 @@ let to_string span =
      else
        Printf.sprintf "Line %d, charactor %d to Line %d, charactor %d"
                       b.lnum b.bcnum e.lnum e.bcnum
+
   | Dummy ->
      "[?]"

@@ -18,27 +18,22 @@ let () =
        Caml.exit 1
   in
 
+
   let filename = Flags.input_files opts |> List.hd |> Option.value ~default:"DUMMY" in
   Stdio.eprintf "filename: %s\n" filename;
 
-  let ast = match Rillc.Parser.parse_from_file filename with
-    | Ok ast ->
-       ast
-    | Error msg ->
-       Stdio.eprintf "ERR: parsing: %s\n" msg; (* TODO: fix *)
-       Caml.exit 1
+  let r =
+    let open Result.Let_syntax in
+    let%bind node = Rillc.Parser.parse_from_file filename in
+    Stdio.eprintf "AST = \n%s\n" (Rillc.Ast.sexp_of_t node |> Sexplib.Sexp.to_string_hum ~indent:2);
+    let%bind (tnode, ctx) = Rillc.Sema.sem node in
+    Stdio.eprintf "SEMA = \n%s\n" (Rillc.Hir.sexp_of_t tnode |> Sexp.to_string_hum ~indent:2);
+    let%bind k_form = Rillc.Rir.KNorm.generate tnode in
+    Stdio.eprintf "RIR = \n%s\n" (Rillc.Rir.KNorm.sexp_of_t k_form |> Sexp.to_string_hum ~indent:2);
+    k_form |> return
   in
-  Stdio.eprintf "AST = \n%s\n" (Rillc.Ast.sexp_of_t ast |> Sexplib.Sexp.to_string_hum ~indent:2);
-
-  let _ = match Rillc.Sema.sem ast with
-    | Ok (ast', _) ->
-       let _ = Stdio.printf "SEMA = \n%s\n" (Rillc.Hir.sexp_of_t ast' |> Sexp.to_string_hum ~indent:2) in
-       let rir' = Rillc.Rir.generate ast' in
-       let _ = Stdio.printf "RIR = \n%s\n" (Rillc.Rir.sexp_of_t rir' |> Sexp.to_string_hum ~indent:2) in
-       ()
-    | Error errs ->
-       Stdio.eprintf "Errors - (%d)\n" (List.length errs);
-       List.iter ~f:(fun e -> Stdio.eprintf "-> %s\n" (Rillc.Diagnostics.to_string e)) errs
-  in
-
-  Rillc.test ()
+  match r with
+  | Ok _ ->
+     Stdio.eprintf "OK"
+  | Error d ->
+     Stdio.eprintf "-> %s\n" (Rillc.Diagnostics.to_string d)
