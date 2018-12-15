@@ -1,0 +1,5 @@
+extern def println(s: string): unit = "println";
+
+def main(): unit {
+    println("hogehoge");
+}

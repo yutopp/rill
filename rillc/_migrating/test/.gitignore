@@ -1,0 +1,5 @@
+*.log
+*.cache
+
+test_bin
+test_bin.opt
