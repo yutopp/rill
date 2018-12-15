@@ -2,7 +2,7 @@
  (public_name     rillc)
  (libraries       base stdio stdint)
  (preprocess
-  (pps ppx_sexp_conv)))
+  (pps ppx_sexp_conv ppx_let)))
 
 (ocamllex lexer)
 

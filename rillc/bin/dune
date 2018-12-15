@@ -1,6 +1,8 @@
 (executables
  (names main)
- (libraries rillc base stdio sexplib))
+ (libraries rillc base stdio sexplib)
+ (preprocess
+  (pps ppx_let)))
 
 (install
  (section bin)
