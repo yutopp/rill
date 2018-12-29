@@ -19,6 +19,7 @@ module Env = struct
 
   and kind =
     | Module
+    | Function
     | Scope
 
   let create name k p =
@@ -75,11 +76,9 @@ module Context = struct
     {ctx with env = env}
 end
 
-let rec sem node =
-  let node = Sema_forward_ref_solver.g node in
-  sem' node (Context.empty ())
 
-and sem_fold' nodes ctx span =
+
+let rec sem_fold' nodes ctx span =
   let (ctx', nodes_res_rev) =
     List.fold_left nodes
                    ~init:(ctx, [])
@@ -100,7 +99,9 @@ and sem' node ctx : ((Hir.t * Context.t), Diagnostics.t) Result.t =
   match node with
   | Ast.{kind = Module nodes; span} ->
      let env = Context.get_env ctx in
-     let menv = Env.create "" Env.Module (Some env) in
+
+     let kind = Env.Module in
+     let menv = Env.create "" kind (Some env) in
      begin match sem_fold' nodes ctx span with
      | Ok (nodes', ctx') ->
         let env = Env.insert env menv in
@@ -112,20 +113,24 @@ and sem' node ctx : ((Hir.t * Context.t), Diagnostics.t) Result.t =
 
   | Ast.{kind = FunctionDeclStmt {name; params; ret_ty}; span} ->
      let env = Context.get_env ctx in
-     let fenv = Env.create "" Env.Module (Some env) in
+
+     let kind = Env.Function in
+     let fenv = Env.create name kind (Some env) in
      Ok (Hir.{
-           kind = FunctionDeclStmt {name};
+           kind = Empty; (* Forward decls are no longer required *)
            ty = Ty.Function;
            span;
          }, ctx)
 
   | Ast.{kind = ExternFunctionDeclStmt {name; params; ret_ty; symbol_name}; span} ->
      let env = Context.get_env ctx in
-     let fenv = Env.create name Env.Module (Some env) in
+
+     let kind = Env.Function in
+     let fenv = Env.create name kind (Some env) in
      let env = Env.insert env fenv in
      let ctx' = Context.set_env ctx env in
      Ok (Hir.{
-           kind = FunctionDeclStmt {name};
+           kind = ExternFunctionDeclStmt {name};
            ty = Ty.Function;
            span;
          }, ctx')
@@ -190,3 +195,7 @@ and sem' node ctx : ((Hir.t * Context.t), Diagnostics.t) Result.t =
      failwith @@
        Printf.sprintf "Unknown node: %s"
                       (k |> Ast.sexp_of_t |> Sexp.to_string_hum ~indent:2)
+
+let sem node =
+  let node = Sema_forward_ref_solver.g node in
+  sem' node (Context.empty ())

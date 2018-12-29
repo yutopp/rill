@@ -16,7 +16,7 @@ type t = {
 
 and kind_t =
   | Module of {nodes: t list}
-  | FuncDecl of {name: string; params: t list; body: t}
+  | FuncDef of {name: string; params: t list; body: t}
   | Let of {name: string; expr: t; body: t}
   | Seq of t list
   | Call of {name: string; args: string list}
@@ -61,12 +61,15 @@ let rec generate tnode : (t, Diagnostics.t) Result.t =
 
 and generate' ctx node : t =
   match node with
-  | Hir.{kind = FunctionDeclStmt _; span; _} ->
+  | Hir.{kind = FunctionDefStmt {name; body}; ty; span} ->
+     let expr = generate_expr ctx body in
+     {kind = FuncDef {name; params = []; body = expr}; ty; span}
+
+  | Hir.{kind = ExternFunctionDeclStmt {name}; span; _} ->
      {kind = Undef; ty = Hir.Ty.Unknown; span}
 
-  | Hir.{kind = FunctionDefStmt {name; body}; _} ->
-     let expr = generate_expr ctx body in
-     expr
+  | Hir.{kind = Empty; span; _} ->
+     {kind = Undef; ty = Hir.Ty.Unknown; span}
 
   | k ->
      failwith @@

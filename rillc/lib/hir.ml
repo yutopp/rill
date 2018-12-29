@@ -27,7 +27,7 @@ type t = {
 
 and kind_t =
   | Module of t list
-  | FunctionDeclStmt of {
+  | ExternFunctionDeclStmt of {
     name: string;
   }
   | FunctionDefStmt of {

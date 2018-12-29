@@ -3,7 +3,7 @@ open! Base
 let%expect_test "parser.simple01" =
   let r = Rillc.Parser.parse_from_file "simple.rill" in
   r
-  |> [%sexp_of: (Rillc.Ast.t, string) Result.t]
+  |> [%sexp_of: (Rillc.Ast.t, Rillc.Diagnostics.t) Result.t]
   |> Expect_test_helpers_kernel.print_s;
   [%expect{|
     (Ok (
@@ -89,7 +89,7 @@ let%expect_test "sema.simple01" =
   let r = Rillc.Sema.sem ast in
   r
   |> Result.map ~f:(fun (t, _) -> t)
-  |> [%sexp_of: (Rillc.Hir.t, Rillc.Diagnostics.t list) Result.t]
+  |> [%sexp_of: (Rillc.Hir.t, Rillc.Diagnostics.t) Result.t]
   |> Expect_test_helpers_kernel.print_s;
   [%expect{|
     (Ok (
@@ -162,6 +162,6 @@ let%expect_test "sema.simple01" =
   let (Ok (tnode, _)) = Rillc.Sema.sem ast in
   let r = Rillc.Rir.KNorm.generate tnode in
   r
-  |> [%sexp_of: (Rillc.Rir.KNorm.t, unit) Result.t]
+  |> [%sexp_of: (Rillc.Rir.KNorm.t, Rillc.Diagnostics.t) Result.t]
   |> Expect_test_helpers_kernel.print_s;
   [%expect]

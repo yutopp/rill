@@ -29,8 +29,10 @@ let () =
     let%bind (tnode, ctx) = Rillc.Sema.sem node in
     Stdio.eprintf "SEMA = \n%s\n" (Rillc.Hir.sexp_of_t tnode |> Sexp.to_string_hum ~indent:2);
     let%bind k_form = Rillc.Rir.KNorm.generate tnode in
-    Stdio.eprintf "RIR = \n%s\n" (Rillc.Rir.KNorm.sexp_of_t k_form |> Sexp.to_string_hum ~indent:2);
-    k_form |> return
+    Stdio.eprintf "K form = \n%s\n" (Rillc.Rir.KNorm.sexp_of_t k_form |> Sexp.to_string_hum ~indent:2);
+    let%bind rir = Rillc.Rir.Trans.transform k_form in
+    Stdio.eprintf "RIR = \n%s\n" (Rillc.Rir.Term.sexp_of_t rir |> Sexp.to_string_hum ~indent:2);
+    rir |> return
   in
   match r with
   | Ok _ ->
