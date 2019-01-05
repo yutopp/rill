@@ -45,6 +45,10 @@ module Ctx = struct
     cf_opt |> Option.iter ~f:(set_current_func ctx);
     cbb_opt |> Option.iter ~f:(set_current_bb ctx)
 
+  let register_func_def ctx _name f =
+    (* TODO: support name *)
+    Rir_term.append_func ctx.m f
+
   let build_let ctx name v =
     let inst = Rir_term.Let (name, v) in
     let bb = get_current_bb ctx in
@@ -87,6 +91,9 @@ and transform_terms ctx k_form : (Rir_term.value_t, Diagnostics.t) Result.t =
      let () = Ctx.set_current_bb ctx bb in
 
      let r = transform_terms ctx body in
+     if Result.is_ok r then begin
+       Ctx.register_func_def ctx name (Ctx.get_current_func ctx)
+     end;
 
      let () = Ctx.set_current_state ctx s in
 
@@ -101,7 +108,6 @@ and transform_terms ctx k_form : (Rir_term.value_t, Diagnostics.t) Result.t =
      let open Result.Let_syntax in
      let%bind expr' = transform_terms ctx expr in
      Ctx.build_let ctx name expr';
-     (* TODO: build let *)
      transform_terms ctx body
 
   | Rir_k_norm.{kind = Undef; ty; span} ->
@@ -112,6 +118,9 @@ and transform_terms ctx k_form : (Rir_term.value_t, Diagnostics.t) Result.t =
 
   | Rir_k_norm.{kind = LitString s; ty; span} ->
      Ok Rir_term.{kind = Rir_term.RVal (ValueString s); ty; span}
+
+  | Rir_k_norm.{kind = LitUnit; ty; span} ->
+     Ok Rir_term.{kind = Rir_term.RVal ValueUnit; ty; span}
 
   | Rir_k_norm.{span; _} ->
      let detail = k_form |> Rir_k_norm.sexp_of_t |> Sexp.to_string_hum ~indent:2 in

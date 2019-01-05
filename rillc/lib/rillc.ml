@@ -12,6 +12,7 @@ module Sema = Sema
 module Hir = Hir
 module Rir = Rir
 module Diagnostics = Diagnostics
+module Codegen_llvm = Codegen_llvm
 
 let test () =
   Printf.printf "Rillc\n"

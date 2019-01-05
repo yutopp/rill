@@ -32,6 +32,9 @@ let () =
     Stdio.eprintf "K form = \n%s\n" (Rillc.Rir.KNorm.sexp_of_t k_form |> Sexp.to_string_hum ~indent:2);
     let%bind rir = Rillc.Rir.Trans.transform k_form in
     Stdio.eprintf "RIR = \n%s\n" (Rillc.Rir.Term.sexp_of_t rir |> Sexp.to_string_hum ~indent:2);
+    let cctx = Rillc.Codegen_llvm.create_context () in
+    let%bind cmod = Rillc.Codegen_llvm.create_module cctx rir in
+    Stdio.eprintf "LLVM = \n%s\n" (cmod |> Rillc.Codegen_llvm.debug_string_of);
     rir |> return
   in
   match r with

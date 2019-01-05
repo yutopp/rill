@@ -1,6 +1,6 @@
 (library
  (public_name     rillc)
- (libraries       base stdio stdint)
+ (libraries       base stdio stdint llvm llvm.analysis)
  (preprocess
   (pps ppx_sexp_conv ppx_let)))
 

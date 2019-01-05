@@ -22,6 +22,7 @@ and kind_t =
   | Call of {name: string; args: string list}
   | Var of string
   | LitString of string
+  | LitUnit
   | Undef
 [@@deriving sexp_of]
 
@@ -78,8 +79,9 @@ and generate' ctx node : t =
 
 and generate_expr ctx node : t =
   match node with
-  | Hir.{kind = StmtExpr expr; _} ->
-     expr |> generate_expr ctx
+  | Hir.{kind = StmtExpr expr; ty; span} ->
+     let k = insert_let (generate_expr ctx expr) in
+     k (fun _id -> {kind = LitUnit; ty; span})
 
   | Hir.{kind = ExprCompound exprs; ty; span} ->
      {kind = Seq (exprs |> List.map ~f:(generate_expr ctx)); ty; span}

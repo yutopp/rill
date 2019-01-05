@@ -8,25 +8,7 @@
 
 open! Base
 
-type t = {
-  funcs: func_t list;
-}
-
-and func_t = {
-  name: string;
-  params: placeholder_t list;
-  mutable ret_var: value_t option;
-  mutable bb_index: bb_index_t;
-  mutable bbs: (bb_index_t, bb_t) Hashtbl.t;
-}
-
-and bb_t = {
-  bb_name: string;
-  mutable bb_insts: inst_t Array.t;
-  mutable bb_terminator: terminator_t option;
-}
-
-and bb_index_t = int
+type bb_index_t = int
 
 and value_t = {
   kind: value_kind_t;
@@ -43,6 +25,7 @@ and value_kind_t =
 and value_r_t =
   | ValueInt of int
   | ValueString of string
+  | ValueUnit
 
 and inst_t =
   | Let of placeholder_t * value_t
@@ -62,6 +45,7 @@ module BB = struct
     mutable insts: inst_t list;
     mutable terminator: terminator_t option;
   }
+  [@@deriving sexp_of]
 
   let create name =
     {
@@ -72,6 +56,12 @@ module BB = struct
 
   let append bb inst =
     bb.insts <- inst :: bb.insts
+
+  let get_insts bb =
+    List.rev bb.insts
+
+  let get_terminator_opt bb =
+    bb.terminator
 end
 
 module Func = struct
@@ -81,6 +71,7 @@ module Func = struct
     mutable ret_var: value_t option;
     mutable bbs: (string, BB.t) Hashtbl.t;
   }
+  [@@deriving sexp_of]
 
   let create name =
     {
@@ -92,9 +83,20 @@ module Func = struct
 
   let insert_bb f bb =
     Hashtbl.add_exn f.bbs ~key:bb.BB.name ~data:bb
+
+  let get_entry_bb f =
+    Hashtbl.find_exn f.bbs "entry"
 end
+
+type t = {
+  mutable funcs: Func.t list;
+}
+[@@deriving sexp_of]
 
 let make_module () =
   {
     funcs = [];
   }
+
+let append_func m f =
+  m.funcs <- f :: m.funcs
