@@ -1,0 +1,6 @@
+(library
+ (public_name     rillc.common)
+ (name            common)
+ (libraries       base stdio)
+ (preprocess
+  (pps ppx_sexp_conv ppx_let)))

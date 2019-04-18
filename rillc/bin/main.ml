@@ -18,14 +18,13 @@ let () =
        Caml.exit 1
   in
 
-
   let filename = Flags.input_files opts |> List.hd |> Option.value ~default:"DUMMY" in
   Stdio.eprintf "filename: %s\n" filename;
 
   let r =
     let open Result.Let_syntax in
-    let%bind node = Rillc.Parser.parse_from_file filename in
-    Stdio.eprintf "AST = \n%s\n" (Rillc.Ast.sexp_of_t node |> Sexplib.Sexp.to_string_hum ~indent:2);
+    let%bind node = Rillc.Syntax.parse_from_file filename in
+    Stdio.eprintf "AST = \n%s\n" (Rillc.Syntax.Ast.sexp_of_t node |> Sexplib.Sexp.to_string_hum ~indent:2);
     let%bind (tnode, ctx) = Rillc.Sema.sem node in
     Stdio.eprintf "SEMA = \n%s\n" (Rillc.Hir.sexp_of_t tnode |> Sexp.to_string_hum ~indent:2);
     let%bind k_form = Rillc.Rir.KNorm.generate tnode in

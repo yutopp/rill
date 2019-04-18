@@ -8,6 +8,9 @@
 
 open! Base
 
+module Span = Common.Span
+module Diagnostics = Common.Diagnostics
+
 type t = {
   kind: kind_t;
   ty: Hir.Ty.t;

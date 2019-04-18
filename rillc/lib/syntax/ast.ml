@@ -8,6 +8,8 @@
 
 open! Base
 
+module Span = Common.Span
+
 type t = {
   kind: kind;
   span: Span.t;

@@ -1,5 +1,5 @@
 (env
  (dev
-  (flags (:standard -w +a-39-27-4-26-23-41-45)))
+  (flags (:standard -w +a-39-27-4-26-23-41-45-48)))
  (release
   (flags (:standard -O3))))

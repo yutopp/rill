@@ -17,9 +17,9 @@ depends: [
   "dune"                       {build}
   "base"                       {>= "v0.11.0"}
   "stdio"                      {>= "v0.11.0"}
-  "menhir"                     {>= "20180905"}
+  "menhir"                     {>= "20181113"}
   "stdint"                     {>= "0.5.1"}
-  "llvm"                       {>= "7.0.0"}
+  "llvm"                       {>= "8.0.0"}
   "ppx_sexp_conv"              {>= "v0.11.2"}
   "ppx_let"                    {>= "v0.11.0"}
   "expect_test_helpers_kernel" {with-test}

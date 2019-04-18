@@ -8,6 +8,9 @@
 
 open! Base
 
+module Span = Common.Span
+module Diagnostics = Common.Diagnostics
+
 module Ty = struct
   type t =
     | Module

@@ -1,19 +1,9 @@
 (library
+ (name            rillc)
  (public_name     rillc)
- (libraries       base stdio stdint llvm llvm.analysis)
+ (libraries       base stdio stdint llvm llvm.analysis rillc.common rillc.syntax)
  (preprocess
   (pps ppx_sexp_conv ppx_let)))
-
-(ocamllex lexer)
-
-(menhir
- (flags   --only-tokens)
- (modules tokens))
-
-(menhir
- (merge_into syntax)
- (flags      (--external-tokens Tokens -v --explain))
- (modules    tokens syntax))
 
 ;(rule
 ; (targets c_flags.sexp c_library_flags.sexp)

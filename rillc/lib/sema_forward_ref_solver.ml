@@ -8,6 +8,10 @@
 
 open! Base
 
+module Span = Common.Span
+module Diagnostics = Common.Diagnostics
+module Ast = Syntax.Ast
+
 let rec g node =
   let (node_opt, forward_refs) = g' node [] in
   match node_opt with

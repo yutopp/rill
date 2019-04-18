@@ -8,11 +8,17 @@
 
 open! Base
 
+module Span = Common.Span
+module Diagnostics = Common.Diagnostics
+
+(* exports *)
+module Ast = Ast
+
 let parse_from_file path : (Ast.t, Diagnostics.t) Result.t =
   let f chan =
     let lexbuf = chan |> Lexing.from_channel in
     try
-      let ast = Syntax.program_entry Lexer.token lexbuf in
+      let ast = Parser.program_entry Lexer.token lexbuf in
       Ok ast
     with
     | Lexer.LexerError detail ->
@@ -26,7 +32,7 @@ let parse_from_file path : (Ast.t, Diagnostics.t) Result.t =
        let span = Span.from_lexbuf lexbuf in
        Error (Diagnostics.create ~reason ~span ~phase:Diagnostics.PhaseParsing)
 
-    | Syntax.Error ->
+    | Parser.Error ->
        let reason = Diagnostics.InvalidSyntax in
        let span = Span.from_lexbuf lexbuf in
        Error (Diagnostics.create ~reason ~span ~phase:Diagnostics.PhaseParsing)

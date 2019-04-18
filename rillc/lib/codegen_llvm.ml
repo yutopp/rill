@@ -7,11 +7,17 @@
  *)
 
 open! Base
+
+module Span = Common.Span
+module Diagnostics = Common.Diagnostics
 module L = Llvm
 
 type t = L.llmodule
 
 type context_t = L.llcontext
+
+let rec type_of ctx ty : L.lltype =
+  L.void_type ctx
 
 let rec construct_bb m (ir_fun : Rir_term.Func.t) lvenv ir_bb bb : (unit, Diagnostics.t) Result.t =
   let ctx = L.module_context m in
@@ -46,16 +52,16 @@ let rec construct_bb m (ir_fun : Rir_term.Func.t) lvenv ir_bb bb : (unit, Diagno
        let llval = L.build_call callee_val args_vals "" builder in
        Ok llval
 
-    | Rir_term.{kind = RVal ir_rvalue; _} ->
+    | Rir_term.{kind = RVal ir_rvalue; ty; _} ->
        begin match ir_rvalue with
        | Rir_term.ValueInt v ->
-          Ok (L.const_int (L.i32_type ctx) v)
+          Ok (L.const_int (type_of ctx ty) v)
 
        | Rir_term.ValueString v ->
           Ok (L.const_stringz ctx v)
 
        | Rir_term.ValueUnit ->
-          Ok (L.const_null (L.void_type ctx))
+          Ok (L.const_null (type_of ctx ty))
        end
 
     | Rir_term.{kind = LVal var_name; _} ->
@@ -97,7 +103,8 @@ let construct_func m ir_fun : (unit, Diagnostics.t) Result.t =
   let v = L.build_alloca (L.void_type ctx) "1" builder in
   let lvenv = Map.add_exn lvenv ~key:"1" ~data:v in
 
-  let v = L.build_alloca (L.void_type ctx) "println" builder in
+  let println_ty = L.function_type (L.void_type ctx) [|L.pointer_type (L.i8_type ctx)|] in
+  let v = L.declare_function "println" println_ty m in
   let lvenv = Map.add_exn lvenv ~key:"println" ~data:v in
 
   construct_bb m ir_fun lvenv ir_entry_bb entry_bb

@@ -1,6 +1,6 @@
 (executables
  (names main)
- (libraries rillc base stdio sexplib)
+ (libraries rillc rillc.syntax rillc.common base stdio sexplib)
  (preprocess
   (pps ppx_let)))
 

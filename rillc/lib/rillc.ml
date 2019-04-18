@@ -6,12 +6,15 @@
  * http://www.boost.org/LICENSE_1_0.txt)
  *)
 
-module Ast = Ast
-module Parser = Parser
+(* exports *)
+module Syntax = Syntax
+
+module Span = Common.Span
+module Diagnostics = Common.Diagnostics
+
 module Sema = Sema
 module Hir = Hir
 module Rir = Rir
-module Diagnostics = Diagnostics
 module Codegen_llvm = Codegen_llvm
 
 let test () =

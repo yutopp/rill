@@ -8,6 +8,9 @@
 
 open! Base
 
+module Span = Common.Span
+module Diagnostics = Common.Diagnostics
+
 type bb_index_t = int
 
 and value_t = {

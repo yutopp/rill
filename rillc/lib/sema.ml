@@ -8,6 +8,10 @@
 
 open! Base
 
+module Span = Common.Span
+module Diagnostics = Common.Diagnostics
+module Ast = Syntax.Ast
+
 module Env = struct
   type t = {
     parent: t option;
