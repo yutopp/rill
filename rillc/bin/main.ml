@@ -21,23 +21,16 @@ let () =
   let filename = Flags.input_files opts |> List.hd |> Option.value ~default:"DUMMY" in
   Stdio.eprintf "filename: %s\n" filename;
 
-  let r =
-    let open Result.Let_syntax in
-    let%bind node = Rillc.Syntax.parse_from_file filename in
-    Stdio.eprintf "AST = \n%s\n" (Rillc.Syntax.Ast.sexp_of_t node |> Sexplib.Sexp.to_string_hum ~indent:2);
-    let%bind (tnode, ctx) = Rillc.Sema.sem node in
-    Stdio.eprintf "SEMA = \n%s\n" (Rillc.Hir.sexp_of_t tnode |> Sexp.to_string_hum ~indent:2);
-    let%bind k_form = Rillc.Rir.KNorm.generate tnode in
-    Stdio.eprintf "K form = \n%s\n" (Rillc.Rir.KNorm.sexp_of_t k_form |> Sexp.to_string_hum ~indent:2);
-    let%bind rir = Rillc.Rir.Trans.transform k_form in
-    Stdio.eprintf "RIR = \n%s\n" (Rillc.Rir.Term.sexp_of_t rir |> Sexp.to_string_hum ~indent:2);
-    let cctx = Rillc.Codegen_llvm.create_context () in
-    let%bind cmod = Rillc.Codegen_llvm.create_module cctx rir in
-    Stdio.eprintf "LLVM = \n%s\n" (cmod |> Rillc.Codegen_llvm.debug_string_of);
-    rir |> return
-  in
-  match r with
-  | Ok _ ->
-     Stdio.eprintf "OK"
-  | Error d ->
-     Stdio.eprintf "-> %s\n" (Rillc.Diagnostics.to_string d)
+  let workspace = Rillc.create_context () in
+  let m = Rillc.build_module workspace filename in
+
+  let dm = Rillc.Module.diagnostics m in
+  List.iter ~f:(fun d ->
+              Stdio.eprintf "-> %s\n" (Rillc.Diagnostics.to_string d)
+            )
+            (Rillc.Diagnostics.Multi.to_list dm);
+  match Rillc.Module.is_failed m with
+  | true ->
+     Caml.exit 1
+  | false ->
+     Caml.exit 0

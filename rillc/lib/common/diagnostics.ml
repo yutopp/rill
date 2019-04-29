@@ -52,3 +52,16 @@ let rec to_string d =
      Printf.sprintf "%s: ICE(InternalException)\n%s" (Span.to_string span) (Exn.to_string e)
   |  {reason = Multiple ds; span; _} ->
       List.map ds ~f:to_string |> String.concat ~sep:""
+
+module Multi = struct
+  type nonrec t = t list
+
+  let create () =
+    []
+
+  let append m d =
+    d :: m
+
+  let to_list m =
+    m
+end

@@ -13,5 +13,5 @@
 
 (menhir
  (merge_into parser)
- (flags      (--external-tokens Tokens -v --explain))
+ (flags      (--table --external-tokens Tokens -v --explain -la 2))
  (modules    tokens parser))

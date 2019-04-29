@@ -12,20 +12,20 @@
 %nonassoc KEYWORD_ELSE
 
 %{
-  let make ~b ~e kind =
-    Ast.{kind; span = Span.create ~b:b ~e:e}
+  let make ~l kind =
+    Ast.{kind; span = Span.create_from_lex_loc ~path:"" ~lex_loc:l}
 %}
 
 %%
 
 (**)
 program_entry:
-    module_def EOF { $1}
+    module_def EOF { $1 }
 
 module_def:
     body = top_levels
     {
-        make (Ast.Module body) ~b:$startpos ~e:$endpos
+        make (Ast.Module body) ~l:$loc
     }
 
 top_levels:
@@ -51,8 +51,7 @@ function_def_statement:
               params = params;
               body = body;
            })
-           ~b:$startpos
-           ~e:$endpos
+           ~l:$loc
     }
 
 function_def_body:
@@ -68,7 +67,7 @@ parameter_decl:
       make (Ast.ParamDecl {
               name = name;
            })
-           ~b:$startpos ~e:$endpos
+           ~l:$loc
     }
 
 type_spec:
@@ -91,8 +90,7 @@ extern_function_decl_statement:
               params = params;
               symbol_name = symbol_name;
            })
-           ~b:$startpos
-           ~e:$endpos
+           ~l:$loc
     }
 
 stmt:
@@ -101,13 +99,13 @@ stmt:
   | stmt_condition { $1 }
 
 stmt_expr:
-    expr_assign SEMICOLON { make (Ast.StmtExpr $1) ~b:$startpos ~e:$endpos }
+    expr_assign SEMICOLON { make (Ast.StmtExpr $1) ~l:$loc }
 
 stmt_return:
     KEYWORD_RETURN
     e = expr_assign?
     SEMICOLON
-    { make (Ast.StmtReturn e) ~b:$startpos ~e:$endpos }
+    { make (Ast.StmtReturn e) ~l:$loc }
 
 stmt_condition:
     expr_if { $1 }
@@ -123,17 +121,17 @@ expr_if:
   | KEYWORD_IF
     cond = expr_assign
     then_n = expr %prec IFX
-    { make (Ast.ExprIf (cond, then_n, None)) ~b:$startpos ~e:$endpos }
+    { make (Ast.ExprIf (cond, then_n, None)) ~l:$loc }
   | KEYWORD_IF
     cond = expr_assign
     then_n = expr
     KEYWORD_ELSE
     else_n = expr
-    { make (Ast.ExprIf (cond, then_n, Some else_n)) ~b:$startpos ~e:$endpos }
+    { make (Ast.ExprIf (cond, then_n, Some else_n)) ~l:$loc }
 
 expr_compound:
     expr_assign { $1 }
-  | LBLOCK stmt* RBLOCK { make (Ast.ExprCompound $2) ~b:$startpos ~e:$endpos }
+  | LBLOCK stmt* RBLOCK { make (Ast.ExprCompound $2) ~l:$loc }
 
 expr_assign:
     expr_postfix { $1 }
@@ -141,7 +139,7 @@ expr_assign:
 expr_postfix:
     expr_primary { $1 }
   | expr_postfix LPAREN argument_list RPAREN
-    { make (Ast.ExprCall ($1, $3)) ~b:$startpos ~e:$endpos }
+    { make (Ast.ExprCall ($1, $3)) ~l:$loc }
 
 argument_list:
     separated_list(COMMA, expr) { $1 }
@@ -157,22 +155,22 @@ value:
   | lit_string { $1 }
 
 single_id:
-    single_id_as_str { make (Ast.ID $1) ~b:$startpos ~e:$endpos }
+    single_id_as_str { make (Ast.ID $1) ~l:$loc }
 
 single_id_as_str:
     ID { $1 }
 
 (**)
 lit_bool:
-    LIT_TRUE { make (Ast.LitBool true) ~b:$startpos ~e:$endpos }
-  | LIT_FALSE { make (Ast.LitBool false) ~b:$startpos ~e:$endpos }
+    LIT_TRUE { make (Ast.LitBool true) ~l:$loc }
+  | LIT_FALSE { make (Ast.LitBool false) ~l:$loc }
 
 lit_integer:
     INT
     {
       let (v, bits, is_signed) = $1 in
-      make (Ast.LitInt (v, bits, is_signed)) ~b:$startpos ~e:$endpos
+      make (Ast.LitInt (v, bits, is_signed)) ~l:$loc
     }
 
 lit_string:
-    STRING { make (Ast.LitString $1) ~b:$startpos ~e:$endpos }
+    STRING { make (Ast.LitString $1) ~l:$loc }

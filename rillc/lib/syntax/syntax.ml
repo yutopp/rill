@@ -12,32 +12,31 @@ module Span = Common.Span
 module Diagnostics = Common.Diagnostics
 
 (* exports *)
-module Ast = Ast
+module Ast = Entry.Ast
 
-let parse_from_file path : (Ast.t, Diagnostics.t) Result.t =
-  let f chan =
+type t =
+  | Complete of Ast.t
+  | Incomplete of Ast.t
+  | Failed
+
+let parse_from_file dm path : t * Diagnostics.Multi.t =
+  let f path chan =
     let lexbuf = chan |> Lexing.from_channel in
-    try
-      let ast = Parser.program_entry Lexer.token lexbuf in
-      Ok ast
-    with
-    | Lexer.LexerError detail ->
-       (* TODO: use typed reason instead of detail *)
-       let reason = Diagnostics.InvalidToken detail in
-       let span = Span.from_lexbuf lexbuf in
-       Error (Diagnostics.create ~reason ~span ~phase:Diagnostics.PhaseParsing)
-
-    | Lexer.UnexpectedToken tok ->
-       let reason = Diagnostics.UnexpectedToken tok in
-       let span = Span.from_lexbuf lexbuf in
-       Error (Diagnostics.create ~reason ~span ~phase:Diagnostics.PhaseParsing)
-
-    | Parser.Error ->
-       let reason = Diagnostics.InvalidSyntax in
-       let span = Span.from_lexbuf lexbuf in
-       Error (Diagnostics.create ~reason ~span ~phase:Diagnostics.PhaseParsing)
+    let sup = Supplier.create ~path ~lexbuf in
+    let (node_opt, is_incomplete, dm) = Entry.entry dm sup in
+    let result = match node_opt with
+      | Some node when is_incomplete ->
+         Incomplete node
+      | Some node ->
+         Complete node
+      | None ->
+         Failed
+    in
+    (result, dm)
   in
-  try Stdio.In_channel.with_file ~binary:true path ~f:f with
+  try Stdio.In_channel.with_file ~binary:true path ~f:(f path) with
   | e ->
+     let span = Span.create_path ~path in
      let reason = Diagnostics.InternalException e in
-     Error (Diagnostics.create ~reason ~span:(Span.Dummy) ~phase:Diagnostics.PhaseParsing)
+     let d = Diagnostics.create ~reason ~span ~phase:Diagnostics.PhaseParsing in
+     (Failed, Diagnostics.Multi.append dm d)

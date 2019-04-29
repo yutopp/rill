@@ -8,40 +8,61 @@
 
 open! Base
 
-type t =
-  | Raw of pos_t * pos_t
-  | Dummy
-[@@deriving sexp]
+module Pos = struct
+  type t = {
+    lnum: int;
+    cnum: int;
+    bcnum: int;
+  }
+  [@@deriving sexp]
 
-and pos_t = {
-  lnum: int;
-  cnum: int;
-  bcnum: int;
+  let from_lexpos p =
+    {
+      lnum = p.Lexing.pos_lnum;
+      cnum = p.Lexing.pos_cnum;
+      bcnum = p.Lexing.pos_cnum - p.Lexing.pos_bol;
+    }
+end
+
+type t = {
+  path: string; (* TODO: fix *)
+  loc_opt: (Pos.t * Pos.t) option;
 }
 [@@deriving sexp]
 
-let to_pos p =
+let create ~path ~loc_opt : t =
   {
-    lnum = p.Lexing.pos_lnum;
-    cnum = p.Lexing.pos_cnum;
-    bcnum = p.Lexing.pos_cnum - p.Lexing.pos_bol
+    path;
+    loc_opt;
   }
 
-let create ~b ~e =
-  Raw (b |> to_pos, e |> to_pos)
+let create_path ~path : t =
+  create ~path ~loc_opt:None
 
-let from_lexbuf lexbuf =
-  create ~b:(Lexing.lexeme_start_p lexbuf) ~e:(Lexing.lexeme_end_p lexbuf)
+let create_from_lex_loc ~path ~lex_loc =
+  let (s, e) = lex_loc in
+  let loc = (s |> Pos.from_lexpos, e |> Pos.from_lexpos) in
+  create ~path ~loc_opt:(Some loc)
 
-let to_string span =
-  match span with
-  | Raw (b, e) ->
-     if b.lnum = e.lnum then
-       Printf.sprintf "Line %d, charactor %d-%d"
-                      b.lnum b.bcnum e.bcnum
-     else
-       Printf.sprintf "Line %d, charactor %d to Line %d, charactor %d"
-                      b.lnum b.bcnum e.lnum e.bcnum
+let to_string (span : t) =
+  let {path; loc_opt;} = span in
 
-  | Dummy ->
-     "[?]"
+  let message = "" in
+  let message = message ^ (Printf.sprintf "File: \"%s\"" path) in
+
+  let message = match loc_opt with
+    | Some (s, e) ->
+       let range_s =
+         if s.Pos.lnum = e.Pos.lnum then
+           Printf.sprintf "line %d, charactors %d-%d"
+                          s.Pos.lnum s.Pos.bcnum e.Pos.bcnum
+         else
+           Printf.sprintf "line %d-%d, charactors %d-%d"
+                          s.Pos.lnum e.Pos.lnum s.Pos.bcnum e.Pos.bcnum
+       in
+       message ^ (Printf.sprintf ", %s" range_s)
+
+    | None ->
+       message
+  in
+  message
