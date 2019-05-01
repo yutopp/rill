@@ -66,6 +66,7 @@ parameter_decl:
     {
       make (Ast.ParamDecl {
               name = name;
+              ty_spec = ty_spec;
            })
            ~l:$loc
     }

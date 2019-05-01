@@ -31,6 +31,7 @@ and kind =
   }
   | ParamDecl of {
     name: string;
+    ty_spec: t;
   }
   | ExternFunctionDeclStmt of {
     name: string;

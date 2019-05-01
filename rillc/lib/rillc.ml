@@ -54,11 +54,11 @@ module Module = struct
     let (astp, dm) = Syntax.parse_from_file m.dm m.filename in
     let (state, failed) = match astp with
       | Syntax.Complete ast ->
-         Stdio.eprintf "AST = \n%s\n" (Syntax.Ast.sexp_of_t ast |> Sexp.to_string_hum ~indent:2);
+         Stdio.printf "AST = \n%s\n" (Syntax.Ast.sexp_of_t ast |> Sexp.to_string_hum ~indent:2);
          (Parsed ast, false)
 
       | Syntax.Incomplete ast ->
-         Stdio.eprintf "AST = \n%s\n" (Syntax.Ast.sexp_of_t ast |> Sexp.to_string_hum ~indent:2);
+         Stdio.printf "AST = \n%s\n" (Syntax.Ast.sexp_of_t ast |> Sexp.to_string_hum ~indent:2);
          (Parsed ast, true)
 
       | Syntax.Failed ->
@@ -76,8 +76,31 @@ module Module = struct
        failwith ""
 
   let analyze m ast =
+    (* TODO: create it elsewhare *)
+    let package_env = Sema.Env.create "" Sema.Env.Package None in
+
+    let () =
+      let ty = Sema.Type.Int in
+      let e = Sema.Env.create "i32" (Sema.Env.Type ty) (Some package_env) in
+      let _ = Sema.Env.insert package_env e in
+      ()
+    in
+
+    let () =
+      let ty = Sema.Type.Unit in
+      let e = Sema.Env.create "unit" (Sema.Env.Type ty) (Some package_env) in
+      let _ = Sema.Env.insert package_env e in
+      ()
+    in
+
+    let (m', dm) = Sema.collect_toplevels m.dm ast package_env in
+    let subst = Sema.unify_toplevels m' in
+    let () = Sema.show_module m' subst in
+
+
     let open Result.Let_syntax in
-    let%bind (tnode, ctx) = Sema.sem ast in
+(*
+  let%bind (tnode, ctx) = Sema.sem ast in
     Stdio.eprintf "SEMA = \n%s\n" (Hir.sexp_of_t tnode |> Sexp.to_string_hum ~indent:2);
 
     let%bind k_form = Rir.KNorm.generate tnode in
@@ -85,6 +108,7 @@ module Module = struct
 
     let%bind rir = Rir.Trans.transform k_form in
     Stdio.eprintf "RIR = \n%s\n" (Rir.Term.sexp_of_t rir |> Sexp.to_string_hum ~indent:2);
+ *)
 
     m |> return
 
@@ -99,7 +123,7 @@ module Module = struct
           m
        end
     | _ ->
-       failwith ""
+       m (*failwith ""*)
 end
 
 (* TODO: fix *)
