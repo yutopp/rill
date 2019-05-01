@@ -1,0 +1,6 @@
+(library
+ (public_name     rillc.sema)
+ (name            sema)
+ (libraries       base stdio rillc.common rillc.syntax)
+ (preprocess
+  (pps ppx_sexp_conv ppx_let)))

@@ -93,9 +93,9 @@ module Module = struct
       ()
     in
 
-    let (m', dm) = Sema.collect_toplevels m.dm ast package_env in
-    let subst = Sema.unify_toplevels m' in
-    let () = Sema.show_module m' subst in
+    let (m', dm) = Sema.Initial.collect_toplevels m.dm ast package_env in
+    let subst = Sema.Initial.unify_toplevels m' in
+    let () = Sema.Initial.show_module m' subst in
 
 
     let open Result.Let_syntax in
