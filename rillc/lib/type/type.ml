@@ -11,9 +11,6 @@ open! Base
 type var_t = int
 [@@deriving sexp]
 
-let next_var (v : var_t) : var_t =
-  v + 1
-
 module Primitive = struct
   type t =
     | Var of var_t
@@ -34,3 +31,8 @@ module Scheme = struct
   let of_ty ty =
     Scheme ([], ty)
 end
+
+(* for debbuging. TODO: remove *)
+let print ty =
+  Stdio.printf "ty = %s\n"
+               (sexp_of_t ty |> Sexp.to_string_hum)

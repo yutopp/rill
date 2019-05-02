@@ -8,21 +8,23 @@
 
 open! Base
 
+module Kind = struct
+  type t =
+    | Package
+    | Module
+    | Function
+    | Var
+    | Type of Type.t
+    | Scope
+end
+
 type t = {
   parent: t option;
   name: string;
   table: (string, t) Hashtbl.t;
-  kind: kind;
+  kind: Kind.t;
   tysc: Type.Scheme.t option;
 }
-
-and kind =
-  | Package
-  | Module
-  | Function
-  | Var
-  | Type of Type.t
-  | Scope
 
 let create ?tysc name k p  =
   {
@@ -33,10 +35,15 @@ let create ?tysc name k p  =
     tysc = tysc;
   }
 
-let insert p c =
+let insert penv c =
   (* TODO: check duplication *)
-  let _ = Hashtbl.add p.table ~key:c.name ~data:c in
-  p
+  let _ = Hashtbl.add penv.table ~key:c.name ~data:c in
+  penv
+
+let delete penv name =
+  (* TODO: check existance *)
+  let _ = Hashtbl.remove penv.table name in
+  penv
 
 let find env name =
   Hashtbl.find env.table name
@@ -56,7 +63,7 @@ let rec lookup env name =
 let show env subst =
   let s = match env.tysc with
     | Some tysc ->
-       let tysc' = Typer.Subst.subst_tysc subst tysc in
+       let tysc' = Typer.subst_tysc subst tysc in
        let s = Type.Scheme.sexp_of_t tysc' in
        Sexp.to_string_hum s
     | None ->

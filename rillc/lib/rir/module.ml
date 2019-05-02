@@ -8,9 +8,16 @@
 
 open! Base
 
-module Builder = struct
-end
+(* TODO: fix *)
+type t = {
+  mutable funcs: Term.Func.t list;
+}
+[@@deriving sexp_of]
 
-module Term = Rir_term
-module KNorm = Rir_k_norm
-module Trans = Rir_trans
+let create () : t =
+  {
+    funcs = [];
+  }
+
+let append_func m f =
+  m.funcs <- f :: m.funcs

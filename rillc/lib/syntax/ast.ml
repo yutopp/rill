@@ -12,7 +12,7 @@ module Span = Common.Span
 
 type t = {
   kind: kind;
-  span: Span.t;
+  span: Span.t sexp_opaque;
 }
 [@@deriving sexp]
 

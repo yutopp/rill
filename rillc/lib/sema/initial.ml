@@ -23,7 +23,7 @@ let rec collect_toplevels m dm ast penv : Diagnostics.Multi.t =
      let fn_ty = Type.Primitive.Func (params_tys, ret_ty) in
      let fn_tysc = Type.Scheme.of_ty fn_ty in
 
-     let kind = Env.Function in
+     let kind = Env.Kind.Function in
      let fenv = Env.create name kind (Some penv) ~tysc:fn_tysc in
 
      (* parameters *)
@@ -32,7 +32,7 @@ let rec collect_toplevels m dm ast penv : Diagnostics.Multi.t =
                    | Ast.{kind = ParamDecl {name; _}; _} -> name
                    | _ -> failwith ""
                  in
-                 let kind = Env.Var in
+                 let kind = Env.Kind.Var in
                  let venv = Env.create name kind (Some fenv) ~tysc:(Type.Scheme.of_ty ty) in
                  let _ = Env.insert fenv venv in
                  ())
@@ -51,7 +51,7 @@ let rec collect_toplevels m dm ast penv : Diagnostics.Multi.t =
 let collect_toplevels dm ast penv =
   match ast with
   | Ast.{kind = Module nodes; span} ->
-     let kind = Env.Module in
+     let kind = Env.Kind.Module in
      let menv = Env.create "" kind (Some penv) in
 
      let m = Module.create menv in
@@ -87,8 +87,8 @@ let solve_type ast env subst =
                            )
      in
      begin match e.Env.kind with
-     | Env.Type ty ->
-        let ty' = Typer.Subst.subst_type subst ty in
+     | Env.Kind.Type ty ->
+        let ty' = Typer.subst_type subst ty in
         ty' |> return
 
      | _ ->
@@ -121,7 +121,13 @@ let type_toplevels m (ast, env) penv subst =
            in
            match solve_type ty_spec penv subst with
            | Ok ty ->
-              Typer.Subst.unify subst param_ty ty
+              begin match Typer.unify subst param_ty ty with
+              | Ok v -> v
+              | Error _ ->
+                 (* TODO: fix *)
+                 failwith ""
+              end
+
            | Error d ->
               (* TODO: fix *)
               failwith (Diagnostics.to_string d)
@@ -131,7 +137,12 @@ let type_toplevels m (ast, env) penv subst =
      in
      let subst = match solve_type ret_ty_spec penv subst with
        | Ok ty ->
-          Typer.Subst.unify subst ret_ty ty
+          begin match Typer.unify subst ret_ty ty with
+          | Ok v -> v
+          | Error _ ->
+             (* TODO: fix *)
+             failwith ""
+          end
        | Error d ->
           (* TODO: fix *)
           failwith (Diagnostics.to_string d)
@@ -141,8 +152,8 @@ let type_toplevels m (ast, env) penv subst =
   | _ ->
      subst
 
-let unify_toplevels m : Typer.Subst.t =
-  let subst = Typer.Subst.create () in
+let unify_toplevels m : Typer.t =
+  let subst = m.Module.typer in
   let menv = m.Module.env in
 
   let subst =
@@ -154,7 +165,7 @@ let unify_toplevels m : Typer.Subst.t =
   in
   subst
 
-let show_module m (subst : Typer.Subst.t) =
+let show_module m (subst : Typer.t) =
   Module.iteri ~f:(fun ~key ~data ->
                  Stdio.printf "Key: %s\n" key;
                  let (_, env) = data in

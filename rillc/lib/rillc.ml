@@ -77,18 +77,18 @@ module Module = struct
 
   let analyze m ast =
     (* TODO: create it elsewhare *)
-    let package_env = Sema.Env.create "" Sema.Env.Package None in
+    let package_env = Sema.Env.create "" Sema.Env.Kind.Package None in
 
     let () =
-      let ty = Sema.Type.Int in
-      let e = Sema.Env.create "i32" (Sema.Env.Type ty) (Some package_env) in
+      let ty = Type.Int in
+      let e = Sema.Env.create "i32" (Sema.Env.Kind.Type ty) (Some package_env) in
       let _ = Sema.Env.insert package_env e in
       ()
     in
 
     let () =
-      let ty = Sema.Type.Unit in
-      let e = Sema.Env.create "unit" (Sema.Env.Type ty) (Some package_env) in
+      let ty = Type.Unit in
+      let e = Sema.Env.create "unit" (Sema.Env.Kind.Type ty) (Some package_env) in
       let _ = Sema.Env.insert package_env e in
       ()
     in
@@ -97,6 +97,7 @@ module Module = struct
     let subst = Sema.Initial.unify_toplevels m' in
     let () = Sema.Initial.show_module m' subst in
 
+    let m' = Sema.Intermediate.transform m' subst in
 
     let open Result.Let_syntax in
 (*

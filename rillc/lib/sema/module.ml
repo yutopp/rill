@@ -28,3 +28,7 @@ let insert m name body =
 
 let iteri ~f m =
   Hashtbl.iteri ~f m.toplevels
+
+let map ~f m =
+  let toplevels = Hashtbl.map ~f m.toplevels in
+  {m with toplevels}
