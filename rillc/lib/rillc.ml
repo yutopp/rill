@@ -15,9 +15,7 @@ module Span = Common.Span
 module Diagnostics = Common.Diagnostics
 
 module Sema = Sema
-module Hir = Hir
 module Rir = Rir
-module Codegen_llvm = Codegen_llvm
 
 type t = unit
 
@@ -34,6 +32,7 @@ module Module = struct
   and state_t =
     | Initialized
     | Parsed of Syntax.Ast.t
+    | Analyzed of Rir.Module.t
     | Failed
 
   let diagnostics m =
@@ -73,7 +72,7 @@ module Module = struct
        {m with dm; state; failed;}
 
     | _ ->
-       failwith ""
+       failwith "[ICE]"
 
   let analyze m ast =
     (* TODO: create it elsewhare *)
@@ -93,38 +92,39 @@ module Module = struct
       ()
     in
 
-    let (m', dm) = Sema.Initial.collect_toplevels m.dm ast package_env in
-    let subst = Sema.Initial.unify_toplevels m' in
-    let () = Sema.Initial.show_module m' subst in
+    let (sema_m, dm) = Sema.Initial.collect_toplevels m.dm ast package_env in
+    let subst = Sema.Initial.unify_toplevels sema_m in
+    let () = Sema.Initial.show_module sema_m subst in
 
-    let m' = Sema.Intermediate.transform m' subst in
-
-    let open Result.Let_syntax in
-(*
-  let%bind (tnode, ctx) = Sema.sem ast in
-    Stdio.eprintf "SEMA = \n%s\n" (Hir.sexp_of_t tnode |> Sexp.to_string_hum ~indent:2);
-
-    let%bind k_form = Rir.KNorm.generate tnode in
-    Stdio.eprintf "K form = \n%s\n" (Rir.KNorm.sexp_of_t k_form |> Sexp.to_string_hum ~indent:2);
-
-    let%bind rir = Rir.Trans.transform k_form in
-    Stdio.eprintf "RIR = \n%s\n" (Rir.Term.sexp_of_t rir |> Sexp.to_string_hum ~indent:2);
- *)
-
-    m |> return
+    let rir_m = Sema.Intermediate.transform sema_m subst in
+    (dm, Analyzed rir_m, false)
 
   let analyze m =
     match m.state with
     | Parsed ast ->
        (* TODO: fix *)
-       begin match analyze m ast with
-       | Ok m ->
-          m
-       | Error _ ->
-          m
-       end
+       let (dm, state, failed) = analyze m ast in
+       {m with dm; state; failed;}
+
     | _ ->
-       m (*failwith ""*)
+       failwith "[ICE]"
+
+  let codegen rir_m out =
+    let ctx = Codegen.Llvm_gen.create_context () in
+    let llvm_m = Codegen.Llvm_gen.create_module ctx rir_m in
+    match llvm_m with
+    | Ok m -> Stdio.printf "LLVM = %s\n" (Codegen.Llvm_gen.debug_string_of m)
+    | _ -> ()
+
+  let codegen m out =
+    match m.state with
+    | Analyzed rir_m ->
+       (* TODO: fix *)
+       let () = codegen rir_m out in
+       m
+
+    | _ ->
+       failwith "[ICE]"
 end
 
 (* TODO: fix *)
@@ -133,5 +133,8 @@ let build_module ctx filename =
 
   let m = Module.parse m in
   let m = Module.analyze m in
-
+  let () =
+    let _ = Module.codegen m "/tmp/a.ml" in
+    ()
+  in
   m

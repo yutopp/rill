@@ -1,0 +1,6 @@
+(library
+ (public_name     rillc.codegen)
+ (name            codegen)
+ (libraries       base stdio stdint llvm llvm.analysis rillc.common rillc.type rillc.rir)
+ (preprocess
+  (pps ppx_sexp_conv ppx_let)))

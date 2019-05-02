@@ -1,7 +1,7 @@
 (library
  (name            rillc)
  (public_name     rillc)
- (libraries       base stdio stdint llvm llvm.analysis rillc.common rillc.syntax rillc.sema)
+ (libraries       base stdio rillc.common rillc.syntax rillc.sema rillc.codegen)
  (preprocess
   (pps ppx_sexp_conv ppx_let)))
 

@@ -10,7 +10,7 @@ open! Base
 
 type t = {
   module_: Module.t;
-  mutable current_func: Term.Func.t option;
+  mutable current_func: Func.t option;
   mutable current_bb: Term.BB.t option;
 }
 
@@ -44,9 +44,9 @@ let set_current_state ctx s =
   cf_opt |> Option.iter ~f:(set_current_func ctx);
   cbb_opt |> Option.iter ~f:(set_current_bb ctx)
 
-let register_func_def ctx _name f =
+let register_func_def ctx name f =
   (* TODO: support name *)
-  Module.append_func ctx.module_ f
+  Module.append_func ctx.module_ name f
 
 let build_let ctx name v =
   let inst = Term.Let (name, v) in

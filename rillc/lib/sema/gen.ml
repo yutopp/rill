@@ -120,41 +120,42 @@ let rec gen_terms builder subst nast penv : (Rir.Term.t * Typer.t) =
        Printf.sprintf "Unknown node': %s"
                       (k |> Norm.NAst.sexp_of_t |> Sexp.to_string_hum ~indent:2)
 
-let gen subst nast penv =
-  let m = Rir.Module.create () in
-  let builder = Rir.Builder.create ~m in
-
+let gen subst builder name nast env =
   match nast with
   (* toplevels *)
   | Norm.NAst.{kind = Func func_kind; span; _} ->
      let s = Rir.Builder.get_current_state builder in
 
-     let f = Rir.Term.Func.create () in
+     let f = Rir.Func.create ~tysc:(Option.value_exn env.Env.tysc) in
      let () = Rir.Builder.set_current_func builder f in
 
      let bb = Rir.Term.BB.create "entry" in
-     Rir.Term.Func.insert_bb f bb;
+     Rir.Func.insert_bb f bb;
      let () = Rir.Builder.set_current_bb builder bb in
 
      let body' =
        match func_kind with
        | Norm.NAst.FuncKindDef body ->
-          let (body', _) = gen_terms builder subst body penv in
+          let (body', _) = gen_terms builder subst body env in
           body'
 
        | Norm.NAst.FuncKindExtern v ->
-          let (body', _) = gen_terms builder subst v penv in
+          let (body', _) = gen_terms builder subst v env in
           body'
 
        | _ ->
           failwith "[ICE] not supported function"
      in
 
-     Stdio.printf "rir = \n%s\n" (Rir.Term.Func.sexp_of_t f |> Sexp.to_string_hum ~indent:2);
+     let tysc = Typer.subst_tysc subst (Option.value_exn env.Env.tysc) in
+     let f = Rir.Func.update_tysc f tysc in
+
+     Stdio.printf "rir = \n%s\n" (Rir.Func.sexp_of_t f |> Sexp.to_string_hum ~indent:2);
+     Rir.Builder.register_func_def builder name f;
 
      let () = Rir.Builder.set_current_state builder s in
 
-     body'
+     ()
 
   (* others *)
   | k ->
@@ -162,9 +163,15 @@ let gen subst nast penv =
        Printf.sprintf "Unknown node': %s"
                       (k |> Norm.NAst.sexp_of_t |> Sexp.to_string_hum ~indent:2)
 
-let gen subst (nast, env) =
-  let n = gen subst nast env in
-  (n, env)
+let gen subst builder ~key ~data =
+  let (nast, env) = data in
+  let () = gen subst builder key nast env in
+  ()
 
 let transform m subst =
-  Module.map ~f:(gen subst) m
+  let rir_m = Rir.Module.create () in
+  let builder = Rir.Builder.create ~m:rir_m in
+
+  let () = Module.iteri ~f:(gen subst builder) m in
+
+  rir_m

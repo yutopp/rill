@@ -66,25 +66,3 @@ module BB = struct
   let get_terminator_opt bb =
     bb.terminator
 end
-
-module Func = struct
-  type t = {
-    params: placeholder_t list;
-    mutable ret_var: t option;
-    mutable bbs: (string, BB.t) Hashtbl.t;
-  }
-  [@@deriving sexp_of]
-
-  let create () =
-    {
-      params = [];
-      ret_var = None;
-      bbs = Hashtbl.create (module String);
-    }
-
-  let insert_bb f bb =
-    Hashtbl.add_exn f.bbs ~key:bb.BB.name ~data:bb
-
-  let get_entry_bb f =
-    Hashtbl.find_exn f.bbs "entry"
-end

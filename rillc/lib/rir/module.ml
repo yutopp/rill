@@ -10,7 +10,7 @@ open! Base
 
 (* TODO: fix *)
 type t = {
-  mutable funcs: Term.Func.t list;
+  mutable funcs: (string * Func.t) list;
 }
 [@@deriving sexp_of]
 
@@ -19,5 +19,8 @@ let create () : t =
     funcs = [];
   }
 
-let append_func m f =
-  m.funcs <- f :: m.funcs
+let append_func m name f =
+  m.funcs <- (name, f) :: m.funcs
+
+let funcs m =
+  List.rev m.funcs
