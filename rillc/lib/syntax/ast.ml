@@ -43,6 +43,7 @@ and kind =
   | StmtReturn of t option
   | ExprCompound of t list
   | ExprIf of t * t * t option
+  | ExprBinaryOp of t * t * t
   | ExprCall of t * t list
   | ID of string
   | LitBool of bool

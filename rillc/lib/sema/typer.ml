@@ -8,11 +8,9 @@
 
 open! Base
 
-module IntMap = Map.M(Int)
+module Diagnostics = Common.Diagnostics
 
-(* TODO: move elsewhere *)
-type err_t =
-  | ErrTypeMismatch of Type.t * Type.t
+module IntMap = Map.M(Int)
 
 module Counter = struct
   type t = {
@@ -85,7 +83,7 @@ let subst_tysc (subst : t) tysc : Type.Scheme.t =
   | _ ->
      failwith ""
 
-let rec unify (subst : t) lhs_ty rhs_ty : (t, err_t) Result.t =
+let rec unify (subst : t) lhs_ty rhs_ty : (t, Diagnostics.reason) Result.t =
   let {ty_subst; ki_subst; _} = subst in
 
   let s_lhs_ty = subst_type subst lhs_ty in
@@ -114,13 +112,13 @@ let rec unify (subst : t) lhs_ty rhs_ty : (t, err_t) Result.t =
         let%bind subst =
           f subst a_params b_params 0
           (* TODO: return more detailed info *)
-          |> Result.map_error ~f:(fun _ -> ErrTypeMismatch (s_lhs_ty, s_rhs_ty))
+          |> Result.map_error ~f:(fun _ -> new Reasons.type_mismatch s_lhs_ty s_rhs_ty)
         in
         (* unify ret *)
         let%bind subst =
           unify subst a_ret b_ret
           (* TODO: return more detailed info *)
-          |> Result.map_error ~f:(fun _ -> ErrTypeMismatch (s_lhs_ty, s_rhs_ty))
+          |> Result.map_error ~f:(fun _ -> new Reasons.type_mismatch s_lhs_ty s_rhs_ty)
         in
         subst |> return
 
@@ -137,4 +135,4 @@ let rec unify (subst : t) lhs_ty rhs_ty : (t, err_t) Result.t =
      Ok subst
 
   | (lhs, rhs) ->
-     Error (ErrTypeMismatch (lhs, rhs))
+     Error (new Reasons.type_mismatch lhs rhs)

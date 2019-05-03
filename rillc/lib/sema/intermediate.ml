@@ -8,8 +8,6 @@
 
 open! Base
 
-let transform m subst =
+let transform m subst dm =
   let m = Norm.transform m in
-  Stdio.printf "next gen\n";
-  let m = Gen.transform m subst in
-  m
+  Gen.transform m subst dm

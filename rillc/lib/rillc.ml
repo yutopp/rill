@@ -96,18 +96,18 @@ module Module = struct
     let subst = Sema.Initial.unify_toplevels sema_m in
     let () = Sema.Initial.show_module sema_m subst in
 
-    let rir_m = Sema.Intermediate.transform sema_m subst in
-    (dm, Analyzed rir_m, false)
+    let (rir_m, dm) = Sema.Intermediate.transform sema_m subst dm in
+    (dm, Analyzed rir_m, Diagnostics.Multi.is_failed dm)
 
   let analyze m =
     match m.state with
-    | Parsed ast ->
+    | Parsed ast when not m.failed ->
        (* TODO: fix *)
        let (dm, state, failed) = analyze m ast in
        {m with dm; state; failed;}
 
     | _ ->
-       failwith "[ICE]"
+       m
 
   let codegen rir_m out =
     let ctx = Codegen.Llvm_gen.create_context () in
@@ -121,13 +121,13 @@ module Module = struct
 
   let codegen m out =
     match m.state with
-    | Analyzed rir_m ->
+    | Analyzed rir_m when not m.failed ->
        (* TODO: fix *)
        let () = codegen rir_m out in
        m
 
     | _ ->
-       failwith "[ICE]"
+       m
 end
 
 (* TODO: fix *)

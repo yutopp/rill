@@ -135,7 +135,12 @@ expr_compound:
   | LBLOCK stmt* RBLOCK { make (Ast.ExprCompound $2) ~l:$loc }
 
 expr_assign:
-    expr_postfix { $1 }
+    expr_infix { $1 }
+
+expr_infix:
+    lhs = expr_infix op = infix_id rhs = expr_postfix
+    { make (Ast.ExprBinaryOp (lhs, op, rhs)) ~l:$loc }
+  | expr_postfix { $1 }
 
 expr_postfix:
     expr_primary { $1 }
@@ -159,7 +164,32 @@ single_id:
     single_id_as_str { make (Ast.ID $1) ~l:$loc }
 
 single_id_as_str:
-    ID { $1 }
+  | ID { $1 }
+  | LPAREN infix_id_as_str RPAREN { $2 }
+
+infix_id:
+    infix_id_as_str { make (Ast.ID $1) ~l:$loc }
+
+infix_id_as_str:
+    PLUS        { $1 }
+  | MINUS       { $1 }
+  | TIMES       { $1 }
+  | DIV         { $1 }
+  | MOD         { $1 }
+  | GT          { $1 }
+  | GTE         { $1 }
+  | LT          { $1 }
+  | LTE         { $1 }
+  | LSHIFT      { $1 }
+  | ARSHIFT     { $1 }
+  | LRSHIFT     { $1 }
+  | EQUALS      { $1 }
+  | NOT_EQUALS  { $1 }
+  | LOGICAL_OR  { $1 }
+  | LOGICAL_AND { $1 }
+  | BITWISE_AND { $1 }
+  | BITWISE_OR  { $1 }
+  | BITWISE_XOR { $1 }
 
 (**)
 lit_bool:

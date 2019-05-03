@@ -37,6 +37,6 @@ let parse_from_file dm path : t * Diagnostics.Multi.t =
   try Stdio.In_channel.with_file ~binary:true path ~f:(f path) with
   | e ->
      let span = Span.create_path ~path in
-     let reason = Diagnostics.InternalException e in
+     let reason = new Common.Reasons.internal_exception ~e in
      let d = Diagnostics.create ~reason ~span ~phase:Diagnostics.PhaseParsing in
      (Failed, Diagnostics.Multi.append dm d)

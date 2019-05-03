@@ -111,15 +111,18 @@ let pre_construct_func m lvenv (name, ir_fun) =
     | _ -> failwith "(TODO) generics is not supported"
   in
   let ll_fty = to_llty ctx fty in
-  let f =
+  let f_opt =
     match ir_fun.Rir.Func.extern_name with
+    | Some extern_name when String.is_prefix extern_name ~prefix:"%" ->
+       None
     | Some extern_name ->
-       L.declare_function extern_name ll_fty m
+       Some (L.declare_function extern_name ll_fty m)
     | None ->
-       L.define_function name ll_fty m
+       Some (L.define_function name ll_fty m)
   in
-
-  Map.add_exn lvenv ~key:name ~data:f |> Result.return
+  match f_opt with
+  | Some f -> Map.add_exn lvenv ~key:name ~data:f |> Result.return
+  | None -> lvenv |> Result.return
 
 let construct_func m lvenv _ (name, ir_fun) : (unit, Diagnostics.t) Result.t =
   let ctx = L.module_context m in
@@ -137,6 +140,26 @@ let construct_func m lvenv _ (name, ir_fun) : (unit, Diagnostics.t) Result.t =
 
      construct_bb m ir_fun lvenv ir_entry_bb entry_bb
 
+let build_intrinsics m lvenv =
+  let ctx = L.module_context m in
+
+  let lvenv =
+    let name = "+" in
+    let f =
+      let ll_fty = to_llty ctx (Type.Func ([Type.Int; Type.Int], Type.Int)) in
+      let ll_f = L.define_function name ll_fty m in
+      let lhs = L.param ll_f 0 in
+      let rhs = L.param ll_f 1 in
+      let entry_bb = L.entry_block ll_f in
+      let builder = L.builder_at_end ctx entry_bb in
+      let ret = L.build_add lhs rhs "" builder in
+      let _ = L.build_ret ret builder in
+      ll_f
+    in
+    Map.add_exn lvenv ~key:name ~data:f
+  in
+  lvenv
+
 let create_context () : context_t =
   let llctx = L.create_context () in
   llctx
@@ -151,6 +174,7 @@ let create_module ctx rir : (t, Diagnostics.t) Result.t =
   in
   let open Result.Let_syntax in
   let lvenv = Map.empty (module String) in
+  let lvenv = build_intrinsics llmod lvenv in
   let%bind lvenv = build (pre_construct_func llmod) (Rir.Module.funcs rir) lvenv in
   let%bind _ = build (construct_func llmod lvenv) (Rir.Module.funcs rir) () in
   Ok llmod

@@ -27,7 +27,7 @@ let rec fail dm is_incomplete sup inputneeded checkpoint =
      let span = Supplier.create_span_with_lex_loc sup lex_loc in
 
      (* TODO: implement error recovery *)
-     let reason = Diagnostics.InvalidSyntax in
+     let reason = new Reasons.invalid_syntax in
      let d = Diagnostics.create ~reason ~span ~phase:Diagnostics.PhaseParsing in
      (None, is_incomplete, Diagnostics.Multi.append dm d)
 
@@ -43,12 +43,12 @@ let entry dm sup =
   | Lexer.LexerError detail ->
      let span = Supplier.create_span sup in
      (* TODO: use typed reason instead of detail *)
-     let reason = Diagnostics.InvalidToken detail in
+     let reason = new Reasons.invalid_token ~token:detail in
      let d = Diagnostics.create ~reason ~span ~phase:Diagnostics.PhaseParsing in
      (None, false, Diagnostics.Multi.append dm d)
 
   | Lexer.UnexpectedToken tok ->
      let span = Supplier.create_span sup in
-     let reason = Diagnostics.UnexpectedToken tok in
+     let reason = new Reasons.unexpected_token ~ch:tok in
      let d = Diagnostics.create ~reason ~span ~phase:Diagnostics.PhaseParsing in
      (None, false, Diagnostics.Multi.append dm d)

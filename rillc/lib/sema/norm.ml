@@ -82,6 +82,19 @@ let rec normalize ast =
      (* TODO: consider scopes *)
      NAst.{kind = Seq (exprs |> List.map ~f:normalize); span}
 
+  | Ast.{kind = ExprBinaryOp (lhs, op, rhs); span; _} ->
+     (* TODO: reconstruction *)
+     let k = insert_let (normalize op) in
+     k (fun op_id ->
+         let k = insert_let (normalize lhs) in
+         k (fun lhs_id ->
+             let k = insert_let (normalize rhs) in
+             k (fun rhs_id ->
+                 NAst.{kind = Call {name = op_id; args = [lhs_id; rhs_id]}; span}
+               )
+           )
+       )
+
   | Ast.{kind = ExprCall (r, args); span; _} ->
      let rk = insert_let (normalize r) in
      let rec bind xs args =

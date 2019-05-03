@@ -76,15 +76,16 @@ let solve_type ast env subst =
   | Ast.{kind = ID name; span; _} ->
      let%bind e =
        Env.lookup env name
-       |> Result.map_error ~f:(fun trace ->
-                             let reason = Diagnostics.Id_not_found name in
-                             let d =
-                               Diagnostics.create ~phase:Diagnostics.PhaseSema
-                                                  ~span
-                                                  ~reason
-                             in
-                             d
-                           )
+       |> Result.map_error
+            ~f:(fun trace ->
+              let reason = new Common.Reasons.id_not_found ~name in
+              let d =
+                Diagnostics.create ~phase:Diagnostics.PhaseSema
+                                   ~span
+                                   ~reason
+              in
+              d
+            )
      in
      begin match e.Env.kind with
      | Env.Kind.Type ty ->
