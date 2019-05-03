@@ -11,17 +11,19 @@ open! Base
 type t = {
   tysc: Type.Scheme.t;
   params: Term.placeholder_t list;
-  mutable ret_var: t option;
-  mutable bbs: (string, Term.BB.t) Hashtbl.t;
+  bbs: (string, Term.BB.t) Hashtbl.t;
+  extern_name: string option;
 }
+
+
 [@@deriving sexp_of]
 
-let create ~tysc =
+let create ?(extern_name=None) ~tysc =
   {
     tysc;
     params = [];
-    ret_var = None;
     bbs = Hashtbl.create (module String);
+    extern_name;
   }
 
 let update_tysc f tysc =

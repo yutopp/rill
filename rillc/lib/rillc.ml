@@ -113,7 +113,10 @@ module Module = struct
     let ctx = Codegen.Llvm_gen.create_context () in
     let llvm_m = Codegen.Llvm_gen.create_module ctx rir_m in
     match llvm_m with
-    | Ok m -> Stdio.printf "LLVM = %s\n" (Codegen.Llvm_gen.debug_string_of m)
+    | Ok m ->
+       Stdio.printf "LLVM = %s\n" (Codegen.Llvm_gen.debug_string_of m);
+       Stdio.Out_channel.write_all out ~data:(Codegen.Llvm_gen.debug_string_of m);
+       ()
     | _ -> ()
 
   let codegen m out =
@@ -128,13 +131,13 @@ module Module = struct
 end
 
 (* TODO: fix *)
-let build_module ctx filename =
+let build_module ctx filename out_filename =
   let m = Module.create ctx filename in
 
   let m = Module.parse m in
   let m = Module.analyze m in
   let () =
-    let _ = Module.codegen m "/tmp/a.ml" in
+    let _ = Module.codegen m out_filename in
     ()
   in
   m

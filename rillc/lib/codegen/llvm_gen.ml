@@ -98,6 +98,7 @@ let rec construct_bb m (ir_fun : Rir.Func.t) lvenv ir_bb bb : (unit, Diagnostics
       Rir.Term.BB.get_terminator_opt ir_bb
       |> (fun t -> Option.value_map t ~default:(Ok ()) ~f:construct_terminator)
     in
+    let _ = L.build_ret_void builder in
     Ok ()
   in
   result
@@ -110,21 +111,31 @@ let pre_construct_func m lvenv (name, ir_fun) =
     | _ -> failwith "(TODO) generics is not supported"
   in
   let ll_fty = to_llty ctx fty in
-  let f = L.define_function name ll_fty m in
+  let f =
+    match ir_fun.Rir.Func.extern_name with
+    | Some extern_name ->
+       L.declare_function extern_name ll_fty m
+    | None ->
+       L.define_function name ll_fty m
+  in
 
   Map.add_exn lvenv ~key:name ~data:f |> Result.return
 
 let construct_func m lvenv _ (name, ir_fun) : (unit, Diagnostics.t) Result.t =
   let ctx = L.module_context m in
 
-  let f = Map.find_exn lvenv name in
+  match ir_fun.Rir.Func.extern_name with
+  | Some _ ->
+     Ok ()
+  | None ->
+     let f = Map.find_exn lvenv name in
 
-  let ir_entry_bb = Rir.Func.get_entry_bb ir_fun in
-  let entry_bb = L.entry_block f in
+     let ir_entry_bb = Rir.Func.get_entry_bb ir_fun in
+     let entry_bb = L.entry_block f in
 
-  let builder = L.builder_at_end ctx entry_bb in
+     let builder = L.builder_at_end ctx entry_bb in
 
-  construct_bb m ir_fun lvenv ir_entry_bb entry_bb
+     construct_bb m ir_fun lvenv ir_entry_bb entry_bb
 
 let create_context () : context_t =
   let llctx = L.create_context () in

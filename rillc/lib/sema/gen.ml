@@ -126,29 +126,50 @@ let gen subst builder name nast env =
   | Norm.NAst.{kind = Func func_kind; span; _} ->
      let s = Rir.Builder.get_current_state builder in
 
-     let f = Rir.Func.create ~tysc:(Option.value_exn env.Env.tysc) in
-     let () = Rir.Builder.set_current_func builder f in
-
-     let bb = Rir.Term.BB.create "entry" in
-     Rir.Func.insert_bb f bb;
-     let () = Rir.Builder.set_current_bb builder bb in
-
-     let body' =
+     let f =
        match func_kind with
        | Norm.NAst.FuncKindDef body ->
+          let f = Rir.Func.create ~tysc:(Option.value_exn env.Env.tysc) ~extern_name:None in
+          let () = Rir.Builder.set_current_func builder f in
+
+          let bb = Rir.Term.BB.create "entry" in
+          Rir.Func.insert_bb f bb;
+          let () = Rir.Builder.set_current_bb builder bb in
+
+          (* *)
           let (body', _) = gen_terms builder subst body env in
-          body'
+          (* TODO: check all types are substituted *)
+          let tysc = Typer.subst_tysc subst (Option.value_exn env.Env.tysc) in
+          let f = Rir.Func.update_tysc f tysc in
+
+          f
 
        | Norm.NAst.FuncKindExtern v ->
-          let (body', _) = gen_terms builder subst v env in
-          body'
+          (* TODO: fix (remove temporary function) *)
+          let f = Rir.Func.create ~tysc:(Option.value_exn env.Env.tysc) ~extern_name:None in
+          let () = Rir.Builder.set_current_func builder f in
+
+          let bb = Rir.Term.BB.create "entry" in
+          Rir.Func.insert_bb f bb;
+          let () = Rir.Builder.set_current_bb builder bb in
+
+          let (body', subst) = gen_terms builder subst v env in
+          let subst = Typer.unify subst body'.Rir.Term.ty (Type.String) |> tmp_err_wrap in
+          let name =
+            match body' with
+            | Rir.Term.{kind = RVal (Rir.Term.ValueString name); _} ->
+               name
+            | _ ->
+               failwith "[ICE]"
+          in
+
+          let tysc = Typer.subst_tysc subst (Option.value_exn env.Env.tysc) in
+          let f = Rir.Func.create ~tysc ~extern_name:(Some name) in
+          f
 
        | _ ->
           failwith "[ICE] not supported function"
      in
-
-     let tysc = Typer.subst_tysc subst (Option.value_exn env.Env.tysc) in
-     let f = Rir.Func.update_tysc f tysc in
 
      Stdio.printf "rir = \n%s\n" (Rir.Func.sexp_of_t f |> Sexp.to_string_hum ~indent:2);
      Rir.Builder.register_func_def builder name f;
