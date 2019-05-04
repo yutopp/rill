@@ -51,4 +51,14 @@ let register_func_def ctx name f =
 let build_let ctx name v =
   let inst = Term.Let (name, v) in
   let bb = get_current_bb ctx in
-  Term.BB.append bb inst
+  Term.BB.append_inst bb inst
+
+let build_ret ctx name =
+  let term = Term.Ret name in
+  let bb = get_current_bb ctx in
+  Term.BB.set_terminator bb term
+
+let build_ret_void ctx =
+  let term = Term.RetVoid in
+  let bb = get_current_bb ctx in
+  Term.BB.set_terminator bb term

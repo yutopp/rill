@@ -10,7 +10,7 @@ open! Base
 
 type t = {
   tysc: Type.Scheme.t;
-  params: Term.placeholder_t list;
+  param_names: Term.placeholder_t list;
   bbs: (string, Term.BB.t) Hashtbl.t;
   extern_name: string option;
 }
@@ -18,10 +18,10 @@ type t = {
 
 [@@deriving sexp_of]
 
-let create ?(extern_name=None) ~tysc =
+let create ?(extern_name=None) ~tysc ~param_names =
   {
     tysc;
-    params = [];
+    param_names;
     bbs = Hashtbl.create (module String);
     extern_name;
   }
@@ -34,3 +34,13 @@ let insert_bb f bb =
 
 let get_entry_bb f =
   Hashtbl.find_exn f.bbs "entry"
+
+let get_func_ty f =
+  let Type.Scheme.Scheme (_, ty) = f.tysc in
+  match ty with
+  | Type.Func (params_tys, ret_ty) -> (params_tys, ret_ty)
+  | _ -> failwith "[ICE]"
+
+let get_ret_ty f =
+  let (_, ret_ty) = get_func_ty f in
+  ret_ty

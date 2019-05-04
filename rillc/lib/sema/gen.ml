@@ -68,6 +68,29 @@ let rec gen_terms builder subst nast penv : ((Rir.Term.t * Typer.t), 'a) Result.
 
      (body', subst) |> return
 
+  | Norm.NAst.{kind = Return name; span; _} ->
+     let%bind (ret_ty, subst) = lookup_var penv name subst |> wrap_reason ~span in
+
+     let f = Rir.Builder.get_current_func builder in
+     let expect_ret_ty = Rir.Func.get_ret_ty f in
+
+     let%bind subst = Typer.unify subst expect_ret_ty ret_ty |> wrap_reason ~span in
+
+     let () =
+       match Typer.subst_type subst ret_ty with
+       | Type.Unit ->
+          Rir.Builder.build_ret_void builder
+       | _ ->
+          Rir.Builder.build_ret builder name
+     in
+
+     let bb = Rir.Term.BB.create "entry2" in (* TODO: rename *)
+     Rir.Func.insert_bb f bb;
+     let () = Rir.Builder.set_current_bb builder bb in
+
+     let node = Rir.Term.{kind = Undef; ty = Type.Bottom; span} in
+     (node, subst) |> return
+
   | Norm.NAst.{kind = Seq nodes; span} ->
      let ty = Type.Bottom in
      let dummy = Rir.Term.{kind = Undef; ty; span} in
@@ -126,13 +149,18 @@ let rec gen_terms builder subst nast penv : ((Rir.Term.t * Typer.t), 'a) Result.
 let gen subst builder name nast env dm : Diagnostics.Multi.t =
   match nast with
   (* toplevels *)
-  | Norm.NAst.{kind = Func func_kind; span; _} ->
+  | Norm.NAst.{kind = Func {kind = func_kind; param_names}; span; _} ->
      let s = Rir.Builder.get_current_state builder in
 
      let (f_opt, dm) =
        match func_kind with
        | Norm.NAst.FuncKindDef body ->
-          let f = Rir.Func.create ~tysc:(Option.value_exn env.Env.tysc) ~extern_name:None in
+          let f =
+            Rir.Func.create
+              ~tysc:(Option.value_exn env.Env.tysc)
+              ~param_names
+              ~extern_name:None
+          in
           let () = Rir.Builder.set_current_func builder f in
 
           let bb = Rir.Term.BB.create "entry" in
@@ -153,7 +181,12 @@ let gen subst builder name nast env dm : Diagnostics.Multi.t =
 
        | Norm.NAst.FuncKindExtern v ->
           (* TODO: fix (remove temporary function) *)
-          let f = Rir.Func.create ~tysc:(Option.value_exn env.Env.tysc) ~extern_name:None in
+          let f =
+            Rir.Func.create
+              ~tysc:(Option.value_exn env.Env.tysc)
+              ~param_names
+              ~extern_name:None
+          in
           let () = Rir.Builder.set_current_func builder f in
 
           let bb = Rir.Term.BB.create "entry" in
@@ -176,7 +209,7 @@ let gen subst builder name nast env dm : Diagnostics.Multi.t =
                 in
 
                 let tysc = Typer.subst_tysc subst (Option.value_exn env.Env.tysc) in
-                let f = Rir.Func.create ~tysc ~extern_name:(Some name) in
+                let f = Rir.Func.create ~tysc ~param_names ~extern_name:(Some name) in
                 (Some f, dm)
 
              | Error d ->

@@ -20,15 +20,16 @@ module NAst = struct
   }
 
   and kind_t =
-    | Func of func_kind_t
+    | Func of {kind: func_kind_t; param_names: string list}
     | Let of {name: string; expr: t; body: t}
-    | Seq of t list
+    | Return of string
     | Call of {name: string; args: string list}
     | LitBool of bool
     | LitInt of {value: int; bits: int; signed: bool}
     | LitString of string
     | LitUnit
     | ID of string
+    | Seq of t list
 
   and func_kind_t =
     | FuncKindDecl
@@ -62,21 +63,39 @@ let insert_let k_form k =
 let rec normalize ast =
   match ast with
   (* toplevels *)
-  | Ast.{kind = FunctionDeclStmt _; span; _} ->
-     NAst.{kind = Func (FuncKindDecl); span}
+  | Ast.{kind = FunctionDeclStmt {params; _}; span; _} ->
+     let param_names = List.map ~f:Ast.param_decl_name params in
+     NAst.{kind = Func {kind = FuncKindDecl; param_names}; span}
 
-  | Ast.{kind = FunctionDefStmt {body; _}; span} ->
+  | Ast.{kind = FunctionDefStmt {body; params; _}; span} ->
      let body' = normalize body in
-     NAst.{kind = Func (FuncKindDef body'); span}
+     let param_names = List.map ~f:Ast.param_decl_name params in
+     NAst.{kind = Func {kind = FuncKindDef body'; param_names}; span}
 
-  | Ast.{kind = ExternFunctionDeclStmt {symbol_name; _}; span; _} ->
+  | Ast.{kind = ExternFunctionDeclStmt {symbol_name; params; _}; span; _} ->
      let symbol_name' = normalize symbol_name in
-     NAst.{kind = Func (FuncKindExtern symbol_name'); span}
+     let param_names = List.map ~f:Ast.param_decl_name params in
+     NAst.{kind = Func {kind = FuncKindExtern symbol_name'; param_names}; span}
 
   (* others *)
   | Ast.{kind = StmtExpr expr; span; _} ->
      let k = insert_let (normalize expr) in
      k (fun _id -> NAst.{kind = LitUnit; span})
+
+  | Ast.{kind = StmtReturn expr_opt; span; _} ->
+     let expr = match expr_opt with
+       | Some expr ->
+          expr
+       | None ->
+          let last_loc =
+            Span.loc_opt span
+            |> Option.map ~f:(fun (s, e) -> (e, e))
+          in
+          let span = Span.create ~path:(Span.path span) ~loc_opt:last_loc in
+          Ast.{kind = LitUnit; span}
+     in
+     let k = insert_let (normalize expr) in
+     k (fun id -> NAst.{kind = Return id; span})
 
   | Ast.{kind = ExprCompound exprs; span; _} ->
      (* TODO: consider scopes *)
@@ -118,6 +137,9 @@ let rec normalize ast =
 
   | Ast.{kind = LitString v; span; _} ->
      NAst.{kind = LitString v; span}
+
+  | Ast.{kind = LitUnit; span; _} ->
+     NAst.{kind = LitUnit; span}
 
   | k ->
      failwith @@

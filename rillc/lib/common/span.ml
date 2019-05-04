@@ -44,6 +44,12 @@ let create_from_lex_loc ~path ~lex_loc =
   let loc = (s |> Pos.from_lexpos, e |> Pos.from_lexpos) in
   create ~path ~loc_opt:(Some loc)
 
+let path s =
+  s.path
+
+let loc_opt s =
+  s.loc_opt
+
 let to_string (span : t) =
   let {path; loc_opt;} = span in
 

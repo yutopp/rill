@@ -39,16 +39,16 @@ let rec construct_bb m (ir_fun : Rir.Func.t) lvenv ir_bb bb : (unit, Diagnostics
   let ctx = L.module_context m in
   let builder = L.builder_at_end ctx bb in
 
-  let rec construct_insts ir_insts lvenv =
+  let rec construct_insts lvenv ir_insts =
     match ir_insts with
     | ir_inst :: rest ->
        let open Result.Let_syntax in
-       let%bind lvenv = construct_inst ir_inst lvenv in
-       construct_insts rest lvenv
+       let%bind lvenv = construct_inst lvenv ir_inst in
+       construct_insts lvenv rest
     | [] ->
-       Ok ()
+       Ok lvenv
 
-  and construct_inst ir_inst lvenv =
+  and construct_inst lvenv ir_inst =
     Stdio.printf "Inst -> %s\n"
                  (Rir.Term.sexp_of_inst_t ir_inst |> Sexp.to_string_hum);
 
@@ -88,17 +88,27 @@ let rec construct_bb m (ir_fun : Rir.Func.t) lvenv ir_bb bb : (unit, Diagnostics
     | Rir.Term.{kind = Undef; _} ->
        Ok (L.const_null (L.void_type ctx))
 
-  and construct_terminator ir_terminator =
-    Ok ()
+  and construct_terminator lvenv ir_terminator =
+    match ir_terminator with
+    | Rir.Term.Ret placeholder ->
+       let callee_val = Option.value_exn ~message:placeholder (Map.find lvenv placeholder) in
+       let _ = L.build_ret callee_val builder in
+       Ok ()
+
+    | Rir.Term.RetVoid ->
+       let _ = L.build_ret_void builder in
+       Ok ()
+
+    | _ ->
+       failwith "[ICE] not supported"
   in
   let result =
     let open Result.Let_syntax in
-    let%bind _body = construct_insts (Rir.Term.BB.get_insts ir_bb) lvenv in
+    let%bind lvenv = construct_insts lvenv (Rir.Term.BB.get_insts ir_bb) in
     let%bind _ret =
       Rir.Term.BB.get_terminator_opt ir_bb
-      |> (fun t -> Option.value_map t ~default:(Ok ()) ~f:construct_terminator)
+      |> (fun t -> Option.value_map t ~default:(Ok ()) ~f:(construct_terminator lvenv))
     in
-    let _ = L.build_ret_void builder in
     Ok ()
   in
   result
@@ -137,6 +147,16 @@ let construct_func m lvenv _ (name, ir_fun) : (unit, Diagnostics.t) Result.t =
      let entry_bb = L.entry_block f in
 
      let builder = L.builder_at_end ctx entry_bb in
+
+     let lvenv =
+       List.foldi
+         ~f:(fun index lvenv param_name ->
+           let ll_v = L.param f index in
+           Map.add_exn lvenv ~key:param_name ~data:ll_v
+         )
+         ~init:lvenv
+         ir_fun.Rir.Func.param_names
+     in
 
      construct_bb m ir_fun lvenv ir_entry_bb entry_bb
 

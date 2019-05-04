@@ -38,6 +38,7 @@ and terminator_t =
   | Jump of bb_index_t
   | Cond of placeholder_t * bb_index_t * bb_index_t
   | Ret of placeholder_t
+  | RetVoid
 
 and placeholder_t = string
 [@@deriving sexp_of]
@@ -57,11 +58,15 @@ module BB = struct
       terminator = None;
     }
 
-  let append bb inst =
+  let append_inst bb inst =
     bb.insts <- inst :: bb.insts
 
   let get_insts bb =
     List.rev bb.insts
+
+  let set_terminator bb term =
+    assert(Option.is_none bb.terminator);
+    bb.terminator <- Some term
 
   let get_terminator_opt bb =
     bb.terminator

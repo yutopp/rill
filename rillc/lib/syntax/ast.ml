@@ -49,4 +49,10 @@ and kind =
   | LitBool of bool
   | LitInt of int * int * bool (* value * bits * signed *)
   | LitString of string
+  | LitUnit
 [@@deriving sexp]
+
+let param_decl_name ast =
+  match ast with
+  | {kind = ParamDecl {name; _}; _} -> name
+  | _ -> failwith ""
