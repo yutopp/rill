@@ -1,3 +1,25 @@
-(lang dune 1.7)
-(using menhir 2.0)
+(lang dune 2.5)
 (name rillc)
+(version 0.0.1)
+
+(using menhir 2.0)
+
+(generate_opam_files true)
+
+(source (github yutopp/rill))
+(license "Boost License Version 1.0")
+(authors "yutopp")
+(maintainers "yutopp@gmail.com")
+
+(package
+ (name rillc)
+ (synopsis "One-line description")
+ (description "A longer description")
+ (depends
+  (ocaml    (and :build (>= 4.09.0)))
+  (dune     (and :build (>= 2.5)))
+  (base     (>= v0.13.0))
+  (stdio    (>= v0.13.0))
+  (menhir   (>= 20181113))
+  (stdint   (>= 0.6.0))
+  (llvm     (>= 10.0.0))))
