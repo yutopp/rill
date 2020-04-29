@@ -3,4 +3,4 @@
  (name            sema)
  (libraries       base stdio rillc.common rillc.syntax rillc.type rillc.rir)
  (preprocess
-  (pps ppx_sexp_conv ppx_let)))
+  (pps ppx_let ppx_sexp_conv)))

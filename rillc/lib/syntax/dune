@@ -3,7 +3,7 @@
  (name            syntax)
  (libraries       base stdio menhirLib rillc.common)
  (preprocess
-  (pps ppx_sexp_conv ppx_let)))
+  (pps ppx_sexp_conv)))
 
 (ocamllex lexer)
 

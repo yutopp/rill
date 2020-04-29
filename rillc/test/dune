@@ -1,6 +1,6 @@
 (library
  (name run_unit_tests)
- (libraries rillc expect_test_helpers_kernel)
+ (libraries rillc)
  (inline_tests (deps (glob_files *.rill)))
  (preprocess (pps ppx_sexp_conv ppx_expect)))
 

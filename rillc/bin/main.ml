@@ -22,7 +22,7 @@ let () =
   Stdio.eprintf "filename: %s\n" filename;
 
   let workspace = Rillc.create_context () in
-  let m = Rillc.build_module workspace filename in
+  let m = Rillc.build_module workspace filename "out" in
 
   let dm = Rillc.Module.diagnostics m in
   List.iter ~f:(fun d ->

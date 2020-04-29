@@ -3,4 +3,4 @@
  (name            rir)
  (libraries       base stdio rillc.common rillc.syntax rillc.type)
  (preprocess
-  (pps ppx_sexp_conv ppx_let)))
+  (pps ppx_sexp_conv)))

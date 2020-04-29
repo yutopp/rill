@@ -16,7 +16,7 @@ module Ast = Syntax.Ast
 module NAst = struct
   type t = {
     kind: kind_t;
-    span: Span.t sexp_opaque;
+    span: Span.t [@sexp.opaque];
   }
 
   and kind_t =

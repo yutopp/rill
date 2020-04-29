@@ -16,7 +16,7 @@ type bb_index_t = int
 and t = {
   kind: value_kind_t;
   ty: Type.t;
-  span: Span.t sexp_opaque;
+  span: Span.t [@sexp.opaque];
 }
 
 and value_kind_t =
