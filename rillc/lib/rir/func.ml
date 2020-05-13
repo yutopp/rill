@@ -8,37 +8,31 @@
 
 open! Base
 
+module BBs = struct
+  type t = (string, Term.BB.t) Hashtbl.t
+
+  let pp ppf values =
+    Hashtbl.iteri values ~f:(fun ~key ~data ->
+        Caml.Format.fprintf ppf "@[<1>%s: %s@]@." key (Term.BB.show data))
+end
+
 type t = {
-  tysc: Type.Scheme.t;
-  param_names: Term.placeholder_t list;
-  bbs: (string, Term.BB.t) Hashtbl.t;
-  extern_name: string option;
+  ty : (Typing.Type.t[@printer fun fmt _ -> fprintf fmt ""]);
+  bbs : BBs.t;
+  extern_name : string option;
 }
+[@@deriving show]
 
+let create ?(extern_name = None) ~ty =
+  { ty; bbs = Hashtbl.create (module String); extern_name }
 
-[@@deriving sexp_of]
+let insert_bb f bb = Hashtbl.add_exn f.bbs ~key:bb.Term.BB.name ~data:bb
 
-let create ?(extern_name=None) ~tysc ~param_names =
-  {
-    tysc;
-    param_names;
-    bbs = Hashtbl.create (module String);
-    extern_name;
-  }
-
-let update_tysc f tysc =
-  {f with tysc}
-
-let insert_bb f bb =
-  Hashtbl.add_exn f.bbs ~key:bb.Term.BB.name ~data:bb
-
-let get_entry_bb f =
-  Hashtbl.find_exn f.bbs "entry"
+let get_entry_bb f = Hashtbl.find_exn f.bbs "entry"
 
 let get_func_ty f =
-  let Type.Scheme.Scheme (_, ty) = f.tysc in
-  match ty with
-  | Type.Func (params_tys, ret_ty) -> (params_tys, ret_ty)
+  match f.ty with
+  | Typing.Type.{ ty = Func (params_tys, ret_ty); _ } -> (params_tys, ret_ty)
   | _ -> failwith "[ICE]"
 
 let get_ret_ty f =

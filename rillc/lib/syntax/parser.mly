@@ -13,7 +13,8 @@
 
 %{
   let make ~l kind =
-    Ast.{kind; span = Span.create_from_lex_loc ~path:"" ~lex_loc:l}
+    let span = Ast.Span.create_from_lex_loc ~path:"" ~lex_loc:l in
+    Ast.{kind; span }
 %}
 
 %%
@@ -42,10 +43,10 @@ function_def_statement:
     KEYWORD_DEF
     name = single_id_as_str
     LPAREN params = parameter_decls_list RPAREN
-    ret_ty = type_spec?
+    ret_ty = type_spec
     body = function_def_body
     {
-      make (Ast.FunctionDefStmt {
+      make (Ast.DefFunc {
               name = name;
               ret_ty = ret_ty;
               params = params;
@@ -81,11 +82,11 @@ extern_function_decl_statement:
     KEYWORD_EXTERN KEYWORD_DEF
     name = single_id_as_str
     LPAREN params = parameter_decls_list RPAREN
-    ret_ty = type_spec?
+    ret_ty = type_spec
     ASSIGN
     symbol_name = lit_string
     {
-      make (Ast.ExternFunctionDeclStmt {
+      make (Ast.DeclExternFunc {
               name = name;
               ret_ty = ret_ty;
               params = params;

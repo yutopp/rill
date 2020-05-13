@@ -10,17 +10,15 @@ open! Base
 
 (* TODO: fix *)
 type t = {
-  mutable funcs: (string * Func.t) list;
+  ctx : (Context.t[@printer fun fmt _ -> fprintf fmt ""]);
+  module_name : string;
+  mutable funcs_rev : func_assoc_t list;
 }
-[@@deriving sexp_of]
 
-let create () : t =
-  {
-    funcs = [];
-  }
+and func_assoc_t = string * Func.t [@@deriving show]
 
-let append_func m name f =
-  m.funcs <- (name, f) :: m.funcs
+let create ~ctx : t = { ctx; module_name = ""; funcs_rev = [] }
 
-let funcs m =
-  List.rev m.funcs
+let append_func m name f = m.funcs_rev <- (name, f) :: m.funcs_rev
+
+let funcs m : func_assoc_t list = List.rev m.funcs_rev

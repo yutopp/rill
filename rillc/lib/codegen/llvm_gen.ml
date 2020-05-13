@@ -7,197 +7,160 @@
  *)
 
 open! Base
-
 module Span = Common.Span
 module Diagnostics = Common.Diagnostics
+module Builtin = Sema.Builtin
 module L = Llvm
 
-type t = L.llmodule
+module Module = struct
+  type t = L.llmodule
 
-type context_t = L.llcontext
+  let pp ppf m = Caml.Format.fprintf ppf "%s" (L.string_of_llmodule m)
+end
 
-let rec to_llty ctx ty : L.lltype =
-  match ty with
-  | Type.Unit ->
-     L.void_type ctx
+type ctx_t = {
+  ds : Diagnostics.t;
+  subst : Typing.Subst.t;
+  ll_ctx : L.llcontext;
+  builtin : Builtin.t;
+}
 
-  | Type.Int ->
-     L.integer_type ctx 32
+let context ~ds ~subst ~builtin =
+  let ll_ctx = L.create_context () in
+  { ds; subst; builtin; ll_ctx }
 
-  | Type.String ->
-     L.pointer_type (L.i8_type ctx)
+let rec to_llty ~ctx ty : L.lltype =
+  let subst = ctx.subst in
+  match Typing.Subst.subst_type subst ty with
+  | Typing.Type.{ ty = Unit; _ } -> L.void_type ctx.ll_ctx
+  | Typing.Type.{ ty = Int; _ } -> L.integer_type ctx.ll_ctx 32
+  | Typing.Type.{ ty = String; _ } -> L.pointer_type (L.i8_type ctx.ll_ctx)
+  | Typing.Type.{ ty = Func (params, ret); _ } ->
+      let params_tys = List.map ~f:(to_llty ~ctx) params in
+      let ret_ty = to_llty ~ctx ret in
+      L.function_type ret_ty (Array.of_list params_tys)
+  | _ -> failwith "[ICE] not supported type"
 
-  | Type.Func (params, ret) ->
-     let params_tys = List.map ~f:(to_llty ctx) params in
-     let ret_ty = to_llty ctx ret in
-     L.function_type ret_ty (Array.of_list params_tys)
+module Env = struct
+  type t = {
+    local_vars : L.llvalue Map.M(String).t;
+    funcs : L.llvalue Map.M(String).t;
+    bb : L.llbasicblock Map.M(String).t;
+  }
 
+  let create () =
+    {
+      local_vars = Map.empty (module String);
+      funcs = Map.empty (module String);
+      bb = Map.empty (module String);
+    }
+
+  let get_local_var env name = Map.find_exn env.local_vars name
+
+  let set_local_var env name ll_v =
+    { env with local_vars = Map.add_exn ~key:name ~data:ll_v env.local_vars }
+
+  let get_func env name = Map.find_exn env.funcs name
+
+  let set_func env name ll_f =
+    { env with funcs = Map.add_exn ~key:name ~data:ll_f env.funcs }
+
+  let get_bb env name = Map.find_exn env.bb name
+
+  let set_bb env name ll_bb =
+    { env with bb = Map.add_exn ~key:name ~data:ll_bb env.bb }
+end
+
+let construct_value ~ctx ll_builder v ty =
+  match v with
+  | Rir.Term.ValueInt v -> L.const_int (to_llty ~ctx ty) v
+  | Rir.Term.ValueString v ->
+      (* L.const_stringz ctx.ll_ctx v *)
+      L.build_global_stringptr v "" ll_builder
+  | Rir.Term.ValueUnit -> L.const_null (to_llty ~ctx ty)
+
+let construct_term ~ctx ~env ll_f ll_builder term =
+  match term with
+  | Rir.Term.{ kind = Call (callee, args); ty; _ } ->
+      let callee_val = Env.get_func env callee in
+      let args_vals =
+        List.map args ~f:(Env.get_local_var env) |> Array.of_list
+      in
+      let llval = L.build_call callee_val args_vals "" ll_builder in
+      llval
+  | Rir.Term.{ kind = RVal v; ty; _ } ->
+      let ll_v = construct_value ~ctx ll_builder v ty in
+      ll_v
   | _ ->
-     failwith "[ICE] not supported type"
+      (* *)
+      L.const_null (L.void_type ctx.ll_ctx)
 
-let rec construct_bb m (ir_fun : Rir.Func.t) lvenv ir_bb bb : (unit, Diagnostics.t) Result.t =
-  let ctx = L.module_context m in
-  let builder = L.builder_at_end ctx bb in
+let construct_inst ~ctx ~env ll_f ll_builder inst : Env.t =
+  [%Loga.debug "Inst -> %s" (Rir.Term.show_inst_t inst)];
+  match inst with
+  | Rir.Term.Let (placeholder, term) ->
+      let ll_v = construct_term ~ctx ~env ll_f ll_builder term in
+      Env.set_local_var env placeholder ll_v
+  | _ -> env
 
-  let rec construct_insts lvenv ir_insts =
-    match ir_insts with
-    | ir_inst :: rest ->
-       let open Result.Let_syntax in
-       let%bind lvenv = construct_inst lvenv ir_inst in
-       construct_insts lvenv rest
-    | [] ->
-       Ok lvenv
+let construct_terminator ~ctx ~env ll_f ll_builder termi =
+  let _ = L.build_ret_void ll_builder in
+  ()
 
-  and construct_inst lvenv ir_inst =
-    Stdio.printf "Inst -> %s\n"
-                 (Rir.Term.sexp_of_inst_t ir_inst |> Sexp.to_string_hum);
-
-    match ir_inst with
-    | Rir.Term.Let (placeholder, v) ->
-       let open Result.Let_syntax in
-       let%bind body = construct_value ~name:(Some placeholder) v lvenv in
-       let lvenv = Map.add_exn lvenv ~key:placeholder ~data:body in
-       Ok lvenv
-
-    | Rir.Term.Nop ->
-       Ok lvenv
-
-  and construct_value ?name ir_value lvenv =
-    match ir_value with
-    | Rir.Term.{kind = Call (callee, args); _} ->
-       let callee_val = Option.value_exn ~message:callee (Map.find lvenv callee) in
-       let args_vals = List.map args ~f:(Map.find_exn lvenv) |> Array.of_list in
-       let llval = L.build_call callee_val args_vals "" builder in
-       Ok llval
-
-    | Rir.Term.{kind = RVal ir_rvalue; ty; _} ->
-       begin match ir_rvalue with
-       | Rir.Term.ValueInt v ->
-          Ok (L.const_int (to_llty ctx ty) v)
-
-       | Rir.Term.ValueString v ->
-          Ok (L.const_stringz ctx v)
-
-       | Rir.Term.ValueUnit ->
-          Ok (L.const_null (to_llty ctx ty))
-       end
-
-    | Rir.Term.{kind = LVal var_name; _} ->
-       Ok (Map.find_exn lvenv var_name)
-
-    | Rir.Term.{kind = Undef; _} ->
-       Ok (L.const_null (L.void_type ctx))
-
-  and construct_terminator lvenv ir_terminator =
-    match ir_terminator with
-    | Rir.Term.Ret placeholder ->
-       let callee_val = Option.value_exn ~message:placeholder (Map.find lvenv placeholder) in
-       let _ = L.build_ret callee_val builder in
-       Ok ()
-
-    | Rir.Term.RetVoid ->
-       let _ = L.build_ret_void builder in
-       Ok ()
-
-    | _ ->
-       failwith "[ICE] not supported"
+let construct_bb ~ctx ~env ll_f ll_builder bb =
+  let insts = Rir.Term.BB.get_insts bb in
+  let env =
+    List.fold_left insts ~init:env ~f:(fun env inst ->
+        construct_inst ~ctx ~env ll_f ll_builder inst)
   in
-  let result =
-    let open Result.Let_syntax in
-    let%bind lvenv = construct_insts lvenv (Rir.Term.BB.get_insts ir_bb) in
-    let%bind _ret =
-      Rir.Term.BB.get_terminator_opt ir_bb
-      |> (fun t -> Option.value_map t ~default:(Ok ()) ~f:(construct_terminator lvenv))
-    in
-    Ok ()
+  Rir.Term.BB.get_terminator_opt bb
+  |> Option.iter ~f:(fun termi ->
+         construct_terminator ~ctx ~env ll_f ll_builder termi)
+
+let construct_func ~ctx ~env ll_mod ll_f (name, func) =
+  let (env, _) =
+    let ll_entry_bb = L.entry_block ll_f in
+    Hashtbl.fold func.Rir.Func.bbs ~init:(env, ll_entry_bb)
+      ~f:(fun ~key ~data (env, ll_bb) ->
+        let ll_bb =
+          match key with
+          | "entry" -> ll_bb
+          | name -> L.insert_block ctx.ll_ctx name ll_bb
+        in
+        let env = Env.set_bb env key ll_bb in
+        (env, ll_bb))
   in
-  result
 
-let pre_construct_func m lvenv (name, ir_fun) =
-  let ctx = L.module_context m in
+  Hashtbl.iteri func.Rir.Func.bbs ~f:(fun ~key:name ~data:bb ->
+      let ll_bb = Env.get_bb env name in
+      let ll_builder = L.builder_at_end ctx.ll_ctx ll_bb in
+      construct_bb ~ctx ~env ll_f ll_builder bb)
 
-  let fty = match ir_fun.Rir.Func.tysc with
-    | Type.Scheme.Scheme ([], ty) -> ty
-    | _ -> failwith "(TODO) generics is not supported"
+(* declare functions *)
+let pre_construct_func ~ctx ll_mod (name, func) : L.llvalue * bool =
+  let ty = func.Rir.Func.ty in
+  let ll_ty = to_llty ~ctx ty in
+  match func.Rir.Func.extern_name with
+  | Some extern_name -> (L.declare_function extern_name ll_ty ll_mod, false)
+  | None -> (L.define_function name ll_ty ll_mod, true)
+
+let generate_module ~ctx rir_mod : Module.t =
+  let module_name = rir_mod.Rir.Module.module_name in
+  let ll_mod = L.create_module ctx.ll_ctx module_name in
+
+  let env = Env.create () in
+  let (env, fs_rev) =
+    let funcs = Rir.Module.funcs rir_mod in
+    List.fold_left funcs ~init:(env, []) ~f:(fun (env, fs) f ->
+        let (name, func) = f in
+        let (ll_f, def) = pre_construct_func ~ctx ll_mod (name, func) in
+        let env = Env.set_func env name ll_f in
+        (env, (f, ll_f, def) :: fs))
   in
-  let ll_fty = to_llty ctx fty in
-  let f_opt =
-    match ir_fun.Rir.Func.extern_name with
-    | Some extern_name when String.is_prefix extern_name ~prefix:"%" ->
-       None
-    | Some extern_name ->
-       Some (L.declare_function extern_name ll_fty m)
-    | None ->
-       Some (L.define_function name ll_fty m)
+
+  let () =
+    fs_rev
+    |> List.iter ~f:(fun (f, ll_f, def) ->
+           if def then construct_func ~ctx ~env ll_mod ll_f f else ())
   in
-  match f_opt with
-  | Some f -> Map.add_exn lvenv ~key:name ~data:f |> Result.return
-  | None -> lvenv |> Result.return
-
-let construct_func m lvenv _ (name, ir_fun) : (unit, Diagnostics.t) Result.t =
-  let ctx = L.module_context m in
-
-  match ir_fun.Rir.Func.extern_name with
-  | Some _ ->
-     Ok ()
-  | None ->
-     let f = Map.find_exn lvenv name in
-
-     let ir_entry_bb = Rir.Func.get_entry_bb ir_fun in
-     let entry_bb = L.entry_block f in
-
-     let builder = L.builder_at_end ctx entry_bb in
-
-     let lvenv =
-       List.foldi
-         ~f:(fun index lvenv param_name ->
-           let ll_v = L.param f index in
-           Map.add_exn lvenv ~key:param_name ~data:ll_v
-         )
-         ~init:lvenv
-         ir_fun.Rir.Func.param_names
-     in
-
-     construct_bb m ir_fun lvenv ir_entry_bb entry_bb
-
-let build_intrinsics m lvenv =
-  let ctx = L.module_context m in
-
-  let lvenv =
-    let name = "+" in
-    let f =
-      let ll_fty = to_llty ctx (Type.Func ([Type.Int; Type.Int], Type.Int)) in
-      let ll_f = L.define_function name ll_fty m in
-      let lhs = L.param ll_f 0 in
-      let rhs = L.param ll_f 1 in
-      let entry_bb = L.entry_block ll_f in
-      let builder = L.builder_at_end ctx entry_bb in
-      let ret = L.build_add lhs rhs "" builder in
-      let _ = L.build_ret ret builder in
-      ll_f
-    in
-    Map.add_exn lvenv ~key:name ~data:f
-  in
-  lvenv
-
-let create_context () : context_t =
-  let llctx = L.create_context () in
-  llctx
-
-let create_module ctx rir : (t, Diagnostics.t) Result.t =
-  let module_name = "mod_name" in (* TODO: fix *)
-  let llmod = L.create_module ctx module_name in
-  let rec build ctor top_levels v =
-    List.fold_result ~f:ctor
-                     ~init:v
-                     top_levels
-  in
-  let open Result.Let_syntax in
-  let lvenv = Map.empty (module String) in
-  let lvenv = build_intrinsics llmod lvenv in
-  let%bind lvenv = build (pre_construct_func llmod) (Rir.Module.funcs rir) lvenv in
-  let%bind _ = build (construct_func llmod lvenv) (Rir.Module.funcs rir) () in
-  Ok llmod
-
-let debug_string_of m =
-  L.string_of_llmodule m
+  ll_mod

@@ -6,31 +6,23 @@
  * http://www.boost.org/LICENSE_1_0.txt)
  *)
 
-open! Base
+module Flags = struct
+  open Cmdliner
+
+  let default_command : unit Term.t * Term.info =
+    let doc = "A compiler tool-chain for Rill language" in
+    let sdocs = Manpage.s_common_options in
+    let exits = Term.default_exits in
+    let man = Help.section in
+    ( Term.(ret (const (fun _ -> `Help (`Pager, None)) $ Common.command)),
+      Term.info "rillc" ~version:"%%VERSION%%" ~doc ~sdocs ~exits ~man )
+
+  let entry () =
+    let cmds = [ Compile.command ] in
+    Term.(exit @@ eval_choice default_command cmds)
+end
+[@@warning "-44"]
 
 let () =
-  let opts = Flags.parse () in
-  let opts = match Flags.validate opts with
-    | Ok opts ->
-       opts
-    | Error _ ->
-       Stdio.eprintf "ERR: args\n"; (* TODO: fix *)
-       Caml.exit 1
-  in
-
-  let filename = Flags.input_files opts |> List.hd |> Option.value ~default:"DUMMY" in
-  Stdio.eprintf "filename: %s\n" filename;
-
-  let workspace = Rillc.create_context () in
-  let m = Rillc.build_module workspace filename "out" in
-
-  let dm = Rillc.Module.diagnostics m in
-  List.iter ~f:(fun d ->
-              Stdio.eprintf "-> %s\n" (Rillc.Diagnostics.to_string d)
-            )
-            (Rillc.Diagnostics.Multi.to_list dm);
-  match Rillc.Module.is_failed m with
-  | true ->
-     Caml.exit 1
-  | false ->
-     Caml.exit 0
+  Loga.Logger.set_formatter Loga.default_logger Format.err_formatter;
+  Flags.entry ()

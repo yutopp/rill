@@ -9,12 +9,8 @@
 open! Base
 
 module Pos = struct
-  type t = {
-    lnum: int;
-    cnum: int;
-    bcnum: int;
-  }
-  [@@deriving sexp]
+  type t = { lnum : int; cnum : int; bcnum : int }
+  [@@deriving sexp, to_yojson { strict = true }]
 
   let from_lexpos p =
     {
@@ -24,51 +20,43 @@ module Pos = struct
     }
 end
 
-type t = {
-  path: string; (* TODO: fix *)
-  loc_opt: (Pos.t * Pos.t) option;
-}
-[@@deriving sexp]
+type t = { path : string; (* TODO: fix *)
+                          loc_opt : (Pos.t * Pos.t) option }
+[@@deriving sexp, to_yojson { strict = true }]
 
-let create ~path ~loc_opt : t =
-  {
-    path;
-    loc_opt;
-  }
+let create ~path ~loc_opt : t = { path; loc_opt }
 
-let create_path ~path : t =
-  create ~path ~loc_opt:None
+let create_path ~path : t = create ~path ~loc_opt:None
+
+let undef = create_path ~path:"undef"
 
 let create_from_lex_loc ~path ~lex_loc =
   let (s, e) = lex_loc in
   let loc = (s |> Pos.from_lexpos, e |> Pos.from_lexpos) in
   create ~path ~loc_opt:(Some loc)
 
-let path s =
-  s.path
+let path s = s.path
 
-let loc_opt s =
-  s.loc_opt
+let loc_opt s = s.loc_opt
 
 let to_string (span : t) =
-  let {path; loc_opt;} = span in
+  let { path; loc_opt } = span in
 
   let message = "" in
-  let message = message ^ (Printf.sprintf "File: \"%s\"" path) in
+  let message = message ^ Printf.sprintf "File: \"%s\"" path in
 
-  let message = match loc_opt with
+  let message =
+    match loc_opt with
     | Some (s, e) ->
-       let range_s =
-         if s.Pos.lnum = e.Pos.lnum then
-           Printf.sprintf "line %d, charactors %d-%d"
-                          s.Pos.lnum s.Pos.bcnum e.Pos.bcnum
-         else
-           Printf.sprintf "line %d-%d, charactors %d-%d"
-                          s.Pos.lnum e.Pos.lnum s.Pos.bcnum e.Pos.bcnum
-       in
-       message ^ (Printf.sprintf ", %s" range_s)
-
-    | None ->
-       message
+        let range_s =
+          if s.Pos.lnum = e.Pos.lnum then
+            Printf.sprintf "line %d, charactors %d-%d" s.Pos.lnum s.Pos.bcnum
+              e.Pos.bcnum
+          else
+            Printf.sprintf "line %d-%d, charactors %d-%d" s.Pos.lnum e.Pos.lnum
+              s.Pos.bcnum e.Pos.bcnum
+        in
+        message ^ Printf.sprintf ", %s" range_s
+    | None -> message
   in
   message

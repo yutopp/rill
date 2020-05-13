@@ -7,36 +7,26 @@
  *)
 
 open! Base
-
 module Span = Common.Span
 module Diagnostics = Common.Diagnostics
 
 (* exports *)
 module Ast = Entry.Ast
 
-type t =
-  | Complete of Ast.t
-  | Incomplete of Ast.t
-  | Failed
+type state_t = Complete | Incomplete
 
-let parse_from_file dm path : t * Diagnostics.Multi.t =
+let parse_from_file ~ds path : (state_t * Ast.t, Diagnostics.Elem.t) Result.t =
   let f path chan =
+    let open Result.Let_syntax in
     let lexbuf = chan |> Lexing.from_channel in
     let sup = Supplier.create ~path ~lexbuf in
-    let (node_opt, is_incomplete, dm) = Entry.entry dm sup in
-    let result = match node_opt with
-      | Some node when is_incomplete ->
-         Incomplete node
-      | Some node ->
-         Complete node
-      | None ->
-         Failed
-    in
-    (result, dm)
+    let%bind (node, p_state) = Entry.entry sup ~ds in
+    let state = if p_state.Entry.is_complete then Complete else Incomplete in
+    Ok (state, node)
   in
-  try Stdio.In_channel.with_file ~binary:true path ~f:(f path) with
-  | e ->
-     let span = Span.create_path ~path in
-     let reason = new Common.Reasons.internal_exception ~e in
-     let d = Diagnostics.create ~reason ~span ~phase:Diagnostics.PhaseParsing in
-     (Failed, Diagnostics.Multi.append dm d)
+  try Stdio.In_channel.with_file ~binary:true path ~f:(f path)
+  with exn ->
+    let span = Span.create_path ~path in
+    let e = new Common.Reasons.internal_exception ~e:exn in
+    let elm = Diagnostics.Elem.error ~span e in
+    Error elm

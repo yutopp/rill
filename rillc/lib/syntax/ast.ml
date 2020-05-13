@@ -7,52 +7,40 @@
  *)
 
 open! Base
-
 module Span = Common.Span
 
-type t = {
-  kind: kind;
-  span: Span.t [@sexp.opaque];
-}
-[@@deriving sexp]
+type t = { kind : kind_t; span : (Span.t[@sexp.opaque]) }
 
-and kind =
+and kind_t =
   | Module of t list
-  | FunctionDeclStmt of {
-    name: string;
-    ret_ty: t option;
-    params: t list;
-  }
-  | FunctionDefStmt of {
-    name: string;
-    ret_ty: t option;
-    params: t list;
-    body: t;
-  }
-  | ParamDecl of {
-    name: string;
-    ty_spec: t;
-  }
-  | ExternFunctionDeclStmt of {
-    name: string;
-    ret_ty: t option;
-    params: t list;
-    symbol_name: t;
-  }
+  | ParamDecl of { name : string; ty_spec : t }
+  (* top declarations *)
+  | DeclExternFunc of {
+      name : string;
+      ret_ty : t;
+      params : t list;
+      symbol_name : t;
+    }
+  | DeclFunc of { name : string; ret_ty : t; params : t list }
+  (* top definitions *)
+  | DefFunc of { name : string; ret_ty : t; params : t list; body : t }
+  (* top statements *)
   | StmtExpr of t
   | StmtReturn of t option
-  | ExprCompound of t list
+  (* expressions *)
+  | ExprCompound of t list (* TODO: rename *)
   | ExprIf of t * t * t option
   | ExprBinaryOp of t * t * t
   | ExprCall of t * t list
+  (* primitives *)
   | ID of string
   | LitBool of bool
   | LitInt of int * int * bool (* value * bits * signed *)
   | LitString of string
   | LitUnit
-[@@deriving sexp]
+[@@deriving sexp_of]
 
 let param_decl_name ast =
   match ast with
-  | {kind = ParamDecl {name; _}; _} -> name
+  | { kind = ParamDecl { name; _ }; _ } -> name
   | _ -> failwith ""

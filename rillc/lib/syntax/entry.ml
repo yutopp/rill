@@ -7,48 +7,46 @@
  *)
 
 open! Base
-
 module Span = Common.Span
 module Diagnostics = Common.Diagnostics
-
 module I = Parser.MenhirInterpreter
-
 module Ast = Ast
+
+type t = { ds : Diagnostics.t; is_complete : bool }
 
 exception CannotRecoverly of string * (Lexing.position * Lexing.position)
 
-let succeed dm is_incomplete (v : Ast.t) =
-  (Some v, is_incomplete, dm)
-
-let rec fail dm is_incomplete sup inputneeded checkpoint =
-  match checkpoint with
-  | I.HandlingError env ->
-     let lex_loc = I.positions env in
-     let span = Supplier.create_span_with_lex_loc sup lex_loc in
-
-     (* TODO: implement error recovery *)
-     let reason = new Reasons.invalid_syntax in
-     let d = Diagnostics.create ~reason ~span ~phase:Diagnostics.PhaseParsing in
-     (None, is_incomplete, Diagnostics.Multi.append dm d)
-
-  | _ ->
-     failwith "[ICE]"
-
-let entry dm sup =
+let rec entry sup ~ds : (Ast.t * t, Diagnostics.Elem.t) Result.t =
+  let p_state = { ds; is_complete = false } in
   try
     let pos = Supplier.start_pos sup in
-    let start = (Parser.Incremental.program_entry pos) in
-    I.loop_handle_undo (succeed dm false) (fail dm false sup) (Supplier.get sup) start
+    let start = Parser.Incremental.program_entry pos in
+    Ok
+      (I.loop_handle_undo (succeed p_state) (fail p_state sup)
+         (Supplier.get sup) start)
   with
   | Lexer.LexerError detail ->
-     let span = Supplier.create_span sup in
-     (* TODO: use typed reason instead of detail *)
-     let reason = new Reasons.invalid_token ~token:detail in
-     let d = Diagnostics.create ~reason ~span ~phase:Diagnostics.PhaseParsing in
-     (None, false, Diagnostics.Multi.append dm d)
-
+      let span = Supplier.create_span sup in
+      (* TODO: use typed reason instead of detail *)
+      let e = new Reasons.invalid_token ~token:detail in
+      let elm = Diagnostics.Elem.error ~span e in
+      Error elm
   | Lexer.UnexpectedToken tok ->
-     let span = Supplier.create_span sup in
-     let reason = new Reasons.unexpected_token ~ch:tok in
-     let d = Diagnostics.create ~reason ~span ~phase:Diagnostics.PhaseParsing in
-     (None, false, Diagnostics.Multi.append dm d)
+      let span = Supplier.create_span sup in
+      let e = new Reasons.unexpected_token ~ch:tok in
+      let elm = Diagnostics.Elem.error ~span e in
+      Error elm
+  | CannotRecoverly (_msg, position) ->
+      let span = Supplier.create_span_with_lex_loc sup position in
+      let e = new Reasons.invalid_syntax in
+      let elm = Diagnostics.Elem.error ~span e in
+      Error elm
+
+and succeed p_state (v : Ast.t) = (v, { p_state with is_complete = true })
+
+and fail p_state sup inputneeded checkpoint =
+  match checkpoint with
+  | I.HandlingError env ->
+      let positions = I.positions env in
+      raise (CannotRecoverly ("", positions))
+  | _ -> failwith "[ICE]"

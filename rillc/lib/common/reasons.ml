@@ -8,30 +8,31 @@
 
 open! Base
 
-class id_not_found ~(name : string) =
-object (self)
-  inherit Diagnostics.reason
-  method to_string =
-    Printf.sprintf "Not found: id = %s" name
-end
+class compilation_stopped =
+  object (self)
+    inherit Diagnostics.Error.base
 
-class internal_unsupported_node ~(name : string) =
-object (self)
-  inherit Diagnostics.reason
-  method to_string =
-    Printf.sprintf "ICE(UnsupportedNodeError)\n%s" name
-end
+    method to_string = Printf.sprintf "There some errors"
+  end
+
+class id_not_found ~(name : string) =
+  object (self)
+    inherit Diagnostics.Error.base
+
+    method to_string = Printf.sprintf "Not found: id = %s" name
+  end
 
 class internal_exception ~(e : exn) =
-object (self)
-  inherit Diagnostics.reason
-  method to_string =
-    Printf.sprintf "ICE(InternalException)\n%s" (Exn.to_string e)
-end
+  object (self)
+    inherit Diagnostics.Error.base
 
-class multiple ~(rs : Diagnostics.reason list) =
-object (self)
-  inherit Diagnostics.reason
-  method to_string =
-    List.map rs ~f:(fun r -> r#to_string) |> String.concat ~sep:""
-end
+    method to_string =
+      Printf.sprintf "ICE(InternalException)\n%s" (Exn.to_string e)
+  end
+
+class internal_error ~(message : string) =
+  object (self)
+    inherit Diagnostics.Error.base
+
+    method to_string = Printf.sprintf "[ICE] Message: %s" message
+  end

@@ -7,16 +7,16 @@
  *)
 
 open! Base
-
 module Span = Common.Span
 module Diagnostics = Common.Diagnostics
+module Type = Typing.Type
 
 type bb_index_t = int
 
 and t = {
-  kind: value_kind_t;
-  ty: Type.t;
-  span: Span.t [@sexp.opaque];
+  kind : value_kind_t;
+  ty : (Type.t[@printer fun fmt _ -> fprintf fmt ""]);
+  span : (Span.t[@printer fun fmt _ -> fprintf fmt ""]);
 }
 
 and value_kind_t =
@@ -25,14 +25,9 @@ and value_kind_t =
   | LVal of placeholder_t
   | Undef
 
-and value_r_t =
-  | ValueInt of int
-  | ValueString of string
-  | ValueUnit
+and value_r_t = ValueInt of int | ValueString of string | ValueUnit
 
-and inst_t =
-  | Let of placeholder_t * t
-  | Nop
+and inst_t = Let of placeholder_t * t | Nop
 
 and terminator_t =
   | Jump of bb_index_t
@@ -40,34 +35,25 @@ and terminator_t =
   | Ret of placeholder_t
   | RetVoid
 
-and placeholder_t = string
-[@@deriving sexp_of]
+and placeholder_t = string [@@deriving show]
 
 module BB = struct
   type t = {
-    name: string;
-    mutable insts: inst_t list;
-    mutable terminator: terminator_t option;
+    name : string;
+    mutable insts_rev : inst_t list;
+    mutable terminator : terminator_t option;
   }
-  [@@deriving sexp_of]
+  [@@deriving show]
 
-  let create name =
-    {
-      name;
-      insts = [];
-      terminator = None;
-    }
+  let create name = { name; insts_rev = []; terminator = None }
 
-  let append_inst bb inst =
-    bb.insts <- inst :: bb.insts
+  let append_inst bb inst = bb.insts_rev <- inst :: bb.insts_rev
 
-  let get_insts bb =
-    List.rev bb.insts
+  let get_insts bb = List.rev bb.insts_rev
 
   let set_terminator bb term =
-    assert(Option.is_none bb.terminator);
+    assert (Option.is_none bb.terminator);
     bb.terminator <- Some term
 
-  let get_terminator_opt bb =
-    bb.terminator
+  let get_terminator_opt bb = bb.terminator
 end

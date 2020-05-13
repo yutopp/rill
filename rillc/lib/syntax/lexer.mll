@@ -173,11 +173,11 @@ and read_string_lit buf = parse
   | '\\' 'r'        { LitBuffer.add_char buf '\r'; read_string_lit buf lexbuf }
   | '\\' 't'        { LitBuffer.add_char buf '\t'; read_string_lit buf lexbuf }
   | '\\' _          { raise (LexerError ("Illegal escape character in string: " ^ Lexing.lexeme lexbuf)) }
-  | [^ '"' '\\']+
+  | [^ '"' '\\' '\r' '\n']+
     { LitBuffer.add_string buf (Lexing.lexeme lexbuf);
       read_string_lit buf lexbuf
     }
-  | '\\' | eof      { raise (LexerError ("String is not terminated")) }
+  | _               { raise (LexerError ("String is not terminated")) }
 
 and oneline_comment = parse
   | newline         { new_line lexbuf; token lexbuf }

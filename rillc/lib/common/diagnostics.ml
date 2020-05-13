@@ -8,47 +8,47 @@
 
 open! Base
 
-class virtual reason =
-  object (self)
-    method virtual to_string : string
-  end
-
-type t = {
-  reason: reason;
-  span: Span.t;
-  phase: phase_t option;
-}
-
-and phase_t =
-  | PhaseParsing
-  | PhaseSema
-  | PhaseRirTrans
-
-let create ?phase ~reason ~span =
-  {
-    reason = reason;
-    span;
-    phase;
-  }
-
-let rec to_string d =
-  let {reason; span; _} = d in
-  let span_s = (Span.to_string span) in
-  let reason_s = reason#to_string in
-  Printf.sprintf "%s: %s" span_s reason_s
-
-module Multi = struct
-  type nonrec t = t list
-
-  let create () =
-    []
-
-  let append m d =
-    d :: m
-
-  let to_list m =
-    m
-
-  let is_failed m =
-    not ((List.length m) = 0)
+module Unit = struct
+  class virtual base =
+    object (self)
+      method virtual to_string : string
+    end
 end
+
+module Error = struct
+  class virtual base =
+    object (self)
+      inherit Unit.base
+    end
+end
+
+module Elem = struct
+  type t = { reason : reason_t; span : Span.t }
+
+  and reason_t = Error of Error.base | Warning of Error.base
+
+  let error ~span e = { reason = Error e; span }
+
+  let print_for_human ch s =
+    let { reason; span; _ } = s in
+    let span_s = Span.to_string span in
+    let (level, inner) =
+      match reason with Error e -> ("ERROR", e) | Warning w -> ("WARNING", w)
+    in
+    let message = inner#to_string in
+    Stdio.Out_channel.fprintf ch "%s: %s\n%s\n" level message span_s
+end
+
+type t = { mutable elems_rev : Elem.t list }
+
+let create () : t = { elems_rev = [] }
+
+let append ds elem = ds.elems_rev <- elem :: ds.elems_rev
+
+let append_all ds ds' = ds.elems_rev <- List.append ds'.elems_rev ds.elems_rev
+
+let iter ds ~f = List.rev ds.elems_rev |> List.iter ~f
+
+let errors ds = List.rev ds.elems_rev
+
+let warnings ds = []

@@ -8,65 +8,68 @@
 
 open! Base
 
-module Kind = struct
-  type t =
-    | Package
-    | Module
-    | Function
-    | Var
-    | Type of Type.t
-    | Scope
-end
-
 type t = {
-  parent: t option;
-  name: string;
-  table: (string, t) Hashtbl.t;
-  kind: Kind.t;
-  tysc: Type.Scheme.t option;
+  parent : t option; [@sexp.opaque]
+  name : string;
+  mutable scope : scope_t option;
+  ty_w : wrap_t;
 }
 
-let create ?tysc name k p  =
-  {
-    parent = p;
-    name = name;
-    table = Hashtbl.create (module String);
-    kind = k;
-    tysc = tysc;
-  }
+and scope_t = {
+  values : (string, t) Hashtbl.t; [@sexp.opaque]
+  types : (string, t) Hashtbl.t; [@sexp.opaque]
+}
 
-let insert penv c =
-  (* TODO: check duplication *)
-  let _ = Hashtbl.add penv.table ~key:c.name ~data:c in
-  penv
+and wrap_t = T of Typing.Type.t [@@deriving sexp_of]
 
-let delete penv name =
-  (* TODO: check existance *)
-  let _ = Hashtbl.remove penv.table name in
-  penv
+let create name ~parent ~ty_w = { parent; name; scope = None; ty_w }
 
-let find env name =
-  Hashtbl.find env.table name
+let rec type_of env = match env.ty_w with T ty -> ty
 
-let rec lookup env name =
+let assume_scope env =
+  match env.scope with
+  | Some s -> s
+  | None ->
+      let s =
+        {
+          values = Hashtbl.create (module String);
+          types = Hashtbl.create (module String);
+        }
+      in
+      env.scope <- Some s;
+      s
+
+let insert_type penv tenv =
+  let scope = assume_scope penv in
+  let _ = Hashtbl.add scope.types ~key:tenv.name ~data:tenv in
+  ()
+
+let insert_value penv tenv =
+  let scope = assume_scope penv in
+  let _ = Hashtbl.add scope.values ~key:tenv.name ~data:tenv in
+  ()
+
+let find_type env name =
+  match env.scope with
+  | Some scope -> Hashtbl.find scope.types name
+  | None -> None
+
+let find_value env name =
+  match env.scope with
+  | Some scope -> Hashtbl.find scope.values name
+  | None -> None
+
+let rec lookup_impl find env name =
   let rec lookup' env name history =
     match find env name with
     | Some e -> Ok e
-    | None ->
-       begin match env.parent with
-       | Some penv -> lookup' penv name (env :: history)
-       | None -> Error (history |> List.rev)
-       end
+    | None -> (
+        match env.parent with
+        | Some penv -> lookup' penv name (env :: history)
+        | None -> Error (history |> List.rev) )
   in
   lookup' env name []
 
-let show env subst =
-  let s = match env.tysc with
-    | Some tysc ->
-       let tysc' = Typer.subst_tysc subst tysc in
-       let s = Type.Scheme.sexp_of_t tysc' in
-       Sexp.to_string_hum s
-    | None ->
-       "<NONE>"
-  in
-  Stdio.printf "Env: ty = %s\n" s
+let lookup_type env name = lookup_impl find_type env name
+
+let lookup_value env name = lookup_impl find_value env name
