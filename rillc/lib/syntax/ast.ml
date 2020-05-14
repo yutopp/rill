@@ -9,7 +9,10 @@
 open! Base
 module Span = Common.Span
 
-type t = { kind : kind_t; span : (Span.t[@sexp.opaque]) }
+type t = {
+  kind : kind_t;
+  span : (Span.t[@sexp.opaque] [@printer fun fmt _ -> fprintf fmt ""]);
+}
 
 and kind_t =
   | Module of t list
@@ -43,7 +46,7 @@ and kind_t =
   | DeclAttrMutable
   | DeclAttrConst
   | DeclAttrImmutable
-[@@deriving sexp_of]
+[@@deriving sexp_of, show]
 
 let param_decl_name ast =
   match ast with

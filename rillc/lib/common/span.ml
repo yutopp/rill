@@ -10,7 +10,7 @@ open! Base
 
 module Pos = struct
   type t = { lnum : int; cnum : int; bcnum : int }
-  [@@deriving sexp, to_yojson { strict = true }]
+  [@@deriving sexp, show, to_yojson { strict = true }]
 
   let from_lexpos p =
     {
@@ -20,9 +20,8 @@ module Pos = struct
     }
 end
 
-type t = { path : string; (* TODO: fix *)
-                          loc_opt : (Pos.t * Pos.t) option }
-[@@deriving sexp, to_yojson { strict = true }]
+type t = { path : string; loc_opt : (Pos.t * Pos.t) option (* TODO: fix *) }
+[@@deriving sexp, show, to_yojson { strict = true }]
 
 let create ~path ~loc_opt : t = { path; loc_opt }
 

@@ -12,6 +12,8 @@ module Diagnostics = Common.Diagnostics
 
 (* exports *)
 module Ast = Entry.Ast
+module Supplier = Supplier
+module Entry = Entry
 
 type state_t = Complete | Incomplete
 
@@ -20,7 +22,7 @@ let parse_from_file ~ds path : (state_t * Ast.t, Diagnostics.Elem.t) Result.t =
     let open Result.Let_syntax in
     let lexbuf = chan |> Lexing.from_channel in
     let sup = Supplier.create ~path ~lexbuf in
-    let%bind (node, p_state) = Entry.entry sup ~ds in
+    let%bind (node, p_state) = Entry.from_entry ~sup ~ds in
     let state = if p_state.Entry.is_complete then Complete else Incomplete in
     Ok (state, node)
   in

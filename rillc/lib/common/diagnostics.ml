@@ -29,14 +29,17 @@ module Elem = struct
 
   let error ~span e = { reason = Error e; span }
 
-  let print_for_human ch s =
-    let { reason; span; _ } = s in
+  let to_string_human elem =
+    let { reason; span; _ } = elem in
     let span_s = Span.to_string span in
     let (level, inner) =
       match reason with Error e -> ("ERROR", e) | Warning w -> ("WARNING", w)
     in
     let message = inner#to_string in
-    Stdio.Out_channel.fprintf ch "%s: %s\n%s\n" level message span_s
+    Printf.sprintf "%s: %s\n%s\n" level message span_s
+
+  let print_for_human ch elem =
+    Stdio.Out_channel.output_string ch (to_string_human elem)
 end
 
 type t = { mutable elems_rev : Elem.t list }

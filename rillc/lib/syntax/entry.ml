@@ -16,11 +16,11 @@ type t = { ds : Diagnostics.t; is_complete : bool }
 
 exception CannotRecoverly of string * (Lexing.position * Lexing.position)
 
-let rec entry sup ~ds : (Ast.t * t, Diagnostics.Elem.t) Result.t =
+let rec entry ~sup ~ds parser : (Ast.t * t, Diagnostics.Elem.t) Result.t =
   let p_state = { ds; is_complete = false } in
   try
     let pos = Supplier.start_pos sup in
-    let start = Parser.Incremental.program_entry pos in
+    let start = parser pos in
     Ok
       (I.loop_handle_undo (succeed p_state) (fail p_state sup)
          (Supplier.get sup) start)
@@ -50,3 +50,9 @@ and fail p_state sup inputneeded checkpoint =
       let positions = I.positions env in
       raise (CannotRecoverly ("", positions))
   | _ -> failwith "[ICE]"
+
+let from_entry ~sup ~ds : (Ast.t * t, Diagnostics.Elem.t) Result.t =
+  entry ~sup ~ds Parser.Incremental.program_entry
+
+let from_expr ~sup ~ds : (Ast.t * t, Diagnostics.Elem.t) Result.t =
+  entry ~sup ~ds Parser.Incremental.expr_entry

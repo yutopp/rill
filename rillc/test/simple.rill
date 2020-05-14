@@ -3,6 +3,7 @@ def test(): unit {
     println("fugafuga");
     if true { println("t\n"); println("t"); } else { println("f"); }
     let a = 10;
+    a = 20;
     let mutable b = 20;
     print_int_ln(a);
     print_int_ln(b);

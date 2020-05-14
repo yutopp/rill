@@ -7,6 +7,7 @@
  *)
 
 %start <Ast.t> program_entry
+%start <Ast.t> expr_entry
 
 %{
   let make ~l kind =
@@ -132,6 +133,9 @@ stmt_return:
 id_expr:
     expr_primary { $1 }
 
+expr_entry:
+    expr EOF { $1 }
+
 expr:
     expr_with_block { $1 }
   | expr_without_block { $1 }
@@ -217,6 +221,7 @@ infix_id_as_str:
   | BITWISE_AND { $1 }
   | BITWISE_OR  { $1 }
   | BITWISE_XOR { $1 }
+  | ASSIGN      { $1 }
 
 (**)
 lit_bool:
