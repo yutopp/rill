@@ -1,7 +1,15 @@
 def test(): unit {
-    println("hogehoge\n");
-    println("fugafuga\n");
-    if true { println("t\n"); } else { println("f\n"); }
+    println("hogehoge");
+    println("fugafuga");
+    if true { println("t\n"); println("t"); } else { println("f"); }
+    let a = 10;
+    let mutable b = 20;
+    print_int_ln(a);
+    print_int_ln(b);
+    let mutable a = 30;
+    print_int_ln(a);
 }
 
 extern def println(s: string): unit = "println";
+
+extern def print_int_ln(i: i32): unit = "print_int_ln";

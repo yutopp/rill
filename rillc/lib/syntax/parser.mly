@@ -92,11 +92,35 @@ extern_function_decl_statement:
 
 stmt:
     stmt_expr { $1 }
+  | stmt_let { $1 }
   | stmt_return { $1 }
 
 stmt_expr:
     expr_with_block { make (Ast.StmtExpr $1) ~l:$loc }
   | expr_without_block SEMICOLON { make (Ast.StmtExpr $1) ~l:$loc }
+
+stmt_let:
+    KEYWORD_LET d = stmt_let_decl_val SEMICOLON { make (Ast.StmtLet d) ~l:$loc }
+
+decl_attr:
+  { make Ast.DeclAttrImmutable ~l:$loc }
+  | KEYWORD_MUTABLE { make Ast.DeclAttrMutable ~l:$loc }
+
+stmt_let_decl_val:
+    attr = decl_attr
+    name = single_id_as_str
+    ty_spec = type_spec?
+    ASSIGN
+    e = expr
+    {
+      make (Ast.VarDecl {
+              attr = attr;
+              name = name;
+              ty_spec = ty_spec;
+              expr = e
+           })
+           ~l:$loc
+    }
 
 stmt_return:
     KEYWORD_RETURN

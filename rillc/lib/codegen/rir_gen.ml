@@ -98,8 +98,16 @@ let rec generate_stmt ~ctx ~builder ast =
       let node = Rir.Term.{ kind = Call (name, args); ty; span } in
       (node, builder)
   (* *)
+  | NAst.{ kind = ID id; ty; span } ->
+      let node = Rir.Term.{ kind = LVal id; ty; span } in
+      (node, builder)
+  (* *)
   | NAst.{ kind = LitBool v; ty; span } ->
       let node = Rir.Term.{ kind = RVal (ValueBool v); ty; span } in
+      (node, builder)
+  (* *)
+  | NAst.{ kind = LitInt v; ty; span } ->
+      let node = Rir.Term.{ kind = RVal (ValueInt v); ty; span } in
       (node, builder)
   (* *)
   | NAst.{ kind = LitString s; ty; span } ->

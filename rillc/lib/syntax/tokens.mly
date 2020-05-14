@@ -31,6 +31,7 @@
                         KEYWODD_MODULE
                         KEYWORD_VAL
                         KEYWORD_REF
+                        KEYWORD_LET
                         KEYWORD_IMMUTABLE
                         KEYWORD_CONST
                         KEYWORD_MUTABLE

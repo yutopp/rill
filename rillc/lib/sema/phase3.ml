@@ -26,7 +26,7 @@ module NAst = struct
     | Call of { name : string; args : string list }
     | If of { cond : string; t : t; e_opt : t option }
     | LitBool of bool
-    | LitInt of { value : int; bits : int; signed : bool }
+    | LitInt of int
     | LitString of string
     | LitUnit
     | Assign of { lhs : string; rhs : string }
@@ -41,6 +41,17 @@ end
 type ctx_t = { ds : Diagnostics.t; subst : Typing.Subst.t }
 
 let context ~ds ~subst = { ds; subst }
+
+module Env = struct
+  type t = (string, string) Hashtbl.t
+
+  let create () : t = Hashtbl.create (module String)
+
+  let insert_alias env original target =
+    Hashtbl.set env ~key:original ~data:target
+
+  let find_alias_opt env original : string option = Hashtbl.find env original
+end
 
 let fresh_id =
   let i = ref 0 in
@@ -94,28 +105,34 @@ let insert_let k_form gen =
           NAst.{ kind = Seq [ let_stmt; node ]; ty; span } )
 
 (* Currently K-normalize *)
-let rec normalize ~ctx ast =
+let rec normalize ~ctx ~env ast =
   match ast with
   (* *)
   | TAst.{ kind = Module nodes; ty; span; _ } ->
-      let nodes' = List.map nodes ~f:(normalize ~ctx) in
+      let nodes' = List.map nodes ~f:(normalize ~ctx ~env) in
       NAst.{ kind = Module nodes'; ty; span }
   (* *)
   | TAst.{ kind = DeclExternFunc { name; extern_name }; ty; span; _ } ->
       NAst.{ kind = Func { name; kind = FuncKindExtern extern_name }; ty; span }
   (* *)
   | TAst.{ kind = DefFunc { name; body }; ty; span; _ } ->
-      let body' = normalize ~ctx body in
+      let env = Env.create () in
+      let body' = normalize ~ctx ~env body in
       NAst.{ kind = Func { name; kind = FuncKindDef body' }; ty; span }
   (* *)
   | TAst.{ kind = StmtSeq nodes; ty; span; _ } ->
-      let node' = List.map nodes ~f:(normalize ~ctx) in
+      let node' = List.map nodes ~f:(normalize ~ctx ~env) in
       NAst.{ kind = Seq node'; ty; span }
   (* *)
   | TAst.{ kind = StmtExpr expr; ty; span; _ } ->
-      let k = insert_let (normalize ~ctx expr) in
+      let k = insert_let (normalize ~ctx ~env expr) in
       (* TODO: fix *)
       k (fun _id -> NAst.{ kind = LitUnit; ty; span })
+  | TAst.{ kind = StmtLet { name; expr }; ty; span; _ } ->
+      let k = insert_let (normalize ~ctx ~env expr) in
+      k (fun id ->
+          Env.insert_alias env name id;
+          NAst.{ kind = ID id; ty; span })
   (* *)
   | TAst.{ kind = ExprIf (cond, t, e_opt); ty; span; _ } ->
       (* result holder *)
@@ -125,10 +142,10 @@ let rec normalize ~ctx ast =
         NAst.{ kind = Let { name = new_id; expr = undef }; ty; span }
       in
 
-      let k = insert_let (normalize ~ctx cond) in
+      let k = insert_let (normalize ~ctx ~env cond) in
       k (fun v_cond ->
           let t_assign =
-            let k = insert_let (normalize ~ctx t) in
+            let k = insert_let (normalize ~ctx ~env t) in
             k (fun v_t ->
                 let ty = t.TAst.ty in
                 let span = t.TAst.span in
@@ -136,7 +153,7 @@ let rec normalize ~ctx ast =
           in
           let e_assign_opt =
             Option.map e_opt ~f:(fun e ->
-                let k = insert_let (normalize ~ctx e) in
+                let k = insert_let (normalize ~ctx ~env e) in
                 k (fun v_e ->
                     let ty = e.TAst.ty in
                     let span = e.TAst.span in
@@ -153,22 +170,26 @@ let rec normalize ~ctx ast =
           NAst.{ kind = Seq [ let_stmt; cond ]; ty; span })
   (* *)
   | TAst.{ kind = ExprCall (r, args); ty; span; _ } ->
-      let rk = insert_let (normalize ~ctx r) in
+      let rk = insert_let (normalize ~ctx ~env r) in
       let rec bind xs args k =
         match args with
         | [] ->
             k (fun r' ->
                 NAst.{ kind = Call { name = r'; args = List.rev xs }; ty; span })
         | a :: args ->
-            let k' = insert_let (normalize ~ctx a) in
+            let k' = insert_let (normalize ~ctx ~env a) in
             k' (fun id -> bind (id :: xs) args k)
       in
       bind [] args rk
   (* *)
-  | TAst.{ kind = ID s; ty; span; _ } -> NAst.{ kind = ID s; ty; span }
+  | TAst.{ kind = ID s; ty; span; _ } ->
+      let id = Env.find_alias_opt env s |> Option.value ~default:s in
+      NAst.{ kind = ID id; ty; span }
   (* *)
   | TAst.{ kind = LitBool v; ty; span; _ } ->
       NAst.{ kind = LitBool v; ty; span }
+  (* *)
+  | TAst.{ kind = LitInt v; ty; span; _ } -> NAst.{ kind = LitInt v; ty; span }
   (* *)
   | TAst.{ kind = LitString v; ty; span; _ } ->
       NAst.{ kind = LitString v; ty; span }

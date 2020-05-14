@@ -22,11 +22,12 @@ module TAst = struct
     | DefParamVar of { name : string; index : int }
     | StmtSeq of t list
     | StmtExpr of t
+    | StmtLet of { name : string; expr : t }
     | ExprIf of t * t * t option
     | ExprCall of t * t list
     | ID of string
     | LitBool of bool
-    | LitInt of { value : int; bits : int; signed : bool }
+    | LitInt of int
     | LitString of string
   [@@deriving sexp_of]
 end
@@ -110,6 +111,7 @@ and define ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
                   | Some v -> v
                   | None -> failwith "[ICE] Maybe phase1_1 didn't run normally"
                 in
+                (* NOTE: a type is already checked at phase1_1 *)
                 (* TODO: Distinguish params and decls *)
                 TAst.
                   {
@@ -145,6 +147,32 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       let%bind t_expr = analyze ~ctx ~env expr in
       let ty = Typing.Type.{ t_expr.TAst.ty with span } in
       Ok TAst.{ kind = StmtExpr t_expr; ty; span }
+  (* *)
+  | Ast.{ kind = StmtLet decl; span } ->
+      let (attr, name, ty_spec, expr) =
+        match decl with
+        | Ast.{ kind = VarDecl { attr; name; ty_spec; expr }; _ } ->
+            (attr, name, ty_spec, expr)
+        | _ -> failwith ""
+      in
+      let%bind spec_ty =
+        match ty_spec with
+        | Some ty_spec -> lookup_type ~ctx ~env ty_spec
+        | None ->
+            (* infer *)
+            let ty = Typing.Subst.fresh_ty ~span ctx.subst in
+            Ok ty
+      in
+      (* CANNOT reference self *)
+      let%bind t_expr = analyze ~ctx ~env expr in
+      let%bind subst = Typer.unify ~span ctx.subst spec_ty t_expr.TAst.ty in
+
+      let venv = Env.create name ~parent:(Some env) ~ty_w:(Env.T spec_ty) in
+      Env.insert_value env venv;
+
+      ctx.subst <- subst;
+
+      Ok TAst.{ kind = StmtLet { name; expr = t_expr }; ty = spec_ty; span }
   (* *)
   | Ast.{ kind = ExprBlock nodes; span } ->
       let t_nodes_rev =
@@ -217,15 +245,15 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       Ok TAst.{ kind = ExprCall (t_r, t_args); ty = ret_ty; span }
   (* *)
   | Ast.{ kind = ID name; span; _ } ->
-      let%bind v_ty =
+      let%bind venv =
         Env.lookup_value env name
         |> Result.map_error ~f:(fun _trace ->
                let e = new Common.Reasons.id_not_found ~name in
                let elm = Diagnostics.Elem.error ~span e in
                elm)
-        |> Result.map ~f:Env.type_of
       in
-      let ty = Typing.Type.{ v_ty with span } in
+      let ty = Env.type_of venv in
+      let ty = Typing.Type.{ ty with span } in
       Ok TAst.{ kind = ID name; span; ty }
   (* *)
   | Ast.{ kind = LitBool v; span; _ } ->
@@ -235,7 +263,7 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
   | Ast.{ kind = LitInt (value, bits, signed); span; _ } ->
       (* TODO: fix i32 *)
       let ty = Typing.Type.{ ctx.builtin.Builtin.i32_ with span } in
-      Ok TAst.{ kind = LitInt { value; bits; signed }; ty; span }
+      Ok TAst.{ kind = LitInt value; ty; span }
   (* *)
   | Ast.{ kind = LitString v; span; _ } ->
       let ty = Typing.Type.{ ctx.builtin.Builtin.string_ with span } in

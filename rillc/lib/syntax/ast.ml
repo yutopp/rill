@@ -14,6 +14,7 @@ type t = { kind : kind_t; span : (Span.t[@sexp.opaque]) }
 and kind_t =
   | Module of t list
   | ParamDecl of { name : string; ty_spec : t }
+  | VarDecl of { attr : t; name : string; ty_spec : t option; expr : t }
   (* top declarations *)
   | DeclExternFunc of {
       name : string;
@@ -26,6 +27,7 @@ and kind_t =
   | DefFunc of { name : string; ret_ty : t; params : t list; body : t }
   (* statements *)
   | StmtExpr of t
+  | StmtLet of t
   | StmtReturn of t option
   (* expressions *)
   | ExprBlock of t list
@@ -38,6 +40,9 @@ and kind_t =
   | LitInt of int * int * bool (* value * bits * signed *)
   | LitString of string
   | LitUnit
+  | DeclAttrMutable
+  | DeclAttrConst
+  | DeclAttrImmutable
 [@@deriving sexp_of]
 
 let param_decl_name ast =

@@ -89,7 +89,8 @@ let build_from_file compiler ~ds ~path : build_result_t =
   (* TODO: check that there are no errors in ds *)
   let p3ast =
     let ctx = Sema.Phase3.context ~ds ~subst in
-    Sema.Phase3.normalize ~ctx p2ast
+    let env = Sema.Phase3.Env.create () in
+    Sema.Phase3.normalize ~ctx ~env p2ast
   in
 
   let rir =
