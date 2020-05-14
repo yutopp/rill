@@ -14,15 +14,16 @@ type t = {
   span : (Span.t[@sexp.opaque] (* span that this type is related *));
 }
 
-and ty_t = Var of var_t | Unit | Int | String | Func of t list * t
+and ty_t = Var of var_t | Unit | Bool | Int | String | Func of t list * t
 
 and var_t = int [@@deriving sexp_of, to_yojson]
 
-(* for debbuging. TODO: remove *)
+(* for debugging. TODO: remove *)
 let rec to_string ty : string =
   match ty with
   | { ty = Var v; _ } -> Printf.sprintf "Var %d" v
   | { ty = Unit; _ } -> "Unit"
+  | { ty = Bool; _ } -> "Bool"
   | { ty = Int; _ } -> "Int"
   | { ty = String; _ } -> "String"
   | { ty = Func (params, ret_ty); _ } ->

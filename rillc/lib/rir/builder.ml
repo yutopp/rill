@@ -37,6 +37,21 @@ let build_let ctx name v =
   let bb = get_current_bb ctx in
   Term.BB.append_inst bb inst
 
+let build_assign ctx lhs rhs =
+  let inst = Term.Assign (lhs, rhs) in
+  let bb = get_current_bb ctx in
+  Term.BB.append_inst bb inst
+
+let build_jump ctx bb =
+  let term = Term.Jump bb.Term.BB.name in
+  let bb = get_current_bb ctx in
+  Term.BB.set_terminator bb term
+
+let build_cond ctx cond t e =
+  let term = Term.Cond (cond, t.Term.BB.name, e.Term.BB.name) in
+  let bb = get_current_bb ctx in
+  Term.BB.set_terminator bb term
+
 let build_ret ctx name =
   let term = Term.Ret name in
   let bb = get_current_bb ctx in

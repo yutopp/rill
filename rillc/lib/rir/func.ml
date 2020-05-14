@@ -19,14 +19,23 @@ end
 type t = {
   ty : (Typing.Type.t[@printer fun fmt _ -> fprintf fmt ""]);
   bbs : BBs.t;
+  mutable bbs_names_rev : string list;
   extern_name : string option;
 }
 [@@deriving show]
 
 let create ?(extern_name = None) ~ty =
-  { ty; bbs = Hashtbl.create (module String); extern_name }
+  { ty; bbs = Hashtbl.create (module String); bbs_names_rev = []; extern_name }
 
-let insert_bb f bb = Hashtbl.add_exn f.bbs ~key:bb.Term.BB.name ~data:bb
+let insert_bb f bb =
+  let name = bb.Term.BB.name in
+  Hashtbl.add_exn f.bbs ~key:name ~data:bb;
+  f.bbs_names_rev <- name :: f.bbs_names_rev;
+  ()
+
+let list_bbs f =
+  List.rev f.bbs_names_rev
+  |> List.map ~f:(fun bb_name -> Hashtbl.find_exn f.bbs bb_name)
 
 let get_entry_bb f = Hashtbl.find_exn f.bbs "entry"
 

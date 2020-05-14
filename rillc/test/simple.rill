@@ -1,6 +1,7 @@
 def test(): unit {
     println("hogehoge\n");
     println("fugafuga\n");
+    if true { println("t\n"); } else { println("f\n"); }
 }
 
 extern def println(s: string): unit = "println";

@@ -42,6 +42,13 @@ let rec generate_stmt ~ctx ~builder ast =
         Rir.Term.{ kind = Undef; ty = ctx.builtin.Builtin.unit_; span }
       in
       (term, builder)
+  | NAst.{ kind = Assign { lhs; rhs }; ty; span; _ } ->
+      Rir.Builder.build_assign builder lhs rhs;
+
+      let term =
+        Rir.Term.{ kind = Undef; ty = ctx.builtin.Builtin.unit_; span }
+      in
+      (term, builder)
   (* *)
   | NAst.{ kind = Seq (node :: nodes); span; _ } ->
       (* TODO: support scope *)
@@ -49,8 +56,50 @@ let rec generate_stmt ~ctx ~builder ast =
       List.fold_left nodes ~init:ret ~f:(fun (_, builder) node ->
           generate_stmt ~ctx ~builder node)
   (* *)
+  | NAst.{ kind = If { cond; t; e_opt = Some e }; span; ty } ->
+      let f = Rir.Builder.get_current_func builder in
+
+      let bb_then = Rir.Term.BB.create "if_then" in
+      Rir.Func.insert_bb f bb_then;
+
+      let bb_else = Rir.Term.BB.create "if_else" in
+      Rir.Func.insert_bb f bb_else;
+
+      Rir.Builder.build_cond builder cond bb_then bb_else;
+
+      let bb_end = Rir.Term.BB.create "if_end" in
+      Rir.Func.insert_bb f bb_end;
+
+      (* then *)
+      let () =
+        let builder = Rir.Builder.with_current_bb builder bb_then in
+        let (_, builder) = generate_stmt ~ctx ~builder t in
+
+        match Rir.Term.BB.get_terminator_opt bb_then with
+        | Some _ -> ()
+        | _ -> Rir.Builder.build_jump builder bb_end
+      in
+
+      (* else *)
+      let () =
+        let builder = Rir.Builder.with_current_bb builder bb_else in
+        let (_, builder) = generate_stmt ~ctx ~builder e in
+
+        match Rir.Term.BB.get_terminator_opt bb_else with
+        | Some _ -> ()
+        | _ -> Rir.Builder.build_jump builder bb_end
+      in
+
+      let builder = Rir.Builder.with_current_bb builder bb_end in
+      let node = Rir.Term.{ kind = Undef; ty; span } in
+      (node, builder)
+  (* *)
   | NAst.{ kind = Call { name; args }; span; ty } ->
       let node = Rir.Term.{ kind = Call (name, args); ty; span } in
+      (node, builder)
+  (* *)
+  | NAst.{ kind = LitBool v; ty; span } ->
+      let node = Rir.Term.{ kind = RVal (ValueBool v); ty; span } in
       (node, builder)
   (* *)
   | NAst.{ kind = LitString s; ty; span } ->
@@ -59,6 +108,10 @@ let rec generate_stmt ~ctx ~builder ast =
   (* *)
   | NAst.{ kind = LitUnit; ty; span } ->
       let node = Rir.Term.{ kind = RVal ValueUnit; ty; span } in
+      (node, builder)
+  (* *)
+  | NAst.{ kind = Undef; ty; span } ->
+      let node = Rir.Term.{ kind = Undef; ty; span } in
       (node, builder)
   (* *)
   | NAst.{ kind; _ } ->

@@ -22,8 +22,11 @@ module TAst = struct
     | DefParamVar of { name : string; index : int }
     | StmtSeq of t list
     | StmtExpr of t
+    | ExprIf of t * t * t option
     | ExprCall of t * t list
     | ID of string
+    | LitBool of bool
+    | LitInt of { value : int; bits : int; signed : bool }
     | LitString of string
   [@@deriving sexp_of]
 end
@@ -138,7 +141,12 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
   let open Result.Let_syntax in
   match ast with
   (* *)
-  | Ast.{ kind = ExprCompound nodes; span } ->
+  | Ast.{ kind = StmtExpr expr; span } ->
+      let%bind t_expr = analyze ~ctx ~env expr in
+      let ty = Typing.Type.{ t_expr.TAst.ty with span } in
+      Ok TAst.{ kind = StmtExpr t_expr; ty; span }
+  (* *)
+  | Ast.{ kind = ExprBlock nodes; span } ->
       let t_nodes_rev =
         List.fold_until nodes ~init:[]
           ~f:(fun ps node ->
@@ -162,10 +170,28 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       (* TODO:fix env *)
       Ok TAst.{ kind = StmtSeq t_nodes; ty; span }
   (* *)
-  | Ast.{ kind = StmtExpr expr; span } ->
-      let%bind t_expr = analyze ~ctx ~env expr in
-      let ty = Typing.Type.{ t_expr.TAst.ty with span } in
-      Ok TAst.{ kind = StmtExpr t_expr; ty; span }
+  | Ast.{ kind = ExprIf (cond, t, e_opt); span; _ } ->
+      let%bind t_cond = analyze ~ctx ~env cond in
+      let%bind subst =
+        Typer.unify ~span ctx.subst t_cond.TAst.ty ctx.builtin.Builtin.bool_
+      in
+
+      let ctx' = { ctx with subst } in
+      let%bind t_t = analyze ~ctx:ctx' ~env t in
+
+      let%bind (t_e_opts, e_ty) =
+        match e_opt with
+        | Some e ->
+            let%bind t_e = analyze ~ctx:ctx' ~env e in
+            Ok (Some t_e, t_e.TAst.ty)
+        | None -> Ok (None, ctx.builtin.Builtin.unit_)
+      in
+
+      let%bind subst = Typer.unify ~span ctx'.subst t_t.TAst.ty e_ty in
+      ctx.subst <- subst;
+
+      let ty = Typing.Type.{ t_t.TAst.ty with span } in
+      Ok TAst.{ kind = ExprIf (t_cond, t_t, t_e_opts); ty; span }
   (* *)
   | Ast.{ kind = ExprCall (r, args); span; _ } ->
       let%bind t_r = analyze ~ctx ~env r in
@@ -201,6 +227,15 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       in
       let ty = Typing.Type.{ v_ty with span } in
       Ok TAst.{ kind = ID name; span; ty }
+  (* *)
+  | Ast.{ kind = LitBool v; span; _ } ->
+      let ty = Typing.Type.{ ctx.builtin.Builtin.bool_ with span } in
+      Ok TAst.{ kind = LitBool v; ty; span }
+  (* *)
+  | Ast.{ kind = LitInt (value, bits, signed); span; _ } ->
+      (* TODO: fix i32 *)
+      let ty = Typing.Type.{ ctx.builtin.Builtin.i32_ with span } in
+      Ok TAst.{ kind = LitInt { value; bits; signed }; ty; span }
   (* *)
   | Ast.{ kind = LitString v; span; _ } ->
       let ty = Typing.Type.{ ctx.builtin.Builtin.string_ with span } in

@@ -8,9 +8,6 @@
 
 %start <Ast.t> program_entry
 
-%nonassoc IFX
-%nonassoc KEYWORD_ELSE
-
 %{
   let make ~l kind =
     let span = Ast.Span.create_from_lex_loc ~path:"" ~lex_loc:l in
@@ -44,7 +41,7 @@ function_def_statement:
     name = single_id_as_str
     LPAREN params = parameter_decls_list RPAREN
     ret_ty = type_spec
-    body = function_def_body
+    body = expr_block
     {
       make (Ast.DefFunc {
               name = name;
@@ -54,9 +51,6 @@ function_def_statement:
            })
            ~l:$loc
     }
-
-function_def_body:
-    expr_compound { $1 }
 
 parameter_decls_list:
     separated_list(COMMA, parameter_decl) { $1 }
@@ -95,13 +89,14 @@ extern_function_decl_statement:
            ~l:$loc
     }
 
+
 stmt:
     stmt_expr { $1 }
   | stmt_return { $1 }
-  | stmt_condition { $1 }
 
 stmt_expr:
-    expr_assign SEMICOLON { make (Ast.StmtExpr $1) ~l:$loc }
+    expr_with_block { make (Ast.StmtExpr $1) ~l:$loc }
+  | expr_without_block SEMICOLON { make (Ast.StmtExpr $1) ~l:$loc }
 
 stmt_return:
     KEYWORD_RETURN
@@ -109,31 +104,38 @@ stmt_return:
     SEMICOLON
     { make (Ast.StmtReturn e) ~l:$loc }
 
-stmt_condition:
-    expr_if { $1 }
 
 id_expr:
     expr_primary { $1 }
 
 expr:
+    expr_with_block { $1 }
+  | expr_without_block { $1 }
+
+expr_with_block:
     expr_if { $1 }
+  | expr_block { $1 }
+
+expr_without_block:
+    expr_compound { $1 }
+
+expr_block:
+    LBLOCK stmt+ RBLOCK { make (Ast.ExprBlock $2) ~l:$loc }
 
 expr_if:
-    expr_compound { $1 }
   | KEYWORD_IF
     cond = expr_assign
-    then_n = expr %prec IFX
+    then_n = expr_block
     { make (Ast.ExprIf (cond, then_n, None)) ~l:$loc }
   | KEYWORD_IF
     cond = expr_assign
-    then_n = expr
+    then_n = expr_block
     KEYWORD_ELSE
-    else_n = expr
+    else_n = expr_block
     { make (Ast.ExprIf (cond, then_n, Some else_n)) ~l:$loc }
 
 expr_compound:
     expr_assign { $1 }
-  | LBLOCK stmt* RBLOCK { make (Ast.ExprCompound $2) ~l:$loc }
 
 expr_assign:
     expr_infix { $1 }

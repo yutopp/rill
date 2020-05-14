@@ -24,11 +24,11 @@ and kind_t =
   | DeclFunc of { name : string; ret_ty : t; params : t list }
   (* top definitions *)
   | DefFunc of { name : string; ret_ty : t; params : t list; body : t }
-  (* top statements *)
+  (* statements *)
   | StmtExpr of t
   | StmtReturn of t option
   (* expressions *)
-  | ExprCompound of t list (* TODO: rename *)
+  | ExprBlock of t list
   | ExprIf of t * t * t option
   | ExprBinaryOp of t * t * t
   | ExprCall of t * t list

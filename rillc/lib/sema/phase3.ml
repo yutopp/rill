@@ -24,10 +24,13 @@ module NAst = struct
     | Let of { name : string; expr : t }
     | Return of string
     | Call of { name : string; args : string list }
+    | If of { cond : string; t : t; e_opt : t option }
     | LitBool of bool
     | LitInt of { value : int; bits : int; signed : bool }
     | LitString of string
     | LitUnit
+    | Assign of { lhs : string; rhs : string }
+    | Undef
     | ID of string
     | Seq of t list
 
@@ -114,6 +117,41 @@ let rec normalize ~ctx ast =
       (* TODO: fix *)
       k (fun _id -> NAst.{ kind = LitUnit; ty; span })
   (* *)
+  | TAst.{ kind = ExprIf (cond, t, e_opt); ty; span; _ } ->
+      (* result holder *)
+      let new_id = fresh_id () in
+      let let_stmt =
+        let undef = NAst.{ kind = Undef; ty; span } in
+        NAst.{ kind = Let { name = new_id; expr = undef }; ty; span }
+      in
+
+      let k = insert_let (normalize ~ctx cond) in
+      k (fun v_cond ->
+          let t_assign =
+            let k = insert_let (normalize ~ctx t) in
+            k (fun v_t ->
+                let ty = t.TAst.ty in
+                let span = t.TAst.span in
+                NAst.{ kind = Assign { lhs = new_id; rhs = v_t }; ty; span })
+          in
+          let e_assign_opt =
+            Option.map e_opt ~f:(fun e ->
+                let k = insert_let (normalize ~ctx e) in
+                k (fun v_e ->
+                    let ty = e.TAst.ty in
+                    let span = e.TAst.span in
+                    NAst.{ kind = Assign { lhs = new_id; rhs = v_e }; ty; span }))
+          in
+          let cond =
+            NAst.
+              {
+                kind = If { cond = v_cond; t = t_assign; e_opt = e_assign_opt };
+                ty;
+                span;
+              }
+          in
+          NAst.{ kind = Seq [ let_stmt; cond ]; ty; span })
+  (* *)
   | TAst.{ kind = ExprCall (r, args); ty; span; _ } ->
       let rk = insert_let (normalize ~ctx r) in
       let rec bind xs args k =
@@ -128,6 +166,9 @@ let rec normalize ~ctx ast =
       bind [] args rk
   (* *)
   | TAst.{ kind = ID s; ty; span; _ } -> NAst.{ kind = ID s; ty; span }
+  (* *)
+  | TAst.{ kind = LitBool v; ty; span; _ } ->
+      NAst.{ kind = LitBool v; ty; span }
   (* *)
   | TAst.{ kind = LitString v; ty; span; _ } ->
       NAst.{ kind = LitString v; ty; span }

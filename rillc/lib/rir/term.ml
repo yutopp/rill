@@ -11,9 +11,7 @@ module Span = Common.Span
 module Diagnostics = Common.Diagnostics
 module Type = Typing.Type
 
-type bb_index_t = int
-
-and t = {
+type t = {
   kind : value_kind_t;
   ty : (Type.t[@printer fun fmt _ -> fprintf fmt ""]);
   span : (Span.t[@printer fun fmt _ -> fprintf fmt ""]);
@@ -25,13 +23,17 @@ and value_kind_t =
   | LVal of placeholder_t
   | Undef
 
-and value_r_t = ValueInt of int | ValueString of string | ValueUnit
+and value_r_t =
+  | ValueBool of bool
+  | ValueInt of int
+  | ValueString of string
+  | ValueUnit
 
-and inst_t = Let of placeholder_t * t | Nop
+and inst_t = Let of placeholder_t * t | Assign of placeholder_t * string | Nop
 
 and terminator_t =
-  | Jump of bb_index_t
-  | Cond of placeholder_t * bb_index_t * bb_index_t
+  | Jump of string
+  | Cond of placeholder_t * string * string
   | Ret of placeholder_t
   | RetVoid
 

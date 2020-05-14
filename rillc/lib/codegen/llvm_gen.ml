@@ -33,6 +33,7 @@ let rec to_llty ~ctx ty : L.lltype =
   let subst = ctx.subst in
   match Typing.Subst.subst_type subst ty with
   | Typing.Type.{ ty = Unit; _ } -> L.void_type ctx.ll_ctx
+  | Typing.Type.{ ty = Bool; _ } -> L.integer_type ctx.ll_ctx 1
   | Typing.Type.{ ty = Int; _ } -> L.integer_type ctx.ll_ctx 32
   | Typing.Type.{ ty = String; _ } -> L.pointer_type (L.i8_type ctx.ll_ctx)
   | Typing.Type.{ ty = Func (params, ret); _ } ->
@@ -73,6 +74,7 @@ end
 
 let construct_value ~ctx ll_builder v ty =
   match v with
+  | Rir.Term.ValueBool v -> L.const_int (to_llty ~ctx ty) (if v then 1 else 0)
   | Rir.Term.ValueInt v -> L.const_int (to_llty ~ctx ty) v
   | Rir.Term.ValueString v ->
       (* L.const_stringz ctx.ll_ctx v *)
@@ -104,8 +106,17 @@ let construct_inst ~ctx ~env ll_f ll_builder inst : Env.t =
   | _ -> env
 
 let construct_terminator ~ctx ~env ll_f ll_builder termi =
-  let _ = L.build_ret_void ll_builder in
-  ()
+  [%Loga.debug "Termi -> %s" (Rir.Term.show_terminator_t termi)];
+  match termi with
+  | Rir.Term.Cond (cond, t, e) ->
+      let ll_c = Env.get_local_var env cond in
+      let ll_bb_t = Env.get_bb env t in
+      let ll_bb_e = Env.get_bb env e in
+      L.build_cond_br ll_c ll_bb_t ll_bb_e ll_builder
+  | Rir.Term.Jump label ->
+      let ll_bb = Env.get_bb env label in
+      L.build_br ll_bb ll_builder
+  | _ -> L.build_ret_void ll_builder
 
 let construct_bb ~ctx ~env ll_f ll_builder bb =
   let insts = Rir.Term.BB.get_insts bb in
@@ -115,23 +126,27 @@ let construct_bb ~ctx ~env ll_f ll_builder bb =
   in
   Rir.Term.BB.get_terminator_opt bb
   |> Option.iter ~f:(fun termi ->
-         construct_terminator ~ctx ~env ll_f ll_builder termi)
+         let _ = construct_terminator ~ctx ~env ll_f ll_builder termi in
+         ())
 
 let construct_func ~ctx ~env ll_mod ll_f (name, func) =
+  let bbs = Rir.Func.list_bbs func in
   let (env, _) =
     let ll_entry_bb = L.entry_block ll_f in
-    Hashtbl.fold func.Rir.Func.bbs ~init:(env, ll_entry_bb)
-      ~f:(fun ~key ~data (env, ll_bb) ->
+    List.fold_left bbs ~init:(env, ll_entry_bb) ~f:(fun (env, ll_bb) bb ->
+        let name = bb.Rir.Term.BB.name in
         let ll_bb =
-          match key with
+          match name with
           | "entry" -> ll_bb
-          | name -> L.insert_block ctx.ll_ctx name ll_bb
+          | _ -> L.append_block ctx.ll_ctx name ll_f
         in
-        let env = Env.set_bb env key ll_bb in
+        let env = Env.set_bb env name ll_bb in
         (env, ll_bb))
   in
+  List.iter bbs ~f:(fun bb ->
+      let name = bb.Rir.Term.BB.name in
 
-  Hashtbl.iteri func.Rir.Func.bbs ~f:(fun ~key:name ~data:bb ->
+      [%Loga.debug "BB -> %s" name];
       let ll_bb = Env.get_bb env name in
       let ll_builder = L.builder_at_end ctx.ll_ctx ll_bb in
       construct_bb ~ctx ~env ll_f ll_builder bb)
