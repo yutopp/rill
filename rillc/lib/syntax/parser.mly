@@ -170,7 +170,7 @@ expr_assign:
 
 expr_infix:
     lhs = expr_infix op = infix_id rhs = expr_postfix
-    { make (Ast.ExprBinaryOp (lhs, op, rhs)) ~l:$loc }
+    { make (Ast.ExprBinaryOp {op; lhs; rhs}) ~l:$loc }
   | expr_postfix { $1 }
 
 expr_postfix:

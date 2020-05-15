@@ -35,7 +35,7 @@ and kind_t =
   (* expressions *)
   | ExprBlock of t list
   | ExprIf of t * t * t option
-  | ExprBinaryOp of t * t * t
+  | ExprBinaryOp of { op : t; lhs : t; rhs : t }
   | ExprCall of t * t list
   (* primitives *)
   | ID of string
