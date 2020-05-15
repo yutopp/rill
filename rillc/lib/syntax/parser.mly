@@ -125,13 +125,12 @@ stmt_let_decl_val:
 
 stmt_return:
     KEYWORD_RETURN
-    e = expr_assign?
+    e = expr?
     SEMICOLON
     { make (Ast.StmtReturn e) ~l:$loc }
 
-
 id_expr:
-    expr_primary { $1 }
+    single_id { $1 }
 
 expr_entry:
     expr EOF { $1 }
@@ -145,28 +144,25 @@ expr_with_block:
   | expr_block { $1 }
 
 expr_without_block:
-    expr_compound { $1 }
+    expr_infix_group { $1 }
 
 expr_block:
     LBLOCK stmt+ RBLOCK { make (Ast.ExprBlock $2) ~l:$loc }
 
 expr_if:
   | KEYWORD_IF
-    cond = expr_assign
+    cond = expr_infix_group
     then_n = expr_block
     { make (Ast.ExprIf (cond, then_n, None)) ~l:$loc }
   | KEYWORD_IF
-    cond = expr_assign
+    cond = expr_infix_group
     then_n = expr_block
     KEYWORD_ELSE
     else_n = expr_block
     { make (Ast.ExprIf (cond, then_n, Some else_n)) ~l:$loc }
 
-expr_compound:
-    expr_assign { $1 }
-
-expr_assign:
-    expr_infix { $1 }
+expr_infix_group:
+    expr_infix { make (Ast.ExprGrouping $1) ~l:$loc }
 
 expr_infix:
     lhs = expr_infix op = infix_id rhs = expr_postfix

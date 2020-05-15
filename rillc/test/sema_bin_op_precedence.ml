@@ -17,14 +17,17 @@ let%expect_test _ =
   [%expect
     {|
     { Ast.kind =
-      Ast.ExprBinaryOp {op = { Ast.kind = (Ast.ID "+"); span =  };
-        lhs =
-        { Ast.kind =
-          Ast.ExprBinaryOp {op = { Ast.kind = (Ast.ID "+"); span =  };
-            lhs = { Ast.kind = (Ast.LitInt (1, 32, true)); span =  };
-            rhs = { Ast.kind = (Ast.LitInt (2, 32, true)); span =  }};
-          span =  };
-        rhs = { Ast.kind = (Ast.LitInt (3, 32, true)); span =  }};
+      (Ast.ExprGrouping
+         { Ast.kind =
+           Ast.ExprBinaryOp {op = { Ast.kind = (Ast.ID "+"); span =  };
+             lhs =
+             { Ast.kind =
+               Ast.ExprBinaryOp {op = { Ast.kind = (Ast.ID "+"); span =  };
+                 lhs = { Ast.kind = (Ast.LitInt (1, 32, true)); span =  };
+                 rhs = { Ast.kind = (Ast.LitInt (2, 32, true)); span =  }};
+               span =  };
+             rhs = { Ast.kind = (Ast.LitInt (3, 32, true)); span =  }};
+           span =  });
       span =  } |}]
 
 let%expect_test _ =
@@ -86,4 +89,35 @@ let%expect_test "right associated" =
                 rhs = { Ast.kind = (Ast.LitInt (4, 32, true)); span =  }};
               span =  }};
           span =  }};
+      span =  } |}]
+
+let%expect_test _ =
+  let node = parse_expr "1 + (2 + 3 * 4) + 5" in
+  let node = Rillc.Sema.Operators.reconstruct node in
+  Rillc.Syntax.Ast.show node |> Stdio.print_string;
+  [%expect
+    {|
+    { Ast.kind =
+      Ast.ExprBinaryOp {op = { Ast.kind = (Ast.ID "+"); span =  };
+        lhs =
+        { Ast.kind =
+          Ast.ExprBinaryOp {op = { Ast.kind = (Ast.ID "+"); span =  };
+            lhs = { Ast.kind = (Ast.LitInt (1, 32, true)); span =  };
+            rhs =
+            { Ast.kind =
+              (Ast.ExprGrouping
+                 { Ast.kind =
+                   Ast.ExprBinaryOp {op = { Ast.kind = (Ast.ID "*"); span =  };
+                     lhs =
+                     { Ast.kind =
+                       Ast.ExprBinaryOp {
+                         op = { Ast.kind = (Ast.ID "+"); span =  };
+                         lhs = { Ast.kind = (Ast.LitInt (2, 32, true)); span =  };
+                         rhs = { Ast.kind = (Ast.LitInt (3, 32, true)); span =  }};
+                       span =  };
+                     rhs = { Ast.kind = (Ast.LitInt (4, 32, true)); span =  }};
+                   span =  });
+              span =  }};
+          span =  };
+        rhs = { Ast.kind = (Ast.LitInt (5, 32, true)); span =  }};
       span =  } |}]

@@ -63,31 +63,34 @@ let preset : t =
 
 (* Assume that all bin op is a left associated unbalanced tree *)
 let rec reconstruct ast =
-  let nodes = flatten ast [] in
-  let nodes = reorder ~ops:preset nodes in
+  match ast with
+  | Ast.{ kind = ExprGrouping expr; _ } ->
+      let nodes = flatten expr [] in
+      let nodes = reorder ~ops:preset nodes in
 
-  let stack = Stack.create () in
-  let rec f nodes =
-    match nodes with
-    | x :: xs ->
-        let a =
-          match x with
-          | Top s ->
-              Stack.push stack s;
-              f xs
-          | Op (_, op, span) ->
-              let rhs = Stack.pop_exn stack in
-              let lhs = Stack.pop_exn stack in
-              let e = Ast.{ kind = ExprBinaryOp { op; lhs; rhs }; span } in
-              Stack.push stack e;
-              f xs
-          | _ -> ()
-        in
-        a
-    | [] -> ()
-  in
-  f (List.rev nodes);
-  Stack.pop_exn stack
+      let stack = Stack.create () in
+      let rec f nodes =
+        match nodes with
+        | x :: xs ->
+            let a =
+              match x with
+              | Top s ->
+                  Stack.push stack s;
+                  f xs
+              | Op (_, op, span) ->
+                  let rhs = Stack.pop_exn stack in
+                  let lhs = Stack.pop_exn stack in
+                  let e = Ast.{ kind = ExprBinaryOp { op; lhs; rhs }; span } in
+                  Stack.push stack e;
+                  f xs
+              | _ -> ()
+            in
+            a
+        | [] -> ()
+      in
+      f (List.rev nodes);
+      Stack.pop_exn stack
+  | _ -> failwith ""
 
 (* e.g. <<1 + 2> * 3> [] -> <1 + 2> [*; 3] -> 1 [+; 2; *; 3] *)
 and flatten ast elems =
