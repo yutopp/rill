@@ -33,10 +33,10 @@ and kind_t =
   | StmtLet of t
   | StmtReturn of t option
   (* expressions *)
+  | ExprGrouping of t
   | ExprBlock of t list
   | ExprIf of t * t * t option
   | ExprBinaryOp of { op : t; lhs : t; rhs : t }
-  | ExprGrouping of t
   | ExprCall of t * t list
   (* primitives *)
   | ID of string

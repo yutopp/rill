@@ -174,6 +174,10 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
 
       Ok TAst.{ kind = StmtLet { name; expr = t_expr }; ty = spec_ty; span }
   (* *)
+  | Ast.{ kind = ExprGrouping _; _ } as expr ->
+      let expr' = Operators.reconstruct expr in
+      analyze ~ctx ~env expr'
+  (* *)
   | Ast.{ kind = ExprBlock nodes; span } ->
       let t_nodes_rev =
         List.fold_until nodes ~init:[]
@@ -221,28 +225,11 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       let ty = Typing.Type.{ t_t.TAst.ty with span } in
       Ok TAst.{ kind = ExprIf (t_cond, t_t, t_e_opts); ty; span }
   (* *)
+  | Ast.{ kind = ExprBinaryOp { op; lhs; rhs }; span; _ } ->
+      analyze_call ~ctx ~env ~span op [ lhs; rhs ]
+  (* *)
   | Ast.{ kind = ExprCall (r, args); span; _ } ->
-      let%bind t_r = analyze ~ctx ~env r in
-      let%bind t_args =
-        List.fold_result args ~init:[] ~f:(fun ax arg ->
-            let%bind t_arg = analyze ~ctx ~env arg in
-            Ok (t_arg :: ax))
-        |> Result.map ~f:List.rev
-      in
-      let r_ty = t_r.TAst.ty in
-
-      let ret_ty = Typing.Subst.fresh_ty ~span ctx.subst in
-      let fn_ty =
-        let args_ty = List.map t_args ~f:(fun arg -> arg.TAst.ty) in
-        Typing.Type.{ ty = Func (args_ty, ret_ty); span }
-      in
-      [%Loga.debug "Func receiver ty = %s" (Typing.Type.to_string r_ty)];
-      [%Loga.debug "Func evaled ty = %s" (Typing.Type.to_string fn_ty)];
-
-      let%bind subst = Typer.unify ~span ctx.subst r_ty fn_ty in
-      ctx.subst <- subst;
-
-      Ok TAst.{ kind = ExprCall (t_r, t_args); ty = ret_ty; span }
+      analyze_call ~ctx ~env ~span r args
   (* *)
   | Ast.{ kind = ID name; span; _ } ->
       let%bind venv =
@@ -278,6 +265,30 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       in
       let elm = Diagnostics.Elem.error ~span e in
       Error elm
+
+and analyze_call ~ctx ~env ~span recv args =
+  let open Result.Let_syntax in
+  let%bind t_recv = analyze ~ctx ~env recv in
+  let%bind t_args =
+    List.fold_result args ~init:[] ~f:(fun ax arg ->
+        let%bind t_arg = analyze ~ctx ~env arg in
+        Ok (t_arg :: ax))
+    |> Result.map ~f:List.rev
+  in
+  let recv_ty = t_recv.TAst.ty in
+
+  let ret_ty = Typing.Subst.fresh_ty ~span ctx.subst in
+  let fn_ty =
+    let args_ty = List.map t_args ~f:(fun arg -> arg.TAst.ty) in
+    Typing.Type.{ ty = Func (args_ty, ret_ty); span }
+  in
+  [%Loga.debug "Func receiver ty = %s" (Typing.Type.to_string recv_ty)];
+  [%Loga.debug "Func evaled ty = %s" (Typing.Type.to_string fn_ty)];
+
+  let%bind subst = Typer.unify ~span ctx.subst recv_ty fn_ty in
+  ctx.subst <- subst;
+
+  Ok TAst.{ kind = ExprCall (t_recv, t_args); ty = ret_ty; span }
 
 and lookup_type ~ctx ~env ast : (Typing.Type.t, Diagnostics.Elem.t) Result.t =
   let open Result.Let_syntax in

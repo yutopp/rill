@@ -15,7 +15,7 @@ let guard_dup_value ~span penv_opt name =
   match Option.bind penv_opt ~f:(fun penv -> Env.find_value penv name) with
   | Some other ->
       (* TODO: fix a span to point correct location(use 'other') *)
-      let e = new Reasons.defined_twice ~other:span in
+      let e = new Reasons.defined_twice ~other:span ~name in
       let elm = Diagnostics.Elem.error ~span e in
       Error elm
   | None -> Ok ()

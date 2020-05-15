@@ -42,12 +42,32 @@ let rec to_llty ~ctx ty : L.lltype =
       L.function_type ret_ty (Array.of_list params_tys)
   | _ -> failwith "[ICE] not supported type"
 
+let find_builtin builtin_name =
+  match builtin_name with
+  | "%op_bin_assign" -> fun args builder -> failwith "ass"
+  | "%op_bin_add" ->
+      fun args builder ->
+        let a = args.(0) in
+        let b = args.(1) in
+        L.build_add a b "" builder
+  | "%op_bin_mul" ->
+      fun args builder ->
+        let a = args.(0) in
+        let b = args.(1) in
+        L.build_mul a b "" builder
+  | _ -> failwith builtin_name
+
 module Env = struct
   type t = {
     local_vars : L.llvalue Map.M(String).t;
-    funcs : L.llvalue Map.M(String).t;
+    funcs : func_t Map.M(String).t;
     bb : L.llbasicblock Map.M(String).t;
   }
+
+  and func_t =
+    | FuncLLVMDecl of L.llvalue
+    | FuncLLVMDef of L.llvalue
+    | FuncBuiltin of (L.llvalue array -> L.llbuilder -> L.llvalue)
 
   let create () =
     {
@@ -85,10 +105,13 @@ let construct_term ~ctx ~env ll_f ll_builder term =
   match term with
   | Rir.Term.{ kind = Call (callee, args); ty; _ } ->
       let callee_val = Env.get_func env callee in
-      let args_vals =
-        List.map args ~f:(Env.get_local_var env) |> Array.of_list
+      let ll_args = List.map args ~f:(Env.get_local_var env) |> Array.of_list in
+      let llval =
+        match callee_val with
+        | Env.FuncLLVMDecl ll_callee | Env.FuncLLVMDef ll_callee ->
+            L.build_call ll_callee ll_args "" ll_builder
+        | Env.FuncBuiltin pass -> pass ll_args ll_builder
       in
-      let llval = L.build_call callee_val args_vals "" ll_builder in
       llval
   | Rir.Term.{ kind = RVal v; ty; _ } ->
       let ll_v = construct_value ~ctx ll_builder v ty in
@@ -152,12 +175,15 @@ let construct_func ~ctx ~env ll_mod ll_f (name, func) =
       construct_bb ~ctx ~env ll_f ll_builder bb)
 
 (* declare functions *)
-let pre_construct_func ~ctx ll_mod (name, func) : L.llvalue * bool =
+let pre_construct_func ~ctx ll_mod (name, func) : Env.func_t =
   let ty = func.Rir.Func.ty in
   let ll_ty = to_llty ~ctx ty in
   match func.Rir.Func.extern_name with
-  | Some extern_name -> (L.declare_function extern_name ll_ty ll_mod, false)
-  | None -> (L.define_function name ll_ty ll_mod, true)
+  | Some builtin_name when String.is_prefix builtin_name ~prefix:"%" ->
+      Env.FuncBuiltin (find_builtin builtin_name)
+  | Some extern_name ->
+      Env.FuncLLVMDecl (L.declare_function extern_name ll_ty ll_mod)
+  | None -> Env.FuncLLVMDef (L.define_function name ll_ty ll_mod)
 
 let generate_module ~ctx rir_mod : Module.t =
   let module_name = rir_mod.Rir.Module.module_name in
@@ -168,14 +194,15 @@ let generate_module ~ctx rir_mod : Module.t =
     let funcs = Rir.Module.funcs rir_mod in
     List.fold_left funcs ~init:(env, []) ~f:(fun (env, fs) f ->
         let (name, func) = f in
-        let (ll_f, def) = pre_construct_func ~ctx ll_mod (name, func) in
-        let env = Env.set_func env name ll_f in
-        (env, (f, ll_f, def) :: fs))
+        let d_f = pre_construct_func ~ctx ll_mod (name, func) in
+        let env = Env.set_func env name d_f in
+        (env, (f, d_f) :: fs))
   in
-
   let () =
     fs_rev
-    |> List.iter ~f:(fun (f, ll_f, def) ->
-           if def then construct_func ~ctx ~env ll_mod ll_f f else ())
+    |> List.iter ~f:(fun (f, d_f) ->
+           match d_f with
+           | Env.FuncLLVMDef ll_f -> construct_func ~ctx ~env ll_mod ll_f f
+           | _ -> ())
   in
   ll_mod

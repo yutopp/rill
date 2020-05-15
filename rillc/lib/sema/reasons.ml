@@ -10,12 +10,13 @@ open! Base
 module Diagnostics = Common.Diagnostics
 module Span = Common.Span
 
-class defined_twice ~(other : Span.t) =
+class defined_twice ~(other : Span.t) ~(name : string) =
   object (self)
     inherit Diagnostics.Error.base
 
     method to_string =
-      Printf.sprintf "Definition which has same symbol is defined twice.\n %s\n"
+      Printf.sprintf
+        "Definition which has same symbol(%s) is defined twice.\n %s\n" name
         (Span.sexp_of_t other |> Sexp.to_string_hum)
   end
 
