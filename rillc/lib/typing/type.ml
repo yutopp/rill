@@ -18,6 +18,11 @@ and ty_t = Var of var_t | Unit | Bool | Int | String | Func of t list * t
 
 and var_t = int [@@deriving sexp_of, to_yojson]
 
+let assume_func_ty ty =
+  match ty with
+  | { ty = Func (params_tys, ret_ty); _ } -> (params_tys, ret_ty)
+  | _ -> failwith "[ICE] Not func ty"
+
 (* for debugging. TODO: remove *)
 let rec to_string ty : string =
   match ty with

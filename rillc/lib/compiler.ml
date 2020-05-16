@@ -20,6 +20,8 @@ type phase_t =
 
 let create workspace : t = { workspace }
 
+type get_artifact_t = GetRir | GetLLVM
+
 type artifact_t =
   | ArtifactRir of Rir.Module.t
   | ArtifactLlvm of Codegen.Llvm_gen.Module.t
@@ -35,26 +37,41 @@ type failed_t = phase_t * Diagnostics.Elem.t
 
 type build_result_t = (artifact_t, failed_t) Result.t
 
-let build_from_file compiler ~ds ~path : build_result_t =
-  let open Result.Let_syntax in
-  let%bind (_stete, parsed) =
+module Phases = struct
+  let parse ~compiler ~ds ~path =
     Syntax.parse_from_file ~ds path
     |> Result.map_error ~f:(fun e -> (CannotParsed, e))
-  in
+
+  let phase1 ~compiler ~ds ~builtin ast =
+    let open Result.Let_syntax in
+    let subst = Typing.Subst.create () in
+    let builtin = Sema.Builtin.create () in
+    let%bind p1ast =
+      let ctx = Sema.Phase1.context ~parent:None ~ds ~subst ~builtin in
+      Sema.Phase1.collect_toplevels ~ctx ast
+      |> Result.map_error ~f:(fun e -> (Parsed ast, e))
+    in
+    let%bind subst =
+      let ctx = Sema.Phase1_1.context ~ds ~subst in
+      Sema.Phase1_1.declare_toplevels ~ctx p1ast
+      |> Result.map ~f:(fun e -> Sema.Phase1_1.(ctx.subst))
+      |> Result.map_error ~f:(fun e -> (SemaP1 p1ast, e))
+    in
+    return (p1ast, subst)
+
+  let phase3 ~compiler ~ds ~subst p2ast =
+    let ctx = Sema.Phase3.context ~ds ~subst in
+    let env = Sema.Phase3.Env.create () in
+    Sema.Phase3.normalize ~ctx ~env p2ast
+end
+
+let build_from_file compiler ~ds ~path : build_result_t =
+  let open Result.Let_syntax in
+  let%bind (_stete, parsed) = Phases.parse ~compiler ~ds ~path in
+
   (* TODO: check state and ds to restrict compilaction *)
-  let subst = Typing.Subst.create () in
   let builtin = Sema.Builtin.create () in
-  let%bind p1ast =
-    let ctx = Sema.Phase1.context ~parent:None ~ds ~subst ~builtin in
-    Sema.Phase1.collect_toplevels ~ctx parsed
-    |> Result.map_error ~f:(fun e -> (Parsed parsed, e))
-  in
-  let%bind subst =
-    let ctx = Sema.Phase1_1.context ~ds ~subst in
-    Sema.Phase1_1.declare_toplevels ~ctx p1ast
-    |> Result.map ~f:(fun e -> Sema.Phase1_1.(ctx.subst))
-    |> Result.map_error ~f:(fun e -> (SemaP1 p1ast, e))
-  in
+  let%bind (p1ast, subst) = Phases.phase1 ~compiler ~ds ~builtin parsed in
 
   (* TODO: check all Vars are decidable *)
 
@@ -87,24 +104,24 @@ let build_from_file compiler ~ds ~path : build_result_t =
   in
 
   (* TODO: check that there are no errors in ds *)
-  let p3ast =
-    let ctx = Sema.Phase3.context ~ds ~subst in
-    let env = Sema.Phase3.Env.create () in
-    Sema.Phase3.normalize ~ctx ~env p2ast
-  in
+  let p3ast = Phases.phase3 ~compiler ~ds ~subst p2ast in
 
-  let rir =
-    let ctx = Codegen.Rir_gen.context ~ds ~subst ~builtin in
-    Codegen.Rir_gen.generate_module ~ctx p3ast
-  in
+  let get = GetLLVM in
 
-  let llvm =
-    let ctx = Codegen.Llvm_gen.context ~ds ~subst ~builtin in
-    Codegen.Llvm_gen.generate_module ~ctx rir
-  in
+  let open With_return in
+  with_return (fun r ->
+      let rir =
+        let ctx = Codegen.Rir_gen.context ~ds ~subst ~builtin in
+        Codegen.Rir_gen.generate_module ~ctx p3ast
+      in
+      if Poly.equal get GetRir then r.return (Ok (ArtifactRir rir));
 
-  (* TODO: check that there are no errors in ds *)
-  Ok (ArtifactLlvm llvm)
+      let llvm =
+        let ctx = Codegen.Llvm_gen.context ~ds ~subst ~builtin in
+        Codegen.Llvm_gen.generate_module ~ctx rir
+      in
+
+      Ok (ArtifactLlvm llvm))
 
 type error_t = unit
 

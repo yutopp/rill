@@ -28,36 +28,36 @@ let get_current_bb ctx = Option.value_exn ctx.current_bb
 
 let get_current_state ctx = (ctx.current_func, ctx.current_bb)
 
-let register_func_def ctx name f =
+let register_func_def b name f =
   (* TODO: support name *)
-  Module.append_func ctx.module_ name f
+  Module.append_func b.module_ name f
 
-let build_let ctx name v =
+let build_let b name v =
   let inst = Term.Let (name, v) in
-  let bb = get_current_bb ctx in
+  let bb = get_current_bb b in
   Term.BB.append_inst bb inst
 
-let build_assign ctx lhs rhs =
+let build_assign b lhs rhs =
   let inst = Term.Assign (lhs, rhs) in
-  let bb = get_current_bb ctx in
+  let bb = get_current_bb b in
   Term.BB.append_inst bb inst
 
-let build_jump ctx bb =
-  let term = Term.Jump bb.Term.BB.name in
-  let bb = get_current_bb ctx in
-  Term.BB.set_terminator bb term
+let build_jump b bb =
+  let termi = Term.Jump bb.Term.BB.name in
+  let bb = get_current_bb b in
+  Term.BB.append_inst bb (Term.TerminatorPoint termi)
 
-let build_cond ctx cond t e =
-  let term = Term.Cond (cond, t.Term.BB.name, e.Term.BB.name) in
-  let bb = get_current_bb ctx in
-  Term.BB.set_terminator bb term
+let build_cond b cond t e =
+  let termi = Term.Cond (cond, t.Term.BB.name, e.Term.BB.name) in
+  let bb = get_current_bb b in
+  Term.BB.append_inst bb (Term.TerminatorPoint termi)
 
-let build_ret ctx name =
-  let term = Term.Ret name in
-  let bb = get_current_bb ctx in
-  Term.BB.set_terminator bb term
+let build_return b term =
+  let termi = Term.Ret term in
+  let bb = get_current_bb b in
+  Term.BB.append_inst bb (Term.TerminatorPoint termi)
 
-let build_ret_void ctx =
-  let term = Term.RetVoid in
-  let bb = get_current_bb ctx in
-  Term.BB.set_terminator bb term
+let build_return_void b =
+  let termi = Term.RetVoid in
+  let bb = get_current_bb b in
+  Term.BB.append_inst bb (Term.TerminatorPoint termi)

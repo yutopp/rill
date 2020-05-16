@@ -32,6 +32,7 @@ let rec generate_expr ~ctx ~builder ast =
         (Printf.sprintf "Not supported node (Rir_gen.generate_expr): %s" s)
 
 let rec generate_stmt ~ctx ~builder ast =
+  let module B = Rir.Builder in
   match ast with
   (* *)
   | NAst.{ kind = Let { name; expr }; span; _ } ->
@@ -56,9 +57,13 @@ let rec generate_stmt ~ctx ~builder ast =
       List.fold_left nodes ~init:ret ~f:(fun (_, builder) node ->
           generate_stmt ~ctx ~builder node)
   (* *)
-  | NAst.{ kind = If { cond; t; e_opt = Some e }; span; ty } ->
+  | NAst.{ kind = If { cond; t; e_opt = Some e }; ty; span; _ } ->
       let f = Rir.Builder.get_current_func builder in
 
+      (*
+      (* receiver *)
+      let _ = B.build_let builder "" Rir.Term.{ kind = Undef; ty; span } in
+       *)
       let bb_then = Rir.Term.BB.create "if_then" in
       Rir.Func.insert_bb f bb_then;
 
@@ -98,8 +103,12 @@ let rec generate_stmt ~ctx ~builder ast =
       let node = Rir.Term.{ kind = Call (name, args); ty; span } in
       (node, builder)
   (* *)
-  | NAst.{ kind = ID id; ty; span } ->
+  | NAst.{ kind = Var id; ty; span } ->
       let node = Rir.Term.{ kind = LVal id; ty; span } in
+      (node, builder)
+  (* *)
+  | NAst.{ kind = VarParam i; ty; span } ->
+      let node = Rir.Term.{ kind = LValParam i; ty; span } in
       (node, builder)
   (* *)
   | NAst.{ kind = LitBool v; ty; span } ->
@@ -131,17 +140,20 @@ let generate_toplevel ~ctx ~builder ast =
   match ast with
   (* *)
   | NAst.{ kind = Func { name; kind = NAst.FuncKindDef body }; ty; span } ->
+      let (_, ret_ty) = Typing.Type.assume_func_ty ty in
       let f = Rir.Func.create ~ty ~extern_name:None in
       let builder = Rir.Builder.with_current_func builder f in
 
-      let bb = Rir.Term.BB.create "entry" in
+      let bb = Rir.Term.BB.create_entry () in
       Rir.Func.insert_bb f bb;
       let builder = Rir.Builder.with_current_bb builder bb in
 
-      let (_body, builder) = generate_stmt ~ctx ~builder body in
-
-      (* TODO: fix *)
-      Rir.Builder.build_ret builder "";
+      let (term, builder) = generate_stmt ~ctx ~builder body in
+      let () =
+        match ret_ty with
+        | Typing.Type.{ ty = Unit; _ } -> Rir.Builder.build_return_void builder
+        | _ -> Rir.Builder.build_return builder term
+      in
 
       Rir.Builder.register_func_def builder name f
   (* *)

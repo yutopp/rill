@@ -21,6 +21,7 @@ and value_kind_t =
   | Call of placeholder_t * placeholder_t list
   | RVal of value_r_t
   | LVal of placeholder_t
+  | LValParam of int
   | Undef
 
 and value_r_t =
@@ -29,12 +30,15 @@ and value_r_t =
   | ValueString of string
   | ValueUnit
 
-and inst_t = Let of placeholder_t * t | Assign of placeholder_t * string | Nop
+and inst_t =
+  | Let of placeholder_t * t
+  | Assign of placeholder_t * string
+  | TerminatorPoint of terminator_t
 
 and terminator_t =
   | Jump of string
   | Cond of placeholder_t * string * string
-  | Ret of placeholder_t
+  | Ret of t
   | RetVoid
 
 and placeholder_t = string [@@deriving show]
@@ -47,15 +51,19 @@ module BB = struct
   }
   [@@deriving show]
 
-  let create name = { name; insts_rev = []; terminator = None }
+  let create name : t = { name; insts_rev = []; terminator = None }
 
-  let append_inst bb inst = bb.insts_rev <- inst :: bb.insts_rev
+  let create_entry () = create "entry"
+
+  let append_inst bb inst =
+    bb.insts_rev <- inst :: bb.insts_rev;
+    match inst with
+    | TerminatorPoint termi when Option.is_none bb.terminator ->
+        (* memoize first terminator *)
+        bb.terminator <- Some termi
+    | _ -> ()
 
   let get_insts bb = List.rev bb.insts_rev
-
-  let set_terminator bb term =
-    assert (Option.is_none bb.terminator);
-    bb.terminator <- Some term
 
   let get_terminator_opt bb = bb.terminator
 end

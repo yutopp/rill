@@ -19,13 +19,13 @@ module TAst = struct
     | Module of t list
     | DeclExternFunc of { name : string; extern_name : string }
     | DefFunc of { name : string; body : t }
-    | DefParamVar of { name : string; index : int }
     | StmtSeq of t list
     | StmtExpr of t
     | StmtLet of { name : string; expr : t }
     | ExprIf of t * t * t option
     | ExprCall of t * t list
-    | ID of string
+    | Var of string
+    | VarParam of int
     | LitBool of bool
     | LitInt of int
     | LitString of string
@@ -36,9 +36,12 @@ type ctx_t = {
   ds : Diagnostics.t;
   mutable subst : Typing.Subst.t;
   builtin : Builtin.t;
+  exec_ctx : exec_ctx_t option;
 }
 
-let context ~ds ~subst ~builtin = { ds; subst; builtin }
+and exec_ctx_t = ExecCtxFunc of { return : Typing.Type.t }
+
+let context ~ds ~subst ~builtin = { ds; subst; builtin; exec_ctx = None }
 
 type result_t = (TopAst.t, Diagnostics.Elem.t) Result.t
 
@@ -101,6 +104,7 @@ and define ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
   | Ast.{ kind = DefFunc { name; params; ret_ty; body }; span } ->
       (* TODO: check that there are no holes *)
       let f_ty = Typing.Subst.subst_type ctx.subst (Env.type_of env) in
+      let (params_tys, ret_ty) = Typing.Type.assume_func_ty f_ty in
 
       let t_param_vars_decls =
         List.mapi params ~f:(fun index param ->
@@ -113,15 +117,20 @@ and define ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
                 in
                 (* NOTE: a type is already checked at phase1_1 *)
                 (* TODO: Distinguish params and decls *)
-                TAst.
-                  {
-                    kind = DefParamVar { name; index };
-                    span;
-                    ty = Env.type_of venv;
-                  }
+                let ty = Env.type_of venv in
+                let t_param = TAst.{ kind = VarParam index; ty; span } in
+                TAst.{ kind = StmtLet { name; expr = t_param }; ty; span }
             | _ -> failwith "")
       in
-      let%bind t_body = analyze ~ctx ~env body in
+
+      let ctx' =
+        { ctx with exec_ctx = Some (ExecCtxFunc { return = ret_ty }) }
+      in
+      let%bind t_body = analyze ~ctx:ctx' ~env body in
+      ctx.subst <- ctx'.subst;
+
+      (* TODO: check that subst has no holes *)
+      let%bind subst = Typer.unify ~span ctx.subst ret_ty t_body.TAst.ty in
 
       let t_seq =
         (* parameter delcs -> body *)
@@ -241,7 +250,7 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       in
       let ty = Env.type_of venv in
       let ty = Typing.Type.{ ty with span } in
-      Ok TAst.{ kind = ID name; span; ty }
+      Ok TAst.{ kind = Var name; span; ty }
   (* *)
   | Ast.{ kind = LitBool v; span; _ } ->
       let ty = Typing.Type.{ ctx.builtin.Builtin.bool_ with span } in

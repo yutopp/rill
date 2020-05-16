@@ -55,6 +55,11 @@ let find_builtin builtin_name =
         let a = args.(0) in
         let b = args.(1) in
         L.build_mul a b "" builder
+  | "%op_bin_equals" ->
+      fun args builder ->
+        let a = args.(0) in
+        let b = args.(1) in
+        L.build_icmp L.Icmp.Eq a b "" builder
   | _ -> failwith builtin_name
 
 module Env = struct
@@ -116,9 +121,9 @@ let construct_term ~ctx ~env ll_f ll_builder term =
   | Rir.Term.{ kind = RVal v; ty; _ } ->
       let ll_v = construct_value ~ctx ll_builder v ty in
       ll_v
-  | _ ->
-      (* *)
-      L.const_null (L.void_type ctx.ll_ctx)
+  | Rir.Term.{ kind = LValParam index; _ } -> L.param ll_f index
+  | Rir.Term.{ kind = Undef; _ } -> L.const_null (L.void_type ctx.ll_ctx)
+  | _ -> failwith (Printf.sprintf "Not implemented: %s" (Rir.Term.show term))
 
 let construct_inst ~ctx ~env ll_f ll_builder inst : Env.t =
   [%Loga.debug "Inst -> %s" (Rir.Term.show_inst_t inst)];
@@ -139,7 +144,10 @@ let construct_terminator ~ctx ~env ll_f ll_builder termi =
   | Rir.Term.Jump label ->
       let ll_bb = Env.get_bb env label in
       L.build_br ll_bb ll_builder
-  | _ -> L.build_ret_void ll_builder
+  | Rir.Term.Ret term ->
+      let ll_v = construct_term ~ctx ~env ll_f ll_builder term in
+      L.build_ret ll_v ll_builder
+  | Rir.Term.RetVoid -> L.build_ret_void ll_builder
 
 let construct_bb ~ctx ~env ll_f ll_builder bb =
   let insts = Rir.Term.BB.get_insts bb in

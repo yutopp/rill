@@ -31,7 +31,8 @@ module NAst = struct
     | LitUnit
     | Assign of { lhs : string; rhs : string }
     | Undef
-    | ID of string
+    | Var of string
+    | VarParam of int
     | Seq of t list
 
   and func_kind_t = FuncKindDecl | FuncKindDef of t | FuncKindExtern of string
@@ -92,7 +93,7 @@ let k = insert_let (let k = insert_let (analyze "1 + 2"); k (fun id -> id + "3")
 *)
 let insert_let k_form gen =
   match k_form with
-  | NAst.{ kind = ID id; _ } -> gen id
+  | NAst.{ kind = Var id; _ } -> gen id
   | NAst.{ span; ty; _ } -> (
       let new_id = fresh_id () in
       let let_stmt =
@@ -128,11 +129,12 @@ let rec normalize ~ctx ~env ast =
       let k = insert_let (normalize ~ctx ~env expr) in
       (* TODO: fix *)
       k (fun _id -> NAst.{ kind = LitUnit; ty; span })
+  (* *)
   | TAst.{ kind = StmtLet { name; expr }; ty; span; _ } ->
       let k = insert_let (normalize ~ctx ~env expr) in
       k (fun id ->
           Env.insert_alias env name id;
-          NAst.{ kind = ID id; ty; span })
+          NAst.{ kind = Var id; ty; span })
   (* *)
   | TAst.{ kind = ExprIf (cond, t, e_opt); ty; span; _ } ->
       (* result holder *)
@@ -182,9 +184,12 @@ let rec normalize ~ctx ~env ast =
       in
       bind [] args rk
   (* *)
-  | TAst.{ kind = ID s; ty; span; _ } ->
+  | TAst.{ kind = Var s; ty; span; _ } ->
       let id = Env.find_alias_opt env s |> Option.value ~default:s in
-      NAst.{ kind = ID id; ty; span }
+      NAst.{ kind = Var id; ty; span }
+      (* *)
+  | TAst.{ kind = VarParam i; ty; span; _ } ->
+      NAst.{ kind = VarParam i; ty; span }
   (* *)
   | TAst.{ kind = LitBool v; ty; span; _ } ->
       NAst.{ kind = LitBool v; ty; span }
@@ -193,7 +198,3 @@ let rec normalize ~ctx ~env ast =
   (* *)
   | TAst.{ kind = LitString v; ty; span; _ } ->
       NAst.{ kind = LitString v; ty; span }
-  (* *)
-  | TAst.{ kind; _ } ->
-      let s = TAst.sexp_of_kind_t kind |> Sexp.to_string_mach in
-      failwith (Printf.sprintf "Not supported stmt/expr node (phase3): %s" s)

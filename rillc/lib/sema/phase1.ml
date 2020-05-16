@@ -39,6 +39,7 @@ let introduce_prelude penv builtin =
     let env = Env.create name ~parent:None ~ty_w:(Env.T ty) in
     Env.insert_type penv env
   in
+  register "bool" builtin.Builtin.bool_;
   register "i32" builtin.Builtin.i32_;
   register "string" builtin.Builtin.string_;
   register "unit" builtin.Builtin.unit_;
