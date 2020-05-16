@@ -36,9 +36,9 @@ let rec entry ~sup ~ds parser : (Ast.t * t, Diagnostics.Elem.t) Result.t =
       let e = new Reasons.unexpected_token ~ch:tok in
       let elm = Diagnostics.Elem.error ~span e in
       Error elm
-  | CannotRecoverly (_msg, position) ->
+  | CannotRecoverly (msg, position) ->
       let span = Supplier.create_span_with_lex_loc sup position in
-      let e = new Reasons.invalid_syntax in
+      let e = new Reasons.invalid_syntax ~msg in
       let elm = Diagnostics.Elem.error ~span e in
       Error elm
 
@@ -48,7 +48,15 @@ and fail p_state sup inputneeded checkpoint =
   match checkpoint with
   | I.HandlingError env ->
       let positions = I.positions env in
-      raise (CannotRecoverly ("", positions))
+      let recovery =
+        match I.top env with
+        | Some (I.Element (state, _, _, _)) ->
+            let state_num = I.number state in
+            let msg = Printf.sprintf "Internal state (%d)" state_num in
+            raise (CannotRecoverly (msg, positions))
+        | _ -> raise (CannotRecoverly ("stack is empty", positions))
+      in
+      recovery
   | _ -> failwith "[ICE]"
 
 let from_entry ~sup ~ds : (Ast.t * t, Diagnostics.Elem.t) Result.t =

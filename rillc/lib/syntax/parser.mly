@@ -6,8 +6,7 @@
  * http://www.boost.org/LICENSE_1_0.txt)
  *)
 
-%start <Ast.t> program_entry
-%start <Ast.t> expr_entry
+%start <Ast.t> program_entry, expr_entry
 
 %{
   let make ~l kind =
@@ -90,15 +89,15 @@ extern_function_decl_statement:
            ~l:$loc
     }
 
+let stmts :=
+    { [] }
+  | s=stmt_expr(expr_without_block); { [s] }
+  | s=stmt_expr(expr_without_block); SEMICOLON; ss=stmts; { s :: ss }
+  | s=stmt_expr(expr_with_block); ss=stmts; { s :: ss }
+  | s=stmt_let; ss=stmts; { s :: ss }
 
-stmt:
-    stmt_expr { $1 }
-  | stmt_let { $1 }
-  | stmt_return { $1 }
-
-stmt_expr:
-    expr_with_block { make (Ast.StmtExpr $1) ~l:$loc }
-  | expr_without_block SEMICOLON { make (Ast.StmtExpr $1) ~l:$loc }
+let stmt_expr(expr) ==
+    e=expr ; { make (Ast.StmtExpr e) ~l:$loc }
 
 stmt_let:
     KEYWORD_LET d = stmt_let_decl_val SEMICOLON { make (Ast.StmtLet d) ~l:$loc }
@@ -143,11 +142,11 @@ expr_with_block:
     expr_if { $1 }
   | expr_block { $1 }
 
-expr_without_block:
-    expr_infix_group { $1 }
+let expr_without_block :=
+    e = expr_infix_group; { e }
 
-expr_block:
-    LBLOCK stmt+ RBLOCK { make (Ast.ExprBlock $2) ~l:$loc }
+let expr_block :=
+  LBLOCK; ss=stmts; RBLOCK; { make (Ast.ExprBlock ss) ~l:$loc }
 
 expr_if:
   | KEYWORD_IF
@@ -174,9 +173,6 @@ expr_postfix:
   | expr_postfix LPAREN argument_list RPAREN
     { make (Ast.ExprCall ($1, $3)) ~l:$loc }
 
-argument_list:
-    separated_list(COMMA, expr) { $1 }
-
 expr_primary:
     value { $1 }
   | LPAREN expr RPAREN { $2 }
@@ -187,12 +183,15 @@ value:
   | lit_integer { $1 }
   | lit_string { $1 }
 
+argument_list:
+    separated_list(COMMA, expr) { $1 }
+
 single_id:
     single_id_as_str { make (Ast.ID $1) ~l:$loc }
 
 single_id_as_str:
   | ID { $1 }
-  | LPAREN infix_id_as_str RPAREN { $2 }
+  | SINGLEQUOTE infix_id_as_str SINGLEQUOTE { $2 }
 
 infix_id:
     infix_id_as_str { make (Ast.ID $1) ~l:$loc }

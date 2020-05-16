@@ -23,9 +23,9 @@ class unexpected_token ~(ch : char) =
     method to_string = Printf.sprintf "Unexpected charactor: \"%c\"" ch
   end
 
-class invalid_syntax =
+class invalid_syntax ~(msg : string) =
   object (self)
     inherit Diagnostics.Error.base
 
-    method to_string = Printf.sprintf "Syntax error"
+    method to_string = Printf.sprintf "Syntax error: %s" msg
   end
