@@ -29,7 +29,7 @@ module NAst = struct
     | LitInt of int
     | LitString of string
     | LitUnit
-    | Assign of { lhs : string; rhs : string }
+    | Assign of { lhs : t; rhs : t }
     | Undef
     | Var of string
     | VarParam of int
@@ -127,49 +127,38 @@ let rec normalize ~ctx ~env ast =
   (* *)
   | TAst.{ kind = StmtExpr expr; ty; span; _ } ->
       let k = insert_let (normalize ~ctx ~env expr) in
-      (* TODO: fix *)
-      k (fun _id -> NAst.{ kind = LitUnit; ty; span })
+      k (fun _id -> NAst.{ kind = Undef; ty; span })
   (* *)
   | TAst.{ kind = StmtLet { name; expr }; ty; span; _ } ->
       let k = insert_let (normalize ~ctx ~env expr) in
       k (fun id ->
           Env.insert_alias env name id;
-          NAst.{ kind = Var id; ty; span })
+          NAst.{ kind = Undef; ty; span })
   (* *)
   | TAst.{ kind = ExprIf (cond, t, e_opt); ty; span; _ } ->
-      (* result holder *)
-      let new_id = fresh_id () in
-      let let_stmt =
-        let undef = NAst.{ kind = Undef; ty; span } in
-        NAst.{ kind = Let { name = new_id; expr = undef }; ty; span }
-      in
-
       let k = insert_let (normalize ~ctx ~env cond) in
       k (fun v_cond ->
           let t_assign =
             let k = insert_let (normalize ~ctx ~env t) in
-            k (fun v_t ->
+            k (fun v_id ->
                 let ty = t.TAst.ty in
                 let span = t.TAst.span in
-                NAst.{ kind = Assign { lhs = new_id; rhs = v_t }; ty; span })
+                NAst.{ kind = Var v_id; ty; span })
           in
           let e_assign_opt =
             Option.map e_opt ~f:(fun e ->
                 let k = insert_let (normalize ~ctx ~env e) in
-                k (fun v_e ->
+                k (fun v_id ->
                     let ty = e.TAst.ty in
                     let span = e.TAst.span in
-                    NAst.{ kind = Assign { lhs = new_id; rhs = v_e }; ty; span }))
+                    NAst.{ kind = Var v_id; ty; span }))
           in
-          let cond =
-            NAst.
-              {
-                kind = If { cond = v_cond; t = t_assign; e_opt = e_assign_opt };
-                ty;
-                span;
-              }
-          in
-          NAst.{ kind = Seq [ let_stmt; cond ]; ty; span })
+          NAst.
+            {
+              kind = If { cond = v_cond; t = t_assign; e_opt = e_assign_opt };
+              ty;
+              span;
+            })
   (* *)
   | TAst.{ kind = ExprCall (r, args); ty; span; _ } ->
       let rk = insert_let (normalize ~ctx ~env r) in

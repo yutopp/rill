@@ -108,6 +108,7 @@ let construct_value ~ctx ll_builder v ty =
 
 let construct_term ~ctx ~env ll_f ll_builder term =
   match term with
+  (* *)
   | Rir.Term.{ kind = Call (callee, args); ty; _ } ->
       let callee_val = Env.get_func env callee in
       let ll_args = List.map args ~f:(Env.get_local_var env) |> Array.of_list in
@@ -118,20 +119,44 @@ let construct_term ~ctx ~env ll_f ll_builder term =
         | Env.FuncBuiltin pass -> pass ll_args ll_builder
       in
       llval
+  (* *)
   | Rir.Term.{ kind = RVal v; ty; _ } ->
       let ll_v = construct_value ~ctx ll_builder v ty in
       ll_v
+  (* *)
+  | Rir.Term.{ kind = LVal id; ty; _ } ->
+      [%Loga.debug "LVal (%s)" id];
+      let ll_v = Env.get_local_var env id in
+      ll_v
+  (* *)
   | Rir.Term.{ kind = LValParam index; _ } -> L.param ll_f index
+  (* *)
   | Rir.Term.{ kind = Undef; _ } -> L.const_null (L.void_type ctx.ll_ctx)
-  | _ -> failwith (Printf.sprintf "Not implemented: %s" (Rir.Term.show term))
 
 let construct_inst ~ctx ~env ll_f ll_builder inst : Env.t =
   [%Loga.debug "Inst -> %s" (Rir.Term.show_inst_t inst)];
   match inst with
-  | Rir.Term.Let (placeholder, term) ->
-      let ll_v = construct_term ~ctx ~env ll_f ll_builder term in
-      Env.set_local_var env placeholder ll_v
-  | _ -> env
+  (* *)
+  | Rir.Term.Let (placeholder, term, alloc) ->
+      let ll_recv =
+        let ll_v = construct_term ~ctx ~env ll_f ll_builder term in
+        match alloc with
+        | Rir.Term.AllocLit -> ll_v
+        | Rir.Term.AllocStack ->
+            let ll_ty = to_llty ~ctx term.Rir.Term.ty in
+            let ll_v = L.build_alloca ll_ty "" ll_builder in
+            ll_v
+      in
+      [%Loga.debug "LVal (%s) <- %s" placeholder (L.string_of_llvalue ll_recv)];
+      Env.set_local_var env placeholder ll_recv
+  (* *)
+  | Rir.Term.Assign { lhs; rhs } ->
+      let ll_lhs = construct_term ~ctx ~env ll_f ll_builder lhs in
+      let ll_rhs = construct_term ~ctx ~env ll_f ll_builder rhs in
+      let st = L.build_store ll_rhs ll_lhs ll_builder in
+      env
+  (* *)
+  | Rir.Term.TerminatorPoint _ -> (* Ignore *) env
 
 let construct_terminator ~ctx ~env ll_f ll_builder termi =
   [%Loga.debug "Termi -> %s" (Rir.Term.show_terminator_t termi)];
@@ -158,7 +183,8 @@ let construct_bb ~ctx ~env ll_f ll_builder bb =
   Rir.Term.BB.get_terminator_opt bb
   |> Option.iter ~f:(fun termi ->
          let _ = construct_terminator ~ctx ~env ll_f ll_builder termi in
-         ())
+         ());
+  env
 
 let construct_func ~ctx ~env ll_mod ll_f (name, func) =
   let bbs = Rir.Func.list_bbs func in
@@ -174,7 +200,7 @@ let construct_func ~ctx ~env ll_mod ll_f (name, func) =
         let env = Env.set_bb env name ll_bb in
         (env, ll_bb))
   in
-  List.iter bbs ~f:(fun bb ->
+  List.fold_left bbs ~init:env ~f:(fun env bb ->
       let name = bb.Rir.Term.BB.name in
 
       [%Loga.debug "BB -> %s" name];
@@ -210,7 +236,9 @@ let generate_module ~ctx rir_mod : Module.t =
     fs_rev
     |> List.iter ~f:(fun (f, d_f) ->
            match d_f with
-           | Env.FuncLLVMDef ll_f -> construct_func ~ctx ~env ll_mod ll_f f
+           | Env.FuncLLVMDef ll_f ->
+               let _env = construct_func ~ctx ~env ll_mod ll_f f in
+               ()
            | _ -> ())
   in
   ll_mod

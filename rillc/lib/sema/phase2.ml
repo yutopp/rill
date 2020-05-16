@@ -119,6 +119,7 @@ and define ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
                 (* TODO: Distinguish params and decls *)
                 let ty = Env.type_of venv in
                 let t_param = TAst.{ kind = VarParam index; ty; span } in
+                let ty = ctx.builtin.Builtin.unit_ in
                 TAst.{ kind = StmtLet { name; expr = t_param }; ty; span }
             | _ -> failwith "")
       in
@@ -154,7 +155,7 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
   (* *)
   | Ast.{ kind = StmtExpr expr; span } ->
       let%bind t_expr = analyze ~ctx ~env expr in
-      let ty = Typing.Type.{ t_expr.TAst.ty with span } in
+      let ty = Typing.Type.{ ctx.builtin.Builtin.unit_ with span } in
       Ok TAst.{ kind = StmtExpr t_expr; ty; span }
   (* *)
   | Ast.{ kind = StmtLet decl; span } ->
@@ -181,7 +182,8 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
 
       ctx.subst <- subst;
 
-      Ok TAst.{ kind = StmtLet { name; expr = t_expr }; ty = spec_ty; span }
+      let ty = Typing.Type.{ ctx.builtin.Builtin.unit_ with span } in
+      Ok TAst.{ kind = StmtLet { name; expr = t_expr }; ty; span }
   (* *)
   | Ast.{ kind = ExprGrouping _; _ } as expr ->
       let expr' = Operators.reconstruct expr in

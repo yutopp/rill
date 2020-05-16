@@ -31,8 +31,8 @@ and value_r_t =
   | ValueUnit
 
 and inst_t =
-  | Let of placeholder_t * t
-  | Assign of placeholder_t * string
+  | Let of placeholder_t * t * alloc_t
+  | Assign of { lhs : t; rhs : t }
   | TerminatorPoint of terminator_t
 
 and terminator_t =
@@ -41,7 +41,9 @@ and terminator_t =
   | Ret of t
   | RetVoid
 
-and placeholder_t = string [@@deriving show]
+and placeholder_t = string
+
+and alloc_t = AllocLit | AllocStack [@@deriving show]
 
 module BB = struct
   type t = {

@@ -32,13 +32,21 @@ let register_func_def b name f =
   (* TODO: support name *)
   Module.append_func b.module_ name f
 
-let build_let b name v =
-  let inst = Term.Let (name, v) in
+let build_let b name v alloc =
+  let name =
+    match name with
+    | "" ->
+        let f = get_current_func b in
+        Func.gen_local_var f
+    | _ -> name
+  in
+  let inst = Term.Let (name, v, alloc) in
   let bb = get_current_bb b in
-  Term.BB.append_inst bb inst
+  Term.BB.append_inst bb inst;
+  Term.{ kind = LVal name; ty = v.ty; span = v.span }
 
 let build_assign b lhs rhs =
-  let inst = Term.Assign (lhs, rhs) in
+  let inst = Term.Assign { lhs; rhs } in
   let bb = get_current_bb b in
   Term.BB.append_inst bb inst
 

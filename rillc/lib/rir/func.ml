@@ -16,16 +16,34 @@ module BBs = struct
         Caml.Format.fprintf ppf "@[<1>%s: %s@]@." key (Term.BB.show data))
 end
 
+module LocalVars = struct
+  type t = { vars : (string, unit) Hashtbl.t; mutable auto_gen : int }
+
+  let create () : t = { vars = Hashtbl.create (module String); auto_gen = 0 }
+
+  let fresh_id vars =
+    let id = vars.auto_gen in
+    vars.auto_gen <- vars.auto_gen + 1;
+    Printf.sprintf "$%d" id
+end
+
 type t = {
   ty : (Typing.Type.t[@printer fun fmt _ -> fprintf fmt ""]);
   bbs : BBs.t;
   mutable bbs_names_rev : string list;
+  local_vars : (LocalVars.t[@printer fun fmt _ -> fprintf fmt ""]);
   extern_name : string option;
 }
 [@@deriving show]
 
 let create ?(extern_name = None) ~ty =
-  { ty; bbs = Hashtbl.create (module String); bbs_names_rev = []; extern_name }
+  {
+    ty;
+    bbs = Hashtbl.create (module String);
+    bbs_names_rev = [];
+    local_vars = LocalVars.create ();
+    extern_name;
+  }
 
 let insert_bb f bb =
   let name = bb.Term.BB.name in
@@ -47,3 +65,5 @@ let get_func_ty f =
 let get_ret_ty f =
   let (_, ret_ty) = get_func_ty f in
   ret_ty
+
+let gen_local_var f = LocalVars.fresh_id f.local_vars

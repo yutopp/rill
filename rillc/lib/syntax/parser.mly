@@ -91,7 +91,7 @@ extern_function_decl_statement:
 
 let stmts :=
     { [] }
-  | s=stmt_expr(expr_without_block); { [s] }
+  | e=expr_without_block; { [e] }
   | s=stmt_expr(expr_without_block); SEMICOLON; ss=stmts; { s :: ss }
   | s=stmt_expr(expr_with_block); ss=stmts; { s :: ss }
   | s=stmt_let; ss=stmts; { s :: ss }

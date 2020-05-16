@@ -32,24 +32,17 @@ let rec generate_expr ~ctx ~builder ast =
         (Printf.sprintf "Not supported node (Rir_gen.generate_expr): %s" s)
 
 let rec generate_stmt ~ctx ~builder ast =
+  [%Loga.debug "Stmt -> %s" (NAst.show ast)];
   let module B = Rir.Builder in
   match ast with
   (* *)
   | NAst.{ kind = Let { name; expr }; span; _ } ->
       let (t_expr, builder) = generate_stmt ~ctx ~builder expr in
-      Rir.Builder.build_let builder name t_expr;
-
-      let term =
-        Rir.Term.{ kind = Undef; ty = ctx.builtin.Builtin.unit_; span }
-      in
+      let term = Rir.Builder.build_let builder name t_expr Rir.Term.AllocLit in
       (term, builder)
+  (* *)
   | NAst.{ kind = Assign { lhs; rhs }; ty; span; _ } ->
-      Rir.Builder.build_assign builder lhs rhs;
-
-      let term =
-        Rir.Term.{ kind = Undef; ty = ctx.builtin.Builtin.unit_; span }
-      in
-      (term, builder)
+      failwith "Not implemented"
   (* *)
   | NAst.{ kind = Seq (node :: nodes); span; _ } ->
       (* TODO: support scope *)
@@ -60,10 +53,13 @@ let rec generate_stmt ~ctx ~builder ast =
   | NAst.{ kind = If { cond; t; e_opt = Some e }; ty; span; _ } ->
       let f = Rir.Builder.get_current_func builder in
 
-      (*
       (* receiver *)
-      let _ = B.build_let builder "" Rir.Term.{ kind = Undef; ty; span } in
-       *)
+      let recv =
+        B.build_let builder ""
+          Rir.Term.{ kind = Undef; ty; span }
+          Rir.Term.AllocStack
+      in
+
       let bb_then = Rir.Term.BB.create "if_then" in
       Rir.Func.insert_bb f bb_then;
 
@@ -78,7 +74,8 @@ let rec generate_stmt ~ctx ~builder ast =
       (* then *)
       let () =
         let builder = Rir.Builder.with_current_bb builder bb_then in
-        let (_, builder) = generate_stmt ~ctx ~builder t in
+        let (term, builder) = generate_stmt ~ctx ~builder t in
+        B.build_assign builder recv term;
 
         match Rir.Term.BB.get_terminator_opt bb_then with
         | Some _ -> ()
@@ -88,7 +85,8 @@ let rec generate_stmt ~ctx ~builder ast =
       (* else *)
       let () =
         let builder = Rir.Builder.with_current_bb builder bb_else in
-        let (_, builder) = generate_stmt ~ctx ~builder e in
+        let (term, builder) = generate_stmt ~ctx ~builder e in
+        B.build_assign builder recv term;
 
         match Rir.Term.BB.get_terminator_opt bb_else with
         | Some _ -> ()
@@ -96,7 +94,7 @@ let rec generate_stmt ~ctx ~builder ast =
       in
 
       let builder = Rir.Builder.with_current_bb builder bb_end in
-      let node = Rir.Term.{ kind = Undef; ty; span } in
+      let node = recv in
       (node, builder)
   (* *)
   | NAst.{ kind = Call { name; args }; span; ty } ->
