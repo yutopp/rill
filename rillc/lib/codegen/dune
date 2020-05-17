@@ -3,4 +3,4 @@
  (name            codegen)
  (libraries       base stdio stdint llvm loga llvm.analysis rillc.common rillc.typing rillc.rir)
  (preprocess
-  (pps ppx_let ppx_sexp_conv loga.ppx)))
+  (pps ppx_let ppx_deriving.show ppx_sexp_conv loga.ppx)))

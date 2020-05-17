@@ -32,7 +32,6 @@ let rec generate_expr ~ctx ~builder ast =
         (Printf.sprintf "Not supported node (Rir_gen.generate_expr): %s" s)
 
 let rec generate_stmt ~ctx ~builder ast =
-  [%Loga.debug "Stmt -> %s" (NAst.show ast)];
   let module B = Rir.Builder in
   match ast with
   (* *)
