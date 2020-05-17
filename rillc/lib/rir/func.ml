@@ -7,6 +7,7 @@
  *)
 
 open! Base
+module Counter = Common.Counter
 
 module BBs = struct
   type t = (string, Term.BB.t) Hashtbl.t
@@ -16,34 +17,31 @@ module BBs = struct
         Caml.Format.fprintf ppf "@[<1>%s: %s@]@." key (Term.BB.show data))
 end
 
-module LocalVars = struct
-  type t = { vars : (string, unit) Hashtbl.t; mutable auto_gen : int }
-
-  let create () : t = { vars = Hashtbl.create (module String); auto_gen = 0 }
-
-  let fresh_id vars =
-    let id = vars.auto_gen in
-    vars.auto_gen <- vars.auto_gen + 1;
-    Printf.sprintf "$%d" id
-end
-
 type t = {
   ty : (Typing.Type.t[@printer fun fmt _ -> fprintf fmt ""]);
   bbs : BBs.t;
   mutable bbs_names_rev : string list;
-  local_vars : (LocalVars.t[@printer fun fmt _ -> fprintf fmt ""]);
+  fresh_id : (Counter.t[@printer fun fmt _ -> fprintf fmt ""]);
   extern_name : string option;
 }
 [@@deriving show]
 
-let create ?(extern_name = None) ~ty =
+let create_vanilla ?(extern_name = None) ~ty =
   {
     ty;
     bbs = Hashtbl.create (module String);
     bbs_names_rev = [];
-    local_vars = LocalVars.create ();
+    fresh_id = Counter.create ();
     extern_name;
   }
+
+let prepare_bb_name f name =
+  match Hashtbl.mem f.bbs name with
+  | true ->
+      (* If already exists, generate a fresh name *)
+      let fresh_suffix = Counter.fresh_string f.fresh_id in
+      Printf.sprintf "%s%s" name fresh_suffix
+  | false -> name
 
 let insert_bb f bb =
   let name = bb.Term.BB.name in
@@ -55,8 +53,6 @@ let list_bbs f =
   List.rev f.bbs_names_rev
   |> List.map ~f:(fun bb_name -> Hashtbl.find_exn f.bbs bb_name)
 
-let get_entry_bb f = Hashtbl.find_exn f.bbs "entry"
-
 let get_func_ty f =
   match f.ty with
   | Typing.Type.{ ty = Func (params_tys, ret_ty); _ } -> (params_tys, ret_ty)
@@ -66,4 +62,14 @@ let get_ret_ty f =
   let (_, ret_ty) = get_func_ty f in
   ret_ty
 
-let gen_local_var f = LocalVars.fresh_id f.local_vars
+let gen_local_var f =
+  let s = Counter.fresh_string f.fresh_id in
+  Printf.sprintf "$_%s" s
+
+let create ?(extern_name = None) ~ty =
+  let f = create_vanilla ~extern_name ~ty in
+  let bb = Term.BB.create "entry" in
+  insert_bb f bb;
+  f
+
+let get_entry_bb f = Hashtbl.find_exn f.bbs "entry"

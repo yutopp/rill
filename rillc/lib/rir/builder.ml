@@ -32,6 +32,13 @@ let register_func_def b name f =
   (* TODO: support name *)
   Module.append_func b.module_ name f
 
+let build_bb b name =
+  let f = get_current_func b in
+  let name = Func.prepare_bb_name f name in
+  let bb = Term.BB.create name in
+  Func.insert_bb f bb;
+  bb
+
 let build_let b name v alloc =
   let name =
     match name with

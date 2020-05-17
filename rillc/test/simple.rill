@@ -1,7 +1,7 @@
 def test(): unit {
     println("hogehoge");
     println("fugafuga");
-    if true { println("t"); println("t2"); } else { println("f"); }
+    let c = if true { println("t"); println("t2"); 10 } else { println("f"); 20 };
     let a = 10;
     //a = 1 + 2 * 3;
     let mutable b = 1 + 2 * 3;
@@ -9,13 +9,21 @@ def test(): unit {
     print_int_ln(b);
     let mutable a = 30;
     print_int_ln(a);
+    print_int_ln(c);
+    print_int_ln(fib(10));
 }
 
-// TODO: Assign, Add, Mul traits
+def fib(i: i32): i32 {
+    if i == 0 { 0 } else if i == 1 { 1 } else { fib(i-1) + fib(i-2) }
+}
+
+// TODO: Assign, Eq, Add, Sub, Mul traits
 // TODO: Support mut ref
-extern def (=)(a: i32, b: i32): unit = "%op_bin_assign";
-extern def (+)(a: i32, b: i32): i32 = "%op_bin_add";
-extern def (*)(a: i32, b: i32): i32 = "%op_bin_mul";
+extern def '='(a: i32, b: i32): unit = "%op_bin_assign";
+extern def '=='(a: i32, b: i32): bool = "%op_bin_equals";
+extern def '+'(a: i32, b: i32): i32 = "%op_bin_add";
+extern def '-'(a: i32, b: i32): i32 = "%op_bin_sub";
+extern def '*'(a: i32, b: i32): i32 = "%op_bin_mul";
 
 extern def println(s: string): unit = "println";
 

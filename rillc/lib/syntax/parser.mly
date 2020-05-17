@@ -93,7 +93,7 @@ let stmts :=
     { [] }
   | e=expr_without_block; { [e] }
   | s=stmt_expr(expr_without_block); SEMICOLON; ss=stmts; { s :: ss }
-  | s=stmt_expr(expr_with_block); ss=stmts; { s :: ss }
+  | e=expr_with_block; ss=stmts; { e :: ss }
   | s=stmt_let; ss=stmts; { s :: ss }
 
 let stmt_expr(expr) ==
@@ -148,17 +148,16 @@ let expr_without_block :=
 let expr_block :=
   LBLOCK; ss=stmts; RBLOCK; { make (Ast.ExprBlock ss) ~l:$loc }
 
-expr_if:
-  | KEYWORD_IF
-    cond = expr_infix_group
-    then_n = expr_block
-    { make (Ast.ExprIf (cond, then_n, None)) ~l:$loc }
-  | KEYWORD_IF
-    cond = expr_infix_group
-    then_n = expr_block
-    KEYWORD_ELSE
-    else_n = expr_block
-    { make (Ast.ExprIf (cond, then_n, Some else_n)) ~l:$loc }
+let expr_if :=
+    KEYWORD_IF;
+    cond = expr_infix_group;
+    then_n = expr_block;
+    else_n_opt = expr_if_else_clause?;
+    { make (Ast.ExprIf (cond, then_n, else_n_opt)) ~l:$loc }
+
+let expr_if_else_clause ==
+    KEYWORD_ELSE; e = expr_block; { e }
+  | KEYWORD_ELSE; e = expr_if; { e }
 
 expr_infix_group:
     expr_infix { make (Ast.ExprGrouping $1) ~l:$loc }

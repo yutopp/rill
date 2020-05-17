@@ -55,8 +55,6 @@ module BB = struct
 
   let create name : t = { name; insts_rev = []; terminator = None }
 
-  let create_entry () = create "entry"
-
   let append_inst bb inst =
     bb.insts_rev <- inst :: bb.insts_rev;
     match inst with

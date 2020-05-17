@@ -59,16 +59,13 @@ let rec generate_stmt ~ctx ~builder ast =
           Rir.Term.AllocStack
       in
 
-      let bb_then = Rir.Term.BB.create "if_then" in
-      Rir.Func.insert_bb f bb_then;
+      let bb_then = B.build_bb builder "if_then" in
 
-      let bb_else = Rir.Term.BB.create "if_else" in
-      Rir.Func.insert_bb f bb_else;
+      let bb_else = B.build_bb builder "if_else" in
 
       Rir.Builder.build_cond builder cond bb_then bb_else;
 
-      let bb_end = Rir.Term.BB.create "if_end" in
-      Rir.Func.insert_bb f bb_end;
+      let bb_end = B.build_bb builder "if_end" in
 
       (* then *)
       let () =
@@ -76,7 +73,8 @@ let rec generate_stmt ~ctx ~builder ast =
         let (term, builder) = generate_stmt ~ctx ~builder t in
         B.build_assign builder recv term;
 
-        match Rir.Term.BB.get_terminator_opt bb_then with
+        let bb = B.get_current_bb builder in
+        match Rir.Term.BB.get_terminator_opt bb with
         | Some _ -> ()
         | _ -> Rir.Builder.build_jump builder bb_end
       in
@@ -87,7 +85,8 @@ let rec generate_stmt ~ctx ~builder ast =
         let (term, builder) = generate_stmt ~ctx ~builder e in
         B.build_assign builder recv term;
 
-        match Rir.Term.BB.get_terminator_opt bb_else with
+        let bb = B.get_current_bb builder in
+        match Rir.Term.BB.get_terminator_opt bb with
         | Some _ -> ()
         | _ -> Rir.Builder.build_jump builder bb_end
       in
@@ -141,8 +140,7 @@ let generate_toplevel ~ctx ~builder ast =
       let f = Rir.Func.create ~ty ~extern_name:None in
       let builder = Rir.Builder.with_current_func builder f in
 
-      let bb = Rir.Term.BB.create_entry () in
-      Rir.Func.insert_bb f bb;
+      let bb = Rir.Func.get_entry_bb f in
       let builder = Rir.Builder.with_current_bb builder bb in
 
       let (term, builder) = generate_stmt ~ctx ~builder body in

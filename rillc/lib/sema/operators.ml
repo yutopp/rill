@@ -56,6 +56,7 @@ let preset : t =
     let t = AssocTable.create () in
     AssocTable.set t "*" Assoc.{ precedence = 110; assoc = Left };
     AssocTable.set t "+" Assoc.{ precedence = 100; assoc = Left };
+    AssocTable.set t "-" Assoc.{ precedence = 100; assoc = Left };
     AssocTable.set t "==" Assoc.{ precedence = 40; assoc = Left };
     AssocTable.set t "=" Assoc.{ precedence = 10; assoc = Right };
     t

@@ -52,6 +52,11 @@ let find_builtin builtin_name =
         let a = args.(0) in
         let b = args.(1) in
         L.build_add a b "" builder
+  | "%op_bin_sub" ->
+      fun args builder ->
+        let a = args.(0) in
+        let b = args.(1) in
+        L.build_sub a b "" builder
   | "%op_bin_mul" ->
       fun args builder ->
         let a = args.(0) in

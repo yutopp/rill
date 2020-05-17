@@ -9,16 +9,7 @@
 open! Base
 module Diagnostics = Common.Diagnostics
 module IntMap = Map.M (Int)
-
-module Counter = struct
-  type t = { c : int ref }
-
-  let create () = { c = ref 0 }
-
-  let count c = !(c.c)
-
-  let incr c = Int.incr c.c
-end
+module Counter = Common.Counter
 
 type t = {
   fresh_id : Counter.t;
@@ -32,10 +23,7 @@ let create () : t =
   { fresh_id = Counter.create (); ty_subst; ki_subst }
 
 (* has side effects *)
-let fresh_var subst : Type.var_t =
-  let v = Counter.count subst.fresh_id in
-  let () = Counter.incr subst.fresh_id in
-  v
+let fresh_var subst : Type.var_t = Counter.fresh subst.fresh_id
 
 (* has side effects *)
 let fresh_ty ~span subst : Type.t =
@@ -44,7 +32,6 @@ let fresh_ty ~span subst : Type.t =
 
 let rec subst_type (subst : t) ty : Type.t =
   let { ty_subst; ki_subst; _ } = subst in
-
   match ty with
   | Type.{ ty = Var uni_id; span } -> (
       match Map.find ty_subst uni_id with
