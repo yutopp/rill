@@ -293,8 +293,8 @@ and analyze_call ~ctx ~env ~span recv args =
     let args_ty = List.map t_args ~f:(fun arg -> arg.TAst.ty) in
     Typing.Type.{ ty = Func (args_ty, ret_ty); span }
   in
-  [%Loga.debug "Func receiver ty = %s" (Typing.Type.to_string recv_ty)];
-  [%Loga.debug "Func evaled ty = %s" (Typing.Type.to_string fn_ty)];
+  [%loga.debug "Func receiver ty = %s" (Typing.Type.to_string recv_ty)];
+  [%loga.debug "Func evaled ty = %s" (Typing.Type.to_string fn_ty)];
 
   let%bind subst = Typer.unify ~span ctx.subst recv_ty fn_ty in
   ctx.subst <- subst;

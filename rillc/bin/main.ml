@@ -24,5 +24,5 @@ end
 [@@warning "-44"]
 
 let () =
-  Loga.Logger.set_formatter Loga.default_logger Format.err_formatter;
+  Loga.Logger.set_formatter Loga.logger Format.err_formatter;
   Flags.entry ()

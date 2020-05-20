@@ -21,7 +21,7 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
   match (s_lhs_ty, s_rhs_ty) with
   (* *)
   | Typing.Type.({ ty = Var a; _ }, { ty = Var b; _ }) when a <> b ->
-      [%Loga.debug "Unify var(%d) = var(%d)" a b];
+      [%loga.debug "Unify var(%d) = var(%d)" a b];
 
       let ty_subst = Map.add_exn ty_subst ~key:a ~data:s_rhs_ty in
       Ok Typing.Subst.{ subst with ty_subst; ki_subst }
@@ -29,7 +29,7 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
   | Typing.Type.
       ({ ty = Func (a_params, a_ret); _ }, { ty = Func (b_params, b_ret); _ })
     ->
-      [%Loga.debug "Unify func() = func()"];
+      [%loga.debug "Unify func() = func()"];
 
       let subst_ret =
         match (List.length a_params, List.length b_params) with
@@ -39,7 +39,7 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
               match (a_params, b_params) with
               | ([], []) -> return subst
               | (a_param :: a_params', b_param :: b_params') ->
-                  [%Loga.debug
+                  [%loga.debug
                     "param(%d) ty(%s) = ty(%s)" index
                       (Typing.Type.to_string a_param)
                       (Typing.Type.to_string b_param)];
@@ -65,7 +65,7 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
             let%bind subst = unity_args subst a_params b_params 0 in
             (* unify ret *)
             let%bind subst =
-              [%Loga.debug
+              [%loga.debug
                 "ret ty(%s) = ty(%s)"
                   (Typing.Type.to_string a_ret)
                   (Typing.Type.to_string b_ret)];
@@ -94,7 +94,7 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
   (* *)
   | Typing.Type.({ ty = Var v; _ }, ty') | Typing.Type.(ty', { ty = Var v; _ })
     ->
-      [%Loga.debug "Unify var(%d) = ty(%s)" v (Typing.Type.to_string ty')];
+      [%loga.debug "Unify var(%d) = ty(%s)" v (Typing.Type.to_string ty')];
 
       let ty_subst = Map.add_exn ty_subst ~key:v ~data:ty' in
       Ok Typing.Subst.{ subst with ty_subst }
@@ -104,7 +104,7 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
       Ok subst
   (* *)
   | (lhs, rhs) ->
-      [%Loga.debug
+      [%loga.debug
         "Cannot unify ty(%s) = ty(%s)"
           (Typing.Type.to_string lhs)
           (Typing.Type.to_string rhs)];

@@ -174,7 +174,7 @@ let construct_term ~ctx ~env ~ll_holder ll_f ll_builder term : Env.var_t =
       value
   (* *)
   | Rir.Term.{ kind = LVal id; ty; _ } ->
-      [%Loga.debug "LVal (%s)" id];
+      [%loga.debug "LVal (%s)" id];
       let value = Env.get_local_var env id in
       value
   (* *)
@@ -194,7 +194,7 @@ let construct_term ~ctx ~env ~ll_holder ll_f ll_builder term : Env.var_t =
       value
 
 let construct_inst ~ctx ~env ll_f ll_builder inst : Env.t =
-  [%Loga.debug "Inst -> %s" (Rir.Term.show_inst_t inst)];
+  [%loga.debug "Inst -> %s" (Rir.Term.show_inst_t inst)];
   match inst with
   (* *)
   | Rir.Term.Let (placeholder, term, alloc) ->
@@ -236,7 +236,7 @@ let construct_inst ~ctx ~env ll_f ll_builder inst : Env.t =
   | Rir.Term.TerminatorPoint _ -> (* Ignore *) env
 
 let construct_terminator ~ctx ~env ll_f ll_builder termi =
-  [%Loga.debug "Termi -> %s" (Rir.Term.show_terminator_t termi)];
+  [%loga.debug "Termi -> %s" (Rir.Term.show_terminator_t termi)];
   match termi with
   (* *)
   | Rir.Term.Cond (cond, t, e) ->
@@ -294,7 +294,7 @@ let construct_func ~ctx ~env ll_mod ll_f (name, func) =
   List.fold_left bbs ~init:env ~f:(fun env bb ->
       let name = bb.Rir.Term.BB.name in
 
-      [%Loga.debug "BB -> %s" name];
+      [%loga.debug "BB -> %s" name];
       let ll_bb = Env.get_bb env name in
       let ll_builder = L.builder_at_end ctx.ll_ctx ll_bb in
       construct_bb ~ctx ~env ll_f ll_builder bb)

@@ -15,9 +15,11 @@ depends: [
   "stdio" {>= "v0.13.0"}
   "menhir" {>= "20181113"}
   "stdint" {>= "0.6.0"}
-  "loga" {>= "0.0.4"}
+  "loga" {>= "0.0.5"}
   "ppx_deriving_yojson" {>= "3.5.0"}
-  "llvm" {>= "10.0.0"}
+  "ppx_sexp_conv" {>= "v0.13.0"}
+  "ppx_let" {>= "v0.13.0"}
+  "llvm" {>= "10.0.0-rillc"}
 ]
 build: [
   ["dune" "subst"] {pinned}

@@ -113,7 +113,7 @@ and reorder ~ops nodes =
     | x :: xs ->
         let p_in = AssocTable.preority_in ops.bin_op x in
         let p_st = AssocTable.preority_st ops.bin_op stack_top in
-        (*[%Loga.debug "%s(%d) > %s(%d)" (sss x) p_in (sss stack_top) p_st];*)
+        (*[%loga.debug "%s(%d) > %s(%d)" (sss x) p_in (sss stack_top) p_st];*)
         if p_in > p_st then (* *)
           f xs (x :: stack) output
         else (* *)
