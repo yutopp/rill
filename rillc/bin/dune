@@ -1,7 +1,6 @@
 (executables
  (names main)
  (libraries cmdliner rillc rillc.syntax rillc.common base stdio sexplib)
- (link_flags :standard -cclib -static)
  (preprocess
   (pps ppx_let)))
 
