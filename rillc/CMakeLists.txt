@@ -22,9 +22,16 @@ add_custom_command(OUTPUT ${RILLC_BIN_PATH}
     "Building rillc"
   )
 
+install(PROGRAMS ${RILLC_BIN_PATH}
+  TYPE
+    BIN
+  RENAME
+    rillc
+  )
+
 ## ext_dirs
 set(EXT_DIRS_PATH ${CMAKE_CURRENT_SOURCE_DIR}/_ext_dirs)
-add_custom_target(ext_dirs ALL
+add_custom_target(ext_dirs
   DEPENDS
     ${EXT_DIRS_PATH}
 )
@@ -41,7 +48,7 @@ set(LLVM_PKG llvm.10.0.0)
 
 ## llvm_src
 set(EXT_LLVM_PATH ${EXT_DIRS_PATH}/${LLVM_PKG})
-add_custom_target(llvm_src ALL
+add_custom_target(llvm_src
   DEPENDS
     ${EXT_LLVM_PATH}
   )
@@ -58,7 +65,7 @@ add_custom_command(OUTPUT ${EXT_LLVM_PATH}
 
 ## llvm-patched
 set(LLVM_PATCH_DIR ${CMAKE_CURRENT_SOURCE_DIR}/patches/${LLVM_PKG})
-add_custom_target(llvm-patched ALL
+add_custom_target(llvm-patched
   WORKING_DIRECTORY
     ${EXT_LLVM_PATH}
   COMMAND
