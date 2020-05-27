@@ -32,9 +32,23 @@ top_levels:
 top_level:
     top_level_statement { $1 }
 
-top_level_statement:
-    function_def_statement { $1 }
-  | extern_decl_statement SEMICOLON { $1 }
+let top_level_statement :=
+    s=import_statement; { s }
+  | s=function_def_statement; { s }
+  | s=extern_decl_statement; SEMICOLON; { s }
+
+let import_statement :=
+    KEYWORD_IMPORT; t=import_tree_root; SEMICOLON;
+    {
+      let (pkg, mods) = t in
+      make (Ast.Import { pkg; mods }) ~l:$loc
+    }
+
+let import_tree_root :=
+    pkg=single_id; mods=import_tree_leaf*; { (pkg, mods) }
+
+let import_tree_leaf :=
+    COLONCOLON; id=single_id; { id }
 
 function_def_statement:
     KEYWORD_DEF

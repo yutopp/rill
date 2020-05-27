@@ -22,31 +22,36 @@ module IAst = struct
   and kind_t = Module of t list | Func [@@deriving sexp_of]
 end
 
-type ctx_t = { ds : Diagnostics.t; mutable subst : Typing.Subst.t }
+type ctx_t = {
+  parent : Env.t option;
+  ds : Diagnostics.t;
+  mutable subst : Typing.Subst.t;
+}
 
-let context ~ds ~subst = { ds; subst }
+let context ~ds ~subst = { parent = None; ds; subst }
 
 let rec declare_toplevels ~ctx ast : (IAst.t, Diagnostics.Elem.t) Result.t =
   let open Result.Let_syntax in
   match ast with
   (* *)
-  | TopAst.{ kind = Module nodes; span; env } ->
-      let%bind nodes_rev =
-        List.fold_result nodes ~init:[] ~f:(fun mapped node ->
-            match declare_toplevels ~ctx node with
-            | Ok node' -> Ok (node' :: mapped)
+  | TopAst.{ kind = Module { nodes; env }; span } ->
+      let%bind (ctx', nodes_rev) =
+        List.fold_result nodes ~init:(ctx, []) ~f:(fun (ctx, mapped) node ->
+            let ctx' = { ctx with parent = Some env } in
+            match declare_toplevels ~ctx:ctx' node with
+            | Ok node' -> Ok (ctx', node' :: mapped)
             | Error d ->
                 Diagnostics.append ctx.ds d;
                 (* skip inserting *)
-                Ok mapped)
+                Ok (ctx, mapped))
       in
+      ctx.subst <- ctx'.subst;
       Ok IAst.{ kind = Module (List.rev nodes_rev); env; span }
   (* *)
-  | TopAst.{ kind = Decl body; span; env }
-  | TopAst.{ kind = Def body; span; env } ->
-      declare ~ctx ~env body
+  | TopAst.{ kind = WithEnv { node; env }; span } -> with_env ~ctx ~env node
+  | TopAst.{ kind = PassThrough { node }; span } -> pass_through ~ctx node
 
-and declare ~ctx ~env ast : (IAst.t, Diagnostics.Elem.t) Result.t =
+and with_env ~ctx ~env ast : (IAst.t, Diagnostics.Elem.t) Result.t =
   let open Result.Let_syntax in
   match ast with
   (* *)
@@ -78,7 +83,20 @@ and declare ~ctx ~env ast : (IAst.t, Diagnostics.Elem.t) Result.t =
   | Ast.{ span; _ } ->
       let e =
         new Common.Reasons.internal_error
-          ~message:"Not supported decl node (phase1_1)"
+          ~message:"Not supported decl node (phase1_1, with_env)"
+      in
+      let elm = Diagnostics.Elem.error ~span e in
+      Error elm
+
+and pass_through ~ctx ast =
+  match ast with
+  (* *)
+  | Ast.{ kind = Import { pkg; mods }; span } -> failwith "import"
+  (* *)
+  | Ast.{ span; _ } ->
+      let e =
+        new Common.Reasons.internal_error
+          ~message:"Not supported decl node (phase1_1, pass_through)"
       in
       let elm = Diagnostics.Elem.error ~span e in
       Error elm

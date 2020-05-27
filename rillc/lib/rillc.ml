@@ -16,12 +16,7 @@ module Sema = Sema
 module Rir = Rir
 module Compiler = Compiler
 module Workspace = Common.Workspace
-
-type t = unit
-
-let create_context () : t = ()
-
-let create_workspace () : t = ()
+module Package = Common.Package
 
 (*
 module Module = struct

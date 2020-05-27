@@ -157,6 +157,7 @@ rule token = parse
 
   | ','                 { COMMA }
   | '.'                 { DOT }
+  | "::"                { COLONCOLON }
   | ':'                 { COLON }
   | ';'                 { SEMICOLON }
   (*| '`'                 { BACKQUOTE }*)

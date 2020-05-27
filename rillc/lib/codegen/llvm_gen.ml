@@ -42,7 +42,10 @@ let rec to_llty ~ctx ty : L.lltype =
       let params_tys = List.map ~f:(to_llty ~ctx) params in
       let ret_ty = to_llty ~ctx ret in
       L.function_type ret_ty (Array.of_list params_tys)
-  | _ -> failwith "[ICE] not supported type"
+  | _ ->
+      failwith
+        (Printf.sprintf "[ICE] not supported type: %s"
+           (Typing.Type.to_string ty))
 
 let find_builtin builtin_name =
   match builtin_name with

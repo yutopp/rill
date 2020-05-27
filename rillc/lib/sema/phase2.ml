@@ -49,7 +49,7 @@ let rec into_typed_tree ~ctx ast : (TAst.t, Diagnostics.Elem.t) Result.t =
   let open Result.Let_syntax in
   match ast with
   (* *)
-  | TopAst.{ kind = Module nodes; span; env } ->
+  | TopAst.{ kind = Module { nodes; env }; span } ->
       let%bind nodes_rev =
         List.fold_result nodes ~init:[] ~f:(fun mapped node ->
             match into_typed_tree ~ctx node with
@@ -63,11 +63,11 @@ let rec into_typed_tree ~ctx ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       let ty = Typing.Type.{ ty = Unit; span } in
       Ok TAst.{ kind = Module (List.rev nodes_rev); ty; span }
   (* *)
-  | TopAst.{ kind = Decl decl; span; env } -> declare ~ctx ~env decl
+  | TopAst.{ kind = WithEnv { node; env }; span } -> with_env ~ctx ~env node
   (* *)
-  | TopAst.{ kind = Def def; span; env } -> define ~ctx ~env def
+  | TopAst.{ kind = PassThrough { node }; span } -> pass_through ~ctx node
 
-and declare ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
+and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
   let open Result.Let_syntax in
   match ast with
   (* *)
@@ -88,18 +88,6 @@ and declare ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       in
 
       Ok TAst.{ kind = DeclExternFunc { name; extern_name }; ty = f_ty; span }
-  (* *)
-  | Ast.{ span; _ } ->
-      let e =
-        new Common.Reasons.internal_error
-          ~message:"Not supported decl node (phase2)"
-      in
-      let elm = Diagnostics.Elem.error ~span e in
-      Error elm
-
-and define ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
-  let open Result.Let_syntax in
-  match ast with
   (* *)
   | Ast.{ kind = DefFunc { name; params; ret_ty; body }; span } ->
       (* TODO: check that there are no holes *)
@@ -144,7 +132,18 @@ and define ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
   | Ast.{ span; _ } ->
       let e =
         new Common.Reasons.internal_error
-          ~message:"Not supported def node (phase2)"
+          ~message:"Not supported def node (phase2, with_env)"
+      in
+      let elm = Diagnostics.Elem.error ~span e in
+      Error elm
+
+and pass_through ~ctx ast =
+  match ast with
+  (* *)
+  | Ast.{ span; _ } ->
+      let e =
+        new Common.Reasons.internal_error
+          ~message:"Not supported def node (phase2, pass_through)"
       in
       let elm = Diagnostics.Elem.error ~span e in
       Error elm

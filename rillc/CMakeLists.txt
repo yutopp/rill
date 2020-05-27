@@ -5,22 +5,13 @@ project(rillc)
 ## rillc
 set(RILLC_BIN_PATH ${CMAKE_CURRENT_SOURCE_DIR}/_build/default/bin/main.exe)
 add_custom_target(rillc ALL
-  DEPENDS
-    ${RILLC_BIN_PATH}
-)
-
-add_custom_command(OUTPUT ${RILLC_BIN_PATH}
   WORKING_DIRECTORY
     ${CMAKE_CURRENT_SOURCE_DIR}
   COMMAND
-    opam install . --deps-only --yes
-  COMMAND
     dune build
-  DEPENDS
-    llvm-patched
   COMMENT
     "Building rillc"
-  )
+)
 
 install(PROGRAMS ${RILLC_BIN_PATH}
   TYPE
@@ -28,6 +19,18 @@ install(PROGRAMS ${RILLC_BIN_PATH}
   RENAME
     rillc
   )
+
+## rillc-init
+add_custom_target(rillc-init
+  WORKING_DIRECTORY
+    ${CMAKE_CURRENT_SOURCE_DIR}
+  COMMAND
+    opam install . --deps-only --yes
+  DEPENDS
+    llvm-patched
+  COMMENT
+    "Initializing dependencies of rillc"
+)
 
 ## ext_dirs
 set(EXT_DIRS_PATH ${CMAKE_CURRENT_SOURCE_DIR}/_ext_dirs)

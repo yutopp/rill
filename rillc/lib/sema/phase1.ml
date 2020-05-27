@@ -12,14 +12,13 @@ module Diagnostics = Common.Diagnostics
 module Ast = Syntax.Ast
 
 module TopAst = struct
-  type t = {
-    kind : kind_t;
-    env : Env.t; [@sexp.opaque]
-    span : Span.t; [@sexp.opaque]
-  }
-  [@@deriving sexp_of]
+  type t = { kind : kind_t; span : Span.t [@sexp.opaque] }
 
-  and kind_t = Module of t list | Decl of Ast.t | Def of Ast.t
+  and kind_t =
+    | Module of { nodes : t list; env : Env.t [@sexp.opaque] }
+    | WithEnv of { node : Ast.t; env : Env.t [@sexp.opaque] }
+    | PassThrough of { node : Ast.t }
+  [@@deriving sexp_of]
 end
 
 type ctx_t = {
@@ -55,7 +54,8 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
         Env.create "" ~parent:ctx.parent ~ty_w:(Env.T ctx.builtin.Builtin.unit_)
       in
       introduce_prelude menv ctx.builtin;
-      let%bind nodes_rev =
+
+      let%bind nodes =
         List.fold_result nodes ~init:[] ~f:(fun mapped node ->
             let ctx' = { ctx with parent = Some menv } in
             match collect_toplevels ~ctx:ctx' node with
@@ -63,8 +63,12 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
             | Error d ->
                 Diagnostics.append ctx.ds d;
                 Ok mapped)
+        |> Result.map ~f:List.rev
       in
-      Ok TopAst.{ kind = Module (List.rev nodes_rev); env = menv; span }
+      Ok TopAst.{ kind = Module { nodes; env = menv }; span }
+  (* *)
+  | Ast.{ kind = Import _; span } as i ->
+      Ok TopAst.{ kind = PassThrough { node = i }; span }
   (* *)
   | ( Ast.{ kind = DeclFunc { name; params; ret_ty; _ }; span }
     | Ast.{ kind = DeclExternFunc { name; params; ret_ty; _ }; span } ) as decl
@@ -74,7 +78,7 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
       let ty = preconstruct_func_ty ~ctx ~span params ret_ty in
       let fenv = Env.create name ~parent:ctx.parent ~ty_w:(Env.T ty) in
       Option.iter ctx.parent ~f:(fun penv -> Env.insert_value penv fenv);
-      Ok TopAst.{ kind = Decl decl; env = fenv; span }
+      Ok TopAst.{ kind = WithEnv { node = decl; env = fenv }; span }
   (* *)
   | Ast.{ kind = DefFunc { name; params; ret_ty; _ }; span } as decl ->
       let%bind () = Guards.guard_dup_value ~span ctx.parent name in
@@ -82,7 +86,7 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
       let ty = preconstruct_func_ty ~ctx ~span params ret_ty in
       let fenv = Env.create name ~parent:ctx.parent ~ty_w:(Env.T ty) in
       Option.iter ctx.parent ~f:(fun penv -> Env.insert_value penv fenv);
-      Ok TopAst.{ kind = Def decl; env = fenv; span }
+      Ok TopAst.{ kind = WithEnv { node = decl; env = fenv }; span }
   (* *)
   | Ast.{ span; _ } ->
       let e =

@@ -6,6 +6,14 @@
  * http://www.boost.org/LICENSE_1_0.txt)
  *)
 
-type t = unit
+open! Base
 
-let create () : t = ()
+type t = { pkgs : (Package.id_t, Package.t) Hashtbl.t; counter : Counter.t }
+
+let create () : t =
+  { pkgs = Hashtbl.create (module Int); counter = Counter.create () }
+
+let issue_pkg_id ~workspace : Package.id_t = Counter.fresh workspace.counter
+
+let register_pkg ~workspace pkg : unit =
+  Hashtbl.add_exn workspace.pkgs ~key:pkg.Package.id ~data:pkg

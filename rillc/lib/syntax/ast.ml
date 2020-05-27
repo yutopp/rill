@@ -18,6 +18,8 @@ and kind_t =
   | Module of t list
   | ParamDecl of { name : string; ty_spec : t }
   | VarDecl of { attr : t; name : string; ty_spec : t option; expr : t }
+  (* *)
+  | Import of { pkg : t; mods : t list }
   (* top declarations *)
   | DeclExternFunc of {
       name : string;
