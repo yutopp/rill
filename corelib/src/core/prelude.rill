@@ -1,3 +1,11 @@
 extern def println(s: string): unit = "c_println";
 
 extern def print_int_ln(i: i32): unit = "c_print_int_ln";
+
+// TODO: Assign, Eq, Add, Sub, Mul traits
+// TODO: Support mut ref
+extern def '='(a: i32, b: i32): unit = "%op_bin_assign";
+extern def '=='(a: i32, b: i32): bool = "%op_bin_equals";
+extern def '+'(a: i32, b: i32): i32 = "%op_bin_add";
+extern def '-'(a: i32, b: i32): i32 = "%op_bin_sub";
+extern def '*'(a: i32, b: i32): i32 = "%op_bin_mul";

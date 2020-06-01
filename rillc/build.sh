@@ -1,5 +1,6 @@
 #!/bin/bash
 
+set -eux -o pipefail
 # Helper script to build rill programs
 
 RILLC_BIN="$1"
@@ -13,8 +14,7 @@ corelib=../corelib/src/core
 
 $RILLC_BIN compile -I "$corelib" \
            -d /tmp \
-           ../rillc/test/simple.rill \
-    && llvm-as main.ll \
-    && llc --relocation-model=pic main.bc \
-    && musl-gcc -fPIE main.s runtime.c \
-    && ./a.out
+           ../rillc/test/simple.rill 1> main.ll
+llvm-as main.ll
+llc --relocation-model=pic main.bc
+gcc -v -fPIE -L$(pwd)/corelib -static -lcore-c main.s

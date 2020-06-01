@@ -18,11 +18,3 @@ def test(): unit {
 def fib(i: i32): i32 {
     if i == 0 { 0 } else if i == 1 { 1 } else { fib(i-1) + fib(i-2) }
 }
-
-// TODO: Assign, Eq, Add, Sub, Mul traits
-// TODO: Support mut ref
-extern def '='(a: i32, b: i32): unit = "%op_bin_assign";
-extern def '=='(a: i32, b: i32): bool = "%op_bin_equals";
-extern def '+'(a: i32, b: i32): i32 = "%op_bin_add";
-extern def '-'(a: i32, b: i32): i32 = "%op_bin_sub";
-extern def '*'(a: i32, b: i32): i32 = "%op_bin_mul";
