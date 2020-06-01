@@ -11,15 +11,18 @@ module Span = Common.Span
 module Diagnostics = Common.Diagnostics
 module IntMap = Map.M (Int)
 
-type t = {
-  lhs : Typing.Type.t;
-  rhs : Typing.Type.t;
-  kind : kind_t;
-  nest : t option;
-}
+type t = { diff : diff_t; kind : kind_t; nest : t option }
+
+and diff_t =
+  | Type of { lhs : Typing.Type.t; rhs : Typing.Type.t }
+  | Linkage of {
+      lhs : Typing.Type.func_linkage_t;
+      rhs : Typing.Type.func_linkage_t;
+    }
 
 and kind_t =
   | ErrFuncArgLength of { r : int; l : int }
   | ErrFuncArgs of int
   | ErrFuncArgRet
+  | ErrFuncLinkage
   | ErrUnify

@@ -14,7 +14,7 @@ type t = {
   mutable src_paths_rev : string list;
 }
 
-and id_t = int
+and id_t = int [@@deriving show]
 
 let create ~name ~dir ~id : t =
   { name; dir; id; deps_rev = []; src_paths_rev = [] }

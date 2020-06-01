@@ -20,15 +20,22 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
   let s_rhs_ty = Typing.Subst.subst_type subst rhs_ty in
   match (s_lhs_ty, s_rhs_ty) with
   (* *)
-  | Typing.Type.({ ty = Var a; _ }, { ty = Var b; _ }) when a <> b ->
+  | Typing.Type.({ ty = Var { var = a; _ }; _ }, { ty = Var { var = b; _ }; _ })
+    when a <> b ->
       [%loga.debug "Unify var(%d) = var(%d)" a b];
 
       let ty_subst = Map.add_exn ty_subst ~key:a ~data:s_rhs_ty in
       Ok Typing.Subst.{ subst with ty_subst; ki_subst }
   (* *)
   | Typing.Type.
-      ({ ty = Func (a_params, a_ret); _ }, { ty = Func (b_params, b_ret); _ })
-    ->
+      ( ( {
+            ty = Func { params = a_params; ret = a_ret; linkage = a_linkage };
+            _;
+          } as a ),
+        ( {
+            ty = Func { params = b_params; ret = b_ret; linkage = b_linkage };
+            _;
+          } as b ) ) ->
       [%loga.debug "Unify func() = func()"];
 
       let subst_ret =
@@ -48,13 +55,10 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
                     unify_elem ~span subst a_param b_param
                     |> Result.map_error ~f:(fun d ->
                            let kind = Typer_err.ErrFuncArgs index in
-                           Typer_err.
-                             {
-                               lhs = a_param;
-                               rhs = b_param;
-                               kind;
-                               nest = Some d;
-                             })
+                           let diff =
+                             Typer_err.Type { lhs = a_param; rhs = b_param }
+                           in
+                           Typer_err.{ diff; kind; nest = Some d })
                   in
                   unity_args subst a_params' b_params' (index + 1)
               | _ ->
@@ -64,36 +68,46 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
             in
             let%bind subst = unity_args subst a_params b_params 0 in
             (* unify ret *)
+            [%loga.debug
+              "ret ty(%s) = ty(%s)"
+                (Typing.Type.to_string a_ret)
+                (Typing.Type.to_string b_ret)];
             let%bind subst =
-              [%loga.debug
-                "ret ty(%s) = ty(%s)"
-                  (Typing.Type.to_string a_ret)
-                  (Typing.Type.to_string b_ret)];
-
               unify_elem ~span subst a_ret b_ret
               |> Result.map_error ~f:(fun d ->
                      let kind = Typer_err.ErrUnify in
-                     Typer_err.{ lhs = a_ret; rhs = b_ret; kind; nest = Some d })
+                     let diff = Typer_err.Type { lhs = a_ret; rhs = b_ret } in
+                     Typer_err.{ diff; kind; nest = Some d })
+            in
+            (* unify linkage *)
+            let%bind subst =
+              unify_lifetime ~span subst a_linkage b_linkage
+              |> Result.map_error ~f:(fun d ->
+                     let kind = Typer_err.ErrFuncLinkage in
+                     let diff =
+                       Typer_err.Linkage { lhs = a_linkage; rhs = b_linkage }
+                     in
+                     Typer_err.{ diff; kind; nest = Some d })
             in
             return subst
         (* *)
         | (an, bn) ->
             let kind = Typer_err.ErrFuncArgLength { r = an; l = bn } in
-            let e =
-              Typer_err.{ lhs = s_lhs_ty; rhs = s_rhs_ty; kind; nest = None }
-            in
+            let diff = Typer_err.Type { lhs = s_lhs_ty; rhs = s_rhs_ty } in
+            let e = Typer_err.{ diff; kind; nest = None } in
             Error e
       in
       let%bind subst =
         subst_ret
         |> Result.map_error ~f:(fun d ->
                let kind = Typer_err.ErrFuncArgRet in
-               Typer_err.{ lhs = s_lhs_ty; rhs = s_rhs_ty; kind; nest = Some d })
+               let diff = Typer_err.Type { lhs = s_lhs_ty; rhs = s_rhs_ty } in
+               Typer_err.{ diff; kind; nest = Some d })
       in
       Ok subst
   (* *)
-  | Typing.Type.({ ty = Var v; _ }, ty') | Typing.Type.(ty', { ty = Var v; _ })
-    ->
+  | Typing.Type.({ ty = Var { var = v; _ }; _ }, ty')
+  | Typing.Type.(ty', { ty = Var { var = v; _ }; _ }) ->
       [%loga.debug "Unify var(%d) = ty(%s)" v (Typing.Type.to_string ty')];
 
       let ty_subst = Map.add_exn ty_subst ~key:v ~data:ty' in
@@ -109,7 +123,34 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
           (Typing.Type.to_string lhs)
           (Typing.Type.to_string rhs)];
 
-      let e = Typer_err.{ lhs; rhs; kind = ErrUnify; nest = None } in
+      let kind = Typer_err.ErrUnify in
+      let diff = Typer_err.Type { lhs; rhs } in
+      let e = Typer_err.{ diff; kind; nest = None } in
+      Error e
+
+and unify_lifetime ~span subst lhs_linkage rhs_linkage =
+  let Typing.Subst.{ ln_subst; _ } = subst in
+
+  let s_lhs_linkage = Typing.Subst.subst_linkage subst lhs_linkage in
+  let s_rhs_linkage = Typing.Subst.subst_linkage subst rhs_linkage in
+  match (s_lhs_linkage, s_rhs_linkage) with
+  (* *)
+  | Typing.Type.(LinkageVar a, LinkageVar b) when a <> b ->
+      let ln_subst = Map.add_exn ln_subst ~key:a ~data:s_rhs_linkage in
+      Ok Typing.Subst.{ subst with ln_subst }
+  (* *)
+  | Typing.Type.(LinkageVar v, linkage') | Typing.Type.(linkage', LinkageVar v)
+    ->
+      let ty_subst = Map.add_exn ln_subst ~key:v ~data:linkage' in
+      Ok Typing.Subst.{ subst with ln_subst }
+  (* *)
+  | (lhs_linkage, rhs_linkage) when Poly.equal lhs_linkage rhs_linkage ->
+      Ok subst
+  (* *)
+  | (lhs_linkage, rhs_linkage) ->
+      let kind = Typer_err.ErrUnify in
+      let diff = Typer_err.Linkage { lhs = lhs_linkage; rhs = rhs_linkage } in
+      let e = Typer_err.{ diff; kind; nest = None } in
       Error e
 
 let unify ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :

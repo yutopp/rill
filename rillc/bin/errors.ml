@@ -10,8 +10,6 @@ open! Base
 
 exception Invalid_argument of string
 
-exception Failed_to_continue_compiling of Rillc.Compiler.error_t
-
 exception There_are_warnings_or_errors
 
 module Flags = struct

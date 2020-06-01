@@ -12,25 +12,16 @@ module Diagnostics = Common.Diagnostics
 module Ast = Syntax.Ast
 module TopAst = Phase1.TopAst
 
-module IAst = struct
-  type t = {
-    kind : kind_t;
-    env : Env.t; [@sexp.opaque]
-    span : Span.t; [@sexp.opaque]
-  }
-
-  and kind_t = Module of t list | Func [@@deriving sexp_of]
-end
-
 type ctx_t = {
   parent : Env.t option;
   ds : Diagnostics.t;
   mutable subst : Typing.Subst.t;
+  pkg_env : Env.t;
 }
 
-let context ~ds ~subst = { parent = None; ds; subst }
+let context ~ds ~subst ~pkg_env = { parent = None; ds; subst; pkg_env }
 
-let rec declare_toplevels ~ctx ast : (IAst.t, Diagnostics.Elem.t) Result.t =
+let rec declare_toplevels ~ctx ast : (unit, Diagnostics.Elem.t) Result.t =
   let open Result.Let_syntax in
   match ast with
   (* *)
@@ -46,12 +37,12 @@ let rec declare_toplevels ~ctx ast : (IAst.t, Diagnostics.Elem.t) Result.t =
                 Ok (ctx, mapped))
       in
       ctx.subst <- ctx'.subst;
-      Ok IAst.{ kind = Module (List.rev nodes_rev); env; span }
+      Ok ()
   (* *)
   | TopAst.{ kind = WithEnv { node; env }; span } -> with_env ~ctx ~env node
   | TopAst.{ kind = PassThrough { node }; span } -> pass_through ~ctx node
 
-and with_env ~ctx ~env ast : (IAst.t, Diagnostics.Elem.t) Result.t =
+and with_env ~ctx ~env ast : (unit, Diagnostics.Elem.t) Result.t =
   let open Result.Let_syntax in
   match ast with
   (* *)
@@ -62,23 +53,29 @@ and with_env ~ctx ~env ast : (IAst.t, Diagnostics.Elem.t) Result.t =
         List.fold_result params ~init:[] ~f:(fun ps param ->
             match param with
             | Ast.{ kind = ParamDecl { name; ty_spec }; span } ->
-                let%bind () = Guards.guard_dup_value ~span (Some env) name in
+                let%bind () = Guards.guard_dup_value ~span env name in
                 let%bind spec_ty = lookup_type ~ctx ~env ty_spec in
+                let visibility = Env.Public in
                 let venv =
-                  Env.create name ~parent:(Some env) ~ty_w:(Env.T spec_ty)
+                  Env.create name ~parent:(Some env) ~visibility ~ty:spec_ty
+                    ~ty_w:(Env.Val spec_ty)
                 in
-                Env.insert_value env venv;
+                Env.insert env venv;
                 Ok (spec_ty :: ps)
             | _ -> failwith "[ICE]")
         |> Result.map ~f:List.rev
       in
       let%bind ret_ty = lookup_type ~ctx ~env ret_ty in
-      let func_ty = Typing.Type.{ ty = Func (params_tys, ret_ty); span } in
+      let linkage = Functions.linkage_of ast in
+      let func_ty =
+        Typing.Type.
+          { ty = Func { params = params_tys; ret = ret_ty; linkage }; span }
+      in
 
       let%bind subst = Typer.unify ~span ctx.subst func_ty (Env.type_of env) in
       ctx.subst <- subst;
 
-      Ok IAst.{ kind = Func; env; span }
+      Ok ()
   (* *)
   | Ast.{ span; _ } ->
       let e =
@@ -89,9 +86,46 @@ and with_env ~ctx ~env ast : (IAst.t, Diagnostics.Elem.t) Result.t =
       Error elm
 
 and pass_through ~ctx ast =
+  let open Result.Let_syntax in
   match ast with
   (* *)
-  | Ast.{ kind = Import { pkg; mods }; span } -> failwith "import"
+  | Ast.{ kind = Import { pkg; mods }; span } ->
+      let%bind mod_env = find_mod ~pkg_env:ctx.pkg_env pkg in
+      let rec f mods env loadable_envs =
+        match mods with
+        | [] -> Ok [ env ]
+        | [ last_id ] ->
+            [%loga.debug "leaf: %s" (Ast.show last_id)];
+            let%bind envs = find_mods_with_wildcard ~pkg_env:env last_id in
+            Ok (List.join [ envs; loadable_envs ])
+        | cont :: rest ->
+            [%loga.debug "node: %s" (Ast.show cont)];
+            let%bind env = find_mod ~pkg_env:env cont in
+            f rest env loadable_envs
+      in
+      let%bind envs = f mods mod_env [] in
+      let pub_envs =
+        List.filter envs ~f:(fun env ->
+            Poly.equal env.Env.visibility Env.Public)
+      in
+
+      Option.iter ctx.parent ~f:(fun penv ->
+          List.iter pub_envs ~f:(fun env ->
+              let name = env.Env.name in
+              let visibility = Env.Private (* TODO: fix *) in
+              (* A type of the imported term must be decided until this time *)
+              let src_root_mod = Env.root_mod_of ~scoped:true env in
+              let subst = Mod.subst_of src_root_mod in
+              let ty = Typing.Subst.subst_type subst (Env.type_of env) in
+              (* TODO: assert *)
+              let aenv =
+                Env.create name ~parent:(Some penv) ~visibility ~ty
+                  ~ty_w:(Env.Alias env)
+              in
+              (*[%loga.debug "loadable env: %s" (Env.show env)];*)
+              Env.insert penv aenv));
+
+      Ok ()
   (* *)
   | Ast.{ span; _ } ->
       let e =
@@ -101,6 +135,34 @@ and pass_through ~ctx ast =
       let elm = Diagnostics.Elem.error ~span e in
       Error elm
 
+and find_mod ~pkg_env ast =
+  let open Result.Let_syntax in
+  match ast with
+  (* *)
+  | Ast.{ kind = ID name; span } ->
+      let%bind env =
+        let opt = Env.find_meta pkg_env name in
+        match opt with
+        | Some env -> Ok env
+        | None ->
+            let candidates = Env.meta_keys pkg_env in
+            let e = new Common.Reasons.id_not_found ~name ~candidates in
+            let elm = Diagnostics.Elem.error ~span e in
+            Error elm
+      in
+      Ok env
+  (* *)
+  | _ ->
+      let s = Ast.show ast in
+      failwith (Printf.sprintf "unexpected token (find_mod): %s" s)
+
+and find_mods_with_wildcard ~pkg_env ast =
+  match ast with
+  (* *)
+  | Ast.{ kind = IDWildcard; span } -> Ok (Env.collect_all pkg_env)
+  (* *)
+  | _ -> find_mod ~pkg_env ast |> Result.map ~f:(fun e -> [ e ])
+
 and lookup_type ~ctx ~env ast : (Typing.Type.t, Diagnostics.Elem.t) Result.t =
   let open Result.Let_syntax in
   match ast with
@@ -108,10 +170,11 @@ and lookup_type ~ctx ~env ast : (Typing.Type.t, Diagnostics.Elem.t) Result.t =
       let%bind env =
         Env.lookup_type env name
         |> Result.map_error ~f:(fun _trace ->
-               let e = new Common.Reasons.id_not_found ~name in
+               let candidates = [] (* TODO *) in
+               let e = new Common.Reasons.id_not_found ~name ~candidates in
                let elm = Diagnostics.Elem.error ~span e in
                elm)
       in
       Ok (Env.type_of env)
   (* *)
-  | Ast.{ span; _ } -> failwith ""
+  | Ast.{ span; _ } -> failwith "unexpected token (lookup_type)"

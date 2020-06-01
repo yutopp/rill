@@ -42,6 +42,7 @@ and kind_t =
   | ExprCall of t * t list
   (* primitives *)
   | ID of string
+  | IDWildcard
   | LitBool of bool
   | LitInt of int * int * bool (* value * bits * signed *)
   | LitString of string

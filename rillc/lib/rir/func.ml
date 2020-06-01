@@ -53,13 +53,8 @@ let list_bbs f =
   List.rev f.bbs_names_rev
   |> List.map ~f:(fun bb_name -> Hashtbl.find_exn f.bbs bb_name)
 
-let get_func_ty f =
-  match f.ty with
-  | Typing.Type.{ ty = Func (params_tys, ret_ty); _ } -> (params_tys, ret_ty)
-  | _ -> failwith "[ICE]"
-
 let get_ret_ty f =
-  let (_, ret_ty) = get_func_ty f in
+  let (_, ret_ty) = Typing.Type.assume_func_ty f in
   ret_ty
 
 let gen_local_var f =

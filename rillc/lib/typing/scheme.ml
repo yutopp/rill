@@ -8,6 +8,6 @@
 
 open! Base
 
-type t = Scheme of Type.var_t list * Type.t [@@deriving sexp_of]
+type t = Scheme of Type.var_t list * Type.t
 
 let ty_sc_of_ty ty = Scheme ([], ty)

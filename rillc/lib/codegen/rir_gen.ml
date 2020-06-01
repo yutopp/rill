@@ -135,6 +135,10 @@ let rec generate_stmt ~ctx ~builder ast =
 let generate_toplevel ~ctx ~builder ast =
   match ast with
   (* *)
+  | NAst.{ kind = Import { pkg; mods }; ty; span } ->
+      (* DO NOTHING *)
+      ()
+  (* *)
   | NAst.{ kind = Func { name; kind = NAst.FuncKindDef body }; ty; span } ->
       let (_, ret_ty) = Typing.Type.assume_func_ty ty in
       let f = Rir.Func.create ~ty ~extern_name:None in

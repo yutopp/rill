@@ -20,6 +20,7 @@ module NAst = struct
 
   and kind_t =
     | Module of t list
+    | Import of { pkg : string; mods : string list }
     | Func of { name : string; kind : func_kind_t }
     | Let of { name : string; expr : t }
     | Return of string
@@ -112,6 +113,8 @@ let rec normalize ~ctx ~env ast =
   | TAst.{ kind = Module nodes; ty; span; _ } ->
       let nodes' = List.map nodes ~f:(normalize ~ctx ~env) in
       NAst.{ kind = Module nodes'; ty; span }
+  | TAst.{ kind = Import { pkg; mods }; ty; span; _ } ->
+      NAst.{ kind = Import { pkg; mods }; ty; span }
   (* *)
   | TAst.{ kind = DeclExternFunc { name; extern_name }; ty; span; _ } ->
       NAst.{ kind = Func { name; kind = FuncKindExtern extern_name }; ty; span }

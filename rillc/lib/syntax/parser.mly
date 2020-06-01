@@ -45,10 +45,15 @@ let import_statement :=
     }
 
 let import_tree_root :=
-    pkg=single_id; mods=import_tree_leaf*; { (pkg, mods) }
+    root=single_id; mods=import_tree_node; { (root, mods) }
 
-let import_tree_leaf :=
-    COLONCOLON; id=single_id; { id }
+let import_tree_node :=
+    COLONCOLON; id=single_id; child=import_tree_node; { id :: child }
+  | COLONCOLON; id=import_tree_leaf; { [id] }
+
+let import_tree_leaf ==
+  | id=single_id; { id }
+  | TIMES; { make Ast.IDWildcard ~l:$loc }
 
 function_def_statement:
     KEYWORD_DEF

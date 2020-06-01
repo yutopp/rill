@@ -30,25 +30,32 @@ class type_mismatch ~(detail : Typer_err.t) =
           (Typing.Type.to_string lhs)
           (Typing.Type.to_string rhs)
       in
-      let to_string_d lhs rhs d =
-        let anot =
-          match d with
-          | Typer_err.ErrFuncArgLength { r; l } -> "Arg length"
-          | Typer_err.ErrFuncArgs index -> Printf.sprintf "Arg at (%d)" index
-          | Typer_err.ErrFuncArgRet -> "Return"
-          | Typer_err.ErrUnify -> "Diff"
-        in
-        let ty_s = to_string_ty lhs rhs in
-        [ anot; ty_s ]
+
+      let to_string_diff diff =
+        match diff with
+        | Typer_err.Type { lhs; rhs } -> to_string_ty lhs rhs
+        | Typer_err.Linkage { lhs; rhs } -> ""
       in
+
+      let to_string_kind kind =
+        match kind with
+        | Typer_err.ErrFuncArgLength { r; l } -> "Arg length"
+        | Typer_err.ErrFuncArgs index -> Printf.sprintf "Arg at (%d)" index
+        | Typer_err.ErrFuncLinkage -> "Linkage"
+        | Typer_err.ErrFuncArgRet -> "Return"
+        | Typer_err.ErrUnify -> "Diff"
+      in
+
       let rec to_string_ds d msgs_acc =
-        let Typer_err.{ lhs; rhs; kind; nest } = d in
-        let msgs = to_string_d lhs rhs kind in
-        let msgs_acc = msgs :: msgs_acc in
+        let Typer_err.{ diff; kind; nest } = d in
+        let desc = to_string_kind kind in
+        let msg = to_string_diff diff in
+        let msgs_acc = [ desc; msg ] :: msgs_acc in
         match nest with
         | None -> msgs_acc
         | Some inner -> to_string_ds inner msgs_acc
       in
+
       let msgs = to_string_ds detail [] |> List.rev |> List.concat in
       String.concat ~sep:"\n" msgs
   end

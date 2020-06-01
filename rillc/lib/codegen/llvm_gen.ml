@@ -38,7 +38,7 @@ let rec to_llty ~ctx ty : L.lltype =
   | Typing.Type.{ ty = Bool; _ } -> L.integer_type ctx.ll_ctx 1
   | Typing.Type.{ ty = Int; _ } -> L.integer_type ctx.ll_ctx 32
   | Typing.Type.{ ty = String; _ } -> L.pointer_type (L.i8_type ctx.ll_ctx)
-  | Typing.Type.{ ty = Func (params, ret); _ } ->
+  | Typing.Type.{ ty = Func { params; ret; _ }; _ } ->
       let params_tys = List.map ~f:(to_llty ~ctx) params in
       let ret_ty = to_llty ~ctx ret in
       L.function_type ret_ty (Array.of_list params_tys)

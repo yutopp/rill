@@ -61,7 +61,7 @@ let entry opts =
     if List.length opts.include_dir <> 1 then failwith "";
     let core_dir = List.hd_exn opts.include_dir in
     let pkg_id = Rillc.Workspace.issue_pkg_id ~workspace in
-    let pkg = Rillc.Package.create ~name:"a" ~dir:core_dir ~id:pkg_id in
+    let pkg = Rillc.Package.create ~name:"core" ~dir:core_dir ~id:pkg_id in
     Rillc.Workspace.register_pkg ~workspace pkg;
     let paths = grob_dir core_dir "^.*\\.rill$" in
     Rillc.Package.add_src_paths pkg paths;
@@ -83,10 +83,12 @@ let entry opts =
     let pkg_rels = Rillc.Compiler.PkgDict.to_alist dict in
     List.iter pkg_rels ~f:(fun (pkg, mod_dict) ->
         let mod_rels = Rillc.Compiler.ModDict.to_alist mod_dict in
-        List.iter mod_rels ~f:(fun (path, m) ->
+        List.iter mod_rels ~f:(fun (path, ms) ->
+            let m = ms.Rillc.Compiler.ModState.m in
             let ds = m.Rillc.Compiler.Mod.ds in
-            let res = m.Rillc.Compiler.Mod.phase_result in
+
             let () =
+              let res = ms.Rillc.Compiler.ModState.phase_result in
               match res with
               | Ok _ -> log_diagnostics Stdio.stderr ds
               | Error failed ->
@@ -99,10 +101,11 @@ let entry opts =
 
     let mod_dict = Rillc.Compiler.PkgDict.get dict ~key:pkg in
     let mod_rels = Rillc.Compiler.ModDict.to_alist mod_dict in
-    List.iter mod_rels ~f:(fun (path, m) ->
-        match m.Rillc.Compiler.Mod.phase_result with
-        | Ok (Rillc.Compiler.Mod.ArtifactRir rir) -> Rillc.Compiler.dump_rir rir
-        | Ok (Rillc.Compiler.Mod.ArtifactLlvm llvm) ->
+    List.iter mod_rels ~f:(fun (path, ms) ->
+        match ms.Rillc.Compiler.ModState.phase_result with
+        | Ok (Rillc.Compiler.ModState.ArtifactRir rir) ->
+            Rillc.Compiler.dump_rir rir
+        | Ok (Rillc.Compiler.ModState.ArtifactLlvm llvm) ->
             Rillc.Compiler.dump_llvm llvm
         | _ -> ())
   in

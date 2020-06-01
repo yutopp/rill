@@ -13,10 +13,11 @@ module Ast = Syntax.Ast
 module TopAst = Phase1.TopAst
 
 module TAst = struct
-  type t = { kind : kind_t; ty : Typing.Type.t; span : (Span.t[@sexp.opaque]) }
+  type t = { kind : kind_t; ty : Typing.Type.t; span : Span.t }
 
   and kind_t =
     | Module of t list
+    | Import of { pkg : string; mods : string list }
     | DeclExternFunc of { name : string; extern_name : string }
     | DefFunc of { name : string; body : t }
     | StmtSeq of t list
@@ -29,7 +30,7 @@ module TAst = struct
     | LitBool of bool
     | LitInt of int
     | LitString of string
-  [@@deriving sexp_of]
+  [@@deriving show]
 end
 
 type ctx_t = {
@@ -50,7 +51,14 @@ let rec into_typed_tree ~ctx ast : (TAst.t, Diagnostics.Elem.t) Result.t =
   match ast with
   (* *)
   | TopAst.{ kind = Module { nodes; env }; span } ->
-      let%bind nodes_rev =
+      (* Imported aliases *)
+      let aliases = Env.collect_aliases env in
+      let external_nodes =
+        aliases |> List.map ~f:create_external_nodes |> List.join
+      in
+
+      (* Nodes *)
+      let%bind nodes =
         List.fold_result nodes ~init:[] ~f:(fun mapped node ->
             match into_typed_tree ~ctx node with
             | Ok node' -> Ok (node' :: mapped)
@@ -58,10 +66,12 @@ let rec into_typed_tree ~ctx ast : (TAst.t, Diagnostics.Elem.t) Result.t =
                 Diagnostics.append ctx.ds d;
                 (* skip inserting *)
                 Ok mapped)
+        |> Result.map ~f:List.rev
       in
+
       (* TODO: module type? *)
       let ty = Typing.Type.{ ty = Unit; span } in
-      Ok TAst.{ kind = Module (List.rev nodes_rev); ty; span }
+      Ok TAst.{ kind = Module (List.join [ external_nodes; nodes ]); ty; span }
   (* *)
   | TopAst.{ kind = WithEnv { node; env }; span } -> with_env ~ctx ~env node
   (* *)
@@ -140,6 +150,18 @@ and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
 and pass_through ~ctx ast =
   match ast with
   (* *)
+  | Ast.{ kind = Import { pkg; mods }; span; _ } ->
+      let stringify node =
+        match node with
+        | Ast.{ kind = ID s; _ } -> s
+        | Ast.{ kind = IDWildcard; _ } -> "*"
+        | _ -> failwith "[ICE]"
+      in
+      let pkg = stringify pkg in
+      let mods = List.map mods ~f:stringify in
+      let ty = Typing.Type.{ ty = Unit; span } in
+      Ok TAst.{ kind = Import { pkg; mods }; ty; span }
+  (* *)
   | Ast.{ span; _ } ->
       let e =
         new Common.Reasons.internal_error
@@ -176,8 +198,12 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       let%bind t_expr = analyze ~ctx ~env expr in
       let%bind subst = Typer.unify ~span ctx.subst spec_ty t_expr.TAst.ty in
 
-      let venv = Env.create name ~parent:(Some env) ~ty_w:(Env.T spec_ty) in
-      Env.insert_value env venv;
+      let visibility = Env.Public in
+      let venv =
+        Env.create name ~parent:(Some env) ~visibility ~ty:spec_ty
+          ~ty_w:(Env.Val spec_ty)
+      in
+      Env.insert env venv;
 
       ctx.subst <- subst;
 
@@ -245,7 +271,8 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       let%bind venv =
         Env.lookup_value env name
         |> Result.map_error ~f:(fun _trace ->
-               let e = new Common.Reasons.id_not_found ~name in
+               let candidates = [] (* TODO *) in
+               let e = new Common.Reasons.id_not_found ~name ~candidates in
                let elm = Diagnostics.Elem.error ~span e in
                elm)
       in
@@ -289,8 +316,9 @@ and analyze_call ~ctx ~env ~span recv args =
 
   let ret_ty = Typing.Subst.fresh_ty ~span ctx.subst in
   let fn_ty =
+    let linkage = Typing.Subst.fresh_linkage ctx.subst in
     let args_ty = List.map t_args ~f:(fun arg -> arg.TAst.ty) in
-    Typing.Type.{ ty = Func (args_ty, ret_ty); span }
+    Typing.Type.{ ty = Func { params = args_ty; ret = ret_ty; linkage }; span }
   in
   [%loga.debug "Func receiver ty = %s" (Typing.Type.to_string recv_ty)];
   [%loga.debug "Func evaled ty = %s" (Typing.Type.to_string fn_ty)];
@@ -307,10 +335,45 @@ and lookup_type ~ctx ~env ast : (Typing.Type.t, Diagnostics.Elem.t) Result.t =
       let%bind env =
         Env.lookup_type env name
         |> Result.map_error ~f:(fun _trace ->
-               let e = new Common.Reasons.id_not_found ~name in
+               let candidates = [] (* TODO *) in
+               let e = new Common.Reasons.id_not_found ~name ~candidates in
                let elm = Diagnostics.Elem.error ~span e in
                elm)
       in
       Ok (Env.type_of env)
   (* *)
   | Ast.{ span; _ } -> failwith ""
+
+and create_external_nodes env =
+  [%loga.debug "Env = %s" (Env.show env)];
+  let actual_root_mod = Env.root_mod_of ~scoped:false env in
+  let env_kind = Env.w_of env in
+  let ty = Env.type_of env in
+
+  (* TODO: support import module *)
+  match env_kind with
+  | Env.Val _ ->
+      let nodes =
+        match ty with
+        (* external func *)
+        | Typing.Type.{ ty = Func { params; ret; linkage }; span } ->
+            [%loga.debug
+              "External func = %s: %s" env.Env.name (Typing.Type.show ty)];
+            let node =
+              match linkage with
+              (* *)
+              | Typing.Type.LinkageC extern_name ->
+                  let name = env.Env.name (* TODO: fix *) in
+                  TAst.{ kind = DeclExternFunc { name; extern_name }; ty; span }
+              (* *)
+              | Typing.Type.LinkageRillc -> failwith ""
+              (* *)
+              | Typing.Type.LinkageVar _ -> failwith ""
+            in
+            [ node ]
+        (* external val *)
+        | Typing.Type.{ ty; _ } -> []
+      in
+      nodes
+  (* unsupported *)
+  | _ -> failwith "[ICE]"

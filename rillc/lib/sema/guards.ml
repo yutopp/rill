@@ -11,8 +11,8 @@ module Span = Common.Span
 module Diagnostics = Common.Diagnostics
 module Ast = Syntax.Ast
 
-let guard_dup_value ~span penv_opt name =
-  match Option.bind penv_opt ~f:(fun penv -> Env.find_value penv name) with
+let guard_dup_value ~span penv name =
+  match Env.find_value penv name with
   | Some other ->
       (* TODO: fix a span to point correct location(use 'other') *)
       let e = new Reasons.defined_twice ~other:span ~name in

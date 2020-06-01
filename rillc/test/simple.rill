@@ -1,4 +1,4 @@
-//import core::stdio;
+import core::prelude::*;
 
 def test(): unit {
     println("hogehoge");
@@ -26,7 +26,3 @@ extern def '=='(a: i32, b: i32): bool = "%op_bin_equals";
 extern def '+'(a: i32, b: i32): i32 = "%op_bin_add";
 extern def '-'(a: i32, b: i32): i32 = "%op_bin_sub";
 extern def '*'(a: i32, b: i32): i32 = "%op_bin_mul";
-
-extern def println(s: string): unit = "println";
-
-extern def print_int_ln(i: i32): unit = "print_int_ln";
