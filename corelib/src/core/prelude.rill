@@ -1,0 +1,3 @@
+extern def println(s: string): unit = "c_println";
+
+extern def print_int_ln(i: i32): unit = "c_print_int_ln";
