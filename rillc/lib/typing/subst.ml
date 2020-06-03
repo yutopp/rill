@@ -31,7 +31,8 @@ let fresh_var subst : Type.var_t = Counter.fresh subst.fresh_counter
 (* has side effects *)
 let fresh_ty ~span subst : Type.t =
   let v = fresh_var subst in
-  Type.{ ty = Var { var = v; subst_id = subst.subst_id }; span }
+  let binding_mut = Type.MutImm in
+  Type.{ ty = Var { var = v; subst_id = subst.subst_id }; binding_mut; span }
 
 let fresh_linkage subst : Type.func_linkage_t =
   let v = fresh_var subst in
@@ -48,15 +49,17 @@ let rec subst_linkage (subst : t) linkage =
 let rec subst_type (subst : t) ty : Type.t =
   let { ty_subst; _ } = subst in
   match ty with
-  | Type.{ ty = Var { var = uni_id; _ }; span } -> (
+  | Type.{ ty = Var { var = uni_id; _ }; binding_mut; span } -> (
       match Map.find ty_subst uni_id with
-      | Some ty' -> subst_type subst ty'
+      | Some ty' ->
+          let ty = subst_type subst ty' in
+          Type.{ ty with binding_mut }
       | None -> ty )
-  | Type.{ ty = Func { params; ret; linkage }; span } ->
+  | Type.{ ty = Func { params; ret; linkage }; binding_mut; span } ->
       let params = List.map ~f:(subst_type subst) params in
       let ret = subst_type subst ret in
       let linkage = subst_linkage subst linkage in
-      Type.{ ty = Func { params; ret; linkage }; span }
+      Type.{ ty = Func { params; ret; linkage }; binding_mut; span }
   | alt -> alt
 
 let subst_tysc (subst : t) tysc : Scheme.t =

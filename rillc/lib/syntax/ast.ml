@@ -38,6 +38,7 @@ and kind_t =
   | ExprGrouping of t
   | ExprBlock of t list
   | ExprIf of t * t * t option
+  | ExprAssign of { lhs : t; rhs : t }
   | ExprBinaryOp of { op : t; lhs : t; rhs : t }
   | ExprCall of t * t list
   (* primitives *)
@@ -48,7 +49,6 @@ and kind_t =
   | LitString of string
   | LitUnit
   | DeclAttrMutable
-  | DeclAttrConst
   | DeclAttrImmutable
 [@@deriving sexp_of, show]
 

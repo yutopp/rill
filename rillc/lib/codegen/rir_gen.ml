@@ -35,13 +35,22 @@ let rec generate_stmt ~ctx ~builder ast =
   let module B = Rir.Builder in
   match ast with
   (* *)
-  | NAst.{ kind = Let { name; expr }; span; _ } ->
+  | NAst.{ kind = Let { mut; name; expr }; ty; span; _ } ->
       let (t_expr, builder) = generate_stmt ~ctx ~builder expr in
-      let term = Rir.Builder.build_let builder name t_expr Rir.Term.AllocLit in
+      let storage =
+        match mut with
+        | Typing.Type.MutImm -> Rir.Term.AllocLit
+        | Typing.Type.MutMut -> Rir.Term.AllocStack
+      in
+      let term = Rir.Builder.build_let builder name t_expr storage in
       (term, builder)
   (* *)
   | NAst.{ kind = Assign { lhs; rhs }; ty; span; _ } ->
-      failwith "Not implemented"
+      let (rhs, builder) = generate_stmt ~ctx ~builder rhs in
+      let (lhs, builder) = generate_stmt ~ctx ~builder lhs in
+
+      Rir.Builder.build_assign builder lhs rhs;
+      (lhs, builder)
   (* *)
   | NAst.{ kind = Seq (node :: nodes); span; _ } ->
       (* TODO: support scope *)

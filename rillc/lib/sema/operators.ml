@@ -58,7 +58,6 @@ let preset : t =
     AssocTable.set t "+" Assoc.{ precedence = 100; assoc = Left };
     AssocTable.set t "-" Assoc.{ precedence = 100; assoc = Left };
     AssocTable.set t "==" Assoc.{ precedence = 40; assoc = Left };
-    AssocTable.set t "=" Assoc.{ precedence = 10; assoc = Right };
     t
   in
   { bin_op }

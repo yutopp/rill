@@ -4,8 +4,8 @@ def test(): unit {
     println("hogehoge");
     println("fugafuga");
     let c = if true { println("t"); println("t2"); 10 } else { println("f"); 20 };
-    let a = 10;
-    //a = 1 + 2 * 3;
+    let mutable a = 10;
+    a = (1 + 2 * 3)*2;
     let mutable b = 1 + 2 * 3;
     print_int_ln(a);
     print_int_ln(b);

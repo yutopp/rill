@@ -118,4 +118,10 @@ and preconstruct_func_ty ~ctx ~span ~linkage params ret_ty : Typing.Type.t =
     let span = Ast.(ret_ty.span) in
     Typing.Subst.fresh_ty ~span ctx.subst
   in
-  Typing.Type.{ ty = Func { params = params_tys; ret = ret_ty; linkage }; span }
+  let binding_mut = Typing.Type.MutImm in
+  Typing.Type.
+    {
+      ty = Func { params = params_tys; ret = ret_ty; linkage };
+      binding_mut;
+      span;
+    }

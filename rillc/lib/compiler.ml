@@ -35,9 +35,7 @@ type artifact_t =
   | ArtifactLlvm of Codegen.Llvm_gen.Module.t
 [@@deriving show]
 
-let dump_rir rir =
-  (* TODO *)
-  ()
+let dump_rir rir = Stdio.printf "%s" (Rir.Module.show rir)
 
 let dump_llvm llvm =
   Stdio.printf "%s" (Codegen.Llvm_gen.L.string_of_llmodule llvm)
@@ -176,7 +174,10 @@ let rec preload_pkg compiler dict builtin pkg =
         Mod.create ~path ~subst ~pkg
       in
       let visibility = Sema.Env.Public in
-      let ty = Typing.Type.{ ty = Module; span = Common.Span.undef } in
+      let binding_mut = Typing.Type.MutImm in
+      let ty =
+        Typing.Type.{ ty = Module; binding_mut; span = Common.Span.undef }
+      in
       Sema.Env.create pkg.Package.name ~parent:None ~visibility ~ty
         ~ty_w:(Sema.Env.M root_mod)
     in
@@ -198,7 +199,10 @@ let rec preload_pkg compiler dict builtin pkg =
             Caml.Filename.basename path |> Caml.Filename.remove_extension
           in
           let visibility = Sema.Env.Public in
-          let ty = Typing.Type.{ ty = Module; span = Common.Span.undef } in
+          let binding_mut = Typing.Type.MutImm in
+          let ty =
+            Typing.Type.{ ty = Module; binding_mut; span = Common.Span.undef }
+          in
           Sema.Env.create name ~parent:None ~visibility ~ty ~ty_w:(Sema.Env.M m)
         in
 
@@ -300,7 +304,8 @@ let build_pkg_internal compiler dict builtin pkg =
 let build_mod_env pkg_dict =
   (* Ignore modules which couldn't reach to phase1 *)
   let visibility = Sema.Env.Public in
-  let ty = Typing.Type.{ ty = Module; span = Common.Span.undef } in
+  let binding_mut = Typing.Type.MutImm in
+  let ty = Typing.Type.{ ty = Module; binding_mut; span = Common.Span.undef } in
   let env = Sema.Env.create "" ~parent:None ~visibility ~ty ~ty_w:Sema.Env.N in
 
   let pkg_rels = PkgDict.to_alist pkg_dict in

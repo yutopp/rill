@@ -14,7 +14,7 @@ corelib=../corelib/src/core
 
 $RILLC_BIN compile -I "$corelib" \
            -d /tmp \
-           ../rillc/test/simple.rill 1> main.ll
+           $FILE 1> main.ll
 llvm-as main.ll
 llc --relocation-model=pic main.bc
 gcc -v -fPIE -L$(pwd)/corelib -static -lcore-c main.s

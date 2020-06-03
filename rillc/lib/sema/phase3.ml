@@ -22,7 +22,7 @@ module NAst = struct
     | Module of t list
     | Import of { pkg : string; mods : string list }
     | Func of { name : string; kind : func_kind_t }
-    | Let of { name : string; expr : t }
+    | Let of { mut : Typing.Type.mutability_t; name : string; expr : t }
     | Return of string
     | Call of { name : string; args : string list }
     | If of { cond : string; t : t; e_opt : t option }
@@ -92,19 +92,23 @@ let fresh_id =
 let k = insert_let (let k = insert_let (analyze "1 + 2"); k (fun id -> id + "3"))
 
 *)
-let insert_let k_form gen =
+let insert_let' mut k_form gen =
   match k_form with
   | NAst.{ kind = Var id; _ } -> gen id
   | NAst.{ span; ty; _ } -> (
       let new_id = fresh_id () in
       let let_stmt =
-        NAst.{ kind = Let { name = new_id; expr = k_form }; ty; span }
+        NAst.{ kind = Let { mut; name = new_id; expr = k_form }; ty; span }
       in
       match gen new_id with
       | NAst.{ kind = Seq nodes; ty; span } ->
           NAst.{ kind = Seq (let_stmt :: nodes); ty; span }
       | NAst.{ ty; span; _ } as node ->
           NAst.{ kind = Seq [ let_stmt; node ]; ty; span } )
+
+let insert_let k_form gen = insert_let' Typing.Type.MutImm k_form gen
+
+let insert_let_mut k_form gen = insert_let' Typing.Type.MutMut k_form gen
 
 (* Currently K-normalize *)
 let rec normalize ~ctx ~env ast =
@@ -132,8 +136,8 @@ let rec normalize ~ctx ~env ast =
       let k = insert_let (normalize ~ctx ~env expr) in
       k (fun _id -> NAst.{ kind = Undef; ty; span })
   (* *)
-  | TAst.{ kind = StmtLet { name; expr }; ty; span; _ } ->
-      let k = insert_let (normalize ~ctx ~env expr) in
+  | TAst.{ kind = StmtLet { mut; name; expr }; ty; span; _ } ->
+      let k = insert_let' mut (normalize ~ctx ~env expr) in
       k (fun id ->
           Env.insert_alias env name id;
           NAst.{ kind = Undef; ty; span })
@@ -162,6 +166,11 @@ let rec normalize ~ctx ~env ast =
               ty;
               span;
             })
+  (* *)
+  | TAst.{ kind = ExprAssign { lhs; rhs }; ty; span; _ } ->
+      let rhs = normalize ~ctx ~env rhs in
+      let lhs = normalize ~ctx ~env lhs in
+      NAst.{ kind = Assign { lhs; rhs }; ty; span }
   (* *)
   | TAst.{ kind = ExprCall (r, args); ty; span; _ } ->
       let rk = insert_let (normalize ~ctx ~env r) in

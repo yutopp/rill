@@ -67,9 +67,14 @@ and with_env ~ctx ~env ast : (unit, Diagnostics.Elem.t) Result.t =
       in
       let%bind ret_ty = lookup_type ~ctx ~env ret_ty in
       let linkage = Functions.linkage_of ast in
+      let binding_mut = Typing.Type.MutImm in
       let func_ty =
         Typing.Type.
-          { ty = Func { params = params_tys; ret = ret_ty; linkage }; span }
+          {
+            ty = Func { params = params_tys; ret = ret_ty; linkage };
+            binding_mut;
+            span;
+          }
       in
 
       let%bind subst = Typer.unify ~span ctx.subst func_ty (Env.type_of env) in

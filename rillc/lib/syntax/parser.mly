@@ -75,9 +75,9 @@ parameter_decls_list:
     separated_list(COMMA, parameter_decl) { $1 }
 
 parameter_decl:
-    name = single_id_as_str
-    ty_spec = type_spec
+    v=decl_var(type_spec)
     {
+      let (attr, name, ty_spec) = v in
       make (Ast.ParamDecl {
               name = name;
               ty_spec = ty_spec;
@@ -119,19 +119,24 @@ let stmt_expr(expr) ==
     e=expr ; { make (Ast.StmtExpr e) ~l:$loc }
 
 stmt_let:
-    KEYWORD_LET d = stmt_let_decl_val SEMICOLON { make (Ast.StmtLet d) ~l:$loc }
+    KEYWORD_LET d = decl_var_expr SEMICOLON { make (Ast.StmtLet d) ~l:$loc }
 
 decl_attr:
   { make Ast.DeclAttrImmutable ~l:$loc }
   | KEYWORD_MUTABLE { make Ast.DeclAttrMutable ~l:$loc }
 
-stmt_let_decl_val:
-    attr = decl_attr
-    name = single_id_as_str
-    ty_spec = type_spec?
+let decl_var(type_anot) ==
+    attr=decl_attr;
+    name=single_id_as_str;
+    ty_spec=type_anot;
+    { (attr, name, ty_spec) }
+
+decl_var_expr:
+    v=decl_var(type_spec?)
     ASSIGN
     e = expr
     {
+      let (attr, name, ty_spec) = v in
       make (Ast.VarDecl {
               attr = attr;
               name = name;
@@ -162,14 +167,14 @@ expr_with_block:
   | expr_block { $1 }
 
 let expr_without_block :=
-    e = expr_infix_group; { e }
+    e = expr_assign; { e }
 
 let expr_block :=
   LBLOCK; ss=stmts; RBLOCK; { make (Ast.ExprBlock ss) ~l:$loc }
 
 let expr_if :=
     KEYWORD_IF;
-    cond = expr_infix_group;
+    cond = as_grouped_expr(expr_infix);
     then_n = expr_block;
     else_n_opt = expr_if_else_clause?;
     { make (Ast.ExprIf (cond, then_n, else_n_opt)) ~l:$loc }
@@ -178,8 +183,14 @@ let expr_if_else_clause ==
     KEYWORD_ELSE; e = expr_block; { e }
   | KEYWORD_ELSE; e = expr_if; { e }
 
-expr_infix_group:
-    expr_infix { make (Ast.ExprGrouping $1) ~l:$loc }
+let as_grouped_expr(expr) ==
+    e=expr; { make (Ast.ExprGrouping e) ~l:$loc }
+
+(* right-associativity *)
+let expr_assign :=
+    lhs=as_grouped_expr(expr_infix); ASSIGN; rhs=expr_assign;
+    { make (Ast.ExprAssign {lhs; rhs}) ~l:$loc }
+  | e=as_grouped_expr(expr_infix); { e }
 
 expr_infix:
     lhs = expr_infix op = infix_id rhs = expr_postfix
@@ -234,7 +245,6 @@ infix_id_as_str:
   | BITWISE_AND { $1 }
   | BITWISE_OR  { $1 }
   | BITWISE_XOR { $1 }
-  | ASSIGN      { $1 }
 
 (**)
 lit_bool:

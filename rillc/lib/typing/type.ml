@@ -11,6 +11,7 @@ module Span = Common.Span
 
 type t = {
   ty : ty_t;
+  binding_mut : mutability_t;
   span : (Span.t[@sexp.opaque] (* span that this type is related *));
 }
 
@@ -22,6 +23,8 @@ and ty_t =
   | String
   | Func of { params : t list; ret : t; linkage : func_linkage_t }
   | Module
+
+and mutability_t = MutImm | MutMut
 
 and var_t = int
 

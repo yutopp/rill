@@ -14,8 +14,9 @@ type t = {
 }
 
 let create () : t =
-  let bool_ = Typing.Type.{ ty = Bool; span = Span.undef } in
-  let i32_ = Typing.Type.{ ty = Int; span = Span.undef } in
-  let string_ = Typing.Type.{ ty = String; span = Span.undef } in
-  let unit_ = Typing.Type.{ ty = Unit; span = Span.undef } in
+  let binding_mut = Typing.Type.MutImm in
+  let bool_ = Typing.Type.{ ty = Bool; binding_mut; span = Span.undef } in
+  let i32_ = Typing.Type.{ ty = Int; binding_mut; span = Span.undef } in
+  let string_ = Typing.Type.{ ty = String; binding_mut; span = Span.undef } in
+  let unit_ = Typing.Type.{ ty = Unit; binding_mut; span = Span.undef } in
   { bool_; i32_; string_; unit_ }

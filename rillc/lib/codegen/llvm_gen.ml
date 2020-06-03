@@ -49,7 +49,6 @@ let rec to_llty ~ctx ty : L.lltype =
 
 let find_builtin builtin_name =
   match builtin_name with
-  | "%op_bin_assign" -> fun args builder -> failwith "ass"
   | "%op_bin_add" ->
       fun args builder ->
         let a = args.(0) in
@@ -123,7 +122,7 @@ let conv_val_ptr ll_builder ((param_ty, value) : Typing.Type.t * Env.var_t) :
   | (AsPtr, Env.{ ll_v; as_treat = AsPtr }) ->
       ll_v
   | (AsVal, Env.{ ll_v; as_treat = AsPtr }) -> L.build_load ll_v "" ll_builder
-  | (AsPtr, Env.{ ll_v; as_treat = AsVal }) -> failwith "?"
+  | (AsPtr, Env.{ ll_v; as_treat = AsVal }) -> failwith "[ICE] ?"
 
 let construct_value ~ctx ll_builder v ty =
   match v with
@@ -159,7 +158,7 @@ let construct_term ~ctx ~env ~ll_holder ll_f ll_builder term : Env.var_t =
       let value =
         match ll_holder with
         | Some mem ->
-            let _ll_v : L.llvalue = L.build_store mem ll_v ll_builder in
+            let _ll_v : L.llvalue = L.build_store ll_v mem ll_builder in
             Env.{ ll_v = mem; as_treat = AsPtr }
         | None -> Env.{ ll_v; as_treat = AsVal }
       in
@@ -170,7 +169,7 @@ let construct_term ~ctx ~env ~ll_holder ll_f ll_builder term : Env.var_t =
       let value =
         match ll_holder with
         | Some mem ->
-            let _ll_v : L.llvalue = L.build_store mem ll_v ll_builder in
+            let _ll_v : L.llvalue = L.build_store ll_v mem ll_builder in
             Env.{ ll_v = mem; as_treat = AsPtr }
         | None -> Env.{ ll_v; as_treat = AsVal }
       in

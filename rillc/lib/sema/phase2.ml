@@ -22,8 +22,9 @@ module TAst = struct
     | DefFunc of { name : string; body : t }
     | StmtSeq of t list
     | StmtExpr of t
-    | StmtLet of { name : string; expr : t }
+    | StmtLet of { mut : Typing.Type.mutability_t; name : string; expr : t }
     | ExprIf of t * t * t option
+    | ExprAssign of { lhs : t; rhs : t }
     | ExprCall of t * t list
     | Var of string
     | VarParam of int
@@ -70,7 +71,8 @@ let rec into_typed_tree ~ctx ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       in
 
       (* TODO: module type? *)
-      let ty = Typing.Type.{ ty = Unit; span } in
+      let binding_mut = Typing.Type.MutImm in
+      let ty = Typing.Type.{ ty = Unit; binding_mut; span } in
       Ok TAst.{ kind = Module (List.join [ external_nodes; nodes ]); ty; span }
   (* *)
   | TopAst.{ kind = WithEnv { node; env }; span } -> with_env ~ctx ~env node
@@ -118,7 +120,8 @@ and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
                 let ty = Env.type_of venv in
                 let t_param = TAst.{ kind = VarParam index; ty; span } in
                 let ty = ctx.builtin.Builtin.unit_ in
-                TAst.{ kind = StmtLet { name; expr = t_param }; ty; span }
+                let mut = ty.Typing.Type.binding_mut in
+                TAst.{ kind = StmtLet { mut; name; expr = t_param }; ty; span }
             | _ -> failwith "")
       in
 
@@ -159,7 +162,8 @@ and pass_through ~ctx ast =
       in
       let pkg = stringify pkg in
       let mods = List.map mods ~f:stringify in
-      let ty = Typing.Type.{ ty = Unit; span } in
+      let binding_mut = Typing.Type.MutImm in
+      let ty = Typing.Type.{ ty = Unit; binding_mut; span } in
       Ok TAst.{ kind = Import { pkg; mods }; ty; span }
   (* *)
   | Ast.{ span; _ } ->
@@ -186,7 +190,7 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
             (attr, name, ty_spec, expr)
         | _ -> failwith ""
       in
-      let%bind spec_ty =
+      let%bind var_ty =
         match ty_spec with
         | Some ty_spec -> lookup_type ~ctx ~env ty_spec
         | None ->
@@ -194,21 +198,29 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
             let ty = Typing.Subst.fresh_ty ~span ctx.subst in
             Ok ty
       in
+      let binding_mut =
+        match attr with
+        | Ast.{ kind = DeclAttrImmutable; _ } -> Typing.Type.MutImm
+        | Ast.{ kind = DeclAttrMutable; _ } -> Typing.Type.MutMut
+        | _ -> failwith "[ICE]"
+      in
+      let var_ty = Typing.Type.{ var_ty with binding_mut } in
       (* CANNOT reference self *)
       let%bind t_expr = analyze ~ctx ~env expr in
-      let%bind subst = Typer.unify ~span ctx.subst spec_ty t_expr.TAst.ty in
+      let%bind subst = Typer.unify ~span ctx.subst var_ty t_expr.TAst.ty in
 
       let visibility = Env.Public in
       let venv =
-        Env.create name ~parent:(Some env) ~visibility ~ty:spec_ty
-          ~ty_w:(Env.Val spec_ty)
+        Env.create name ~parent:(Some env) ~visibility ~ty:var_ty
+          ~ty_w:(Env.Val var_ty)
       in
       Env.insert env venv;
 
       ctx.subst <- subst;
 
       let ty = Typing.Type.{ ctx.builtin.Builtin.unit_ with span } in
-      Ok TAst.{ kind = StmtLet { name; expr = t_expr }; ty; span }
+      let mut = binding_mut in
+      Ok TAst.{ kind = StmtLet { mut; name; expr = t_expr }; ty; span }
   (* *)
   | Ast.{ kind = ExprGrouping _; _ } as expr ->
       let expr' = Operators.reconstruct expr in
@@ -261,6 +273,25 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       let ty = Typing.Type.{ t_t.TAst.ty with span } in
       Ok TAst.{ kind = ExprIf (t_cond, t_t, t_e_opts); ty; span }
   (* *)
+  | Ast.{ kind = ExprAssign { lhs; rhs }; span; _ } ->
+      let%bind t_args = analyze_args ~ctx ~env [ lhs; rhs ] in
+      let (t_lhs, t_rhs) =
+        match t_args with [ a; b ] -> (a, b) | _ -> failwith "[ICE]"
+      in
+      let%bind () =
+        match t_lhs.TAst.ty.Typing.Type.binding_mut with
+        | Typing.Type.MutMut -> Ok ()
+        | Typing.Type.MutImm ->
+            let e = new Reasons.cannot_assign in
+            let elm = Diagnostics.Elem.error ~span e in
+            Error elm
+      in
+
+      (* TODO: fix type? *)
+      let binding_mut = Typing.Type.MutImm in
+      let ty = Typing.Type.{ ty = Unit; binding_mut; span } in
+      Ok TAst.{ kind = ExprAssign { lhs = t_lhs; rhs = t_rhs }; ty; span }
+  (* *)
   | Ast.{ kind = ExprBinaryOp { op; lhs; rhs }; span; _ } ->
       analyze_call ~ctx ~env ~span op [ lhs; rhs ]
   (* *)
@@ -303,22 +334,30 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       let elm = Diagnostics.Elem.error ~span e in
       Error elm
 
+and analyze_args ~ctx ~env args =
+  let open Result.Let_syntax in
+  List.fold_result args ~init:[] ~f:(fun ax arg ->
+      let%bind t_arg = analyze ~ctx ~env arg in
+      Ok (t_arg :: ax))
+  |> Result.map ~f:List.rev
+
 and analyze_call ~ctx ~env ~span recv args =
   let open Result.Let_syntax in
   let%bind t_recv = analyze ~ctx ~env recv in
-  let%bind t_args =
-    List.fold_result args ~init:[] ~f:(fun ax arg ->
-        let%bind t_arg = analyze ~ctx ~env arg in
-        Ok (t_arg :: ax))
-    |> Result.map ~f:List.rev
-  in
+  let%bind t_args = analyze_args ~ctx ~env args in
   let recv_ty = t_recv.TAst.ty in
 
   let ret_ty = Typing.Subst.fresh_ty ~span ctx.subst in
   let fn_ty =
     let linkage = Typing.Subst.fresh_linkage ctx.subst in
     let args_ty = List.map t_args ~f:(fun arg -> arg.TAst.ty) in
-    Typing.Type.{ ty = Func { params = args_ty; ret = ret_ty; linkage }; span }
+    let binding_mut = Typing.Type.MutImm in
+    Typing.Type.
+      {
+        ty = Func { params = args_ty; ret = ret_ty; linkage };
+        binding_mut;
+        span;
+      }
   in
   [%loga.debug "Func receiver ty = %s" (Typing.Type.to_string recv_ty)];
   [%loga.debug "Func evaled ty = %s" (Typing.Type.to_string fn_ty)];
@@ -356,7 +395,7 @@ and create_external_nodes env =
       let nodes =
         match ty with
         (* external func *)
-        | Typing.Type.{ ty = Func { params; ret; linkage }; span } ->
+        | Typing.Type.{ ty = Func { params; ret; linkage }; span; _ } ->
             [%loga.debug
               "External func = %s: %s" env.Env.name (Typing.Type.show ty)];
             let node =

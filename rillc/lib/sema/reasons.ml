@@ -20,6 +20,13 @@ class defined_twice ~(other : Span.t) ~(name : string) =
         (Span.sexp_of_t other |> Sexp.to_string_hum)
   end
 
+class cannot_assign =
+  object (self)
+    inherit Diagnostics.Error.base
+
+    method to_string = Printf.sprintf "Cannot assign to immutable variable"
+  end
+
 class type_mismatch ~(detail : Typer_err.t) =
   object (self)
     inherit Diagnostics.Error.base
