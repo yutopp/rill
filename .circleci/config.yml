@@ -13,7 +13,7 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker:
-          version: 19.03.9
+          version: 19.03.9-ce
       - run:
           working_directory: ~/repo/dockerfiles
           command: ./build.llvm10.sh
@@ -25,7 +25,7 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker:
-          version: 19.03.9
+          version: 19.03.9-ce
       - run:
           working_directory: ~/repo/dockerfiles
           command: ./build.sh
@@ -38,6 +38,9 @@ jobs:
       - run: mkdir build
       - run:
           command: cmake ..
+          working_directory: ~/repo/build
+      - run:
+          command: make rillc-init
           working_directory: ~/repo/build
       - run:
           command: make
