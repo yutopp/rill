@@ -35,6 +35,8 @@ jobs:
     working_directory: ~/repo
     steps:
       - checkout
+      - run: eval $(opam env)
+      - run: opam update
       - run: mkdir build
       - run:
           command: cmake ..
