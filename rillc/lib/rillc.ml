@@ -17,6 +17,7 @@ module Rir = Rir
 module Compiler = Compiler
 module Workspace = Common.Workspace
 module Package = Common.Package
+module Codegen = Codegen
 
 (*
 module Module = struct

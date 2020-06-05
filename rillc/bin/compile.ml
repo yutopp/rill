@@ -78,7 +78,7 @@ let entry opts =
 
   let compiler = Rillc.Compiler.create workspace in
 
-  let () =
+  let%bind () =
     let dict = Rillc.Compiler.build_pkg compiler pkg in
     let pkg_rels = Rillc.Compiler.PkgDict.to_alist dict in
     List.iter pkg_rels ~f:(fun (pkg, mod_dict) ->
@@ -95,21 +95,23 @@ let entry opts =
                   log_diagnostics_with_last_error Stdio.stderr (failed, ds)
             in
             ()));
+    let () = Stdio.Out_channel.flush Stdio.stderr in
     if compiler.Rillc.Compiler.has_fatal then
-      (*Error Errors.There_are_warnings_or_errors*)
+      (* Error Errors.There_are_warnings_or_errors *)
       Caml.exit 1;
 
     let mod_dict = Rillc.Compiler.PkgDict.get dict ~key:pkg in
     let mod_rels = Rillc.Compiler.ModDict.to_alist mod_dict in
-    List.iter mod_rels ~f:(fun (path, ms) ->
+    List.fold_result mod_rels ~init:() ~f:(fun _ (path, ms) ->
         match ms.Rillc.Compiler.ModState.phase_result with
         | Ok (Rillc.Compiler.ModState.ArtifactRir rir) ->
-            Rillc.Compiler.dump_rir rir
+            Rillc.Codegen.Rir_gen.write_to ~ch:Stdio.stdout rir
         | Ok (Rillc.Compiler.ModState.ArtifactLlvm llvm) ->
-            Rillc.Compiler.dump_llvm llvm
-        | _ -> ())
+            Rillc.Codegen.Llvm_gen.write_to ~ch:Stdio.stdout ~bitcode:true llvm
+        | _ -> Ok ())
+    |> Result.map_error ~f:(fun s ->
+           Errors.Failed_to_export_artifact "no input file")
   in
-  let () = Stdio.Out_channel.flush Stdio.stderr in
   Ok ()
 
 module Flags = struct

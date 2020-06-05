@@ -11,6 +11,7 @@ module Span = Common.Span
 module Diagnostics = Common.Diagnostics
 module Builtin = Sema.Builtin
 module L = Llvm
+module L_bitwriter = Llvm_bitwriter
 
 module Module = struct
   type t = L.llmodule
@@ -338,3 +339,12 @@ let generate_module ~ctx rir_mod : Module.t =
            | _ -> ())
   in
   ll_mod
+
+let write_to ~ch ~bitcode llvm =
+  match bitcode with
+  | true ->
+      let successful = L_bitwriter.output_bitcode ~unbuffered:true ch llvm in
+      if successful then Ok () else Error ""
+  | false ->
+      Stdio.Out_channel.fprintf ch "%s" (L.string_of_llmodule llvm);
+      Ok ()

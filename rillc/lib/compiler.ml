@@ -35,11 +35,6 @@ type artifact_t =
   | ArtifactLlvm of Codegen.Llvm_gen.Module.t
 [@@deriving show]
 
-let dump_rir rir = Stdio.printf "%s" (Rir.Module.show rir)
-
-let dump_llvm llvm =
-  Stdio.printf "%s" (Codegen.Llvm_gen.L.string_of_llmodule llvm)
-
 type failed_t = phase_t * Diagnostics.Elem.t
 
 module Phases = struct

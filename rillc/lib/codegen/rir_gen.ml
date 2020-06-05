@@ -189,3 +189,7 @@ let generate_module ~ctx ast =
       let s = NAst.show_kind_t kind in
       failwith
         (Printf.sprintf "Not supported node (Rir_gen.generate_module): %s" s)
+
+let write_to ~ch rir =
+  Stdio.Out_channel.fprintf ch "%s" (Rir.Module.show rir);
+  Ok ()
