@@ -35,7 +35,6 @@ jobs:
     working_directory: ~/repo
     steps:
       - checkout
-      - run: eval $(opam env)
       - run: opam update
       - run: mkdir build
       - run:
@@ -48,9 +47,10 @@ jobs:
             # To un-tar LLVM
             # https://discuss.circleci.com/t/tar-cannot-change-ownership/28766
             TAR_OPTIONS: --no-same-owner
-      - run: eval $(opam env)
       - run:
-          command: make
+          command: |
+            eval $(opam env)
+            make
           working_directory: ~/repo/build
 
 workflows:
