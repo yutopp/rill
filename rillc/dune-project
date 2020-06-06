@@ -27,4 +27,5 @@
   (ppx_deriving_yojson (>= 3.5.0))
   (ppx_sexp_conv       (>= v0.13.0))
   (ppx_let             (>= v0.13.0))
+  (cmdliner            (>= v1.0.4))
   (llvm                (>= 10.0.0-rillc))))
