@@ -9,8 +9,8 @@ license: "Boost License Version 1.0"
 homepage: "https://github.com/yutopp/rill"
 bug-reports: "https://github.com/yutopp/rill/issues"
 depends: [
-  "ocaml" {build & >= "4.09.0"}
-  "dune" {build & >= "2.5"}
+  "ocaml" {>= "4.09.0"}
+  "dune" {>= "2.5"}
   "base" {>= "v0.13.0"}
   "stdio" {>= "v0.13.0"}
   "menhir" {>= "20181113"}

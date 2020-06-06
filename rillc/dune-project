@@ -16,8 +16,8 @@
  (synopsis "One-line description")
  (description "A longer description")
  (depends
-  (ocaml               (and :build (>= 4.09.0)))
-  (dune                (and :build (>= 2.5)))
+  (ocaml               (>= 4.09.0))
+  (dune                (>= 2.5))
   (base                (>= v0.13.0))
   (stdio               (>= v0.13.0))
   (menhir              (>= 20181113))
