@@ -39,7 +39,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 #
 RUN apt-get update && apt-get install -y \
     curl \
-    cmake make gcc g++ python3 z3 m4 patch unzip git \
+    cmake make gcc g++ python3 z3 m4 patch unzip pkg-config git rsync \
  && rm -rf /var/lib/apt/lists/*
 
 # Copy LLVM
