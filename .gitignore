@@ -1,5 +1,6 @@
 build/
 coverage/
+_build/
 
 *.out
 *.obj
