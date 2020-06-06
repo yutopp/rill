@@ -1,6 +1,6 @@
 (executables
  (names main)
- (libraries cmdliner rillc rillc.syntax rillc.common base stdio str sexplib)
+ (libraries cmdliner rillc rillc.syntax rillc.common base stdio str)
  (preprocess
   (pps ppx_let)))
 
