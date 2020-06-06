@@ -48,6 +48,7 @@ jobs:
             # To un-tar LLVM
             # https://discuss.circleci.com/t/tar-cannot-change-ownership/28766
             TAR_OPTIONS: --no-same-owner
+      - run: eval $(opam env)
       - run:
           command: make
           working_directory: ~/repo/build
