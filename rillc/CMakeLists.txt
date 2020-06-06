@@ -25,7 +25,7 @@ add_custom_target(rillc-init
   WORKING_DIRECTORY
     ${CMAKE_CURRENT_SOURCE_DIR}
   COMMAND
-    opam install . --deps-only --yes
+    opam install . --deps-only --with-test --yes
   DEPENDS
     llvm-patched
   COMMENT
