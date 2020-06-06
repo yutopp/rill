@@ -37,7 +37,7 @@ LABEL maintainer="yutopp@gmail.com"
 #
 RUN apt-get update && apt-get install -y \
     curl \
-    cmake make gcc g++ python3 z3 m4 patch unzip \
+    cmake make gcc g++ python3 z3 m4 patch unzip git \
  && rm -rf /var/lib/apt/lists/*
 
 # Copy LLVM
@@ -56,3 +56,4 @@ RUN mkdir -p /root/.opam/
 COPY --from=builder /root/.opam/config /root/.opam/config
 COPY --from=builder /root/.opam/${ocaml_version} /root/.opam/${ocaml_version}
 COPY --from=builder /root/.opam/opam-init /root/.opam/opam-init
+COPY --from=builder /root/.opam/repo/repos-config /root/.opam/repo/repos-config
