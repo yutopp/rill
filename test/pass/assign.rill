@@ -1,4 +1,4 @@
-def main(): unit {
+def test(): unit {
   let mutable a = 10;
   a = 20;
 }
