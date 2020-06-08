@@ -7,11 +7,11 @@ add_library(std-c
   )
 install(TARGETS std-c
   DESTINATION
-    rill-lib/lib
+    ${INSTALL_RILL_LIB_LINK_PATH}
   )
 
 # Rill-lib
 install(DIRECTORY src/std
   DESTINATION
-    rill-lib/src
+    ${INSTALL_RILL_LIB_SRC_PATH}
   )
