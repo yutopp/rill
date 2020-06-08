@@ -52,6 +52,11 @@ jobs:
             eval $(opam env)
             make
           working_directory: ~/repo/build
+      - run:
+          command: |
+            eval $(opam env)
+            CTEST_OUTPUT_ON_FAILURE=1 make test
+          working_directory: ~/repo/build
 
 workflows:
   version: 2.1
