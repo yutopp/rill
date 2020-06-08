@@ -18,6 +18,7 @@ module Compiler = Compiler
 module Workspace = Common.Workspace
 module Package = Common.Package
 module Codegen = Codegen
+module Tool = Tool
 
 (*
 module Module = struct

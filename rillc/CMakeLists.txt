@@ -3,7 +3,6 @@ cmake_minimum_required(VERSION 3.2)
 project(rillc)
 
 ## rillc
-set(RILLC_BIN_PATH ${CMAKE_CURRENT_SOURCE_DIR}/_build/default/bin/main.exe)
 add_custom_target(rillc ALL
   WORKING_DIRECTORY
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -13,11 +12,12 @@ add_custom_target(rillc ALL
     "Building rillc"
 )
 
+set(RILLC_BIN_PATH ${CMAKE_CURRENT_SOURCE_DIR}/_build/default/bin/tool/compile.exe)
 install(PROGRAMS ${RILLC_BIN_PATH}
   TYPE
     BIN
   RENAME
-    rillc
+    rillc_compile
   )
 
 ## rillc-init
