@@ -35,6 +35,7 @@ jobs:
     working_directory: ~/repo
     steps:
       - checkout
+      - run: opam env >> $BASH_ENV
       - run: opam update
       - run: mkdir build
       - run:
@@ -48,14 +49,10 @@ jobs:
             # https://discuss.circleci.com/t/tar-cannot-change-ownership/28766
             TAR_OPTIONS: --no-same-owner
       - run:
-          command: |
-            eval $(opam env)
-            make
+          command: make
           working_directory: ~/repo/build
       - run:
-          command: |
-            eval $(opam env)
-            CTEST_OUTPUT_ON_FAILURE=1 make test
+          command: CTEST_OUTPUT_ON_FAILURE=1 make test
           working_directory: ~/repo/build
 
 workflows:
