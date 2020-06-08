@@ -31,6 +31,7 @@ module TAst = struct
     | LitBool of bool
     | LitInt of int
     | LitString of string
+    | LitUnit
   [@@deriving show]
 end
 
@@ -226,6 +227,14 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       let expr' = Operators.reconstruct expr in
       analyze ~ctx ~env expr'
   (* *)
+  | Ast.{ kind = ExprBlock []; span } ->
+      let ty =
+        let last_ty = ctx.builtin.Builtin.unit_ in
+        Typing.Type.{ last_ty with span }
+      in
+      let t_node = TAst.{ kind = LitUnit; ty; span } in
+      Ok TAst.{ kind = StmtSeq [ t_node ]; ty; span }
+  (* *)
   | Ast.{ kind = ExprBlock nodes; span } ->
       let t_nodes_rev =
         List.fold_until nodes ~init:[]
@@ -239,15 +248,11 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
           ~finish:Fn.id
       in
       let ty =
-        let last_ty =
-          match t_nodes_rev with
-          | n :: _ -> n.TAst.ty
-          | _ -> ctx.builtin.Builtin.unit_
-        in
+        let n = List.hd_exn t_nodes_rev in
+        let last_ty = n.TAst.ty in
         Typing.Type.{ last_ty with span }
       in
       let t_nodes = List.rev t_nodes_rev in
-      (* TODO:fix env *)
       Ok TAst.{ kind = StmtSeq t_nodes; ty; span }
   (* *)
   | Ast.{ kind = ExprIf (cond, t, e_opt); span; _ } ->

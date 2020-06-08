@@ -199,3 +199,5 @@ let rec normalize ~ctx ~env ast =
   (* *)
   | TAst.{ kind = LitString v; ty; span; _ } ->
       NAst.{ kind = LitString v; ty; span }
+  (* *)
+  | TAst.{ kind = LitUnit; ty; span; _ } -> NAst.{ kind = LitUnit; ty; span }
