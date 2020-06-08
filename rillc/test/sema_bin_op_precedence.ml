@@ -69,28 +69,6 @@ let%expect_test _ =
           span =  }};
       span =  } |}]
 
-let%expect_test "right associated" =
-  let node = parse_expr "a = 2 + 3 * 4" in
-  let node = Rillc.Sema.Operators.reconstruct node in
-  Rillc.Syntax.Ast.show node |> Stdio.print_string;
-  [%expect
-    {|
-    { Ast.kind =
-      Ast.ExprBinaryOp {op = { Ast.kind = (Ast.ID "="); span =  };
-        lhs = { Ast.kind = (Ast.ID "a"); span =  };
-        rhs =
-        { Ast.kind =
-          Ast.ExprBinaryOp {op = { Ast.kind = (Ast.ID "+"); span =  };
-            lhs = { Ast.kind = (Ast.LitInt (2, 32, true)); span =  };
-            rhs =
-            { Ast.kind =
-              Ast.ExprBinaryOp {op = { Ast.kind = (Ast.ID "*"); span =  };
-                lhs = { Ast.kind = (Ast.LitInt (3, 32, true)); span =  };
-                rhs = { Ast.kind = (Ast.LitInt (4, 32, true)); span =  }};
-              span =  }};
-          span =  }};
-      span =  } |}]
-
 let%expect_test _ =
   let node = parse_expr "1 + (2 + 3 * 4) + 5" in
   let node = Rillc.Sema.Operators.reconstruct node in
