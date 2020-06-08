@@ -9,7 +9,7 @@ add_custom_target(rillc ALL
   WORKING_DIRECTORY
     ${CMAKE_CURRENT_SOURCE_DIR}
   COMMAND
-    dune build
+    ${DUNE_PATH} build
   COMMENT
     "Building rillc"
 )
