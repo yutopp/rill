@@ -37,6 +37,7 @@ jobs:
       - checkout
       - run: opam env >> $BASH_ENV
       - run: opam update
+      - run: opam install dune --yes
       - run: mkdir build
       - run:
           command: cmake ..
