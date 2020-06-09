@@ -65,29 +65,41 @@ let rec generate_stmt ~ctx ~builder ast =
       List.fold_left nodes ~init:ret ~f:(fun (_, builder) node ->
           generate_stmt ~ctx ~builder node)
   (* *)
-  | NAst.{ kind = If { cond; t; e_opt = Some e }; ty; span; _ } ->
+  | NAst.{ kind = If { cond; t; e_opt }; ty; span; _ } ->
       let f = Rir.Builder.get_current_func builder in
 
+      let has_no_value =
+        Typing.Subst.subst_type ctx.subst ty |> Typing.Type.has_no_value
+      in
       (* receiver *)
       let recv =
-        B.build_let builder ""
-          Rir.Term.{ kind = Undef; ty; span }
-          Rir.Term.AllocStack
+        match has_no_value with
+        | true -> Rir.Term.{ kind = RVal ValueUnit; ty; span }
+        | false ->
+            B.build_let builder ""
+              Rir.Term.{ kind = Undef; ty; span }
+              Rir.Term.AllocStack
       in
 
       let bb_then = B.build_bb builder "if_then" in
 
-      let bb_else = B.build_bb builder "if_else" in
-
+      let (bb_else, bb_end) =
+        match Option.is_some e_opt with
+        | true ->
+            let bb_else = B.build_bb builder "if_else" in
+            let bb_end = B.build_bb builder "if_end" in
+            (bb_else, bb_end)
+        | false ->
+            let bb_end = B.build_bb builder "if_end" in
+            (bb_end (* To jump to end clause directly *), bb_end)
+      in
       Rir.Builder.build_cond builder cond bb_then bb_else;
-
-      let bb_end = B.build_bb builder "if_end" in
 
       (* then *)
       let () =
         let builder = Rir.Builder.with_current_bb builder bb_then in
         let (term, builder) = generate_stmt ~ctx ~builder t in
-        B.build_assign builder recv term;
+        if not has_no_value then B.build_assign builder recv term;
 
         let bb = B.get_current_bb builder in
         match Rir.Term.BB.get_terminator_opt bb with
@@ -97,14 +109,20 @@ let rec generate_stmt ~ctx ~builder ast =
 
       (* else *)
       let () =
-        let builder = Rir.Builder.with_current_bb builder bb_else in
-        let (term, builder) = generate_stmt ~ctx ~builder e in
-        B.build_assign builder recv term;
+        match e_opt with
+        | Some e ->
+            let builder = Rir.Builder.with_current_bb builder bb_else in
+            let (term, builder) = generate_stmt ~ctx ~builder e in
+            if not has_no_value then B.build_assign builder recv term;
 
-        let bb = B.get_current_bb builder in
-        match Rir.Term.BB.get_terminator_opt bb with
-        | Some _ -> ()
-        | _ -> Rir.Builder.build_jump builder bb_end
+            let bb = B.get_current_bb builder in
+            let () =
+              match Rir.Term.BB.get_terminator_opt bb with
+              | Some _ -> ()
+              | _ -> Rir.Builder.build_jump builder bb_end
+            in
+            ()
+        | None -> ()
       in
 
       let builder = Rir.Builder.with_current_bb builder bb_end in

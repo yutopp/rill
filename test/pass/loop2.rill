@@ -1,0 +1,13 @@
+import core::prelude::*;
+
+def test(): unit {
+    let mutable i = 0;
+    loop {
+        if i == 10 { break }
+
+        let a = 10;
+        print_int_ln(a+i);
+
+        i = i+1;
+    }
+}
