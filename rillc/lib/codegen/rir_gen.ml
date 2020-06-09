@@ -17,11 +17,18 @@ type ctx_t = {
   subst : Typing.Subst.t;
   rir_ctx : Rir.Context.t;
   builtin : Builtin.t;
+  outer_bbs : outer_bbs_t option;
+}
+
+and outer_bbs_t = {
+  outer_bb_begin : Rir.Term.BB.t;
+  outer_bb_end : Rir.Term.BB.t;
 }
 
 let context ~ds ~subst ~builtin =
   let rir_ctx = Rir.Context.create () in
-  { ds; subst; rir_ctx; builtin }
+  let outer_bbs = None in
+  { ds; subst; rir_ctx; builtin; outer_bbs }
 
 let rec generate_expr ~ctx ~builder ast =
   match ast with
@@ -102,6 +109,52 @@ let rec generate_stmt ~ctx ~builder ast =
 
       let builder = Rir.Builder.with_current_bb builder bb_end in
       let node = recv in
+      (node, builder)
+  (* *)
+  | NAst.{ kind = Loop inner; ty; span; _ } ->
+      (* receiver (unit always) *)
+      let recv =
+        B.build_let builder ""
+          Rir.Term.{ kind = Undef; ty; span }
+          Rir.Term.AllocLit
+      in
+
+      let bb_start = B.build_bb builder "loop_start" in
+      Rir.Builder.build_jump builder bb_start;
+
+      let bb_end = B.build_bb builder "loop_end" in
+
+      let () =
+        let builder = Rir.Builder.with_current_bb builder bb_start in
+        let (term, builder) =
+          let outer_bbs =
+            Some { outer_bb_begin = bb_start; outer_bb_end = bb_end }
+          in
+          let ctx = { ctx with outer_bbs } in
+          generate_stmt ~ctx ~builder inner
+        in
+
+        let bb = B.get_current_bb builder in
+        match Rir.Term.BB.get_terminator_opt bb with
+        | Some _ -> ()
+        | _ -> Rir.Builder.build_jump builder bb_start
+      in
+
+      let builder = Rir.Builder.with_current_bb builder bb_end in
+      let node = recv in
+      (node, builder)
+  (* *)
+  | NAst.{ kind = Break; span; ty } ->
+      let bb_next = B.build_bb builder "break_next" in
+
+      let outer_bbs =
+        match ctx.outer_bbs with Some bbs -> bbs | None -> failwith "[ICE]"
+      in
+      let bb = outer_bbs.outer_bb_end in
+      Rir.Builder.build_jump builder bb;
+
+      let builder = Rir.Builder.with_current_bb builder bb_next in
+      let node = Rir.Term.{ kind = Undef; ty; span } in
       (node, builder)
   (* *)
   | NAst.{ kind = Call { name; args }; span; ty } ->

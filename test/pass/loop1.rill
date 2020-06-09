@@ -1,0 +1,12 @@
+import core::prelude::*;
+
+def test(): unit {
+    loop {
+        println("loop1");
+        break
+    }
+    loop {
+        println("loop2");
+        break;
+    }
+}

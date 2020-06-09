@@ -47,6 +47,8 @@
                         KEYWORD_RUNTIME
                         KEYWORD_ONLY_RUNTIME
                         KEYWORD_IF
+                        KEYWORD_LOOP
+                        KEYWORD_BREAK
                         KEYWORD_FOR
                         KEYWORD_ELSE
                         KEYWORD_WHEN

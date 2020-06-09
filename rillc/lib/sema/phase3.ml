@@ -26,6 +26,8 @@ module NAst = struct
     | Return of string
     | Call of { name : string; args : string list }
     | If of { cond : string; t : t; e_opt : t option }
+    | Loop of t
+    | Break
     | LitBool of bool
     | LitInt of int
     | LitString of string
@@ -166,6 +168,18 @@ let rec normalize ~ctx ~env ast =
               ty;
               span;
             })
+  (* *)
+  | TAst.{ kind = ExprLoop e; ty; span; _ } ->
+      let k = insert_let (normalize ~ctx ~env e) in
+      let inner =
+        k (fun v_id ->
+            let ty = e.TAst.ty in
+            let span = e.TAst.span in
+            NAst.{ kind = Var v_id; ty; span })
+      in
+      NAst.{ kind = Loop inner; ty; span }
+  (* *)
+  | TAst.{ kind = ExprBreak; ty; span; _ } -> NAst.{ kind = Break; ty; span }
   (* *)
   | TAst.{ kind = ExprAssign { lhs; rhs }; ty; span; _ } ->
       let rhs = normalize ~ctx ~env rhs in

@@ -24,6 +24,8 @@ module TAst = struct
     | StmtExpr of t
     | StmtLet of { mut : Typing.Type.mutability_t; name : string; expr : t }
     | ExprIf of t * t * t option
+    | ExprLoop of t
+    | ExprBreak
     | ExprAssign of { lhs : t; rhs : t }
     | ExprCall of t * t list
     | Var of string
@@ -45,6 +47,8 @@ type ctx_t = {
 and exec_ctx_t = ExecCtxFunc of { return : Typing.Type.t }
 
 let context ~ds ~subst ~builtin = { ds; subst; builtin; exec_ctx = None }
+
+let context_merge dst src = dst.subst <- src.subst
 
 type result_t = (TopAst.t, Diagnostics.Elem.t) Result.t
 
@@ -130,10 +134,11 @@ and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
         { ctx with exec_ctx = Some (ExecCtxFunc { return = ret_ty }) }
       in
       let%bind t_body = analyze ~ctx:ctx' ~env body in
-      ctx.subst <- ctx'.subst;
+      context_merge ctx ctx';
 
       (* TODO: check that subst has no holes *)
       let%bind subst = Typer.unify ~span ctx.subst ret_ty t_body.TAst.ty in
+      ctx.subst <- subst;
 
       let t_seq =
         (* parameter delcs -> body *)
@@ -236,16 +241,11 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       Ok TAst.{ kind = StmtSeq [ t_node ]; ty; span }
   (* *)
   | Ast.{ kind = ExprBlock nodes; span } ->
-      let t_nodes_rev =
-        List.fold_until nodes ~init:[]
-          ~f:(fun ps node ->
-            match analyze ~ctx ~env node with
-            | Ok t_node -> Continue_or_stop.Continue (t_node :: ps)
-            | Error d ->
-                Diagnostics.append ctx.ds d;
-                (* stop evaluation (cannot forward reference in seq scope) *)
-                Continue_or_stop.Stop ps)
-          ~finish:Fn.id
+      (* stop evaluation if failed (cannot forward reference in seq scope) *)
+      let%bind t_nodes_rev =
+        List.fold_result nodes ~init:[] ~f:(fun ps node ->
+            let%bind t_node = analyze ~ctx ~env node in
+            Ok (t_node :: ps))
       in
       let ty =
         let n = List.hd_exn t_nodes_rev in
@@ -277,6 +277,25 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
 
       let ty = Typing.Type.{ t_t.TAst.ty with span } in
       Ok TAst.{ kind = ExprIf (t_cond, t_t, t_e_opts); ty; span }
+  (* *)
+  | Ast.{ kind = ExprLoop e; span; _ } ->
+      let%bind t_e = analyze ~ctx ~env e in
+
+      let ty =
+        let last_ty = ctx.builtin.Builtin.unit_ in
+        Typing.Type.{ last_ty with span }
+      in
+      let%bind subst = Typer.unify ~span ctx.subst ty t_e.TAst.ty in
+      ctx.subst <- subst;
+
+      Ok TAst.{ kind = ExprLoop t_e; ty; span }
+  (* *)
+  | Ast.{ kind = ExprBreak; span; _ } ->
+      let ty =
+        let last_ty = ctx.builtin.Builtin.unit_ in
+        Typing.Type.{ last_ty with span }
+      in
+      Ok TAst.{ kind = ExprBreak; ty; span }
   (* *)
   | Ast.{ kind = ExprAssign { lhs; rhs }; span; _ } ->
       let%bind t_args = analyze_args ~ctx ~env [ lhs; rhs ] in

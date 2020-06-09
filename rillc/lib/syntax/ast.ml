@@ -38,6 +38,8 @@ and kind_t =
   | ExprGrouping of t
   | ExprBlock of t list
   | ExprIf of t * t * t option
+  | ExprLoop of t
+  | ExprBreak
   | ExprAssign of { lhs : t; rhs : t }
   | ExprBinaryOp of { op : t; lhs : t; rhs : t }
   | ExprCall of t * t list

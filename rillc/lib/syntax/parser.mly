@@ -164,6 +164,7 @@ expr:
 
 expr_with_block:
     expr_if { $1 }
+  | expr_loop { $1 }
   | expr_block { $1 }
 
 let expr_without_block :=
@@ -183,6 +184,14 @@ let expr_if_else_clause ==
     KEYWORD_ELSE; e = expr_block; { e }
   | KEYWORD_ELSE; e = expr_if; { e }
 
+let expr_loop ==
+    e=expr_loop_infinity; { e }
+
+let expr_loop_infinity :=
+    KEYWORD_LOOP;
+    e=expr_block;
+    { make (Ast.ExprLoop e) ~l:$loc }
+
 let as_grouped_expr(expr) ==
     e=expr; { make (Ast.ExprGrouping e) ~l:$loc }
 
@@ -199,8 +208,16 @@ expr_infix:
 
 expr_postfix:
     expr_primary { $1 }
-  | expr_postfix LPAREN argument_list RPAREN
-    { make (Ast.ExprCall ($1, $3)) ~l:$loc }
+  | expr_call { $1 }
+  | expr_break { $1 }
+
+let expr_call ==
+    r=expr_postfix; LPAREN; args=argument_list; RPAREN;
+    { make (Ast.ExprCall (r, args)) ~l:$loc }
+
+let expr_break ==
+    KEYWORD_BREAK;
+    { make (Ast.ExprBreak) ~l:$loc }
 
 expr_primary:
     value { $1 }
