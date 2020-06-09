@@ -38,19 +38,36 @@ Compile rill source codes
       Arg.(value & opt (some dir) None & info [ "corelib_libdir" ] ~docs ~doc)
     in
 
+    let emit =
+      let doc = "" in
+      let l =
+        [
+          ("rill-ir", Rillc.Tool.Compile.EmitRillIr);
+          ("llvm-ir", Rillc.Tool.Compile.EmitLLVMIr);
+          ("llvm-ir-bc", Rillc.Tool.Compile.EmitLLVMIrBc);
+        ]
+      in
+      Arg.(
+        value
+        & opt (enum l) Rillc.Tool.Compile.EmitLLVMIrBc
+        & info [ "emit" ] ~docs ~doc)
+    in
+
     let files = Arg.(value & (pos_all file) [] & info [] ~docv:"FILES") in
 
-    let action corelib_srcdir corelib_libdir out_dir input_files =
+    let action corelib_srcdir corelib_libdir out_dir emit input_files =
       let opts =
         Rillc.Tool.Compile.
-          { corelib_srcdir; corelib_libdir; out_dir; input_files }
+          { corelib_srcdir; corelib_libdir; out_dir; emit; input_files }
       in
       match Rillc.Tool.Compile.entry opts with
       | Ok v -> `Ok v
       | Error e -> Errors.Flags.into_result e
     in
     ( Term.(
-        ret (const action $ corelib_srcdir $ corelib_libdir $ out_dir $ files)),
+        ret
+          ( const action $ corelib_srcdir $ corelib_libdir $ out_dir $ emit
+          $ files )),
       info )
 
   let entry () = Term.(exit @@ eval cmd)

@@ -2,6 +2,7 @@
 
 set -eux -o pipefail
 
+LLVM_AS=${RILL_LLVM_AS:-llvm-as}
 LLC=${RILL_LLC:-llc}
 CC=${RILL_CC:-gcc}
 
@@ -27,11 +28,16 @@ function build_and_execute() {
     $RILLC_COMPILER \
         --corelib_srcdir="$RILLC_CORELIB_SRCDIR" \
         --out_dir="$OUT_DIR" \
+        --emit=llvm-ir \
         "$FILE" || failed_to_execute "compile" "$CASENAME"
 
+    FILE_LL_PATH="$OUT_DIR/$(basename $FILE).ll"
     FILE_BC_PATH="$OUT_DIR/$(basename $FILE).bc"
     FILE_ASM_PATH="$OUT_DIR/$(basename $FILE).s"
     FILE_OUT_PATH="$OUT_DIR/$(basename $FILE).out"
+
+    # Emit an LLVM IR bitcode
+    $LLVM_AS "$FILE_LL_PATH" -o "$FILE_BC_PATH"
 
     # Emit an asm file
     $LLC --relocation-model=pic "$FILE_BC_PATH" -o "$FILE_ASM_PATH" \

@@ -235,7 +235,7 @@ let rec preload_pkg_cont compiler dict builtin pkg_env pkg =
           ModDict.update mod_dict ms
       | _ -> ())
 
-let to_ir compiler dict builtin ms =
+let to_ir compiler dict builtin code_gen_phase ms =
   match ms.ModState.phase_result with
   | Ok (ModState.Phase2 p2ast) ->
       let m = ms.ModState.m in
@@ -243,13 +243,12 @@ let to_ir compiler dict builtin ms =
       (* TODO: check that there are no errors in ds *)
       let p3ast = Phases.phase3 ~compiler m p2ast in
 
-      let codegen_phase = CodegenPhaseLLVM in
-
       let open With_return in
       with_return (fun r ->
           let ds = m.Mod.ds in
           let subst = m.Mod.subst in
 
+          (* Generate Rill-ir *)
           let rir =
             let ctx = Codegen.Rir_gen.context ~ds ~subst ~builtin in
             Codegen.Rir_gen.generate_module ~ctx p3ast
@@ -258,8 +257,9 @@ let to_ir compiler dict builtin ms =
             let phase_result = Ok (ModState.ArtifactRir rir) in
             ModState.{ ms with phase_result }
           in
-          if Poly.equal codegen_phase CodegenPhaseRir then r.return m;
+          if Poly.equal code_gen_phase CodegenPhaseRir then r.return m;
 
+          (* Generate LLVM-ir *)
           let llvm =
             let ctx = Codegen.Llvm_gen.context ~ds ~subst ~builtin in
             Codegen.Llvm_gen.generate_module ~ctx rir
@@ -271,7 +271,7 @@ let to_ir compiler dict builtin ms =
           ms)
   | _ -> ms
 
-let build_pkg_internal compiler dict builtin pkg =
+let build_pkg_internal compiler dict builtin emit pkg =
   let mod_dict = PkgDict.get dict ~key:pkg in
   let mod_rels = ModDict.to_alist mod_dict in
   List.iter mod_rels ~f:(fun (path, ms) ->
@@ -292,7 +292,7 @@ let build_pkg_internal compiler dict builtin pkg =
           if has_fatal then compiler.has_fatal <- true;
 
           if not has_fatal then
-            let ms = to_ir compiler dict builtin ms in
+            let ms = to_ir compiler dict builtin emit ms in
             ModDict.update mod_dict ms
       | _ -> ())
 
@@ -310,7 +310,7 @@ let build_mod_env pkg_dict =
 
   env
 
-let build_pkg compiler pkg =
+let build_pkg compiler pkg ~code_gen_phase =
   let pkg_dict = PkgDict.create () in
   let builtin = Sema.Builtin.create () in
 
@@ -327,6 +327,6 @@ let build_pkg compiler pkg =
       if compiler.has_fatal then r.return pkg_dict;
 
       (* TODO: check that all top-levels have bound type-vars *)
-      build_pkg_internal compiler pkg_dict builtin pkg;
+      build_pkg_internal compiler pkg_dict builtin code_gen_phase pkg;
 
       pkg_dict)

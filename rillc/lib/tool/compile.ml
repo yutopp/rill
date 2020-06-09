@@ -15,8 +15,11 @@ type t = {
   corelib_srcdir : string option;
   corelib_libdir : string option;
   out_dir : string;
+  emit : emit_t;
   input_files : string list;
 }
+
+and emit_t = EmitRillIr | EmitLLVMIr | EmitLLVMIrBc
 
 let host_triple = "x86_64_unknown-linux-gnu"
 
@@ -110,7 +113,12 @@ let entry opts =
   let compiler = Compiler.create workspace in
 
   let%bind () =
-    let dict = Compiler.build_pkg compiler pkg in
+    let code_gen_phase =
+      match opts.emit with
+      | EmitRillIr -> Compiler.CodegenPhaseRir
+      | EmitLLVMIr | EmitLLVMIrBc -> Compiler.CodegenPhaseLLVM
+    in
+    let dict = Compiler.build_pkg compiler pkg ~code_gen_phase in
     let pkg_rels = Compiler.PkgDict.to_alist dict in
     List.iter pkg_rels ~f:(fun (pkg, mod_dict) ->
         let mod_rels = Compiler.ModDict.to_alist mod_dict in
@@ -136,13 +144,23 @@ let entry opts =
 
     let out_dir = opts.out_dir in
     let%bind filenames =
+      let emit = opts.emit in
       List.fold_result mod_rels ~init:[] ~f:(fun files (path, ms) ->
           let%bind filename =
             match ms.Compiler.ModState.phase_result with
-            | Ok (Compiler.ModState.ArtifactRir rir) ->
+            (* Rill-IR *)
+            | Ok (Compiler.ModState.ArtifactRir rir)
+              when Poly.equal emit EmitRillIr ->
                 tmp_out_channel ~out_dir ~path ".rir" ~f:(fun ch ->
                     Codegen.Rir_gen.write_to ~ch rir)
-            | Ok (Compiler.ModState.ArtifactLlvm llvm) ->
+            (* LLVM-IR *)
+            | Ok (Compiler.ModState.ArtifactLlvm llvm)
+              when Poly.equal emit EmitLLVMIr ->
+                tmp_out_channel ~out_dir ~path ".ll" ~f:(fun ch ->
+                    Codegen.Llvm_gen.write_to ~ch ~bitcode:false llvm)
+            (* LLVM-IR bitcode *)
+            | Ok (Compiler.ModState.ArtifactLlvm llvm)
+              when Poly.equal emit EmitLLVMIrBc ->
                 tmp_out_channel ~out_dir ~path ".bc" ~f:(fun ch ->
                     Codegen.Llvm_gen.write_to ~ch ~bitcode:true llvm)
             | _ -> Error "unexpected result"
