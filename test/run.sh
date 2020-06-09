@@ -53,13 +53,12 @@ function build_and_execute() {
         || failed_to_execute "exec: $CC" "$CASENAME"
 
     # Execute
-    local OUTPUT=$($FILE_OUT_PATH 2>&1)
+    local TEST_ACTUAL_FILE="$OUT_DIR/test.actual"
+    $FILE_OUT_PATH 2>&1 > $TEST_ACTUAL_FILE
     local EXIT_CODE=$?
     if [ ! $EXIT_CODE -eq 0 ]; then
         failed_to_execute "a.out(exitcode: $EXIT_CODE)" "$CASENAME"
     fi
-    local TEST_ACTUAL_FILE="$OUT_DIR/test.actual"
-    echo "$OUTPUT" > "$TEST_ACTUAL_FILE"
 
     # Expect file
     if [ ! -f "$TEST_EXPECT_FILE" ]; then
