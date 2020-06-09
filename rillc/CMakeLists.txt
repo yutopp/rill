@@ -2,14 +2,12 @@ cmake_minimum_required(VERSION 3.2)
 
 project(rillc)
 
-find_program(DUNE_PATH dune)
-
 ## rillc
 add_custom_target(rillc ALL
   WORKING_DIRECTORY
     ${CMAKE_CURRENT_SOURCE_DIR}
   COMMAND
-    ${DUNE_PATH} build
+    dune build
   COMMENT
     "Building rillc"
 )
@@ -18,7 +16,7 @@ add_test(
   NAME
     rillc_test
   COMMAND
-    ${DUNE_PATH} runtest
+    dune runtest
   WORKING_DIRECTORY
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
