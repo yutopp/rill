@@ -1,0 +1,17 @@
+(library
+ (public_name     rillc.syntax)
+ (name            syntax)
+ (libraries       base menhirLib rillc.common)
+ (preprocess
+  (pps ppx_let ppx_deriving.show ppx_sexp_conv)))
+
+(ocamllex lexer)
+
+(menhir
+ (flags   --only-tokens)
+ (modules tokens))
+
+(menhir
+ (merge_into parser)
+ (flags      (--table --external-tokens Tokens -v --explain -la 2))
+ (modules    tokens parser))

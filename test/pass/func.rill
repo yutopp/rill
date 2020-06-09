@@ -1,0 +1,5 @@
+def f(): i32 {
+   32
+}
+
+def test(): unit {}

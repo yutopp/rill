@@ -1,0 +1,32 @@
+(lang dune 2.5)
+(name rillc)
+(version 0.0.1)
+
+(using menhir 2.0)
+
+(generate_opam_files true)
+
+(source (github yutopp/rill))
+(license "Boost License Version 1.0")
+(authors "yutopp")
+(maintainers "yutopp@gmail.com")
+
+(package
+ (name rillc)
+ (synopsis "One-line description")
+ (description "A longer description")
+ (depends
+  (ocaml               (>= 4.09.0))
+  (dune                (>= 2.5))
+  (base                (>= v0.13.0))
+  (stdio               (>= v0.13.0))
+  (menhir              (>= 20181113))
+  (stdint              (>= 0.6.0))
+  (ocamlgraph          (>= 1.8.8))
+  (loga                (>= 0.0.5))
+  (ppx_deriving_yojson (>= 3.5.0))
+  (ppx_sexp_conv       (>= v0.13.0))
+  (ppx_let             (>= v0.13.0))
+  (cmdliner            (>= 1.0.4))
+  (llvm                (>= 10.0.0-rillc))
+  (ppx_expect          (and :with-test (>= v0.13.0)))))

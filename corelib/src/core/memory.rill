@@ -1,20 +1,20 @@
-#[no_builtin]
-module core.memory;
-
-import core.basic_types;
-
-def new!(T)(): 'unmanaged raw_ptr!(T) {
-    val p = malloc(sizeof(T));
-    return unsafe_ptr_cast!(T)(p);
-}
-
-// TODO: move to else where
-extern def malloc(val :uint32): 'unmanaged untyped_raw_ptr = "rill_core_malloc";
-extern def 'a free(val :'a untyped_raw_ptr): void = "rill_core_free";
-extern def free!(T)(val :raw_ptr!(T)): void = "rill_core_free";
-
-// TODO: fix
-extern def memcpy(val :raw_ptr!(uint8), val :raw_ptr!(uint8), val :uint32): void = "rill_core_memcpy";
-
-extern def memset(val :raw_ptr!(uint8), val :uint8, val :uint32): void = "rill_core_memset";
-extern def memset!(T)(val :raw_ptr!(T), val :uint8, val :uint32): void = "rill_core_memset";
+//#[no_builtin]
+//module core.memory;
+//
+//import core.basic_types;
+//
+//def new!(T)(): 'unmanaged raw_ptr!(T) {
+//    val p = malloc(sizeof(T));
+//    return unsafe_ptr_cast!(T)(p);
+//}
+//
+//// TODO: move to else where
+//extern def malloc(val :uint32): 'unmanaged untyped_raw_ptr = "rill_core_malloc";
+//extern def 'a free(val :'a untyped_raw_ptr): void = "rill_core_free";
+//extern def free!(T)(val :raw_ptr!(T)): void = "rill_core_free";
+//
+//// TODO: fix
+//extern def memcpy(val :raw_ptr!(uint8), val :raw_ptr!(uint8), val :uint32): void = "rill_core_memcpy";
+//
+//extern def memset(val :raw_ptr!(uint8), val :uint8, val :uint32): void = "rill_core_memset";
+//extern def memset!(T)(val :raw_ptr!(T), val :uint8, val :uint32): void = "rill_core_memset";

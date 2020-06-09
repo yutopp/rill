@@ -1,0 +1,9 @@
+_ext_dirs/
+
+.merlin
+*.install
+
+*.s
+*.ll
+*.o
+*.c

@@ -1,0 +1,48 @@
+FROM ubuntu:20.04 as builder
+
+LABEL maintainer="yutopp@gmail.com"
+
+ARG llvm_version="10.0.0"
+
+RUN apt-get update && apt-get install -y \
+    wget \
+    cmake ninja-build gcc g++ python3 z3 \
+ && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir /llvm-build
+WORKDIR /llvm-build
+RUN wget -q https://github.com/llvm/llvm-project/releases/download/llvmorg-${llvm_version}/llvm-${llvm_version}.src.tar.xz -O - | tar -xJ
+
+WORKDIR /llvm-build/llvm-${llvm_version}.src
+
+RUN mkdir build
+WORKDIR /llvm-build/llvm-${llvm_version}.src/build
+
+RUN cmake -G 'Ninja' \
+          -DCMAKE_INSTALL_PREFIX=/usr/local/llvm \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DLLVM_TARGETS_TO_BUILD="X86" \
+          -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD="WebAssembly" \
+          -DLLVM_ENABLE_TERMINFO=OFF \
+          -DLLVM_ENABLE_ZLIB=OFF \
+          -DLLVM_BUILD_TOOLS=llc,lld \
+          -DLLVM_INCLUDE_UTILS=OFF \
+          -DLLVM_BUILD_UTILS=OFF \
+          -DLLVM_INCLUDE_EXAMPLES=OFF \
+          -DLLVM_INCLUDE_TESTS=OFF \
+          -DLLVM_INCLUDE_GO_TESTS=OFF \
+          -DLLVM_INCLUDE_DOCS=OFF \
+          -DLLVM_BUILD_DOCS=OFF \
+          ..
+
+RUN ninja
+RUN ninja install
+RUN ninja install llc
+
+#
+FROM ubuntu:20.04
+
+LABEL maintainer="yutopp@gmail.com"
+
+RUN mkdir /usr/local/llvm
+COPY --from=builder /usr/local/llvm /usr/local/llvm/

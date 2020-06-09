@@ -1,0 +1,75 @@
+version: 2.1
+
+executors:
+  rill-env-linux:
+    docker:
+      - image: yutopp/rill-build-env:x86_64-unknown-linux-gnu_llvm10_latest
+
+jobs:
+  build_and_push_llvm_image:
+    docker:
+      - image: circleci/buildpack-deps:stable
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - setup_remote_docker:
+          version: 19.03.8
+      - run:
+          working_directory: ~/repo/dockerfiles
+          command: ./build.llvm10.sh
+
+  build_and_push_env_image:
+    docker:
+      - image: circleci/buildpack-deps:stable
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - setup_remote_docker:
+          version: 19.03.8
+      - run:
+          working_directory: ~/repo/dockerfiles
+          command: ./build.sh
+
+  build-and-test:
+    executor: rill-env-linux
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - run: opam env >> $BASH_ENV
+      - run: opam update
+      - run: opam install dune --yes
+      - run: mkdir build
+      - run:
+          command: cmake ..
+          working_directory: ~/repo/build
+      - run:
+          command: make rillc-init
+          working_directory: ~/repo/build
+          environment:
+            # To un-tar LLVM
+            # https://discuss.circleci.com/t/tar-cannot-change-ownership/28766
+            TAR_OPTIONS: --no-same-owner
+      - run:
+          command: make
+          working_directory: ~/repo/build
+      - run:
+          command: CTEST_OUTPUT_ON_FAILURE=1 make test
+          working_directory: ~/repo/build
+
+workflows:
+  version: 2.1
+  build:
+    jobs:
+      - build_and_push_llvm_image:
+          filters:
+            tags:
+              only: /^docker-llvm.*/
+            branches:
+              ignore: /.*/
+      - build_and_push_env_image:
+          filters:
+            tags:
+              only: /^docker-env.*/
+            branches:
+              ignore: /.*/
+      - build-and-test
