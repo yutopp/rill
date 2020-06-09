@@ -16,7 +16,7 @@ add_test(
   NAME
     rillc_test
   COMMAND
-    dune runtest
+    sh -c "dune runtest"
   WORKING_DIRECTORY
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
