@@ -47,10 +47,10 @@ function build_and_execute() {
     $CC -v -fPIE \
         -L"$RILLC_CORELIB_LIBDIR" \
         -L"$RILLC_STDLIB_LIBDIR" \
+        "$FILE_ASM_PATH" \
         -static \
         -lcore-c \
         -lstd-c \
-        "$FILE_ASM_PATH" \
         -o "$FILE_OUT_PATH" \
         || failed_to_execute "exec: $CC" "$CASENAME"
 

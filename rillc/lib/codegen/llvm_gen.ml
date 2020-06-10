@@ -352,7 +352,9 @@ let pre_construct_func ~ctx ll_mod (name, func) : Env.func_t =
         Env.FuncBuiltin (find_builtin builtin_name)
     | Some extern_name ->
         Env.FuncLLVMDecl (L.declare_function extern_name ll_ty ll_mod)
-    | None -> Env.FuncLLVMDef (L.define_function name ll_ty ll_mod)
+    | None ->
+        let mangled_name = Mangling.mangle name ty in
+        Env.FuncLLVMDef (L.define_function mangled_name ll_ty ll_mod)
   in
   Env.{ kind; ty }
 

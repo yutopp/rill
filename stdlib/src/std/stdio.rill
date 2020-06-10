@@ -12,3 +12,6 @@
 //
 //extern def read_int32(): int32 = "rill_read_int32";
 //extern def read_char(): uint8 = "rill_read_char";
+
+extern def println(s: string): unit = "rill_rt_std_println";
+extern def print_int_ln(i: i32): unit = "rill_rt_std_print_int_ln";

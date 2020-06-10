@@ -1,3 +1,4 @@
+#if 0
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -21,3 +22,4 @@ void rill_core_memset(void* trg, char ch, uint32_t n)
 {
     memset(trg, ch, n);
 }
+#endif

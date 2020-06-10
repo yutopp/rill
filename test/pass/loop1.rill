@@ -1,6 +1,7 @@
 import core::prelude::*;
+import std::stdio::*;
 
-def test(): unit {
+def main(): unit {
     loop {
         println("loop1");
         break

@@ -1,6 +1,7 @@
 import core::prelude::*;
+import std::stdio::*;
 
-def test(): unit {
+def main(): unit {
     let mutable i = 0;
     loop {
         if i == 80000000 { println("break"); break }

@@ -1,3 +1,4 @@
+#if 0
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -64,11 +65,4 @@ char rill_read_char()
     scanf("%c", &c);
     return c;
 }
-
-// TODO: move to elsewhere
-void _Rill_main(void);
-
-int main() {
-    _Rill_main();
-    return 0;
-}
+#endif

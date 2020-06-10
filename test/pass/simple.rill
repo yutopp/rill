@@ -1,6 +1,7 @@
 import core::prelude::*;
+import std::stdio::*;
 
-def test(): unit {
+def main(): unit {
     println("hogehoge");
     println("fugafuga");
     let c = if true { println("t"); println("t2"); 10 } else { println("f"); 20 };
