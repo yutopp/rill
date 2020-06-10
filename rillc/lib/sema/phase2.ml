@@ -243,6 +243,12 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
   | Ast.{ kind = ExprBlock nodes; span } ->
       (* stop evaluation if failed (cannot forward reference in seq scope) *)
       let%bind t_nodes_rev =
+        let env =
+          (* scope *)
+          let visibility = Env.Private in
+          let ty = Typing.Subst.fresh_ty ~span ctx.subst in
+          Env.create "" ~parent:(Some env) ~visibility ~ty ~ty_w:Env.N
+        in
         List.fold_result nodes ~init:[] ~f:(fun ps node ->
             let%bind t_node = analyze ~ctx ~env node in
             Ok (t_node :: ps))
