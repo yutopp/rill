@@ -53,9 +53,23 @@ Compile rill source codes
         & info [ "emit" ] ~docs ~doc)
     in
 
+    let log_level =
+      let doc = "" in
+      let l =
+        [ ("debug", Loga.Severity.Debug); ("error", Loga.Severity.Error) ]
+      in
+      Arg.(
+        value
+        & opt (enum l) Loga.Severity.Error
+        & info [ "log-level" ] ~docs ~doc)
+    in
+
     let files = Arg.(value & (pos_all file) [] & info [] ~docv:"FILES") in
 
-    let action corelib_srcdir corelib_libdir out_dir emit input_files =
+    let action corelib_srcdir corelib_libdir out_dir emit log_level input_files
+        =
+      Loga.Logger.set_severity Loga.logger log_level;
+
       let opts =
         Rillc.Tool.Compile.
           { corelib_srcdir; corelib_libdir; out_dir; emit; input_files }
@@ -67,7 +81,7 @@ Compile rill source codes
     ( Term.(
         ret
           ( const action $ corelib_srcdir $ corelib_libdir $ out_dir $ emit
-          $ files )),
+          $ log_level $ files )),
       info )
 
   let entry () = Term.(exit @@ eval cmd)
