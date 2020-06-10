@@ -8,7 +8,7 @@ executors:
 jobs:
   build_and_push_llvm_image:
     docker:
-      - image: circleci/buildpack-deps:stable
+      - image: cimg/base:2020.06
     working_directory: ~/repo
     steps:
       - checkout
@@ -20,7 +20,7 @@ jobs:
 
   build_and_push_env_image:
     docker:
-      - image: circleci/buildpack-deps:stable
+      - image: cimg/base:2020.06
     working_directory: ~/repo
     steps:
       - checkout
