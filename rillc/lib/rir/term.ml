@@ -66,4 +66,13 @@ module BB = struct
   let get_insts bb = List.rev bb.insts_rev
 
   let get_terminator_opt bb = bb.terminator
+
+  let get_successors bb =
+    let t = get_terminator_opt bb in
+    match t with
+    | Some (Jump n) -> [ n ]
+    | Some (Cond (_, t, e)) -> [ t; e ]
+    | Some (Ret _) -> []
+    | Some RetVoid -> []
+    | None -> []
 end

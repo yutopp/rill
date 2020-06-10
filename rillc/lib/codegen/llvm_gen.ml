@@ -201,18 +201,27 @@ let construct_inst ~ctx ~env ll_f ll_builder inst : Env.t =
   match inst with
   (* *)
   | Rir.Term.Let (placeholder, term, alloc) ->
-      let value =
-        let ll_holder =
-          match alloc with
-          | Rir.Term.AllocLit -> None
-          | Rir.Term.AllocStack ->
-              let ll_ty = to_llty ~ctx term.Rir.Term.ty in
-              let ll_v = L.build_alloca ll_ty "" ll_builder in
-              Some ll_v
-        in
-        construct_term ~ctx ~env ~ll_holder ll_f ll_builder term
+      let env =
+        match alloc with
+        (* *)
+        | Rir.Term.AllocLit ->
+            let ll_holder = None in
+            let local =
+              construct_term ~ctx ~env ~ll_holder ll_f ll_builder term
+            in
+            Env.set_local_var env placeholder local
+        (* *)
+        | Rir.Term.AllocStack ->
+            let ll_holder =
+              let local = Env.get_local_var env placeholder in
+              match local with
+              | Env.{ ll_v; as_treat = AsPtr } -> Some ll_v
+              | _ -> failwith "[ICE]"
+            in
+            let _ = construct_term ~ctx ~env ~ll_holder ll_f ll_builder term in
+            env
       in
-      Env.set_local_var env placeholder value
+      env
   (* *)
   | Rir.Term.Assign { lhs; rhs } ->
       let lhs = construct_term ~ctx ~env ~ll_holder:None ll_f ll_builder lhs in
@@ -280,11 +289,42 @@ let construct_bb ~ctx ~env ll_f ll_builder bb =
          ());
   env
 
+let construct_pre_alloc ~ctx ~env ll_f ll_builder (bb_name, alloc_insts) =
+  let f env inst =
+    [%loga.debug "Inst(pre-alloc) -> %s" (Rir.Term.show_inst_t inst)];
+    match inst with
+    (* *)
+    | Rir.Term.Let (placeholder, term, Rir.Term.AllocStack) ->
+        let value =
+          let ll_ty = to_llty ~ctx term.Rir.Term.ty in
+          let ll_v = L.build_alloca ll_ty "" ll_builder in
+          Env.{ ll_v; as_treat = AsPtr }
+        in
+        Env.set_local_var env placeholder value
+    (* Ignore *)
+    | _ -> env
+  in
+  List.fold_left alloc_insts ~init:env ~f
+
 let construct_func ~ctx ~env ll_mod ll_f (name, func) =
+  (* *)
+  let ll_entry_bb = L.entry_block ll_f in
+  let ll_builder = L.builder_at_end ctx.ll_ctx ll_entry_bb in
+
+  let pre_allocs = Rir.Func.get_pre_allocs func in
+  let env =
+    List.fold_left pre_allocs ~init:env ~f:(fun env pre_alloc ->
+        construct_pre_alloc ~ctx ~env ll_f ll_builder pre_alloc)
+  in
+
+  (* entry -> program_entry *)
+  let ll_program_bb = L.append_block ctx.ll_ctx "program_entry" ll_f in
+  let _ = L.build_br ll_program_bb ll_builder in
+
+  (* *)
   let bbs = Rir.Func.list_bbs func in
   let (env, _) =
-    let ll_entry_bb = L.entry_block ll_f in
-    List.fold_left bbs ~init:(env, ll_entry_bb) ~f:(fun (env, ll_bb) bb ->
+    List.fold_left bbs ~init:(env, ll_program_bb) ~f:(fun (env, ll_bb) bb ->
         let name = bb.Rir.Term.BB.name in
         let ll_bb =
           match name with
@@ -321,6 +361,7 @@ let generate_module ~ctx rir_mod : Module.t =
   let ll_mod = L.create_module ctx.ll_ctx module_name in
 
   let env = Env.create () in
+
   let (env, fs_rev) =
     let funcs = Rir.Module.funcs rir_mod in
     List.fold_left funcs ~init:(env, []) ~f:(fun (env, fs) f ->
@@ -329,6 +370,7 @@ let generate_module ~ctx rir_mod : Module.t =
         let env = Env.set_func env name d_f in
         (env, (f, d_f) :: fs))
   in
+
   let () =
     fs_rev
     |> List.iter ~f:(fun (f, d_f) ->

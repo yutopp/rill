@@ -224,7 +224,7 @@ let generate_toplevel ~ctx ~builder ast =
       let f = Rir.Func.create ~ty ~extern_name:None in
       let builder = Rir.Builder.with_current_func builder f in
 
-      let bb = Rir.Func.get_entry_bb f in
+      let bb = Option.value_exn (Rir.Func.get_entry_bb f) in
       let builder = Rir.Builder.with_current_bb builder bb in
 
       let (term, builder) = generate_stmt ~ctx ~builder body in
@@ -254,6 +254,7 @@ let generate_module ~ctx ast =
       let rir_mod = Rir.Module.create ~ctx:ctx.rir_ctx in
       let builder = Rir.Builder.create ~m:rir_mod in
       List.iter nodes ~f:(generate_toplevel ~ctx ~builder);
+      let rir_mod = Rir.Filters.finish rir_mod in
       rir_mod
   (* *)
   | NAst.{ kind; _ } ->

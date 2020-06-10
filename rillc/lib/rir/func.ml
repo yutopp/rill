@@ -21,6 +21,7 @@ type t = {
   ty : (Typing.Type.t[@printer fun fmt _ -> fprintf fmt ""]);
   bbs : BBs.t;
   mutable bbs_names_rev : string list;
+  mutable pre_allocs : (string * Term.inst_t list) list;
   fresh_id : (Counter.t[@printer fun fmt _ -> fprintf fmt ""]);
   extern_name : string option;
 }
@@ -31,6 +32,7 @@ let create_vanilla ?(extern_name = None) ~ty =
     ty;
     bbs = Hashtbl.create (module String);
     bbs_names_rev = [];
+    pre_allocs = [];
     fresh_id = Counter.create ();
     extern_name;
   }
@@ -63,8 +65,43 @@ let gen_local_var f =
 
 let create ?(extern_name = None) ~ty =
   let f = create_vanilla ~extern_name ~ty in
-  let bb = Term.BB.create "entry" in
-  insert_bb f bb;
+  let () =
+    match extern_name with
+    | None ->
+        let bb = Term.BB.create "entry" in
+        insert_bb f bb
+    | Some _ -> ()
+  in
   f
 
-let get_entry_bb f = Hashtbl.find_exn f.bbs "entry"
+let get_entry_bb f = Hashtbl.find f.bbs "entry"
+
+let set_pre_allocs func pre_allocs = func.pre_allocs <- pre_allocs
+
+let get_pre_allocs func = func.pre_allocs
+
+let fold_bbs func ~init ~f =
+  match get_entry_bb func with
+  | Some bb ->
+      let q = Queue.create () in
+      let visited = Hash_set.create (module String) in
+
+      Queue.enqueue q bb;
+      Hash_set.add visited bb.Term.BB.name;
+
+      let rec iter acc =
+        match Queue.dequeue q with
+        | None -> acc
+        | Some bb ->
+            let succ = Term.BB.get_successors bb in
+            List.iter succ ~f:(fun n ->
+                let bb = Hashtbl.find_exn func.bbs n in
+                if not (Hash_set.mem visited bb.Term.BB.name) then
+                  Queue.enqueue q bb;
+                Hash_set.add visited bb.Term.BB.name);
+
+            let acc = f acc bb in
+            iter acc
+      in
+      iter init
+  | None -> init

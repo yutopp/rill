@@ -1,0 +1,13 @@
+import core::prelude::*;
+
+def test(): unit {
+    let mutable i = 0;
+    loop {
+        if i == 80000000 { println("break"); break }
+
+        let mutable a = 0;
+        a = 1;
+
+        i = i+a;
+    }
+}
