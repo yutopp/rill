@@ -38,6 +38,16 @@ Compile rill source codes
       Arg.(value & opt (some dir) None & info [ "corelib_libdir" ] ~docs ~doc)
     in
 
+    let stdlib_srcdir =
+      let doc = "" in
+      Arg.(value & opt (some dir) None & info [ "stdlib-srcdir" ] ~docs ~doc)
+    in
+
+    let stdlib_libdir =
+      let doc = "" in
+      Arg.(value & opt (some dir) None & info [ "stdlib-libdir" ] ~docs ~doc)
+    in
+
     let emit =
       let doc = "" in
       let l =
@@ -66,13 +76,21 @@ Compile rill source codes
 
     let files = Arg.(value & (pos_all file) [] & info [] ~docv:"FILES") in
 
-    let action corelib_srcdir corelib_libdir out_dir emit log_level input_files
-        =
+    let action corelib_srcdir corelib_libdir stdlib_srcdir stdlib_libdir out_dir
+        emit log_level input_files =
       Loga.Logger.set_severity Loga.logger log_level;
 
       let opts =
         Rillc.Tool.Compile.
-          { corelib_srcdir; corelib_libdir; out_dir; emit; input_files }
+          {
+            corelib_srcdir;
+            corelib_libdir;
+            stdlib_srcdir;
+            stdlib_libdir;
+            out_dir;
+            emit;
+            input_files;
+          }
       in
       match Rillc.Tool.Compile.entry opts with
       | Ok v -> `Ok v
@@ -80,8 +98,8 @@ Compile rill source codes
     in
     ( Term.(
         ret
-          ( const action $ corelib_srcdir $ corelib_libdir $ out_dir $ emit
-          $ log_level $ files )),
+          ( const action $ corelib_srcdir $ corelib_libdir $ stdlib_srcdir
+          $ stdlib_libdir $ out_dir $ emit $ log_level $ files )),
       info )
 
   let entry () = Term.(exit @@ eval cmd)

@@ -8,6 +8,8 @@ CC=${RILL_CC:-gcc}
 _=$RILLC_COMPILER
 _=$RILLC_CORELIB_SRCDIR
 _=$RILLC_CORELIB_LIBDIR
+_=$RILLC_STDLIB_SRCDIR
+_=$RILLC_STDLIB_LIBDIR
 
 SCRIPT_DIR="$(cd $(dirname $0); pwd)"
 TEST_PASS_DIR="$SCRIPT_DIR/pass"
@@ -28,6 +30,7 @@ function build_and_execute() {
     # Emit an LLVM IR bitcode
     $RILLC_COMPILER \
         --corelib_srcdir="$RILLC_CORELIB_SRCDIR" \
+        --stdlib-srcdir="$RILLC_STDLIB_SRCDIR" \
         --out_dir="$OUT_DIR" \
         --log-level=debug \
         "$FILE" || failed_to_execute "compile" "$CASENAME"
@@ -43,8 +46,10 @@ function build_and_execute() {
     # Emit an executable
     $CC -v -fPIE \
         -L"$RILLC_CORELIB_LIBDIR" \
+        -L"$RILLC_STDLIB_LIBDIR" \
         -static \
         -lcore-c \
+        -lstd-c \
         "$FILE_ASM_PATH" \
         -o "$FILE_OUT_PATH" \
         || failed_to_execute "exec: $CC" "$CASENAME"
@@ -80,6 +85,7 @@ function build_and_check_failure() {
     set +e
     $RILLC_COMPILER \
         --corelib_srcdir="$RILLC_CORELIB_SRCDIR" \
+        --stdlib-srcdir="$RILLC_STDLIB_SRCDIR" \
         --out_dir="$OUT_DIR" \
         --emit=llvm-ir \
         "$FILE" > $TEST_ACTUAL_FILE 2>&1

@@ -14,6 +14,8 @@ module Package = Common.Package
 type t = {
   corelib_srcdir : string option;
   corelib_libdir : string option;
+  stdlib_srcdir : string option;
+  stdlib_libdir : string option;
   out_dir : string;
   emit : emit_t;
   input_files : string list;
@@ -75,6 +77,22 @@ let tmp_out_channel ~f ~out_dir ~path suffix =
   in
   Ok filepath
 
+let load_builtin_pkg workspace sysroot srcdir pkg_name =
+  let pkg_srcdir =
+    match srcdir with
+    | Some dir -> dir
+    | None -> join_path [ sysroot; "/lib/rill-lib/src"; pkg_name ]
+  in
+  let pkg_id = Workspace.issue_pkg_id ~workspace in
+  let pkg = Package.create ~name:pkg_name ~dir:pkg_srcdir ~id:pkg_id in
+  Workspace.register_pkg ~workspace pkg;
+  let paths =
+    grob_dir pkg_srcdir "^.*\\.rill$"
+    |> List.map ~f:(fun n -> Caml.Filename.concat pkg_srcdir n)
+  in
+  Package.add_src_paths pkg paths;
+  pkg
+
 let entry opts =
   let open Result.Let_syntax in
   let%bind () = Result.try_with (fun () -> validate opts) in
@@ -85,33 +103,27 @@ let entry opts =
   let workspace = Workspace.create () in
 
   (* TODO: fix *)
-  let core_pkg =
-    let pkg_name = "core" in
-    let pkg_srcdir =
-      match opts.corelib_srcdir with
-      | Some dir -> dir
-      | None -> join_path [ sysroot; "/lib/rill-lib/src"; pkg_name ]
-    in
-    let pkg_id = Workspace.issue_pkg_id ~workspace in
-    let pkg = Package.create ~name:pkg_name ~dir:pkg_srcdir ~id:pkg_id in
-    Workspace.register_pkg ~workspace pkg;
-    let paths =
-      grob_dir pkg_srcdir "^.*\\.rill$"
-      |> List.map ~f:(fun n -> Caml.Filename.concat pkg_srcdir n)
-    in
-    Package.add_src_paths pkg paths;
-    pkg
-  in
-
-  (* TODO: fix *)
   let pkg =
     let pkg_id = Workspace.issue_pkg_id ~workspace in
     let pkg = Package.create ~name:"main" ~dir:"." ~id:pkg_id in
     Workspace.register_pkg ~workspace pkg;
     pkg
   in
-  Package.add_dep_pkg pkg core_pkg;
   Package.add_src_paths pkg opts.input_files;
+
+  (* TODO: fix *)
+  let () =
+    let dep_pkg =
+      load_builtin_pkg workspace sysroot opts.corelib_srcdir "core"
+    in
+    Package.add_dep_pkg pkg dep_pkg
+  in
+
+  (* TODO: fix *)
+  let () =
+    let dep_pkg = load_builtin_pkg workspace sysroot opts.stdlib_srcdir "std" in
+    Package.add_dep_pkg pkg dep_pkg
+  in
 
   let compiler = Compiler.create workspace in
 
