@@ -95,7 +95,10 @@ let entry opts =
     let pkg_id = Workspace.issue_pkg_id ~workspace in
     let pkg = Package.create ~name:pkg_name ~dir:pkg_srcdir ~id:pkg_id in
     Workspace.register_pkg ~workspace pkg;
-    let paths = grob_dir pkg_srcdir "^.*\\.rill$" in
+    let paths =
+      grob_dir pkg_srcdir "^.*\\.rill$"
+      |> List.map ~f:(fun n -> Caml.Filename.concat pkg_srcdir n)
+    in
     Package.add_src_paths pkg paths;
     pkg
   in

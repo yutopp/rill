@@ -181,9 +181,6 @@ let rec preload_pkg compiler dict builtin pkg =
 
     let paths = Package.src_paths pkg in
     List.iter paths ~f:(fun path ->
-        let base_dir = Package.base_dir pkg in
-        let path = Caml.Filename.concat base_dir path in
-
         (* TODO: fix treatment of subst *)
         let subst_id = Common.Counter.fresh compiler.subst_counter in
         let subst = Typing.Subst.create subst_id in

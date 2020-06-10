@@ -25,6 +25,7 @@ let add_dep_pkg package dep_pkg =
   package.deps_rev <- dep_pkg :: package.deps_rev
 
 let add_src_paths package paths =
+  (* TODO: check fullpath *)
   package.src_paths_rev <- List.append (paths |> List.rev) package.src_paths_rev
 
 let deps package = List.rev package.deps_rev
