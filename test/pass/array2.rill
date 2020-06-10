@@ -1,0 +1,9 @@
+import core::prelude::*;
+import std::stdio::*;
+
+def main(): unit {
+  let mutable v = [1];
+  v[0] = 10;
+
+  print_int_ln(v[0]);
+}

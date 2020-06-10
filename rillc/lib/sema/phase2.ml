@@ -336,7 +336,9 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       (* TODO: fix type inference *)
       let elem_ty =
         match Typing.Subst.subst_type ctx.subst t_r.TAst.ty with
-        | Typing.Type.{ ty = Array { elem; n }; _ } -> elem
+        | Typing.Type.{ ty = Array { elem; n }; _ } ->
+            let binding_mut = t_r.TAst.ty.Typing.Type.binding_mut in
+            Typing.Type.{ elem with binding_mut }
         | _ -> failwith "[ICE] not supported"
       in
 
