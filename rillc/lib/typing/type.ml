@@ -21,6 +21,7 @@ and ty_t =
   | Bool
   | Int
   | String
+  | Array of { elem : t; n : int }
   | Func of { params : t list; ret : t; linkage : func_linkage_t }
   | Module
 
@@ -47,6 +48,8 @@ let rec to_string ty : string =
   | { ty = Bool; _ } -> "Bool"
   | { ty = Int; _ } -> "Int"
   | { ty = String; _ } -> "String"
+  | { ty = Array { elem; n }; _ } ->
+      Printf.sprintf "Array[%s; %d]" (to_string elem) n
   | { ty = Func { params; ret; _ }; _ } ->
       let params' = List.map params ~f:to_string in
       let ret' = to_string ret in

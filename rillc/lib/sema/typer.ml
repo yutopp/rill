@@ -28,6 +28,25 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
       Ok Typing.Subst.{ subst with ty_subst; ki_subst }
   (* *)
   | Typing.Type.
+      ( { ty = Array { elem = a_elem; n = a_n }; _ },
+        { ty = Array { elem = b_elem; n = b_n }; _ } ) ->
+      [%loga.debug "Unify array() = array()"];
+      let%bind subst =
+        if a_n = b_n then
+          unify_elem ~span subst a_elem b_elem
+          |> Result.map_error ~f:(fun d ->
+                 let kind = Typer_err.ErrArrayElem in
+                 let diff = Typer_err.Type { lhs = a_elem; rhs = b_elem } in
+                 Typer_err.{ diff; kind; nest = Some d })
+        else
+          let kind = Typer_err.ErrArrayLength { r = a_n; l = b_n } in
+          let diff = Typer_err.Type { lhs = s_lhs_ty; rhs = s_rhs_ty } in
+          let e = Typer_err.{ diff; kind; nest = None } in
+          Error e
+      in
+      Ok subst
+  (* *)
+  | Typing.Type.
       ( ( {
             ty = Func { params = a_params; ret = a_ret; linkage = a_linkage };
             _;

@@ -51,6 +51,8 @@ class type_mismatch ~(detail : Typer_err.t) =
         | Typer_err.ErrFuncLinkage -> "Linkage"
         | Typer_err.ErrFuncArgRet -> "Return"
         | Typer_err.ErrUnify -> "Diff"
+        | Typer_err.ErrArrayElem -> "Elem"
+        | Typer_err.ErrArrayLength { r; l } -> "Array length"
       in
 
       let rec to_string_ds d msgs_acc =

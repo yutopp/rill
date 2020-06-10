@@ -19,6 +19,7 @@ type t = {
 
 and value_kind_t =
   | Call of placeholder_t * placeholder_t list
+  | Index of placeholder_t * placeholder_t
   | RVal of value_r_t
   | LVal of placeholder_t
   | LValParam of int
@@ -29,6 +30,7 @@ and value_r_t =
   | ValueInt of int
   | ValueString of string
   | ValueUnit
+  | ValueArrayElem of placeholder_t list
 
 and inst_t =
   | Let of placeholder_t * t * alloc_t

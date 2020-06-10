@@ -43,6 +43,7 @@ and kind_t =
   | ExprAssign of { lhs : t; rhs : t }
   | ExprBinaryOp of { op : t; lhs : t; rhs : t }
   | ExprCall of t * t list
+  | ExprIndex of t * t
   (* primitives *)
   | ID of string
   | IDWildcard
@@ -50,6 +51,7 @@ and kind_t =
   | LitInt of int * int * bool (* value * bits * signed *)
   | LitString of string
   | LitUnit
+  | LitArrayElems of t list
   | DeclAttrMutable
   | DeclAttrImmutable
 [@@deriving sexp_of, show]

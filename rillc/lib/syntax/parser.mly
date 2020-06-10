@@ -209,11 +209,16 @@ expr_infix:
 expr_postfix:
     expr_primary { $1 }
   | expr_call { $1 }
+  | expr_index { $1 }
   | expr_break { $1 }
 
 let expr_call ==
     r=expr_postfix; LPAREN; args=argument_list; RPAREN;
     { make (Ast.ExprCall (r, args)) ~l:$loc }
+
+let expr_index ==
+    r=expr_postfix; LBRACKET; e=expr; RBRACKET;
+    { make (Ast.ExprIndex (r, e)) ~l:$loc }
 
 let expr_break ==
     KEYWORD_BREAK;
@@ -228,6 +233,7 @@ value:
   | lit_bool { $1 }
   | lit_integer { $1 }
   | lit_string { $1 }
+  | lit_array { $1 }
 
 argument_list:
     separated_list(COMMA, expr) { $1 }
@@ -277,3 +283,10 @@ lit_integer:
 
 lit_string:
     STRING { make (Ast.LitString $1) ~l:$loc }
+
+let lit_array :=
+    LBRACKET; es=lit_array_elems; RBRACKET;
+    { make (Ast.LitArrayElems es) ~l:$loc }
+
+let lit_array_elems ==
+    es=separated_list(COMMA, expr); { es }

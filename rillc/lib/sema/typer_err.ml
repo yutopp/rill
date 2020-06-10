@@ -25,4 +25,6 @@ and kind_t =
   | ErrFuncArgs of int
   | ErrFuncArgRet
   | ErrFuncLinkage
+  | ErrArrayElem
+  | ErrArrayLength of { r : int; l : int }
   | ErrUnify

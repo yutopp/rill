@@ -28,12 +28,14 @@ module TAst = struct
     | ExprBreak
     | ExprAssign of { lhs : t; rhs : t }
     | ExprCall of t * t list
+    | ExprIndex of t * t
     | Var of string
     | VarParam of int
     | LitBool of bool
     | LitInt of int
     | LitString of string
     | LitUnit
+    | LitArrayElem of t list
   [@@deriving show]
 end
 
@@ -328,6 +330,23 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
   | Ast.{ kind = ExprCall (r, args); span; _ } ->
       analyze_call ~ctx ~env ~span r args
   (* *)
+  | Ast.{ kind = ExprIndex (r, index); span; _ } ->
+      (* TODO: index trait *)
+      let%bind t_r = analyze ~ctx ~env r in
+      (* TODO: fix type inference *)
+      let elem_ty =
+        match Typing.Subst.subst_type ctx.subst t_r.TAst.ty with
+        | Typing.Type.{ ty = Array { elem; n }; _ } -> elem
+        | _ -> failwith "[ICE] not supported"
+      in
+
+      let index_ty = ctx.builtin.Builtin.i32_ in
+      let%bind t_index = analyze ~ctx ~env index in
+      let%bind subst = Typer.unify ~span ctx.subst index_ty t_index.TAst.ty in
+      ctx.subst <- subst;
+
+      Ok TAst.{ kind = ExprIndex (t_r, t_index); ty = elem_ty; span }
+  (* *)
   | Ast.{ kind = ID name; span; _ } ->
       let%bind venv =
         Env.lookup_value env name
@@ -353,6 +372,32 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
   | Ast.{ kind = LitString v; span; _ } ->
       let ty = Typing.Type.{ ctx.builtin.Builtin.string_ with span } in
       Ok TAst.{ kind = LitString v; ty; span }
+  (* *)
+  | Ast.{ kind = LitArrayElems elems; span; _ } ->
+      let%bind t_elems =
+        List.fold_result elems ~init:[] ~f:(fun rev_t_elems elem ->
+            let%bind t_elem = analyze ~ctx ~env elem in
+            Ok (t_elem :: rev_t_elems))
+        |> Result.map ~f:List.rev
+      in
+
+      let elem_ty = Typing.Subst.fresh_ty ~span ctx.subst in
+      let%bind subst =
+        List.fold_result t_elems ~init:ctx.subst ~f:(fun subst t_elem ->
+            let span = t_elem.TAst.span in
+            let binding_mut = Typing.Type.MutImm in
+            let actual_elem_ty =
+              Typing.Type.{ t_elem.TAst.ty with binding_mut }
+            in
+            Typer.unify ~span subst elem_ty actual_elem_ty)
+      in
+      ctx.subst <- subst;
+
+      let ty =
+        let n = List.length elems in
+        Typing.Type.{ (ctx.builtin.Builtin.array_ elem_ty n) with span }
+      in
+      Ok TAst.{ kind = LitArrayElem t_elems; ty; span }
   (* *)
   | Ast.{ kind; span; _ } ->
       let s = Ast.sexp_of_kind_t kind |> Sexp.to_string_mach in

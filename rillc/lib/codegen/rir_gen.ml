@@ -45,9 +45,10 @@ let rec generate_stmt ~ctx ~builder ast =
   | NAst.{ kind = Let { mut; name; expr }; ty; span; _ } ->
       let (t_expr, builder) = generate_stmt ~ctx ~builder expr in
       let storage =
-        match mut with
-        | Typing.Type.MutImm -> Rir.Term.AllocLit
-        | Typing.Type.MutMut -> Rir.Term.AllocStack
+        match (mut, Value_category.should_treat ty) with
+        | (Typing.Type.MutImm, Value_category.AsVal) -> Rir.Term.AllocLit
+        | (Typing.Type.MutImm, Value_category.AsPtr) -> Rir.Term.AllocStack
+        | (Typing.Type.MutMut, _) -> Rir.Term.AllocStack
       in
       let term = Rir.Builder.build_let builder name t_expr storage in
       (term, builder)
@@ -179,6 +180,10 @@ let rec generate_stmt ~ctx ~builder ast =
       let node = Rir.Term.{ kind = Call (name, args); ty; span } in
       (node, builder)
   (* *)
+  | NAst.{ kind = Index { name; index }; span; ty } ->
+      let node = Rir.Term.{ kind = Index (name, index); ty; span } in
+      (node, builder)
+  (* *)
   | NAst.{ kind = Var id; ty; span } ->
       let node = Rir.Term.{ kind = LVal id; ty; span } in
       (node, builder)
@@ -201,6 +206,10 @@ let rec generate_stmt ~ctx ~builder ast =
   (* *)
   | NAst.{ kind = LitUnit; ty; span } ->
       let node = Rir.Term.{ kind = RVal ValueUnit; ty; span } in
+      (node, builder)
+  (* *)
+  | NAst.{ kind = LitArrayElem elems; ty; span } ->
+      let node = Rir.Term.{ kind = RVal (ValueArrayElem elems); ty; span } in
       (node, builder)
   (* *)
   | NAst.{ kind = Undef; ty; span } ->

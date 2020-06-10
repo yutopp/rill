@@ -11,6 +11,7 @@ type t = {
   i32_ : Typing.Type.t;
   string_ : Typing.Type.t;
   unit_ : Typing.Type.t;
+  array_ : Typing.Type.t -> int -> Typing.Type.t;
 }
 
 let create () : t =
@@ -19,4 +20,7 @@ let create () : t =
   let i32_ = Typing.Type.{ ty = Int; binding_mut; span = Span.undef } in
   let string_ = Typing.Type.{ ty = String; binding_mut; span = Span.undef } in
   let unit_ = Typing.Type.{ ty = Unit; binding_mut; span = Span.undef } in
-  { bool_; i32_; string_; unit_ }
+  let array_ elem n =
+    Typing.Type.{ ty = Array { elem; n }; binding_mut; span = Span.undef }
+  in
+  { bool_; i32_; string_; unit_; array_ }

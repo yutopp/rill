@@ -25,6 +25,7 @@ module NAst = struct
     | Let of { mut : Typing.Type.mutability_t; name : string; expr : t }
     | Return of string
     | Call of { name : string; args : string list }
+    | Index of { name : string; index : string }
     | If of { cond : string; t : t; e_opt : t option }
     | Loop of t
     | Break
@@ -32,6 +33,7 @@ module NAst = struct
     | LitInt of int
     | LitString of string
     | LitUnit
+    | LitArrayElem of string list
     | Assign of { lhs : t; rhs : t }
     | Undef
     | Var of string
@@ -199,6 +201,13 @@ let rec normalize ~ctx ~env ast =
       in
       bind [] args rk
   (* *)
+  | TAst.{ kind = ExprIndex (r, index); ty; span; _ } ->
+      let k = insert_let (normalize ~ctx ~env r) in
+      k (fun r_id ->
+          let k = insert_let (normalize ~ctx ~env index) in
+          k (fun index_id ->
+              NAst.{ kind = Index { name = r_id; index = index_id }; ty; span }))
+  (* *)
   | TAst.{ kind = Var s; ty; span; _ } ->
       let id = Env.find_alias_opt env s |> Option.value ~default:s in
       NAst.{ kind = Var id; ty; span }
@@ -215,3 +224,13 @@ let rec normalize ~ctx ~env ast =
       NAst.{ kind = LitString v; ty; span }
   (* *)
   | TAst.{ kind = LitUnit; ty; span; _ } -> NAst.{ kind = LitUnit; ty; span }
+  (* *)
+  | TAst.{ kind = LitArrayElem elems; ty; span; _ } ->
+      let rec bind xs elems k =
+        match elems with
+        | [] -> NAst.{ kind = LitArrayElem (List.rev xs); ty; span }
+        | e :: es ->
+            let k' = insert_let (normalize ~ctx ~env e) in
+            k' (fun id -> bind (id :: xs) es k)
+      in
+      bind [] elems (fun _ -> failwith "")
