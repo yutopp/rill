@@ -32,6 +32,10 @@ module Collect_stack_vars_in_func_pass = struct
           match storage with Term.AllocStack -> Set.add vars name | _ -> vars
         in
         vars
+    | Term.Assign { lhs; rhs } ->
+        let vars = collect vars rhs in
+        let vars = collect vars lhs in
+        vars
     | _ -> vars
 
   let apply _func_name func =

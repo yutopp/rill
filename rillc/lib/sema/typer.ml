@@ -47,6 +47,26 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
       Ok subst
   (* *)
   | Typing.Type.
+      ( { ty = Pointer { mut = a_mut; elem = a_elem }; _ },
+        { ty = Pointer { mut = b_mut; elem = b_elem }; _ } ) ->
+      [%loga.debug "Unify pointer() = pointer()"];
+      let%bind subst =
+        unify_elem ~span subst a_elem b_elem
+        |> Result.map_error ~f:(fun d ->
+               let kind = Typer_err.ErrPointerElem in
+               let diff = Typer_err.Type { lhs = a_elem; rhs = b_elem } in
+               Typer_err.{ diff; kind; nest = Some d })
+      in
+      let%bind () =
+        if Poly.equal a_mut b_mut then Ok ()
+        else
+          let kind = Typer_err.ErrPointerElem in
+          let diff = Typer_err.Mutability { lhs = a_mut; rhs = b_mut } in
+          Error Typer_err.{ diff; kind; nest = None }
+      in
+      Ok subst
+  (* *)
+  | Typing.Type.
       ( ( {
             ty = Func { params = a_params; ret = a_ret; linkage = a_linkage };
             _;

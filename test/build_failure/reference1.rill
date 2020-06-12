@@ -1,0 +1,4 @@
+def main(): unit {
+  let mutable g = &mutable 50;
+  g = &52;
+}

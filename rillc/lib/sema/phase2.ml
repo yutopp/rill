@@ -316,6 +316,13 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
             Error elm
       in
 
+      let%bind subst =
+        let lhs_ty = t_lhs.TAst.ty in
+        let rhs_ty = t_rhs.TAst.ty in
+        Typer.unify ~span ctx.subst lhs_ty rhs_ty
+      in
+      ctx.subst <- subst;
+
       (* TODO: fix type? *)
       let binding_mut = Typing.Type.MutImm in
       let ty = Typing.Type.{ ty = Unit; binding_mut; span } in

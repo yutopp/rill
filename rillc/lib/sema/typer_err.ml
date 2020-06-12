@@ -15,6 +15,10 @@ type t = { diff : diff_t; kind : kind_t; nest : t option }
 
 and diff_t =
   | Type of { lhs : Typing.Type.t; rhs : Typing.Type.t }
+  | Mutability of {
+      lhs : Typing.Type.mutability_t;
+      rhs : Typing.Type.mutability_t;
+    }
   | Linkage of {
       lhs : Typing.Type.func_linkage_t;
       rhs : Typing.Type.func_linkage_t;
@@ -27,4 +31,5 @@ and kind_t =
   | ErrFuncLinkage
   | ErrArrayElem
   | ErrArrayLength of { r : int; l : int }
+  | ErrPointerElem
   | ErrUnify

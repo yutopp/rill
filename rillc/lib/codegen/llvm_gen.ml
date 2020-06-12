@@ -43,6 +43,9 @@ let rec to_llty ~ctx ty : L.lltype =
       let params_tys = List.map ~f:(to_llty ~ctx) params in
       let ret_ty = to_llty ~ctx ret in
       L.function_type ret_ty (Array.of_list params_tys)
+  | Typing.Type.{ ty = Pointer { elem; _ }; _ } ->
+      let elem_ll_ty = to_llty ~ctx elem in
+      L.pointer_type elem_ll_ty
   | _ ->
       failwith
         (Printf.sprintf "[ICE] not supported type: %s"
@@ -133,7 +136,8 @@ let load_if_ref ll_builder v =
 let assume_ref v =
   match v with
   | Env.{ ll_v; as_treat = Value_category.AsPtr } -> ll_v
-  | Env.{ ll_v; as_treat = Value_category.AsVal } -> failwith "[ICE]"
+  | Env.{ ll_v; as_treat = Value_category.AsVal } ->
+      failwith (Printf.sprintf "[ICE] not ref: %s" (L.string_of_llvalue ll_v))
 
 let construct_value ~ctx ~env ~ll_holder ll_builder v ty =
   let into_ref ll_v =
@@ -229,7 +233,7 @@ let construct_term ~ctx ~env ~ll_holder ll_f ll_builder term : Env.var_t =
         | Some mem ->
             let _ll_v : L.llvalue = L.build_store ll_v mem ll_builder in
             Env.{ ll_v = mem; as_treat = Value_category.AsPtr }
-        | None -> Env.{ ll_v; as_treat = Value_category.AsPtr }
+        | None -> Env.{ ll_v; as_treat = Value_category.AsVal }
       in
       value
   (* *)

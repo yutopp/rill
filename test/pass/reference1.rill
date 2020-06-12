@@ -7,5 +7,7 @@ def main(): unit {
   let mutable d = 30;
   let e = &mutable d;
 
-  let f = &mutable 40;
+  let mutable f = &mutable 40;
+  f = &mutable 42;
+  f = f;
 }

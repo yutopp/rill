@@ -59,3 +59,6 @@ let rec to_string ty : string =
   | { ty = Pointer { mut; elem }; _ } ->
       Printf.sprintf "Pointer[%s %s]" (show_mutability_t mut) (to_string elem)
   | { ty = Module; _ } -> "Module"
+
+let to_string_mut mut : string =
+  match mut with MutImm -> "immutable" | MutMut -> "mutable"

@@ -45,9 +45,16 @@ class type_mismatch ~(detail : Typer_err.t) =
           (Typing.Type.to_string rhs)
       in
 
+      let to_string_mut lhs rhs =
+        Printf.sprintf "Type mutability mismatch: Expect = %s, but Actual = %s"
+          (Typing.Type.to_string_mut lhs)
+          (Typing.Type.to_string_mut rhs)
+      in
+
       let to_string_diff diff =
         match diff with
         | Typer_err.Type { lhs; rhs } -> to_string_ty lhs rhs
+        | Typer_err.Mutability { lhs; rhs } -> to_string_mut lhs rhs
         | Typer_err.Linkage { lhs; rhs } -> ""
       in
 
@@ -59,6 +66,7 @@ class type_mismatch ~(detail : Typer_err.t) =
         | Typer_err.ErrFuncArgRet -> "Return"
         | Typer_err.ErrUnify -> "Diff"
         | Typer_err.ErrArrayElem -> "Elem"
+        | Typer_err.ErrPointerElem -> "PointerElem"
         | Typer_err.ErrArrayLength { r; l } -> "Array length"
       in
 
