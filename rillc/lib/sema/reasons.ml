@@ -27,6 +27,13 @@ class cannot_assign =
     method to_string = Printf.sprintf "Cannot assign to immutable variable"
   end
 
+class cannot_reference_mut =
+  object (self)
+    inherit Diagnostics.Error.base
+
+    method to_string = Printf.sprintf "TODO"
+  end
+
 class type_mismatch ~(detail : Typer_err.t) =
   object (self)
     inherit Diagnostics.Error.base

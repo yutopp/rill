@@ -202,9 +202,17 @@ let expr_assign :=
   | e=as_grouped_expr(expr_infix); { e }
 
 expr_infix:
-    lhs = expr_infix op = infix_id rhs = expr_postfix
+    lhs = expr_infix op = infix_id rhs = expr_prefix
     { make (Ast.ExprBinaryOp {op; lhs; rhs}) ~l:$loc }
-  | expr_postfix { $1 }
+  | expr_prefix { $1 }
+
+let expr_prefix :=
+    e=expr_postfix; { e }
+  | e=expr_ref; { e }
+
+let expr_ref ==
+    BITWISE_AND; attr=decl_attr; e=expr_prefix;
+    { make (Ast.ExprRef (attr, e)) ~l:$loc }
 
 expr_postfix:
     expr_primary { $1 }

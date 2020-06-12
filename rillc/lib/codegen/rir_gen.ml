@@ -44,13 +44,7 @@ let rec generate_stmt ~ctx ~builder ast =
   (* *)
   | NAst.{ kind = Let { mut; name; expr }; ty; span; _ } ->
       let (t_expr, builder) = generate_stmt ~ctx ~builder expr in
-      let storage =
-        match (mut, Value_category.should_treat ty) with
-        | (Typing.Type.MutImm, Value_category.AsVal) -> Rir.Term.AllocLit
-        | (Typing.Type.MutImm, Value_category.AsPtr) -> Rir.Term.AllocStack
-        | (Typing.Type.MutMut, _) -> Rir.Term.AllocStack
-      in
-      let term = Rir.Builder.build_let builder name t_expr storage in
+      let term = Rir.Builder.build_let builder name t_expr mut ty in
       (term, builder)
   (* *)
   | NAst.{ kind = Assign { lhs; rhs }; ty; span; _ } ->
@@ -77,9 +71,8 @@ let rec generate_stmt ~ctx ~builder ast =
         match has_no_value with
         | true -> Rir.Term.{ kind = RVal ValueUnit; ty; span }
         | false ->
-            B.build_let builder ""
-              Rir.Term.{ kind = Undef; ty; span }
-              Rir.Term.AllocStack
+            let mut = Typing.Type.MutMut in
+            B.build_let builder "" Rir.Term.{ kind = Undef; ty; span } mut ty
       in
 
       let bb_then = B.build_bb builder "if_then" in
@@ -133,9 +126,8 @@ let rec generate_stmt ~ctx ~builder ast =
   | NAst.{ kind = Loop inner; ty; span; _ } ->
       (* receiver (unit always) *)
       let recv =
-        B.build_let builder ""
-          Rir.Term.{ kind = Undef; ty; span }
-          Rir.Term.AllocLit
+        let mut = Typing.Type.MutImm in
+        B.build_let builder "" Rir.Term.{ kind = Undef; ty; span } mut ty
       in
 
       let bb_start = B.build_bb builder "loop_start" in
@@ -182,6 +174,10 @@ let rec generate_stmt ~ctx ~builder ast =
   (* *)
   | NAst.{ kind = Index { name; index }; span; ty } ->
       let node = Rir.Term.{ kind = Index (name, index); ty; span } in
+      (node, builder)
+  (* *)
+  | NAst.{ kind = Ref { name }; span; ty } ->
+      let node = Rir.Term.{ kind = Ref name; ty; span } in
       (node, builder)
   (* *)
   | NAst.{ kind = Var id; ty; span } ->
@@ -263,7 +259,7 @@ let generate_module ~ctx ast =
       let rir_mod = Rir.Module.create ~ctx:ctx.rir_ctx in
       let builder = Rir.Builder.create ~m:rir_mod in
       List.iter nodes ~f:(generate_toplevel ~ctx ~builder);
-      let rir_mod = Rir.Filters.finish rir_mod in
+      let rir_mod = Rir_gen_filters.finish rir_mod in
       rir_mod
   (* *)
   | NAst.{ kind; _ } ->

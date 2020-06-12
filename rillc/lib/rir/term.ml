@@ -20,6 +20,7 @@ type t = {
 and value_kind_t =
   | Call of placeholder_t * placeholder_t list
   | Index of placeholder_t * placeholder_t
+  | Ref of placeholder_t
   | RVal of value_r_t
   | LVal of placeholder_t
   | LValParam of int
@@ -33,7 +34,7 @@ and value_r_t =
   | ValueArrayElem of placeholder_t list
 
 and inst_t =
-  | Let of placeholder_t * t * alloc_t
+  | Let of placeholder_t * t * Typing.Type.mutability_t * Typing.Type.t
   | Assign of { lhs : t; rhs : t }
   | TerminatorPoint of terminator_t
 

@@ -39,7 +39,7 @@ let build_bb b name =
   Func.insert_bb f bb;
   bb
 
-let build_let b name v alloc =
+let build_let b name v mut ty =
   let name =
     match name with
     | "" ->
@@ -47,7 +47,7 @@ let build_let b name v alloc =
         Func.gen_local_var f
     | _ -> name
   in
-  let inst = Term.Let (name, v, alloc) in
+  let inst = Term.Let (name, v, mut, ty) in
   let bb = get_current_bb b in
   Term.BB.append_inst bb inst;
   Term.{ kind = LVal name; ty = v.ty; span = v.span }

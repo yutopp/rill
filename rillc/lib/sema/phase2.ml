@@ -29,6 +29,7 @@ module TAst = struct
     | ExprAssign of { lhs : t; rhs : t }
     | ExprCall of t * t list
     | ExprIndex of t * t
+    | ExprRef of t
     | Var of string
     | VarParam of int
     | LitBool of bool
@@ -124,10 +125,11 @@ and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
                 in
                 (* NOTE: a type is already checked at phase1_1 *)
                 (* TODO: Distinguish params and decls *)
-                let ty = Env.type_of venv in
-                let t_param = TAst.{ kind = VarParam index; ty; span } in
+                let v_ty = Env.type_of venv in
+                let t_param = TAst.{ kind = VarParam index; ty = v_ty; span } in
+                let mut = v_ty.Typing.Type.binding_mut in
+
                 let ty = ctx.builtin.Builtin.unit_ in
-                let mut = ty.Typing.Type.binding_mut in
                 TAst.{ kind = StmtLet { mut; name; expr = t_param }; ty; span }
             | _ -> failwith "")
       in
@@ -200,18 +202,13 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       in
       let%bind var_ty =
         match ty_spec with
-        | Some ty_spec -> lookup_type ~ctx ~env ty_spec
+        | Some ty_spec -> Phase1_1.lookup_type ~env ty_spec
         | None ->
             (* infer *)
             let ty = Typing.Subst.fresh_ty ~span ctx.subst in
             Ok ty
       in
-      let binding_mut =
-        match attr with
-        | Ast.{ kind = DeclAttrImmutable; _ } -> Typing.Type.MutImm
-        | Ast.{ kind = DeclAttrMutable; _ } -> Typing.Type.MutMut
-        | _ -> failwith "[ICE]"
-      in
+      let binding_mut = Mut.mutability_of attr in
       let var_ty = Typing.Type.{ var_ty with binding_mut } in
       (* CANNOT reference self *)
       let%bind t_expr = analyze ~ctx ~env expr in
@@ -349,6 +346,27 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
 
       Ok TAst.{ kind = ExprIndex (t_r, t_index); ty = elem_ty; span }
   (* *)
+  | Ast.{ kind = ExprRef (attr, e); span; _ } ->
+      (* TODO: ref trait *)
+      let%bind t_r = analyze ~ctx ~env e in
+
+      let mut = Mut.mutability_of attr in
+      let%bind () =
+        match (mut, t_r.TAst.ty.Typing.Type.binding_mut) with
+        | (Typing.Type.MutMut, Typing.Type.MutMut) | (Typing.Type.MutImm, _) ->
+            Ok ()
+        | (Typing.Type.MutMut, _) ->
+            let e = new Reasons.cannot_reference_mut in
+            let elm = Diagnostics.Elem.error ~span e in
+            Error elm
+      in
+
+      let ty =
+        let elem_ty = t_r.TAst.ty in
+        Typing.Type.{ (ctx.builtin.Builtin.pointer_ mut elem_ty) with span }
+      in
+      Ok TAst.{ kind = ExprRef t_r; ty; span }
+  (* *)
   | Ast.{ kind = ID name; span; _ } ->
       let%bind venv =
         Env.lookup_value env name
@@ -443,22 +461,6 @@ and analyze_call ~ctx ~env ~span recv args =
   ctx.subst <- subst;
 
   Ok TAst.{ kind = ExprCall (t_recv, t_args); ty = ret_ty; span }
-
-and lookup_type ~ctx ~env ast : (Typing.Type.t, Diagnostics.Elem.t) Result.t =
-  let open Result.Let_syntax in
-  match ast with
-  | Ast.{ kind = ID name; span } ->
-      let%bind env =
-        Env.lookup_type env name
-        |> Result.map_error ~f:(fun _trace ->
-               let candidates = [] (* TODO *) in
-               let e = new Common.Reasons.id_not_found ~name ~candidates in
-               let elm = Diagnostics.Elem.error ~span e in
-               elm)
-      in
-      Ok (Env.type_of env)
-  (* *)
-  | Ast.{ span; _ } -> failwith ""
 
 and create_external_nodes env =
   [%loga.debug "Env = %s" (Env.show env)];

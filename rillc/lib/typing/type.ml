@@ -23,6 +23,7 @@ and ty_t =
   | String
   | Array of { elem : t; n : int }
   | Func of { params : t list; ret : t; linkage : func_linkage_t }
+  | Pointer of { mut : mutability_t; elem : t }
   | Module
 
 and mutability_t = MutImm | MutMut
@@ -55,4 +56,6 @@ let rec to_string ty : string =
       let ret' = to_string ret in
       let s = String.concat ~sep:" -> " (params' @ [ ret' ]) in
       Printf.sprintf "Func (%s)" s
+  | { ty = Pointer { mut; elem }; _ } ->
+      Printf.sprintf "Pointer[%s %s]" (show_mutability_t mut) (to_string elem)
   | { ty = Module; _ } -> "Module"

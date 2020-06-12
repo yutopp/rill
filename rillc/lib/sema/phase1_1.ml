@@ -54,7 +54,13 @@ and with_env ~ctx ~env ast : (unit, Diagnostics.Elem.t) Result.t =
             match param with
             | Ast.{ kind = ParamDecl { name; ty_spec }; span } ->
                 let%bind () = Guards.guard_dup_value ~span env name in
-                let%bind spec_ty = lookup_type ~ctx ~env ty_spec in
+
+                let%bind spec_ty =
+                  let%bind ty = lookup_type ~env ty_spec in
+                  (* TODO: mutability *)
+                  let binding_mut = Typing.Type.MutImm in
+                  Ok Typing.Type.{ ty with binding_mut }
+                in
                 let visibility = Env.Public in
                 let venv =
                   Env.create name ~parent:(Some env) ~visibility ~ty:spec_ty
@@ -65,10 +71,15 @@ and with_env ~ctx ~env ast : (unit, Diagnostics.Elem.t) Result.t =
             | _ -> failwith "[ICE]")
         |> Result.map ~f:List.rev
       in
-      let%bind ret_ty = lookup_type ~ctx ~env ret_ty in
-      let linkage = Functions.linkage_of ast in
-      let binding_mut = Typing.Type.MutImm in
+      let%bind ret_ty =
+        let%bind ty = lookup_type ~env ret_ty in
+        let binding_mut = Typing.Type.MutImm in
+        Ok Typing.Type.{ ty with binding_mut }
+      in
+
       let func_ty =
+        let linkage = Functions.linkage_of ast in
+        let binding_mut = Typing.Type.MutImm in
         Typing.Type.
           {
             ty = Func { params = params_tys; ret = ret_ty; linkage };
@@ -168,7 +179,7 @@ and find_mods_with_wildcard ~pkg_env ast =
   (* *)
   | _ -> find_mod ~pkg_env ast |> Result.map ~f:(fun e -> [ e ])
 
-and lookup_type ~ctx ~env ast : (Typing.Type.t, Diagnostics.Elem.t) Result.t =
+and lookup_type ~env ast : (Typing.Type.t, Diagnostics.Elem.t) Result.t =
   let open Result.Let_syntax in
   match ast with
   | Ast.{ kind = ID name; span } ->
@@ -180,6 +191,7 @@ and lookup_type ~ctx ~env ast : (Typing.Type.t, Diagnostics.Elem.t) Result.t =
                let elm = Diagnostics.Elem.error ~span e in
                elm)
       in
-      Ok (Env.type_of env)
+      let ty = Env.type_of env in
+      Ok Typing.Type.{ ty with span }
   (* *)
   | Ast.{ span; _ } -> failwith "unexpected token (lookup_type)"

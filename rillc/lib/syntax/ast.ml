@@ -44,6 +44,7 @@ and kind_t =
   | ExprBinaryOp of { op : t; lhs : t; rhs : t }
   | ExprCall of t * t list
   | ExprIndex of t * t
+  | ExprRef of t * t
   (* primitives *)
   | ID of string
   | IDWildcard

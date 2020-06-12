@@ -21,11 +21,16 @@ type t = {
   ty : (Typing.Type.t[@printer fun fmt _ -> fprintf fmt ""]);
   bbs : BBs.t;
   mutable bbs_names_rev : string list;
-  mutable pre_allocs : (string * Term.inst_t list) list;
+  mutable pre_allocs : pre_alloc_t list;
   fresh_id : (Counter.t[@printer fun fmt _ -> fprintf fmt ""]);
   extern_name : string option;
 }
-[@@deriving show]
+
+and pre_alloc_t = { p_bb_name : string; p_insts : pre_alloc_inst_t list }
+
+and pre_alloc_inst_t = Term.inst_t * addressable_t
+
+and addressable_t = AddressableT | AddressableF [@@deriving show]
 
 let create_vanilla ?(extern_name = None) ~ty =
   {
@@ -50,10 +55,6 @@ let insert_bb f bb =
   Hashtbl.add_exn f.bbs ~key:name ~data:bb;
   f.bbs_names_rev <- name :: f.bbs_names_rev;
   ()
-
-let list_bbs f =
-  List.rev f.bbs_names_rev
-  |> List.map ~f:(fun bb_name -> Hashtbl.find_exn f.bbs bb_name)
 
 let get_ret_ty f =
   let (_, ret_ty) = Typing.Type.assume_func_ty f in
@@ -80,6 +81,8 @@ let set_pre_allocs func pre_allocs = func.pre_allocs <- pre_allocs
 
 let get_pre_allocs func = func.pre_allocs
 
+let get_bbs func = func.bbs
+
 let fold_bbs func ~init ~f =
   match get_entry_bb func with
   | Some bb ->
@@ -105,3 +108,12 @@ let fold_bbs func ~init ~f =
       in
       iter init
   | None -> init
+
+let list_reached_bbs func =
+  let reached_bbs =
+    fold_bbs func ~init:[] ~f:(fun reached_bbs bb ->
+        let reached_bbs = bb :: reached_bbs in
+        reached_bbs)
+    |> List.rev
+  in
+  reached_bbs

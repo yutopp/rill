@@ -98,17 +98,17 @@ module Env = struct
   let get_local_var env name = Map.find_exn env.local_vars name
 
   let set_local_var env name value =
-    { env with local_vars = Map.add_exn ~key:name ~data:value env.local_vars }
+    { env with local_vars = Map.set ~key:name ~data:value env.local_vars }
 
   let get_func env name = Map.find_exn env.funcs name
 
   let set_func env name ll_f =
-    { env with funcs = Map.add_exn ~key:name ~data:ll_f env.funcs }
+    { env with funcs = Map.set ~key:name ~data:ll_f env.funcs }
 
   let get_bb env name = Map.find_exn env.bb name
 
   let set_bb env name ll_bb =
-    { env with bb = Map.add_exn ~key:name ~data:ll_bb env.bb }
+    { env with bb = Map.set ~key:name ~data:ll_bb env.bb }
 end
 
 let conv_val_ptr ctx ll_builder ((param_ty, value) : Typing.Type.t * Env.var_t)
@@ -222,6 +222,17 @@ let construct_term ~ctx ~env ~ll_holder ll_f ll_builder term : Env.var_t =
       in
       value
   (* *)
+  | Rir.Term.{ kind = Ref name; ty; _ } ->
+      let ll_v = Env.get_local_var env name |> assume_ref in
+      let value =
+        match ll_holder with
+        | Some mem ->
+            let _ll_v : L.llvalue = L.build_store ll_v mem ll_builder in
+            Env.{ ll_v = mem; as_treat = Value_category.AsPtr }
+        | None -> Env.{ ll_v; as_treat = Value_category.AsPtr }
+      in
+      value
+  (* *)
   | Rir.Term.{ kind = RVal v; ty; _ } ->
       construct_value ~ctx ~env ~ll_holder ll_builder v ty
   (* *)
@@ -249,26 +260,20 @@ let construct_inst ~ctx ~env ll_f ll_builder inst : Env.t =
   [%loga.debug "Inst -> %s" (Rir.Term.show_inst_t inst)];
   match inst with
   (* *)
-  | Rir.Term.Let (placeholder, term, alloc) ->
+  | Rir.Term.Let (placeholder, term, _, _) ->
       let env =
-        match alloc with
-        (* *)
-        | Rir.Term.AllocLit ->
+        let local = Env.get_local_var env placeholder in
+        match local with
+        | Env.{ ll_v; as_treat = Value_category.AsPtr } ->
+            let ll_holder = Some ll_v in
+            let _ = construct_term ~ctx ~env ~ll_holder ll_f ll_builder term in
+            env
+        | _ ->
             let ll_holder = None in
             let local =
               construct_term ~ctx ~env ~ll_holder ll_f ll_builder term
             in
             Env.set_local_var env placeholder local
-        (* *)
-        | Rir.Term.AllocStack ->
-            let ll_holder =
-              let local = Env.get_local_var env placeholder in
-              match local with
-              | Env.{ ll_v; as_treat = Value_category.AsPtr } -> Some ll_v
-              | _ -> failwith "[ICE]"
-            in
-            let _ = construct_term ~ctx ~env ~ll_holder ll_f ll_builder term in
-            env
       in
       env
   (* *)
@@ -341,22 +346,31 @@ let construct_bb ~ctx ~env ll_f ll_builder bb =
          ());
   env
 
-let construct_pre_alloc ~ctx ~env ll_f ll_builder (bb_name, alloc_insts) =
-  let f env inst =
+let construct_pre_alloc ~ctx ~env ll_f ll_builder pre_alloc =
+  let Rir.Func.{ p_bb_name = bb_name; p_insts } = pre_alloc in
+  let ll_undef = L.undef (L.void_type ctx.ll_ctx) in
+  let f env alloc_inst =
+    let (inst, addressable) = alloc_inst in
     [%loga.debug "Inst(pre-alloc) -> %s" (Rir.Term.show_inst_t inst)];
-    match inst with
-    (* *)
-    | Rir.Term.Let (placeholder, term, Rir.Term.AllocStack) ->
-        let value =
+    let (placeholder, value) =
+      match (inst, addressable) with
+      (* *)
+      | (Rir.Term.Let (placeholder, term, _, _), Rir.Func.AddressableT) ->
           let ll_ty = to_llty ~ctx term.Rir.Term.ty in
           let ll_v = L.build_alloca ll_ty "" ll_builder in
-          Env.{ ll_v; as_treat = Value_category.AsPtr }
-        in
-        Env.set_local_var env placeholder value
-    (* Ignore *)
-    | _ -> env
+          let v = Env.{ ll_v; as_treat = Value_category.AsPtr } in
+          (placeholder, v)
+      (* *)
+      | (Rir.Term.Let (placeholder, term, _, _), Rir.Func.AddressableF) ->
+          let ll_v = ll_undef in
+          let v = Env.{ ll_v; as_treat = Value_category.AsVal } in
+          (placeholder, v)
+      (* *)
+      | _ -> failwith "[ICE]"
+    in
+    Env.set_local_var env placeholder value
   in
-  List.fold_left alloc_insts ~init:env ~f
+  List.fold_left p_insts ~init:env ~f
 
 let construct_func ~ctx ~env ll_mod ll_f (name, func) =
   (* *)
@@ -374,7 +388,7 @@ let construct_func ~ctx ~env ll_mod ll_f (name, func) =
   let _ = L.build_br ll_program_bb ll_builder in
 
   (* *)
-  let bbs = Rir.Func.list_bbs func in
+  let bbs = Rir.Func.list_reached_bbs func in
   let (env, _) =
     List.fold_left bbs ~init:(env, ll_program_bb) ~f:(fun (env, ll_bb) bb ->
         let name = bb.Rir.Term.BB.name in
