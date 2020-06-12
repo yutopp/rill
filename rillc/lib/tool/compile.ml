@@ -67,7 +67,9 @@ let join_path paths = String.concat ~sep:"/" paths
 
 let tmp_out_channel ~f ~filepath =
   let open Result.Let_syntax in
-  let mode = [ Caml.Open_binary; Caml.Open_wronly; Caml.Open_creat ] in
+  let mode =
+    [ Caml.Open_binary; Caml.Open_wronly; Caml.Open_creat; Caml.Open_trunc ]
+  in
   let ch = Caml.open_out_gen mode 0o600 filepath in
   let%bind () =
     Exn.protect ~f:(fun () -> f ch) ~finally:(fun () -> Caml.close_out ch)
