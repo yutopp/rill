@@ -260,7 +260,18 @@ let construct_term ~ctx ~env ~ll_holder ll_f ll_builder term : Env.var_t =
   (* *)
   | Rir.Term.{ kind = LVal id; ty; _ } ->
       [%loga.debug "LVal (%s)" id];
-      let value = Env.get_local_var env id in
+      let var = Env.get_local_var env id in
+      let value =
+        match (ll_holder, var) with
+        | (Some mem, Env.{ ll_v; as_treat = Value_category.AsVal }) ->
+            let _ll_v : L.llvalue = L.build_store ll_v mem ll_builder in
+            Env.{ ll_v = mem; as_treat = Value_category.AsPtr }
+        | (Some mem, Env.{ ll_v; as_treat = Value_category.AsPtr }) ->
+            let ll_v : L.llvalue = L.build_load ll_v "" ll_builder in
+            let _ll_v : L.llvalue = L.build_store ll_v mem ll_builder in
+            Env.{ ll_v = mem; as_treat = Value_category.AsPtr }
+        | (None, var) -> var
+      in
       value
   (* *)
   | Rir.Term.{ kind = LValParam index; ty; _ } ->
