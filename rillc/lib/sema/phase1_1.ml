@@ -66,7 +66,7 @@ and with_env ~ctx ~env ast : (unit, Diagnostics.Elem.t) Result.t =
                   Env.create name ~parent:(Some env) ~visibility ~ty:spec_ty
                     ~ty_w:(Env.Val spec_ty)
                 in
-                Env.insert env venv;
+                Env.insert env venv |> Phase1.assume_new;
                 Ok (spec_ty :: ps)
             | _ -> failwith "[ICE]")
         |> Result.map ~f:List.rev
@@ -139,7 +139,7 @@ and pass_through ~ctx ast =
                   ~ty_w:(Env.Alias env)
               in
               (*[%loga.debug "loadable env: %s" (Env.show env)];*)
-              Env.insert penv aenv));
+              Env.insert penv aenv |> Phase1.assume_new));
 
       Ok ()
   (* *)

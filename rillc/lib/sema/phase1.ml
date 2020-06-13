@@ -32,13 +32,18 @@ let context ~parent ~ds ~subst ~builtin = { parent; ds; subst; builtin }
 
 type result_t = (TopAst.t, Diagnostics.Elem.t) Result.t
 
+let assume_new inseted_status =
+  match inseted_status with
+  | Env.InsertedHiding -> failwith "[ICE] insertion with hiding"
+  | _ -> ()
+
 (* TODO: create them elsewhare *)
 let introduce_prelude penv builtin =
   let register name ty =
     let env =
       Env.create name ~parent:None ~visibility:Env.Private ~ty ~ty_w:(Env.Ty ty)
     in
-    Env.insert penv env
+    Env.insert penv env |> assume_new
   in
   register "bool" builtin.Builtin.bool_;
   register "i32" builtin.Builtin.i32_;
@@ -81,7 +86,7 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
       let fenv =
         Env.create name ~parent:(Some penv) ~visibility ~ty ~ty_w:(Env.Val ty)
       in
-      Env.insert penv fenv;
+      Env.insert penv fenv |> assume_new;
 
       Ok TopAst.{ kind = WithEnv { node = decl; env = fenv }; span }
       (* *)
@@ -96,7 +101,7 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
       let fenv =
         Env.create name ~parent:(Some penv) ~visibility ~ty ~ty_w:(Env.Val ty)
       in
-      Env.insert penv fenv;
+      Env.insert penv fenv |> assume_new;
 
       Ok TopAst.{ kind = WithEnv { node = decl; env = fenv }; span }
   (* *)

@@ -109,6 +109,8 @@ module ModState = struct
   let create ~m ~phase_result = { m; phase_result }
 
   let is_failed m = Result.is_error m.phase_result
+
+  let can_process_entire_module m = not (Mod.has_errors m.m)
 end
 
 module ModDict = struct
@@ -206,7 +208,7 @@ let rec preload_pkg compiler dict builtin pkg =
         if ModState.is_failed ms then compiler.has_fatal <- true;
 
         (* TODO: open modules by root module *)
-        Sema.Env.insert_meta root_mod_env menv;
+        Sema.Env.insert_meta root_mod_env menv |> Sema.Phase1.assume_new;
 
         ModDict.update dict ms);
     dict
@@ -273,7 +275,8 @@ let build_pkg_internal compiler dict builtin emit pkg =
   let mod_rels = ModDict.to_alist mod_dict in
   List.iter mod_rels ~f:(fun (path, ms) ->
       match ms.ModState.phase_result with
-      | Ok (ModState.Phase1DeclareTopLevels p1ast) ->
+      | Ok (ModState.Phase1DeclareTopLevels p1ast)
+        when ModState.can_process_entire_module ms ->
           let m = ms.ModState.m in
           let ds = m.Mod.ds in
           let phase_result =
@@ -303,7 +306,7 @@ let build_mod_env pkg_dict =
   let pkg_rels = PkgDict.to_alist pkg_dict in
   List.iter pkg_rels ~f:(fun (_, mod_dict) ->
       let root_mod_env = mod_dict.ModDict.root_mod_env in
-      Sema.Env.insert_meta env root_mod_env);
+      Sema.Env.insert_meta env root_mod_env |> Sema.Phase1.assume_new);
 
   env
 

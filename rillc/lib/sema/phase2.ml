@@ -214,15 +214,20 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       (* CANNOT reference self *)
       let%bind t_expr = analyze ~ctx ~env expr in
       let%bind subst = Typer.unify ~span ctx.subst var_ty t_expr.TAst.ty in
+      ctx.subst <- subst;
 
       let visibility = Env.Public in
       let venv =
         Env.create name ~parent:(Some env) ~visibility ~ty:var_ty
           ~ty_w:(Env.Val var_ty)
       in
-      Env.insert env venv;
-
-      ctx.subst <- subst;
+      let () =
+        match Env.insert env venv with
+        | Env.InsertedHiding ->
+            (* TODO: add warning *)
+            ()
+        | _ -> ()
+      in
 
       let ty = Typing.Type.{ ctx.builtin.Builtin.unit_ with span } in
       let mut = binding_mut in

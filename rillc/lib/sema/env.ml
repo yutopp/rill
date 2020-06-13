@@ -34,6 +34,8 @@ and wrap_t =
   | Alias of t
 [@@deriving show]
 
+type inserted_status_t = InsertedNew | InsertedHiding
+
 let create name ~parent ~visibility ~ty ~ty_w =
   { parent; name; visibility; scope = None; ty; ty_w }
 
@@ -67,20 +69,24 @@ let assume_scope env =
       env.scope <- Some s;
       s
 
+let insert_with_hiding table ~key ~data =
+  match Hashtbl.add table ~key ~data with
+  | `Ok -> InsertedNew
+  | `Duplicate ->
+      Hashtbl.set table ~key ~data;
+      InsertedHiding
+
 let insert_type penv tenv =
   let scope = assume_scope penv in
-  let _ = Hashtbl.add scope.types ~key:tenv.name ~data:tenv in
-  ()
+  insert_with_hiding scope.types ~key:tenv.name ~data:tenv
 
 let insert_value penv tenv =
   let scope = assume_scope penv in
-  let _ = Hashtbl.add scope.values ~key:tenv.name ~data:tenv in
-  ()
+  insert_with_hiding scope.values ~key:tenv.name ~data:tenv
 
 let insert_meta penv tenv =
   let scope = assume_scope penv in
-  let _ = Hashtbl.add scope.meta ~key:tenv.name ~data:tenv in
-  ()
+  insert_with_hiding scope.meta ~key:tenv.name ~data:tenv
 
 let insert_impl penv w tenv =
   match w with
