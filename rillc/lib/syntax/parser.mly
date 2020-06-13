@@ -110,13 +110,16 @@ extern_function_decl_statement:
 
 let stmts :=
     { [] }
-  | e=expr_without_block; { [e] }
+  | e=stmt_expr_apply(expr_without_block); { [e] }
   | s=stmt_expr(expr_without_block); SEMICOLON; ss=stmts; { s :: ss }
   | e=expr_with_block; ss=stmts; { e :: ss }
   | s=stmt_let; ss=stmts; { s :: ss }
 
 let stmt_expr(expr) ==
     e=expr ; { make (Ast.StmtExpr e) ~l:$loc }
+
+let stmt_expr_apply(expr) ==
+    e=expr ; { make (Ast.StmtExprApply e) ~l:$loc }
 
 stmt_let:
     KEYWORD_LET d = decl_var_expr SEMICOLON { make (Ast.StmtLet d) ~l:$loc }

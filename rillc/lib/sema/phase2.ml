@@ -22,6 +22,7 @@ module TAst = struct
     | DefFunc of { name : string; body : t }
     | StmtSeq of t list
     | StmtExpr of t
+    | StmtExprApply of t
     | StmtLet of { mut : Typing.Type.mutability_t; name : string; expr : t }
     | ExprIf of t * t * t option
     | ExprLoop of t
@@ -191,8 +192,18 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
   (* *)
   | Ast.{ kind = StmtExpr expr; span } ->
       let%bind t_expr = analyze ~ctx ~env expr in
+
       let ty = Typing.Type.{ ctx.builtin.Builtin.unit_ with span } in
+      let%bind subst = Typer.unify ~span ctx.subst ty t_expr.TAst.ty in
+      ctx.subst <- subst;
+
       Ok TAst.{ kind = StmtExpr t_expr; ty; span }
+  (* *)
+  | Ast.{ kind = StmtExprApply expr; span } ->
+      let%bind t_expr = analyze ~ctx ~env expr in
+
+      let ty = Typing.Type.{ t_expr.TAst.ty with span } in
+      Ok TAst.{ kind = StmtExprApply t_expr; ty; span }
   (* *)
   | Ast.{ kind = StmtLet decl; span } ->
       let (attr, name, ty_spec, expr) =

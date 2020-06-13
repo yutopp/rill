@@ -32,6 +32,7 @@ and kind_t =
   | DefFunc of { name : string; ret_ty : t; params : t list; body : t }
   (* statements *)
   | StmtExpr of t
+  | StmtExprApply of t
   | StmtLet of t
   | StmtReturn of t option
   (* expressions *)

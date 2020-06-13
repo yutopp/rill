@@ -1,0 +1,20 @@
+import std::stdio::*;
+
+def main(): unit {
+  let a = 10;
+  print_int_ln(a);
+
+  let mutable a = 20;
+  print_int_ln(a);
+
+  a = 30;
+  print_int_ln(a);
+
+  let a = 40;
+  print_int_ln(a);
+
+  let mutable a = a;
+  print_int_ln(a);
+
+  print_int_ln(50)
+}

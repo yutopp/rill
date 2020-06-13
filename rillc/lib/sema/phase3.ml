@@ -142,6 +142,10 @@ let rec normalize ~ctx ~env ast =
       let k = insert_let (normalize ~ctx ~env expr) in
       k (fun _id -> NAst.{ kind = Undef; ty; span })
   (* *)
+  | TAst.{ kind = StmtExprApply expr; ty; span; _ } ->
+      let k = insert_let (normalize ~ctx ~env expr) in
+      k (fun id -> NAst.{ kind = Var id; ty; span })
+  (* *)
   | TAst.{ kind = StmtLet { mut; name; expr }; ty; span; _ } ->
       let k = insert_let' mut (normalize ~ctx ~env expr) in
       k (fun id ->
