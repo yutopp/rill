@@ -117,3 +117,38 @@ let list_reached_bbs func =
     |> List.rev
   in
   reached_bbs
+
+let to_string_pre_alloc ~indent alloc =
+  let buf = Buffer.create 256 in
+  Buffer.add_string buf (String.make indent ' ');
+
+  let { p_bb_name; p_insts } = alloc in
+  Buffer.add_string buf (Printf.sprintf "scope: name=%s\n" p_bb_name);
+  List.iter p_insts ~f:(fun p_inst ->
+      let (inst, storage) = p_inst in
+      let s = Term.to_string_inst ~indent:(indent + 2) inst in
+      Buffer.add_string buf s;
+      Buffer.add_string buf " :: ";
+      Buffer.add_string buf (show_addressable_t storage);
+      Buffer.add_char buf '\n');
+  Buffer.contents buf
+
+let to_string ~indent name func =
+  let buf = Buffer.create 256 in
+  Buffer.add_string buf (String.make indent ' ');
+
+  Buffer.add_string buf
+    (Printf.sprintf "Func: name = %s, ty = %s\n" name
+       (Typing.Type.to_string func.ty));
+
+  let allocs = get_pre_allocs func in
+  List.iter allocs ~f:(fun alloc ->
+      let s = to_string_pre_alloc ~indent:(indent + 2) alloc in
+      Buffer.add_string buf s);
+
+  let bbs = list_reached_bbs func in
+  List.iter bbs ~f:(fun bb ->
+      let s = Term.BB.to_string ~indent:(indent + 2) bb in
+      Buffer.add_string buf s);
+
+  Buffer.contents buf

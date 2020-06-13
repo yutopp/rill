@@ -27,6 +27,7 @@ module Collect_stack_vars_in_func_pass = struct
           | (Typing.Type.MutImm, Value_category.AsVal) -> Term.AllocLit
           | (Typing.Type.MutImm, Value_category.AsPtr) -> Term.AllocStack
           | (Typing.Type.MutMut, _) -> Term.AllocStack
+          | (_, _) -> failwith "[ICE] mut is not determined"
         in
         let vars =
           match storage with Term.AllocStack -> Set.add vars name | _ -> vars

@@ -1,0 +1,35 @@
+import std::stdio::*;
+
+def main(): unit {
+  let mutable a = *&10;
+  print_int_ln(a);
+  a = 11;
+  print_int_ln(a);
+
+  *&mutable 42 = 10;
+
+  let b = 20;
+  print_int_ln(b);
+  let c = *&b;
+  print_int_ln(c);
+
+  let p = &100;
+  let d = *p;
+  print_int_ln(d);
+
+  let pp = &mutable 200;
+  let dd = *pp;
+  print_int_ln(dd);
+
+  let mutable d2 = 30;
+  let e = *&mutable d2;
+  print_int_ln(d2);
+  print_int_ln(e);
+
+  let mutable f = *&mutable 40;
+  print_int_ln(f);
+  f = *&mutable 42;
+  print_int_ln(f);
+  f = f;
+  print_int_ln(f);
+}

@@ -27,6 +27,7 @@ module NAst = struct
     | Call of { name : string; args : string list }
     | Index of { name : string; index : string }
     | Ref of { name : string }
+    | Deref of { name : string }
     | If of { cond : string; t : t; e_opt : t option }
     | Loop of t
     | Break
@@ -212,6 +213,10 @@ let rec normalize ~ctx ~env ast =
   | TAst.{ kind = ExprRef e; ty; span; _ } ->
       let k = insert_let (normalize ~ctx ~env e) in
       k (fun r_id -> NAst.{ kind = Ref { name = r_id }; ty; span })
+  (* *)
+  | TAst.{ kind = ExprDeref e; ty; span; _ } ->
+      let k = insert_let (normalize ~ctx ~env e) in
+      k (fun r_id -> NAst.{ kind = Deref { name = r_id }; ty; span })
   (* *)
   | TAst.{ kind = Var s; ty; span; _ } ->
       let id = Env.find_alias_opt env s |> Option.value ~default:s in

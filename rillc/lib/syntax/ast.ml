@@ -45,6 +45,7 @@ and kind_t =
   | ExprCall of t * t list
   | ExprIndex of t * t
   | ExprRef of t * t
+  | ExprDeref of t
   (* primitives *)
   | ID of string
   | IDWildcard

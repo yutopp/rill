@@ -57,12 +57,13 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
                let diff = Typer_err.Type { lhs = a_elem; rhs = b_elem } in
                Typer_err.{ diff; kind; nest = Some d })
       in
-      let%bind () =
-        if Poly.equal a_mut b_mut then Ok ()
-        else
-          let kind = Typer_err.ErrPointerElem in
-          let diff = Typer_err.Mutability { lhs = a_mut; rhs = b_mut } in
-          Error Typer_err.{ diff; kind; nest = None }
+      (* unify mut *)
+      let%bind subst =
+        unify_mut ~span subst a_mut b_mut
+        |> Result.map_error ~f:(fun d ->
+               let kind = Typer_err.ErrPointerElem in
+               let diff = Typer_err.Type { lhs = s_lhs_ty; rhs = s_rhs_ty } in
+               Typer_err.{ diff; kind; nest = Some d })
       in
       Ok subst
   (* *)
@@ -120,7 +121,7 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
             in
             (* unify linkage *)
             let%bind subst =
-              unify_lifetime ~span subst a_linkage b_linkage
+              unify_linkage ~span subst a_linkage b_linkage
               |> Result.map_error ~f:(fun d ->
                      let kind = Typer_err.ErrFuncLinkage in
                      let diff =
@@ -167,7 +168,30 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
       let e = Typer_err.{ diff; kind; nest = None } in
       Error e
 
-and unify_lifetime ~span subst lhs_linkage rhs_linkage =
+and unify_mut ~span subst lhs_mut rhs_mut =
+  let Typing.Subst.{ ln_subst; _ } = subst in
+
+  let s_lhs_mut = Typing.Subst.subst_mut subst lhs_mut in
+  let s_rhs_mut = Typing.Subst.subst_mut subst rhs_mut in
+  match (s_lhs_mut, s_rhs_mut) with
+  (* *)
+  | Typing.Type.(MutVar a, MutVar b) when a <> b ->
+      let subst = Typing.Subst.update_mut subst a s_rhs_mut in
+      Ok subst
+  (* *)
+  | Typing.Type.(MutVar v, mut') | Typing.Type.(mut', MutVar v) ->
+      let subst = Typing.Subst.update_mut subst v mut' in
+      Ok subst
+  (* *)
+  | (lhs_mut, rhs_mut) when Poly.equal lhs_mut rhs_mut -> Ok subst
+  (* *)
+  | (lhs_mut, rhs_mut) ->
+      let kind = Typer_err.ErrUnify in
+      let diff = Typer_err.Mutability { lhs = lhs_mut; rhs = rhs_mut } in
+      let e = Typer_err.{ diff; kind; nest = None } in
+      Error e
+
+and unify_linkage ~span subst lhs_linkage rhs_linkage =
   let Typing.Subst.{ ln_subst; _ } = subst in
 
   let s_lhs_linkage = Typing.Subst.subst_linkage subst lhs_linkage in

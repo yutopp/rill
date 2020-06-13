@@ -16,14 +16,23 @@ type t = {
   fresh_counter : Counter.t;
   ty_subst : Type.t IntMap.t;
   ki_subst : int IntMap.t;
+  mut_subst : Type.mutability_t IntMap.t;
   ln_subst : Type.func_linkage_t IntMap.t;
 }
 
 let create subst_id : t =
   let ty_subst = Map.empty (module Int) in
   let ki_subst = Map.empty (module Int) in
+  let mut_subst = Map.empty (module Int) in
   let ln_subst = Map.empty (module Int) in
-  { subst_id; fresh_counter = Counter.create (); ty_subst; ki_subst; ln_subst }
+  {
+    subst_id;
+    fresh_counter = Counter.create ();
+    ty_subst;
+    ki_subst;
+    mut_subst;
+    ln_subst;
+  }
 
 (* has side effects *)
 let fresh_var subst : Type.var_t = Counter.fresh subst.fresh_counter
@@ -34,9 +43,26 @@ let fresh_ty ~span subst : Type.t =
   let binding_mut = Type.MutImm in
   Type.{ ty = Var { var = v; subst_id = subst.subst_id }; binding_mut; span }
 
+let fresh_mut subst : Type.mutability_t =
+  let v = fresh_var subst in
+  Type.MutVar v
+
 let fresh_linkage subst : Type.func_linkage_t =
   let v = fresh_var subst in
   Type.LinkageVar v
+
+let update_mut subst uni_id mut =
+  let { mut_subst; _ } = subst in
+  let mut_subst = Map.add_exn mut_subst ~key:uni_id ~data:mut in
+  { subst with mut_subst }
+
+let rec subst_mut (subst : t) mut =
+  let { mut_subst; _ } = subst in
+  match mut with
+  | Type.MutVar uni_id ->
+      Map.find mut_subst uni_id
+      |> Option.value_map ~default:mut ~f:(subst_mut subst)
+  | alt -> alt
 
 let rec subst_linkage (subst : t) linkage =
   let { ln_subst; _ } = subst in

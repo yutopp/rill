@@ -209,10 +209,15 @@ expr_infix:
 let expr_prefix :=
     e=expr_postfix; { e }
   | e=expr_ref; { e }
+  | e=expr_deref; { e }
 
 let expr_ref ==
     BITWISE_AND; attr=decl_attr; e=expr_prefix;
     { make (Ast.ExprRef (attr, e)) ~l:$loc }
+
+let expr_deref ==
+    TIMES; e=expr_prefix;
+    { make (Ast.ExprDeref e) ~l:$loc }
 
 expr_postfix:
     expr_primary { $1 }

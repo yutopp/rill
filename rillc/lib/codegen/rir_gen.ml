@@ -180,6 +180,10 @@ let rec generate_stmt ~ctx ~builder ast =
       let node = Rir.Term.{ kind = Ref name; ty; span } in
       (node, builder)
   (* *)
+  | NAst.{ kind = Deref { name }; span; ty } ->
+      let node = Rir.Term.{ kind = Deref name; ty; span } in
+      (node, builder)
+  (* *)
   | NAst.{ kind = Var id; ty; span } ->
       let node = Rir.Term.{ kind = LVal id; ty; span } in
       (node, builder)
@@ -268,5 +272,5 @@ let generate_module ~ctx ast =
         (Printf.sprintf "Not supported node (Rir_gen.generate_module): %s" s)
 
 let write_to ~ch rir =
-  Stdio.Out_channel.fprintf ch "%s" (Rir.Module.show rir);
+  Stdio.Out_channel.fprintf ch "%s" (Rir.Module.to_string rir);
   Ok ()

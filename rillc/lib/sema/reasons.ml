@@ -31,7 +31,8 @@ class cannot_reference_mut =
   object (self)
     inherit Diagnostics.Error.base
 
-    method to_string = Printf.sprintf "TODO"
+    method to_string =
+      Printf.sprintf "Cannot reference immutable value as mutable"
   end
 
 class type_mismatch ~(detail : Typer_err.t) =

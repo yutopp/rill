@@ -30,6 +30,7 @@ module TAst = struct
     | ExprCall of t * t list
     | ExprIndex of t * t
     | ExprRef of t
+    | ExprDeref of t
     | Var of string
     | VarParam of int
     | LitBool of bool
@@ -314,6 +315,7 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
             let e = new Reasons.cannot_assign in
             let elm = Diagnostics.Elem.error ~span e in
             Error elm
+        | _ -> failwith "[ICE] assign: not determined mut"
       in
 
       let%bind subst =
@@ -357,15 +359,23 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       (* TODO: ref trait *)
       let%bind t_r = analyze ~ctx ~env e in
 
+      (* coarsening *)
       let mut = Mut.mutability_of attr in
       let%bind () =
         match (mut, t_r.TAst.ty.Typing.Type.binding_mut) with
-        | (Typing.Type.MutMut, Typing.Type.MutMut) | (Typing.Type.MutImm, _) ->
+        (* OK: &mutable <- mutable value *)
+        | (Typing.Type.MutMut, Typing.Type.MutMut)
+        (* OK: &immutable <- immutable value *)
+        | (Typing.Type.MutImm, Typing.Type.MutImm)
+        (* OK: &immutable <- mutable value *)
+        | (Typing.Type.MutImm, Typing.Type.MutMut) ->
             Ok ()
-        | (Typing.Type.MutMut, _) ->
+        (* NG: &mutable <- immutable value *)
+        | (Typing.Type.MutMut, Typing.Type.MutImm) ->
             let e = new Reasons.cannot_reference_mut in
             let elm = Diagnostics.Elem.error ~span e in
             Error elm
+        | _ -> failwith "[ICE] ref: not determined mut"
       in
 
       let ty =
@@ -373,6 +383,25 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
         Typing.Type.{ (ctx.builtin.Builtin.pointer_ mut elem_ty) with span }
       in
       Ok TAst.{ kind = ExprRef t_r; ty; span }
+  (* *)
+  | Ast.{ kind = ExprDeref e; span; _ } ->
+      (* TODO: deref trait *)
+      let%bind t_r = analyze ~ctx ~env e in
+
+      let elem_ty = Typing.Subst.fresh_ty ~span ctx.subst in
+      let elem_mut = Typing.Subst.fresh_mut ctx.subst in
+      let ptr_ty =
+        Typing.Type.
+          { (ctx.builtin.Builtin.pointer_ elem_mut elem_ty) with span }
+      in
+      let%bind subst = Typer.unify ~span ctx.subst ptr_ty t_r.TAst.ty in
+      ctx.subst <- subst;
+
+      let ty =
+        let binding_mut = Typing.Subst.subst_mut subst elem_mut in
+        Typing.Type.{ elem_ty with binding_mut; span }
+      in
+      Ok TAst.{ kind = ExprDeref t_r; ty; span }
   (* *)
   | Ast.{ kind = ID name; span; _ } ->
       let%bind venv =

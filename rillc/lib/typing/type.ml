@@ -26,7 +26,7 @@ and ty_t =
   | Pointer of { mut : mutability_t; elem : t }
   | Module
 
-and mutability_t = MutImm | MutMut
+and mutability_t = MutImm | MutMut | MutVar of var_t
 
 and var_t = int
 
@@ -61,4 +61,13 @@ let rec to_string ty : string =
   | { ty = Module; _ } -> "Module"
 
 let to_string_mut mut : string =
-  match mut with MutImm -> "immutable" | MutMut -> "mutable"
+  match mut with
+  | MutImm -> "immutable"
+  | MutMut -> "mutable"
+  | MutVar v -> Printf.sprintf "mut_not_determined: %d" v
+
+let to_string_linkage mut : string =
+  match mut with
+  | LinkageRillc -> "rillc"
+  | LinkageC sym -> Printf.sprintf "C: %s" sym
+  | LinkageVar v -> Printf.sprintf "linkage_not_determined: %d" v
