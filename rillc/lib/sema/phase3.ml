@@ -22,12 +22,14 @@ module NAst = struct
     | Module of t list
     | Import of { pkg : string; mods : string list }
     | Func of { name : string; kind : func_kind_t }
+    | Struct of { name : string; struct_tag : Typing.Type.struct_tag_t }
     | Let of { mut : Typing.Type.mutability_t; name : string; expr : t }
     | Return of string
     | Call of { name : string; args : string list }
     | Index of { name : string; index : string }
     | Ref of { name : string }
     | Deref of { name : string }
+    | Construct of { struct_tag : Typing.Type.struct_tag_t }
     | If of { cond : string; t : t; e_opt : t option }
     | Loop of t
     | Break
@@ -134,6 +136,9 @@ let rec normalize ~ctx ~env ast =
       let body' = normalize ~ctx ~env body in
       NAst.{ kind = Func { name; kind = FuncKindDef body' }; ty; span }
   (* *)
+  | TAst.{ kind = DefStruct { name; struct_tag }; ty; span; _ } ->
+      NAst.{ kind = Struct { name; struct_tag }; ty; span }
+  (* *)
   | TAst.{ kind = StmtSeq nodes; ty; span; _ } ->
       let node' = List.map nodes ~f:(normalize ~ctx ~env) in
       NAst.{ kind = Seq node'; ty; span }
@@ -221,6 +226,9 @@ let rec normalize ~ctx ~env ast =
   | TAst.{ kind = ExprDeref e; ty; span; _ } ->
       let k = insert_let (normalize ~ctx ~env e) in
       k (fun r_id -> NAst.{ kind = Deref { name = r_id }; ty; span })
+  (* *)
+  | TAst.{ kind = ExprStruct { struct_tag }; ty; span; _ } ->
+      NAst.{ kind = Construct { struct_tag }; ty; span }
   (* *)
   | TAst.{ kind = Var s; ty; span; _ } ->
       let id = Env.find_alias_opt env s |> Option.value ~default:s in

@@ -30,6 +30,7 @@ and kind_t =
   | DeclFunc of { name : string; ret_ty : t; params : t list }
   (* top definitions *)
   | DefFunc of { name : string; ret_ty : t; params : t list; body : t }
+  | DefStruct of { name : string }
   (* statements *)
   | StmtExpr of t
   | StmtExprApply of t
@@ -47,6 +48,7 @@ and kind_t =
   | ExprIndex of t * t
   | ExprRef of t * t
   | ExprDeref of t
+  | ExprStruct of { path : t (* add fields *) }
   (* primitives *)
   | ID of string
   | IDWildcard

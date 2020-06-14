@@ -36,6 +36,7 @@ let top_level_statement :=
     s=import_statement; { s }
   | s=function_def_statement; { s }
   | s=extern_decl_statement; SEMICOLON; { s }
+  | s=def_struct_stmt; { s }
 
 let import_statement :=
     KEYWORD_IMPORT; t=import_tree_root; SEMICOLON;
@@ -107,6 +108,13 @@ extern_function_decl_statement:
            })
            ~l:$loc
     }
+
+let def_struct_stmt :=
+    KEYWORD_STRUCT;
+    name=single_id_as_str;
+    LBLOCK;
+    RBLOCK;
+    { make (Ast.DefStruct { name }) ~l:$loc }
 
 let stmts :=
     { [] }
@@ -240,16 +248,21 @@ let expr_break ==
     KEYWORD_BREAK;
     { make (Ast.ExprBreak) ~l:$loc }
 
-expr_primary:
-    value { $1 }
-  | LPAREN expr RPAREN { $2 }
+let expr_primary :=
+    e=expr_struct; { e }
+  | e=value; { e }
+  | LPAREN; e=expr; RPAREN; { e }
 
-value:
-    single_id { $1 }
-  | lit_bool { $1 }
-  | lit_integer { $1 }
-  | lit_string { $1 }
-  | lit_array { $1 }
+let expr_struct ==
+    path=single_id; LBLOCK; RBLOCK;
+    { make (Ast.ExprStruct { path }) ~l:$loc }
+
+let value :=
+    v=single_id; { v }
+  | v=lit_bool; { v }
+  | v=lit_integer; { v }
+  | v=lit_string; { v }
+  | v=lit_array; { v }
 
 argument_list:
     separated_list(COMMA, expr) { $1 }

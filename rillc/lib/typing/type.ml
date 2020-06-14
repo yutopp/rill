@@ -24,11 +24,16 @@ and ty_t =
   | Array of { elem : t; n : int }
   | Func of { params : t list; ret : t; linkage : func_linkage_t }
   | Pointer of { mut : mutability_t; elem : t }
+  | Struct of { tag : struct_tag_t }
+  (* *)
   | Module
+  | Type of t
 
 and mutability_t = MutImm | MutMut | MutVar of var_t
 
 and var_t = int
+
+and struct_tag_t = int
 
 and func_linkage_t = LinkageRillc | LinkageC of string | LinkageVar of var_t
 [@@deriving show, sexp_of, to_yojson]
@@ -58,7 +63,9 @@ let rec to_string ty : string =
       Printf.sprintf "Func (%s)" s
   | { ty = Pointer { mut; elem }; _ } ->
       Printf.sprintf "Pointer[%s %s]" (show_mutability_t mut) (to_string elem)
+  | { ty = Struct { tag }; _ } -> Printf.sprintf "Struct[tag=%d]" tag
   | { ty = Module; _ } -> "Module"
+  | { ty = Type t; _ } -> "Type"
 
 let to_string_mut mut : string =
   match mut with

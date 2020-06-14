@@ -30,22 +30,73 @@ let context ~ds ~subst ~builtin =
   let ll_ctx = L.create_context () in
   { ds; subst; builtin; ll_ctx }
 
-let rec to_llty ~ctx ty : L.lltype =
+module Env = struct
+  type t = {
+    types : type_t Map.M(Int).t;
+    funcs : func_t Map.M(String).t;
+    local_vars : var_t Map.M(String).t;
+    bb : L.llbasicblock Map.M(String).t;
+  }
+
+  and type_t = { ll_ty : L.lltype }
+
+  and func_t = { ty : Typing.Type.t; kind : func_kind_t }
+
+  and func_kind_t =
+    | FuncLLVMDecl of L.llvalue
+    | FuncLLVMDef of L.llvalue
+    | FuncBuiltin of (L.llvalue array -> L.llbuilder -> L.llvalue)
+
+  and var_t = { ll_v : L.llvalue; as_treat : Value_category.as_treat_t }
+
+  let create () =
+    {
+      types = Map.empty (module Int);
+      funcs = Map.empty (module String);
+      local_vars = Map.empty (module String);
+      bb = Map.empty (module String);
+    }
+
+  let get_type env name = Map.find_exn env.types name
+
+  let set_type env struct_tag ll_ty =
+    { env with types = Map.set ~key:struct_tag ~data:ll_ty env.types }
+
+  let get_func env name = Map.find_exn env.funcs name
+
+  let set_func env name ll_f =
+    { env with funcs = Map.set ~key:name ~data:ll_f env.funcs }
+
+  let get_local_var env name = Map.find_exn env.local_vars name
+
+  let set_local_var env name value =
+    { env with local_vars = Map.set ~key:name ~data:value env.local_vars }
+
+  let get_bb env name = Map.find_exn env.bb name
+
+  let set_bb env name ll_bb =
+    { env with bb = Map.set ~key:name ~data:ll_bb env.bb }
+end
+
+let rec to_llty ~ctx ~env ty : L.lltype =
   match Typing.Subst.subst_type ctx.subst ty with
   | Typing.Type.{ ty = Unit; _ } -> L.void_type ctx.ll_ctx
   | Typing.Type.{ ty = Bool; _ } -> L.integer_type ctx.ll_ctx 1
   | Typing.Type.{ ty = Int; _ } -> L.integer_type ctx.ll_ctx 32
   | Typing.Type.{ ty = String; _ } -> L.pointer_type (L.i8_type ctx.ll_ctx)
   | Typing.Type.{ ty = Array { elem; n }; _ } ->
-      let elem_ll_ty = to_llty ~ctx elem in
+      let elem_ll_ty = to_llty ~ctx ~env elem in
       L.array_type elem_ll_ty n
   | Typing.Type.{ ty = Func { params; ret; _ }; _ } ->
-      let params_tys = List.map ~f:(to_llty ~ctx) params in
-      let ret_ty = to_llty ~ctx ret in
+      let params_tys = List.map ~f:(to_llty ~ctx ~env) params in
+      let ret_ty = to_llty ~ctx ~env ret in
       L.function_type ret_ty (Array.of_list params_tys)
   | Typing.Type.{ ty = Pointer { elem; _ }; _ } ->
-      let elem_ll_ty = to_llty ~ctx elem in
+      let elem_ll_ty = to_llty ~ctx ~env elem in
       L.pointer_type elem_ll_ty
+  | Typing.Type.{ ty = Struct { tag }; _ } ->
+      let Env.{ ll_ty } = Env.get_type env tag in
+      ll_ty
   | _ ->
       failwith
         (Printf.sprintf "[ICE] not supported type: %s"
@@ -74,45 +125,6 @@ let find_builtin builtin_name =
         let b = args.(1) in
         L.build_icmp L.Icmp.Eq a b "" builder
   | _ -> failwith builtin_name
-
-module Env = struct
-  type t = {
-    local_vars : var_t Map.M(String).t;
-    funcs : func_t Map.M(String).t;
-    bb : L.llbasicblock Map.M(String).t;
-  }
-
-  and func_t = { ty : Typing.Type.t; kind : func_kind_t }
-
-  and func_kind_t =
-    | FuncLLVMDecl of L.llvalue
-    | FuncLLVMDef of L.llvalue
-    | FuncBuiltin of (L.llvalue array -> L.llbuilder -> L.llvalue)
-
-  and var_t = { ll_v : L.llvalue; as_treat : Value_category.as_treat_t }
-
-  let create () =
-    {
-      local_vars = Map.empty (module String);
-      funcs = Map.empty (module String);
-      bb = Map.empty (module String);
-    }
-
-  let get_local_var env name = Map.find_exn env.local_vars name
-
-  let set_local_var env name value =
-    { env with local_vars = Map.set ~key:name ~data:value env.local_vars }
-
-  let get_func env name = Map.find_exn env.funcs name
-
-  let set_func env name ll_f =
-    { env with funcs = Map.set ~key:name ~data:ll_f env.funcs }
-
-  let get_bb env name = Map.find_exn env.bb name
-
-  let set_bb env name ll_bb =
-    { env with bb = Map.set ~key:name ~data:ll_bb env.bb }
-end
 
 let conv_val_ptr ctx ll_builder ((param_ty, value) : Typing.Type.t * Env.var_t)
     : L.llvalue =
@@ -155,12 +167,12 @@ let construct_value ~ctx ~env ~ll_holder ll_builder v ty =
   in
   match v with
   | Rir.Term.ValueBool v ->
-      L.const_int (to_llty ~ctx ty) (if v then 1 else 0) |> into_ref
-  | Rir.Term.ValueInt v -> L.const_int (to_llty ~ctx ty) v |> into_ref
+      L.const_int (to_llty ~ctx ~env ty) (if v then 1 else 0) |> into_ref
+  | Rir.Term.ValueInt v -> L.const_int (to_llty ~ctx ~env ty) v |> into_ref
   | Rir.Term.ValueString v ->
       (* L.const_stringz ctx.ll_ctx v *)
       L.build_global_stringptr v "" ll_builder |> into_ref
-  | Rir.Term.ValueUnit -> L.const_null (to_llty ~ctx ty) |> into_ref
+  | Rir.Term.ValueUnit -> L.const_null (to_llty ~ctx ~env ty) |> into_ref
   | Rir.Term.ValueArrayElem elems ->
       let mem =
         match ll_holder with Some mem -> mem | None -> failwith "[ICE]"
@@ -252,6 +264,15 @@ let construct_term ~ctx ~env ~ll_holder ll_f ll_builder term : Env.var_t =
             let _ll_v : L.llvalue = L.build_store ll_v mem ll_builder in
             Env.{ ll_v = mem; as_treat = Value_category.AsPtr }
         | None -> Env.{ ll_v; as_treat = Value_category.AsPtr }
+      in
+      value
+  (* *)
+  | Rir.Term.{ kind = Construct { struct_tag }; ty; _ } ->
+      let Env.{ ll_ty } = Env.get_type env struct_tag in
+      let value =
+        match ll_holder with
+        | Some mem -> Env.{ ll_v = mem; as_treat = Value_category.AsPtr }
+        | None -> failwith "[ICE] Cannot construct"
       in
       value
   (* *)
@@ -389,7 +410,7 @@ let construct_pre_alloc ~ctx ~env ll_f ll_builder pre_alloc =
       match (inst, addressable) with
       (* *)
       | (Rir.Term.Let (placeholder, term, _, _), Rir.Func.AddressableT) ->
-          let ll_ty = to_llty ~ctx term.Rir.Term.ty in
+          let ll_ty = to_llty ~ctx ~env term.Rir.Term.ty in
           let ll_v = L.build_alloca ll_ty "" ll_builder in
           let v = Env.{ ll_v; as_treat = Value_category.AsPtr } in
           (placeholder, v)
@@ -441,10 +462,34 @@ let construct_func ~ctx ~env ll_mod ll_f (name, func) =
       let ll_builder = L.builder_at_end ctx.ll_ctx ll_bb in
       construct_bb ~ctx ~env ll_f ll_builder bb)
 
+(* declare types *)
+let pre_construct_type ~ctx ~env ll_mod t : Env.type_t * Env.t =
+  let Rir.Module.{ ty_name; ty_struct_tag; ty_rir } = t in
+
+  let mangled_name = (*TODO*) ty_name in
+  let ll_ty = L.named_struct_type ctx.ll_ctx mangled_name in
+
+  [%loga.info "-> %d" ty_struct_tag];
+
+  let tt = Env.{ ll_ty } in
+  let env = Env.set_type env ty_struct_tag tt in
+  (tt, env)
+
+(* define types *)
+let construct_type ~ctx ~env ll_mod ll_ty t : Env.t =
+  let Rir.Module.{ ty_rir; _ } = t in
+
+  let packed = false in
+  L.struct_set_body ll_ty [||] packed;
+
+  env
+
 (* declare functions *)
-let pre_construct_func ~ctx ll_mod (name, func) : Env.func_t =
+let pre_construct_func ~ctx ~env ll_mod f : Env.func_t * Env.t =
+  let (name, func) = f in
+
   let ty = func.Rir.Func.ty in
-  let ll_ty = to_llty ~ctx ty in
+  let ll_ty = to_llty ~ctx ~env ty in
   let kind =
     match func.Rir.Func.extern_name with
     | Some builtin_name when String.is_prefix builtin_name ~prefix:"%" ->
@@ -455,7 +500,9 @@ let pre_construct_func ~ctx ll_mod (name, func) : Env.func_t =
         let mangled_name = Mangling.mangle name ty in
         Env.FuncLLVMDef (L.define_function mangled_name ll_ty ll_mod)
   in
-  Env.{ kind; ty }
+  let ff = Env.{ kind; ty } in
+  let env = Env.set_func env name ff in
+  (ff, env)
 
 let generate_module ~ctx rir_mod : Module.t =
   let module_name = rir_mod.Rir.Module.module_name in
@@ -463,19 +510,31 @@ let generate_module ~ctx rir_mod : Module.t =
 
   let env = Env.create () in
 
+  (* types *)
+  let (env, ts_rev) =
+    let types = Rir.Module.types rir_mod in
+    List.fold_left types ~init:(env, []) ~f:(fun (env, ts) t ->
+        let (tt, env) = pre_construct_type ~ctx ~env ll_mod t in
+        (env, (t, tt) :: ts))
+  in
+  let env =
+    List.fold_left ts_rev ~init:env ~f:(fun env (t, tt) ->
+        let Env.{ ll_ty; _ } = tt in
+        let env = construct_type ~ctx ~env ll_mod ll_ty t in
+        env)
+  in
+
+  (* functions *)
   let (env, fs_rev) =
     let funcs = Rir.Module.funcs rir_mod in
     List.fold_left funcs ~init:(env, []) ~f:(fun (env, fs) f ->
-        let (name, func) = f in
-        let d_f = pre_construct_func ~ctx ll_mod (name, func) in
-        let env = Env.set_func env name d_f in
-        (env, (f, d_f) :: fs))
+        let (ff, env) = pre_construct_func ~ctx ~env ll_mod f in
+        (env, (f, ff) :: fs))
   in
-
   let () =
     fs_rev
-    |> List.iter ~f:(fun (f, d_f) ->
-           match d_f with
+    |> List.iter ~f:(fun (f, ff) ->
+           match ff with
            | Env.{ kind = FuncLLVMDef ll_f; _ } ->
                let _env = construct_func ~ctx ~env ll_mod ll_f f in
                ()

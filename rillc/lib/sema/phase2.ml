@@ -20,6 +20,7 @@ module TAst = struct
     | Import of { pkg : string; mods : string list }
     | DeclExternFunc of { name : string; extern_name : string }
     | DefFunc of { name : string; body : t }
+    | DefStruct of { name : string; struct_tag : Typing.Type.struct_tag_t }
     | StmtSeq of t list
     | StmtExpr of t
     | StmtExprApply of t
@@ -32,6 +33,7 @@ module TAst = struct
     | ExprIndex of t * t
     | ExprRef of t
     | ExprDeref of t
+    | ExprStruct of { struct_tag : Typing.Type.struct_tag_t }
     | Var of string
     | VarParam of int
     | LitBool of bool
@@ -153,6 +155,19 @@ and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
         TAst.{ kind = StmtSeq seq; ty; span = t_body.span }
       in
       Ok TAst.{ kind = DefFunc { name; body = t_seq }; ty = f_ty; span }
+  (* *)
+  | Ast.{ kind = DefStruct { name }; span } ->
+      (* TODO: check that there are no holes *)
+      let s_ty = Typing.Subst.subst_type ctx.subst (Env.type_of env) in
+      let%bind struct_tag =
+        match s_ty with
+        | Typing.Type.{ ty = Struct { tag }; _ } -> Ok tag
+        | _ -> failwith "[ICE] not struct def"
+      in
+
+      (* A type of struct is a type *)
+      let ty = Typing.Type.{ (ctx.builtin.Builtin.type_ s_ty) with span } in
+      Ok TAst.{ kind = DefStruct { name; struct_tag }; ty; span }
   (* *)
   | Ast.{ span; _ } ->
       let e =
@@ -418,6 +433,21 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
         Typing.Type.{ elem_ty with binding_mut; span }
       in
       Ok TAst.{ kind = ExprDeref t_r; ty; span }
+  (* *)
+  | Ast.{ kind = ExprStruct { path }; span; _ } ->
+      let%bind ty =
+        Phase1_1.lookup_type ~env path
+        |> Result.map ~f:(Typing.Subst.subst_type ctx.subst)
+      in
+      let%bind struct_tag =
+        match ty with
+        | Typing.Type.{ ty = Struct { tag }; _ } -> Ok tag
+        | _ ->
+            let e = new Reasons.not_struct_type in
+            let elm = Diagnostics.Elem.error ~span e in
+            Error elm
+      in
+      Ok TAst.{ kind = ExprStruct { struct_tag }; span; ty }
   (* *)
   | Ast.{ kind = ID name; span; _ } ->
       let%bind venv =

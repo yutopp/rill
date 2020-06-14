@@ -59,7 +59,7 @@ rule token = parse
   | "operator"          { KEYWORD_OPERATOR }
   | "import"            { KEYWORD_IMPORT }
   | "def"               { KEYWORD_DEF }
-  | "class"             { KEYWORD_CLASS }
+  | "struct"            { KEYWORD_STRUCT }
   | "package"           { KEYWODD_PACKAGE }
   | "module"            { KEYWODD_MODULE }
   | "val"               { KEYWORD_VAL }

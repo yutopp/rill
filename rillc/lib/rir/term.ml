@@ -22,6 +22,7 @@ and value_kind_t =
   | Index of placeholder_t * placeholder_t
   | Ref of placeholder_t
   | Deref of placeholder_t
+  | Construct of { struct_tag : Typing.Type.struct_tag_t }
   | RVal of value_r_t
   | LVal of placeholder_t
   | LValParam of int
@@ -65,6 +66,7 @@ let to_string_term term =
   | { kind = Index (elems, index); _ } -> Printf.sprintf "%s[%s]" elems index
   | { kind = Ref elem; _ } -> Printf.sprintf "&%s" elem
   | { kind = Deref elem; _ } -> Printf.sprintf "*%s" elem
+  | { kind = Construct _; _ } -> Printf.sprintf "construct"
   | { kind = RVal value; _ } ->
       Printf.sprintf "rval(%s)" (to_string_value value)
   | { kind = LVal var; _ } -> Printf.sprintf "lval(%s)" var

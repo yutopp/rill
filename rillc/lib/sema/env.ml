@@ -26,12 +26,7 @@ and scope_t = {
 
 and visibility_t = Public | Private
 
-and wrap_t =
-  | N
-  | Ty of Typing.Type.t
-  | Val of Typing.Type.t
-  | M of Mod.t
-  | Alias of t
+and wrap_t = N | Ty | Val of Typing.Type.t | M of Mod.t | Alias of t
 [@@deriving show]
 
 type inserted_status_t = InsertedNew | InsertedHiding
@@ -90,7 +85,7 @@ let insert_meta penv tenv =
 
 let insert_impl penv w tenv =
   match w with
-  | Ty _ -> insert_type penv tenv
+  | Ty -> insert_type penv tenv
   | Val _ -> insert_value penv tenv
   | M _ -> insert_meta penv tenv
   | _ -> failwith "insert_impl"

@@ -28,7 +28,7 @@
 %token                  EOF
 %token                  LIT_TRUE LIT_FALSE
                         KEYWORD_DEF
-                        KEYWORD_CLASS
+                        KEYWORD_STRUCT
                         KEYWODD_PACKAGE
                         KEYWODD_MODULE
                         KEYWORD_VAL

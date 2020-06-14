@@ -11,5 +11,8 @@ type as_treat_t = AsVal | AsPtr [@@deriving show]
 let should_treat ty =
   (* TODO: impl *)
   match ty with
-  | Typing.Type.{ ty = Array _; _ } | Typing.Type.{ ty = Func _; _ } -> AsPtr
+  | Typing.Type.{ ty = Array _; _ }
+  | Typing.Type.{ ty = Func _; _ }
+  | Typing.Type.{ ty = Struct _; _ } ->
+      AsPtr
   | _ -> AsVal

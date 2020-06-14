@@ -35,6 +35,13 @@ class cannot_reference_mut =
       Printf.sprintf "Cannot reference immutable value as mutable"
   end
 
+class not_struct_type =
+  object (self)
+    inherit Diagnostics.Error.base
+
+    method to_string = Printf.sprintf "Not struct type"
+  end
+
 class type_mismatch ~(detail : Typer_err.t) =
   object (self)
     inherit Diagnostics.Error.base

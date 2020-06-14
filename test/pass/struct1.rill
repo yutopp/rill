@@ -1,0 +1,9 @@
+struct A {
+}
+
+def main(): unit {
+}
+
+def f(): A {
+  A {}
+}

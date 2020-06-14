@@ -18,7 +18,12 @@ type t = {
   ki_subst : int IntMap.t;
   mut_subst : Type.mutability_t IntMap.t;
   ln_subst : Type.func_linkage_t IntMap.t;
+  struct_tags : struct_tags_t;
 }
+
+and struct_tags_t = { st_fresh_counter : Counter.t }
+
+let create_struct_tags () = { st_fresh_counter = Counter.create () }
 
 let create subst_id : t =
   let ty_subst = Map.empty (module Int) in
@@ -32,6 +37,7 @@ let create subst_id : t =
     ki_subst;
     mut_subst;
     ln_subst;
+    struct_tags = create_struct_tags ();
   }
 
 (* has side effects *)
@@ -50,6 +56,12 @@ let fresh_mut subst : Type.mutability_t =
 let fresh_linkage subst : Type.func_linkage_t =
   let v = fresh_var subst in
   Type.LinkageVar v
+
+(* has side effects *)
+let fresh_struct_tag subst =
+  let { struct_tags; _ } = subst in
+  let v = Counter.fresh struct_tags.st_fresh_counter in
+  v
 
 let update_mut subst uni_id mut =
   let { mut_subst; _ } = subst in

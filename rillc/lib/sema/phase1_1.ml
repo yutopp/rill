@@ -93,6 +93,20 @@ and with_env ~ctx ~env ast : (unit, Diagnostics.Elem.t) Result.t =
 
       Ok ()
   (* *)
+  | Ast.{ kind = DefStruct { name }; span } ->
+      let struct_ty =
+        let tag = Typing.Subst.fresh_struct_tag ctx.subst in
+        let binding_mut = Typing.Type.MutMut in
+        Typing.Type.{ ty = Struct { tag }; binding_mut; span }
+      in
+
+      let%bind subst =
+        Typer.unify ~span ctx.subst struct_ty (Env.type_of env)
+      in
+      ctx.subst <- subst;
+
+      Ok ()
+  (* *)
   | Ast.{ span; _ } ->
       let e =
         new Common.Reasons.internal_error

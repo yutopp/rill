@@ -32,6 +32,10 @@ let register_func_def b name f =
   (* TODO: support name *)
   Module.append_func b.module_ name f
 
+let register_type_def b name r_ty =
+  (* TODO: support name *)
+  Module.append_type b.module_ name r_ty
+
 let build_bb b name =
   let f = get_current_func b in
   let name = Func.prepare_bb_name f name in

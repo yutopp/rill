@@ -184,6 +184,10 @@ let rec generate_stmt ~ctx ~builder ast =
       let node = Rir.Term.{ kind = Deref name; ty; span } in
       (node, builder)
   (* *)
+  | NAst.{ kind = Construct { struct_tag }; span; ty } ->
+      let node = Rir.Term.{ kind = Construct { struct_tag }; ty; span } in
+      (node, builder)
+  (* *)
   | NAst.{ kind = Var id; ty; span } ->
       let node = Rir.Term.{ kind = LVal id; ty; span } in
       (node, builder)
@@ -250,6 +254,10 @@ let generate_toplevel ~ctx ~builder ast =
     ->
       let f = Rir.Func.create ~ty ~extern_name:(Some extern_name) in
       Rir.Builder.register_func_def builder name f
+  (* *)
+  | NAst.{ kind = Struct { name; struct_tag }; ty; span } ->
+      let r_ty = Rir.Type.create () in
+      Rir.Builder.register_type_def builder name struct_tag r_ty
   (* *)
   | NAst.{ kind; _ } ->
       let s = NAst.show_kind_t kind in

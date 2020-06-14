@@ -41,7 +41,7 @@ let assume_new inseted_status =
 let introduce_prelude penv builtin =
   let register name ty =
     let env =
-      Env.create name ~parent:None ~visibility:Env.Private ~ty ~ty_w:(Env.Ty ty)
+      Env.create name ~parent:None ~visibility:Env.Private ~ty ~ty_w:Env.Ty
     in
     Env.insert penv env |> assume_new
   in
@@ -104,6 +104,19 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
       Env.insert penv fenv |> assume_new;
 
       Ok TopAst.{ kind = WithEnv { node = decl; env = fenv }; span }
+  (* *)
+  | Ast.{ kind = DefStruct { name }; span } as decl ->
+      let penv = ctx.parent in
+      let%bind () = Guards.guard_dup_value ~span penv name in
+
+      let ty = Typing.Subst.fresh_ty ~span ctx.subst in
+      let visibility = Env.Public in
+      let tenv =
+        Env.create name ~parent:(Some penv) ~visibility ~ty ~ty_w:Env.Ty
+      in
+      Env.insert penv tenv |> assume_new;
+
+      Ok TopAst.{ kind = WithEnv { node = decl; env = tenv }; span }
   (* *)
   | Ast.{ span; _ } ->
       let e =
