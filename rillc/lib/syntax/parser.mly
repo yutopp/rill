@@ -86,8 +86,13 @@ parameter_decl:
            ~l:$loc
     }
 
-type_spec:
-    COLON id_expr { $2 }
+let type_spec :=
+    COLON; e=type_expr; { e }
+
+let type_expr :=
+    e=id_expr; { e }
+  | LBRACKET; e=expr; RBRACKET; t=type_expr;
+    { make (Ast.TypeExprArray { elem = t; len = e }) ~l:$loc }
 
 extern_decl_statement:
     extern_function_decl_statement { $1 }

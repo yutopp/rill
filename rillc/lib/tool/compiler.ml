@@ -63,7 +63,7 @@ module Phases = struct
     let subst = m.Mod.subst in
 
     let%bind subst =
-      let ctx = Sema.Phase1_1.context ~ds ~subst ~pkg_env in
+      let ctx = Sema.Phase1_1.context ~ds ~subst ~builtin ~pkg_env in
       Sema.Phase1_1.declare_toplevels ~ctx p1ast
       |> Result.map ~f:(fun e -> Sema.Phase1_1.(ctx.subst))
       |> Result.map_error ~f:(fun e -> (SemaP1 p1ast, e))

@@ -229,7 +229,7 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       in
       let%bind var_ty =
         match ty_spec with
-        | Some ty_spec -> Phase1_1.lookup_type ~env ty_spec
+        | Some ty_spec -> Phase1_1.lookup_type ~env ctx.builtin ty_spec
         | None ->
             (* infer *)
             let ty = Typing.Subst.fresh_ty ~span ctx.subst in
@@ -436,7 +436,7 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
   (* *)
   | Ast.{ kind = ExprStruct { path }; span; _ } ->
       let%bind ty =
-        Phase1_1.lookup_type ~env path
+        Phase1_1.lookup_type ~env ctx.builtin path
         |> Result.map ~f:(Typing.Subst.subst_type ctx.subst)
       in
       let%bind struct_tag =

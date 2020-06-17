@@ -16,10 +16,12 @@ type ctx_t = {
   parent : Env.t option;
   ds : Diagnostics.t;
   mutable subst : Typing.Subst.t;
+  builtin : Builtin.t;
   pkg_env : Env.t;
 }
 
-let context ~ds ~subst ~pkg_env = { parent = None; ds; subst; pkg_env }
+let context ~ds ~subst ~builtin ~pkg_env =
+  { parent = None; ds; subst; builtin; pkg_env }
 
 let rec declare_toplevels ~ctx ast : (unit, Diagnostics.Elem.t) Result.t =
   let open Result.Let_syntax in
@@ -56,7 +58,7 @@ and with_env ~ctx ~env ast : (unit, Diagnostics.Elem.t) Result.t =
                 let%bind () = Guards.guard_dup_value ~span env name in
 
                 let%bind spec_ty =
-                  let%bind ty = lookup_type ~env ty_spec in
+                  let%bind ty = lookup_type ~env ctx.builtin ty_spec in
                   (* TODO: mutability *)
                   let binding_mut = Typing.Type.MutImm in
                   Ok Typing.Type.{ ty with binding_mut }
@@ -72,7 +74,7 @@ and with_env ~ctx ~env ast : (unit, Diagnostics.Elem.t) Result.t =
         |> Result.map ~f:List.rev
       in
       let%bind ret_ty =
-        let%bind ty = lookup_type ~env ret_ty in
+        let%bind ty = lookup_type ~env ctx.builtin ret_ty in
         let binding_mut = Typing.Type.MutImm in
         Ok Typing.Type.{ ty with binding_mut }
       in
@@ -193,9 +195,11 @@ and find_mods_with_wildcard ~pkg_env ast =
   (* *)
   | _ -> find_mod ~pkg_env ast |> Result.map ~f:(fun e -> [ e ])
 
-and lookup_type ~env ast : (Typing.Type.t, Diagnostics.Elem.t) Result.t =
+and lookup_type ~env builtin ast : (Typing.Type.t, Diagnostics.Elem.t) Result.t
+    =
   let open Result.Let_syntax in
   match ast with
+  (* *)
   | Ast.{ kind = ID name; span } ->
       let%bind env =
         Env.lookup_type env name
@@ -206,6 +210,12 @@ and lookup_type ~env ast : (Typing.Type.t, Diagnostics.Elem.t) Result.t =
                elm)
       in
       let ty = Env.type_of env in
+      Ok Typing.Type.{ ty with span }
+  (* *)
+  | Ast.{ kind = TypeExprArray { elem; len }; span } ->
+      let%bind elem_ty = lookup_type ~env builtin elem in
+      (* TODO: fix 4 *)
+      let ty = builtin.Builtin.array_ elem_ty 4 in
       Ok Typing.Type.{ ty with span }
   (* *)
   | Ast.{ span; _ } -> failwith "unexpected token (lookup_type)"

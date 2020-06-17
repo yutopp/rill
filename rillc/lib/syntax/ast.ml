@@ -59,6 +59,7 @@ and kind_t =
   | LitArrayElems of t list
   | DeclAttrMutable
   | DeclAttrImmutable
+  | TypeExprArray of { elem : t; len : t }
 [@@deriving sexp_of, show]
 
 let param_decl_name ast =

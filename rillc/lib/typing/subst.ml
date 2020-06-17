@@ -63,6 +63,8 @@ let fresh_struct_tag subst =
   let v = Counter.fresh struct_tags.st_fresh_counter in
   v
 
+let get_struct_fields_from_tags subst tag = []
+
 let update_mut subst uni_id mut =
   let { mut_subst; _ } = subst in
   let mut_subst = Map.add_exn mut_subst ~key:uni_id ~data:mut in
