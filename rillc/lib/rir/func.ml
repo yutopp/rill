@@ -21,6 +21,7 @@ type t = {
   ty : (Typing.Type.t[@printer fun fmt _ -> fprintf fmt ""]);
   bbs : BBs.t;
   mutable bbs_names_rev : string list;
+  mutable ret_term : Term.t option;
   mutable pre_allocs : pre_alloc_t list;
   fresh_id : (Counter.t[@printer fun fmt _ -> fprintf fmt ""]);
   extern_name : string option;
@@ -30,13 +31,19 @@ and pre_alloc_t = { p_bb_name : string; p_insts : pre_alloc_inst_t list }
 
 and pre_alloc_inst_t = Term.inst_t * addressable_t
 
-and addressable_t = AddressableT | AddressableF [@@deriving show]
+and addressable_t = AddressableT of addressable_extra_t | AddressableF
+
+and addressable_extra_t = { addressable_e_kind : addressable_extra_kind_t }
+
+and addressable_extra_kind_t = AddrKindStandard | AddrKindRet
+[@@deriving show]
 
 let create_vanilla ?(extern_name = None) ~ty =
   {
     ty;
     bbs = Hashtbl.create (module String);
     bbs_names_rev = [];
+    ret_term = None;
     pre_allocs = [];
     fresh_id = Counter.create ();
     extern_name;
@@ -76,6 +83,13 @@ let create ?(extern_name = None) ~ty =
   f
 
 let get_entry_bb f = Hashtbl.find f.bbs "entry"
+
+let set_ret_term func term =
+  match term with
+  | Term.{ kind = LVal _; _ } -> func.ret_term <- Some term
+  | _ -> failwith ""
+
+let get_ret_term func = func.ret_term
 
 let set_pre_allocs func pre_allocs = func.pre_allocs <- pre_allocs
 

@@ -36,15 +36,14 @@ and value_r_t =
   | ValueArrayElem of placeholder_t list
 
 and inst_t =
-  | Let of placeholder_t * t * Typing.Type.mutability_t * Typing.Type.t
+  | Let of placeholder_t * t * Typing.Type.mutability_t
   | Assign of { lhs : t; rhs : t }
   | TerminatorPoint of terminator_t
 
 and terminator_t =
   | Jump of string
   | Cond of placeholder_t * string * string
-  | Ret of t
-  | RetVoid
+  | Ret
 
 and placeholder_t = string
 
@@ -82,9 +81,7 @@ let to_string_termi ~indent termi =
     | Cond (cond, t_label, e_label) ->
         Buffer.add_string buf
           (Printf.sprintf "cond %s, then=%s, else=%s" cond t_label e_label)
-    | Ret term ->
-        Buffer.add_string buf (Printf.sprintf "ret %s" (to_string_term term))
-    | RetVoid -> Buffer.add_string buf "ret void"
+    | Ret -> Buffer.add_string buf "ret"
   in
   Buffer.contents buf
 
@@ -93,7 +90,7 @@ let to_string_inst ~indent inst =
   Buffer.add_string buf (String.make indent ' ');
   let () =
     match inst with
-    | Let (name, term, mut, ty) ->
+    | Let (name, ({ ty; _ } as term), mut) ->
         Buffer.add_string buf
           (Printf.sprintf "let %s %s : %s = %s"
              (Typing.Type.to_string_mut mut)
@@ -135,8 +132,7 @@ module BB = struct
     match t with
     | Some (Jump n) -> [ n ]
     | Some (Cond (_, t, e)) -> [ t; e ]
-    | Some (Ret _) -> []
-    | Some RetVoid -> []
+    | Some Ret -> []
     | None -> []
 
   let to_string ~indent bb =

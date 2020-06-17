@@ -17,6 +17,7 @@ type ctx_t = {
   subst : Typing.Subst.t;
   rir_ctx : Rir.Context.t;
   builtin : Builtin.t;
+  return_storage : Rir.Term.t option;
   outer_bbs : outer_bbs_t option;
 }
 
@@ -27,8 +28,9 @@ and outer_bbs_t = {
 
 let context ~ds ~subst ~builtin =
   let rir_ctx = Rir.Context.create () in
+  let return_storage = None in
   let outer_bbs = None in
-  { ds; subst; rir_ctx; builtin; outer_bbs }
+  { ds; subst; rir_ctx; builtin; return_storage; outer_bbs }
 
 let rec generate_expr ~ctx ~builder ast =
   match ast with
@@ -44,7 +46,7 @@ let rec generate_stmt ~ctx ~builder ast =
   (* *)
   | NAst.{ kind = Let { mut; name; expr }; ty; span; _ } ->
       let (t_expr, builder) = generate_stmt ~ctx ~builder expr in
-      let term = Rir.Builder.build_let builder name t_expr mut ty in
+      let term = Rir.Builder.build_let builder name t_expr mut in
       (term, builder)
   (* *)
   | NAst.{ kind = Assign { lhs; rhs }; ty; span; _ } ->
@@ -72,7 +74,7 @@ let rec generate_stmt ~ctx ~builder ast =
         | true -> Rir.Term.{ kind = RVal ValueUnit; ty; span }
         | false ->
             let mut = Typing.Type.MutMut in
-            B.build_let builder "" Rir.Term.{ kind = Undef; ty; span } mut ty
+            B.build_let builder "" Rir.Term.{ kind = Undef; ty; span } mut
       in
 
       let bb_then = B.build_bb builder "if_then" in
@@ -127,7 +129,7 @@ let rec generate_stmt ~ctx ~builder ast =
       (* receiver (unit always) *)
       let recv =
         let mut = Typing.Type.MutImm in
-        B.build_let builder "" Rir.Term.{ kind = Undef; ty; span } mut ty
+        B.build_let builder "" Rir.Term.{ kind = Undef; ty; span } mut
       in
 
       let bb_start = B.build_bb builder "loop_start" in
@@ -240,11 +242,28 @@ let generate_toplevel ~ctx ~builder ast =
       let bb = Option.value_exn (Rir.Func.get_entry_bb f) in
       let builder = Rir.Builder.with_current_bb builder bb in
 
+      let ret_term =
+        match ret_ty with
+        | Typing.Type.{ ty = Unit; _ } -> None
+        | _ ->
+            let mut = Typing.Type.MutMut in
+            let t_expr = Rir.Term.{ kind = Undef; ty = ret_ty; span } in
+            let t = Rir.Builder.build_let builder "ret" t_expr mut in
+
+            Rir.Func.set_ret_term f t;
+
+            Some t
+      in
+
+      let ctx = { ctx with return_storage = ret_term } in
       let (term, builder) = generate_stmt ~ctx ~builder body in
       let () =
         match ret_ty with
-        | Typing.Type.{ ty = Unit; _ } -> Rir.Builder.build_return_void builder
-        | _ -> Rir.Builder.build_return builder term
+        | Typing.Type.{ ty = Unit; _ } -> Rir.Builder.build_return builder
+        | _ ->
+            let ret_term = Option.value_exn ret_term in
+            Rir.Builder.build_assign builder ret_term term;
+            Rir.Builder.build_return builder
       in
 
       Rir.Builder.register_func_def builder name f
@@ -264,14 +283,14 @@ let generate_toplevel ~ctx ~builder ast =
       failwith
         (Printf.sprintf "Not supported node (Rir_gen.generate_toplevel): %s" s)
 
-let generate_module ~ctx ast =
+let generate_module ~ctx ast : Rir.Module.t =
   match ast with
   (* *)
   | NAst.{ kind = Module nodes; _ } ->
       let rir_mod = Rir.Module.create ~ctx:ctx.rir_ctx in
       let builder = Rir.Builder.create ~m:rir_mod in
       List.iter nodes ~f:(generate_toplevel ~ctx ~builder);
-      let rir_mod = Rir_gen_filters.finish rir_mod in
+      let rir_mod = Rir_gen_filters.finish ~subst:ctx.subst rir_mod in
       rir_mod
   (* *)
   | NAst.{ kind; _ } ->
