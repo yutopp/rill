@@ -1,9 +1,9 @@
-extern void _RRN4mainv();
+extern void _ZN4mainERill();
 
 // a default entry point of libc
 int main(void) {
   // Rill mangled-main entry point
-  _RRN4mainv();
+  _ZN4mainERill();
 
   return 0;
 }

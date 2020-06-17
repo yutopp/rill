@@ -117,7 +117,7 @@ let rec to_llty ~ctx ~env ty : L.lltype =
 and func_to_llty ~ctx ~env ty : L.lltype =
   match Typing.Subst.subst_type ctx.subst ty with
   | Typing.Type.{ ty = Func { params; ret; _ }; _ } ->
-      let params_tys = List.map ~f:(to_llty ~ctx ~env) params in
+      let params_tys = List.map ~f:(func_param_to_llty ~ctx ~env) params in
       let (params_tys, ret_ty) =
         let ret_ty = to_llty ~ctx ~env ret in
         match Value_category.memory_of ~subst:ctx.subst ret with
@@ -137,10 +137,20 @@ and func_to_llty ~ctx ~env ty : L.lltype =
         (Printf.sprintf "[ICE] not supported type (func): %s"
            (Typing.Type.to_string ty))
 
+and func_param_to_llty ~ctx ~env ty : L.lltype =
+  let ll_ty = to_llty ~ctx ~env ty in
+  match Value_category.memory_of ~subst:ctx.subst ty with
+  | Value_category.MemPrimitive -> ll_ty
+  | Value_category.MemMemory _ -> L.pointer_type ll_ty
+
+let func_param_to_term ~ctx param_ty ll_param =
+  match Value_category.memory_of ~subst:ctx.subst param_ty with
+  | Value_category.MemPrimitive ->
+      Env.{ ll_v = ll_param; as_treat = Value_category.AsVal }
+  | Value_category.MemMemory _ as mem ->
+      Env.{ ll_v = ll_param; as_treat = Value_category.AsPtr mem }
+
 let load_func_params_into_env ~ctx ~env ll_f ty =
-  let to_term param_ty ll_param =
-    Env.{ ll_v = ll_param; as_treat = Value_category.AsVal }
-  in
   let (params_tys, ret_ty) = Typing.Type.assume_func_ty ty in
   let ll_params = L.params ll_f |> Array.to_list in
   match Value_category.memory_of ~subst:ctx.subst ret_ty with
@@ -148,7 +158,7 @@ let load_func_params_into_env ~ctx ~env ll_f ty =
   | Value_category.MemPrimitive ->
       List.zip_exn params_tys ll_params
       |> List.foldi ~init:env ~f:(fun index env (param_ty, ll_param) ->
-             let var = to_term param_ty ll_param in
+             let var = func_param_to_term ~ctx param_ty ll_param in
              Env.set_local_arg env index var)
   (* *)
   | Value_category.MemMemory _ ->
@@ -158,7 +168,7 @@ let load_func_params_into_env ~ctx ~env ll_f ty =
       in
       List.zip_exn params_tys ll_params
       |> List.foldi ~init:env ~f:(fun index env (param_ty, ll_param) ->
-             let var = to_term param_ty ll_param in
+             let var = func_param_to_term ~ctx param_ty ll_param in
              Env.set_local_arg env index var)
 
 let find_builtin builtin_name =
