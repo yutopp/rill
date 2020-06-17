@@ -79,10 +79,7 @@ parameter_decl:
     v=decl_var(type_spec)
     {
       let (attr, name, ty_spec) = v in
-      make (Ast.ParamDecl {
-              name = name;
-              ty_spec = ty_spec;
-           })
+      make (Ast.ParamDecl { attr; name; ty_spec; })
            ~l:$loc
     }
 

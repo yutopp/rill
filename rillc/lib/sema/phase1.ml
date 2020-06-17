@@ -89,7 +89,7 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
       Env.insert penv fenv |> assume_new;
 
       Ok TopAst.{ kind = WithEnv { node = decl; env = fenv }; span }
-      (* *)
+  (* *)
   | ( Ast.{ kind = DeclFunc { name; params; ret_ty; _ }; span }
     | Ast.{ kind = DefFunc { name; params; ret_ty; _ }; span } ) as decl ->
       let penv = ctx.parent in

@@ -54,13 +54,12 @@ and with_env ~ctx ~env ast : (unit, Diagnostics.Elem.t) Result.t =
       let%bind params_tys =
         List.fold_result params ~init:[] ~f:(fun ps param ->
             match param with
-            | Ast.{ kind = ParamDecl { name; ty_spec }; span } ->
+            | Ast.{ kind = ParamDecl { attr; name; ty_spec }; span } ->
                 let%bind () = Guards.guard_dup_value ~span env name in
 
                 let%bind spec_ty =
                   let%bind ty = lookup_type ~env ctx.builtin ty_spec in
-                  (* TODO: mutability *)
-                  let binding_mut = Typing.Type.MutImm in
+                  let binding_mut = Mut.mutability_of attr in
                   Ok Typing.Type.{ ty with binding_mut }
                 in
                 let visibility = Env.Public in

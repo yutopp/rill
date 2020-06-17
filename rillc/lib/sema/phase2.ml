@@ -121,7 +121,7 @@ and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       let t_param_vars_decls =
         List.mapi params ~f:(fun index param ->
             match param with
-            | Ast.{ kind = ParamDecl { name; ty_spec }; span } ->
+            | Ast.{ kind = ParamDecl { name; ty_spec; _ }; span } ->
                 let venv =
                   match Env.find_value env name with
                   | Some v -> v
