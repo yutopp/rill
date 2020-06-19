@@ -14,7 +14,6 @@ module Span = Common.Span
 module Diagnostics = Common.Diagnostics
 module Sema = Sema
 module Rir = Rir
-module Compiler = Compiler
 module Workspace = Common.Workspace
 module Package = Common.Package
 module Codegen = Codegen

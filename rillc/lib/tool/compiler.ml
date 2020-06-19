@@ -14,25 +14,20 @@ module Mod = Sema.Mod
 type t = {
   mutable has_fatal : bool;
   workspace : Common.Workspace.t;
+  host : Triple.t;
+  target : Triple.t;
   subst_counter : Common.Counter.t;
 }
 
-let create workspace : t =
+let create ~workspace ~host ~target : t =
   let subst_counter = Common.Counter.create () in
-  { has_fatal = false; workspace; subst_counter }
-
-type codegen_phase_t = CodegenPhaseRir | CodegenPhaseLLVM
+  { has_fatal = false; workspace; host; target; subst_counter }
 
 type phase_t =
   | CannotParsed
   | Parsed of Syntax.Ast.t
   | SemaP1 of Sema.Phase1.TopAst.t
   | SemaP2 of Sema.Phase2.TAst.t
-[@@deriving show]
-
-type artifact_t =
-  | ArtifactRir of Rir.Module.t
-  | ArtifactLlvm of Codegen.Llvm_gen.Module.t
 [@@deriving show]
 
 type failed_t = phase_t * Diagnostics.Elem.t
@@ -97,16 +92,19 @@ module Phases = struct
 end
 
 module ModState = struct
-  type t = { m : Mod.t; phase_result : (phase_t, failed_t) Result.t }
+  type t = {
+    m : Mod.t;
+    phase_result : (phase_t, failed_t) Result.t;
+    format : Emitter.t option;
+  }
 
   and phase_t =
     | Phase1CollectTopLevels of Sema.Phase1.TopAst.t
     | Phase1DeclareTopLevels of Sema.Phase1.TopAst.t
     | Phase2 of Sema.Phase2.TAst.t
-    | ArtifactRir of Rir.Module.t
-    | ArtifactLlvm of Codegen.Llvm_gen.Module.t
+    | Artifact of Emitter.Artifact.t
 
-  let create ~m ~phase_result = { m; phase_result }
+  let create ~m ~phase_result = { m; phase_result; format = None }
 
   let is_failed m = Result.is_error m.phase_result
 
@@ -234,49 +232,104 @@ let rec preload_pkg_cont compiler dict builtin pkg_env pkg =
           ModDict.update mod_dict ms
       | _ -> ())
 
-let to_ir compiler dict builtin code_gen_phase ms =
-  match ms.ModState.phase_result with
-  | Ok (ModState.Phase2 p2ast) ->
-      let m = ms.ModState.m in
+module Pipeline_common = struct
+  module To_rill_ir = struct
+    let trans ~compiler dict builtin ms p3ast =
+      let ModState.{ m; _ } = ms in
+      let Mod.{ ds; subst; _ } = m in
 
-      (* TODO: check that there are no errors in ds *)
-      let p3ast = Phases.phase3 ~compiler m p2ast in
+      let rir =
+        let ctx = Codegen.Rir_gen.context ~ds ~subst ~builtin in
+        Codegen.Rir_gen.generate_module ~ctx p3ast
+      in
+      let phase_result =
+        let art = Emitter.Artifact.Rill_ir { m = rir } in
+        Ok (ModState.Artifact art)
+      in
+      ModState.{ ms with phase_result }
 
-      let open With_return in
-      with_return (fun r ->
-          let ds = m.Mod.ds in
-          let subst = m.Mod.subst in
+    let to_artifact ~compiler dict builtin ms =
+      match ms.ModState.phase_result with
+      | Ok (ModState.Phase2 p2ast) ->
+          let ModState.{ m; _ } = ms in
 
-          (* Generate Rill-ir *)
-          let rir =
-            let ctx = Codegen.Rir_gen.context ~ds ~subst ~builtin in
-            Codegen.Rir_gen.generate_module ~ctx p3ast
-          in
-          let m =
-            let phase_result = Ok (ModState.ArtifactRir rir) in
-            ModState.{ ms with phase_result }
-          in
-          if Poly.equal code_gen_phase CodegenPhaseRir then r.return m;
+          (* TODO: check that there are no errors in ds *)
+          let p3ast = Phases.phase3 ~compiler m p2ast in
+          trans ~compiler dict builtin ms p3ast
+      (* *)
+      | _ -> ms
+  end
 
-          (* Generate LLVM-ir *)
-          let llvm =
-            let ctx = Codegen.Llvm_gen.context ~ds ~subst ~builtin in
-            Codegen.Llvm_gen.generate_module ~ctx rir
-          in
-          let ms =
-            let phase_result = Ok (ModState.ArtifactLlvm llvm) in
-            ModState.{ ms with phase_result }
-          in
-          ms)
-  | _ -> ms
+  module To_llvm_ir = struct
+    let trans ~compiler dict builtin ms rir =
+      let ModState.{ m; _ } = ms in
+      let Mod.{ ds; subst; _ } = m in
 
-let build_pkg_internal compiler dict builtin emit pkg =
+      let llvm =
+        let ctx = Codegen.Llvm_gen.context ~ds ~subst ~builtin in
+        Codegen.Llvm_gen.generate_module ~ctx rir
+      in
+      let phase_result =
+        let art = Emitter.Artifact.Llvm_ir { m = llvm } in
+        Ok (ModState.Artifact art)
+      in
+      ModState.{ ms with phase_result }
+
+    let to_artifact ~compiler dict builtin ms =
+      match ms.ModState.phase_result with
+      | Ok (ModState.Artifact (Emitter.Artifact.Rill_ir { m })) ->
+          trans ~compiler dict builtin ms m
+      (* *)
+      | _ -> ms
+  end
+end
+
+module type PIPELINE_TARGET = sig
+  val supported_formats : Emitter.t list
+end
+
+module Pipeline_target_obj : PIPELINE_TARGET = struct
+  let supported_formats = [ Emitter.Asm; Emitter.Obj ]
+end
+
+let to_artifact ~compiler dict builtin ms format =
+  let format =
+    Option.value format ~default:(Emitter.default_emitter_of compiler.target)
+  in
+  let pipeline : (module PIPELINE_TARGET) = (module Pipeline_target_obj) in
+
+  let open Base.With_return in
+  with_return (fun r ->
+      let ms =
+        Pipeline_common.To_rill_ir.to_artifact ~compiler dict builtin ms
+      in
+
+      let () =
+        match format with
+        | Emitter.Rill_ir -> r.return ModState.{ ms with format = Some format }
+        | _ -> ()
+      in
+
+      let ms =
+        Pipeline_common.To_llvm_ir.to_artifact ~compiler dict builtin ms
+      in
+      let () =
+        match format with
+        | Emitter.Llvm_ir | Emitter.Llvm_bc ->
+            r.return ModState.{ ms with format = Some format }
+        | _ -> ()
+      in
+
+      ms)
+
+let build_pkg_internal compiler dict builtin pkg format =
   let mod_dict = PkgDict.get dict ~key:pkg in
   let mod_rels = ModDict.to_alist mod_dict in
   List.iter mod_rels ~f:(fun (path, ms) ->
       match ms.ModState.phase_result with
       | Ok (ModState.Phase1DeclareTopLevels p1ast)
         when ModState.can_process_entire_module ms ->
+          (* semantic analysis *)
           let m = ms.ModState.m in
           let ds = m.Mod.ds in
           let phase_result =
@@ -288,11 +341,10 @@ let build_pkg_internal compiler dict builtin emit pkg =
 
           (* *)
           let has_fatal = Mod.has_errors m in
-
           if has_fatal then compiler.has_fatal <- true;
 
           if not has_fatal then
-            let ms = to_ir compiler dict builtin emit ms in
+            let ms = to_artifact ~compiler dict builtin ms format in
             ModDict.update mod_dict ms
       | _ -> ())
 
@@ -310,7 +362,7 @@ let build_mod_env pkg_dict =
 
   env
 
-let build_pkg compiler pkg ~code_gen_phase =
+let build_pkg compiler pkg ~format =
   let pkg_dict = PkgDict.create () in
   let builtin = Sema.Builtin.create () in
 
@@ -327,6 +379,6 @@ let build_pkg compiler pkg ~code_gen_phase =
       if compiler.has_fatal then r.return pkg_dict;
 
       (* TODO: check that all top-levels have bound type-vars *)
-      build_pkg_internal compiler pkg_dict builtin code_gen_phase pkg;
+      build_pkg_internal compiler pkg_dict builtin pkg format;
 
       pkg_dict)

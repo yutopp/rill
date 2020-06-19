@@ -6,6 +6,8 @@
  * http://www.boost.org/LICENSE_1_0.txt)
  *)
 
+open! Base
+
 module Flags = struct
   open Cmdliner
 
@@ -53,19 +55,20 @@ Compile rill source codes
       Arg.(value & opt (some dir) None & info [ "stdlib-libdir" ] ~docs ~doc)
     in
 
+    let target =
+      let doc = "" in
+      let l =
+        Rillc.Tool.Triple.targets_map |> List.map ~f:(fun (k, v) -> (k, Some v))
+      in
+      Arg.(value & opt (enum l) None & info [ "target" ] ~docs ~doc)
+    in
+
     let emit =
       let doc = "" in
       let l =
-        [
-          ("rill-ir", Rillc.Tool.Compile.EmitRillIr);
-          ("llvm-ir", Rillc.Tool.Compile.EmitLLVMIr);
-          ("llvm-ir-bc", Rillc.Tool.Compile.EmitLLVMIrBc);
-        ]
+        Rillc.Tool.Emitter.emit_map |> List.map ~f:(fun (k, v) -> (k, Some v))
       in
-      Arg.(
-        value
-        & opt (enum l) Rillc.Tool.Compile.EmitLLVMIrBc
-        & info [ "emit" ] ~docs ~doc)
+      Arg.(value & opt (enum l) None & info [ "emit" ] ~docs ~doc)
     in
 
     let log_level =
@@ -81,16 +84,16 @@ Compile rill source codes
 
     let files = Arg.(value & (pos_all file) [] & info [] ~docv:"FILES") in
 
-    let action corelib_srcdir corelib_libdir stdlib_srcdir stdlib_libdir output
-        out_dir emit log_level input_files =
+    let action corelib_srcdir corelib_libdir stdlib_srcdir stdlib_libdir target
+        output out_dir emit log_level input_files =
       Loga.Logger.set_severity Loga.logger log_level;
 
       let out_to =
         match (output, out_dir) with
         | (Some _, Some _) -> failwith ""
         | (None, None) -> failwith ""
-        | (Some o, None) -> Rillc.Tool.Compile.OutputFile o
-        | (None, Some o) -> Rillc.Tool.Compile.OutputDir o
+        | (Some o, None) -> Rillc.Tool.Writer.OutputToFile o
+        | (None, Some o) -> Rillc.Tool.Writer.OutputToDir o
       in
 
       let opts =
@@ -100,6 +103,7 @@ Compile rill source codes
             corelib_libdir;
             stdlib_srcdir;
             stdlib_libdir;
+            target;
             out_to;
             emit;
             input_files;
@@ -112,7 +116,8 @@ Compile rill source codes
     ( Term.(
         ret
           ( const action $ corelib_srcdir $ corelib_libdir $ stdlib_srcdir
-          $ stdlib_libdir $ output $ out_dir $ emit $ log_level $ files )),
+          $ stdlib_libdir $ target $ output $ out_dir $ emit $ log_level $ files
+          )),
       info )
 
   let entry () = Term.(exit @@ eval cmd)
@@ -120,5 +125,5 @@ end
 [@@warning "-44"]
 
 let () =
-  Loga.Logger.set_formatter Loga.logger Format.err_formatter;
+  Loga.Logger.set_formatter Loga.logger Caml.Format.err_formatter;
   Flags.entry ()
