@@ -36,12 +36,12 @@ let out_mod_rel ~f mod_rel =
   | (Emitter.Artifact.Llvm_ir { m }, Some (Emitter.Llvm_ir as e)) ->
       let filepath = f ~path e in
       with_out_channel ~filepath ~f:(fun ch ->
-          Codegen.Llvm_gen.write_to ~ch ~bitcode:false m)
+          Llvm_gen.write_to ~ch ~bitcode:false m)
   (* LLVM-IR bitcode *)
   | (Emitter.Artifact.Llvm_ir { m }, Some (Emitter.Llvm_bc as e)) ->
       let filepath = f ~path e in
       with_out_channel ~filepath ~f:(fun ch ->
-          Codegen.Llvm_gen.write_to ~ch ~bitcode:true m)
+          Llvm_gen.write_to ~ch ~bitcode:true m)
   | _ ->
       (* TODO: fix error messages *)
       Error (Errors.Failed_to_export_artifact "art and format is unmatched")

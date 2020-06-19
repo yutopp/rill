@@ -36,5 +36,5 @@ let default_emitter_of triple =
 module Artifact = struct
   type t =
     | Rill_ir of { m : Rir.Module.t }
-    | Llvm_ir of { m : Codegen.Llvm_gen.Module.t }
+    | Llvm_ir of { m : Llvm_gen.Module.t }
 end

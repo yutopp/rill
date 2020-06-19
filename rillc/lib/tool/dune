@@ -1,6 +1,6 @@
 (library
  (public_name     rillc.tool)
  (name            tool)
- (libraries       base stdio str rillc.common rillc.sema rillc.rir rillc.codegen ppx_deriving_yojson.runtime)
+ (libraries       base stdio str rillc.common rillc.sema rillc.rir rillc.codegen rillc.codegen.llvm_gen ppx_deriving_yojson.runtime)
  (preprocess
   (pps ppx_let ppx_deriving.show ppx_deriving_yojson)))

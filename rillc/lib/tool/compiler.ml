@@ -266,8 +266,8 @@ module Pipeline_common = struct
       let Mod.{ ds; subst; _ } = m in
 
       let llvm =
-        let ctx = Codegen.Llvm_gen.context ~ds ~subst ~builtin in
-        Codegen.Llvm_gen.generate_module ~ctx rir
+        let ctx = Llvm_gen.context ~ds ~subst ~builtin in
+        Llvm_gen.generate_module ~ctx rir
       in
       let phase_result =
         let art = Emitter.Artifact.Llvm_ir { m = llvm } in
@@ -303,7 +303,6 @@ let to_artifact ~compiler dict builtin ms format =
       let ms =
         Pipeline_common.To_rill_ir.to_artifact ~compiler dict builtin ms
       in
-
       let () =
         match format with
         | Emitter.Rill_ir -> r.return ModState.{ ms with format = Some format }

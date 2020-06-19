@@ -10,6 +10,8 @@ open! Base
 module Span = Common.Span
 module Diagnostics = Common.Diagnostics
 module Builtin = Sema.Builtin
+module Value_category = Codegen.Value_category
+module Mangling = Codegen.Mangling
 module L = Llvm
 module L_bitwriter = Llvm_bitwriter
 
