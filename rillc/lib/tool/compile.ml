@@ -33,7 +33,8 @@ let log_diagnostic_line ch d =
 
 let log_diagnostics ch ds = Diagnostics.iter ~f:(log_diagnostic_line ch) ds
 
-let log_diagnostics_with_last_error ch ((_last_phase, last_error), ds) =
+let log_diagnostics_with_last_error ch (failed, ds) =
+  let Compiler.ModState.{ last_error; _ } = failed in
   log_diagnostic_line ch last_error;
   log_diagnostics ch ds
 

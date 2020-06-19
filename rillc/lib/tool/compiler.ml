@@ -30,67 +30,6 @@ type phase_t =
   | SemaP2 of Sema.Phase2.TAst.t
 [@@deriving show]
 
-type failed_t = phase_t * Diagnostics.Elem.t
-
-module Phases = struct
-  let parse ~compiler m =
-    let ds = m.Mod.ds in
-    let path = m.Mod.path in
-    Syntax.parse_from_file ~ds path
-    |> Result.map_error ~f:(fun e -> (CannotParsed, e))
-
-  let phase1_collect_toplevels ~compiler ~builtin m menv ast =
-    let open Result.Let_syntax in
-    let ds = m.Mod.ds in
-    let subst = m.Mod.subst in
-
-    let%bind p1ast =
-      let ctx = Sema.Phase1.context ~parent:menv ~ds ~subst ~builtin in
-      Sema.Phase1.collect_toplevels ~ctx ast
-      |> Result.map_error ~f:(fun e -> (Parsed ast, e))
-    in
-    m.Sema.Mod.subst <- subst;
-    return (p1ast, subst)
-
-  let phase1_declare_toplevels ~compiler ~builtin m pkg_env p1ast =
-    let open Result.Let_syntax in
-    let ds = m.Mod.ds in
-    let subst = m.Mod.subst in
-
-    let%bind subst =
-      let ctx = Sema.Phase1_1.context ~ds ~subst ~builtin ~pkg_env in
-      Sema.Phase1_1.declare_toplevels ~ctx p1ast
-      |> Result.map ~f:(fun e -> Sema.Phase1_1.(ctx.subst))
-      |> Result.map_error ~f:(fun e -> (SemaP1 p1ast, e))
-    in
-    m.Sema.Mod.subst <- subst;
-
-    return p1ast
-
-  let phase2 ~compiler ~builtin m p1ast =
-    let open Result.Let_syntax in
-    let ds = m.Mod.ds in
-    let subst = m.Mod.subst in
-
-    let%bind (p2ast, subst) =
-      let ctx = Sema.Phase2.context ~ds ~subst ~builtin in
-      Sema.Phase2.into_typed_tree ~ctx p1ast
-      |> Result.map ~f:(fun n -> (n, Sema.Phase2.(ctx.subst)))
-      |> Result.map_error ~f:(fun e -> (SemaP1 p1ast, e))
-    in
-    m.Sema.Mod.subst <- subst;
-
-    return p2ast
-
-  let phase3 ~compiler m p2ast =
-    let ds = m.Mod.ds in
-    let subst = m.Mod.subst in
-
-    let ctx = Sema.Phase3.context ~ds ~subst in
-    let env = Sema.Phase3.Env.create () in
-    Sema.Phase3.normalize ~ctx ~env p2ast
-end
-
 module ModState = struct
   type t = {
     m : Mod.t;
@@ -99,16 +38,133 @@ module ModState = struct
   }
 
   and phase_t =
+    | NotParsed
+    | Parsed of Syntax.Ast.t
     | Phase1CollectTopLevels of Sema.Phase1.TopAst.t
     | Phase1DeclareTopLevels of Sema.Phase1.TopAst.t
     | Phase2 of Sema.Phase2.TAst.t
     | Artifact of Emitter.Artifact.t
 
-  let create ~m ~phase_result = { m; phase_result; format = None }
+  and failed_t = { previous_phase : phase_t; last_error : Diagnostics.Elem.t }
 
-  let is_failed m = Result.is_error m.phase_result
+  let create ~m = { m; phase_result = Ok NotParsed; format = None }
 
-  let can_process_entire_module m = not (Mod.has_errors m.m)
+  (* if true, cannot forward steps completely *)
+  let has_fatal m = Result.is_error m.phase_result
+
+  let has_errors m = Mod.has_errors m.m || has_fatal m
+end
+
+let wrap_pipeline_failure ~prev phase_result_res =
+  match phase_result_res with
+  | Ok phase_result -> phase_result
+  | Error last_error -> Error ModState.{ previous_phase = prev; last_error }
+
+module Phases = struct
+  module Parse = struct
+    let trans m =
+      let open Result.Let_syntax in
+      let Mod.{ ds; path; _ } = m in
+
+      (* TODO: check state and ds to restrict compilaction *)
+      let%bind (_stete, parsed) = Syntax.parse_from_file ~ds path in
+      let phase_result = Ok (ModState.Parsed parsed) in
+      Ok phase_result
+
+    let to_parsed ~compiler ms =
+      match ms.ModState.phase_result with
+      | Ok (ModState.NotParsed as prev) ->
+          let ModState.{ m; _ } = ms in
+          let phase_result = trans m |> wrap_pipeline_failure ~prev in
+          ModState.{ ms with phase_result }
+      | _ -> ms
+  end
+
+  module Phase1_collect_toplevels = struct
+    let trans ~builtin ~m ~menv ast =
+      let open Result.Let_syntax in
+      let Mod.{ ds; subst; _ } = m in
+
+      let%bind p1ast =
+        let ctx = Sema.Phase1.context ~parent:menv ~ds ~subst ~builtin in
+        Sema.Phase1.collect_toplevels ~ctx ast
+      in
+      m.Sema.Mod.subst <- subst;
+
+      let phase_result = Ok (ModState.Phase1CollectTopLevels p1ast) in
+      Ok phase_result
+
+    let to_analyzed ~compiler ~builtin ~menv ms =
+      match ms.ModState.phase_result with
+      | Ok (ModState.Parsed ast as prev) ->
+          let ModState.{ m; _ } = ms in
+          let phase_result =
+            trans ~builtin ~m ~menv ast |> wrap_pipeline_failure ~prev
+          in
+          ModState.{ ms with phase_result }
+      | _ -> ms
+  end
+
+  module Phase1_declare_toplevels = struct
+    let trans ~builtin ~m ~pkg_env p1ast =
+      let open Result.Let_syntax in
+      let Mod.{ ds; subst; _ } = m in
+
+      let%bind subst =
+        let ctx = Sema.Phase1_1.context ~ds ~subst ~builtin ~pkg_env in
+        Sema.Phase1_1.declare_toplevels ~ctx p1ast
+        |> Result.map ~f:(fun e -> Sema.Phase1_1.(ctx.subst))
+      in
+      m.Sema.Mod.subst <- subst;
+
+      let phase_result = Ok (ModState.Phase1DeclareTopLevels p1ast) in
+      Ok phase_result
+
+    let to_analyzed ~compiler ~builtin ~pkg_env ms =
+      match ms.ModState.phase_result with
+      | Ok (ModState.Phase1CollectTopLevels p1ast as prev) ->
+          let ModState.{ m; _ } = ms in
+          let phase_result =
+            trans ~builtin ~m ~pkg_env p1ast |> wrap_pipeline_failure ~prev
+          in
+          ModState.{ ms with phase_result }
+      | _ -> ms
+  end
+
+  module Phase2 = struct
+    let trans ~builtin ~m p1ast =
+      let open Result.Let_syntax in
+      let Mod.{ ds; subst; _ } = m in
+
+      let%bind (p2ast, subst) =
+        let ctx = Sema.Phase2.context ~ds ~subst ~builtin in
+        Sema.Phase2.into_typed_tree ~ctx p1ast
+        |> Result.map ~f:(fun n -> (n, Sema.Phase2.(ctx.subst)))
+      in
+      m.Sema.Mod.subst <- subst;
+
+      let phase_result = Ok (ModState.Phase2 p2ast) in
+      Ok phase_result
+
+    let to_analyzed ~compiler ~builtin ms =
+      match ms.ModState.phase_result with
+      | Ok (ModState.Phase1DeclareTopLevels p1ast as prev)
+        when not (ModState.has_errors ms) ->
+          let ModState.{ m; _ } = ms in
+          let phase_result =
+            trans ~builtin ~m p1ast |> wrap_pipeline_failure ~prev
+          in
+          ModState.{ ms with phase_result }
+      | _ -> ms
+  end
+
+  let phase3 ~compiler m p2ast =
+    let ds = m.Mod.ds in
+    let subst = m.Mod.subst in
+
+    let ctx = Sema.Phase3.context ~ds ~subst in
+    let env = Sema.Phase3.Env.create () in
+    Sema.Phase3.normalize ~ctx ~env p2ast
 end
 
 module ModDict = struct
@@ -139,16 +195,26 @@ module PkgDict = struct
   let to_alist d = Hashtbl.to_alist d.rel |> List.map ~f:snd
 end
 
-let preload_module compiler builtin menv m =
-  let open Result.Let_syntax in
-  (* TODO: check state and ds to restrict compilaction *)
-  let%bind (_stete, parsed) = Phases.parse ~compiler m in
+let return_if_failed ~compiler ms r =
+  let open Base.With_return in
+  if ModState.has_fatal ms then (
+    compiler.has_fatal <- true;
+    r.return ms )
 
-  let%bind (p1ast, subst) =
-    Phases.phase1_collect_toplevels ~compiler ~builtin m menv parsed
-  in
+let preload_module ~compiler ~builtin ~menv ms =
+  let open Base.With_return in
+  with_return (fun r ->
+      (* parse *)
+      let ms = Phases.Parse.to_parsed ~compiler ms in
+      return_if_failed ~compiler ms r;
 
-  Ok p1ast
+      (* phase1 *)
+      let ms =
+        Phases.Phase1_collect_toplevels.to_analyzed ~compiler ~builtin ~menv ms
+      in
+      return_if_failed ~compiler ms r;
+
+      ms)
 
 let rec preload_pkg compiler dict builtin pkg =
   (* preload deps *)
@@ -198,12 +264,8 @@ let rec preload_pkg compiler dict builtin pkg =
           Sema.Env.create name ~parent:None ~visibility ~ty ~ty_w:(Sema.Env.M m)
         in
 
-        let phase_result =
-          preload_module compiler builtin menv m
-          |> Result.map ~f:(fun p0 -> ModState.Phase1CollectTopLevels p0)
-        in
-        let ms = ModState.create ~m ~phase_result in
-        if ModState.is_failed ms then compiler.has_fatal <- true;
+        let ms = ModState.create ~m in
+        let ms = preload_module ~compiler ~builtin ~menv ms in
 
         (* TODO: open modules by root module *)
         Sema.Env.insert_meta root_mod_env menv |> Sema.Phase1.assume_new;
@@ -221,16 +283,11 @@ let rec preload_pkg_cont compiler dict builtin pkg_env pkg =
   let mod_dict = PkgDict.get dict ~key:pkg in
   let mod_rels = ModDict.to_alist mod_dict in
   List.iter mod_rels ~f:(fun (path, ms) ->
-      match ms.ModState.phase_result with
-      | Ok (ModState.Phase1CollectTopLevels p1ast) ->
-          let m = ms.ModState.m in
-          let phase_result =
-            Phases.phase1_declare_toplevels ~compiler ~builtin m pkg_env p1ast
-            |> Result.map ~f:(fun s -> ModState.Phase1DeclareTopLevels s)
-          in
-          let ms = ModState.{ ms with phase_result } in
-          ModDict.update mod_dict ms
-      | _ -> ())
+      let ms =
+        Phases.Phase1_declare_toplevels.to_analyzed ~compiler ~builtin ~pkg_env
+          ms
+      in
+      ModDict.update mod_dict ms)
 
 module Pipeline_common = struct
   module To_rill_ir = struct
@@ -246,17 +303,21 @@ module Pipeline_common = struct
         let art = Emitter.Artifact.Rill_ir { m = rir } in
         Ok (ModState.Artifact art)
       in
-      ModState.{ ms with phase_result }
+      Ok phase_result
 
     let to_artifact ~compiler dict builtin ms =
       match ms.ModState.phase_result with
-      | Ok (ModState.Phase2 p2ast) ->
-          let ModState.{ m; _ } = ms in
-
-          (* TODO: check that there are no errors in ds *)
-          let p3ast = Phases.phase3 ~compiler m p2ast in
-          trans ~compiler dict builtin ms p3ast
-      (* *)
+      | Ok (ModState.Phase2 p2ast as prev) ->
+          let p3ast =
+            (* TODO: check that there are no errors in ds *)
+            let ModState.{ m; _ } = ms in
+            Phases.phase3 ~compiler m p2ast
+          in
+          let phase_result =
+            trans ~compiler dict builtin ms p3ast |> wrap_pipeline_failure ~prev
+          in
+          ModState.{ ms with phase_result }
+      (* ignore *)
       | _ -> ms
   end
 
@@ -273,12 +334,15 @@ module Pipeline_common = struct
         let art = Emitter.Artifact.Llvm_ir { m = llvm } in
         Ok (ModState.Artifact art)
       in
-      ModState.{ ms with phase_result }
+      Ok phase_result
 
     let to_artifact ~compiler dict builtin ms =
       match ms.ModState.phase_result with
-      | Ok (ModState.Artifact (Emitter.Artifact.Rill_ir { m })) ->
-          trans ~compiler dict builtin ms m
+      | Ok (ModState.Artifact (Emitter.Artifact.Rill_ir { m }) as prev) ->
+          let phase_result =
+            trans ~compiler dict builtin ms m |> wrap_pipeline_failure ~prev
+          in
+          ModState.{ ms with phase_result }
       (* *)
       | _ -> ms
   end
@@ -290,6 +354,29 @@ end
 
 module Pipeline_target_obj : PIPELINE_TARGET = struct
   let supported_formats = [ Emitter.Asm; Emitter.Obj ]
+
+  (* module To_obj = struct
+       let trans ~compiler dict builtin ms llvm =
+         let ModState.{ m; _ } = ms in
+         let Mod.{ ds; subst; _ } = m in
+
+         let llvm =
+           let ctx = Llvm_gen.context ~ds ~subst ~builtin in
+           Llvm_gen.generate_module ~ctx rir
+         in
+         let phase_result =
+           let art = Emitter.Artifact.Llvm_ir { m = llvm } in
+           Ok (ModState.Artifact art)
+         in
+         Ok phase_result
+
+       let to_artifact ~compiler dict builtin ms =
+         match ms.ModState.phase_result with
+         | Ok (ModState.Artifact (Emitter.Artifact.Llvm_ir { m })) ->
+             trans ~compiler dict builtin ms m
+         (* *)
+         | _ -> Ok ms
+     end*)
 end
 
 let to_artifact ~compiler dict builtin ms format =
@@ -300,18 +387,22 @@ let to_artifact ~compiler dict builtin ms format =
 
   let open Base.With_return in
   with_return (fun r ->
+      (* to rill-ir *)
       let ms =
         Pipeline_common.To_rill_ir.to_artifact ~compiler dict builtin ms
       in
+      return_if_failed ~compiler ms r;
       let () =
         match format with
         | Emitter.Rill_ir -> r.return ModState.{ ms with format = Some format }
         | _ -> ()
       in
 
+      (* to llvm-ir *)
       let ms =
         Pipeline_common.To_llvm_ir.to_artifact ~compiler dict builtin ms
       in
+      return_if_failed ~compiler ms r;
       let () =
         match format with
         | Emitter.Llvm_ir | Emitter.Llvm_bc ->
@@ -325,27 +416,15 @@ let build_pkg_internal compiler dict builtin pkg format =
   let mod_dict = PkgDict.get dict ~key:pkg in
   let mod_rels = ModDict.to_alist mod_dict in
   List.iter mod_rels ~f:(fun (path, ms) ->
-      match ms.ModState.phase_result with
-      | Ok (ModState.Phase1DeclareTopLevels p1ast)
-        when ModState.can_process_entire_module ms ->
-          (* semantic analysis *)
-          let m = ms.ModState.m in
-          let ds = m.Mod.ds in
-          let phase_result =
-            Phases.phase2 ~compiler ~builtin m p1ast
-            |> Result.map ~f:(fun p0 -> ModState.Phase2 p0)
-          in
-          let ms = ModState.{ ms with phase_result } in
-          ModDict.update mod_dict ms;
+      let ms = Phases.Phase2.to_analyzed ~compiler ~builtin ms in
+      ModDict.update mod_dict ms;
 
-          (* *)
-          let has_fatal = Mod.has_errors m in
-          if has_fatal then compiler.has_fatal <- true;
-
-          if not has_fatal then
-            let ms = to_artifact ~compiler dict builtin ms format in
-            ModDict.update mod_dict ms
-      | _ -> ())
+      (* *)
+      let has_errors = ModState.has_errors ms in
+      if has_errors then compiler.has_fatal <- true
+      else
+        let ms = to_artifact ~compiler dict builtin ms format in
+        ModDict.update mod_dict ms)
 
 let build_mod_env pkg_dict =
   (* Ignore modules which couldn't reach to phase1 *)
