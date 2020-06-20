@@ -1,5 +1,5 @@
 --- original/install.sh	2020-05-21 06:32:57.280023877 +0900
-+++ install.sh.modified	2020-05-21 07:56:05.140445487 +0900
++++ install.sh.modified	2020-06-20 10:00:02.031517829 +0900
 @@ -5,17 +5,33 @@ libdir="$2"
  cmake="$3"
  make="$4"
@@ -33,7 +33,7 @@
          -DCMAKE_BUILD_TYPE="`"$llvm_config" --build-mode`" \
 -        -DLLVM_TARGETS_TO_BUILD="`"$llvm_config" --targets-built | filter_experimental_targets | sed 's/ /;/g'`" \
 +        -DLLVM_TARGETS_TO_BUILD="$targets" \
-+        -LLVM_EXPERIMENTAL_TARGETS_TO_BUILD="$experimental_targets" \
++        -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD="$experimental_targets" \
          -DLLVM_OCAML_EXTERNAL_LLVM_LIBDIR="`"$llvm_config" --libdir`" \
          -DBUILD_SHARED_LIBS=`[ $1 = "shared" ] && echo TRUE || echo FALSE` \
          -DLLVM_OCAML_OUT_OF_TREE=TRUE \

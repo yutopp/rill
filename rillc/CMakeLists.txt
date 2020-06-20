@@ -88,6 +88,8 @@ add_custom_target(llvm-patched
     opam install . --deps-only --yes
   COMMAND
     opam pin add ${LLVM_PKG}-rillc . --kind=path --yes
+  COMMAND
+    opam upgrade -y .
   DEPENDS
     llvm_src
   COMMENT
