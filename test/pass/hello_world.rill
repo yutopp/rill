@@ -1,0 +1,11 @@
+import core::prelude::*;
+import std::stdio::*;
+
+def main(): unit {
+    println("Hello, Rill world!!!");
+    print_int_ln(fib(10));
+}
+
+def fib(i: i32): i32 {
+    if i == 0 { 0 } else if i == 1 { 1 } else { fib(i-1) + fib(i-2) }
+}
