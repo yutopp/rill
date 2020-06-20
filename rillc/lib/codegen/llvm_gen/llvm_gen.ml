@@ -15,6 +15,9 @@ module Mangling = Codegen.Mangling
 module L = Llvm
 module L_bitwriter = Llvm_bitwriter
 
+(* exports *)
+module Backend = Llvm_gen_backend
+
 module Module = struct
   type t = L.llmodule
 

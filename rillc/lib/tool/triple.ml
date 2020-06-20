@@ -25,13 +25,13 @@ type t = {
   abi : abi_t option;
 }
 
-module type TARGET_PRESET = sig
+module type PRESET = sig
   val name : string
 
   val triple : t
 end
 
-module X86_64_unknown_linux_gnu : TARGET_PRESET = struct
+module X86_64_unknown_linux_gnu : PRESET = struct
   let name = "x86_64-unknown-linux-gnu"
 
   let triple =
@@ -44,7 +44,7 @@ module X86_64_unknown_linux_gnu : TARGET_PRESET = struct
     }
 end
 
-module Wasm32_wasi : TARGET_PRESET = struct
+module Wasm32_wasi : PRESET = struct
   let name = "wasm32-wasi"
 
   let triple =
@@ -57,12 +57,15 @@ module Wasm32_wasi : TARGET_PRESET = struct
     }
 end
 
-type targets_t = Target_X86_64_unknown_linux_gnu | Target_Wasm32_wasi
+type tag_t = Tag_X86_64_unknown_linux_gnu | Tag_Wasm32_wasi
 
-let to_triple target : (module TARGET_PRESET) =
-  match target with
-  | Target_X86_64_unknown_linux_gnu -> (module X86_64_unknown_linux_gnu)
-  | Target_Wasm32_wasi -> (module X86_64_unknown_linux_gnu)
+let to_triple_preset tag : (module PRESET) =
+  match tag with
+  | Tag_X86_64_unknown_linux_gnu -> (module X86_64_unknown_linux_gnu)
+  | Tag_Wasm32_wasi -> (module Wasm32_wasi)
 
-let targets_map =
-  [ X86_64_unknown_linux_gnu.(name, triple); Wasm32_wasi.(name, triple) ]
+let triples_map =
+  [
+    (X86_64_unknown_linux_gnu.name, Tag_X86_64_unknown_linux_gnu);
+    (Wasm32_wasi.name, Tag_Wasm32_wasi);
+  ]

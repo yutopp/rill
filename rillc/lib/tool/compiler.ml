@@ -14,21 +14,14 @@ module Mod = Sema.Mod
 type t = {
   mutable has_fatal : bool;
   workspace : Common.Workspace.t;
-  host : Triple.t;
-  target : Triple.t;
+  host : (module Triple.PRESET);
+  target : (module Triple.PRESET);
   subst_counter : Common.Counter.t;
 }
 
 let create ~workspace ~host ~target : t =
   let subst_counter = Common.Counter.create () in
   { has_fatal = false; workspace; host; target; subst_counter }
-
-type phase_t =
-  | CannotParsed
-  | Parsed of Syntax.Ast.t
-  | SemaP1 of Sema.Phase1.TopAst.t
-  | SemaP2 of Sema.Phase2.TAst.t
-[@@deriving show]
 
 module ModState = struct
   type t = {
@@ -158,9 +151,8 @@ module Phases = struct
       | _ -> ms
   end
 
-  let phase3 ~compiler m p2ast =
-    let ds = m.Mod.ds in
-    let subst = m.Mod.subst in
+  let phase3 ~compiler ~m p2ast =
+    let Mod.{ ds; subst; _ } = m in
 
     let ctx = Sema.Phase3.context ~ds ~subst in
     let env = Sema.Phase3.Env.create () in
@@ -311,7 +303,7 @@ module Pipeline_common = struct
           let p3ast =
             (* TODO: check that there are no errors in ds *)
             let ModState.{ m; _ } = ms in
-            Phases.phase3 ~compiler m p2ast
+            Phases.phase3 ~compiler ~m p2ast
           in
           let phase_result =
             trans ~compiler dict builtin ms p3ast |> wrap_pipeline_failure ~prev
@@ -348,42 +340,51 @@ module Pipeline_common = struct
   end
 end
 
-module type PIPELINE_TARGET = sig
-  val supported_formats : Emitter.t list
+module type TO_ARTIFACT = sig
+  val to_artifact : compiler:t -> ModState.t -> ModState.t
 end
 
-module Pipeline_target_obj : PIPELINE_TARGET = struct
+module type PIPELINE_TARGET = sig
+  val supported_formats : Emitter.t list
+
+  module To_native : TO_ARTIFACT
+end
+
+module Pipeline_target_native : PIPELINE_TARGET = struct
   let supported_formats = [ Emitter.Asm; Emitter.Obj ]
 
-  (* module To_obj = struct
-       let trans ~compiler dict builtin ms llvm =
-         let ModState.{ m; _ } = ms in
-         let Mod.{ ds; subst; _ } = m in
+  module To_native : TO_ARTIFACT = struct
+    let trans ~m ~target llvm =
+      let open Result.Let_syntax in
+      let Mod.{ ds; subst; _ } = m in
 
-         let llvm =
-           let ctx = Llvm_gen.context ~ds ~subst ~builtin in
-           Llvm_gen.generate_module ~ctx rir
-         in
-         let phase_result =
-           let art = Emitter.Artifact.Llvm_ir { m = llvm } in
-           Ok (ModState.Artifact art)
-         in
-         Ok phase_result
+      let%bind native = Llvm_gen.Backend.create ~triple:target llvm in
+      let phase_result =
+        let art = Emitter.Artifact.Native { native } in
+        Ok (ModState.Artifact art)
+      in
+      Ok phase_result
 
-       let to_artifact ~compiler dict builtin ms =
-         match ms.ModState.phase_result with
-         | Ok (ModState.Artifact (Emitter.Artifact.Llvm_ir { m })) ->
-             trans ~compiler dict builtin ms m
-         (* *)
-         | _ -> Ok ms
-     end*)
+    let to_artifact ~compiler ms =
+      match ms.ModState.phase_result with
+      | Ok (ModState.Artifact (Emitter.Artifact.Llvm_ir { m = llvm }) as prev)
+        ->
+          let ModState.{ m; _ } = ms in
+          let (module Target : Triple.PRESET) = compiler.target in
+          let phase_result =
+            trans ~m ~target:Target.name llvm |> wrap_pipeline_failure ~prev
+          in
+          ModState.{ ms with phase_result }
+      (* *)
+      | _ -> ms
+  end
 end
 
 let to_artifact ~compiler dict builtin ms format =
   let format =
-    Option.value format ~default:(Emitter.default_emitter_of compiler.target)
+    let (module Target : Triple.PRESET) = compiler.target in
+    Option.value format ~default:(Emitter.default_emitter_of Target.triple)
   in
-  let pipeline : (module PIPELINE_TARGET) = (module Pipeline_target_obj) in
 
   let open Base.With_return in
   with_return (fun r ->
@@ -406,6 +407,16 @@ let to_artifact ~compiler dict builtin ms format =
       let () =
         match format with
         | Emitter.Llvm_ir | Emitter.Llvm_bc ->
+            r.return ModState.{ ms with format = Some format }
+        | _ -> ()
+      in
+
+      (* to native *)
+      let ms = Pipeline_target_native.To_native.to_artifact ~compiler ms in
+      return_if_failed ~compiler ms r;
+      let () =
+        match format with
+        | Emitter.Asm | Emitter.Obj ->
             r.return ModState.{ ms with format = Some format }
         | _ -> ()
       in

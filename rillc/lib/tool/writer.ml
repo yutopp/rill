@@ -42,9 +42,25 @@ let out_mod_rel ~f mod_rel =
       let filepath = f ~path e in
       with_out_channel ~filepath ~f:(fun ch ->
           Llvm_gen.write_to ~ch ~bitcode:true m)
+  (* Native: asm *)
+  | (Emitter.Artifact.Native { native }, Some (Emitter.Asm as e)) ->
+      let filepath = f ~path e in
+      with_out_channel ~filepath ~f:(fun ch ->
+          Llvm_gen.Backend.write_to ~ch ~asm:true native)
+  (* Native: obj *)
+  | (Emitter.Artifact.Native { native }, Some (Emitter.Obj as e)) ->
+      let filepath = f ~path e in
+      with_out_channel ~filepath ~f:(fun ch ->
+          Llvm_gen.Backend.write_to ~ch ~asm:false native)
   | _ ->
       (* TODO: fix error messages *)
-      Error (Errors.Failed_to_export_artifact "art and format is unmatched")
+      Error
+        (Errors.Failed_to_export_artifact
+           (Printf.sprintf "art and format is unmatched: Art=%s, Format=%s"
+              (Emitter.Artifact.tag_string_of art)
+              ( format
+              |> Option.map ~f:Emitter.ext_of
+              |> Option.value ~default:"None" )))
 
 let write_pkg_artifacts dict pkg out_to =
   let open Result.Let_syntax in

@@ -2,7 +2,6 @@
 
 set -eux -o pipefail
 
-LLC=${RILL_LLC:-llc}
 CC=${RILL_CC:-gcc}
 
 _=$RILLC_COMPILER
@@ -35,19 +34,14 @@ function build_and_execute() {
         --log-level=debug \
         "$FILE" || failed_to_execute "compile" "$CASENAME"
 
-    FILE_BC_PATH="$OUT_DIR/$(basename $FILE).bc"
-    FILE_ASM_PATH="$OUT_DIR/$(basename $FILE).s"
+    FILE_OBJ_PATH="$OUT_DIR/$(basename $FILE).o"
     FILE_OUT_PATH="$OUT_DIR/$(basename $FILE).out"
-
-    # Emit an asm file
-    $LLC --relocation-model=pic "$FILE_BC_PATH" -o "$FILE_ASM_PATH" \
-        || failed_to_execute "asm: $LLC" "$CASENAME"
 
     # Emit an executable
     $CC -v -fPIE \
         -L"$RILLC_CORELIB_LIBDIR" \
         -L"$RILLC_STDLIB_LIBDIR" \
-        "$FILE_ASM_PATH" \
+        "$FILE_OBJ_PATH" \
         -static \
         -lcore-c \
         -lstd-c \

@@ -58,7 +58,7 @@ Compile rill source codes
     let target =
       let doc = "" in
       let l =
-        Rillc.Tool.Triple.targets_map |> List.map ~f:(fun (k, v) -> (k, Some v))
+        Rillc.Tool.Triple.triples_map |> List.map ~f:(fun (k, v) -> (k, Some v))
       in
       Arg.(value & opt (enum l) None & info [ "target" ] ~docs ~doc)
     in

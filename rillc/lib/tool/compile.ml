@@ -16,14 +16,14 @@ type t = {
   corelib_libdir : string option;
   stdlib_srcdir : string option;
   stdlib_libdir : string option;
-  target : Triple.t option;
+  target : Triple.tag_t option;
   out_to : Writer.output_t;
   emit : Emitter.t option;
   input_files : string list;
 }
 
 (* TODO: fix *)
-let host_triple = Triple.X86_64_unknown_linux_gnu.triple
+let host_triple = Triple.Tag_X86_64_unknown_linux_gnu
 
 let default_target_triple = host_triple
 
@@ -120,7 +120,9 @@ let entry opts =
   in
 
   let compiler =
-    Compiler.create ~workspace ~host:host_triple ~target:target_triple
+    let host = Triple.to_triple_preset host_triple in
+    let target = Triple.to_triple_preset target_triple in
+    Compiler.create ~workspace ~host ~target
   in
 
   let%bind () =
