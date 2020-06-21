@@ -1,9 +1,9 @@
 (executables
- (names compile)
+ (names main)
  (libraries cmdliner rillc rillc.syntax rillc.common rillc.tool base stdio str)
  (preprocess
   (pps ppx_let)))
 
 (install
  (section bin)
- (files (compile.exe as rillc_compile)))
+ (files (main.exe as rillc_compile)))
