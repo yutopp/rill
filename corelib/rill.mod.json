@@ -1,0 +1,14 @@
+{
+  "name": "core",
+  "deps": [],
+  "lib": {
+    "flags": [
+      "-no-core",
+      "-no-std"
+    ]
+  },
+  "c_ext": {
+    "dir": "./src_ext",
+    "name": "core-c"
+  }
+}
