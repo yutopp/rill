@@ -1,5 +1,6 @@
 _ext_dirs/
 
+/build
 .merlin
 *.install
 
