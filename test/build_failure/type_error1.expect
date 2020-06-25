@@ -2,3 +2,4 @@ ERROR: Diff
 Type mismatch: Expect = Unit, but Actual = Int
 File: "", line 1-3, charactors 0-1
 
+rillc_compile: There are warnings or errors.

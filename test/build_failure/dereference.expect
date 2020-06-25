@@ -1,3 +1,4 @@
 ERROR: Cannot assign to immutable variable
 File: "", line 2, charactors 4-13
 
+rillc_compile: There are warnings or errors.

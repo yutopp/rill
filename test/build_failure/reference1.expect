@@ -4,3 +4,4 @@ Diff
 Type mutability mismatch: Expect = mutable, but Actual = immutable
 File: "", line 3, charactors 2-9
 
+rillc_compile: There are warnings or errors.
