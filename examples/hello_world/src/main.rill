@@ -1,0 +1,6 @@
+import core::prelude::*;
+import std::stdio::*;
+
+def main(): unit {
+  println("Hello Rill package world!")
+}

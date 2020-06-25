@@ -1,0 +1,23 @@
+{
+  "name": "hello_world",
+  "deps": [
+    {
+      "name": "core",
+      "spec": {
+        "path": "../../corelib"
+      }
+    },
+    {
+      "name": "std",
+      "spec": {
+        "path": "../../stdlib"
+      }
+    }
+  ],
+  "lib": {
+    "flags": [
+      "-no-core",
+      "-no-std"
+    ]
+  }
+}
