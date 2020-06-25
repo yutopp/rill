@@ -4,6 +4,7 @@ enable_testing()
 project(rill)
 
 set(RILLC_VERSION latest)
+set(SUPPORTED_TRIPLES x86_64_unknown-linux-gnu wasm32-wasi)
 
 set(HOST_TRIPLE x86_64_unknown-linux-gnu)
 
@@ -31,7 +32,7 @@ add_test(
     ${BASH_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/test/run.sh
 )
 foreach(EV
-  "RILLC_COMPILER=../rillc/_build/default/bin/tool/compile.exe"
+  "RILLC_COMPILER=../rillc/_build/default/bin/tool/compile/main.exe"
   "RILLC_CORELIB_SRCDIR=../corelib/src/core"
   "RILLC_CORELIB_LIBDIR=./corelib"
   "RILLC_STDLIB_SRCDIR=../stdlib/src/std"
