@@ -6,8 +6,6 @@
  * http://www.boost.org/LICENSE_1_0.txt)
  *)
 
-open! Base
-
 exception Invalid_argument of string
 
 exception There_are_warnings_or_errors

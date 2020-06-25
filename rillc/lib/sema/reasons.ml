@@ -17,7 +17,7 @@ class defined_twice ~(other : Span.t) ~(name : string) =
     method to_string =
       Printf.sprintf
         "Definition which has same symbol(%s) is defined twice.\n %s\n" name
-        (Span.sexp_of_t other |> Sexp.to_string_hum)
+        (Span.yojson_of_t other |> Yojson.Safe.to_string)
   end
 
 class cannot_assign =

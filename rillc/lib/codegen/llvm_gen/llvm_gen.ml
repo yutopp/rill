@@ -14,6 +14,7 @@ module Value_category = Codegen.Value_category
 module Mangling = Codegen.Mangling
 module L = Llvm
 module L_bitwriter = Llvm_bitwriter
+module L_linker = Llvm_linker
 
 (* exports *)
 module Backend = Llvm_gen_backend
@@ -733,6 +734,12 @@ let generate_module ~ctx rir_mod : Module.t =
                ()
            | _ -> ())
   in
+  ll_mod
+
+let merge_modules mods =
+  let ll_ctx = L.create_context () in
+  let ll_mod = L.create_module ll_ctx "" in
+  List.iter mods ~f:(L_linker.link_modules' ll_mod);
   ll_mod
 
 let write_to ~ch ~bitcode llvm =

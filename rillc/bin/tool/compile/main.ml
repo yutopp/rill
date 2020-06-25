@@ -58,7 +58,8 @@ Compile rill source codes
     let target =
       let doc = "" in
       let l =
-        Rillc.Tool.Triple.triples_map |> List.map ~f:(fun (k, v) -> (k, Some v))
+        Rillc.Common.Triple.triples_map
+        |> List.map ~f:(fun (k, v) -> (k, Some v))
       in
       Arg.(value & opt (enum l) None & info [ "target" ] ~docs ~doc)
     in
@@ -69,6 +70,11 @@ Compile rill source codes
         Rillc.Tool.Emitter.emit_map |> List.map ~f:(fun (k, v) -> (k, Some v))
       in
       Arg.(value & opt (enum l) None & info [ "emit" ] ~docs ~doc)
+    in
+
+    let pack =
+      let doc = "" in
+      Arg.(value & flag & info [ "pack" ] ~docs ~doc)
     in
 
     let log_level =
@@ -85,15 +91,16 @@ Compile rill source codes
     let files = Arg.(value & (pos_all file) [] & info [] ~docv:"FILES") in
 
     let action corelib_srcdir corelib_libdir stdlib_srcdir stdlib_libdir target
-        output out_dir emit log_level input_files =
+        output out_dir emit pack log_level input_files =
       Loga.Logger.set_severity Loga.logger log_level;
 
       let out_to =
-        match (output, out_dir) with
-        | (Some _, Some _) -> failwith ""
-        | (None, None) -> failwith ""
-        | (Some o, None) -> Rillc.Tool.Writer.OutputToFile o
-        | (None, Some o) -> Rillc.Tool.Writer.OutputToDir o
+        match (output, out_dir, pack) with
+        | (Some _, Some _, _) -> failwith ""
+        | (None, None, _) -> failwith ""
+        | (Some o, None, _) -> Rillc.Tool.Writer.OutputToFile o
+        | (None, Some o, false) -> Rillc.Tool.Writer.OutputToDir o
+        | (None, Some _, true) -> failwith ""
       in
 
       let opts =
@@ -106,6 +113,7 @@ Compile rill source codes
             target;
             out_to;
             emit;
+            pack;
             input_files;
           }
       in
@@ -116,8 +124,8 @@ Compile rill source codes
     ( Term.(
         ret
           ( const action $ corelib_srcdir $ corelib_libdir $ stdlib_srcdir
-          $ stdlib_libdir $ target $ output $ out_dir $ emit $ log_level $ files
-          )),
+          $ stdlib_libdir $ target $ output $ out_dir $ emit $ pack $ log_level
+          $ files )),
       info )
 
   let entry () = Term.(exit @@ eval cmd)

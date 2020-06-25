@@ -36,7 +36,7 @@ and var_t = int
 and struct_tag_t = int
 
 and func_linkage_t = LinkageRillc | LinkageC of string | LinkageVar of var_t
-[@@deriving show, sexp_of, to_yojson]
+[@@deriving show, sexp_of, yojson_of]
 
 let has_no_value ty = match ty with { ty = Unit; _ } -> true | _ -> false
 

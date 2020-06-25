@@ -23,7 +23,7 @@ add_test(
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-set(RILLC_BIN_PATH ${CMAKE_CURRENT_SOURCE_DIR}/_build/default/bin/tool/compile.exe)
+set(RILLC_BIN_PATH ${CMAKE_CURRENT_SOURCE_DIR}/_build/default/bin/tool/compile/main.exe)
 install(PROGRAMS ${RILLC_BIN_PATH}
   TYPE
     BIN

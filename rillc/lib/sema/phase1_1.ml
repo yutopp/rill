@@ -17,11 +17,11 @@ type ctx_t = {
   ds : Diagnostics.t;
   mutable subst : Typing.Subst.t;
   builtin : Builtin.t;
-  pkg_env : Env.t;
+  external_pkgs_env : Env.t;
 }
 
-let context ~ds ~subst ~builtin ~pkg_env =
-  { parent = None; ds; subst; builtin; pkg_env }
+let context ~ds ~subst ~builtin ~external_pkgs_env =
+  { parent = None; ds; subst; builtin; external_pkgs_env }
 
 let rec declare_toplevels ~ctx ast : (unit, Diagnostics.Elem.t) Result.t =
   let open Result.Let_syntax in
@@ -121,17 +121,17 @@ and pass_through ~ctx ast =
   match ast with
   (* *)
   | Ast.{ kind = Import { pkg; mods }; span } ->
-      let%bind mod_env = find_mod ~pkg_env:ctx.pkg_env pkg in
+      let%bind mod_env = find_mod ~pkgs_env:ctx.external_pkgs_env pkg in
       let rec f mods env loadable_envs =
         match mods with
         | [] -> Ok [ env ]
         | [ last_id ] ->
             [%loga.debug "leaf: %s" (Ast.show last_id)];
-            let%bind envs = find_mods_with_wildcard ~pkg_env:env last_id in
+            let%bind envs = find_mods_with_wildcard ~pkgs_env:env last_id in
             Ok (List.join [ envs; loadable_envs ])
         | cont :: rest ->
             [%loga.debug "node: %s" (Ast.show cont)];
-            let%bind env = find_mod ~pkg_env:env cont in
+            let%bind env = find_mod ~pkgs_env:env cont in
             f rest env loadable_envs
       in
       let%bind envs = f mods mod_env [] in
@@ -166,17 +166,17 @@ and pass_through ~ctx ast =
       let elm = Diagnostics.Elem.error ~span e in
       Error elm
 
-and find_mod ~pkg_env ast =
+and find_mod ~pkgs_env ast =
   let open Result.Let_syntax in
   match ast with
   (* *)
   | Ast.{ kind = ID name; span } ->
       let%bind env =
-        let opt = Env.find_meta pkg_env name in
+        let opt = Env.find_meta pkgs_env name in
         match opt with
         | Some env -> Ok env
         | None ->
-            let candidates = Env.meta_keys pkg_env in
+            let candidates = Env.meta_keys pkgs_env in
             let e = new Common.Reasons.id_not_found ~name ~candidates in
             let elm = Diagnostics.Elem.error ~span e in
             Error elm
@@ -187,12 +187,12 @@ and find_mod ~pkg_env ast =
       let s = Ast.show ast in
       failwith (Printf.sprintf "unexpected token (find_mod): %s" s)
 
-and find_mods_with_wildcard ~pkg_env ast =
+and find_mods_with_wildcard ~pkgs_env ast =
   match ast with
   (* *)
-  | Ast.{ kind = IDWildcard; span } -> Ok (Env.collect_all pkg_env)
+  | Ast.{ kind = IDWildcard; span } -> Ok (Env.collect_all pkgs_env)
   (* *)
-  | _ -> find_mod ~pkg_env ast |> Result.map ~f:(fun e -> [ e ])
+  | _ -> find_mod ~pkgs_env ast |> Result.map ~f:(fun e -> [ e ])
 
 and lookup_type ~env builtin ast : (Typing.Type.t, Diagnostics.Elem.t) Result.t
     =

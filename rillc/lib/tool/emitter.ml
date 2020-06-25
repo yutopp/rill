@@ -6,6 +6,8 @@
  * http://www.boost.org/LICENSE_1_0.txt)
  *)
 
+module Triple = Common.Triple
+
 type t = Rill_ir | Llvm_ir | Llvm_bc | Asm | Obj
 
 let ext_of emitter =
@@ -35,7 +37,7 @@ module Artifact = struct
   type t =
     | Rill_ir of { m : Rir.Module.t }
     | Llvm_ir of { m : Llvm_gen.Module.t }
-    | Native of { native : Llvm_gen.Backend.t }
+    | Native of { backend : Llvm_gen.Backend.t; m : Llvm_gen.Module.t }
 
   let tag_string_of art =
     match art with

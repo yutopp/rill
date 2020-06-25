@@ -45,7 +45,7 @@ module NAst = struct
     | Seq of t list
 
   and func_kind_t = FuncKindDecl | FuncKindDef of t | FuncKindExtern of string
-  [@@deriving sexp_of, to_yojson, show]
+  [@@deriving sexp_of, yojson_of, show]
 end
 
 type ctx_t = { ds : Diagnostics.t; subst : Typing.Subst.t }

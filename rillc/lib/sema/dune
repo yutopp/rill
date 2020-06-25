@@ -3,4 +3,4 @@
  (name            sema)
  (libraries       base stdio loga ppx_deriving_yojson.runtime rillc.common rillc.syntax rillc.typing )
  (preprocess
-  (pps ppx_let ppx_deriving.show ppx_sexp_conv loga.ppx ppx_deriving_yojson)))
+  (pps ppx_let ppx_deriving.show ppx_yojson_conv ppx_sexp_conv loga.ppx)))

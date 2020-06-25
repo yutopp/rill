@@ -1,6 +1,6 @@
 (library
  (public_name     rillc.common)
  (name            common)
- (libraries       base stdio ppx_deriving_yojson.runtime)
+ (libraries       base stdio str unix loga ppx_yojson_conv_lib)
  (preprocess
-  (pps ppx_deriving.show ppx_deriving_yojson ppx_sexp_conv)))
+  (pps ppx_let ppx_deriving.show ppx_yojson_conv ppx_sexp_conv ppx_defer loga.ppx)))

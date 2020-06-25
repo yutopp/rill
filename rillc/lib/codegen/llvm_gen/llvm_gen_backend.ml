@@ -22,20 +22,15 @@ let initialize_if_not_initialized =
   in
   f
 
-type t = { mc : L_targets.TargetMachine.t; m : L.llmodule }
+type t = { mc : L_targets.TargetMachine.t }
 
-let create ~triple m =
+let create ~triple =
   let open Result.Let_syntax in
   initialize_if_not_initialized ();
 
   let%bind target =
     try Ok (L_targets.Target.by_triple triple)
-    with L_targets.Error message ->
-      let targets = L_targets.Target.all () in
-      let descriptions = List.map targets ~f:L_targets.Target.name in
-      let e = new Reasons.no_target ~message ~descriptions in
-      let elm = Diagnostics.Elem.error ~span:Span.undef e in
-      Error elm
+    with L_targets.Error message -> Error (L_targets.Error message)
   in
   let mc =
     let cpu = "" in
@@ -47,10 +42,10 @@ let create ~triple m =
       ~code_model target
   in
 
-  Ok { mc; m }
+  Ok { mc }
 
-let write_to ~ch ~asm backend_with_m =
-  let { mc; m } = backend_with_m in
+let write_to ~ch ~asm backend m =
+  let { mc; _ } = backend in
 
   let data_layout = L_targets.TargetMachine.data_layout mc in
   L.set_data_layout (L_targets.DataLayout.as_string data_layout) m;
