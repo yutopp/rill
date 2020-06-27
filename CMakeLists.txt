@@ -33,9 +33,9 @@ add_test(
 )
 foreach(EV
   "RILLC_COMPILER=../rillc/_build/default/bin/tool/compile/main.exe"
-  "RILLC_CORELIB_SRCDIR=../corelib/src/core"
+  "RILLC_CORELIB_SRCDIR=../corelib/src"
   "RILLC_CORELIB_LIBDIR=./corelib"
-  "RILLC_STDLIB_SRCDIR=../stdlib/src/std"
+  "RILLC_STDLIB_SRCDIR=../stdlib/src"
   "RILLC_STDLIB_LIBDIR=./stdlib"
 )
   set_property(TEST rillc_integration_test
