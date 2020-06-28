@@ -1,6 +1,6 @@
 (library
  (public_name     rillc.typing)
  (name            typing)
- (libraries       base stdio ppx_deriving_yojson.runtime rillc.common)
+ (libraries       base stdio rillc.common)
  (preprocess
   (pps ppx_yojson_conv ppx_sexp_conv ppx_deriving.show)))
