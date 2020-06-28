@@ -7,17 +7,16 @@
  *)
 
 open! Base
-
 module Span = Common.Span
-
 module I = Parser.MenhirInterpreter
 
 type t = {
-  path: string; (* TODO: fix *)
-  lexbuf: Lexing.lexbuf;
-  supplier: I.supplier;
-  mutable tokens: (Parser.token * Lexing.position * Lexing.position) list;
-  mutable index: int;
+  path : string;
+  (* TODO: fix *)
+  lexbuf : Lexing.lexbuf;
+  supplier : I.supplier;
+  mutable tokens : (Parser.token * Lexing.position * Lexing.position) list;
+  mutable index : int;
 }
 
 let create ~path ~lexbuf =
@@ -29,20 +28,18 @@ let create ~path ~lexbuf =
     index = 0;
   }
 
-let top sup : (Parser.token * Lexing.position * Lexing.position) =
+let top sup : Parser.token * Lexing.position * Lexing.position =
   List.hd_exn sup.tokens
 
-let push sup tup : unit =
-  sup.tokens <- tup :: sup.tokens
+let push sup tup : unit = sup.tokens <- tup :: sup.tokens
 
 let next sup =
   let tup =
-    if (List.length sup.tokens) <= sup.index then
+    if List.length sup.tokens <= sup.index then (
       let tup = sup.supplier () in
       sup.tokens <- tup :: sup.tokens;
-      tup
-    else
-      List.nth_exn sup.tokens ((List.length sup.tokens) - sup.index - 1)
+      tup )
+    else List.nth_exn sup.tokens (List.length sup.tokens - sup.index - 1)
   in
   sup.index <- sup.index + 1;
 
@@ -51,9 +48,7 @@ let next sup =
   tup
 
 let get sup : I.supplier =
-  let f () =
-    next sup
-  in
+  let f () = next sup in
   f
 
 let start_pos sup =

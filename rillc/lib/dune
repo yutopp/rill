@@ -1,7 +1,8 @@
 (library
- (name            rillc)
- (public_name     rillc)
- (libraries       base stdio ocamlgraph rillc.common rillc.syntax rillc.sema rillc.codegen rillc.tool)
+ (name rillc)
+ (public_name rillc)
+ (libraries base stdio ocamlgraph rillc.common rillc.syntax rillc.sema
+   rillc.codegen rillc.tool)
  (preprocess
   (pps ppx_let ppx_deriving.show)))
 
