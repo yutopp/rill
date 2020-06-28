@@ -49,7 +49,7 @@ let preload_module ~compiler ~builtin ~menv ms =
       ms)
 
 (* TODO: create root module for pkg *)
-let make_root_mod_env_for_pkg ~compiler pkg =
+let make_root_mod_env_for_pkg ~compiler pkg : Sema.Env.t =
   let root_mod =
     let path = Package.base_dir pkg (* TODO: fix *) in
 
@@ -64,13 +64,29 @@ let make_root_mod_env_for_pkg ~compiler pkg =
   let binding_mut = Typing.Type.MutImm in
   let ty = Typing.Type.{ ty = Module; binding_mut; span = Common.Span.undef } in
   Sema.Env.create pkg.Package.name ~parent:None ~visibility ~ty
-    ~ty_w:(Sema.Env.M root_mod)
+    ~kind:(Sema.Env.M root_mod) ~lookup_space:Sema.Env.LkGlobal
 
 let make_pkg_space_for_mods ~compiler proj_space builtin pkg =
   let root_mod_env = make_root_mod_env_for_pkg ~compiler pkg in
 
-  let pkg_space = Pkg_buildspace.create root_mod_env in
+  (* e.g. pkg:foo, deps:core,std
+   * ModEnv:foo (root)
+   *)
+  let deps = Package.deps_flatten pkg (* TODO: do not use flatten's *) in
+  List.iter deps ~f:(fun dep ->
+      let dep_space = Project_buildspace.get proj_space ~key:dep in
+      let Pkg_buildspace.{ root_mod_env = dep_root_env; _ } = dep_space in
 
+      Sema.Env.insert_meta root_mod_env dep_root_env |> Sema.Phase1.assume_new;
+      ());
+
+  (* e.g. pkg:foo, mods:a,b
+   * ModEnv:foo (root)
+   *   - (deps packages)*
+   *   - ModEnv:a
+   *   - ModEnv:b
+   *)
+  let pkg_space = Pkg_buildspace.create root_mod_env in
   let paths = Package.src_paths pkg in
   List.iter paths ~f:(fun path ->
       (* TODO: fix treatment of subst *)
@@ -88,7 +104,9 @@ let make_pkg_space_for_mods ~compiler proj_space builtin pkg =
         let ty =
           Typing.Type.{ ty = Module; binding_mut; span = Common.Span.undef }
         in
-        Sema.Env.create name ~parent:None ~visibility ~ty ~ty_w:(Sema.Env.M m)
+        (* Per modules have a root_mod_env as a root *)
+        Sema.Env.create name ~parent:(Some root_mod_env) ~visibility ~ty
+          ~kind:(Sema.Env.M m) ~lookup_space:Sema.Env.LkGlobal
       in
 
       let ms = Mod_state.create ~m in
@@ -99,14 +117,9 @@ let make_pkg_space_for_mods ~compiler proj_space builtin pkg =
 
       Pkg_buildspace.update pkg_space ms);
 
-  (* e.g. pkg:foo, mods:a,b
-   * ModEnv:foo (root)
-   *   - ModEnv:a
-   *   - ModEnv:b
-   *)
   pkg_space
 
-let build_external_pkgs_env proj_space =
+let prepare_linkable_mods_env proj_space self_pkg_space self_mod_path =
   (* Ignore modules which couldn't reach to phase1 *)
   let env =
     let visibility = Sema.Env.Public in
@@ -114,9 +127,18 @@ let build_external_pkgs_env proj_space =
     let ty =
       Typing.Type.{ ty = Module; binding_mut; span = Common.Span.undef }
     in
-    Sema.Env.create "" ~parent:None ~visibility ~ty ~ty_w:Sema.Env.N
+    Sema.Env.create "" ~parent:None ~visibility ~ty ~kind:Sema.Env.N
+      ~lookup_space:Sema.Env.LkGlobal
   in
 
+  (* e.g.
+   * - env
+   *   - core
+   *     - ~~
+   *   - std
+   *     - ~~
+   *   - <self.modules except for self>*
+   *)
   let pkg_rels = Project_buildspace.to_alist proj_space in
   List.iter pkg_rels ~f:(fun (_, pkg_space) ->
       let Pkg_buildspace.{ root_mod_env; _ } = pkg_space in
@@ -125,9 +147,11 @@ let build_external_pkgs_env proj_space =
   env
 
 let cross_ref_mods ~compiler proj_space builtin pkg_space =
-  let external_pkgs_env = build_external_pkgs_env proj_space in
   let mod_rels = Pkg_buildspace.to_alist pkg_space in
   List.iter mod_rels ~f:(fun (path, ms) ->
+      let external_pkgs_env =
+        prepare_linkable_mods_env proj_space pkg_space path
+      in
       let ms =
         Compiler_pipelines.Phases.Phase1_declare_toplevels.to_analyzed ~compiler
           ~builtin ~external_pkgs_env ms
@@ -207,10 +231,11 @@ let compile_pkg_project compiler pkg ~(format : Emitter.t) =
   with_return (fun r ->
       (* TODO: check state and ds to restrict compilaction *)
       (* TODO: fix deps graph(like prevent cyclic imports) *)
-      let pkgs = Package.orderd_pkgs_contains_self pkg in
-      List.iter pkgs ~f:(fun pkg -> [%loga.debug "pkg -> %s" pkg.Package.name]);
+      let dep_pkgs = Package.deps_flatten_with_self pkg in
+      List.iter dep_pkgs ~f:(fun pkg ->
+          [%loga.debug "pkg -> %s" pkg.Package.name]);
 
-      include_pkgs_symbols ~compiler proj_space builtin pkgs;
+      include_pkgs_symbols ~compiler proj_space builtin dep_pkgs;
       if compiler.has_fatal then r.return proj_space;
 
       (* TODO: check that all top-levels have bound type-vars *)

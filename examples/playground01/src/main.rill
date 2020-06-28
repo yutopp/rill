@@ -1,0 +1,14 @@
+import core::prelude::*;
+import std::stdio::*;
+
+def main(): unit {
+  let a = 10;
+  let _ =a;
+  in_main();
+  println("Hello Rill package world!");
+  other::f();
+}
+
+def in_main(): unit {
+  println("in_main!");
+}

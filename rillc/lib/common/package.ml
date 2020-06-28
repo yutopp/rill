@@ -54,8 +54,8 @@ let add_src_paths package paths =
 
 let add_c_ext package c_ext = package.c_exts <- c_ext :: package.c_exts
 
-let deps package = List.rev package.deps_rev
+let deps_flatten package = List.rev package.deps_rev
 
-let orderd_pkgs_contains_self package = List.rev (package :: package.deps_rev)
+let deps_flatten_with_self package = List.rev (package :: package.deps_rev)
 
 let src_paths package = List.rev package.src_paths_rev

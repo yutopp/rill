@@ -260,7 +260,7 @@ let expr_struct ==
     { make (Ast.ExprStruct { path }) ~l:$loc }
 
 let value :=
-    v=single_id; { v }
+    v=id_path; { v }
   | v=lit_bool; { v }
   | v=lit_integer; { v }
   | v=lit_string; { v }
@@ -268,6 +268,14 @@ let value :=
 
 argument_list:
     separated_list(COMMA, expr) { $1 }
+
+let id_path :=
+    root=single_id; elems=id_path_node;
+    { make (Ast.Path { root; elems }) ~l:$loc }
+
+let id_path_node :=
+    { [] }
+  | COLONCOLON; id=single_id; child=id_path_node; { id :: child }
 
 single_id:
     single_id_as_str { make (Ast.ID $1) ~l:$loc }

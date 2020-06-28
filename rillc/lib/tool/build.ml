@@ -180,8 +180,8 @@ let entry opts =
     with Unix.Unix_error (Unix.EEXIST, _, _) -> ()
   in
 
-  let pkgs = Package.orderd_pkgs_contains_self pkg in
   let%bind () =
+    let pkgs = Package.deps_flatten_with_self pkg in
     List.fold_result pkgs ~init:() ~f:(fun _ pkg ->
         let%bind () = build_to ~workspace ~out_dir:target_dir pkg in
         Ok ())
@@ -203,7 +203,7 @@ let entry opts =
   in
 
   let (dirs, libnames) =
-    let pkgs = Package.orderd_pkgs_contains_self pkg in
+    let pkgs = Package.deps_flatten_with_self pkg in
     List.map pkgs ~f:(fun pkg ->
         let Package.{ c_exts; _ } = pkg in
         List.filter_map c_exts ~f:(fun c_ext ->
@@ -224,62 +224,3 @@ let entry opts =
   let%bind () = Os.cc_exe dirs libnames [ obj_path ] a_path in
 
   Ok ()
-
-(*
-     let%bind () =
-       let dir = opts.dir in
-       let ext_src_paths =
-         let pkg_srcdir = join_path [ dir; "src_ext" ] in
-         grob_dir pkg_srcdir "^.*\\.c$"
-         |> List.map ~f:(fun p -> join_path [ pkg_srcdir; p ])
-        in
-
-       let close_with fd =
-         Stdio.printf "close!\n";
-         Stdio.Out_channel.flush Stdlib.stdout;
-         Unix.close fd
-       in
-
-
-
-       let%bind tmp_dir = mktemp_dir "rillc.XXXXXXXX" in
-
-       (*[%defer Unix.rmdir tmp_dir];*)
-       let%bind obj_paths =
-         List.fold_result ext_src_paths ~init:[] ~f:(fun ps src_path ->
-             let obj_name =
-               Stdlib.Filename.basename src_path
-               |> Stdlib.Filename.chop_extension |> Printf.sprintf "%s.o"
-             in
-             let obj_path = join_path [ tmp_dir; obj_name ] in
-
-             [%loga.error "%s -> %s" src_path obj_path];
-             let%bind () = cc src_path obj_path in
-
-             Ok (obj_path :: ps))
-         |> Result.map ~f:List.rev
-       in
-
-       let deps_dir =
-         let dir = join_path [ target_dir; "deps" ] in
-         let () =
-           try Unix.mkdir dir 0o700
-           with Unix.Unix_error (Unix.EEXIST, _, _) -> ()
-         in
-         dir
-       in
-
-       let out_dir =
-         let dir = join_path [ target_dir; "deps" ] in
-         let () =
-           try Unix.mkdir dir 0o700
-           with Unix.Unix_error (Unix.EEXIST, _, _) -> ()
-         in
-         dir
-       in
-
-       let a_path = join_path [ out_dir; "core-c.a" ] in
-       let%bind () = ar obj_paths a_path in
-       Ok ()
-     in
-  *)

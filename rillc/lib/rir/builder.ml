@@ -28,13 +28,13 @@ let get_current_bb ctx = Option.value_exn ctx.current_bb
 
 let get_current_state ctx = (ctx.current_func, ctx.current_bb)
 
-let register_func_def b name f =
-  (* TODO: support name *)
-  Module.append_func b.module_ name f
+let declare_func b name f = Module.declare_func b.module_ name f
 
-let register_type_def b name r_ty =
-  (* TODO: support name *)
-  Module.append_type b.module_ name r_ty
+let find_func b name = Module.find_func b.module_ name
+
+let mark_func_as_defined b f = Module.mark_func_as_defined b.module_ f
+
+let register_type_def b name r_ty = Module.append_type b.module_ name r_ty
 
 let build_bb b name =
   let f = get_current_func b in
@@ -54,7 +54,9 @@ let build_let b name v mut =
   let inst = Term.Let (name, v, mut) in
   let bb = get_current_bb b in
   Term.BB.append_inst bb inst;
-  Term.{ kind = LVal name; ty = v.ty; span = v.span }
+
+  let place = Term.PlaceholderVar { name } in
+  Term.{ kind = LVal place; ty = v.ty; span = v.span }
 
 let build_assign b lhs rhs =
   let inst = Term.Assign { lhs; rhs } in

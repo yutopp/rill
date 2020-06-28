@@ -34,9 +34,7 @@ let memory_of ~subst ty =
 let should_treat ~subst ty =
   (* TODO: impl *)
   match Typing.Subst.subst_type subst ty with
-  | Typing.Type.{ ty = Array _; _ }
-  | Typing.Type.{ ty = Func _; _ }
-  | Typing.Type.{ ty = Struct _; _ } ->
+  | Typing.Type.{ ty = Array _; _ } | Typing.Type.{ ty = Struct _; _ } ->
       AsPtr (memory_of ~subst ty)
   | Typing.Type.{ ty = Var _; _ } ->
       (* TODO: check Sized trait *)

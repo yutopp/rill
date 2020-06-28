@@ -96,9 +96,9 @@ module Phases = struct
       let Mod.{ ds; subst; _ } = m in
 
       let%bind (p2ast, subst) =
-        let ctx = Sema.Phase2.context ~ds ~subst ~builtin in
+        let ctx = Sema.Phase2.Ctx.create ~ds ~subst ~builtin in
         Sema.Phase2.into_typed_tree ~ctx p1ast
-        |> Result.map ~f:(fun n -> (n, Sema.Phase2.(ctx.subst)))
+        |> Result.map ~f:(fun n -> (n, Sema.Phase2.Ctx.(ctx.subst)))
       in
       m.Sema.Mod.subst <- subst;
 

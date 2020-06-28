@@ -15,7 +15,8 @@ type t = {
   visibility : visibility_t;
   mutable scope : scope_t option;
   ty : Typing.Type.t;
-  ty_w : wrap_t;
+  kind : kind_t;
+  lookup_space : lookup_space_t;
 }
 
 and scope_t = {
@@ -26,23 +27,26 @@ and scope_t = {
 
 and visibility_t = Public | Private
 
-and wrap_t = N | Ty | Val of Typing.Type.t | M of Mod.t | Alias of t
-[@@deriving show]
+and kind_t = N | Ty | Val | M of Mod.t | Alias of t | KindScope
+
+and lookup_space_t = LkGlobal | LkLocal [@@deriving show]
+
+type namespace_t = NamespaceValue | NamespaceType | NamespaceMeta
 
 type inserted_status_t = InsertedNew | InsertedHiding
 
-let create name ~parent ~visibility ~ty ~ty_w =
-  { parent; name; visibility; scope = None; ty; ty_w }
+let create name ~parent ~visibility ~ty ~kind ~lookup_space =
+  { parent; name; visibility; scope = None; ty; kind; lookup_space }
 
 let type_of env = env.ty
 
-let rec w_of env = match env.ty_w with Alias aenv -> w_of aenv | _ -> env.ty_w
+let rec w_of env = match env.kind with Alias aenv -> w_of aenv | _ -> env.kind
 
 let mod_of env = match w_of env with M m -> m | _ -> failwith "[ICE]"
 
 let rec root_mod_of ~scoped env =
   (* Do NOT take alias values *)
-  match env.ty_w with
+  match env.kind with
   | M m -> m
   | Alias aenv when not scoped -> root_mod_of ~scoped aenv
   | _ -> (
@@ -86,16 +90,11 @@ let insert_meta penv tenv =
 let insert_impl penv w tenv =
   match w with
   | Ty -> insert_type penv tenv
-  | Val _ -> insert_value penv tenv
+  | Val -> insert_value penv tenv
   | M _ -> insert_meta penv tenv
   | _ -> failwith "insert_impl"
 
 let insert penv tenv = insert_impl penv (w_of tenv) tenv
-
-let find_type env name =
-  match env.scope with
-  | Some scope -> Hashtbl.find scope.types name
-  | None -> None
 
 let collect_all env =
   let scope = assume_scope env in
@@ -107,11 +106,16 @@ let collect_all env =
 let collect_aliases env =
   let envs = collect_all env in
   List.filter envs ~f:(fun env ->
-      match env.ty_w with Alias _ -> true | _ -> false)
+      match env.kind with Alias _ -> true | _ -> false)
 
-let find_value env name =
+let find_value env name : t option =
   match env.scope with
   | Some scope -> Hashtbl.find scope.values name
+  | None -> None
+
+let find_type env name =
+  match env.scope with
+  | Some scope -> Hashtbl.find scope.types name
   | None -> None
 
 let find_meta env name =
@@ -119,20 +123,44 @@ let find_meta env name =
   | Some scope -> Hashtbl.find scope.meta name
   | None -> None
 
+let find ~ns env name =
+  match ns with
+  | NamespaceValue -> find_value env name
+  | NamespaceType -> find_type env name
+  | NamespaceMeta -> find_meta env name
+
+let find_multi env name =
+  let nss = [ NamespaceValue; NamespaceType; NamespaceMeta ] in
+  let envs =
+    List.concat_map nss ~f:(fun ns -> find ~ns env name |> Option.to_list)
+  in
+  match envs with [] -> None | xs -> Some xs
+
 let meta_keys env =
   match env.scope with Some scope -> Hashtbl.keys scope.meta | None -> []
 
-let rec lookup_impl find env name =
-  let rec lookup' env name history =
-    match find env name with
-    | Some e -> Ok e
+let rec lookup_impl find_f env name =
+  let rec lookup' env name history depth =
+    match find_f env name with
+    | Some e -> Ok (e, depth)
     | None -> (
         match env.parent with
-        | Some penv -> lookup' penv name (env :: history)
+        | Some penv ->
+            let depth =
+              let (major, minor) = depth in
+              match env.kind with
+              | KindScope -> (major, minor + 1)
+              | _ -> (major + 1, minor)
+            in
+            lookup' penv name (env :: history) depth
         | None -> Error (history |> List.rev) )
   in
-  lookup' env name []
+  lookup' env name [] (0, 0)
 
-let lookup_type env name = lookup_impl find_type env name
+let lookup_multi env name = lookup_impl find_multi env name
 
-let lookup_value env name = lookup_impl find_value env name
+let lookup_value env name = lookup_impl (find ~ns:NamespaceValue) env name
+
+let lookup_type env name = lookup_impl (find ~ns:NamespaceType) env name
+
+let lookup_meta env name = lookup_impl (find ~ns:NamespaceMeta) env name

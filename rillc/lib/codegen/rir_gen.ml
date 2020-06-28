@@ -52,7 +52,6 @@ let rec generate_stmt ~ctx ~builder ast =
   | NAst.{ kind = Assign { lhs; rhs }; ty; span; _ } ->
       let (rhs, builder) = generate_stmt ~ctx ~builder rhs in
       let (lhs, builder) = generate_stmt ~ctx ~builder lhs in
-
       Rir.Builder.build_assign builder lhs rhs;
       (lhs, builder)
   (* *)
@@ -89,7 +88,8 @@ let rec generate_stmt ~ctx ~builder ast =
             let bb_end = B.build_bb builder "if_end" in
             (bb_end (* To jump to end clause directly *), bb_end)
       in
-      Rir.Builder.build_cond builder cond bb_then bb_else;
+      let conv_place = to_placeholder cond in
+      Rir.Builder.build_cond builder conv_place bb_then bb_else;
 
       (* then *)
       let () =
@@ -171,31 +171,34 @@ let rec generate_stmt ~ctx ~builder ast =
       (node, builder)
   (* *)
   | NAst.{ kind = Call { name; args }; span; ty } ->
-      let node = Rir.Term.{ kind = Call (name, args); ty; span } in
+      let place = to_placeholder name in
+      let args = List.map args ~f:to_placeholder in
+      let node = Rir.Term.{ kind = Call (place, args); ty; span } in
       (node, builder)
   (* *)
   | NAst.{ kind = Index { name; index }; span; ty } ->
-      let node = Rir.Term.{ kind = Index (name, index); ty; span } in
+      let place = to_placeholder name in
+      let index_place = to_placeholder index in
+      let node = Rir.Term.{ kind = Index (place, index_place); ty; span } in
       (node, builder)
   (* *)
   | NAst.{ kind = Ref { name }; span; ty } ->
-      let node = Rir.Term.{ kind = Ref name; ty; span } in
+      let place = to_placeholder name in
+      let node = Rir.Term.{ kind = Ref place; ty; span } in
       (node, builder)
   (* *)
   | NAst.{ kind = Deref { name }; span; ty } ->
-      let node = Rir.Term.{ kind = Deref name; ty; span } in
+      let place = to_placeholder name in
+      let node = Rir.Term.{ kind = Deref place; ty; span } in
       (node, builder)
   (* *)
   | NAst.{ kind = Construct { struct_tag }; span; ty } ->
       let node = Rir.Term.{ kind = Construct { struct_tag }; ty; span } in
       (node, builder)
   (* *)
-  | NAst.{ kind = Var id; ty; span } ->
-      let node = Rir.Term.{ kind = LVal id; ty; span } in
-      (node, builder)
-  (* *)
-  | NAst.{ kind = VarParam i; ty; span } ->
-      let node = Rir.Term.{ kind = LValParam i; ty; span } in
+  | NAst.{ kind = Var r; ty; span } ->
+      let place = to_placeholder r in
+      let node = Rir.Term.{ kind = LVal place; ty; span } in
       (node, builder)
   (* *)
   | NAst.{ kind = LitBool v; ty; span } ->
@@ -215,6 +218,7 @@ let rec generate_stmt ~ctx ~builder ast =
       (node, builder)
   (* *)
   | NAst.{ kind = LitArrayElem elems; ty; span } ->
+      let elems = List.map elems ~f:to_placeholder in
       let node = Rir.Term.{ kind = RVal (ValueArrayElem elems); ty; span } in
       (node, builder)
   (* *)
@@ -227,6 +231,13 @@ let rec generate_stmt ~ctx ~builder ast =
       failwith
         (Printf.sprintf "Not supported node (Rir_gen.generate_stmt): %s" s)
 
+and to_placeholder r =
+  match r with
+  | NAst.VarLocal { name; label } -> Rir.Term.PlaceholderVar { name }
+  | NAst.VarParam { index; name } -> Rir.Term.PlaceholderParam { index; name }
+  | NAst.VarGlobal { name } -> Rir.Term.PlaceholderGlobal { name }
+  | NAst.VarGlobal2 { nest } -> Rir.Term.PlaceholderGlobal2 { nest }
+
 let generate_toplevel ~ctx ~builder ast =
   match ast with
   (* *)
@@ -235,10 +246,12 @@ let generate_toplevel ~ctx ~builder ast =
       ()
   (* *)
   | NAst.{ kind = Func { name; kind = NAst.FuncKindDef body }; ty; span } ->
-      let (_, ret_ty) = Typing.Type.assume_func_ty ty in
-      let f = Rir.Func.create ~ty ~extern_name:None in
+      let f = Rir.Builder.declare_func builder name ty in
+      Rir.Func.set_body_form f;
+
       let builder = Rir.Builder.with_current_func builder f in
 
+      let (_, ret_ty) = Typing.Type.assume_func_ty ty in
       let bb = Option.value_exn (Rir.Func.get_entry_bb f) in
       let builder = Rir.Builder.with_current_bb builder bb in
 
@@ -266,13 +279,18 @@ let generate_toplevel ~ctx ~builder ast =
             Rir.Builder.build_return builder
       in
 
-      Rir.Builder.register_func_def builder name f
+      Rir.Builder.mark_func_as_defined builder f
   (* *)
   | NAst.
       { kind = Func { name; kind = NAst.FuncKindExtern extern_name }; ty; span }
     ->
-      let f = Rir.Func.create ~ty ~extern_name:(Some extern_name) in
-      Rir.Builder.register_func_def builder name f
+      let (f : Rir.Func.t) = Rir.Builder.declare_func builder name ty in
+      Rir.Func.set_extern_form f ~extern_name;
+      ()
+  (* *)
+  | NAst.{ kind = Func { name; kind = NAst.FuncKindDecl }; ty; span } ->
+      let (_ : Rir.Func.t) = Rir.Builder.declare_func builder name ty in
+      ()
   (* *)
   | NAst.{ kind = Struct { name; struct_tag }; ty; span } ->
       let r_ty = Rir.Type.create () in

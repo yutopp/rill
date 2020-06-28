@@ -38,38 +38,37 @@ let context ~ds ~subst ~builtin =
 
 module Env = struct
   module Func = struct
-    type t = { kind : kind_t; ty : Typing.Type.t }
+    type t = { ll_f : L.llvalue; ty : Typing.Type.t; kind : kind_t }
 
-    and kind_t =
-      | FuncLLVMDecl of L.llvalue
-      | FuncLLVMDef of L.llvalue
-      | FuncBuiltin of (L.llvalue array -> L.llbuilder -> L.llvalue)
+    and kind_t = LLVMDecl | LLVMDef
   end
 
   module Var = struct
-    type t = { ll_v : L.llvalue; as_treat : Value_category.as_treat_t }
+    type t = {
+      ll_v : L.llvalue;
+      ty : Typing.Type.t;
+      as_treat : Value_category.as_treat_t;
+    }
   end
 
   type t = {
     types : type_t Map.M(Int).t;
-    funcs : Func.t Map.M(String).t;
     intrinsics : Llvm_gen_intrinsics.t;
-    local_args : var_t Map.M(Int).t;
-    local_vars : var_t Map.M(String).t;
+    local_args : Var.t Map.M(Int).t;
+    local_vars : Var.t Map.M(String).t;
+    global_vars : Var.t Map.M(String).t;
     bb : L.llbasicblock Map.M(String).t;
   }
 
   and type_t = { ll_ty : L.lltype }
 
-  and var_t = { ll_v : L.llvalue; as_treat : Value_category.as_treat_t }
-
   let create ~intrinsics =
     {
       types = Map.empty (module Int);
-      funcs = Map.empty (module String);
       intrinsics;
       local_args = Map.empty (module Int);
       local_vars = Map.empty (module String);
+      global_vars = Map.empty (module String);
       bb = Map.empty (module String);
     }
 
@@ -78,20 +77,26 @@ module Env = struct
   let set_type env struct_tag ll_ty =
     { env with types = Map.set ~key:struct_tag ~data:ll_ty env.types }
 
-  let get_func env name = Map.find_exn env.funcs name
-
-  let set_func env name ll_f =
-    { env with funcs = Map.set ~key:name ~data:ll_f env.funcs }
-
-  let get_local_arg env index = Map.find_exn env.local_args index
-
   let set_local_arg env index value =
     { env with local_args = Map.set ~key:index ~data:value env.local_args }
 
-  let get_local_var env name = Map.find_exn env.local_vars name
-
   let set_local_var env name value =
     { env with local_vars = Map.set ~key:name ~data:value env.local_vars }
+
+  let get_local_var env name = Map.find_exn env.local_vars name
+
+  let set_global_var env name value =
+    { env with global_vars = Map.set ~key:name ~data:value env.global_vars }
+
+  let get_var_place env placeholder =
+    match placeholder with
+    | Rir.Term.PlaceholderVar { name } -> get_local_var env name
+    | Rir.Term.PlaceholderParam { index; _ } ->
+        Map.find_exn env.local_args index
+    | Rir.Term.PlaceholderGlobal { name } -> Map.find_exn env.global_vars name
+    | Rir.Term.PlaceholderGlobal2 { nest } ->
+        let name = Mangling.mangle2 nest in
+        Map.find_exn env.global_vars name
 
   let get_bb env name = Map.find_exn env.bb name
 
@@ -152,9 +157,11 @@ and func_param_to_llty ~ctx ~env ty : L.lltype =
 let func_param_to_term ~ctx param_ty ll_param =
   match Value_category.memory_of ~subst:ctx.subst param_ty with
   | Value_category.MemPrimitive ->
-      Env.{ ll_v = ll_param; as_treat = Value_category.AsVal }
+      Env.Var.
+        { ll_v = ll_param; ty = param_ty; as_treat = Value_category.AsVal }
   | Value_category.MemMemory _ as mem ->
-      Env.{ ll_v = ll_param; as_treat = Value_category.AsPtr mem }
+      Env.Var.
+        { ll_v = ll_param; ty = param_ty; as_treat = Value_category.AsPtr mem }
 
 let load_func_params_into_env ~ctx ~env ll_f ty =
   let (params_tys, ret_ty) = Typing.Type.assume_func_ty ty in
@@ -201,53 +208,67 @@ let find_builtin builtin_name =
         L.build_icmp L.Icmp.Eq a b "" builder
   | _ -> failwith builtin_name
 
-let conv_val_ptr ctx ll_builder ((param_ty, value) : Typing.Type.t * Env.var_t)
+let conv_val_ptr ctx ll_builder ((param_ty, value) : Typing.Type.t * Env.Var.t)
     : L.llvalue =
   let target_t = Value_category.should_treat ~subst:ctx.subst param_ty in
   match (target_t, value) with
-  | Value_category.(AsVal, Env.{ ll_v; as_treat = AsVal })
-  | Value_category.(AsPtr _, Env.{ ll_v; as_treat = AsPtr _ }) ->
+  | Value_category.(AsVal, Env.Var.{ ll_v; as_treat = AsVal; _ })
+  | Value_category.(AsPtr _, Env.Var.{ ll_v; as_treat = AsPtr _; _ }) ->
       ll_v
-  | Value_category.(AsVal, Env.{ ll_v; as_treat = AsPtr _ }) ->
+  | Value_category.(AsVal, Env.Var.{ ll_v; as_treat = AsPtr _; _ }) ->
       L.build_load ll_v "" ll_builder
-  | Value_category.(AsPtr _, Env.{ ll_v; as_treat = AsVal }) ->
+  | Value_category.(AsPtr _, Env.Var.{ ll_v; as_treat = AsVal; _ }) ->
       failwith "[ICE] ?"
 
 let load_if_ref ll_builder v =
   match v with
-  | Env.{ ll_v; as_treat = Value_category.AsPtr _ } ->
+  | Env.Var.{ ll_v; as_treat = Value_category.AsPtr _; _ } ->
       L.build_load ll_v "" ll_builder
-  | Env.{ ll_v; as_treat = Value_category.AsVal } -> ll_v
+  | Env.Var.{ ll_v; as_treat = Value_category.AsVal; _ } -> ll_v
 
 let assume_ref v =
   match v with
-  | Env.{ ll_v; as_treat = Value_category.AsPtr _ } -> ll_v
-  | Env.{ ll_v; as_treat = Value_category.AsVal } ->
+  | Env.Var.{ ll_v; as_treat = Value_category.AsPtr _; _ } -> ll_v
+  | Env.Var.{ ll_v; as_treat = Value_category.AsVal; _ } ->
       failwith (Printf.sprintf "[ICE] not ref: %s" (L.string_of_llvalue ll_v))
 
 let assume_val v =
   match v with
-  | Env.{ ll_v; as_treat = Value_category.AsVal } -> ll_v
-  | Env.{ ll_v; as_treat = Value_category.AsPtr _ } ->
+  | Env.Var.{ ll_v; as_treat = Value_category.AsVal; _ } -> ll_v
+  | Env.Var.{ ll_v; as_treat = Value_category.AsPtr _; _ } ->
       failwith (Printf.sprintf "[ICE] not val: %s" (L.string_of_llvalue ll_v))
 
-let blit_term_opt ~env ll_builder dst_term src_term =
+let blit_term_opt ~env ll_builder (dst_term : Env.Var.t option)
+    (src_term : Env.Var.t) : Env.Var.t =
   let module Vc = Value_category in
   match (dst_term, src_term) with
   (* primitive mem <- primitive mem: load/store *)
-  | ( Some Env.{ ll_v = dst; as_treat = Vc.(AsPtr MemPrimitive) },
-      Env.{ ll_v = src; as_treat = Vc.(AsPtr MemPrimitive) } ) ->
+  | ( Some Env.Var.{ ll_v = dst; as_treat = Vc.(AsPtr MemPrimitive); ty = ty_d },
+      Env.Var.{ ll_v = src; as_treat = Vc.(AsPtr MemPrimitive); ty = ty_s } ) ->
       let loaded = L.build_load src "" ll_builder in
       let _ll_v : L.llvalue = L.build_store loaded dst ll_builder in
-      Env.{ ll_v = dst; as_treat = Vc.(AsPtr MemPrimitive) }
+      let ty = (* assume ty_d = ty_s *) ty_d in
+      Env.Var.{ ll_v = dst; ty; as_treat = Vc.(AsPtr MemPrimitive) }
   (* primitive mem <- primitive val: store *)
-  | ( Some Env.{ ll_v = dst; as_treat = Vc.(AsPtr MemPrimitive) },
-      Env.{ ll_v = src; as_treat = Vc.AsVal } ) ->
+  | ( Some Env.Var.{ ll_v = dst; as_treat = Vc.(AsPtr MemPrimitive); ty = ty_d },
+      Env.Var.{ ll_v = src; as_treat = Vc.AsVal; ty = ty_s } ) ->
       let _ll_v : L.llvalue = L.build_store src dst ll_builder in
-      Env.{ ll_v = dst; as_treat = Vc.(AsPtr MemPrimitive) }
+      let ty = (* assume ty_d = ty_s *) ty_d in
+      Env.Var.{ ll_v = dst; ty; as_treat = Vc.(AsPtr MemPrimitive) }
   (* memory mem <- memory mem: memcpy *)
-  | ( Some Env.{ ll_v = dst; as_treat = Vc.(AsPtr (MemMemory { size = s_dst })) },
-      Env.{ ll_v = src; as_treat = Vc.(AsPtr (MemMemory { size = s_src })) } )
+  | ( Some
+        Env.Var.
+          {
+            ll_v = dst;
+            as_treat = Vc.(AsPtr (MemMemory { size = s_dst }));
+            ty = ty_d;
+          },
+      Env.Var.
+        {
+          ll_v = src;
+          as_treat = Vc.(AsPtr (MemMemory { size = s_src }));
+          ty = ty_s;
+        } )
     when s_dst = s_src ->
       let inst = env.Env.intrinsics.Llvm_gen_intrinsics.memcpy_i32 in
       (* TODO: fix size and align *)
@@ -255,9 +276,10 @@ let blit_term_opt ~env ll_builder dst_term src_term =
       let align = 4 in
       let is_volatile = false in
       let ll_v = inst ll_builder dst src size align is_volatile in
-      Env.{ ll_v = dst; as_treat = Vc.(AsPtr MemPrimitive) }
+      let ty = (* assume ty_d = ty_s *) ty_d in
+      Env.Var.{ ll_v = dst; ty; as_treat = Vc.(AsPtr MemPrimitive) }
   (* val <- *: replace *)
-  | (Some Env.{ as_treat = Vc.AsVal; _ }, _) ->
+  | (Some Env.Var.{ as_treat = Vc.AsVal; _ }, _) ->
       (* re-use generate term *)
       src_term
   | (None, _) ->
@@ -267,29 +289,29 @@ let blit_term_opt ~env ll_builder dst_term src_term =
       failwith
         (Printf.sprintf "[ICE] cannot blit: %s <- %s"
            (Option.value_map dst_term ~default:"NONE" ~f:(fun t ->
-                Vc.show_as_treat_t t.Env.as_treat))
-           (Vc.show_as_treat_t src_term.Env.as_treat))
+                Vc.show_as_treat_t t.Env.Var.as_treat))
+           (Vc.show_as_treat_t src_term.Env.Var.as_treat))
 
-let construct_value ~ctx ~env ~ll_holder ~local ll_builder v ty =
+let construct_value ~ctx ~env ~ll_holder ~local ll_builder v ty : Env.Var.t =
   let into_ref ll_v =
     match ll_holder with
     | Some storage ->
         let _ll_v : L.llvalue = L.build_store ll_v storage ll_builder in
         let mem = Value_category.memory_of ~subst:ctx.subst ty in
-        Env.{ ll_v = storage; as_treat = Value_category.AsPtr mem }
-    | None -> Env.{ ll_v; as_treat = Value_category.AsVal }
+        Env.Var.{ ll_v = storage; ty; as_treat = Value_category.AsPtr mem }
+    | None -> Env.Var.{ ll_v; ty; as_treat = Value_category.AsVal }
   in
   match v with
   | Rir.Term.ValueBool v ->
       let t =
         let ll_v = L.const_int (to_llty ~ctx ~env ty) (if v then 1 else 0) in
-        Env.{ ll_v; as_treat = Value_category.AsVal }
+        Env.Var.{ ll_v; ty; as_treat = Value_category.AsVal }
       in
       blit_term_opt ~env ll_builder local t
   | Rir.Term.ValueInt v ->
       let t =
         let ll_v = L.const_int (to_llty ~ctx ~env ty) v in
-        Env.{ ll_v; as_treat = Value_category.AsVal }
+        Env.Var.{ ll_v; ty; as_treat = Value_category.AsVal }
       in
       blit_term_opt ~env ll_builder local t
   | Rir.Term.ValueString v ->
@@ -306,19 +328,19 @@ let construct_value ~ctx ~env ~ll_holder ~local ll_builder v ty =
           let ll_sto =
             L.build_in_bounds_gep storage [| zero; ll_index |] "" ll_builder
           in
-          let ll_elem = Env.get_local_var env elem in
+          let ll_elem = Env.get_var_place env elem in
           match ll_elem with
-          | Env.{ ll_v = ll_rhs; as_treat = Value_category.AsPtr _ } ->
+          | Env.Var.{ ll_v = ll_rhs; as_treat = Value_category.AsPtr _; _ } ->
               let ll_rhs_v = L.build_load ll_rhs "" ll_builder in
               let _ll_v : L.llvalue =
                 L.build_store ll_rhs_v ll_sto ll_builder
               in
               ()
-          | Env.{ ll_v = ll_rhs; as_treat = Value_category.AsVal } ->
+          | Env.Var.{ ll_v = ll_rhs; as_treat = Value_category.AsVal; _ } ->
               let _ll_v : L.llvalue = L.build_store ll_rhs ll_sto ll_builder in
               ());
       let mem = Value_category.memory_of ~subst:ctx.subst ty in
-      Env.{ ll_v = storage; as_treat = Value_category.AsPtr mem }
+      Env.Var.{ ll_v = storage; ty; as_treat = Value_category.AsPtr mem }
 
 let construct_term_assign_args ~ctx ll_builder params args =
   List.zip params args |> function
@@ -329,16 +351,18 @@ let construct_term_assign_args ~ctx ll_builder params args =
         (Printf.sprintf "[ICE] param length are different %d != %d"
            (List.length params) (List.length args))
 
-let construct_term ~ctx ~env ~ll_holder ~local ll_f ll_builder term : Env.var_t
+let construct_term ~ctx ~env ~ll_holder ~local ll_f ll_builder term : Env.Var.t
     =
   let module Vc = Value_category in
   match term with
   (* *)
   | Rir.Term.{ kind = Call (callee, args); ty; _ } ->
-      let Env.Func.{ ty = f_ty; kind = f_kind } = Env.get_func env callee in
+      let Env.Var.{ ll_v = ll_callee; ty = f_ty; _ } =
+        Env.get_var_place env callee
+      in
       let (f_params_tys, f_ret_ty) = Typing.Type.assume_func_ty f_ty in
 
-      let arg_values = List.map args ~f:(Env.get_local_var env) in
+      let arg_values = List.map args ~f:(Env.get_var_place env) in
       let ll_args =
         construct_term_assign_args ~ctx ll_builder f_params_tys arg_values
       in
@@ -350,23 +374,19 @@ let construct_term ~ctx ~env ~ll_holder ~local ll_f ll_builder term : Env.var_t
         | Value_category.MemMemory _ ->
             let ll_v =
               match local with
-              | Some Env.{ ll_v; as_treat = Vc.(AsPtr (MemMemory _)) } -> ll_v
+              | Some Env.Var.{ ll_v; as_treat = Vc.(AsPtr (MemMemory _)); _ } ->
+                  ll_v
               | _ -> failwith "[ICE]"
             in
             ll_v :: ll_args
       in
 
       let ll_args = List.to_array ll_args in
-      let ll_v =
-        match f_kind with
-        | Env.Func.FuncLLVMDecl ll_callee | Env.Func.FuncLLVMDef ll_callee ->
-            L.build_call ll_callee ll_args "" ll_builder
-        | Env.Func.FuncBuiltin pass -> pass ll_args ll_builder
-      in
+      let ll_v = L.build_call ll_callee ll_args "" ll_builder in
       let value =
         match ret_val_memory with
         | Vc.MemPrimitive ->
-            let t = Env.{ ll_v; as_treat = Vc.(AsVal) } in
+            let t = Env.Var.{ ll_v; ty; as_treat = Vc.(AsVal) } in
             blit_term_opt ~env ll_builder local t
         | Vc.MemMemory _ ->
             (* A return value is already stored to local *)
@@ -375,8 +395,8 @@ let construct_term ~ctx ~env ~ll_holder ~local ll_f ll_builder term : Env.var_t
       value
   (* *)
   | Rir.Term.{ kind = Index (elems, index); ty; _ } ->
-      let ll_elems = Env.get_local_var env elems |> assume_ref in
-      let ll_index = Env.get_local_var env index |> load_if_ref ll_builder in
+      let ll_elems = Env.get_var_place env elems |> assume_ref in
+      let ll_index = Env.get_var_place env index |> load_if_ref ll_builder in
 
       let zero = L.const_int (L.i32_type ctx.ll_ctx) 0 in
       let ll_v =
@@ -387,25 +407,25 @@ let construct_term ~ctx ~env ~ll_holder ~local ll_f ll_builder term : Env.var_t
         match ll_holder with
         | Some storage ->
             let _ll_v : L.llvalue = L.build_store ll_v storage ll_builder in
-            Env.{ ll_v = storage; as_treat = Value_category.AsPtr mem }
-        | None -> Env.{ ll_v; as_treat = Value_category.AsPtr mem }
+            Env.Var.{ ll_v = storage; ty; as_treat = Value_category.AsPtr mem }
+        | None -> Env.Var.{ ll_v; ty; as_treat = Value_category.AsPtr mem }
       in
       value
   (* *)
   | Rir.Term.{ kind = Ref name; ty; _ } ->
-      let ll_v = Env.get_local_var env name |> assume_ref in
+      let ll_v = Env.get_var_place env name |> assume_ref in
       let t =
         (* Treat values as VALUES of Pointer *)
-        Env.{ ll_v; as_treat = Value_category.AsVal }
+        Env.Var.{ ll_v; ty; as_treat = Value_category.AsVal }
       in
       blit_term_opt ~env ll_builder local t
   (* *)
   | Rir.Term.{ kind = Deref name; ty; _ } ->
-      let ll_v = Env.get_local_var env name |> assume_val in
+      let ll_v = Env.get_var_place env name |> assume_val in
       let t =
         (* Treat values as Ptr *)
         let mem = Value_category.memory_of ~subst:ctx.subst ty in
-        Env.{ ll_v; as_treat = Value_category.AsPtr mem }
+        Env.Var.{ ll_v; ty; as_treat = Value_category.AsPtr mem }
       in
       blit_term_opt ~env ll_builder local t
   (* *)
@@ -415,7 +435,7 @@ let construct_term ~ctx ~env ~ll_holder ~local ll_f ll_builder term : Env.var_t
         let mem = Value_category.memory_of ~subst:ctx.subst ty in
         match ll_holder with
         | Some storage ->
-            Env.{ ll_v = storage; as_treat = Value_category.AsPtr mem }
+            Env.Var.{ ll_v = storage; ty; as_treat = Value_category.AsPtr mem }
         | None -> failwith "[ICE] Cannot construct"
       in
       value
@@ -423,13 +443,9 @@ let construct_term ~ctx ~env ~ll_holder ~local ll_f ll_builder term : Env.var_t
   | Rir.Term.{ kind = RVal v; ty; _ } ->
       construct_value ~ctx ~env ~ll_holder ~local ll_builder v ty
   (* *)
-  | Rir.Term.{ kind = LVal id; ty; _ } ->
-      [%loga.debug "LVal (%s)" id];
-      let t = Env.get_local_var env id in
-      blit_term_opt ~env ll_builder local t
-  (* *)
-  | Rir.Term.{ kind = LValParam index; ty; _ } ->
-      let t = Env.get_local_arg env index in
+  | Rir.Term.{ kind = LVal placeholder; ty; _ } ->
+      [%loga.debug "LVal -> %s" (Rir.Term.show_placeholder_t placeholder)];
+      let t = Env.get_var_place env placeholder in
       blit_term_opt ~env ll_builder local t
   (* *)
   | Rir.Term.{ kind = Undef; ty; _ } ->
@@ -437,10 +453,10 @@ let construct_term ~ctx ~env ~ll_holder ~local ll_f ll_builder term : Env.var_t
         let mem = Value_category.memory_of ~subst:ctx.subst ty in
         match ll_holder with
         | Some storage ->
-            Env.{ ll_v = storage; as_treat = Value_category.AsPtr mem }
+            Env.Var.{ ll_v = storage; ty; as_treat = Value_category.AsPtr mem }
         | None ->
             let ll_v = L.const_null (L.void_type ctx.ll_ctx) in
-            Env.{ ll_v; as_treat = Value_category.AsVal }
+            Env.Var.{ ll_v; ty; as_treat = Value_category.AsVal }
       in
       value
 
@@ -448,12 +464,12 @@ let construct_inst ~ctx ~env ll_f ll_builder inst : Env.t =
   [%loga.debug "Inst -> %s" (Rir.Term.show_inst_t inst)];
   match inst with
   (* *)
-  | Rir.Term.Let (placeholder, term, _) ->
+  | Rir.Term.Let (name, term, _) ->
       let env =
-        let local = Env.get_local_var env placeholder in
+        let local = Env.get_local_var env name in
         match local with
         (* mutable value or structs *)
-        | Env.{ ll_v; as_treat = Value_category.AsPtr _ } ->
+        | Env.Var.{ ll_v; as_treat = Value_category.AsPtr _; _ } ->
             let ll_holder = Some ll_v in
             let _ =
               construct_term ~ctx ~env ~ll_holder ~local:(Some local) ll_f
@@ -467,7 +483,7 @@ let construct_inst ~ctx ~env ll_f ll_builder inst : Env.t =
               construct_term ~ctx ~env ~ll_holder ~local:(Some local) ll_f
                 ll_builder term
             in
-            Env.set_local_var env placeholder local
+            Env.set_local_var env name local
       in
       env
   (* *)
@@ -479,24 +495,6 @@ let construct_inst ~ctx ~env ll_f ll_builder inst : Env.t =
         construct_term ~ctx ~env ~ll_holder:None ~local:(Some lhs) ll_f
           ll_builder rhs
       in
-      (* let () =
-           match (lhs, rhs) with
-           | ( Env.{ ll_v = ll_lhs; as_treat = Value_category.AsPtr _ },
-               Env.{ ll_v = ll_rhs; as_treat = Value_category.AsPtr _ } ) ->
-               let ll_rhs_v = L.build_load ll_rhs "" ll_builder in
-               let _ll_v : L.llvalue = L.build_store ll_rhs_v ll_lhs ll_builder in
-               ()
-           | ( Env.{ ll_v = ll_lhs; as_treat = Value_category.AsPtr _ },
-               Env.{ ll_v = ll_rhs; as_treat = Value_category.AsVal } ) ->
-               let _ll_v : L.llvalue = L.build_store ll_rhs ll_lhs ll_builder in
-               ()
-           | ( Env.{ ll_v = ll_lhs; as_treat = t_lhs },
-               Env.{ ll_v = ll_rhs; as_treat = t_rhs } ) ->
-               failwith
-                 (Printf.sprintf "[ICE] cannot assign: %s <- %s"
-                    (Value_category.show_as_treat_t t_lhs)
-                    (Value_category.show_as_treat_t t_rhs))
-         in*)
       env
   (* *)
   | Rir.Term.TerminatorPoint _ -> (* Ignore *) env
@@ -506,14 +504,14 @@ let construct_terminator ~ctx ~env ~ret_term ll_f ll_builder termi =
   match termi with
   (* *)
   | Rir.Term.Cond (cond, t, e) ->
-      let c = Env.get_local_var env cond in
+      let c = Env.get_var_place env cond in
       let ll_bb_t = Env.get_bb env t in
       let ll_bb_e = Env.get_bb env e in
       let ll_c =
         match c with
-        | Env.{ ll_v; as_treat = Value_category.AsPtr _ } ->
+        | Env.Var.{ ll_v; as_treat = Value_category.AsPtr _; _ } ->
             L.build_load ll_v "" ll_builder
-        | Env.{ ll_v; as_treat = Value_category.AsVal } -> ll_v
+        | Env.Var.{ ll_v; as_treat = Value_category.AsVal; _ } -> ll_v
       in
       L.build_cond_br ll_c ll_bb_t ll_bb_e ll_builder
   (* *)
@@ -527,12 +525,15 @@ let construct_terminator ~ctx ~env ~ret_term ll_f ll_builder termi =
         | Some ret_term ->
             let ll_ret =
               match ret_term with
-              | Env.{ ll_v; as_treat = Value_category.(AsPtr MemPrimitive) } ->
+              | Env.Var.
+                  { ll_v; as_treat = Value_category.(AsPtr MemPrimitive); _ } ->
                   let v = L.build_load ll_v "" ll_builder in
                   L.build_ret v ll_builder
-              | Env.{ ll_v; as_treat = Value_category.(AsPtr (MemMemory _)) } ->
+              | Env.Var.
+                  { ll_v; as_treat = Value_category.(AsPtr (MemMemory _)); _ }
+                ->
                   L.build_ret_void ll_builder
-              | Env.{ ll_v; as_treat = Value_category.AsVal } ->
+              | Env.Var.{ ll_v; as_treat = Value_category.AsVal; _ } ->
                   L.build_ret ll_v ll_builder
             in
             ll_ret
@@ -555,7 +556,7 @@ let construct_bb ~ctx ~env ll_f ll_builder func bb =
            |> Option.map ~f:(fun ret_term ->
                   match ret_term with
                   | Rir.Term.{ kind = LVal name; _ } ->
-                      Env.get_local_var env name
+                      Env.get_var_place env name
                   | _ -> failwith "[ICE]")
          in
          let _ =
@@ -584,7 +585,7 @@ let construct_pre_alloc ~ctx ~env ll_f ll_builder pre_alloc =
                 let v =
                   let ll_ty = to_llty ~ctx ~env term.Rir.Term.ty in
                   let ll_v = L.build_alloca ll_ty "" ll_builder in
-                  Env.{ ll_v; as_treat = Value_category.AsPtr storage }
+                  Env.Var.{ ll_v; ty; as_treat = Value_category.AsPtr storage }
                 in
                 v
             (* *)
@@ -596,16 +597,18 @@ let construct_pre_alloc ~ctx ~env ll_f ll_builder pre_alloc =
                   | Value_category.MemPrimitive ->
                       let ll_ty = to_llty ~ctx ~env term.Rir.Term.ty in
                       let ll_v = L.build_alloca ll_ty "" ll_builder in
-                      Env.{ ll_v; as_treat = Value_category.AsPtr storage }
+                      Env.Var.
+                        { ll_v; ty; as_treat = Value_category.AsPtr storage }
                   | Value_category.MemMemory _ ->
                       let ll_v = L.param ll_f 0 in
-                      Env.{ ll_v; as_treat = Value_category.AsPtr storage }
+                      Env.Var.
+                        { ll_v; ty; as_treat = Value_category.AsPtr storage }
                 in
                 v
             (* *)
             | Rir.Func.AddressableF ->
                 let ll_v = ll_undef in
-                let v = Env.{ ll_v; as_treat = Value_category.AsVal } in
+                let v = Env.Var.{ ll_v; ty; as_treat = Value_category.AsVal } in
                 v
           in
           (placeholder, v)
@@ -616,7 +619,7 @@ let construct_pre_alloc ~ctx ~env ll_f ll_builder pre_alloc =
   in
   List.fold_left p_insts ~init:env ~f
 
-let construct_func ~ctx ~env ll_mod ll_f (name, func) =
+let construct_func ~ctx ~env ll_mod ll_f func =
   (* *)
   let ll_entry_bb = L.entry_block ll_f in
   let ll_builder = L.builder_at_end ctx.ll_ctx ll_entry_bb in
@@ -674,26 +677,53 @@ let construct_type ~ctx ~env ll_mod ll_ty t : Env.t =
   env
 
 (* declare functions *)
-let pre_construct_func ~ctx ~env ll_mod f : Env.Func.t * Env.t =
-  let (name, func) = f in
+let pre_construct_func ~ctx ~env ll_mod func : Env.Func.t * Env.t =
+  let Rir.Func.{ name; _ } = func in
+  let mangled_name = Mangling.mangle2 name in
 
   let ty = func.Rir.Func.ty in
 
   let ll_ty = to_llty ~ctx ~env ty in
-  let kind =
-    match func.Rir.Func.extern_name with
-    | Some builtin_name when String.is_prefix builtin_name ~prefix:"%" ->
-        Env.Func.FuncBuiltin (find_builtin builtin_name)
-    | Some extern_name ->
-        Env.Func.FuncLLVMDecl (L.declare_function extern_name ll_ty ll_mod)
-    | None ->
+  let f =
+    match func.Rir.Func.body with
+    (* *)
+    | Some (Rir.Func.BodyExtern builtin_name)
+      when String.is_prefix builtin_name ~prefix:"%" ->
+        let ll_f = L.define_function builtin_name ll_ty ll_mod in
+        let () =
+          let ll_bb = L.entry_block ll_f in
+          let ll_builder = L.builder_at_end ctx.ll_ctx ll_bb in
+          let generator = find_builtin builtin_name in
+          let ll_ret = generator (L.params ll_f) ll_builder in
+          let (_ : L.llvalue) = L.build_ret ll_ret ll_builder in
+          ()
+        in
+        L.set_visibility L.Visibility.Hidden ll_f;
+        L.set_linkage L.Linkage.Private ll_f;
+        let attr = L.create_enum_attr ctx.ll_ctx "alwaysinline" 0L in
+        L.add_function_attr ll_f attr L.AttrIndex.Function;
+        Env.Func.{ ll_f; ty; kind = LLVMDecl }
+    (* *)
+    | Some (Rir.Func.BodyExtern extern_name) ->
+        let ll_f = L.declare_function extern_name ll_ty ll_mod in
+        Env.Func.{ ll_f; ty; kind = LLVMDecl }
+    (* *)
+    | Some (Rir.Func.BodyFunc _) ->
         [%loga.debug "def func -> %s" (L.string_of_lltype ll_ty)];
-        let mangled_name = Mangling.mangle name ty in
-        Env.Func.FuncLLVMDef (L.define_function mangled_name ll_ty ll_mod)
+        let ll_f = L.define_function mangled_name ll_ty ll_mod in
+        Env.Func.{ ll_f; ty; kind = LLVMDef }
+    (* *)
+    | None ->
+        let ll_f = L.declare_function mangled_name ll_ty ll_mod in
+        Env.Func.{ ll_f; ty; kind = LLVMDecl }
   in
-  let ff = Env.Func.{ kind; ty } in
-  let env = Env.set_func env name ff in
-  (ff, env)
+  let var =
+    let Env.Func.{ ll_f; _ } = f in
+    let as_treat = Value_category.(AsVal) in
+    Env.Var.{ ll_v = ll_f; ty; as_treat }
+  in
+  let env = Env.set_global_var env mangled_name var in
+  (f, env)
 
 let generate_module ~ctx rir_mod : Module.t =
   let module_name = rir_mod.Rir.Module.module_name in
@@ -719,18 +749,18 @@ let generate_module ~ctx rir_mod : Module.t =
 
   (* functions *)
   let (env, fs_rev) =
-    let funcs = Rir.Module.funcs rir_mod in
-    List.fold_left funcs ~init:(env, []) ~f:(fun (env, fs) f ->
-        let (ff, env) = pre_construct_func ~ctx ~env ll_mod f in
-        (env, (f, ff) :: fs))
+    let funcs = Rir.Module.all_funcs rir_mod in
+    List.fold_left funcs ~init:(env, []) ~f:(fun (env, fs) func ->
+        let (ff, env) = pre_construct_func ~ctx ~env ll_mod func in
+        (env, (func, ff) :: fs))
   in
   let () =
     fs_rev
-    |> List.iter ~f:(fun (f, ff) ->
+    |> List.iter ~f:(fun (func, ff) ->
            match ff with
-           | Env.Func.{ kind = FuncLLVMDef ll_f; ty } ->
+           | Env.Func.{ kind = LLVMDef; ll_f; ty } ->
                let env = load_func_params_into_env ~ctx ~env ll_f ty in
-               let _env : Env.t = construct_func ~ctx ~env ll_mod ll_f f in
+               let _env : Env.t = construct_func ~ctx ~env ll_mod ll_f func in
                ()
            | _ -> ())
   in

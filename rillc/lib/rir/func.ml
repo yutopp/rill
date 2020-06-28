@@ -18,13 +18,19 @@ module BBs = struct
 end
 
 type t = {
+  name : Common.Chain.Nest.t;
   ty : (Typing.Type.t[@printer fun fmt _ -> fprintf fmt ""]);
+  mutable body : body_t option;
+}
+
+and body_t = BodyFunc of body_func_t | BodyExtern of string
+
+and body_func_t = {
   bbs : BBs.t;
   mutable bbs_names_rev : string list;
   mutable ret_term : Term.t option;
   mutable pre_allocs : pre_alloc_t list;
   fresh_id : (Counter.t[@printer fun fmt _ -> fprintf fmt ""]);
-  extern_name : string option;
 }
 
 and pre_alloc_t = { p_bb_name : string; p_insts : pre_alloc_inst_t list }
@@ -38,64 +44,84 @@ and addressable_extra_t = { addressable_e_kind : addressable_extra_kind_t }
 and addressable_extra_kind_t = AddrKindStandard | AddrKindRet
 [@@deriving show]
 
-let create_vanilla ?(extern_name = None) ~ty =
-  {
-    ty;
-    bbs = Hashtbl.create (module String);
-    bbs_names_rev = [];
-    ret_term = None;
-    pre_allocs = [];
-    fresh_id = Counter.create ();
-    extern_name;
-  }
-
-let prepare_bb_name f name =
-  match Hashtbl.mem f.bbs name with
-  | true ->
-      (* If already exists, generate a fresh name *)
-      let fresh_suffix = Counter.fresh_string f.fresh_id in
-      Printf.sprintf "%s%s" name fresh_suffix
-  | false -> name
-
-let insert_bb f bb =
-  let name = bb.Term.BB.name in
-  Hashtbl.add_exn f.bbs ~key:name ~data:bb;
-  f.bbs_names_rev <- name :: f.bbs_names_rev;
-  ()
+let create ~name ~ty = { name; ty; body = None }
 
 let get_ret_ty f =
   let (_, ret_ty) = Typing.Type.assume_func_ty f in
   ret_ty
 
-let gen_local_var f =
-  let s = Counter.fresh_string f.fresh_id in
-  Printf.sprintf "$_%s" s
-
-let create ?(extern_name = None) ~ty =
-  let f = create_vanilla ~extern_name ~ty in
-  let () =
-    match extern_name with
-    | None ->
-        let bb = Term.BB.create "entry" in
-        insert_bb f bb
-    | Some _ -> ()
-  in
-  f
-
-let get_entry_bb f = Hashtbl.find f.bbs "entry"
-
-let set_ret_term func term =
-  match term with
-  | Term.{ kind = LVal _; _ } -> func.ret_term <- Some term
+let prepare_bb_name f name =
+  match f.body with
+  | Some (BodyFunc fb) -> (
+      match Hashtbl.mem fb.bbs name with
+      | true ->
+          (* If already exists, generate a fresh name *)
+          let fresh_suffix = Counter.fresh_string fb.fresh_id in
+          Printf.sprintf "%s%s" name fresh_suffix
+      | false -> name )
   | _ -> failwith ""
 
-let get_ret_term func = func.ret_term
+let insert_bb f bb =
+  match f.body with
+  | Some (BodyFunc fb) ->
+      let name = bb.Term.BB.name in
+      Hashtbl.add_exn fb.bbs ~key:name ~data:bb;
+      fb.bbs_names_rev <- name :: fb.bbs_names_rev;
+      ()
+  | _ -> failwith ""
 
-let set_pre_allocs func pre_allocs = func.pre_allocs <- pre_allocs
+let set_extern_form func ~extern_name =
+  func.body <- Some (BodyExtern extern_name)
 
-let get_pre_allocs func = func.pre_allocs
+let set_body_form func =
+  let body =
+    {
+      bbs = Hashtbl.create (module String);
+      bbs_names_rev = [];
+      ret_term = None;
+      pre_allocs = [];
+      fresh_id = Counter.create ();
+    }
+  in
 
-let get_bbs func = func.bbs
+  func.body <- Some (BodyFunc body);
+
+  let bb = Term.BB.create "entry" in
+  insert_bb func bb
+
+let gen_local_var f =
+  match f.body with
+  | Some (BodyFunc fb) ->
+      let s = Counter.fresh_string fb.fresh_id in
+      Printf.sprintf "$_%s" s
+  | _ -> failwith ""
+
+let get_entry_bb f =
+  match f.body with
+  | Some (BodyFunc fb) -> Hashtbl.find fb.bbs "entry"
+  | _ -> failwith ""
+
+let set_ret_term func term =
+  match func.body with
+  | Some (BodyFunc fb) -> (
+      match term with
+      | Term.{ kind = LVal _; _ } -> fb.ret_term <- Some term
+      | _ -> failwith "" )
+  | _ -> failwith ""
+
+let get_ret_term func =
+  match func.body with Some (BodyFunc fb) -> fb.ret_term | _ -> failwith ""
+
+let set_pre_allocs func pre_allocs =
+  match func.body with
+  | Some (BodyFunc fb) -> fb.pre_allocs <- pre_allocs
+  | _ -> failwith ""
+
+let get_pre_allocs func =
+  match func.body with Some (BodyFunc fb) -> fb.pre_allocs | _ -> failwith ""
+
+let get_bbs func =
+  match func.body with Some (BodyFunc fb) -> fb.bbs | _ -> failwith ""
 
 let fold_bbs func ~init ~f =
   match get_entry_bb func with
@@ -112,7 +138,7 @@ let fold_bbs func ~init ~f =
         | Some bb ->
             let succ = Term.BB.get_successors bb in
             List.iter succ ~f:(fun n ->
-                let bb = Hashtbl.find_exn func.bbs n in
+                let bb = Hashtbl.find_exn (get_bbs func) n in
                 if not (Hash_set.mem visited bb.Term.BB.name) then
                   Queue.enqueue q bb;
                 Hash_set.add visited bb.Term.BB.name);
@@ -147,12 +173,14 @@ let to_string_pre_alloc ~indent alloc =
       Buffer.add_char buf '\n');
   Buffer.contents buf
 
-let to_string ~indent name func =
+let to_string ~indent func =
   let buf = Buffer.create 256 in
   Buffer.add_string buf (String.make indent ' ');
 
+  let { name; _ } = func in
   Buffer.add_string buf
-    (Printf.sprintf "Func: name = %s, ty = %s\n" name
+    (Printf.sprintf "Func: name = %s, ty = %s\n"
+       (Common.Chain.Nest.show name)
        (Typing.Type.to_string func.ty));
 
   let allocs = get_pre_allocs func in

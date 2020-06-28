@@ -21,30 +21,35 @@ module NAst = struct
   and kind_t =
     | Module of t list
     | Import of { pkg : string; mods : string list }
-    | Func of { name : string; kind : func_kind_t }
+    | Func of { name : Common.Chain.Nest.t; kind : func_kind_t }
     | Struct of { name : string; struct_tag : Typing.Type.struct_tag_t }
     | Let of { mut : Typing.Type.mutability_t; name : string; expr : t }
     | Return of string
-    | Call of { name : string; args : string list }
-    | Index of { name : string; index : string }
-    | Ref of { name : string }
-    | Deref of { name : string }
+    | Call of { name : var_ref_t; args : var_ref_t list }
+    | Index of { name : var_ref_t; index : var_ref_t }
+    | Ref of { name : var_ref_t }
+    | Deref of { name : var_ref_t }
     | Construct of { struct_tag : Typing.Type.struct_tag_t }
-    | If of { cond : string; t : t; e_opt : t option }
+    | If of { cond : var_ref_t; t : t; e_opt : t option }
     | Loop of t
     | Break
     | LitBool of bool
     | LitInt of int
     | LitString of string
     | LitUnit
-    | LitArrayElem of string list
+    | LitArrayElem of var_ref_t list
     | Assign of { lhs : t; rhs : t }
     | Undef
-    | Var of string
-    | VarParam of int
+    | Var of var_ref_t
     | Seq of t list
 
   and func_kind_t = FuncKindDecl | FuncKindDef of t | FuncKindExtern of string
+
+  and var_ref_t =
+    | VarLocal of { name : string; label : string }
+    | VarGlobal of { name : string }
+    | VarGlobal2 of { nest : Common.Chain.Nest.t }
+    | VarParam of { index : int; name : string }
   [@@deriving sexp_of, yojson_of, show]
 end
 
@@ -53,14 +58,15 @@ type ctx_t = { ds : Diagnostics.t; subst : Typing.Subst.t }
 let context ~ds ~subst = { ds; subst }
 
 module Env = struct
-  type t = (string, string) Hashtbl.t
+  type t = (string, NAst.var_ref_t) Hashtbl.t
 
   let create () : t = Hashtbl.create (module String)
 
   let insert_alias env original target =
     Hashtbl.set env ~key:original ~data:target
 
-  let find_alias_opt env original : string option = Hashtbl.find env original
+  let find_alias_opt env original : NAst.var_ref_t option =
+    Hashtbl.find env original
 end
 
 let fresh_id =
@@ -68,7 +74,8 @@ let fresh_id =
   let f () =
     let v = !i in
     i := v + 1;
-    Printf.sprintf "%d" v
+    let id = Printf.sprintf "%d" v in
+    id
   in
   f
 
@@ -100,23 +107,30 @@ let fresh_id =
 let k = insert_let (let k = insert_let (analyze "1 + 2"); k (fun id -> id + "3"))
 
 *)
-let insert_let' mut k_form gen =
+let insert_let' ?label mut k_form gen =
   match k_form with
-  | NAst.{ kind = Var id; _ } -> gen id
+  | NAst.{ kind = Var (VarLocal _ as v); _ } -> gen v
+  | NAst.{ kind = Var (VarGlobal _ as v); _ } -> gen v
   | NAst.{ span; ty; _ } -> (
       let new_id = fresh_id () in
       let let_stmt =
         NAst.{ kind = Let { mut; name = new_id; expr = k_form }; ty; span }
       in
-      match gen new_id with
+      let new_v =
+        let label = Option.value label ~default:"generated" in
+        NAst.VarLocal { name = new_id; label }
+      in
+      match gen new_v with
       | NAst.{ kind = Seq nodes; ty; span } ->
           NAst.{ kind = Seq (let_stmt :: nodes); ty; span }
       | NAst.{ ty; span; _ } as node ->
           NAst.{ kind = Seq [ let_stmt; node ]; ty; span } )
 
-let insert_let k_form gen = insert_let' Typing.Type.MutImm k_form gen
+let insert_let ?label k_form gen =
+  insert_let' ?label Typing.Type.MutImm k_form gen
 
-let insert_let_mut k_form gen = insert_let' Typing.Type.MutMut k_form gen
+let insert_let_mut ?label k_form gen =
+  insert_let' ?label Typing.Type.MutMut k_form gen
 
 (* Currently K-normalize *)
 let rec normalize ~ctx ~env ast =
@@ -130,6 +144,9 @@ let rec normalize ~ctx ~env ast =
   (* *)
   | TAst.{ kind = DeclExternFunc { name; extern_name }; ty; span; _ } ->
       NAst.{ kind = Func { name; kind = FuncKindExtern extern_name }; ty; span }
+  (* *)
+  | TAst.{ kind = DeclFunc { name }; ty; span; _ } ->
+      NAst.{ kind = Func { name; kind = FuncKindDecl }; ty; span }
   (* *)
   | TAst.{ kind = DefFunc { name; body }; ty; span; _ } ->
       let env = Env.create () in
@@ -152,9 +169,9 @@ let rec normalize ~ctx ~env ast =
       k (fun id -> NAst.{ kind = Var id; ty; span })
   (* *)
   | TAst.{ kind = StmtLet { mut; name; expr }; ty; span; _ } ->
-      let k = insert_let' mut (normalize ~ctx ~env expr) in
-      k (fun id ->
-          Env.insert_alias env name id;
+      let k = insert_let' ?label:(Some name) mut (normalize ~ctx ~env expr) in
+      k (fun v ->
+          Env.insert_alias env name v;
           NAst.{ kind = Undef; ty; span })
   (* *)
   | TAst.{ kind = ExprIf (cond, t, e_opt); ty; span; _ } ->
@@ -230,12 +247,40 @@ let rec normalize ~ctx ~env ast =
   | TAst.{ kind = ExprStruct { struct_tag }; ty; span; _ } ->
       NAst.{ kind = Construct { struct_tag }; ty; span }
   (* *)
-  | TAst.{ kind = Var s; ty; span; _ } ->
-      let id = Env.find_alias_opt env s |> Option.value ~default:s in
-      NAst.{ kind = Var id; ty; span }
-      (* *)
-  | TAst.{ kind = VarParam i; ty; span; _ } ->
-      NAst.{ kind = VarParam i; ty; span }
+  | TAst.{ kind = Var { name; ref_type }; ty; span; _ } ->
+      let nast =
+        match ref_type with
+        | TAst.RefTypeLocal ->
+            let r =
+              match Env.find_alias_opt env name with
+              | Some r -> r
+              | None -> failwith (Printf.sprintf "[ICE] %s" name)
+            in
+            NAst.{ kind = Var r; ty; span }
+        | TAst.RefTypeGlobal ->
+            let r = NAst.VarGlobal { name } in
+            NAst.{ kind = Var r; ty; span }
+        | TAst.RefTypeLocalArg index ->
+            let r = NAst.VarParam { index; name } in
+            NAst.{ kind = Var r; ty; span }
+      in
+      nast
+  (* *)
+  | TAst.{ kind = Var2 { chain }; ty; span; _ } ->
+      let nast =
+        match chain with
+        | Common.Chain.Local name ->
+            let r =
+              match Env.find_alias_opt env name with
+              | Some r -> r
+              | None -> failwith (Printf.sprintf "[ICE] %s" name)
+            in
+            NAst.{ kind = Var r; ty; span }
+        | Common.Chain.Global nest ->
+            let r = NAst.VarGlobal2 { nest } in
+            NAst.{ kind = Var r; ty; span }
+      in
+      nast
   (* *)
   | TAst.{ kind = LitBool v; ty; span; _ } ->
       NAst.{ kind = LitBool v; ty; span }

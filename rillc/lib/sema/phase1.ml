@@ -41,7 +41,8 @@ let assume_new inseted_status =
 let introduce_prelude penv builtin =
   let register name ty =
     let env =
-      Env.create name ~parent:None ~visibility:Env.Private ~ty ~ty_w:Env.Ty
+      Env.create name ~parent:None ~visibility:Env.Private ~ty ~kind:Env.Ty
+        ~lookup_space:Env.LkGlobal
     in
     Env.insert penv env |> assume_new
   in
@@ -84,7 +85,8 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
       let ty = preconstruct_func_ty ~ctx ~span ~linkage params ret_ty in
       let visibility = Env.Public in
       let fenv =
-        Env.create name ~parent:(Some penv) ~visibility ~ty ~ty_w:(Env.Val ty)
+        Env.create name ~parent:(Some penv) ~visibility ~ty ~kind:Env.Val
+          ~lookup_space:Env.LkGlobal
       in
       Env.insert penv fenv |> assume_new;
 
@@ -99,7 +101,8 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
       let ty = preconstruct_func_ty ~ctx ~span ~linkage params ret_ty in
       let visibility = Env.Public in
       let fenv =
-        Env.create name ~parent:(Some penv) ~visibility ~ty ~ty_w:(Env.Val ty)
+        Env.create name ~parent:(Some penv) ~visibility ~ty ~kind:Env.Val
+          ~lookup_space:Env.LkGlobal
       in
       Env.insert penv fenv |> assume_new;
 
@@ -112,7 +115,8 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
       let ty = Typing.Subst.fresh_ty ~span ctx.subst in
       let visibility = Env.Public in
       let tenv =
-        Env.create name ~parent:(Some penv) ~visibility ~ty ~ty_w:Env.Ty
+        Env.create name ~parent:(Some penv) ~visibility ~ty ~kind:Env.Ty
+          ~lookup_space:Env.LkGlobal
       in
       Env.insert penv tenv |> assume_new;
 

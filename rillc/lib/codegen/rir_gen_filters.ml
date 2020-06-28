@@ -15,7 +15,10 @@ module Collect_stack_vars_in_func_pass = struct
 
   let collect ~extra vars term =
     match term with
-    | Term.{ kind = Ref name; _ } -> Map.set vars ~key:name ~data:extra
+    | Term.{ kind = Ref (PlaceholderVar { name }); _ } ->
+        Map.set vars ~key:name ~data:extra
+    | Term.{ kind = Ref (PlaceholderParam { name; _ }); _ } ->
+        Map.set vars ~key:name ~data:extra
     | _ -> vars
 
   let collect_inst ~subst ~extra vars inst =
@@ -44,7 +47,7 @@ module Collect_stack_vars_in_func_pass = struct
     (* *)
     | _ -> vars
 
-  let apply ~subst _func_name func =
+  let apply ~subst func =
     let extra = Func.{ addressable_e_kind = AddrKindStandard } in
     let vars = Map.empty (module String) in
     let vars =
@@ -55,7 +58,7 @@ module Collect_stack_vars_in_func_pass = struct
     (* Override a ret var if exists *)
     let vars =
       match Func.get_ret_term func with
-      | Some Term.{ kind = LVal name; _ } ->
+      | Some Term.{ kind = LVal (PlaceholderVar { name }); _ } ->
           let extra = Func.{ addressable_e_kind = AddrKindRet } in
           Map.set vars ~key:name ~data:extra
       | Some _ -> failwith "[ICE] unexpected ret val"
@@ -69,11 +72,13 @@ module Collect_and_set_local_vars_in_func_pass = struct
   module Func = Rir.Func
   module Term = Rir.Term
 
-  let apply ~subst ~addressables func_name func =
+  let apply ~subst ~addressables func =
     let pre_allocs =
       Func.fold_bbs func ~init:[] ~f:(fun pre_allocs bb ->
           let bb_name = bb.Term.BB.name in
-          [%loga.debug "func %s / bb!: %s" func_name bb_name];
+          let Rir.Func.{ name = func_name; _ } = func in
+          [%loga.debug
+            "func %s / bb!: %s" (Common.Chain.Nest.show func_name) bb_name];
 
           let insts = Term.BB.get_insts bb in
           let insts_let_with_addr =
@@ -108,13 +113,10 @@ module Modify_funcs_in_module_pass = struct
   module Module = Rir.Module
 
   let apply ~subst m =
-    let funcs = Module.funcs m in
-    List.iter funcs ~f:(fun (func_name, func) ->
-        let addressables =
-          Collect_stack_vars_in_func_pass.apply ~subst func_name func
-        in
-        Collect_and_set_local_vars_in_func_pass.apply ~subst ~addressables
-          func_name func;
+    let funcs = Module.defined_funcs m in
+    List.iter funcs ~f:(fun func ->
+        let addressables = Collect_stack_vars_in_func_pass.apply ~subst func in
+        Collect_and_set_local_vars_in_func_pass.apply ~subst ~addressables func;
         ());
     m
 end

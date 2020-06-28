@@ -25,7 +25,6 @@ and value_kind_t =
   | Construct of { struct_tag : Typing.Type.struct_tag_t }
   | RVal of value_r_t
   | LVal of placeholder_t
-  | LValParam of int
   | Undef
 
 and value_r_t =
@@ -36,7 +35,7 @@ and value_r_t =
   | ValueArrayElem of placeholder_t list
 
 and inst_t =
-  | Let of placeholder_t * t * Typing.Type.mutability_t
+  | Let of string * t * Typing.Type.mutability_t
   | Assign of { lhs : t; rhs : t }
   | TerminatorPoint of terminator_t
 
@@ -45,9 +44,22 @@ and terminator_t =
   | Cond of placeholder_t * string * string
   | Ret
 
-and placeholder_t = string
+and placeholder_t =
+  | PlaceholderVar of { name : string }
+  | PlaceholderParam of { index : int; name : string }
+  | PlaceholderGlobal of { name : string }
+  | PlaceholderGlobal2 of { nest : Common.Chain.Nest.t }
 
 and alloc_t = AllocLit | AllocStack [@@deriving show]
+
+let to_string_place_holder holder =
+  match holder with
+  | PlaceholderVar { name } -> name
+  | PlaceholderParam { name; index } -> Printf.sprintf "Param[%s;%d]" name index
+  | PlaceholderGlobal { name } -> Printf.sprintf "Global[%s]" name
+  | PlaceholderGlobal2 { nest } ->
+      Printf.sprintf "Global2[%s]"
+        (Common.Chain.Nest.yojson_of_t nest |> Yojson.Safe.to_string)
 
 let to_string_value value =
   match value with
@@ -56,20 +68,31 @@ let to_string_value value =
   | ValueString s -> String.to_string s
   | ValueUnit -> "()"
   | ValueArrayElem elems ->
+      let elems = List.map elems ~f:to_string_place_holder in
       Printf.sprintf "[%s]" (String.concat ~sep:", " elems)
 
 let to_string_term term =
   match term with
   | { kind = Call (recv, args); _ } ->
+      let recv = to_string_place_holder recv in
+      let args = List.map args ~f:to_string_place_holder in
       Printf.sprintf "call %s (%s)" recv (String.concat ~sep:", " args)
-  | { kind = Index (elems, index); _ } -> Printf.sprintf "%s[%s]" elems index
-  | { kind = Ref elem; _ } -> Printf.sprintf "&%s" elem
-  | { kind = Deref elem; _ } -> Printf.sprintf "*%s" elem
+  | { kind = Index (elems, index); _ } ->
+      let elems = to_string_place_holder elems in
+      let index = to_string_place_holder index in
+      Printf.sprintf "%s[%s]" elems index
+  | { kind = Ref elem; _ } ->
+      let elem = to_string_place_holder elem in
+      Printf.sprintf "&%s" elem
+  | { kind = Deref elem; _ } ->
+      let elem = to_string_place_holder elem in
+      Printf.sprintf "*%s" elem
   | { kind = Construct _; _ } -> Printf.sprintf "construct"
   | { kind = RVal value; _ } ->
       Printf.sprintf "rval(%s)" (to_string_value value)
-  | { kind = LVal var; _ } -> Printf.sprintf "lval(%s)" var
-  | { kind = LValParam index; _ } -> Printf.sprintf "lval_param(%d)" index
+  | { kind = LVal var; _ } ->
+      let var = to_string_place_holder var in
+      Printf.sprintf "lval(%s)" var
   | { kind = Undef; _ } -> "undef"
 
 let to_string_termi ~indent termi =
@@ -79,6 +102,7 @@ let to_string_termi ~indent termi =
     match termi with
     | Jump label -> Buffer.add_string buf (Printf.sprintf "jump %s" label)
     | Cond (cond, t_label, e_label) ->
+        let cond = to_string_place_holder cond in
         Buffer.add_string buf
           (Printf.sprintf "cond %s, then=%s, else=%s" cond t_label e_label)
     | Ret -> Buffer.add_string buf "ret"

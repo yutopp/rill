@@ -1,0 +1,5 @@
+import std::stdio::*;
+
+def f(): unit {
+  println("other::f!");
+}

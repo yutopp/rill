@@ -50,6 +50,7 @@ and kind_t =
   | ExprDeref of t
   | ExprStruct of { path : t (* add fields *) }
   (* primitives *)
+  | Path of { root : t; elems : t list }
   | ID of string
   | IDWildcard
   | LitBool of bool

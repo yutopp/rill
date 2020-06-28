@@ -24,3 +24,7 @@ and nested_name names =
 and source_name id =
   let l = String.length id in
   Printf.sprintf "%d%s" l id
+
+let rec mangle2 nest =
+  let names = nest |> List.map ~f:(fun n -> n.Common.Chain.Nest.name) in
+  Printf.sprintf "_Z%sRill" (nested_name names)
