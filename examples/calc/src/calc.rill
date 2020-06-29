@@ -1,0 +1,5 @@
+extern def c_entry(): unit = "calc_entry";
+
+def entry(): unit {
+  c_entry();
+}

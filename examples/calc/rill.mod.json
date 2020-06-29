@@ -1,0 +1,24 @@
+{
+  "name": "playground01",
+  "deps": [
+    {
+      "name": "core",
+      "spec": {
+        "path": "../../corelib"
+      }
+    },
+    {
+      "name": "std",
+      "spec": {
+        "path": "../../stdlib"
+      }
+    }
+  ],
+  "c_ext": {
+    "dir": "./src_ext",
+    "name": "calc-c"
+  },
+  "lib": {
+    "flags": []
+  }
+}
