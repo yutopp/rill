@@ -126,6 +126,7 @@ let build_to ~workspace ~out_dir pkg =
     List.fold_result c_exts ~init:() ~f:(fun _ c_ext ->
         let Package.C_ext.{ lib_name; src_paths_rev; _ } = c_ext in
 
+        (* TODO: remove tempdir *)
         let%bind tmp_dir = Os.mktemp_dir "rillc.XXXXXXXX" in
         let%bind obj_paths =
           List.fold_result (src_paths_rev |> List.rev) ~init:[]
@@ -143,8 +144,11 @@ let build_to ~workspace ~out_dir pkg =
           |> Result.map ~f:List.rev
         in
 
+        let tmp_a_path = Os.join_path [ tmp_dir; lib_name ] in
+        let%bind () = Os.ar obj_paths tmp_a_path in
+
         let a_path = Os.join_path [ out_dir; lib_name ] in
-        let%bind () = Os.ar obj_paths a_path in
+        let%bind () = Os.cp ~src:tmp_a_path ~dst:a_path in
 
         Package.C_ext.update_artifact c_ext out_dir lib_name;
 
