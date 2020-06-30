@@ -8,7 +8,6 @@
 
 open! Base
 module Span = Common.Span
-module Diagnostics = Common.Diagnostics
 module I = Parser.MenhirInterpreter
 module Ast = Ast
 

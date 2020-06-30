@@ -7,7 +7,6 @@
  *)
 
 open! Base
-module Diagnostics = Common.Diagnostics
 module Workspace = Common.Workspace
 module Package = Common.Package
 module ProjectFile = Common.Project

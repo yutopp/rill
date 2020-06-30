@@ -13,8 +13,11 @@ let pointer_size = 8
 let rec size_of ~subst ty =
   match Subst.subst_type subst ty with
   | Type.{ ty = Unit; _ } -> 0
-  | Type.{ ty = Bool; _ } -> 1
-  | Type.{ ty = Int; _ } -> 4
+  | Type.{ ty = Num { bits = 1; _ }; _ } -> (* bool*) 1
+  | Type.{ ty = Num { bits; _ }; _ } -> bits / 8
+  | Type.{ ty = Size _; _ } ->
+      (* TODO: fix, depends on the environment *)
+      8
   | Type.{ ty = String; _ } -> pointer_size
   | Type.{ ty = Array { elem; n }; _ } ->
       (* TODO: align *)

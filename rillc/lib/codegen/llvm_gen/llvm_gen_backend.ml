@@ -8,7 +8,6 @@
 
 open! Base
 module Span = Common.Span
-module Diagnostics = Common.Diagnostics
 module L = Llvm
 module L_all_backends = Llvm_all_backends
 module L_targets = Llvm_target

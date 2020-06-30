@@ -8,7 +8,6 @@
 
 open! Base
 module Span = Common.Span
-module Diagnostics = Common.Diagnostics
 module Ast = Syntax.Ast
 
 let guard_dup_value ~span penv name =

@@ -18,8 +18,8 @@ type t = {
 and ty_t =
   | Var of { var : var_t; subst_id : int }
   | Unit
-  | Bool
-  | Int
+  | Num of { bits : int; signed : bool }
+  | Size of { signed : bool }
   | String
   | Array of { elem : t; n : int }
   | Func of { params : t list; ret : t; linkage : func_linkage_t }
@@ -50,24 +50,26 @@ let rec to_string ty : string =
   match ty with
   | { ty = Var { var; subst_id }; _ } ->
       Printf.sprintf "Var %d<:%d" var subst_id
-  | { ty = Unit; _ } -> "Unit"
-  | { ty = Bool; _ } -> "Bool"
-  | { ty = Int; _ } -> "Int"
-  | { ty = String; _ } -> "String"
+  | { ty = Unit; _ } -> "unit"
+  | { ty = Num { bits; signed }; _ } ->
+      if signed then Printf.sprintf "i%d" bits else Printf.sprintf "u%d" bits
+  | { ty = Size { signed }; _ } ->
+      if signed then Printf.sprintf "size" else Printf.sprintf "usize"
+  | { ty = String; _ } -> "string"
   | { ty = Array { elem; n }; _ } ->
       Printf.sprintf "Array[%s; %d]" (to_string elem) n
   | { ty = Func { params; ret; _ }; _ } ->
       let params' = List.map params ~f:to_string in
       let ret' = to_string ret in
       let s = String.concat ~sep:" -> " (params' @ [ ret' ]) in
-      Printf.sprintf "Func (%s)" s
+      Printf.sprintf "fun (%s)" s
   | { ty = Pointer { mut; elem }; _ } ->
-      Printf.sprintf "Pointer[%s %s]" (show_mutability_t mut) (to_string elem)
+      Printf.sprintf "*%s %s" (to_string_mut mut) (to_string elem)
   | { ty = Struct { tag }; _ } -> Printf.sprintf "Struct[tag=%d]" tag
   | { ty = Module; _ } -> "Module"
   | { ty = Type t; _ } -> "Type"
 
-let to_string_mut mut : string =
+and to_string_mut mut : string =
   match mut with
   | MutImm -> "immutable"
   | MutMut -> "mutable"

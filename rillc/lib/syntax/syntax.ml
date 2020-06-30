@@ -8,7 +8,6 @@
 
 open! Base
 module Span = Common.Span
-module Diagnostics = Common.Diagnostics
 
 (* exports *)
 module Ast = Entry.Ast
@@ -29,6 +28,6 @@ let parse_from_file ~ds path : (state_t * Ast.t, Diagnostics.Elem.t) Result.t =
   try Stdio.In_channel.with_file ~binary:true path ~f:(f path)
   with exn ->
     let span = Span.create_path ~path in
-    let e = new Common.Reasons.internal_exception ~e:exn in
+    let e = new Diagnostics.Reasons.internal_exception ~e:exn in
     let elm = Diagnostics.Elem.error ~span e in
     Error elm

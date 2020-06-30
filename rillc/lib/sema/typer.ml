@@ -8,7 +8,6 @@
 
 open! Base
 module Span = Common.Span
-module Diagnostics = Common.Diagnostics
 module IntMap = Map.M (Int)
 
 let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
@@ -36,11 +35,11 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
           unify_elem ~span subst a_elem b_elem
           |> Result.map_error ~f:(fun d ->
                  let kind = Typer_err.ErrArrayElem in
-                 let diff = Typer_err.Type { lhs = a_elem; rhs = b_elem } in
+                 let diff = Typer_err.diff_of_types ~subst a_elem b_elem in
                  Typer_err.{ diff; kind; nest = Some d })
         else
           let kind = Typer_err.ErrArrayLength { r = a_n; l = b_n } in
-          let diff = Typer_err.Type { lhs = s_lhs_ty; rhs = s_rhs_ty } in
+          let diff = Typer_err.diff_of_types ~subst s_lhs_ty s_rhs_ty in
           let e = Typer_err.{ diff; kind; nest = None } in
           Error e
       in
@@ -54,7 +53,7 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
         unify_elem ~span subst a_elem b_elem
         |> Result.map_error ~f:(fun d ->
                let kind = Typer_err.ErrPointerElem in
-               let diff = Typer_err.Type { lhs = a_elem; rhs = b_elem } in
+               let diff = Typer_err.diff_of_types ~subst a_elem b_elem in
                Typer_err.{ diff; kind; nest = Some d })
       in
       (* unify mut *)
@@ -62,8 +61,52 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
         unify_mut ~span subst a_mut b_mut
         |> Result.map_error ~f:(fun d ->
                let kind = Typer_err.ErrPointerElem in
-               let diff = Typer_err.Type { lhs = s_lhs_ty; rhs = s_rhs_ty } in
+               let diff = Typer_err.diff_of_types ~subst s_lhs_ty s_rhs_ty in
                Typer_err.{ diff; kind; nest = Some d })
+      in
+      Ok subst
+  (* *)
+  | Typing.Type.({ ty = Type a; _ }, { ty = Type b; _ }) ->
+      [%loga.debug "Unify type() = type()"];
+      let%bind subst =
+        unify_elem ~span subst a b
+        |> Result.map_error ~f:(fun d ->
+               let kind = Typer_err.ErrTypeElem in
+               let diff = Typer_err.diff_of_types ~subst a b in
+               Typer_err.{ diff; kind; nest = Some d })
+      in
+      Ok subst
+  (* *)
+  | Typing.Type.
+      ( ({ ty = Num { bits = a_bits; signed = a_signed }; _ } as a),
+        ({ ty = Num { bits = b_bits; signed = b_signed }; _ } as b) ) ->
+      [%loga.debug "Unify num() = num()"];
+      let%bind () =
+        if a_bits = b_bits then Ok ()
+        else
+          let kind = Typer_err.ErrNumBits { r = a_bits; l = b_bits } in
+          let diff = Typer_err.diff_of_types ~subst a b in
+          Error Typer_err.{ diff; kind; nest = None }
+      in
+      let%bind () =
+        if Bool.equal a_signed b_signed then Ok ()
+        else
+          let kind = Typer_err.ErrNumSigned { r = a_signed; l = b_signed } in
+          let diff = Typer_err.diff_of_types ~subst a b in
+          Error Typer_err.{ diff; kind; nest = None }
+      in
+      Ok subst
+  (* *)
+  | Typing.Type.
+      ( ({ ty = Size { signed = a_signed }; _ } as a),
+        ({ ty = Size { signed = b_signed }; _ } as b) ) ->
+      [%loga.debug "Unify size() = size()"];
+      let%bind () =
+        if Bool.equal a_signed b_signed then Ok ()
+        else
+          let kind = Typer_err.ErrNumSigned { r = a_signed; l = b_signed } in
+          let diff = Typer_err.diff_of_types ~subst a b in
+          Error Typer_err.{ diff; kind; nest = None }
       in
       Ok subst
   (* *)
@@ -96,7 +139,7 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
                     |> Result.map_error ~f:(fun d ->
                            let kind = Typer_err.ErrFuncArgs index in
                            let diff =
-                             Typer_err.Type { lhs = a_param; rhs = b_param }
+                             Typer_err.diff_of_types ~subst a_param b_param
                            in
                            Typer_err.{ diff; kind; nest = Some d })
                   in
@@ -116,7 +159,7 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
               unify_elem ~span subst a_ret b_ret
               |> Result.map_error ~f:(fun d ->
                      let kind = Typer_err.ErrUnify in
-                     let diff = Typer_err.Type { lhs = a_ret; rhs = b_ret } in
+                     let diff = Typer_err.diff_of_types ~subst a_ret b_ret in
                      Typer_err.{ diff; kind; nest = Some d })
             in
             (* unify linkage *)
@@ -133,7 +176,7 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
         (* *)
         | (an, bn) ->
             let kind = Typer_err.ErrFuncArgLength { r = an; l = bn } in
-            let diff = Typer_err.Type { lhs = s_lhs_ty; rhs = s_rhs_ty } in
+            let diff = Typer_err.diff_of_types ~subst s_lhs_ty s_rhs_ty in
             let e = Typer_err.{ diff; kind; nest = None } in
             Error e
       in
@@ -141,7 +184,7 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
         subst_ret
         |> Result.map_error ~f:(fun d ->
                let kind = Typer_err.ErrFuncArgRet in
-               let diff = Typer_err.Type { lhs = s_lhs_ty; rhs = s_rhs_ty } in
+               let diff = Typer_err.diff_of_types ~subst s_lhs_ty s_rhs_ty in
                Typer_err.{ diff; kind; nest = Some d })
       in
       Ok subst
@@ -164,7 +207,7 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
           (Typing.Type.to_string rhs)];
 
       let kind = Typer_err.ErrUnify in
-      let diff = Typer_err.Type { lhs; rhs } in
+      let diff = Typer_err.diff_of_types ~subst lhs rhs in
       let e = Typer_err.{ diff; kind; nest = None } in
       Error e
 

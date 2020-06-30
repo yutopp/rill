@@ -2,6 +2,7 @@
  (public_name rillc.codegen.llvm_gen)
  (name llvm_gen)
  (libraries base stdio stdint loga llvm llvm.bitwriter llvm.all_backends
-   llvm.target llvm.linker rillc.common rillc.typing rillc.rir rillc.codegen)
+   llvm.target llvm.linker rillc.common rillc.typing rillc.rir rillc.codegen
+   rillc.diagnostics)
  (preprocess
   (pps ppx_let ppx_deriving.show ppx_sexp_conv loga.ppx)))

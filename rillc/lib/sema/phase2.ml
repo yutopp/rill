@@ -8,7 +8,6 @@
 
 open! Base
 module Span = Common.Span
-module Diagnostics = Common.Diagnostics
 module Ast = Syntax.Ast
 module TopAst = Phase1.TopAst
 
@@ -29,6 +28,7 @@ module TAst = struct
     | ExprIf of t * t * t option
     | ExprLoop of t
     | ExprBreak
+    | ExprCast of t
     | ExprAssign of { lhs : t; rhs : t }
     | ExprCall of t * t list
     | ExprIndex of t * t
@@ -142,7 +142,7 @@ and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
         | TAst.{ kind = LitString v; _ } -> Ok v
         | TAst.{ ty; span; _ } ->
             let e =
-              new Common.Reasons.internal_error
+              new Diagnostics.Reasons.internal_error
                 ~message:"Not supported decl node (phase2)"
             in
             let elm = Diagnostics.Elem.error ~span e in
@@ -219,11 +219,17 @@ and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
   (* *)
   | Ast.{ kind = DefStruct { name }; span } ->
       (* TODO: check that there are no holes *)
-      let s_ty = Typing.Subst.subst_type ctx.Ctx.subst (Env.type_of env) in
+      let s_ty =
+        Typing.Subst.subst_type ctx.Ctx.subst (Env.type_of env)
+        |> Phase1.of_type
+      in
       let%bind struct_tag =
         match s_ty with
         | Typing.Type.{ ty = Struct { tag }; _ } -> Ok tag
-        | _ -> failwith "[ICE] not struct def"
+        | _ ->
+            failwith
+              (Printf.sprintf "[ICE] not struct def: %s"
+                 (Typing.Type.to_string s_ty))
       in
 
       (* A type of struct is a type *)
@@ -232,7 +238,7 @@ and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
   (* *)
   | Ast.{ span; _ } ->
       let e =
-        new Common.Reasons.internal_error
+        new Diagnostics.Reasons.internal_error
           ~message:"Not supported def node (phase2, with_env)"
       in
       let elm = Diagnostics.Elem.error ~span e in
@@ -256,7 +262,7 @@ and pass_through ~ctx ast =
   (* *)
   | Ast.{ span; _ } ->
       let e =
-        new Common.Reasons.internal_error
+        new Diagnostics.Reasons.internal_error
           ~message:"Not supported def node (phase2, pass_through)"
       in
       let elm = Diagnostics.Elem.error ~span e in
@@ -398,6 +404,16 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       in
       Ok TAst.{ kind = ExprBreak; ty; span }
   (* *)
+  | Ast.{ kind = ExprAs { expr; ty_expr }; span; _ } ->
+      let%bind ty = Phase1_1.lookup_type ~env ctx.Ctx.builtin ty_expr in
+
+      let%bind t_expr = analyze ~ctx ~env expr in
+      let%bind () =
+        can_cast_to ~subst:ctx.Ctx.subst ~src:t_expr.TAst.ty ~dst:ty
+      in
+
+      Ok TAst.{ kind = ExprCast t_expr; ty; span }
+  (* *)
   | Ast.{ kind = ExprAssign { lhs; rhs }; span; _ } ->
       let%bind t_args = analyze_args ~ctx ~env [ lhs; rhs ] in
       let (t_lhs, t_rhs) =
@@ -536,7 +552,7 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       Ok TAst.{ kind = LitBool v; ty; span }
   (* *)
   | Ast.{ kind = LitInt (value, bits, signed); span; _ } ->
-      (* TODO: fix i32 *)
+      (* defauled to i32 *)
       let ty = Typing.Type.{ ctx.Ctx.builtin.Builtin.i32_ with span } in
       Ok TAst.{ kind = LitInt value; ty; span }
   (* *)
@@ -573,7 +589,7 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
   | Ast.{ kind; span; _ } ->
       let s = Ast.sexp_of_kind_t kind |> Sexp.to_string_mach in
       let e =
-        new Common.Reasons.internal_error
+        new Diagnostics.Reasons.internal_error
           ~message:
             (Printf.sprintf "Not supported stmt/expr node (phase2): %s" s)
       in
@@ -649,3 +665,8 @@ and create_external_nodes env =
       nodes
   (* unsupported *)
   | _ -> failwith "[ICE]"
+
+and can_cast_to ~subst ~src ~dst =
+  let src = Typing.Subst.subst_type subst src in
+  let dst = Typing.Subst.subst_type subst dst in
+  Ok ()

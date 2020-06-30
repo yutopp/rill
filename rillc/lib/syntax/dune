@@ -1,7 +1,7 @@
 (library
  (public_name rillc.syntax)
  (name syntax)
- (libraries base menhirLib rillc.common)
+ (libraries base menhirLib rillc.common rillc.diagnostics)
  (preprocess
   (pps ppx_let ppx_deriving.show ppx_sexp_conv)))
 

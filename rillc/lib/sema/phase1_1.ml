@@ -8,7 +8,6 @@
 
 open! Base
 module Span = Common.Span
-module Diagnostics = Common.Diagnostics
 module Ast = Syntax.Ast
 module TopAst = Phase1.TopAst
 
@@ -93,11 +92,34 @@ and with_env ~ctx ~env ast : (unit, Diagnostics.Elem.t) Result.t =
 
       Ok ()
   (* *)
+  | Ast.{ kind = DeclExternStaticVar { attr; name; ty_spec }; span } ->
+      let%bind ty =
+        let%bind ty = lookup_type ~env ctx.builtin ty_spec in
+        let binding_mut = Mut.mutability_of attr in
+        Ok Typing.Type.{ ty with binding_mut }
+      in
+
+      let%bind subst = Typer.unify ~span ctx.subst ty (Env.type_of env) in
+      ctx.subst <- subst;
+
+      Ok ()
+  (* *)
+  | Ast.{ kind = DefTypeAlias { alias_ty; _ }; span } ->
+      let%bind alias =
+        lookup_type ~env ctx.builtin alias_ty |> Result.map ~f:Phase1.to_type
+      in
+
+      let%bind subst = Typer.unify ~span ctx.subst alias (Env.type_of env) in
+      ctx.subst <- subst;
+
+      Ok ()
+  (* *)
   | Ast.{ kind = DefStruct { name }; span } ->
       let struct_ty =
         let tag = Typing.Subst.fresh_struct_tag ctx.subst in
         let binding_mut = Typing.Type.MutMut in
-        Typing.Type.{ ty = Struct { tag }; binding_mut; span }
+        let inner = Typing.Type.{ ty = Struct { tag }; binding_mut; span } in
+        ctx.builtin.Builtin.type_ inner
       in
 
       let%bind subst =
@@ -109,7 +131,7 @@ and with_env ~ctx ~env ast : (unit, Diagnostics.Elem.t) Result.t =
   (* *)
   | Ast.{ span; _ } ->
       let e =
-        new Common.Reasons.internal_error
+        new Diagnostics.Reasons.internal_error
           ~message:"Not supported decl node (phase1_1, with_env)"
       in
       let elm = Diagnostics.Elem.error ~span e in
@@ -162,7 +184,7 @@ and pass_through ~ctx ast =
   (* *)
   | Ast.{ span; _ } ->
       let e =
-        new Common.Reasons.internal_error
+        new Diagnostics.Reasons.internal_error
           ~message:"Not supported decl node (phase1_1, pass_through)"
       in
       let elm = Diagnostics.Elem.error ~span e in
@@ -188,7 +210,7 @@ and find_mod ?lookup ~env ast =
                               name)
                      in
                      let e =
-                       new Common.Reasons.id_not_found ~name ~candidates
+                       new Diagnostics.Reasons.id_not_found ~name ~candidates
                      in
                      let elm = Diagnostics.Elem.error ~span e in
                      elm)
@@ -199,7 +221,9 @@ and find_mod ?lookup ~env ast =
             Env.find_meta env name |> Result.of_option ~error:()
             |> Result.map_error ~f:(fun () ->
                    let candidates = Env.meta_keys env in
-                   let e = new Common.Reasons.id_not_found ~name ~candidates in
+                   let e =
+                     new Diagnostics.Reasons.id_not_found ~name ~candidates
+                   in
                    let elm = Diagnostics.Elem.error ~span e in
                    elm)
       in
@@ -226,17 +250,27 @@ and lookup_type ~env builtin ast : (Typing.Type.t, Diagnostics.Elem.t) Result.t
         Env.lookup_type env name
         |> Result.map_error ~f:(fun _trace ->
                let candidates = [] (* TODO *) in
-               let e = new Common.Reasons.id_not_found ~name ~candidates in
+               let e = new Diagnostics.Reasons.id_not_found ~name ~candidates in
                let elm = Diagnostics.Elem.error ~span e in
                elm)
       in
-      let ty = Env.type_of env in
+      let ty =
+        match Env.type_of env with
+        | Typing.Type.{ ty = Type ty; _ } -> ty
+        | _ -> failwith (Printf.sprintf "[ICE] = %s" name)
+      in
       Ok Typing.Type.{ ty with span }
   (* *)
   | Ast.{ kind = TypeExprArray { elem; len }; span } ->
       let%bind elem_ty = lookup_type ~env builtin elem in
       (* TODO: fix 4 *)
       let ty = builtin.Builtin.array_ elem_ty 4 in
+      Ok Typing.Type.{ ty with span }
+  (* *)
+  | Ast.{ kind = TypeExprPointer { attr; elem }; span } ->
+      let%bind elem_ty = lookup_type ~env builtin elem in
+      let mut = Mut.mutability_of attr in
+      let ty = builtin.Builtin.pointer_ mut elem_ty in
       Ok Typing.Type.{ ty with span }
   (* *)
   | Ast.{ span; _ } -> failwith "unexpected token (lookup_type)"
@@ -261,7 +295,7 @@ and lookup_path ~env ast : (Env.t, Diagnostics.Elem.t) Result.t =
         Env.lookup_multi env name
         |> Result.map_error ~f:(fun _trace ->
                let candidates = [] (* TODO *) in
-               let e = new Common.Reasons.id_not_found ~name ~candidates in
+               let e = new Diagnostics.Reasons.id_not_found ~name ~candidates in
                let elm = Diagnostics.Elem.error ~span e in
                elm)
       in

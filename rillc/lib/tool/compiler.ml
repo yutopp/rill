@@ -7,7 +7,6 @@
  *)
 
 open! Base
-module Diagnostics = Common.Diagnostics
 module Package = Common.Package
 module Triple = Common.Triple
 module Mod = Sema.Mod
@@ -202,24 +201,29 @@ let analyze_pkg ~compiler pkg_space builtin pkg =
 let assume_no_errors ~compiler ~printer proj_space =
   let open Result.Let_syntax in
   let pkg_rels = Project_buildspace.to_alist proj_space in
+  let has_errors = ref false in
   List.iter pkg_rels ~f:(fun (pkg, pkg_space) ->
       let mod_rels = Pkg_buildspace.to_alist pkg_space in
       List.iter mod_rels ~f:(fun (path, ms) ->
           let Mod_state.{ m; phase_result; _ } = ms in
           let Mod.{ ds; _ } = m in
 
+          let ctx = () in
           let () =
             match phase_result with
-            | Ok _ -> Diagnostic_printer.print printer ds
+            | Ok _ -> Diagnostic_printer.print ~ctx printer ds
             | Error failed ->
-                Diagnostic_printer.print_with_last_error printer (failed, ds)
+                Diagnostic_printer.print_with_last_error ~ctx printer
+                  (failed, ds)
           in
+
+          if Mod_state.has_errors ms then has_errors := true || !has_errors;
+
           ()));
   Diagnostic_printer.flush printer;
 
   let%bind () =
-    let { has_fatal; _ } = compiler in
-    if has_fatal then Error Errors.There_are_warnings_or_errors else Ok ()
+    if !has_errors then Error Errors.There_are_warnings_or_errors else Ok ()
   in
   Ok ()
 

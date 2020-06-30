@@ -7,25 +7,24 @@
  *)
 
 open! Base
-module Diagnostics = Common.Diagnostics
 
 class invalid_token ~(token : string) =
   object (self)
-    inherit Diagnostics.Error.base
+    inherit Diagnostics.Error_info.base
 
-    method to_string = Printf.sprintf "Invalid token: \"%s\"" token
+    method to_string _ctx = Printf.sprintf "Invalid token: \"%s\"" token
   end
 
 class unexpected_token ~(ch : char) =
   object (self)
-    inherit Diagnostics.Error.base
+    inherit Diagnostics.Error_info.base
 
-    method to_string = Printf.sprintf "Unexpected charactor: \"%c\"" ch
+    method to_string _ctx = Printf.sprintf "Unexpected charactor: \"%c\"" ch
   end
 
 class invalid_syntax ~(msg : string) =
   object (self)
-    inherit Diagnostics.Error.base
+    inherit Diagnostics.Error_info.base
 
-    method to_string = Printf.sprintf "Syntax error: %s" msg
+    method to_string _ctx = Printf.sprintf "Syntax error: %s" msg
   end

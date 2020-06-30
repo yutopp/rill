@@ -2,7 +2,7 @@
  (name rillc)
  (public_name rillc)
  (libraries base stdio ocamlgraph rillc.common rillc.syntax rillc.sema
-   rillc.codegen rillc.tool)
+   rillc.codegen rillc.tool rillc.diagnostics)
  (preprocess
   (pps ppx_let ppx_deriving.show)))
 

@@ -7,7 +7,6 @@
  *)
 
 open! Base
-module Diagnostics = Common.Diagnostics
 module IntMap = Map.M (Int)
 module Counter = Common.Counter
 
@@ -95,11 +94,22 @@ let rec subst_type (subst : t) ty : Type.t =
           let ty = subst_type subst ty' in
           Type.{ ty with binding_mut }
       | None -> ty )
-  | Type.{ ty = Func { params; ret; linkage }; binding_mut; span } ->
+  | Type.{ ty = Array { elem; n }; _ } as tty ->
+      let elem = subst_type subst elem in
+      Type.{ tty with ty = Array { elem; n } }
+  | Type.{ ty = Func { params; ret; linkage }; _ } as tty ->
       let params = List.map ~f:(subst_type subst) params in
       let ret = subst_type subst ret in
       let linkage = subst_linkage subst linkage in
-      Type.{ ty = Func { params; ret; linkage }; binding_mut; span }
+      Type.{ tty with ty = Func { params; ret; linkage } }
+  | Type.{ ty = Pointer { mut; elem }; _ } as tty ->
+      let mut = subst_mut subst mut in
+      let elem = subst_type subst elem in
+      Type.{ tty with ty = Pointer { mut; elem } }
+  (* meta *)
+  | Type.{ ty = Type inner_ty; _ } as tty ->
+      let inner_ty = subst_type subst inner_ty in
+      Type.{ tty with ty = Type inner_ty }
   | alt -> alt
 
 let subst_tysc (subst : t) tysc : Scheme.t =

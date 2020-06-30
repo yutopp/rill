@@ -8,7 +8,6 @@
 
 open! Base
 module Span = Common.Span
-module Diagnostics = Common.Diagnostics
 module Ast = Syntax.Ast
 
 module TopAst = struct
@@ -38,8 +37,16 @@ let assume_new inseted_status =
   | _ -> ()
 
 (* TODO: create them elsewhare *)
+let to_type ty = Typing.Type.{ ty with ty = Type ty }
+
+let of_type ty =
+  match ty with
+  | Typing.Type.{ ty = Type ty; _ } -> ty
+  | _ -> failwith "[ICE] not type"
+
 let introduce_prelude penv builtin =
-  let register name ty =
+  let register name inner_ty =
+    let ty = to_type inner_ty in
     let env =
       Env.create name ~parent:None ~visibility:Env.Private ~ty ~kind:Env.Ty
         ~lookup_space:Env.LkGlobal
@@ -47,7 +54,12 @@ let introduce_prelude penv builtin =
     Env.insert penv env |> assume_new
   in
   register "bool" builtin.Builtin.bool_;
+  register "i8" builtin.Builtin.i8_;
   register "i32" builtin.Builtin.i32_;
+  register "i64" builtin.Builtin.i64_;
+  register "u64" builtin.Builtin.u64_;
+  register "isize" builtin.Builtin.isize_;
+  register "usize" builtin.Builtin.usize_;
   register "string" builtin.Builtin.string_;
   register "unit" builtin.Builtin.unit_;
   ()
@@ -76,10 +88,45 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
   | Ast.{ kind = Import _; span } as i ->
       Ok TopAst.{ kind = PassThrough { node = i }; span }
   (* *)
+  | Ast.{ kind = DefTypeAlias { name; _ }; span } as alias ->
+      let penv = ctx.parent in
+      let%bind () = Guards.guard_dup_value ~span penv name in
+
+      let ty =
+        let inner = Typing.Subst.fresh_ty ~span ctx.subst in
+        ctx.builtin.Builtin.type_ inner
+      in
+      let visibility = Env.Public in
+      let tenv =
+        Env.create name ~parent:(Some penv) ~visibility ~ty ~kind:Env.Ty
+          ~lookup_space:Env.LkGlobal
+      in
+      Env.insert penv tenv |> assume_new;
+
+      Ok TopAst.{ kind = WithEnv { node = alias; env = tenv }; span }
+  (* *)
+  | Ast.{ kind = DeclExternStaticVar { attr; name; ty_spec }; span } as decl ->
+      let penv = ctx.parent in
+      let%bind () = Guards.guard_dup_value ~span penv name in
+
+      let ty =
+        let span = Ast.(ty_spec.span) in
+        Typing.Subst.fresh_ty ~span ctx.subst
+      in
+      let visibility = Env.Public in
+      let fenv =
+        Env.create name ~parent:(Some penv) ~visibility ~ty ~kind:Env.Val
+          ~lookup_space:Env.LkGlobal
+      in
+      Env.insert penv fenv |> assume_new;
+
+      Ok TopAst.{ kind = WithEnv { node = decl; env = fenv }; span }
+  (* *)
   | Ast.{ kind = DeclExternFunc { name; params; ret_ty; symbol_name }; span } as
     decl ->
       let penv = ctx.parent in
       let%bind () = Guards.guard_dup_value ~span penv name in
+
       let linkage = Functions.linkage_of decl in
 
       let ty = preconstruct_func_ty ~ctx ~span ~linkage params ret_ty in
@@ -96,6 +143,7 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
     | Ast.{ kind = DefFunc { name; params; ret_ty; _ }; span } ) as decl ->
       let penv = ctx.parent in
       let%bind () = Guards.guard_dup_value ~span penv name in
+
       let linkage = Functions.linkage_of decl in
 
       let ty = preconstruct_func_ty ~ctx ~span ~linkage params ret_ty in
@@ -112,7 +160,10 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
       let penv = ctx.parent in
       let%bind () = Guards.guard_dup_value ~span penv name in
 
-      let ty = Typing.Subst.fresh_ty ~span ctx.subst in
+      let ty =
+        let inner = Typing.Subst.fresh_ty ~span ctx.subst in
+        ctx.builtin.Builtin.type_ inner
+      in
       let visibility = Env.Public in
       let tenv =
         Env.create name ~parent:(Some penv) ~visibility ~ty ~kind:Env.Ty
@@ -124,7 +175,8 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
   (* *)
   | Ast.{ span; _ } ->
       let e =
-        new Common.Reasons.internal_error ~message:"Not supported node (phase1)"
+        new Diagnostics.Reasons.internal_error
+          ~message:"Not supported node (phase1)"
       in
       let elm = Diagnostics.Elem.error ~span e in
       Error elm

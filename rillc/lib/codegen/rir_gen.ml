@@ -8,7 +8,6 @@
 
 open! Base
 module Span = Common.Span
-module Diagnostics = Common.Diagnostics
 module NAst = Sema.Phase3.NAst
 module Builtin = Sema.Builtin
 

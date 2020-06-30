@@ -8,7 +8,6 @@
 
 open! Base
 module Span = Common.Span
-module Diagnostics = Common.Diagnostics
 module IntMap = Map.M (Int)
 
 type t = { diff : diff_t; kind : kind_t; nest : t option }
@@ -32,4 +31,12 @@ and kind_t =
   | ErrArrayElem
   | ErrArrayLength of { r : int; l : int }
   | ErrPointerElem
+  | ErrTypeElem
+  | ErrNumBits of { r : int; l : int }
+  | ErrNumSigned of { r : bool; l : bool }
   | ErrUnify
+
+let diff_of_types ~subst lhs rhs =
+  let lhs = Typing.Subst.subst_type subst lhs in
+  let rhs = Typing.Subst.subst_type subst rhs in
+  Type { lhs; rhs }

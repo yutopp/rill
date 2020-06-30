@@ -1,5 +1,5 @@
 (*
- * Copyright yutopp 2020 - .
+ * Copyright yutopp 2018 - .
  *
  * Distributed under the Boost Software License, Version 1.0.
  * (See accompanying file LICENSE_1_0.txt or copy at
@@ -8,6 +8,11 @@
 
 open! Base
 
-type t = unit
+module Ctx = struct
+  type t = unit
+end
 
-let create () : t = ()
+class virtual base =
+  object (self)
+    method virtual to_string : Ctx.t -> string
+  end

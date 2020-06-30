@@ -8,7 +8,6 @@
 
 open! Base
 module Span = Common.Span
-module Diagnostics = Common.Diagnostics
 module TAst = Phase2.TAst
 
 module NAst = struct
@@ -29,6 +28,7 @@ module NAst = struct
     | Index of { name : var_ref_t; index : var_ref_t }
     | Ref of { name : var_ref_t }
     | Deref of { name : var_ref_t }
+    | Cast of { name : var_ref_t }
     | Construct of { struct_tag : Typing.Type.struct_tag_t }
     | If of { cond : var_ref_t; t : t; e_opt : t option }
     | Loop of t
@@ -210,6 +210,10 @@ let rec normalize ~ctx ~env ast =
       NAst.{ kind = Loop inner; ty; span }
   (* *)
   | TAst.{ kind = ExprBreak; ty; span; _ } -> NAst.{ kind = Break; ty; span }
+  (* *)
+  | TAst.{ kind = ExprCast e; ty; span; _ } ->
+      let k = insert_let (normalize ~ctx ~env e) in
+      k (fun v_id -> NAst.{ kind = Cast { name = v_id }; ty; span })
   (* *)
   | TAst.{ kind = ExprAssign { lhs; rhs }; ty; span; _ } ->
       let rhs = normalize ~ctx ~env rhs in

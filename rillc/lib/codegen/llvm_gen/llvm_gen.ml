@@ -8,7 +8,6 @@
 
 open! Base
 module Span = Common.Span
-module Diagnostics = Common.Diagnostics
 module Builtin = Sema.Builtin
 module Value_category = Codegen.Value_category
 module Mangling = Codegen.Mangling
@@ -107,8 +106,10 @@ end
 let rec to_llty ~ctx ~env ty : L.lltype =
   match Typing.Subst.subst_type ctx.subst ty with
   | Typing.Type.{ ty = Unit; _ } -> L.void_type ctx.ll_ctx
-  | Typing.Type.{ ty = Bool; _ } -> L.integer_type ctx.ll_ctx 1
-  | Typing.Type.{ ty = Int; _ } -> L.integer_type ctx.ll_ctx 32
+  | Typing.Type.{ ty = Num { bits; _ }; _ } -> L.integer_type ctx.ll_ctx bits
+  | Typing.Type.{ ty = Size _; _ } ->
+      let bytes = Typing.Mem.size_of ~subst:ctx.subst ty in
+      L.integer_type ctx.ll_ctx (bytes * 8)
   | Typing.Type.{ ty = String; _ } -> L.pointer_type (L.i8_type ctx.ll_ctx)
   | Typing.Type.{ ty = Array { elem; n }; _ } ->
       let elem_ll_ty = to_llty ~ctx ~env elem in

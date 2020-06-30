@@ -11,7 +11,7 @@ open! Base
 (* exports *)
 module Syntax = Syntax
 module Span = Common.Span
-module Diagnostics = Common.Diagnostics
+module Diagnostics = Diagnostics
 module Sema = Sema
 module Rir = Rir
 module Workspace = Common.Workspace

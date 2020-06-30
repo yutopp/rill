@@ -4,9 +4,10 @@ let parse_expr line =
   let ds = Rillc.Diagnostics.create () in
   let lexbuf = Lexing.from_string line in
   let sup = Rillc.Syntax.Supplier.create ~path:"" ~lexbuf in
+  let ctx = () in
   let (node, _) =
     Rillc.Syntax.Entry.from_expr ~sup ~ds
-    |> Result.map_error ~f:Rillc.Diagnostics.Elem.to_string_human
+    |> Result.map_error ~f:(Rillc.Diagnostics.Elem.to_string_human ~ctx)
     |> Result.ok_or_failwith
   in
   node

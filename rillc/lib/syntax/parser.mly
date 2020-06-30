@@ -34,6 +34,7 @@ top_level:
 
 let top_level_statement :=
     s=import_statement; { s }
+  | s=def_type_alias_stmt; SEMICOLON; { s }
   | s=function_def_statement; { s }
   | s=extern_decl_statement; SEMICOLON; { s }
   | s=def_struct_stmt; { s }
@@ -55,6 +56,10 @@ let import_tree_node :=
 let import_tree_leaf ==
   | id=single_id; { id }
   | TIMES; { make Ast.IDWildcard ~l:$loc }
+
+let def_type_alias_stmt :=
+    KEYWORD_TYPE; name=single_id_as_str; ASSIGN; alias_ty=type_expr;
+    { make (Ast.DefTypeAlias { name; alias_ty }) ~l:$loc }
 
 function_def_statement:
     KEYWORD_DEF
@@ -90,9 +95,12 @@ let type_expr :=
     e=id_expr; { e }
   | LBRACKET; e=expr; RBRACKET; t=type_expr;
     { make (Ast.TypeExprArray { elem = t; len = e }) ~l:$loc }
+  | TIMES; attr=decl_attr; t=type_expr;
+    { make (Ast.TypeExprPointer { attr; elem = t; }) ~l:$loc }
 
 extern_decl_statement:
     extern_function_decl_statement { $1 }
+  | decl_extern_static_var_stmt { $1 }
 
 extern_function_decl_statement:
     KEYWORD_EXTERN KEYWORD_DEF
@@ -109,6 +117,13 @@ extern_function_decl_statement:
               symbol_name = symbol_name;
            })
            ~l:$loc
+    }
+
+let decl_extern_static_var_stmt :=
+    KEYWORD_EXTERN; KEYWORD_STATIC;
+    attr=decl_attr; name=single_id_as_str; ty_spec=type_spec;
+    {
+      make (Ast.DeclExternStaticVar { attr; name; ty_spec }) ~l:$loc
     }
 
 let def_struct_stmt :=
@@ -237,6 +252,7 @@ expr_postfix:
   | expr_call { $1 }
   | expr_index { $1 }
   | expr_break { $1 }
+  | expr_as { $1 }
 
 let expr_call ==
     r=expr_postfix; LPAREN; args=argument_list; RPAREN;
@@ -249,6 +265,10 @@ let expr_index ==
 let expr_break ==
     KEYWORD_BREAK;
     { make (Ast.ExprBreak) ~l:$loc }
+
+let expr_as ==
+    expr=expr_postfix; KEYWORD_AS; ty_expr=type_expr;
+    { make (Ast.ExprAs { expr; ty_expr }) ~l:$loc }
 
 let expr_primary :=
     e=expr_struct; { e }

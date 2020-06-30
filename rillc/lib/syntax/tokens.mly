@@ -29,8 +29,10 @@
 %token                  LIT_TRUE LIT_FALSE
                         KEYWORD_DEF
                         KEYWORD_STRUCT
+                        KEYWORD_TYPE
                         KEYWODD_PACKAGE
                         KEYWODD_MODULE
+                        KEYWORD_AS
                         KEYWORD_VAL
                         KEYWORD_REF
                         KEYWORD_LET

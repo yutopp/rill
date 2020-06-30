@@ -7,7 +7,6 @@
  *)
 
 open! Base
-module Diagnostics = Common.Diagnostics
 module Package = Common.Package
 
 type t = {

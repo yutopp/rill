@@ -7,14 +7,13 @@
  *)
 
 open! Base
-module Diagnostics = Common.Diagnostics
 module Span = Common.Span
 
 class no_target ~(message : string) ~(descriptions : string list) =
   object (self)
-    inherit Diagnostics.Error.base
+    inherit Diagnostics.Error_info.base
 
-    method to_string =
+    method to_string _ctx =
       let descs = String.concat ~sep:"\n" descriptions in
       Printf.sprintf "LLVM: There are no target: %s.\nCandidates=\n%s" message
         descs

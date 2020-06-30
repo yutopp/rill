@@ -27,10 +27,12 @@ and kind_t =
       params : t list;
       symbol_name : t;
     }
+  | DeclExternStaticVar of { attr : t; name : string; ty_spec : t }
   | DeclFunc of { name : string; ret_ty : t; params : t list }
   (* top definitions *)
   | DefFunc of { name : string; ret_ty : t; params : t list; body : t }
   | DefStruct of { name : string }
+  | DefTypeAlias of { name : string; alias_ty : t }
   (* statements *)
   | StmtExpr of t
   | StmtExprApply of t
@@ -42,6 +44,7 @@ and kind_t =
   | ExprIf of t * t * t option
   | ExprLoop of t
   | ExprBreak
+  | ExprAs of { expr : t; ty_expr : t }
   | ExprAssign of { lhs : t; rhs : t }
   | ExprBinaryOp of { op : t; lhs : t; rhs : t }
   | ExprCall of t * t list
@@ -60,7 +63,9 @@ and kind_t =
   | LitArrayElems of t list
   | DeclAttrMutable
   | DeclAttrImmutable
+  (* meta *)
   | TypeExprArray of { elem : t; len : t }
+  | TypeExprPointer of { attr : t; elem : t }
 [@@deriving sexp_of, show]
 
 let param_decl_name ast =

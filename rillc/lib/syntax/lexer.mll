@@ -59,6 +59,7 @@ rule token = parse
   | "operator"          { KEYWORD_OPERATOR }
   | "import"            { KEYWORD_IMPORT }
   | "def"               { KEYWORD_DEF }
+  | "type"              { KEYWORD_TYPE }
   | "struct"            { KEYWORD_STRUCT }
   | "package"           { KEYWODD_PACKAGE }
   | "module"            { KEYWODD_MODULE }
@@ -87,6 +88,7 @@ rule token = parse
   | "unary"             { KEYWORD_UNARY }
   | "static"            { KEYWORD_STATIC }
   | "gc"                { KEYWORD_GC }
+  | "as"                { KEYWORD_AS }
   | "unmanaged"         { KEYWORD_UNMANAGED }
 
   | "true"              { LIT_TRUE }
