@@ -1,5 +1,15 @@
-extern def c_entry(): unit = "calc_entry";
+import std::stdio::*;
+import std::libc::*;
+import core::prelude::*;
+
+extern def c_entry(len: ssize_t, line: *mutable c_char): i32 = "calc_entry";
 
 def entry(): unit {
-  c_entry();
+  let mutable line = 0 as *mutable c_char;
+  let mutable n = 0 as size_t;
+  let len = getline(&mutable line, &mutable n, stdin);
+
+  let result = c_entry(len, line);
+
+  print_int_ln(result);
 }

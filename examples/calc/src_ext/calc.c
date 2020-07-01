@@ -1,11 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void eval(void);
+int eval(ssize_t len, char* line);
 
-void calc_entry(void) {
+int calc_entry(ssize_t len, char* line) {
   printf("calc\n");
-  eval();
+  return eval(len, line);
 }
 
 typedef struct {
@@ -178,11 +178,9 @@ int parse_with_action(Parser *p, int *result) {
   return parse_expr(p, result);
 }
 
-void eval(void) {
-  char *line = NULL;
-  size_t n = 0;
+int eval(ssize_t len, char* line) {
+  int result = 0;
 
-  size_t len = getline(&line, &n, stdin);
   if (len == -1) {
     printf("Failed to getline\n");
     goto finish;
@@ -193,14 +191,14 @@ void eval(void) {
   p.buffer = line;
   p.offset = 0;
 
-  int result;
+
   if (parse_with_action(&p, &result) != 0) {
     printf("Failed to parse\n");
     goto finish;
   }
 
-  printf("= %d\n", result);
-
  finish:
     free(line);
+
+  return result;
 }
