@@ -21,7 +21,7 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
   (* *)
   | Typing.Type.({ ty = Var { var = a; _ }; _ }, { ty = Var { var = b; _ }; _ })
     when a <> b ->
-      [%loga.debug "Unify var(%d) = var(%d)" a b];
+      [%loga.debug "Unify var(%d in ) = var(%d)" a b];
 
       let ty_subst = Map.add_exn ty_subst ~key:a ~data:s_rhs_ty in
       Ok Typing.Subst.{ subst with ty_subst; ki_subst }

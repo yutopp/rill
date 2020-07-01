@@ -17,6 +17,7 @@ type t = {
   ty : Typing.Type.t;
   kind : kind_t;
   lookup_space : lookup_space_t;
+  mutable deps : t list;
 }
 
 and scope_t = {
@@ -27,7 +28,7 @@ and scope_t = {
 
 and visibility_t = Public | Private
 
-and kind_t = N | Ty | Val | M of Mod.t | Alias of t | KindScope
+and kind_t = N | Ty | Val | M | Alias of t | KindScope
 
 and lookup_space_t = LkGlobal | LkLocal [@@deriving show]
 
@@ -36,23 +37,15 @@ type namespace_t = NamespaceValue | NamespaceType | NamespaceMeta
 type inserted_status_t = InsertedNew | InsertedHiding
 
 let create name ~parent ~visibility ~ty ~kind ~lookup_space =
-  { parent; name; visibility; scope = None; ty; kind; lookup_space }
+  { parent; name; visibility; scope = None; ty; kind; lookup_space; deps = [] }
 
 let type_of env = env.ty
 
 let rec w_of env = match env.kind with Alias aenv -> w_of aenv | _ -> env.kind
 
-let mod_of env = match w_of env with M m -> m | _ -> failwith "[ICE]"
+let register_deps_mod env dep_mod = env.deps <- dep_mod :: env.deps
 
-let rec root_mod_of ~scoped env =
-  (* Do NOT take alias values *)
-  match env.kind with
-  | M m -> m
-  | Alias aenv when not scoped -> root_mod_of ~scoped aenv
-  | _ -> (
-      match env.parent with
-      | Some penv -> root_mod_of ~scoped penv
-      | None -> failwith "[ICE] could not find root mod" )
+let list_deps env = env.deps
 
 let assume_scope env =
   match env.scope with
@@ -91,7 +84,7 @@ let insert_impl penv w tenv =
   match w with
   | Ty -> insert_type penv tenv
   | Val -> insert_value penv tenv
-  | M _ -> insert_meta penv tenv
+  | M -> insert_meta penv tenv
   | _ -> failwith "insert_impl"
 
 let insert penv tenv = insert_impl penv (w_of tenv) tenv
@@ -103,10 +96,10 @@ let collect_all env =
   let envs_meta = Hashtbl.data scope.meta in
   List.join [ envs_ty; envs_val; envs_meta ]
 
-let collect_aliases env =
+let collect_substances env =
   let envs = collect_all env in
   List.filter envs ~f:(fun env ->
-      match env.kind with Alias _ -> true | _ -> false)
+      match env.kind with Alias _ -> false | _ -> true)
 
 let find_value env name : t option =
   match env.scope with

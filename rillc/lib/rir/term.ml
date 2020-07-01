@@ -18,10 +18,11 @@ type t = {
 
 and value_kind_t =
   | Call of placeholder_t * placeholder_t list
+  | Cast of placeholder_t
   | Index of placeholder_t * placeholder_t
   | Ref of placeholder_t
   | Deref of placeholder_t
-  | Construct of { struct_tag : Typing.Type.struct_tag_t }
+  | Construct
   | RVal of value_r_t
   | LVal of placeholder_t
   | Undef
@@ -76,6 +77,9 @@ let to_string_term term =
       let recv = to_string_place_holder recv in
       let args = List.map args ~f:to_string_place_holder in
       Printf.sprintf "call %s (%s)" recv (String.concat ~sep:", " args)
+  | { kind = Cast recv; _ } ->
+      let recv = to_string_place_holder recv in
+      Printf.sprintf "cast %s" recv
   | { kind = Index (elems, index); _ } ->
       let elems = to_string_place_holder elems in
       let index = to_string_place_holder index in
@@ -86,7 +90,7 @@ let to_string_term term =
   | { kind = Deref elem; _ } ->
       let elem = to_string_place_holder elem in
       Printf.sprintf "*%s" elem
-  | { kind = Construct _; _ } -> Printf.sprintf "construct"
+  | { kind = Construct; _ } -> Printf.sprintf "construct"
   | { kind = RVal value; _ } ->
       Printf.sprintf "rval(%s)" (to_string_value value)
   | { kind = LVal var; _ } ->

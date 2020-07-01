@@ -11,11 +11,11 @@ module Span = Common.Span
 module Ast = Syntax.Ast
 
 module TopAst = struct
-  type t = { kind : kind_t; span : Span.t [@sexp.opaque] }
+  type t = { kind : kind_t; span : Span.t }
 
   and kind_t =
-    | Module of { nodes : t list; env : Env.t [@sexp.opaque] }
-    | WithEnv of { node : Ast.t; env : Env.t [@sexp.opaque] }
+    | Module of { nodes : t list }
+    | WithEnv of { node : Ast.t; env : Env.t }
     | PassThrough of { node : Ast.t }
   [@@deriving show]
 end
@@ -27,7 +27,9 @@ type ctx_t = {
   builtin : Builtin.t;
 }
 
-let context ~parent ~ds ~subst ~builtin = { parent; ds; subst; builtin }
+let context ~m ~subst ~builtin =
+  let Mod.{ menv; ds; _ } = m in
+  { parent = menv; ds; subst; builtin }
 
 type result_t = (TopAst.t, Diagnostics.Elem.t) Result.t
 
@@ -83,7 +85,7 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
                 Ok mapped)
         |> Result.map ~f:List.rev
       in
-      Ok TopAst.{ kind = Module { nodes; env = menv }; span }
+      Ok TopAst.{ kind = Module { nodes }; span }
   (* *)
   | Ast.{ kind = Import _; span } as i ->
       Ok TopAst.{ kind = PassThrough { node = i }; span }
@@ -109,9 +111,11 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
       let penv = ctx.parent in
       let%bind () = Guards.guard_dup_value ~span penv name in
 
+      let binding_mut = Mut.mutability_of attr in
       let ty =
         let span = Ast.(ty_spec.span) in
-        Typing.Subst.fresh_ty ~span ctx.subst
+        let ty = Typing.Subst.fresh_ty ~span ctx.subst in
+        Typing.(Type.{ ty with binding_mut })
       in
       let visibility = Env.Public in
       let fenv =

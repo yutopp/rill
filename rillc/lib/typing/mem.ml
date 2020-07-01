@@ -25,8 +25,8 @@ let rec size_of ~subst ty =
       elem_size * n
   | Type.{ ty = Func _; _ } -> pointer_size
   | Type.{ ty = Pointer _; _ } -> pointer_size
-  | Type.{ ty = Struct { tag }; _ } ->
-      let fields = Subst.get_struct_fields_from_tags subst tag in
+  | Type.{ ty = Struct { name }; _ } ->
+      let fields = Subst.get_struct_fields_from_name subst name in
       (* TODO: fix *)
       0
   | Type.{ ty = Var _; _ } -> failwith "[ICE] not implemented"

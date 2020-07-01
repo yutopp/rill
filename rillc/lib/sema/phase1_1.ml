@@ -12,23 +12,26 @@ module Ast = Syntax.Ast
 module TopAst = Phase1.TopAst
 
 type ctx_t = {
+  m : Mod.t;
   parent : Env.t option;
   ds : Diagnostics.t;
   mutable subst : Typing.Subst.t;
   builtin : Builtin.t;
 }
 
-let context ~ds ~subst ~builtin ~external_pkgs_env =
-  { parent = None; ds; subst; builtin }
+let context ~m ~subst ~builtin =
+  let Mod.{ ds; _ } = m in
+  { m; parent = None; ds; subst; builtin }
 
 let rec declare_toplevels ~ctx ast : (unit, Diagnostics.Elem.t) Result.t =
   let open Result.Let_syntax in
   match ast with
   (* *)
-  | TopAst.{ kind = Module { nodes; env }; span } ->
+  | TopAst.{ kind = Module { nodes }; span } ->
+      let Mod.{ menv; _ } = ctx.m in
       let%bind (ctx', nodes_rev) =
         List.fold_result nodes ~init:(ctx, []) ~f:(fun (ctx, mapped) node ->
-            let ctx' = { ctx with parent = Some env } in
+            let ctx' = { ctx with parent = Some menv } in
             match declare_toplevels ~ctx:ctx' node with
             | Ok node' -> Ok (ctx', node' :: mapped)
             | Error d ->
@@ -93,9 +96,9 @@ and with_env ~ctx ~env ast : (unit, Diagnostics.Elem.t) Result.t =
       Ok ()
   (* *)
   | Ast.{ kind = DeclExternStaticVar { attr; name; ty_spec }; span } ->
+      let binding_mut = Mut.mutability_of attr in
       let%bind ty =
         let%bind ty = lookup_type ~env ctx.builtin ty_spec in
-        let binding_mut = Mut.mutability_of attr in
         Ok Typing.Type.{ ty with binding_mut }
       in
 
@@ -114,11 +117,11 @@ and with_env ~ctx ~env ast : (unit, Diagnostics.Elem.t) Result.t =
 
       Ok ()
   (* *)
-  | Ast.{ kind = DefStruct { name }; span } ->
+  | Ast.{ kind = DefStruct _; span } ->
       let struct_ty =
-        let tag = Typing.Subst.fresh_struct_tag ctx.subst in
+        let name = to_nested_chain env in
         let binding_mut = Typing.Type.MutMut in
-        let inner = Typing.Type.{ ty = Struct { tag }; binding_mut; span } in
+        let inner = Typing.Type.{ ty = Struct { name }; binding_mut; span } in
         ctx.builtin.Builtin.type_ inner
       in
 
@@ -145,12 +148,14 @@ and pass_through ~ctx ast =
       let parent_env =
         match ctx.parent with Some env -> env | None -> failwith "[ICE]"
       in
-      let%bind mod_env = find_mod ?lookup:(Some true) ~env:parent_env pkg in
       let rec f mods env loadable_envs =
         match mods with
-        | [] -> Ok [ env ]
+        | [] ->
+            register_deps ~ctx env;
+            Ok [ env ]
         | [ last_id ] ->
             [%loga.debug "leaf: %s" (Ast.show last_id)];
+            register_deps ~ctx env;
             let%bind envs = find_mods_with_wildcard ~env last_id in
             Ok (List.join [ envs; loadable_envs ])
         | cont :: rest ->
@@ -158,6 +163,7 @@ and pass_through ~ctx ast =
             let%bind env = find_mod ~env cont in
             f rest env loadable_envs
       in
+      let%bind mod_env = find_mod ?lookup:(Some true) ~env:parent_env pkg in
       let%bind envs = f mods mod_env [] in
       let pub_envs =
         List.filter envs ~f:(fun env ->
@@ -169,9 +175,7 @@ and pass_through ~ctx ast =
               let name = env.Env.name in
               let visibility = Env.Private (* TODO: fix *) in
               (* A type of the imported term must be decided until this time *)
-              let src_root_mod = Env.root_mod_of ~scoped:true env in
-              let subst = Mod.subst_of src_root_mod in
-              let ty = Typing.Subst.subst_type subst (Env.type_of env) in
+              let ty = Typing.Subst.subst_type ctx.subst (Env.type_of env) in
               (* TODO: assert *)
               let aenv =
                 Env.create name ~parent:(Some penv) ~visibility ~ty
@@ -189,6 +193,10 @@ and pass_through ~ctx ast =
       in
       let elm = Diagnostics.Elem.error ~span e in
       Error elm
+
+and register_deps ~ctx env =
+  let Mod.{ menv; _ } = ctx.m in
+  Env.register_deps_mod menv env
 
 and find_mod ?lookup ~env ast =
   let open Result.Let_syntax in
@@ -304,12 +312,12 @@ and lookup_path ~env ast : (Env.t, Diagnostics.Elem.t) Result.t =
   (* *)
   | Ast.{ span; _ } -> failwith "unexpected token (lookup_path)"
 
-let to_nested_chain env =
+and to_nested_chain env =
   let module Chain = Common.Chain in
   let merge_chain cs env =
     let kind =
       match env.Env.kind with
-      | Env.M _ -> Some Chain.Nest.Module
+      | Env.M -> Some Chain.Nest.Module
       | Env.Ty -> Some Chain.Nest.Type
       | Env.Val -> Some Chain.Nest.Var
       | _ -> None
@@ -330,7 +338,7 @@ let to_nested_chain env =
   in
   f env (Chain.Nest.create ())
 
-let to_chains env =
+and to_chains env =
   let module Chain = Common.Chain in
   match env.Env.lookup_space with
   | Env.LkLocal -> Chain.Local env.Env.name

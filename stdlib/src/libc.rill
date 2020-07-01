@@ -2,3 +2,14 @@
 //
 //extern def exit(val v: int32): void = "exit";
 //extern def getchar(): int32 = "getchar";
+
+type c_char = i8;
+type size_t = usize;
+type ssize_t = isize;
+
+struct FILE {
+}
+
+extern static mutable stdin: *mutable FILE;
+
+extern def getline(lineptr: *mutable *mutable c_char, n: *mutable size_t, stream: *mutable FILE): ssize_t = "getline";

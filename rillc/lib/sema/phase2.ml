@@ -15,12 +15,16 @@ module TAst = struct
   type t = { kind : kind_t; ty : Typing.Type.t; span : Span.t }
 
   and kind_t =
-    | Module of t list
+    | Module of { nodes : t list }
     | Import of { pkg : string; mods : string list }
     | DeclExternFunc of { name : Common.Chain.Nest.t; extern_name : string }
+    | DeclExternStaticVar of {
+        name : Common.Chain.Nest.t;
+        extern_name : string;
+      }
     | DeclFunc of { name : Common.Chain.Nest.t }
     | DefFunc of { name : Common.Chain.Nest.t; body : t }
-    | DefStruct of { name : string; struct_tag : Typing.Type.struct_tag_t }
+    | DefStruct of { name : Common.Chain.Nest.t; inner_ty : Typing.Type.t }
     | StmtSeq of t list
     | StmtExpr of t
     | StmtExprApply of t
@@ -34,7 +38,7 @@ module TAst = struct
     | ExprIndex of t * t
     | ExprRef of t
     | ExprDeref of t
-    | ExprStruct of { struct_tag : Typing.Type.struct_tag_t }
+    | ExprStruct
     | Var of { name : string; ref_type : ref_t }
     | Var2 of { chain : Common.Chain.t }
     | LitBool of bool
@@ -51,37 +55,17 @@ module Ctx = struct
   type ctx_t = {
     ds : Diagnostics.t;
     mutable subst : Typing.Subst.t;
-    mutable referenced_envs : (string * Env.t) list;
     builtin : Builtin.t;
     exec_ctx : exec_ctx_t option;
   }
 
   and exec_ctx_t = ExecCtxFunc of { return : Typing.Type.t }
 
-  let create ~ds ~subst ~builtin =
-    { ds; subst; builtin; referenced_envs = []; exec_ctx = None }
+  let create ~ds ~subst ~builtin = { ds; subst; builtin; exec_ctx = None }
 
-  let merge dst src =
-    dst.subst <- src.subst;
-    dst.referenced_envs <-
-      List.join [ dst.referenced_envs; src.referenced_envs ]
+  let merge dst src = dst.subst <- src.subst
 
   let append_diagnostic ctx d = Diagnostics.append ctx.ds d
-
-  let append_referenced ctx chain env =
-    match chain with
-    | Common.Chain.Global nest ->
-        let name = Common.Chain.Nest.to_unique_id nest in
-        ctx.referenced_envs <- (name, env) :: ctx.referenced_envs
-    | _ -> ()
-
-  let external_envs ctx =
-    ctx.referenced_envs
-    |> List.dedup_and_sort ~compare:(fun a b ->
-           let (a_name, _) = a in
-           let (b_name, _) = b in
-           String.compare a_name b_name)
-    |> List.map ~f:(fun (_, env) -> env)
 
   let update_subst ctx subst = ctx.subst <- subst
 end
@@ -92,14 +76,7 @@ let rec into_typed_tree ~ctx ast : (TAst.t, Diagnostics.Elem.t) Result.t =
   let open Result.Let_syntax in
   match ast with
   (* *)
-  | TopAst.{ kind = Module { nodes; env }; span } ->
-      (* Imported aliases *)
-      let aliases = Env.collect_aliases env in
-      let external_nodes =
-        (*aliases |> List.map ~f:create_external_nodes |> List.join*)
-        []
-      in
-
+  | TopAst.{ kind = Module { nodes }; span } ->
       (* Nodes *)
       let%bind nodes =
         List.fold_result nodes ~init:[] ~f:(fun mapped node ->
@@ -112,18 +89,10 @@ let rec into_typed_tree ~ctx ast : (TAst.t, Diagnostics.Elem.t) Result.t =
         |> Result.map ~f:List.rev
       in
 
-      (* Referenced *)
-      let external_nodes =
-        let external_envs = Ctx.external_envs ctx in
-        List.concat_map external_envs ~f:(fun env ->
-            let nodes = create_external_nodes env in
-            nodes)
-      in
-
       (* TODO: module type? *)
       let binding_mut = Typing.Type.MutImm in
       let ty = Typing.Type.{ ty = Unit; binding_mut; span } in
-      Ok TAst.{ kind = Module (List.join [ external_nodes; nodes ]); ty; span }
+      Ok TAst.{ kind = Module { nodes }; ty; span }
   (* *)
   | TopAst.{ kind = WithEnv { node; env }; span } -> with_env ~ctx ~env node
   (* *)
@@ -151,6 +120,16 @@ and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
 
       let name = Phase1_1.to_nested_chain env in
       Ok TAst.{ kind = DeclExternFunc { name; extern_name }; ty = f_ty; span }
+  (* *)
+  | Ast.{ kind = DeclExternStaticVar { attr; name; _ }; span } ->
+      (* TODO: check that there are no holes *)
+      let binding_mut = Mut.mutability_of attr in
+      let ty = Typing.Subst.subst_type ctx.Ctx.subst (Env.type_of env) in
+
+      let extern_name = name in
+
+      let name = Phase1_1.to_nested_chain env in
+      Ok TAst.{ kind = DeclExternStaticVar { name; extern_name }; ty; span }
   (* *)
   | Ast.{ kind = DefFunc { name; params; ret_ty; body; _ }; span } ->
       (* TODO: check that there are no holes *)
@@ -217,24 +196,27 @@ and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       in
       Ok TAst.{ kind = DefFunc { name; body = t_seq }; ty = f_ty; span }
   (* *)
-  | Ast.{ kind = DefStruct { name }; span } ->
+  | Ast.{ kind = DefStruct _; span } ->
       (* TODO: check that there are no holes *)
-      let s_ty =
+      let inner_ty =
         Typing.Subst.subst_type ctx.Ctx.subst (Env.type_of env)
         |> Phase1.of_type
       in
-      let%bind struct_tag =
-        match s_ty with
-        | Typing.Type.{ ty = Struct { tag }; _ } -> Ok tag
+      let%bind () =
+        match inner_ty with
+        | Typing.Type.{ ty = Struct _; _ } -> Ok ()
         | _ ->
             failwith
               (Printf.sprintf "[ICE] not struct def: %s"
-                 (Typing.Type.to_string s_ty))
+                 (Typing.Type.to_string inner_ty))
       in
 
       (* A type of struct is a type *)
-      let ty = Typing.Type.{ (ctx.Ctx.builtin.Builtin.type_ s_ty) with span } in
-      Ok TAst.{ kind = DefStruct { name; struct_tag }; ty; span }
+      let ty =
+        Typing.Type.{ (ctx.Ctx.builtin.Builtin.type_ inner_ty) with span }
+      in
+      let name = Phase1_1.to_nested_chain env in
+      Ok TAst.{ kind = DefStruct { name; inner_ty }; ty; span }
   (* *)
   | Ast.{ span; _ } ->
       let e =
@@ -296,7 +278,7 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       in
       let%bind var_ty =
         match ty_spec with
-        | Some ty_spec -> Phase1_1.lookup_type ~env ctx.Ctx.builtin ty_spec
+        | Some ty_spec -> lookup_type ~env ~ctx ty_spec
         | None ->
             (* infer *)
             let ty = Typing.Subst.fresh_ty ~span ctx.Ctx.subst in
@@ -405,7 +387,7 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       Ok TAst.{ kind = ExprBreak; ty; span }
   (* *)
   | Ast.{ kind = ExprAs { expr; ty_expr }; span; _ } ->
-      let%bind ty = Phase1_1.lookup_type ~env ctx.Ctx.builtin ty_expr in
+      let%bind ty = lookup_type ~env ~ctx ty_expr in
 
       let%bind t_expr = analyze ~ctx ~env expr in
       let%bind () =
@@ -518,18 +500,18 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
   (* *)
   | Ast.{ kind = ExprStruct { path }; span; _ } ->
       let%bind ty =
-        Phase1_1.lookup_type ~env ctx.Ctx.builtin path
+        lookup_type ~env ~ctx path
         |> Result.map ~f:(Typing.Subst.subst_type ctx.Ctx.subst)
       in
-      let%bind struct_tag =
+      let%bind () =
         match ty with
-        | Typing.Type.{ ty = Struct { tag }; _ } -> Ok tag
+        | Typing.Type.{ ty = Struct _; _ } -> Ok ()
         | _ ->
             let e = new Reasons.not_struct_type in
             let elm = Diagnostics.Elem.error ~span e in
             Error elm
       in
-      Ok TAst.{ kind = ExprStruct { struct_tag }; span; ty }
+      Ok TAst.{ kind = ExprStruct; span; ty }
   (* *)
   | Ast.{ kind = Path { root; elems }; span; _ } as p ->
       let%bind env = Phase1_1.lookup_path ~env p in
@@ -539,7 +521,6 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       let ty = Typing.Type.{ (Env.type_of venv) with span } in
 
       let chain = Phase1_1.to_chains venv in
-      Ctx.append_referenced ctx chain venv;
 
       Ok TAst.{ kind = Var2 { chain }; span; ty }
   (* *)
@@ -629,42 +610,9 @@ and analyze_call ~ctx ~env ~span recv args =
 
   Ok TAst.{ kind = ExprCall (t_recv, t_args); ty = ret_ty; span }
 
-and create_external_nodes env =
-  [%loga.debug "Env = %s" (Env.show env)];
-  let actual_root_mod = Env.root_mod_of ~scoped:false env in
-  let env_kind = Env.w_of env in
-  let ty = Env.type_of env in
-
-  (* TODO: support import module *)
-  match env_kind with
-  | Env.Val ->
-      let nodes =
-        match ty with
-        (* external func *)
-        | Typing.Type.{ ty = Func { params; ret; linkage }; span; _ } ->
-            [%loga.debug
-              "External func = %s: %s" env.Env.name (Typing.Type.show ty)];
-            let node =
-              match linkage with
-              (* *)
-              | Typing.Type.LinkageC extern_name ->
-                  let name = Phase1_1.to_nested_chain env in
-                  TAst.{ kind = DeclExternFunc { name; extern_name }; ty; span }
-              (* *)
-              | Typing.Type.LinkageRillc ->
-                  let name = Phase1_1.to_nested_chain env in
-                  TAst.{ kind = DeclFunc { name }; ty; span }
-              (* *)
-              | Typing.Type.LinkageVar _ ->
-                  failwith "[ICE] linkage is not determined"
-            in
-            [ node ]
-        (* external val *)
-        | Typing.Type.{ ty; _ } -> []
-      in
-      nodes
-  (* unsupported *)
-  | _ -> failwith "[ICE]"
+and lookup_type ~env ~ctx ast =
+  let builtin = ctx.Ctx.builtin in
+  Phase1_1.lookup_type ~env builtin ast
 
 and can_cast_to ~subst ~src ~dst =
   let src = Typing.Subst.subst_type subst src in

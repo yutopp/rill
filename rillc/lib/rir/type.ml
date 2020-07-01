@@ -8,14 +8,17 @@
 
 open! Base
 
-type t = unit [@@deriving show]
+type t = { name : Common.Chain.Nest.t; inner_ty : Typing.Type.t }
+[@@deriving show]
 
-let create () = ()
+let create ~name ~inner_ty = { name; inner_ty }
 
-let to_string ~indent name r_ty =
+let to_string ~indent r_ty =
   let buf = Buffer.create 256 in
   Buffer.add_string buf (String.make indent ' ');
 
-  Buffer.add_string buf (Printf.sprintf "Type: name = %s\n" name);
+  let { name; _ } = r_ty in
+  Buffer.add_string buf
+    (Printf.sprintf "Type: name = %s\n" (Common.Chain.Nest.show name));
 
   Buffer.contents buf

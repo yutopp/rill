@@ -18,10 +18,11 @@ module NAst = struct
   }
 
   and kind_t =
-    | Module of t list
+    | Module of { nodes : t list }
     | Import of { pkg : string; mods : string list }
     | Func of { name : Common.Chain.Nest.t; kind : func_kind_t }
-    | Struct of { name : string; struct_tag : Typing.Type.struct_tag_t }
+    | GlobalVar of { name : Common.Chain.Nest.t; kind : var_kind_t }
+    | Struct of { name : Common.Chain.Nest.t; inner_ty : Typing.Type.t }
     | Let of { mut : Typing.Type.mutability_t; name : string; expr : t }
     | Return of string
     | Call of { name : var_ref_t; args : var_ref_t list }
@@ -29,7 +30,7 @@ module NAst = struct
     | Ref of { name : var_ref_t }
     | Deref of { name : var_ref_t }
     | Cast of { name : var_ref_t }
-    | Construct of { struct_tag : Typing.Type.struct_tag_t }
+    | Construct
     | If of { cond : var_ref_t; t : t; e_opt : t option }
     | Loop of t
     | Break
@@ -44,6 +45,8 @@ module NAst = struct
     | Seq of t list
 
   and func_kind_t = FuncKindDecl | FuncKindDef of t | FuncKindExtern of string
+
+  and var_kind_t = VarKindExtern of string
 
   and var_ref_t =
     | VarLocal of { name : string; label : string }
@@ -136,14 +139,23 @@ let insert_let_mut ?label k_form gen =
 let rec normalize ~ctx ~env ast =
   match ast with
   (* *)
-  | TAst.{ kind = Module nodes; ty; span; _ } ->
-      let nodes' = List.map nodes ~f:(normalize ~ctx ~env) in
-      NAst.{ kind = Module nodes'; ty; span }
+  | TAst.{ kind = Module { nodes }; ty; span; _ } ->
+      let nodes = List.map nodes ~f:(normalize ~ctx ~env) in
+      NAst.{ kind = Module { nodes }; ty; span }
+  (* *)
   | TAst.{ kind = Import { pkg; mods }; ty; span; _ } ->
       NAst.{ kind = Import { pkg; mods }; ty; span }
   (* *)
   | TAst.{ kind = DeclExternFunc { name; extern_name }; ty; span; _ } ->
       NAst.{ kind = Func { name; kind = FuncKindExtern extern_name }; ty; span }
+  (* *)
+  | TAst.{ kind = DeclExternStaticVar { name; extern_name }; ty; span; _ } ->
+      NAst.
+        {
+          kind = GlobalVar { name; kind = VarKindExtern extern_name };
+          ty;
+          span;
+        }
   (* *)
   | TAst.{ kind = DeclFunc { name }; ty; span; _ } ->
       NAst.{ kind = Func { name; kind = FuncKindDecl }; ty; span }
@@ -153,8 +165,8 @@ let rec normalize ~ctx ~env ast =
       let body' = normalize ~ctx ~env body in
       NAst.{ kind = Func { name; kind = FuncKindDef body' }; ty; span }
   (* *)
-  | TAst.{ kind = DefStruct { name; struct_tag }; ty; span; _ } ->
-      NAst.{ kind = Struct { name; struct_tag }; ty; span }
+  | TAst.{ kind = DefStruct { name; inner_ty }; ty; span; _ } ->
+      NAst.{ kind = Struct { name; inner_ty }; ty; span }
   (* *)
   | TAst.{ kind = StmtSeq nodes; ty; span; _ } ->
       let node' = List.map nodes ~f:(normalize ~ctx ~env) in
@@ -248,8 +260,8 @@ let rec normalize ~ctx ~env ast =
       let k = insert_let (normalize ~ctx ~env e) in
       k (fun r_id -> NAst.{ kind = Deref { name = r_id }; ty; span })
   (* *)
-  | TAst.{ kind = ExprStruct { struct_tag }; ty; span; _ } ->
-      NAst.{ kind = Construct { struct_tag }; ty; span }
+  | TAst.{ kind = ExprStruct; ty; span; _ } ->
+      NAst.{ kind = Construct; ty; span }
   (* *)
   | TAst.{ kind = Var { name; ref_type }; ty; span; _ } ->
       let nast =

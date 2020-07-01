@@ -11,7 +11,6 @@ module IntMap = Map.M (Int)
 module Counter = Common.Counter
 
 type t = {
-  subst_id : int;
   fresh_counter : Counter.t;
   ty_subst : Type.t IntMap.t;
   ki_subst : int IntMap.t;
@@ -24,13 +23,12 @@ and struct_tags_t = { st_fresh_counter : Counter.t }
 
 let create_struct_tags () = { st_fresh_counter = Counter.create () }
 
-let create subst_id : t =
+let create () =
   let ty_subst = Map.empty (module Int) in
   let ki_subst = Map.empty (module Int) in
   let mut_subst = Map.empty (module Int) in
   let ln_subst = Map.empty (module Int) in
   {
-    subst_id;
     fresh_counter = Counter.create ();
     ty_subst;
     ki_subst;
@@ -46,7 +44,7 @@ let fresh_var subst : Type.var_t = Counter.fresh subst.fresh_counter
 let fresh_ty ~span subst : Type.t =
   let v = fresh_var subst in
   let binding_mut = Type.MutImm in
-  Type.{ ty = Var { var = v; subst_id = subst.subst_id }; binding_mut; span }
+  Type.{ ty = Var { var = v }; binding_mut; span }
 
 let fresh_mut subst : Type.mutability_t =
   let v = fresh_var subst in
@@ -62,7 +60,7 @@ let fresh_struct_tag subst =
   let v = Counter.fresh struct_tags.st_fresh_counter in
   v
 
-let get_struct_fields_from_tags subst tag = []
+let get_struct_fields_from_name subst name = []
 
 let update_mut subst uni_id mut =
   let { mut_subst; _ } = subst in
@@ -85,10 +83,15 @@ let rec subst_linkage (subst : t) linkage =
       |> Option.value_map ~default:linkage ~f:(subst_linkage subst)
   | alt -> alt
 
+let update_type subst uni_id mut =
+  let { mut_subst; _ } = subst in
+  let mut_subst = Map.add_exn mut_subst ~key:uni_id ~data:mut in
+  { subst with mut_subst }
+
 let rec subst_type (subst : t) ty : Type.t =
-  let { ty_subst; _ } = subst in
   match ty with
-  | Type.{ ty = Var { var = uni_id; _ }; binding_mut; span } -> (
+  | Type.{ ty = Var { var = uni_id }; binding_mut; span } -> (
+      let { ty_subst; _ } = subst in
       match Map.find ty_subst uni_id with
       | Some ty' ->
           let ty = subst_type subst ty' in

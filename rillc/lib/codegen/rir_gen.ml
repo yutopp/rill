@@ -12,10 +12,12 @@ module NAst = Sema.Phase3.NAst
 module Builtin = Sema.Builtin
 
 type ctx_t = {
+  m : Sema.Mod.t;
   ds : Diagnostics.t;
   subst : Typing.Subst.t;
   rir_ctx : Rir.Context.t;
   builtin : Builtin.t;
+  root_mod_env : Sema.Env.t;
   return_storage : Rir.Term.t option;
   outer_bbs : outer_bbs_t option;
 }
@@ -25,11 +27,13 @@ and outer_bbs_t = {
   outer_bb_end : Rir.Term.BB.t;
 }
 
-let context ~ds ~subst ~builtin =
+let context ~m ~builtin ~root_mod_env =
+  let Sema.Mod.{ ds; _ } = m in
+  let subst = Sema.Mod.subst_of m in
   let rir_ctx = Rir.Context.create () in
   let return_storage = None in
   let outer_bbs = None in
-  { ds; subst; rir_ctx; builtin; return_storage; outer_bbs }
+  { m; ds; subst; rir_ctx; builtin; root_mod_env; return_storage; outer_bbs }
 
 let rec generate_expr ~ctx ~builder ast =
   match ast with
@@ -169,6 +173,11 @@ let rec generate_stmt ~ctx ~builder ast =
       let node = Rir.Term.{ kind = Undef; ty; span } in
       (node, builder)
   (* *)
+  | NAst.{ kind = Cast { name }; span; ty } ->
+      let place = to_placeholder name in
+      let node = Rir.Term.{ kind = Cast place; ty; span } in
+      (node, builder)
+  (* *)
   | NAst.{ kind = Call { name; args }; span; ty } ->
       let place = to_placeholder name in
       let args = List.map args ~f:to_placeholder in
@@ -191,8 +200,8 @@ let rec generate_stmt ~ctx ~builder ast =
       let node = Rir.Term.{ kind = Deref place; ty; span } in
       (node, builder)
   (* *)
-  | NAst.{ kind = Construct { struct_tag }; span; ty } ->
-      let node = Rir.Term.{ kind = Construct { struct_tag }; ty; span } in
+  | NAst.{ kind = Construct; span; ty } ->
+      let node = Rir.Term.{ kind = Construct; ty; span } in
       (node, builder)
   (* *)
   | NAst.{ kind = Var r; ty; span } ->
@@ -237,7 +246,7 @@ and to_placeholder r =
   | NAst.VarGlobal { name } -> Rir.Term.PlaceholderGlobal { name }
   | NAst.VarGlobal2 { nest } -> Rir.Term.PlaceholderGlobal2 { nest }
 
-let generate_toplevel ~ctx ~builder ast =
+let rec generate_toplevel ~ctx ~builder ast =
   match ast with
   (* *)
   | NAst.{ kind = Import { pkg; mods }; ty; span } ->
@@ -283,31 +292,119 @@ let generate_toplevel ~ctx ~builder ast =
   | NAst.
       { kind = Func { name; kind = NAst.FuncKindExtern extern_name }; ty; span }
     ->
-      let (f : Rir.Func.t) = Rir.Builder.declare_func builder name ty in
-      Rir.Func.set_extern_form f ~extern_name;
-      ()
+      declare_extern_func ~builder ~name ~ty ~extern_name
   (* *)
   | NAst.{ kind = Func { name; kind = NAst.FuncKindDecl }; ty; span } ->
-      let (_ : Rir.Func.t) = Rir.Builder.declare_func builder name ty in
-      ()
+      declare_func ~builder ~name ~ty
   (* *)
-  | NAst.{ kind = Struct { name; struct_tag }; ty; span } ->
-      let r_ty = Rir.Type.create () in
-      Rir.Builder.register_type_def builder name struct_tag r_ty
+  | NAst.
+      {
+        kind = GlobalVar { name; kind = NAst.VarKindExtern extern_name };
+        ty;
+        span;
+      } ->
+      declare_extern_static ~builder ~name ~ty ~extern_name
+  (* *)
+  | NAst.{ kind = Struct { name; inner_ty }; ty; span } ->
+      define_struct ~builder ~name ~inner_ty
   (* *)
   | NAst.{ kind; _ } ->
       let s = NAst.show_kind_t kind in
       failwith
         (Printf.sprintf "Not supported node (Rir_gen.generate_toplevel): %s" s)
 
+and declare_func ~builder ~name ~ty =
+  let (_f : Rir.Func.t) = Rir.Builder.declare_func builder name ty in
+  ()
+
+and declare_extern_func ~builder ~name ~ty ~extern_name =
+  let (f : Rir.Func.t) = Rir.Builder.declare_func builder name ty in
+  Rir.Func.set_extern_form f ~extern_name
+
+and define_struct ~builder ~name ~inner_ty =
+  Rir.Builder.define_type_def builder name inner_ty
+
+and declare_extern_static ~builder ~name ~ty ~extern_name =
+  let (g : Rir.Global.t) = Rir.Builder.declare_global_var builder name ty in
+  Rir.Global.set_extern_form g ~extern_name
+
+let import_dep_value ~ctx ~builder env =
+  let module Ty = Typing.Type in
+  let name = Sema.Phase1_1.to_nested_chain env in
+  let ty = Typing.Subst.subst_type ctx.subst (Sema.Env.type_of env) in
+  match ty with
+  (* external func *)
+  | Ty.{ ty = Func { linkage = LinkageC extern_name; _ }; span; _ } ->
+      declare_extern_func ~builder ~name ~ty ~extern_name
+  | Ty.{ ty = Func { linkage = LinkageRillc; _ }; span; _ } ->
+      declare_func ~builder ~name ~ty
+  | Ty.{ ty = Func { linkage = LinkageVar _; _ }; span; _ } ->
+      failwith "[ICE] linkage is not determined"
+  (* *)
+  | Ty.{ ty = Var _; _ } -> failwith "[ICE] still type variable (value)"
+  (* as static variables *)
+  | _ ->
+      let extern_name = env.Sema.Env.name in
+      declare_extern_static ~builder ~name ~ty ~extern_name
+
+let import_dep_type ~ctx ~builder env =
+  let module Ty = Typing.Type in
+  let name = Sema.Phase1_1.to_nested_chain env in
+  let ty = Typing.Subst.subst_type ctx.subst (Sema.Env.type_of env) in
+  let inner_ty = Typing.Subst.subst_type ctx.subst (Sema.Phase1.of_type ty) in
+  match inner_ty with
+  (* import strtuct *)
+  | Ty.{ ty = Struct _; span; _ } -> define_struct ~builder ~name ~inner_ty
+  (* *)
+  | Ty.{ ty = Var _; _ } -> failwith "[ICE] still type variable (type)"
+  (* ignored *)
+  | _ -> ()
+
+let import_dep_env ~ctx ~builder env =
+  [%loga.debug "tE: ref -> %s" env.Sema.Env.name];
+  let env_kind = Sema.Env.w_of env in
+  let ty = Sema.Env.type_of env in
+  match env_kind with
+  | Sema.Env.Val -> import_dep_value ~ctx ~builder env
+  | Sema.Env.Ty -> import_dep_type ~ctx ~builder env
+  | _ -> (* Ignore *) ()
+
+let rec import_deps ~ctx ~loaded ~builder env =
+  (* duplication check *)
+  let nest = Sema.Phase1_1.to_nested_chain env in
+  let uid = Common.Chain.Nest.to_unique_id nest in
+
+  match Hash_set.mem loaded uid with
+  | true -> ()
+  | false ->
+      Hash_set.add loaded uid;
+
+      let deps = Sema.Env.list_deps env in
+      List.iter deps ~f:(import_deps ~ctx ~loaded ~builder);
+
+      let top_levels = Sema.Env.collect_substances env in
+      List.iter top_levels ~f:(fun tenv -> import_dep_env ~ctx ~builder tenv)
+
+let import_deps_xref ~ctx ~builder =
+  let { m; _ } = ctx in
+  let Sema.Mod.{ menv; _ } = m in
+
+  let loaded = Hash_set.create (module String) in
+  let deps = Sema.Env.list_deps menv in
+  List.iter deps ~f:(import_deps ~ctx ~loaded ~builder)
+
 let generate_module ~ctx ast : Rir.Module.t =
   match ast with
   (* *)
-  | NAst.{ kind = Module nodes; _ } ->
+  | NAst.{ kind = Module { nodes; _ }; _ } ->
       let rir_mod = Rir.Module.create ~ctx:ctx.rir_ctx in
       let builder = Rir.Builder.create ~m:rir_mod in
+
+      import_deps_xref ~ctx ~builder;
       List.iter nodes ~f:(generate_toplevel ~ctx ~builder);
+
       let rir_mod = Rir_gen_filters.finish ~subst:ctx.subst rir_mod in
+
       rir_mod
   (* *)
   | NAst.{ kind; _ } ->

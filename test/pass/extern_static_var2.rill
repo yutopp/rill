@@ -1,0 +1,6 @@
+def main(): unit {
+  // in the another mod
+  let mutable _ = stdin;
+}
+
+import std::libc::*;

@@ -13,8 +13,13 @@ module StringMap = Map.M (String)
 type t = {
   ctx : (Context.t[@printer fun fmt _ -> fprintf fmt ""]);
   module_name : string;
+  mutable global_vars : global_vars_t;
   mutable funcs : funcs_t;
-  mutable types_rev : type_assoc_t list;
+  mutable types : types_t;
+}
+
+and global_vars_t = {
+  global_vars_map : (Global.t StringMap.t[@printer fun fmt _ -> fprintf fmt ""]);
 }
 
 and funcs_t = {
@@ -22,16 +27,13 @@ and funcs_t = {
   funcs_map : (Func.t StringMap.t[@printer fun fmt _ -> fprintf fmt ""]);
 }
 
-and type_assoc_t = {
-  ty_name : string;
-  ty_struct_tag : Typing.Type.struct_tag_t;
-  ty_rir : Type.t;
-}
-[@@deriving show]
+and types_t = { types_rev : Type.t list } [@@deriving show]
 
 let create ~ctx : t =
+  let global_vars = { global_vars_map = Map.empty (module String) } in
   let funcs = { funcs_rev = []; funcs_map = Map.empty (module String) } in
-  { ctx; module_name = ""; funcs; types_rev = [] }
+  let types = { types_rev = [] } in
+  { ctx; module_name = ""; global_vars; funcs; types }
 
 let declare_func m name ty =
   let { funcs_map; funcs_rev } = m.funcs in
@@ -56,10 +58,6 @@ let mark_func_as_defined m f =
   let funcs_rev = f :: funcs_rev in
   m.funcs <- { m.funcs with funcs_rev }
 
-let append_type m name struct_tag ty_rir =
-  let assoc = { ty_name = name; ty_struct_tag = struct_tag; ty_rir } in
-  m.types_rev <- assoc :: m.types_rev
-
 let all_funcs m : Func.t list =
   let { funcs_map; _ } = m.funcs in
   Map.data funcs_map
@@ -80,16 +78,42 @@ let declared_funcs m : Func.t list =
   let { funcs_map; _ } = m.funcs in
   Set.to_list declared |> List.map ~f:(fun k -> Map.find_exn funcs_map k)
 
-let types m : type_assoc_t list = List.rev m.types_rev
+let declare_global_var m name ty =
+  let { global_vars_map } = m.global_vars in
+  (* TODO: type checking *)
+  let id = Common.Chain.Nest.to_unique_id name in
+
+  let g = Global.create ~name ~ty in
+  match Map.add global_vars_map ~key:id ~data:g with
+  | `Ok new_map ->
+      let global_vars_map = new_map in
+      m.global_vars <- { global_vars_map };
+      g
+  | `Duplicate -> Map.find_exn global_vars_map id
+
+let all_global_vars m : Global.t list =
+  let { global_vars_map; _ } = m.global_vars in
+  Map.data global_vars_map
+
+let define_type m name inner_ty =
+  let { types_rev; _ } = m.types in
+
+  let rir_ty = Type.create ~name ~inner_ty in
+
+  let types_rev = rir_ty :: types_rev in
+  m.types <- { m.types with types_rev }
+
+let all_types m : Type.t list =
+  let { types_rev; _ } = m.types in
+  List.rev types_rev
 
 let to_string m =
   let indent = 0 in
   let buf = Buffer.create 256 in
   Buffer.add_string buf (Printf.sprintf "Module: name=%s\n" m.module_name);
 
-  List.iter (types m) ~f:(fun t ->
-      let { ty_name = name; ty_rir; _ } = t in
-      let s = Type.to_string ~indent:(indent + 2) name ty_rir in
+  List.iter (all_types m) ~f:(fun rir_ty ->
+      let s = Type.to_string ~indent:(indent + 2) rir_ty in
       Buffer.add_string buf s);
 
   List.iter (defined_funcs m) ~f:(fun func ->

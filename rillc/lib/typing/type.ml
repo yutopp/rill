@@ -16,7 +16,7 @@ type t = {
 }
 
 and ty_t =
-  | Var of { var : var_t; subst_id : int }
+  | Var of { var : var_t }
   | Unit
   | Num of { bits : int; signed : bool }
   | Size of { signed : bool }
@@ -24,7 +24,7 @@ and ty_t =
   | Array of { elem : t; n : int }
   | Func of { params : t list; ret : t; linkage : func_linkage_t }
   | Pointer of { mut : mutability_t; elem : t }
-  | Struct of { tag : struct_tag_t }
+  | Struct of { name : Common.Chain.Nest.t }
   (* *)
   | Module
   | Type of t
@@ -32,8 +32,6 @@ and ty_t =
 and mutability_t = MutImm | MutMut | MutVar of var_t
 
 and var_t = int
-
-and struct_tag_t = int
 
 and func_linkage_t = LinkageRillc | LinkageC of string | LinkageVar of var_t
 [@@deriving show, sexp_of, yojson_of]
@@ -48,8 +46,7 @@ let assume_func_ty ty =
 (* for debugging. TODO: remove *)
 let rec to_string ty : string =
   match ty with
-  | { ty = Var { var; subst_id }; _ } ->
-      Printf.sprintf "Var %d<:%d" var subst_id
+  | { ty = Var { var }; _ } -> Printf.sprintf "Var %d" var
   | { ty = Unit; _ } -> "unit"
   | { ty = Num { bits; signed }; _ } ->
       if signed then Printf.sprintf "i%d" bits else Printf.sprintf "u%d" bits
@@ -65,7 +62,8 @@ let rec to_string ty : string =
       Printf.sprintf "fun (%s)" s
   | { ty = Pointer { mut; elem }; _ } ->
       Printf.sprintf "*%s %s" (to_string_mut mut) (to_string elem)
-  | { ty = Struct { tag }; _ } -> Printf.sprintf "Struct[tag=%d]" tag
+  | { ty = Struct { name }; _ } ->
+      Printf.sprintf "struct %s" (Common.Chain.Nest.show name)
   | { ty = Module; _ } -> "Module"
   | { ty = Type t; _ } -> "Type"
 

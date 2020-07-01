@@ -28,13 +28,15 @@ let get_current_bb ctx = Option.value_exn ctx.current_bb
 
 let get_current_state ctx = (ctx.current_func, ctx.current_bb)
 
-let declare_func b name f = Module.declare_func b.module_ name f
+let declare_func b name ty = Module.declare_func b.module_ name ty
 
 let find_func b name = Module.find_func b.module_ name
 
 let mark_func_as_defined b f = Module.mark_func_as_defined b.module_ f
 
-let register_type_def b name r_ty = Module.append_type b.module_ name r_ty
+let declare_global_var b name ty = Module.declare_global_var b.module_ name ty
+
+let define_type_def b name inner_ty = Module.define_type b.module_ name inner_ty
 
 let build_bb b name =
   let f = get_current_func b in

@@ -1,0 +1,12 @@
+extern static mutable opterr: i32; // opterr is a global variable in libc
+
+def main(): unit {
+  opterr = 10;
+  f();
+}
+
+import std::stdio::*;
+
+def f(): unit {
+  print_int_ln(opterr)
+}
