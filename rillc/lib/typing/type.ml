@@ -16,7 +16,7 @@ type t = {
 }
 
 and ty_t =
-  | Var of { var : var_t }
+  | Var of { var : Common.Type_var.t }
   | Unit
   | Num of { bits : int; signed : bool }
   | Size of { signed : bool }
@@ -24,17 +24,18 @@ and ty_t =
   | Array of { elem : t; n : int }
   | Func of { params : t list; ret : t; linkage : func_linkage_t }
   | Pointer of { mut : mutability_t; elem : t }
-  | Struct of { name : Common.Chain.Nest.t }
+  | Struct of { name : t Common.Chain.Nest.t }
   (* *)
   | Module
   | Type of t
 
-and mutability_t = MutImm | MutMut | MutVar of var_t
+and mutability_t = MutImm | MutMut | MutVar of Common.Type_var.t
 
-and var_t = int
-
-and func_linkage_t = LinkageRillc | LinkageC of string | LinkageVar of var_t
-[@@deriving show, sexp_of, yojson_of]
+and func_linkage_t =
+  | LinkageRillc
+  | LinkageC of string
+  | LinkageVar of Common.Type_var.t
+[@@deriving show, yojson_of]
 
 let has_no_value ty = match ty with { ty = Unit; _ } -> true | _ -> false
 
@@ -42,6 +43,16 @@ let assume_func_ty ty =
   match ty with
   | { ty = Func { params; ret; _ }; _ } -> (params, ret)
   | _ -> failwith "[ICE] Not func ty"
+
+let assume_var_id ty =
+  match ty with
+  | { ty = Var { var }; _ } -> var
+  | _ -> failwith "[ICE] Not func ty"
+
+let to_type_ty ty = { ty with ty = Type ty }
+
+let of_type_ty ty =
+  match ty with { ty = Type ty; _ } -> ty | _ -> failwith "[ICE] not type"
 
 (* for debugging. TODO: remove *)
 let rec to_string ty : string =
@@ -58,12 +69,13 @@ let rec to_string ty : string =
   | { ty = Func { params; ret; _ }; _ } ->
       let params' = List.map params ~f:to_string in
       let ret' = to_string ret in
-      let s = String.concat ~sep:" -> " (params' @ [ ret' ]) in
-      Printf.sprintf "fun (%s)" s
+      let s = String.concat ~sep:" -> " params' in
+      Printf.sprintf "fun (%s) -> %s" s ret'
   | { ty = Pointer { mut; elem }; _ } ->
       Printf.sprintf "*%s %s" (to_string_mut mut) (to_string elem)
   | { ty = Struct { name }; _ } ->
-      Printf.sprintf "struct %s" (Common.Chain.Nest.show name)
+      Printf.sprintf "struct %s"
+        (Common.Chain.Nest.to_string ~to_s:to_string name)
   | { ty = Module; _ } -> "Module"
   | { ty = Type t; _ } -> "Type"
 

@@ -56,6 +56,8 @@ rule token = parse
   | "/+"                { nested_multiline_comment 0 lexbuf }
 
   | "__statement_traits"{ KEYWORD_UU_STMT_TRAITS }
+  | "trait"             { KEYWORD_TRAIT }
+  | "impl"              { KEYWORD_IMPL }
   | "operator"          { KEYWORD_OPERATOR }
   | "import"            { KEYWORD_IMPORT }
   | "def"               { KEYWORD_DEF }

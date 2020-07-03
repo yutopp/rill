@@ -16,22 +16,30 @@ type t = {
 
 and kind_t =
   | Module of t list
+  (* aux *)
   | ParamDecl of { attr : t; name : string; ty_spec : t }
+  | TyParamDecl of { name : string }
   | VarDecl of { attr : t; name : string; ty_spec : t option; expr : t }
-  (* *)
+  (* top levels *)
   | Import of { pkg : t; mods : t list }
-  (* top declarations *)
   | DeclExternFunc of {
       name : string;
-      ret_ty : t;
+      ty_params : t list;
       params : t list;
+      ret_ty : t;
       symbol_name : t;
     }
   | DeclExternStaticVar of { attr : t; name : string; ty_spec : t }
-  | DeclFunc of { name : string; ret_ty : t; params : t list }
-  (* top definitions *)
-  | DefFunc of { name : string; ret_ty : t; params : t list; body : t }
+  | DefFunc of {
+      name : string;
+      ty_params : t list;
+      params : t list;
+      ret_ty : t;
+      body : t;
+    }
   | DefStruct of { name : string }
+  | DefTrait of { name : string }
+  | DefImplFor of { name : string; for_ty : t }
   | DefTypeAlias of { name : string; alias_ty : t }
   (* statements *)
   | StmtExpr of t

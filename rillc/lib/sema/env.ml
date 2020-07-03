@@ -14,7 +14,7 @@ type t = {
   name : string;
   visibility : visibility_t;
   mutable scope : scope_t option;
-  ty : Typing.Type.t;
+  ty_sc : Typing.Scheme.t;
   kind : kind_t;
   lookup_space : lookup_space_t;
   mutable deps : t list;
@@ -36,10 +36,19 @@ type namespace_t = NamespaceValue | NamespaceType | NamespaceMeta
 
 type inserted_status_t = InsertedNew | InsertedHiding
 
-let create name ~parent ~visibility ~ty ~kind ~lookup_space =
-  { parent; name; visibility; scope = None; ty; kind; lookup_space; deps = [] }
+let create name ~parent ~visibility ~ty_sc ~kind ~lookup_space =
+  {
+    parent;
+    name;
+    visibility;
+    scope = None;
+    ty_sc;
+    kind;
+    lookup_space;
+    deps = [];
+  }
 
-let type_of env = env.ty
+let type_sc_of env = env.ty_sc
 
 let rec w_of env = match env.kind with Alias aenv -> w_of aenv | _ -> env.kind
 

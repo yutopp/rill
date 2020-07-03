@@ -1,0 +1,28 @@
+def f!(T)(v: T): unit {
+}
+
+def main(): unit {
+  let a = f(10);
+  let a = f("");
+//  let a = f(Hoge {});
+}
+
+struct Hoge {}
+
+/*
+struct A!(T) {
+  def A(): Self {}
+    // () -> A!(T)
+}
+
+A!(int)  ::  new() -> A!(T)
+  A :: forall T.A(T) => A(T') / (T => T')
+  int :: int
+  T' = int
+
+  new :: () -> A!(T) / (T => T')
+  new :: () -> A!(T')
+
+A::new() -> A!(T)
+A()
+*/

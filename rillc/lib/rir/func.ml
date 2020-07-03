@@ -18,8 +18,8 @@ module BBs = struct
 end
 
 type t = {
-  name : Common.Chain.Nest.t;
-  ty : (Typing.Type.t[@printer fun fmt _ -> fprintf fmt ""]);
+  name : Typing.Type.t Common.Chain.Nest.t;
+  ty_sc : (Typing.Scheme.t[@printer fun fmt _ -> fprintf fmt ""]);
   mutable body : body_t option;
 }
 
@@ -44,10 +44,11 @@ and addressable_extra_t = { addressable_e_kind : addressable_extra_kind_t }
 and addressable_extra_kind_t = AddrKindStandard | AddrKindRet
 [@@deriving show]
 
-let create ~name ~ty = { name; ty; body = None }
+let create ~name ~ty_sc = { name; ty_sc; body = None }
 
 let get_ret_ty f =
-  let (_, ret_ty) = Typing.Type.assume_func_ty f in
+  let ty = Typing.Scheme.raw_ty f.ty_sc in
+  let (_, ret_ty) = Typing.Type.assume_func_ty ty in
   ret_ty
 
 let prepare_bb_name f name =
@@ -83,11 +84,7 @@ let set_body_form func =
       fresh_id = Counter.create ();
     }
   in
-
-  func.body <- Some (BodyFunc body);
-
-  let bb = Term.BB.create "entry" in
-  insert_bb func bb
+  func.body <- Some (BodyFunc body)
 
 let gen_local_var f =
   match f.body with
@@ -96,9 +93,11 @@ let gen_local_var f =
       Printf.sprintf "$_%s" s
   | _ -> failwith ""
 
+let entry_name = "entry"
+
 let get_entry_bb f =
   match f.body with
-  | Some (BodyFunc fb) -> Hashtbl.find fb.bbs "entry"
+  | Some (BodyFunc fb) -> Hashtbl.find fb.bbs entry_name
   | _ -> failwith ""
 
 let set_ret_term func term =
@@ -177,11 +176,11 @@ let to_string ~indent func =
   let buf = Buffer.create 256 in
   Buffer.add_string buf (String.make indent ' ');
 
-  let { name; _ } = func in
+  let { name; ty_sc; _ } = func in
   Buffer.add_string buf
-    (Printf.sprintf "Func: name = %s, ty = %s\n"
-       (Common.Chain.Nest.show name)
-       (Typing.Type.to_string func.ty));
+    (Printf.sprintf "Func: name = '%s' :: %s\n"
+       (Common.Chain.Nest.to_string ~to_s:Typing.Type.to_string name)
+       (Typing.Scheme.to_string ty_sc));
 
   let allocs = get_pre_allocs func in
   List.iter allocs ~f:(fun alloc ->

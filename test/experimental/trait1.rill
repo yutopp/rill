@@ -1,0 +1,11 @@
+//// class A a
+//trait A {
+//}
+//
+//// instance A i32
+//impl A for i32 {
+//}
+
+def main(): unit {
+
+}

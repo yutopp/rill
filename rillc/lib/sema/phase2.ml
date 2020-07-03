@@ -17,14 +17,30 @@ module TAst = struct
   and kind_t =
     | Module of { nodes : t list }
     | Import of { pkg : string; mods : string list }
-    | DeclExternFunc of { name : Common.Chain.Nest.t; extern_name : string }
-    | DeclExternStaticVar of {
-        name : Common.Chain.Nest.t;
+    | DeclExternFunc of {
+        name : Typing.Type.t Common.Chain.Nest.t;
+        ty_sc : Typing.Scheme.t;
         extern_name : string;
       }
-    | DeclFunc of { name : Common.Chain.Nest.t }
-    | DefFunc of { name : Common.Chain.Nest.t; body : t }
-    | DefStruct of { name : Common.Chain.Nest.t; inner_ty : Typing.Type.t }
+    | DeclExternStaticVar of {
+        name : Typing.Type.t Common.Chain.Nest.t;
+        ty_sc : Typing.Scheme.t;
+        extern_name : string;
+      }
+    | DeclFunc of {
+        name : Typing.Type.t Common.Chain.Nest.t;
+        ty_sc : Typing.Scheme.t;
+      }
+    | DefFunc of {
+        name : Typing.Type.t Common.Chain.Nest.t;
+        ty_sc : Typing.Scheme.t;
+        body : t;
+      }
+    | DefStruct of {
+        name : Typing.Type.t Common.Chain.Nest.t;
+        ty_sc : Typing.Scheme.t;
+      }
+    (* *)
     | StmtSeq of t list
     | StmtExpr of t
     | StmtExprApply of t
@@ -40,7 +56,7 @@ module TAst = struct
     | ExprDeref of t
     | ExprStruct
     | Var of { name : string; ref_type : ref_t }
-    | Var2 of { chain : Common.Chain.t }
+    | Var2 of { chain : Typing.Type.t Common.Chain.t }
     | LitBool of bool
     | LitInt of int
     | LitString of string
@@ -104,7 +120,8 @@ and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
   (* *)
   | Ast.{ kind = DeclExternFunc { params; ret_ty; symbol_name; _ }; span } ->
       (* TODO: check that there are no holes *)
-      let f_ty = Typing.Subst.subst_type ctx.Ctx.subst (Env.type_of env) in
+      let ty_sc = Env.type_sc_of env in
+
       let%bind t_sym = analyze ~ctx ~env symbol_name in
       let%bind extern_name =
         match t_sym with
@@ -118,22 +135,26 @@ and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
             Error elm
       in
 
-      let name = Phase1_1.to_nested_chain env in
-      Ok TAst.{ kind = DeclExternFunc { name; extern_name }; ty = f_ty; span }
+      let ty = ctx.Ctx.builtin.Builtin.unit_ in
+      let name = Phase1_1.to_nested_chain env [] in
+      Ok TAst.{ kind = DeclExternFunc { name; ty_sc; extern_name }; ty; span }
   (* *)
   | Ast.{ kind = DeclExternStaticVar { attr; name; _ }; span } ->
       (* TODO: check that there are no holes *)
-      let binding_mut = Mut.mutability_of attr in
-      let ty = Typing.Subst.subst_type ctx.Ctx.subst (Env.type_of env) in
+      let ty_sc = Env.type_sc_of env in
 
       let extern_name = name in
 
-      let name = Phase1_1.to_nested_chain env in
-      Ok TAst.{ kind = DeclExternStaticVar { name; extern_name }; ty; span }
+      let ty = ctx.Ctx.builtin.Builtin.unit_ in
+      let name = Phase1_1.to_nested_chain env [] in
+      Ok
+        TAst.
+          { kind = DeclExternStaticVar { name; ty_sc; extern_name }; ty; span }
   (* *)
   | Ast.{ kind = DefFunc { name; params; ret_ty; body; _ }; span } ->
       (* TODO: check that there are no holes *)
-      let f_ty = Typing.Subst.subst_type ctx.Ctx.subst (Env.type_of env) in
+      let f_ty_sc = Env.type_sc_of env in
+      let f_ty = Typing.Scheme.raw_ty f_ty_sc in
       let (params_tys, ret_ty) = Typing.Type.assume_func_ty f_ty in
 
       let t_param_vars_decls =
@@ -147,7 +168,8 @@ and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
                 in
                 (* NOTE: a type is already checked at phase1_1 *)
                 (* TODO: Distinguish params and decls *)
-                let v_ty = Env.type_of venv in
+                let v_ty_sc = Env.type_sc_of venv in
+                let v_ty = Typing.Scheme.assume_has_no_generics v_ty_sc in
                 let ref_type = TAst.RefTypeLocalArg index in
                 let t_param =
                   TAst.{ kind = Var { name; ref_type }; ty = v_ty; span }
@@ -166,16 +188,18 @@ and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
         let env =
           (* scope *)
           let visibility = Env.Private in
-          let ty = ret_ty in
-          Env.create "" ~parent:(Some env) ~visibility ~ty ~kind:Env.KindScope
-            ~lookup_space:Env.LkLocal
+          let ty_sc = Typing.Scheme.of_ty ret_ty in
+          Env.create "" ~parent:(Some env) ~visibility ~ty_sc
+            ~kind:Env.KindScope ~lookup_space:Env.LkLocal
         in
         analyze ~ctx:ctx' ~env body
       in
       Ctx.merge ctx ctx';
 
       (* TODO: check that subst has no holes *)
-      let%bind subst = Typer.unify ~span ctx.Ctx.subst ret_ty t_body.TAst.ty in
+      let%bind subst =
+        Typer.unify ~span ctx.Ctx.subst ~from:ret_ty ~to_:t_body.TAst.ty
+      in
       Ctx.update_subst ctx subst;
 
       let t_seq =
@@ -185,38 +209,30 @@ and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
         TAst.{ kind = StmtSeq seq; ty; span = t_body.span }
       in
 
+      let ty = ctx.Ctx.builtin.Builtin.unit_ in
       (* TODO: fix *)
       let name =
         match name with
         | "main" ->
             let c = Common.Chain.Nest.create () in
-            let n = Common.Chain.Nest.{ name = "main"; kind = Var } in
+            let n =
+              Common.Chain.Layer.
+                { name = "main"; kind = Var; generics_vars = [] }
+            in
             Common.Chain.Nest.join_rev c n
-        | _ -> Phase1_1.to_nested_chain env
+        | _ -> Phase1_1.to_nested_chain env []
       in
-      Ok TAst.{ kind = DefFunc { name; body = t_seq }; ty = f_ty; span }
+      Ok
+        TAst.
+          { kind = DefFunc { name; ty_sc = f_ty_sc; body = t_seq }; ty; span }
   (* *)
   | Ast.{ kind = DefStruct _; span } ->
       (* TODO: check that there are no holes *)
-      let inner_ty =
-        Typing.Subst.subst_type ctx.Ctx.subst (Env.type_of env)
-        |> Phase1.of_type
-      in
-      let%bind () =
-        match inner_ty with
-        | Typing.Type.{ ty = Struct _; _ } -> Ok ()
-        | _ ->
-            failwith
-              (Printf.sprintf "[ICE] not struct def: %s"
-                 (Typing.Type.to_string inner_ty))
-      in
+      let ty_sc = Env.type_sc_of env in
 
-      (* A type of struct is a type *)
-      let ty =
-        Typing.Type.{ (ctx.Ctx.builtin.Builtin.type_ inner_ty) with span }
-      in
-      let name = Phase1_1.to_nested_chain env in
-      Ok TAst.{ kind = DefStruct { name; inner_ty }; ty; span }
+      let ty = ctx.Ctx.builtin.Builtin.unit_ in
+      let name = Phase1_1.to_nested_chain env [] in
+      Ok TAst.{ kind = DefStruct { name; ty_sc }; ty; span }
   (* *)
   | Ast.{ span; _ } ->
       let e =
@@ -258,7 +274,9 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       let%bind t_expr = analyze ~ctx ~env expr in
 
       let ty = Typing.Type.{ ctx.Ctx.builtin.Builtin.unit_ with span } in
-      let%bind subst = Typer.unify ~span ctx.Ctx.subst ty t_expr.TAst.ty in
+      let%bind subst =
+        Typer.unify ~span ctx.Ctx.subst ~from:ty ~to_:t_expr.TAst.ty
+      in
       Ctx.update_subst ctx subst;
 
       Ok TAst.{ kind = StmtExpr t_expr; ty; span }
@@ -288,12 +306,15 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       let var_ty = Typing.Type.{ var_ty with binding_mut } in
       (* CANNOT reference self *)
       let%bind t_expr = analyze ~ctx ~env expr in
-      let%bind subst = Typer.unify ~span ctx.Ctx.subst var_ty t_expr.TAst.ty in
+      let%bind subst =
+        Typer.unify ~span ctx.Ctx.subst ~from:var_ty ~to_:t_expr.TAst.ty
+      in
       Ctx.update_subst ctx subst;
 
       let visibility = Env.Public in
       let venv =
-        Env.create name ~parent:(Some env) ~visibility ~ty:var_ty ~kind:Env.Val
+        let ty_sc = Typing.Scheme.of_ty var_ty in
+        Env.create name ~parent:(Some env) ~visibility ~ty_sc ~kind:Env.Val
           ~lookup_space:Env.LkLocal
       in
       let () =
@@ -327,8 +348,9 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
           (* scope *)
           let visibility = Env.Private in
           let ty = Typing.Subst.fresh_ty ~span ctx.Ctx.subst in
-          Env.create "" ~parent:(Some env) ~visibility ~ty ~kind:Env.KindScope
-            ~lookup_space:Env.LkLocal
+          let ty_sc = Typing.Scheme.of_ty ty in
+          Env.create "" ~parent:(Some env) ~visibility ~ty_sc
+            ~kind:Env.KindScope ~lookup_space:Env.LkLocal
         in
         List.fold_result nodes ~init:[] ~f:(fun ps node ->
             let%bind t_node = analyze ~ctx ~env node in
@@ -345,8 +367,8 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
   | Ast.{ kind = ExprIf (cond, t, e_opt); span; _ } ->
       let%bind t_cond = analyze ~ctx ~env cond in
       let%bind subst =
-        Typer.unify ~span ctx.Ctx.subst t_cond.TAst.ty
-          ctx.Ctx.builtin.Builtin.bool_
+        Typer.unify ~span ctx.Ctx.subst ~from:t_cond.TAst.ty
+          ~to_:ctx.Ctx.builtin.Builtin.bool_
       in
 
       let ctx' = Ctx.{ ctx with subst } in
@@ -360,7 +382,9 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
         | None -> Ok (None, ctx.Ctx.builtin.Builtin.unit_)
       in
 
-      let%bind subst = Typer.unify ~span ctx'.Ctx.subst t_t.TAst.ty e_ty in
+      let%bind subst =
+        Typer.unify ~span ctx'.Ctx.subst ~from:t_t.TAst.ty ~to_:e_ty
+      in
       Ctx.update_subst ctx' subst;
       Ctx.merge ctx ctx';
 
@@ -374,7 +398,9 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
         let last_ty = ctx.Ctx.builtin.Builtin.unit_ in
         Typing.Type.{ last_ty with span }
       in
-      let%bind subst = Typer.unify ~span ctx.Ctx.subst ty t_e.TAst.ty in
+      let%bind subst =
+        Typer.unify ~span ctx.Ctx.subst ~from:ty ~to_:t_e.TAst.ty
+      in
       Ctx.update_subst ctx subst;
 
       Ok TAst.{ kind = ExprLoop t_e; ty; span }
@@ -414,7 +440,7 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       let%bind subst =
         let lhs_ty = t_lhs.TAst.ty in
         let rhs_ty = t_rhs.TAst.ty in
-        Typer.unify ~span ctx.Ctx.subst lhs_ty rhs_ty
+        Typer.unify ~span ctx.Ctx.subst ~from:lhs_ty ~to_:rhs_ty
       in
       Ctx.update_subst ctx subst;
 
@@ -444,7 +470,7 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       let index_ty = ctx.Ctx.builtin.Builtin.i32_ in
       let%bind t_index = analyze ~ctx ~env index in
       let%bind subst =
-        Typer.unify ~span ctx.Ctx.subst index_ty t_index.TAst.ty
+        Typer.unify ~span ctx.Ctx.subst ~from:index_ty ~to_:t_index.TAst.ty
       in
       Ctx.update_subst ctx subst;
 
@@ -489,7 +515,9 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
         Typing.Type.
           { (ctx.Ctx.builtin.Builtin.pointer_ elem_mut elem_ty) with span }
       in
-      let%bind subst = Typer.unify ~span ctx.Ctx.subst ptr_ty t_r.TAst.ty in
+      let%bind subst =
+        Typer.unify ~span ctx.Ctx.subst ~from:ptr_ty ~to_:t_r.TAst.ty
+      in
       Ctx.update_subst ctx subst;
 
       let ty =
@@ -514,14 +542,28 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       Ok TAst.{ kind = ExprStruct; span; ty }
   (* *)
   | Ast.{ kind = Path { root; elems }; span; _ } as p ->
-      let%bind env = Phase1_1.lookup_path ~env p in
-      let%bind venv =
-        match Env.w_of env with Env.Val -> Ok env | _ -> failwith ""
+      let%bind (env, vars, ty, _) =
+        Phase1_1.lookup_path ~env ~subst:ctx.Ctx.subst p
       in
-      let ty = Typing.Type.{ (Env.type_of venv) with span } in
+      let%bind () =
+        match Env.w_of env with Env.Val -> Ok () | _ -> failwith "[ICE]"
+      in
 
-      let chain = Phase1_1.to_chains venv in
+      let () =
+        (* debug log *)
+        if List.length vars > 0 then
+          [%loga.error
+            "%s"
+              ( vars
+              |> List.map ~f:(fun (v, nv) ->
+                     Printf.sprintf "%s -> %s" (Typing.Type.to_string v)
+                       ( nv
+                       |> Option.map ~f:Typing.Type.to_string
+                       |> Option.value ~default:"NONE" ))
+              |> String.concat ~sep:"," )]
+      in
 
+      let chain = Phase1_1.to_chains' env vars in
       Ok TAst.{ kind = Var2 { chain }; span; ty }
   (* *)
   | Ast.{ kind = ID name; span; _ } as i ->
@@ -557,7 +599,7 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
             let actual_elem_ty =
               Typing.Type.{ t_elem.TAst.ty with binding_mut }
             in
-            Typer.unify ~span subst elem_ty actual_elem_ty)
+            Typer.unify ~span subst ~from:elem_ty ~to_:actual_elem_ty)
       in
       Ctx.update_subst ctx subst;
 
@@ -605,7 +647,7 @@ and analyze_call ~ctx ~env ~span recv args =
   [%loga.debug "Func receiver ty = %s" (Typing.Type.to_string recv_ty)];
   [%loga.debug "Func evaled ty = %s" (Typing.Type.to_string fn_ty)];
 
-  let%bind subst = Typer.unify ~span ctx.Ctx.subst recv_ty fn_ty in
+  let%bind subst = Typer.unify ~span ctx.Ctx.subst ~from:recv_ty ~to_:fn_ty in
   Ctx.update_subst ctx subst;
 
   Ok TAst.{ kind = ExprCall (t_recv, t_args); ty = ret_ty; span }
@@ -617,4 +659,5 @@ and lookup_type ~env ~ctx ast =
 and can_cast_to ~subst ~src ~dst =
   let src = Typing.Subst.subst_type subst src in
   let dst = Typing.Subst.subst_type subst dst in
+  (* TODO: impl *)
   Ok ()

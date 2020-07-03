@@ -135,6 +135,7 @@ module To_rill_ir = struct
       let ctx = Codegen.Rir_gen.context ~m ~builtin ~root_mod_env in
       Codegen.Rir_gen.generate_module ~ctx p3ast
     in
+
     let phase =
       let art = Emitter.Artifact.Rill_ir { m = rir } in
       Mod_state.Artifact art
@@ -162,6 +163,9 @@ module To_llvm_ir = struct
     let Mod_state.{ m; _ } = ms in
     let Mod.{ ds; _ } = m in
     let subst = Mod.subst_of m in
+
+    (* *)
+    let rir_mod = Codegen.Rir_gen_filters.finish ~subst rir in
 
     let llvm =
       let ctx = Llvm_gen.context ~ds ~subst ~builtin in

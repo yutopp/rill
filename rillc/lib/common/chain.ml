@@ -8,26 +8,36 @@
 
 open! Base
 
+module Layer = struct
+  type 'a t = { name : string; kind : kind_t; generics_vars : 'a list }
+
+  and kind_t = Module | Type | Var [@@deriving show, yojson_of]
+
+  let to_string ~to_s l : string =
+    let { name; kind; generics_vars } = l in
+    let kind_s =
+      match kind with Module -> "mod" | Type -> "ty" | Var -> "var"
+    in
+    let generics_s =
+      match generics_vars with
+      | [] -> ""
+      | vars ->
+          Printf.sprintf "!(%s)"
+            (vars |> List.map ~f:to_s |> String.concat ~sep:",")
+    in
+    Printf.sprintf "%s(%s)%s" name kind_s generics_s
+end
+
 module Nest = struct
-  type t = nest_t list
-
-  and nest_t = { name : string; kind : kind_t }
-
-  and kind_t = Module | Type | Var [@@deriving sexp_of, yojson_of, show]
+  type 'a t = 'a Layer.t list [@@deriving show, yojson_of]
 
   let create () = []
 
   let join_rev nest n = n :: nest
 
-  let to_unique_id nest =
-    let to_s n =
-      let kind_s =
-        match n.kind with Module -> "mod" | Type -> "ty" | Var -> "var"
-      in
-      Printf.sprintf "%s(%s)" n.name kind_s
-    in
-    nest |> List.map ~f:to_s |> String.concat ~sep:"-"
+  let to_string ~to_s nest =
+    nest |> List.map ~f:(Layer.to_string ~to_s) |> String.concat ~sep:"-"
 end
 
-type t = Local of string | Global of Nest.t
-[@@deriving sexp_of, yojson_of, show]
+type 'a t = Local of 'a Layer.t | Global of 'a Nest.t
+[@@deriving show, yojson_of]

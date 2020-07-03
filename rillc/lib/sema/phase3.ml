@@ -20,9 +20,21 @@ module NAst = struct
   and kind_t =
     | Module of { nodes : t list }
     | Import of { pkg : string; mods : string list }
-    | Func of { name : Common.Chain.Nest.t; kind : func_kind_t }
-    | GlobalVar of { name : Common.Chain.Nest.t; kind : var_kind_t }
-    | Struct of { name : Common.Chain.Nest.t; inner_ty : Typing.Type.t }
+    | Func of {
+        name : Typing.Type.t Common.Chain.Nest.t;
+        kind : func_kind_t;
+        ty_sc : Typing.Scheme.t;
+      }
+    | Static of {
+        name : Typing.Type.t Common.Chain.Nest.t;
+        kind : var_kind_t;
+        ty_sc : Typing.Scheme.t;
+      }
+    | Struct of {
+        name : Typing.Type.t Common.Chain.Nest.t;
+        ty_sc : Typing.Scheme.t;
+      }
+    (* *)
     | Let of { mut : Typing.Type.mutability_t; name : string; expr : t }
     | Return of string
     | Call of { name : var_ref_t; args : var_ref_t list }
@@ -51,9 +63,9 @@ module NAst = struct
   and var_ref_t =
     | VarLocal of { name : string; label : string }
     | VarGlobal of { name : string }
-    | VarGlobal2 of { nest : Common.Chain.Nest.t }
+    | VarGlobal2 of { nest : Typing.Type.t Common.Chain.Nest.t }
     | VarParam of { index : int; name : string }
-  [@@deriving sexp_of, yojson_of, show]
+  [@@deriving show, yojson_of]
 end
 
 type ctx_t = { ds : Diagnostics.t; subst : Typing.Subst.t }
@@ -146,27 +158,34 @@ let rec normalize ~ctx ~env ast =
   | TAst.{ kind = Import { pkg; mods }; ty; span; _ } ->
       NAst.{ kind = Import { pkg; mods }; ty; span }
   (* *)
-  | TAst.{ kind = DeclExternFunc { name; extern_name }; ty; span; _ } ->
-      NAst.{ kind = Func { name; kind = FuncKindExtern extern_name }; ty; span }
-  (* *)
-  | TAst.{ kind = DeclExternStaticVar { name; extern_name }; ty; span; _ } ->
+  | TAst.{ kind = DeclExternFunc { name; extern_name; ty_sc }; ty; span; _ } ->
       NAst.
         {
-          kind = GlobalVar { name; kind = VarKindExtern extern_name };
+          kind = Func { name; kind = FuncKindExtern extern_name; ty_sc };
           ty;
           span;
         }
   (* *)
-  | TAst.{ kind = DeclFunc { name }; ty; span; _ } ->
-      NAst.{ kind = Func { name; kind = FuncKindDecl }; ty; span }
+  | TAst.
+      { kind = DeclExternStaticVar { name; extern_name; ty_sc }; ty; span; _ }
+    ->
+      NAst.
+        {
+          kind = Static { name; kind = VarKindExtern extern_name; ty_sc };
+          ty;
+          span;
+        }
   (* *)
-  | TAst.{ kind = DefFunc { name; body }; ty; span; _ } ->
+  | TAst.{ kind = DeclFunc { name; ty_sc }; ty; span; _ } ->
+      NAst.{ kind = Func { name; kind = FuncKindDecl; ty_sc }; ty; span }
+  (* *)
+  | TAst.{ kind = DefFunc { name; ty_sc; body }; ty; span; _ } ->
       let env = Env.create () in
       let body' = normalize ~ctx ~env body in
-      NAst.{ kind = Func { name; kind = FuncKindDef body' }; ty; span }
+      NAst.{ kind = Func { name; kind = FuncKindDef body'; ty_sc }; ty; span }
   (* *)
-  | TAst.{ kind = DefStruct { name; inner_ty }; ty; span; _ } ->
-      NAst.{ kind = Struct { name; inner_ty }; ty; span }
+  | TAst.{ kind = DefStruct { name; ty_sc }; ty; span; _ } ->
+      NAst.{ kind = Struct { name; ty_sc }; ty; span }
   (* *)
   | TAst.{ kind = StmtSeq nodes; ty; span; _ } ->
       let node' = List.map nodes ~f:(normalize ~ctx ~env) in
@@ -285,7 +304,8 @@ let rec normalize ~ctx ~env ast =
   | TAst.{ kind = Var2 { chain }; ty; span; _ } ->
       let nast =
         match chain with
-        | Common.Chain.Local name ->
+        | Common.Chain.Local layer ->
+            let Common.Chain.Layer.{ name; _ } = layer in
             let r =
               match Env.find_alias_opt env name with
               | Some r -> r

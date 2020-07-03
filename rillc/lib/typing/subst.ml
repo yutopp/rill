@@ -38,7 +38,7 @@ let create () =
   }
 
 (* has side effects *)
-let fresh_var subst : Type.var_t = Counter.fresh subst.fresh_counter
+let fresh_var subst : Common.Type_var.t = Counter.fresh subst.fresh_counter
 
 (* has side effects *)
 let fresh_ty ~span subst : Type.t =
@@ -88,6 +88,13 @@ let update_type subst uni_id mut =
   let mut_subst = Map.add_exn mut_subst ~key:uni_id ~data:mut in
   { subst with mut_subst }
 
+let is_bound subst ty =
+  match ty with
+  | Type.{ ty = Var { var = uni_id }; binding_mut; span } ->
+      let { ty_subst; _ } = subst in
+      Map.mem ty_subst uni_id
+  | _ -> false
+
 let rec subst_type (subst : t) ty : Type.t =
   match ty with
   | Type.{ ty = Var { var = uni_id }; binding_mut; span } -> (
@@ -115,9 +122,7 @@ let rec subst_type (subst : t) ty : Type.t =
       Type.{ tty with ty = Type inner_ty }
   | alt -> alt
 
-let subst_tysc (subst : t) tysc : Scheme.t =
-  match tysc with
-  | Scheme.(Scheme ([], tys)) ->
-      let tys' = subst_type subst tys in
-      Scheme.Scheme ([], tys')
-  | _ -> failwith "subst_tysc"
+let subst_scheme (subst : t) ty_sc : Scheme.t =
+  let (Scheme.ForAll (vars, ty)) = ty_sc in
+  let ty = subst_type subst ty in
+  Scheme.ForAll (vars, ty)

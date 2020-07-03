@@ -48,18 +48,19 @@ and placeholder_t =
   | PlaceholderVar of { name : string }
   | PlaceholderParam of { index : int; name : string }
   | PlaceholderGlobal of { name : string }
-  | PlaceholderGlobal2 of { nest : Common.Chain.Nest.t }
+  | PlaceholderGlobal2 of { nest : Typing.Type.t Common.Chain.Nest.t }
+[@@deriving show]
 
-and alloc_t = AllocLit | AllocStack [@@deriving show]
+type alloc_t = AllocLit | AllocStack [@@deriving show]
 
 let to_string_place_holder holder =
   match holder with
-  | PlaceholderVar { name } -> name
+  | PlaceholderVar { name } -> Printf.sprintf "%%%s" name
   | PlaceholderParam { name; index } -> Printf.sprintf "Param[%s;%d]" name index
   | PlaceholderGlobal { name } -> Printf.sprintf "Global[%s]" name
   | PlaceholderGlobal2 { nest } ->
       Printf.sprintf "Global2[%s]"
-        (Common.Chain.Nest.yojson_of_t nest |> Yojson.Safe.to_string)
+        (Common.Chain.Nest.to_string ~to_s:Typing.Type.to_string nest)
 
 let to_string_value value =
   match value with

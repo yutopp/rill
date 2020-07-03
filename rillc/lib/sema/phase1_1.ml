@@ -49,9 +49,34 @@ and with_env ~ctx ~env ast : (unit, Diagnostics.Elem.t) Result.t =
   let open Result.Let_syntax in
   match ast with
   (* *)
-  | Ast.{ kind = DeclExternFunc { name; params; ret_ty; _ }; span }
-  | Ast.{ kind = DeclFunc { name; params; ret_ty; _ }; span }
-  | Ast.{ kind = DefFunc { name; params; ret_ty; _ }; span } ->
+  | Ast.{ kind = DeclExternFunc { name; ty_params; params; ret_ty; _ }; span }
+  | Ast.{ kind = DefFunc { name; ty_params; params; ret_ty; _ }; span } ->
+      let env_ty_sc = Env.type_sc_of env in
+      let (Typing.Scheme.ForAll (ty_vars, ty)) = env_ty_sc in
+
+      (* generics params *)
+      let%bind () =
+        List.zip_exn ty_params ty_vars
+        |> List.fold_result ~init:() ~f:(fun _ (ty_param, ty_var) ->
+               match ty_param with
+               | Ast.{ kind = TyParamDecl { name }; span } ->
+                   let%bind () = Guards.guard_dup_value ~span env name in
+                   let binding_mut = Typing.Type.MutImm in
+                   let inner_ty = ty_var in
+                   let ty = Typing.Type.to_type_ty inner_ty in
+
+                   let ty_sc = Typing.Scheme.of_ty ty in
+                   let visibility = Env.Private in
+                   let tenv =
+                     Env.create name ~parent:(Some env) ~visibility ~ty_sc
+                       ~kind:Env.Ty ~lookup_space:Env.LkLocal
+                   in
+                   Env.insert env tenv |> Phase1.assume_new;
+                   Ok ()
+               | _ -> failwith "[ICE]")
+      in
+
+      (* params, ret *)
       let%bind params_tys =
         List.fold_result params ~init:[] ~f:(fun ps param ->
             match param with
@@ -63,10 +88,11 @@ and with_env ~ctx ~env ast : (unit, Diagnostics.Elem.t) Result.t =
                   let binding_mut = Mut.mutability_of attr in
                   Ok Typing.Type.{ ty with binding_mut }
                 in
+                let spec_ty_sc = Typing.Scheme.of_ty spec_ty in
                 let visibility = Env.Public in
                 let venv =
-                  Env.create name ~parent:(Some env) ~visibility ~ty:spec_ty
-                    ~kind:Env.Val ~lookup_space:Env.LkLocal
+                  Env.create name ~parent:(Some env) ~visibility
+                    ~ty_sc:spec_ty_sc ~kind:Env.Val ~lookup_space:Env.LkLocal
                 in
                 Env.insert env venv |> Phase1.assume_new;
                 Ok (spec_ty :: ps)
@@ -90,7 +116,8 @@ and with_env ~ctx ~env ast : (unit, Diagnostics.Elem.t) Result.t =
           }
       in
 
-      let%bind subst = Typer.unify ~span ctx.subst func_ty (Env.type_of env) in
+      let env_ty = Typing.Scheme.raw_ty env_ty_sc in
+      let%bind subst = Typer.unify ~span ctx.subst ~from:env_ty ~to_:func_ty in
       ctx.subst <- subst;
 
       Ok ()
@@ -102,31 +129,38 @@ and with_env ~ctx ~env ast : (unit, Diagnostics.Elem.t) Result.t =
         Ok Typing.Type.{ ty with binding_mut }
       in
 
-      let%bind subst = Typer.unify ~span ctx.subst ty (Env.type_of env) in
+      let env_ty_sc = Env.type_sc_of env in
+      let env_ty = Typing.Scheme.assume_has_no_generics env_ty_sc in
+      let%bind subst = Typer.unify ~span ctx.subst ~from:ty ~to_:env_ty in
       ctx.subst <- subst;
 
       Ok ()
   (* *)
   | Ast.{ kind = DefTypeAlias { alias_ty; _ }; span } ->
       let%bind alias =
-        lookup_type ~env ctx.builtin alias_ty |> Result.map ~f:Phase1.to_type
+        lookup_type ~env ctx.builtin alias_ty
+        |> Result.map ~f:Typing.Type.to_type_ty
       in
 
-      let%bind subst = Typer.unify ~span ctx.subst alias (Env.type_of env) in
+      let env_ty_sc = Env.type_sc_of env in
+      let env_ty = Typing.Scheme.raw_ty env_ty_sc in
+      let%bind subst = Typer.unify ~span ctx.subst ~from:alias ~to_:env_ty in
       ctx.subst <- subst;
 
       Ok ()
   (* *)
   | Ast.{ kind = DefStruct _; span } ->
       let struct_ty =
-        let name = to_nested_chain env in
+        let name = to_nested_chain env [] in
         let binding_mut = Typing.Type.MutMut in
         let inner = Typing.Type.{ ty = Struct { name }; binding_mut; span } in
         ctx.builtin.Builtin.type_ inner
       in
 
+      let env_ty_sc = Env.type_sc_of env in
+      let env_ty = Typing.Scheme.raw_ty env_ty_sc in
       let%bind subst =
-        Typer.unify ~span ctx.subst struct_ty (Env.type_of env)
+        Typer.unify ~span ctx.subst ~from:struct_ty ~to_:env_ty
       in
       ctx.subst <- subst;
 
@@ -175,10 +209,10 @@ and pass_through ~ctx ast =
               let name = env.Env.name in
               let visibility = Env.Private (* TODO: fix *) in
               (* A type of the imported term must be decided until this time *)
-              let ty = Typing.Subst.subst_type ctx.subst (Env.type_of env) in
+              let ty_sc = Env.type_sc_of env in
               (* TODO: assert *)
               let aenv =
-                Env.create name ~parent:(Some penv) ~visibility ~ty
+                Env.create name ~parent:(Some penv) ~visibility ~ty_sc
                   ~kind:(Env.Alias env) ~lookup_space:env.Env.lookup_space
               in
               (*[%loga.debug "loadable env: %s" (Env.show env)];*)
@@ -262,8 +296,10 @@ and lookup_type ~env builtin ast : (Typing.Type.t, Diagnostics.Elem.t) Result.t
                let elm = Diagnostics.Elem.error ~span e in
                elm)
       in
+      let ty_sc = Env.type_sc_of env in
+      (* TODO: generate a type which have fresh vars *)
       let ty =
-        match Env.type_of env with
+        match Typing.Scheme.assume_has_no_generics ty_sc with
         | Typing.Type.{ ty = Type ty; _ } -> ty
         | _ -> failwith (Printf.sprintf "[ICE] = %s" name)
       in
@@ -283,20 +319,62 @@ and lookup_type ~env builtin ast : (Typing.Type.t, Diagnostics.Elem.t) Result.t
   (* *)
   | Ast.{ span; _ } -> failwith "unexpected token (lookup_type)"
 
-and lookup_path ~env ast : (Env.t, Diagnostics.Elem.t) Result.t =
+and rename_ty_sc ~span ~subst ty_sc =
+  let open Result.Let_syntax in
+  let (Typing.Scheme.ForAll (vars, ty)) = ty_sc in
+  match vars with
+  | [] -> Ok (ty_sc, subst, [])
+  | _ ->
+      let new_vars =
+        List.map vars ~f:(fun var ->
+            match Typing.Subst.is_bound subst var with
+            | true -> (var, false)
+            | false ->
+                let Typing.Type.{ span; _ } = var in
+                (Typing.Subst.fresh_ty ~span subst, true))
+      in
+
+      let vars_rels = List.zip_exn new_vars vars in
+
+      (* unify new_vars -> vars *)
+      let%bind subst =
+        List.fold_result vars_rels ~init:subst ~f:(fun subst ((nv, _), v) ->
+            Typer.unify ~span subst ~from:v ~to_:nv)
+      in
+      let ty = Typing.Subst.subst_type subst ty in
+
+      (* mapping from vars -> new_vars *)
+      let inv_subst =
+        List.map vars_rels ~f:(fun ((nv, is_fresh), v) ->
+            match is_fresh with true -> (v, Some nv) | false -> (v, None))
+      in
+
+      let new_vars = new_vars |> List.map ~f:fst in
+      let ty_sc = Typing.Scheme.ForAll (new_vars, ty) in
+      Ok (ty_sc, subst, inv_subst)
+
+and lookup_path ~env ~subst ast :
+    ( Env.t
+      * (Typing.Type.t * Typing.Type.t option) list
+      * Typing.Type.t
+      * Typing.Subst.t,
+      Diagnostics.Elem.t )
+    Result.t =
   let open Result.Let_syntax in
   match ast with
   (* *)
   | Ast.{ kind = Path { root; elems }; span; _ } ->
-      let rec find_elems env elems =
+      let rec find_elems env_aux elems =
         match elems with
-        | [] -> Ok env
+        | [] -> Ok env_aux
         | x :: xs ->
-            let%bind nenv = lookup_path ~env x in
-            find_elems nenv xs
+            let (env, vars, _, subst) = env_aux in
+            let%bind (nenv, nvars, nty, nsubst) = lookup_path ~env ~subst x in
+            let nenv_aux = (nenv, nvars @ vars, nty, nsubst) in
+            find_elems nenv_aux xs
       in
-      let%bind root_env = lookup_path ~env root in
-      find_elems root_env elems
+      let%bind env_aux = lookup_path ~env ~subst root in
+      find_elems env_aux elems
   (* *)
   | Ast.{ kind = ID name; span } ->
       let%bind (envs, _depth) =
@@ -307,26 +385,54 @@ and lookup_path ~env ast : (Env.t, Diagnostics.Elem.t) Result.t =
                let elm = Diagnostics.Elem.error ~span e in
                elm)
       in
-      let%bind env = match envs with [ e ] -> Ok e | _ -> failwith "" in
-      Ok env
+      let%bind env = match envs with [ e ] -> Ok e | _ -> failwith "TODO" in
+
+      let ty_sc = Env.type_sc_of env in
+      let%bind (Typing.Scheme.ForAll (new_vars, new_ty), subst, inv_rel) =
+        rename_ty_sc ~span ~subst ty_sc
+      in
+
+      Ok (env, inv_rel, new_ty, subst)
   (* *)
   | Ast.{ span; _ } -> failwith "unexpected token (lookup_path)"
 
-and to_nested_chain env =
+and make_inv_subst vars =
+  let subst = Typing.Subst.create () in
+  List.fold_left vars ~init:subst ~f:(fun subst (v, nv) ->
+      match nv with
+      | Some nv ->
+          let span = Common.Span.undef in
+          Typer.unify ~span subst ~from:v ~to_:nv
+          |> Result.map_error ~f:(fun _ -> "[ICE] must not failed")
+          |> Result.ok_or_failwith
+      | None -> subst)
+
+and to_leyer env inv_subst =
   let module Chain = Common.Chain in
+  let kind =
+    match env.Env.kind with
+    | Env.M -> Some Chain.Layer.Module
+    | Env.Ty -> Some Chain.Layer.Type
+    | Env.Val -> Some Chain.Layer.Var
+    | _ -> None
+  in
+
+  (* TODO: fix performance *)
+  let (Typing.Scheme.ForAll (params, _)) = Env.type_sc_of env in
+  let generics_vars =
+    List.map params ~f:(fun param -> Typing.Subst.subst_type inv_subst param)
+  in
+
+  Option.map kind ~f:(fun k ->
+      let l = Chain.Layer.{ name = env.Env.name; kind = k; generics_vars } in
+      l)
+
+and to_nested_chain env vars =
+  let module Chain = Common.Chain in
+  let inv_subst = make_inv_subst vars in
   let merge_chain cs env =
-    let kind =
-      match env.Env.kind with
-      | Env.M -> Some Chain.Nest.Module
-      | Env.Ty -> Some Chain.Nest.Type
-      | Env.Val -> Some Chain.Nest.Var
-      | _ -> None
-    in
-    match kind with
-    | Some kind ->
-        let n = Chain.Nest.{ name = env.Env.name; kind } in
-        Chain.Nest.join_rev cs n
-    | None -> cs
+    let l_opt = to_leyer env inv_subst in
+    match l_opt with Some l -> Chain.Nest.join_rev cs l | None -> cs
   in
 
   let rec f env cs =
@@ -338,8 +444,14 @@ and to_nested_chain env =
   in
   f env (Chain.Nest.create ())
 
-and to_chains env =
+and to_chains' env vars =
   let module Chain = Common.Chain in
   match env.Env.lookup_space with
-  | Env.LkLocal -> Chain.Local env.Env.name
-  | Env.LkGlobal -> Chain.Global (to_nested_chain env)
+  | Env.LkLocal ->
+      let inv_subst = make_inv_subst vars in
+      let l_opt = to_leyer env inv_subst in
+      let l = Option.value_exn ~message:"[ICE]" l_opt in
+      Chain.Local l
+  | Env.LkGlobal -> Chain.Global (to_nested_chain env vars)
+
+and to_chains env = to_chains' env []

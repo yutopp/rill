@@ -52,8 +52,9 @@ let make_root_mod_env_for_pkg ~compiler pkg : Mod.t * Sema.Env.t =
   let visibility = Sema.Env.Public in
   let binding_mut = Typing.Type.MutImm in
   let ty = Typing.Type.{ ty = Module; binding_mut; span = Common.Span.undef } in
+  let ty_sc = Typing.Scheme.of_ty ty in
   let menv =
-    Sema.Env.create pkg.Package.name ~parent:None ~visibility ~ty
+    Sema.Env.create pkg.Package.name ~parent:None ~visibility ~ty_sc
       ~kind:Sema.Env.M ~lookup_space:Sema.Env.LkGlobal
   in
 
@@ -97,8 +98,9 @@ let make_pkg_space_for_mods ~compiler proj_space builtin pkg =
         let ty =
           Typing.Type.{ ty = Module; binding_mut; span = Common.Span.undef }
         in
+        let ty_sc = Typing.Scheme.of_ty ty in
         (* Per modules have a root_mod_env as a root *)
-        Sema.Env.create name ~parent:(Some root_mod_env) ~visibility ~ty
+        Sema.Env.create name ~parent:(Some root_mod_env) ~visibility ~ty_sc
           ~kind:Sema.Env.M ~lookup_space:Sema.Env.LkGlobal
       in
       let m = Mod.create ~path ~menv ~pkg in

@@ -259,11 +259,11 @@ and unify_linkage ~span subst lhs_linkage rhs_linkage =
       let e = Typer_err.{ diff; kind; nest = None } in
       Error e
 
-let unify ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
+let unify ~span (subst : Typing.Subst.t) ~from ~to_ :
     (Typing.Subst.t, Diagnostics.Elem.t) Result.t =
   let open Result.Let_syntax in
   let%bind subst =
-    unify_elem ~span subst lhs_ty rhs_ty
+    unify_elem ~span subst from to_
     |> Result.map_error ~f:(fun detail ->
            let e = new Reasons.type_mismatch ~detail in
            Diagnostics.Elem.error ~span e)

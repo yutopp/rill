@@ -45,14 +45,19 @@ let rec generate_expr ~ctx ~builder ast =
 
 let rec generate_stmt ~ctx ~builder ast =
   let module B = Rir.Builder in
+  let ast =
+    let NAst.{ ty; _ } = ast in
+    let ty = Typing.Subst.subst_type ctx.subst ty in
+    NAst.{ ast with ty }
+  in
   match ast with
   (* *)
-  | NAst.{ kind = Let { mut; name; expr }; ty; span; _ } ->
+  | NAst.{ kind = Let { mut; name; expr }; span; _ } ->
       let (t_expr, builder) = generate_stmt ~ctx ~builder expr in
       let term = Rir.Builder.build_let builder name t_expr mut in
       (term, builder)
   (* *)
-  | NAst.{ kind = Assign { lhs; rhs }; ty; span; _ } ->
+  | NAst.{ kind = Assign { lhs; rhs }; span; _ } ->
       let (rhs, builder) = generate_stmt ~ctx ~builder rhs in
       let (lhs, builder) = generate_stmt ~ctx ~builder lhs in
       Rir.Builder.build_assign builder lhs rhs;
@@ -67,9 +72,7 @@ let rec generate_stmt ~ctx ~builder ast =
   | NAst.{ kind = If { cond; t; e_opt }; ty; span; _ } ->
       let f = Rir.Builder.get_current_func builder in
 
-      let has_no_value =
-        Typing.Subst.subst_type ctx.subst ty |> Typing.Type.has_no_value
-      in
+      let has_no_value = Typing.Type.has_no_value ty in
       (* receiver *)
       let recv =
         match has_no_value with
@@ -91,7 +94,7 @@ let rec generate_stmt ~ctx ~builder ast =
             let bb_end = B.build_bb builder "if_end" in
             (bb_end (* To jump to end clause directly *), bb_end)
       in
-      let conv_place = to_placeholder cond in
+      let conv_place = to_placeholder ~ctx ~builder cond in
       Rir.Builder.build_cond builder conv_place bb_then bb_else;
 
       (* then *)
@@ -174,29 +177,29 @@ let rec generate_stmt ~ctx ~builder ast =
       (node, builder)
   (* *)
   | NAst.{ kind = Cast { name }; span; ty } ->
-      let place = to_placeholder name in
+      let place = to_placeholder ~ctx ~builder name in
       let node = Rir.Term.{ kind = Cast place; ty; span } in
       (node, builder)
   (* *)
   | NAst.{ kind = Call { name; args }; span; ty } ->
-      let place = to_placeholder name in
-      let args = List.map args ~f:to_placeholder in
+      let place = to_placeholder ~ctx ~builder name in
+      let args = List.map args ~f:(to_placeholder ~ctx ~builder) in
       let node = Rir.Term.{ kind = Call (place, args); ty; span } in
       (node, builder)
   (* *)
   | NAst.{ kind = Index { name; index }; span; ty } ->
-      let place = to_placeholder name in
-      let index_place = to_placeholder index in
+      let place = to_placeholder ~ctx ~builder name in
+      let index_place = to_placeholder ~ctx ~builder index in
       let node = Rir.Term.{ kind = Index (place, index_place); ty; span } in
       (node, builder)
   (* *)
   | NAst.{ kind = Ref { name }; span; ty } ->
-      let place = to_placeholder name in
+      let place = to_placeholder ~ctx ~builder name in
       let node = Rir.Term.{ kind = Ref place; ty; span } in
       (node, builder)
   (* *)
   | NAst.{ kind = Deref { name }; span; ty } ->
-      let place = to_placeholder name in
+      let place = to_placeholder ~ctx ~builder name in
       let node = Rir.Term.{ kind = Deref place; ty; span } in
       (node, builder)
   (* *)
@@ -205,7 +208,7 @@ let rec generate_stmt ~ctx ~builder ast =
       (node, builder)
   (* *)
   | NAst.{ kind = Var r; ty; span } ->
-      let place = to_placeholder r in
+      let place = to_placeholder ~ctx ~builder r in
       let node = Rir.Term.{ kind = LVal place; ty; span } in
       (node, builder)
   (* *)
@@ -226,7 +229,7 @@ let rec generate_stmt ~ctx ~builder ast =
       (node, builder)
   (* *)
   | NAst.{ kind = LitArrayElem elems; ty; span } ->
-      let elems = List.map elems ~f:to_placeholder in
+      let elems = List.map elems ~f:(to_placeholder ~ctx ~builder) in
       let node = Rir.Term.{ kind = RVal (ValueArrayElem elems); ty; span } in
       (node, builder)
   (* *)
@@ -239,12 +242,24 @@ let rec generate_stmt ~ctx ~builder ast =
       failwith
         (Printf.sprintf "Not supported node (Rir_gen.generate_stmt): %s" s)
 
-and to_placeholder r =
+and to_rir_name ~ctx name =
+  List.map name ~f:(fun l ->
+      let Common.Chain.Layer.{ generics_vars; _ } = l in
+      let generics_vars =
+        List.map generics_vars ~f:(fun v -> Typing.Subst.subst_type ctx.subst v)
+      in
+      Common.Chain.Layer.{ l with generics_vars })
+
+and to_placeholder ~ctx ~builder r =
   match r with
   | NAst.VarLocal { name; label } -> Rir.Term.PlaceholderVar { name }
   | NAst.VarParam { index; name } -> Rir.Term.PlaceholderParam { index; name }
   | NAst.VarGlobal { name } -> Rir.Term.PlaceholderGlobal { name }
-  | NAst.VarGlobal2 { nest } -> Rir.Term.PlaceholderGlobal2 { nest }
+  | NAst.VarGlobal2 { nest } ->
+      let nest = to_rir_name ~ctx nest in
+      Rir.Builder.add_hint_for_specialization builder nest;
+
+      Rir.Term.PlaceholderGlobal2 { nest }
 
 let rec generate_toplevel ~ctx ~builder ast =
   match ast with
@@ -253,16 +268,15 @@ let rec generate_toplevel ~ctx ~builder ast =
       (* DO NOTHING *)
       ()
   (* *)
-  | NAst.{ kind = Func { name; kind = NAst.FuncKindDef body }; ty; span } ->
-      let f = Rir.Builder.declare_func builder name ty in
-      Rir.Func.set_body_form f;
-
+  | NAst.{ kind = Func { name; ty_sc; kind = NAst.FuncKindDef body }; span; _ }
+    ->
+      let f = define_func ~ctx ~builder ~name ~ty_sc in
       let builder = Rir.Builder.with_current_func builder f in
 
-      let (_, ret_ty) = Typing.Type.assume_func_ty ty in
-      let bb = Option.value_exn (Rir.Func.get_entry_bb f) in
+      let bb = Rir.Builder.build_bb builder Rir.Func.entry_name in
       let builder = Rir.Builder.with_current_bb builder bb in
 
+      let ret_ty = Rir.Func.get_ret_ty f in
       let ret_term =
         match ret_ty with
         | Typing.Type.{ ty = Unit; _ } -> None
@@ -286,58 +300,76 @@ let rec generate_toplevel ~ctx ~builder ast =
             Rir.Builder.build_assign builder ret_term term;
             Rir.Builder.build_return builder
       in
-
-      Rir.Builder.mark_func_as_defined builder f
-  (* *)
-  | NAst.
-      { kind = Func { name; kind = NAst.FuncKindExtern extern_name }; ty; span }
-    ->
-      declare_extern_func ~builder ~name ~ty ~extern_name
-  (* *)
-  | NAst.{ kind = Func { name; kind = NAst.FuncKindDecl }; ty; span } ->
-      declare_func ~builder ~name ~ty
+      ()
   (* *)
   | NAst.
       {
-        kind = GlobalVar { name; kind = NAst.VarKindExtern extern_name };
-        ty;
+        kind = Func { name; ty_sc; kind = NAst.FuncKindExtern extern_name };
         span;
+        _;
       } ->
-      declare_extern_static ~builder ~name ~ty ~extern_name
+      let (_f : Rir.Func.t) =
+        declare_extern_func ~ctx ~builder ~name ~ty_sc ~extern_name
+      in
+      ()
   (* *)
-  | NAst.{ kind = Struct { name; inner_ty }; ty; span } ->
-      define_struct ~builder ~name ~inner_ty
+  | NAst.{ kind = Func { name; ty_sc; kind = NAst.FuncKindDecl }; span; _ } ->
+      let (_f : Rir.Func.t) = declare_func ~ctx ~builder ~name ~ty_sc in
+      ()
+  (* *)
+  | NAst.
+      {
+        kind = Static { name; kind = NAst.VarKindExtern extern_name; ty_sc };
+        span;
+        _;
+      } ->
+      declare_extern_static ~ctx ~builder ~name ~ty_sc ~extern_name
+  (* *)
+  | NAst.{ kind = Struct { name; ty_sc }; ty; span } ->
+      define_struct ~ctx ~builder ~name ~ty_sc
   (* *)
   | NAst.{ kind; _ } ->
       let s = NAst.show_kind_t kind in
       failwith
         (Printf.sprintf "Not supported node (Rir_gen.generate_toplevel): %s" s)
 
-and declare_func ~builder ~name ~ty =
-  let (_f : Rir.Func.t) = Rir.Builder.declare_func builder name ty in
-  ()
+and declare_func ~ctx ~builder ~name ~ty_sc =
+  let ty_sc = Typing.Subst.subst_scheme ctx.subst ty_sc in
+  Rir.Builder.declare_func builder name ty_sc
 
-and declare_extern_func ~builder ~name ~ty ~extern_name =
-  let (f : Rir.Func.t) = Rir.Builder.declare_func builder name ty in
-  Rir.Func.set_extern_form f ~extern_name
+and define_func ~ctx ~builder ~name ~ty_sc =
+  let f = declare_func ~ctx ~builder ~name ~ty_sc in
+  Rir.Func.set_body_form f;
+  f
 
-and define_struct ~builder ~name ~inner_ty =
-  Rir.Builder.define_type_def builder name inner_ty
+and declare_extern_func ~ctx ~builder ~name ~ty_sc ~extern_name =
+  let f = declare_func ~ctx ~builder ~name ~ty_sc in
+  Rir.Func.set_extern_form f ~extern_name;
+  f
 
-and declare_extern_static ~builder ~name ~ty ~extern_name =
-  let (g : Rir.Global.t) = Rir.Builder.declare_global_var builder name ty in
+and define_struct ~ctx ~builder ~name ~ty_sc =
+  let ty_sc = Typing.Subst.subst_scheme ctx.subst ty_sc in
+  Rir.Builder.define_type_def builder name ty_sc
+
+and declare_extern_static ~ctx ~builder ~name ~ty_sc ~extern_name =
+  let ty_sc = Typing.Subst.subst_scheme ctx.subst ty_sc in
+  let (g : Rir.Global.t) = Rir.Builder.declare_global_var builder name ty_sc in
   Rir.Global.set_extern_form g ~extern_name
 
 let import_dep_value ~ctx ~builder env =
   let module Ty = Typing.Type in
-  let name = Sema.Phase1_1.to_nested_chain env in
-  let ty = Typing.Subst.subst_type ctx.subst (Sema.Env.type_of env) in
-  match ty with
+  let name = Sema.Phase1_1.to_nested_chain env [] in
+  let ty_sc = Sema.Env.type_sc_of env |> Typing.Subst.subst_scheme ctx.subst in
+  match Typing.Subst.subst_type ctx.subst (Typing.Scheme.raw_ty ty_sc) with
   (* external func *)
   | Ty.{ ty = Func { linkage = LinkageC extern_name; _ }; span; _ } ->
-      declare_extern_func ~builder ~name ~ty ~extern_name
+      let (_f : Rir.Func.t) =
+        declare_extern_func ~ctx ~builder ~name ~ty_sc ~extern_name
+      in
+      ()
   | Ty.{ ty = Func { linkage = LinkageRillc; _ }; span; _ } ->
-      declare_func ~builder ~name ~ty
+      let (_f : Rir.Func.t) = declare_func ~ctx ~builder ~name ~ty_sc in
+      ()
   | Ty.{ ty = Func { linkage = LinkageVar _; _ }; span; _ } ->
       failwith "[ICE] linkage is not determined"
   (* *)
@@ -345,16 +377,18 @@ let import_dep_value ~ctx ~builder env =
   (* as static variables *)
   | _ ->
       let extern_name = env.Sema.Env.name in
-      declare_extern_static ~builder ~name ~ty ~extern_name
+      declare_extern_static ~ctx ~builder ~name ~ty_sc ~extern_name
 
 let import_dep_type ~ctx ~builder env =
   let module Ty = Typing.Type in
-  let name = Sema.Phase1_1.to_nested_chain env in
-  let ty = Typing.Subst.subst_type ctx.subst (Sema.Env.type_of env) in
-  let inner_ty = Typing.Subst.subst_type ctx.subst (Sema.Phase1.of_type ty) in
-  match inner_ty with
+  let name = Sema.Phase1_1.to_nested_chain env [] in
+  let ty_sc = Sema.Env.type_sc_of env in
+  let outer_ty =
+    Typing.Subst.subst_type ctx.subst (Typing.Scheme.raw_ty ty_sc)
+  in
+  match Typing.Subst.subst_type ctx.subst (Typing.Type.of_type_ty outer_ty) with
   (* import strtuct *)
-  | Ty.{ ty = Struct _; span; _ } -> define_struct ~builder ~name ~inner_ty
+  | Ty.{ ty = Struct _; span; _ } -> define_struct ~ctx ~builder ~name ~ty_sc
   (* *)
   | Ty.{ ty = Var _; _ } -> failwith "[ICE] still type variable (type)"
   (* ignored *)
@@ -363,7 +397,6 @@ let import_dep_type ~ctx ~builder env =
 let import_dep_env ~ctx ~builder env =
   [%loga.debug "tE: ref -> %s" env.Sema.Env.name];
   let env_kind = Sema.Env.w_of env in
-  let ty = Sema.Env.type_of env in
   match env_kind with
   | Sema.Env.Val -> import_dep_value ~ctx ~builder env
   | Sema.Env.Ty -> import_dep_type ~ctx ~builder env
@@ -371,8 +404,9 @@ let import_dep_env ~ctx ~builder env =
 
 let rec import_deps ~ctx ~loaded ~builder env =
   (* duplication check *)
-  let nest = Sema.Phase1_1.to_nested_chain env in
-  let uid = Common.Chain.Nest.to_unique_id nest in
+  let nest = Sema.Phase1_1.to_nested_chain env [] in
+  (* TODO: instantiage generics *)
+  let uid : string = Rir.Symbol.to_generic_id nest in
 
   match Hash_set.mem loaded uid with
   | true -> ()
@@ -403,7 +437,7 @@ let generate_module ~ctx ast : Rir.Module.t =
       import_deps_xref ~ctx ~builder;
       List.iter nodes ~f:(generate_toplevel ~ctx ~builder);
 
-      let rir_mod = Rir_gen_filters.finish ~subst:ctx.subst rir_mod in
+      let rir_mod = Rir_gen_filters.Instantiate_pass.apply rir_mod in
 
       rir_mod
   (* *)

@@ -38,6 +38,8 @@ let top_level_statement :=
   | s=function_def_statement; { s }
   | s=extern_decl_statement; SEMICOLON; { s }
   | s=def_struct_stmt; { s }
+  | s=def_trait_stmt; { s }
+  | s=def_impl_for_stmt; { s }
 
 let import_statement :=
     KEYWORD_IMPORT; t=import_tree_root; SEMICOLON;
@@ -64,21 +66,23 @@ let def_type_alias_stmt :=
 function_def_statement:
     KEYWORD_DEF
     name = single_id_as_str
-    LPAREN params = parameter_decls_list RPAREN
+    ty_params=type_parameter_decls_list
+    params=parameter_decls_list
     ret_ty = type_spec
     body = expr_block
     {
       make (Ast.DefFunc {
-              name = name;
-              ret_ty = ret_ty;
-              params = params;
-              body = body;
+                name;
+                ty_params;
+                params;
+                ret_ty;
+                body;
            })
            ~l:$loc
     }
 
-parameter_decls_list:
-    separated_list(COMMA, parameter_decl) { $1 }
+let parameter_decls_list ==
+    LPAREN; xs=separated_list(COMMA, parameter_decl); RPAREN; { xs }
 
 parameter_decl:
     v=decl_var(type_spec)
@@ -87,6 +91,14 @@ parameter_decl:
       make (Ast.ParamDecl { attr; name; ty_spec; })
            ~l:$loc
     }
+
+let type_parameter_decls_list ==
+    { [] }
+    | NOT; LPAREN; xs=separated_list(COMMA, type_parameter_decl); RPAREN; { xs }
+
+let type_parameter_decl ==
+    name=single_id_as_str;
+    { make (Ast.TyParamDecl { name; }) ~l:$loc }
 
 let type_spec :=
     COLON; e=type_expr; { e }
@@ -105,16 +117,17 @@ extern_decl_statement:
 extern_function_decl_statement:
     KEYWORD_EXTERN KEYWORD_DEF
     name = single_id_as_str
-    LPAREN params = parameter_decls_list RPAREN
+    params = parameter_decls_list
     ret_ty = type_spec
     ASSIGN
     symbol_name = lit_string
     {
       make (Ast.DeclExternFunc {
-              name = name;
-              ret_ty = ret_ty;
-              params = params;
-              symbol_name = symbol_name;
+                name;
+                ty_params = [];
+                params;
+                ret_ty;
+                symbol_name;
            })
            ~l:$loc
     }
@@ -132,6 +145,22 @@ let def_struct_stmt :=
     LBLOCK;
     RBLOCK;
     { make (Ast.DefStruct { name }) ~l:$loc }
+
+let def_trait_stmt :=
+    KEYWORD_TRAIT;
+    name=single_id_as_str;
+    LBLOCK;
+    RBLOCK;
+    { make (Ast.DefTrait { name }) ~l:$loc }
+
+let def_impl_for_stmt :=
+    KEYWORD_IMPL;
+    name=single_id_as_str;
+    KEYWORD_FOR;
+    for_ty=type_expr;
+    LBLOCK;
+    RBLOCK;
+    { make (Ast.DefImplFor { name; for_ty }) ~l:$loc }
 
 let stmts :=
     { [] }

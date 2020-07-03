@@ -41,6 +41,8 @@
                         KEYWORD_MUTABLE
                         KEYWORD_EXTERN
                         KEYWORD_RETURN
+                        KEYWORD_TRAIT
+                        KEYWORD_IMPL
                         KEYWORD_OPERATOR
                         KEYWORD_IMPORT
                         KEYWORD_UU_STMT_TRAITS

@@ -672,9 +672,13 @@ let construct_func ~ctx ~env ll_mod ll_f func =
       construct_bb ~ctx ~env ll_f ll_builder func bb)
 
 let declare_type ~ctx ~env ll_mod type_ : Env.type_t * Env.t =
-  let Rir.Type.{ name; inner_ty } = type_ in
+  let Rir.Type.{ name; ty_sc } = type_ in
 
   let mangled_name = Mangling.mangle2 name in
+
+  (* Currently, generics is not supported *)
+  let ty = Typing.Scheme.assume_has_no_generics ty_sc in
+  let inner_ty = Typing.Type.of_type_ty ty in
 
   let ll_ty =
     match inner_ty with
@@ -689,8 +693,6 @@ let declare_type ~ctx ~env ll_mod type_ : Env.type_t * Env.t =
 
 (* define types *)
 let define_type ~ctx ~env ll_mod ll_ty type_ : Env.t =
-  let Rir.Type.{ inner_ty; _ } = type_ in
-
   (* TODO: implement *)
   let packed = false in
   L.struct_set_body ll_ty [||] packed;
@@ -699,8 +701,12 @@ let define_type ~ctx ~env ll_mod ll_ty type_ : Env.t =
 
 (* define global variable *)
 let define_global ~ctx ~env ll_mod g : Env.t =
-  let Rir.Global.{ name; ty; _ } = g in
+  let Rir.Global.{ name; ty_sc; _ } = g in
+
   let mangled_name = Mangling.mangle2 name in
+
+  (* Currently, generics is not supported *)
+  let ty = Typing.Scheme.assume_has_no_generics ty_sc in
 
   let ll_ty = to_llty ~ctx ~env ty in
   let ll_v =
@@ -716,8 +722,12 @@ let define_global ~ctx ~env ll_mod g : Env.t =
 
 (* declare functions *)
 let pre_construct_func ~ctx ~env ll_mod func : Env.Func.t * Env.t =
-  let Rir.Func.{ name; ty; _ } = func in
+  let Rir.Func.{ name; ty_sc; _ } = func in
+
   let mangled_name = Mangling.mangle2 name in
+
+  (* Currently, generics is not supported *)
+  let ty = Typing.Scheme.assume_has_no_generics ty_sc in
 
   let ll_ty = to_llty ~ctx ~env ty in
   let f =
@@ -794,7 +804,7 @@ let generate_module ~ctx rir_mod : Module.t =
 
   (* functions *)
   let (env, fs_rev) =
-    let funcs = Rir.Module.all_funcs rir_mod in
+    let funcs = Rir.Module.defined_funcs rir_mod in
     List.fold_left funcs ~init:(env, []) ~f:(fun (env, fs) func ->
         let (ff, env) = pre_construct_func ~ctx ~env ll_mod func in
         (env, (func, ff) :: fs))

@@ -38,19 +38,12 @@ let assume_new inseted_status =
   | Env.InsertedHiding -> failwith "[ICE] insertion with hiding"
   | _ -> ()
 
-(* TODO: create them elsewhare *)
-let to_type ty = Typing.Type.{ ty with ty = Type ty }
-
-let of_type ty =
-  match ty with
-  | Typing.Type.{ ty = Type ty; _ } -> ty
-  | _ -> failwith "[ICE] not type"
-
 let introduce_prelude penv builtin =
   let register name inner_ty =
-    let ty = to_type inner_ty in
+    let ty = Typing.Type.to_type_ty inner_ty in
+    let ty_sc = Typing.Scheme.of_ty ty in
     let env =
-      Env.create name ~parent:None ~visibility:Env.Private ~ty ~kind:Env.Ty
+      Env.create name ~parent:None ~visibility:Env.Private ~ty_sc ~kind:Env.Ty
         ~lookup_space:Env.LkGlobal
     in
     Env.insert penv env |> assume_new
@@ -98,9 +91,10 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
         let inner = Typing.Subst.fresh_ty ~span ctx.subst in
         ctx.builtin.Builtin.type_ inner
       in
+      let ty_sc = Typing.Scheme.of_ty ty in
       let visibility = Env.Public in
       let tenv =
-        Env.create name ~parent:(Some penv) ~visibility ~ty ~kind:Env.Ty
+        Env.create name ~parent:(Some penv) ~visibility ~ty_sc ~kind:Env.Ty
           ~lookup_space:Env.LkGlobal
       in
       Env.insert penv tenv |> assume_new;
@@ -117,43 +111,50 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
         let ty = Typing.Subst.fresh_ty ~span ctx.subst in
         Typing.(Type.{ ty with binding_mut })
       in
+      let ty_sc = Typing.Scheme.of_ty ty in
       let visibility = Env.Public in
       let fenv =
-        Env.create name ~parent:(Some penv) ~visibility ~ty ~kind:Env.Val
+        Env.create name ~parent:(Some penv) ~visibility ~ty_sc ~kind:Env.Val
           ~lookup_space:Env.LkGlobal
       in
       Env.insert penv fenv |> assume_new;
 
       Ok TopAst.{ kind = WithEnv { node = decl; env = fenv }; span }
   (* *)
-  | Ast.{ kind = DeclExternFunc { name; params; ret_ty; symbol_name }; span } as
-    decl ->
+  | Ast.{ kind = DeclExternFunc { name; params; ret_ty; symbol_name; _ }; span }
+    as decl ->
       let penv = ctx.parent in
       let%bind () = Guards.guard_dup_value ~span penv name in
 
+      let ty_params = (* TODO *) [] in
+
       let linkage = Functions.linkage_of decl in
 
-      let ty = preconstruct_func_ty ~ctx ~span ~linkage params ret_ty in
+      let ty_sc =
+        preconstruct_func_ty_sc ~ctx ~span ~linkage ~ty_params ~params ~ret_ty
+      in
       let visibility = Env.Public in
       let fenv =
-        Env.create name ~parent:(Some penv) ~visibility ~ty ~kind:Env.Val
+        Env.create name ~parent:(Some penv) ~visibility ~ty_sc ~kind:Env.Val
           ~lookup_space:Env.LkGlobal
       in
       Env.insert penv fenv |> assume_new;
 
       Ok TopAst.{ kind = WithEnv { node = decl; env = fenv }; span }
   (* *)
-  | ( Ast.{ kind = DeclFunc { name; params; ret_ty; _ }; span }
-    | Ast.{ kind = DefFunc { name; params; ret_ty; _ }; span } ) as decl ->
+  | Ast.{ kind = DefFunc { name; ty_params; params; ret_ty; _ }; span } as decl
+    ->
       let penv = ctx.parent in
       let%bind () = Guards.guard_dup_value ~span penv name in
 
       let linkage = Functions.linkage_of decl in
 
-      let ty = preconstruct_func_ty ~ctx ~span ~linkage params ret_ty in
+      let ty_sc =
+        preconstruct_func_ty_sc ~ctx ~span ~linkage ~ty_params ~params ~ret_ty
+      in
       let visibility = Env.Public in
       let fenv =
-        Env.create name ~parent:(Some penv) ~visibility ~ty ~kind:Env.Val
+        Env.create name ~parent:(Some penv) ~visibility ~ty_sc ~kind:Env.Val
           ~lookup_space:Env.LkGlobal
       in
       Env.insert penv fenv |> assume_new;
@@ -168,9 +169,10 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
         let inner = Typing.Subst.fresh_ty ~span ctx.subst in
         ctx.builtin.Builtin.type_ inner
       in
+      let ty_sc = Typing.Scheme.of_ty ty in
       let visibility = Env.Public in
       let tenv =
-        Env.create name ~parent:(Some penv) ~visibility ~ty ~kind:Env.Ty
+        Env.create name ~parent:(Some penv) ~visibility ~ty_sc ~kind:Env.Ty
           ~lookup_space:Env.LkGlobal
       in
       Env.insert penv tenv |> assume_new;
@@ -185,7 +187,8 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
       let elm = Diagnostics.Elem.error ~span e in
       Error elm
 
-and preconstruct_func_ty ~ctx ~span ~linkage params ret_ty : Typing.Type.t =
+and preconstruct_func_ty_sc ~ctx ~span ~linkage ~ty_params ~params ~ret_ty :
+    Typing.Scheme.t =
   (* TODO: support generic params *)
   let params_tys =
     List.map params ~f:(fun param ->
@@ -197,9 +200,18 @@ and preconstruct_func_ty ~ctx ~span ~linkage params ret_ty : Typing.Type.t =
     Typing.Subst.fresh_ty ~span ctx.subst
   in
   let binding_mut = Typing.Type.MutImm in
-  Typing.Type.
-    {
-      ty = Func { params = params_tys; ret = ret_ty; linkage };
-      binding_mut;
-      span;
-    }
+  let ty =
+    Typing.Type.
+      {
+        ty = Func { params = params_tys; ret = ret_ty; linkage };
+        binding_mut;
+        span;
+      }
+  in
+
+  let vars =
+    List.map ty_params ~f:(fun _ ->
+        let span = (* TODO: fix *) span in
+        Typing.Subst.fresh_ty ~span ctx.subst)
+  in
+  Typing.Scheme.ForAll (vars, ty)

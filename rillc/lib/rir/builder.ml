@@ -18,6 +18,7 @@ let create ~m = { module_ = m; current_func = None; current_bb = None }
 
 let get_module ctx = ctx.module_
 
+(* function *)
 let with_current_func ctx f = { ctx with current_func = Some f }
 
 let get_current_func ctx = Option.value_exn ctx.current_func
@@ -28,16 +29,23 @@ let get_current_bb ctx = Option.value_exn ctx.current_bb
 
 let get_current_state ctx = (ctx.current_func, ctx.current_bb)
 
-let declare_func b name ty = Module.declare_func b.module_ name ty
+let declare_func b name ty_sc = Module.declare_func b.module_ name ty_sc
 
-let find_func b name = Module.find_func b.module_ name
+let declare_instance_func b name ty_sc =
+  Module.declare_instance_func b.module_ name ty_sc
 
-let mark_func_as_defined b f = Module.mark_func_as_defined b.module_ f
+(* static *)
+let declare_global_var b name ty_sc =
+  Module.declare_global_var b.module_ name ty_sc
 
-let declare_global_var b name ty = Module.declare_global_var b.module_ name ty
+(* type *)
+let define_type_def b name ty_sc = Module.define_type b.module_ name ty_sc
 
-let define_type_def b name inner_ty = Module.define_type b.module_ name inner_ty
+(* generics *)
+let add_hint_for_specialization b name =
+  Module.add_hint_for_specialization b.module_ name
 
+(* *)
 let build_bb b name =
   let f = get_current_func b in
   let name = Func.prepare_bb_name f name in
