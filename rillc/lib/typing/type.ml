@@ -16,7 +16,7 @@ type t = {
 }
 
 and ty_t =
-  | Var of { var : Common.Type_var.t }
+  | Var of { var : Common.Type_var.t; bound : bound_t }
   | Unit
   | Num of { bits : int; signed : bool }
   | Size of { signed : bool }
@@ -28,6 +28,8 @@ and ty_t =
   (* *)
   | Module
   | Type of t
+
+and bound_t = BoundForall | BoundWeak
 
 and mutability_t = MutImm | MutMut | MutVar of Common.Type_var.t
 
@@ -46,7 +48,7 @@ let assume_func_ty ty =
 
 let assume_var_id ty =
   match ty with
-  | { ty = Var { var }; _ } -> var
+  | { ty = Var { var; _ }; _ } -> var
   | _ -> failwith "[ICE] Not func ty"
 
 let to_type_ty ty = { ty with ty = Type ty }
@@ -57,7 +59,9 @@ let of_type_ty ty =
 (* for debugging. TODO: remove *)
 let rec to_string ty : string =
   match ty with
-  | { ty = Var { var }; _ } -> Printf.sprintf "Var %d" var
+  | { ty = Var { var; bound }; _ } ->
+      let s = match bound with BoundForall -> "'" | BoundWeak -> "W" in
+      Printf.sprintf "%s%d" s var
   | { ty = Unit; _ } -> "unit"
   | { ty = Num { bits; signed }; _ } ->
       if signed then Printf.sprintf "i%d" bits else Printf.sprintf "u%d" bits

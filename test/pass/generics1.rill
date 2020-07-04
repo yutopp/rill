@@ -4,10 +4,11 @@ def f!(T)(v: T): unit {
 def main(): unit {
   let a = f(10);
   let a = f("");
-//  let a = f(Hoge {});
+  let a = f(Hoge {});
+  let a = f([1, 2, 3, 4]);
 }
 
-//struct Hoge {}
+struct Hoge {}
 
 /*
 struct A!(T) {

@@ -165,8 +165,6 @@ module To_llvm_ir = struct
     let subst = Mod.subst_of m in
 
     (* *)
-    let rir_mod = Codegen.Rir_gen_filters.finish ~subst rir in
-
     let llvm =
       let ctx = Llvm_gen.context ~ds ~subst ~builtin in
       Llvm_gen.generate_module ~ctx rir

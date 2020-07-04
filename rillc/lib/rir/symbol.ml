@@ -47,7 +47,13 @@ and to_signatured_id name =
 
 and to_signatured_type ty =
   match ty with
-  | Typing.Type.{ ty = Var { var }; _ } -> Printf.sprintf "'%d" var
+  | Typing.Type.{ ty = Var { var; bound }; _ } ->
+      let s =
+        match bound with
+        | Typing.Type.BoundForall -> "'"
+        | Typing.Type.BoundWeak -> "W"
+      in
+      Printf.sprintf "%s%d" s var
   | Typing.Type.{ ty = Unit; _ } -> "unit"
   | Typing.Type.{ ty = Num { bits; signed }; _ } ->
       if signed then Printf.sprintf "i%d" bits else Printf.sprintf "u%d" bits

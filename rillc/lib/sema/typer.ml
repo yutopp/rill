@@ -10,6 +10,32 @@ open! Base
 module Span = Common.Span
 module IntMap = Map.M (Int)
 
+let rec unify_var ~span (subst : Typing.Subst.t) ~from ~to_ =
+  let Typing.Subst.{ ty_subst; _ } = subst in
+
+  let from = Typing.Subst.subst_type subst from in
+  let to_ = Typing.Subst.subst_type subst to_ in
+  match (from, to_) with
+  (* *)
+  | Typing.Type.({ ty = Var { var = a; _ }; _ }, { ty = Var { var = b; _ }; _ })
+    when a <> b ->
+      [%loga.debug "Unify var(%d in ) = var(%d)" a b];
+
+      let ty_subst = Map.add_exn ty_subst ~key:a ~data:to_ in
+      Ok Typing.Subst.{ subst with ty_subst }
+  (* *)
+  | Typing.Type.({ ty = Var { var = a; _ }; _ }, { ty = Var { var = b; _ }; _ })
+    when a = b ->
+      Ok subst
+  (* *)
+  | Typing.Type.({ ty = Var { var = v; _ }; _ }, ty')
+  | Typing.Type.(ty', { ty = Var { var = v; _ }; _ }) ->
+      [%loga.debug "Unify var(%d) -> ty(%s)" v (Typing.Type.to_string ty')];
+
+      let ty_subst = Map.add_exn ty_subst ~key:v ~data:ty' in
+      Ok Typing.Subst.{ subst with ty_subst }
+  | _ -> failwith "[ICE]"
+
 let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
     (Typing.Subst.t, Typer_err.t) Result.t =
   let open Result.Let_syntax in
@@ -19,12 +45,32 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
   let s_rhs_ty = Typing.Subst.subst_type subst rhs_ty in
   match (s_lhs_ty, s_rhs_ty) with
   (* *)
-  | Typing.Type.({ ty = Var { var = a; _ }; _ }, { ty = Var { var = b; _ }; _ })
+  | Typing.Type.
+      ( { ty = Var { var = a; bound = BoundWeak }; _ },
+        { ty = Var { var = b; bound = BoundWeak }; _ } )
     when a <> b ->
       [%loga.debug "Unify var(%d in ) = var(%d)" a b];
 
       let ty_subst = Map.add_exn ty_subst ~key:a ~data:s_rhs_ty in
       Ok Typing.Subst.{ subst with ty_subst; ki_subst }
+  (* *)
+  | Typing.Type.({ ty = Var { var = a; _ }; _ }, { ty = Var { var = b; _ }; _ })
+    when a = b ->
+      Ok subst
+  (* *)
+  | Typing.Type.({ ty = Var { var = v; bound = BoundWeak }; _ }, ty')
+  | Typing.Type.(ty', { ty = Var { var = v; bound = BoundWeak }; _ }) ->
+      [%loga.debug "Unify var(%d) -> ty(%s)" v (Typing.Type.to_string ty')];
+
+      let ty_subst = Map.add_exn ty_subst ~key:v ~data:ty' in
+      Ok Typing.Subst.{ subst with ty_subst }
+  (* *)
+  | Typing.Type.({ ty = Var { var = v; bound = BoundForall }; _ }, ty')
+  | Typing.Type.(ty', { ty = Var { var = v; bound = BoundForall }; _ }) ->
+      let kind = Typer_err.ErrUnify in
+      let diff = Typer_err.diff_of_types ~subst s_lhs_ty s_rhs_ty in
+      let e = Typer_err.{ diff; kind; nest = None } in
+      Error e
   (* *)
   | Typing.Type.
       ( { ty = Array { elem = a_elem; n = a_n }; _ },
@@ -188,13 +234,6 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
                Typer_err.{ diff; kind; nest = Some d })
       in
       Ok subst
-  (* *)
-  | Typing.Type.({ ty = Var { var = v; _ }; _ }, ty')
-  | Typing.Type.(ty', { ty = Var { var = v; _ }; _ }) ->
-      [%loga.debug "Unify var(%d) = ty(%s)" v (Typing.Type.to_string ty')];
-
-      let ty_subst = Map.add_exn ty_subst ~key:v ~data:ty' in
-      Ok Typing.Subst.{ subst with ty_subst }
   (* *)
   | (Typing.Type.{ ty = lhs_ty; _ }, Typing.Type.{ ty = rhs_ty; _ })
     when Poly.equal lhs_ty rhs_ty ->

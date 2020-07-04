@@ -552,8 +552,8 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       let () =
         (* debug log *)
         if List.length vars > 0 then
-          [%loga.error
-            "%s"
+          [%loga.debug
+            "REV %s"
               ( vars
               |> List.map ~f:(fun (v, nv) ->
                      Printf.sprintf "%s -> %s" (Typing.Type.to_string v)
@@ -564,6 +564,8 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       in
 
       let chain = Phase1_1.to_chains' env vars in
+      [%loga.debug
+        "chain -> %s" (Common.Chain.to_string ~to_s:Typing.Type.to_string chain)];
       Ok TAst.{ kind = Var2 { chain }; span; ty }
   (* *)
   | Ast.{ kind = ID name; span; _ } as i ->

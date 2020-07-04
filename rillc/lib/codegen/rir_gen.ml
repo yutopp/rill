@@ -438,6 +438,7 @@ let generate_module ~ctx ast : Rir.Module.t =
       List.iter nodes ~f:(generate_toplevel ~ctx ~builder);
 
       let rir_mod = Rir_gen_filters.Instantiate_pass.apply rir_mod in
+      let rir_mod = Rir_gen_filters.finish rir_mod in
 
       rir_mod
   (* *)

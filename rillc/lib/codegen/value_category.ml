@@ -12,30 +12,19 @@ and memory_t = MemPrimitive | MemMemory of { size : int } [@@deriving show]
 
 let class_memory_limiy_bytes = 8
 
-let memory_of ~subst ty =
-  (* TODO: impl *)
-  match Typing.Subst.subst_type subst ty with
-  | Typing.Type.{ ty = Struct _; _ } as ty ->
-      let size = Typing.Mem.size_of ~subst ty in
-      let mem =
-        if size > class_memory_limiy_bytes then MemMemory { size }
-        else MemPrimitive
-      in
-      mem
-  | Typing.Type.{ ty = Array _; _ } as ty ->
-      let size = Typing.Mem.size_of ~subst ty in
-      let mem =
-        if size > class_memory_limiy_bytes then MemMemory { size }
-        else MemPrimitive
-      in
-      mem
-  | _ -> MemPrimitive
+let memory_of ty =
+  let size = Typing.Mem.size_of ty in
+  let mem =
+    if size > class_memory_limiy_bytes then MemMemory { size } else MemPrimitive
+  in
+  mem
 
-let should_treat ~subst ty =
+let should_treat ty =
   (* TODO: impl *)
-  match Typing.Subst.subst_type subst ty with
+  match ty with
   | Typing.Type.{ ty = Array _; _ } | Typing.Type.{ ty = Struct _; _ } ->
-      AsPtr (memory_of ~subst ty)
+      let size = Typing.Mem.size_of ty in
+      if size > class_memory_limiy_bytes then AsPtr (memory_of ty) else AsVal
   | Typing.Type.{ ty = Var _; _ } ->
       (* TODO: check Sized trait *)
       failwith "[ICE] cannot determine storage"

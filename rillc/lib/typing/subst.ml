@@ -41,10 +41,13 @@ let create () =
 let fresh_var subst : Common.Type_var.t = Counter.fresh subst.fresh_counter
 
 (* has side effects *)
-let fresh_ty ~span subst : Type.t =
+let fresh_ty_generic ~span ~bound subst : Type.t =
   let v = fresh_var subst in
   let binding_mut = Type.MutImm in
-  Type.{ ty = Var { var = v }; binding_mut; span }
+  Type.{ ty = Var { var = v; bound }; binding_mut; span }
+
+let fresh_ty ~span subst : Type.t =
+  fresh_ty_generic ~span ~bound:Type.BoundWeak subst
 
 let fresh_mut subst : Type.mutability_t =
   let v = fresh_var subst in
@@ -90,14 +93,14 @@ let update_type subst uni_id mut =
 
 let is_bound subst ty =
   match ty with
-  | Type.{ ty = Var { var = uni_id }; binding_mut; span } ->
+  | Type.{ ty = Var { var = uni_id; _ }; binding_mut; span } ->
       let { ty_subst; _ } = subst in
       Map.mem ty_subst uni_id
   | _ -> false
 
 let rec subst_type (subst : t) ty : Type.t =
   match ty with
-  | Type.{ ty = Var { var = uni_id }; binding_mut; span } -> (
+  | Type.{ ty = Var { var = uni_id; _ }; binding_mut; span } -> (
       let { ty_subst; _ } = subst in
       match Map.find ty_subst uni_id with
       | Some ty' ->

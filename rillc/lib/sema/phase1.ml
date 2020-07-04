@@ -212,6 +212,7 @@ and preconstruct_func_ty_sc ~ctx ~span ~linkage ~ty_params ~params ~ret_ty :
   let vars =
     List.map ty_params ~f:(fun _ ->
         let span = (* TODO: fix *) span in
-        Typing.Subst.fresh_ty ~span ctx.subst)
+        Typing.Subst.fresh_ty_generic ~span ~bound:Typing.Type.BoundForall
+          ctx.subst)
   in
   Typing.Scheme.ForAll (vars, ty)

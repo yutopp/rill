@@ -10,8 +10,8 @@ open! Base
 
 let pointer_size = 8
 
-let rec size_of ~subst ty =
-  match Subst.subst_type subst ty with
+let rec size_of ty =
+  match ty with
   | Type.{ ty = Unit; _ } -> 0
   | Type.{ ty = Num { bits = 1; _ }; _ } -> (* bool*) 1
   | Type.{ ty = Num { bits; _ }; _ } -> bits / 8
@@ -21,12 +21,11 @@ let rec size_of ~subst ty =
   | Type.{ ty = String; _ } -> pointer_size
   | Type.{ ty = Array { elem; n }; _ } ->
       (* TODO: align *)
-      let elem_size = size_of ~subst elem in
+      let elem_size = size_of elem in
       elem_size * n
   | Type.{ ty = Func _; _ } -> pointer_size
   | Type.{ ty = Pointer _; _ } -> pointer_size
   | Type.{ ty = Struct { name }; _ } ->
-      let fields = Subst.get_struct_fields_from_name subst name in
       (* TODO: fix *)
       0
   | Type.{ ty = Var _; _ } -> failwith "[ICE] not implemented"

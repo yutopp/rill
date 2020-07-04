@@ -21,13 +21,13 @@ module Collect_stack_vars_in_func_pass = struct
         Map.set vars ~key:name ~data:extra
     | _ -> vars
 
-  let collect_inst ~subst ~extra vars inst =
+  let collect_inst ~extra vars inst =
     match inst with
     (* *)
     | Term.Let (name, (Term.{ ty; _ } as term), mut) ->
         let vars = collect ~extra vars term in
         let storage =
-          match (mut, Value_category.should_treat ~subst ty) with
+          match (mut, Value_category.should_treat ty) with
           | (Typing.Type.MutImm, Value_category.AsVal) -> Term.AllocLit
           | (Typing.Type.MutImm, Value_category.AsPtr _) -> Term.AllocStack
           | (Typing.Type.MutMut, _) -> Term.AllocStack
@@ -47,13 +47,13 @@ module Collect_stack_vars_in_func_pass = struct
     (* *)
     | _ -> vars
 
-  let apply ~subst func =
+  let apply func =
     let extra = Func.{ addressable_e_kind = AddrKindStandard } in
     let vars = Map.empty (module String) in
     let vars =
       Func.fold_bbs func ~init:vars ~f:(fun vars bb ->
           let insts = Term.BB.get_insts bb in
-          List.fold_left insts ~init:vars ~f:(collect_inst ~subst ~extra))
+          List.fold_left insts ~init:vars ~f:(collect_inst ~extra))
     in
     (* Override a ret var if exists *)
     let vars =
@@ -72,7 +72,7 @@ module Collect_and_set_local_vars_in_func_pass = struct
   module Func = Rir.Func
   module Term = Rir.Term
 
-  let apply ~subst ~addressables func =
+  let apply ~addressables func =
     let pre_allocs =
       Func.fold_bbs func ~init:[] ~f:(fun pre_allocs bb ->
           let bb_name = bb.Term.BB.name in
@@ -115,24 +115,21 @@ end
 module Modify_funcs_in_module_pass = struct
   module Module = Rir.Module
 
-  let apply ~subst m =
+  let apply m =
     let funcs = Module.defined_funcs m in
     List.iter funcs ~f:(fun func ->
         let Rir.Func.{ body; _ } = func in
         match body with
         | Some (Rir.Func.BodyFunc _) ->
-            let addressables =
-              Collect_stack_vars_in_func_pass.apply ~subst func
-            in
-            Collect_and_set_local_vars_in_func_pass.apply ~subst ~addressables
-              func;
+            let addressables = Collect_stack_vars_in_func_pass.apply func in
+            Collect_and_set_local_vars_in_func_pass.apply ~addressables func;
             ()
         | _ -> ());
     m
 end
 
-let finish ~subst m =
-  let m = Modify_funcs_in_module_pass.apply ~subst m in
+let finish m =
+  let m = Modify_funcs_in_module_pass.apply m in
   m
 
 module Env = struct
@@ -145,8 +142,12 @@ module Env = struct
     { ty_subst }
 
   let bind subst var ty =
-    match var with
-    | Typing.Type.{ ty = Var { var = id }; _ } ->
+    match (var, ty) with
+    | ( Typing.Type.{ ty = Var { var = a; _ }; _ },
+        Typing.Type.{ ty = Var { var = b; _ }; _ } )
+      when a = b ->
+        subst
+    | (Typing.Type.{ ty = Var { var = id; bound = BoundForall }; _ }, _) ->
         let { ty_subst } = subst in
         let ty_subst = Map.add_exn ty_subst ~key:id ~data:ty in
         { subst with ty_subst }
@@ -154,7 +155,7 @@ module Env = struct
 
   let rec subst_type subst ty =
     match ty with
-    | Typing.Type.{ ty = Var { var = uni_id }; binding_mut; span } -> (
+    | Typing.Type.{ ty = Var { var = uni_id; _ }; binding_mut; span } -> (
         let { ty_subst; _ } = subst in
         match Map.find ty_subst uni_id with
         | Some ty' ->
@@ -185,8 +186,8 @@ let ma base special =
          let Common.Chain.Layer.{ generics_vars = gvs_s; _ } = l_s in
          List.zip_exn gvs_b gvs_s
          |> List.fold ~init:env ~f:(fun env (v_b, v_s) ->
-                [%loga.error "B -> %s" (Typing.Type.to_string v_b)];
-                [%loga.error "S -> %s" (Typing.Type.to_string v_s)];
+                [%loga.debug "B -> %s" (Typing.Type.to_string v_b)];
+                [%loga.debug "S -> %s" (Typing.Type.to_string v_s)];
                 Env.bind env v_b v_s))
 
 module Instantiate_pass = struct

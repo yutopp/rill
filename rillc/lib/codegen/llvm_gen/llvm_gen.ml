@@ -107,11 +107,11 @@ module Env = struct
 end
 
 let rec to_llty ~ctx ~env ty : L.lltype =
-  match Typing.Subst.subst_type ctx.subst ty with
+  match ty with
   | Typing.Type.{ ty = Unit; _ } -> L.void_type ctx.ll_ctx
   | Typing.Type.{ ty = Num { bits; _ }; _ } -> L.integer_type ctx.ll_ctx bits
   | Typing.Type.{ ty = Size _; _ } ->
-      let bytes = Typing.Mem.size_of ~subst:ctx.subst ty in
+      let bytes = Typing.Mem.size_of ty in
       L.integer_type ctx.ll_ctx (bytes * 8)
   | Typing.Type.{ ty = String; _ } -> L.pointer_type (L.i8_type ctx.ll_ctx)
   | Typing.Type.{ ty = Array { elem; n }; _ } ->
@@ -136,7 +136,7 @@ and func_to_llty ~ctx ~env ty : L.lltype =
       let params_tys = List.map ~f:(func_param_to_llty ~ctx ~env) params in
       let (params_tys, ret_ty) =
         let ret_ty = to_llty ~ctx ~env ret in
-        match Value_category.memory_of ~subst:ctx.subst ret with
+        match Value_category.memory_of ret with
         | Value_category.MemPrimitive -> (params_tys, ret_ty)
         | Value_category.MemMemory _ ->
             (* 1st args will be return type storage *)
@@ -155,12 +155,12 @@ and func_to_llty ~ctx ~env ty : L.lltype =
 
 and func_param_to_llty ~ctx ~env ty : L.lltype =
   let ll_ty = to_llty ~ctx ~env ty in
-  match Value_category.memory_of ~subst:ctx.subst ty with
+  match Value_category.memory_of ty with
   | Value_category.MemPrimitive -> ll_ty
   | Value_category.MemMemory _ -> L.pointer_type ll_ty
 
 let func_param_to_term ~ctx param_ty ll_param =
-  match Value_category.memory_of ~subst:ctx.subst param_ty with
+  match Value_category.memory_of param_ty with
   | Value_category.MemPrimitive ->
       Env.Var.
         { ll_v = ll_param; ty = param_ty; as_treat = Value_category.AsVal }
@@ -171,7 +171,7 @@ let func_param_to_term ~ctx param_ty ll_param =
 let load_func_params_into_env ~ctx ~env ll_f ty =
   let (params_tys, ret_ty) = Typing.Type.assume_func_ty ty in
   let ll_params = L.params ll_f |> Array.to_list in
-  match Value_category.memory_of ~subst:ctx.subst ret_ty with
+  match Value_category.memory_of ret_ty with
   (* *)
   | Value_category.MemPrimitive ->
       List.zip_exn params_tys ll_params
@@ -215,7 +215,7 @@ let find_builtin builtin_name =
 
 let conv_val_ptr ctx ll_builder ((param_ty, value) : Typing.Type.t * Env.Var.t)
     : L.llvalue =
-  let target_t = Value_category.should_treat ~subst:ctx.subst param_ty in
+  let target_t = Value_category.should_treat param_ty in
   match (target_t, value) with
   | Value_category.(AsVal, Env.Var.{ ll_v; as_treat = AsVal; _ })
   | Value_category.(AsPtr _, Env.Var.{ ll_v; as_treat = AsPtr _; _ }) ->
@@ -302,7 +302,7 @@ let construct_value ~ctx ~env ~ll_holder ~local ll_builder v ty : Env.Var.t =
     match ll_holder with
     | Some storage ->
         let _ll_v : L.llvalue = L.build_store ll_v storage ll_builder in
-        let mem = Value_category.memory_of ~subst:ctx.subst ty in
+        let mem = Value_category.memory_of ty in
         Env.Var.{ ll_v = storage; ty; as_treat = Value_category.AsPtr mem }
     | None -> Env.Var.{ ll_v; ty; as_treat = Value_category.AsVal }
   in
@@ -344,7 +344,7 @@ let construct_value ~ctx ~env ~ll_holder ~local ll_builder v ty : Env.Var.t =
           | Env.Var.{ ll_v = ll_rhs; as_treat = Value_category.AsVal; _ } ->
               let _ll_v : L.llvalue = L.build_store ll_rhs ll_sto ll_builder in
               ());
-      let mem = Value_category.memory_of ~subst:ctx.subst ty in
+      let mem = Value_category.memory_of ty in
       Env.Var.{ ll_v = storage; ty; as_treat = Value_category.AsPtr mem }
 
 let construct_term_assign_args ~ctx ll_builder params args =
@@ -372,7 +372,7 @@ let construct_term ~ctx ~env ~ll_holder ~local ll_f ll_builder term : Env.Var.t
         construct_term_assign_args ~ctx ll_builder f_params_tys arg_values
       in
 
-      let ret_val_memory = Vc.memory_of ~subst:ctx.subst f_ret_ty in
+      let ret_val_memory = Vc.memory_of f_ret_ty in
       let ll_args =
         match ret_val_memory with
         | Value_category.MemPrimitive -> ll_args
@@ -418,7 +418,7 @@ let construct_term ~ctx ~env ~ll_holder ~local ll_f ll_builder term : Env.Var.t
         L.build_in_bounds_gep ll_elems [| zero; ll_index |] "" ll_builder
       in
       let value =
-        let mem = Value_category.memory_of ~subst:ctx.subst ty in
+        let mem = Value_category.memory_of ty in
         match ll_holder with
         | Some storage ->
             let _ll_v : L.llvalue = L.build_store ll_v storage ll_builder in
@@ -439,7 +439,7 @@ let construct_term ~ctx ~env ~ll_holder ~local ll_f ll_builder term : Env.Var.t
       let ll_v = Env.get_var_place env name |> assume_val in
       let t =
         (* Treat values as Ptr *)
-        let mem = Value_category.memory_of ~subst:ctx.subst ty in
+        let mem = Value_category.memory_of ty in
         Env.Var.{ ll_v; ty; as_treat = Value_category.AsPtr mem }
       in
       blit_term_opt ~env ll_builder local t
@@ -447,11 +447,14 @@ let construct_term ~ctx ~env ~ll_holder ~local ll_f ll_builder term : Env.Var.t
   | Rir.Term.{ kind = Construct; ty; _ } ->
       let ll_ty = to_llty ~ctx ~env ty in
       let value =
-        let mem = Value_category.memory_of ~subst:ctx.subst ty in
+        let mem = Value_category.memory_of ty in
         match ll_holder with
         | Some storage ->
             Env.Var.{ ll_v = storage; ty; as_treat = Value_category.AsPtr mem }
-        | None -> failwith "[ICE] Cannot construct"
+        | None ->
+            (* TODO: encode a struct into another primitive type *)
+            let ll_v = L.const_null ll_ty in
+            Env.Var.{ ll_v; ty; as_treat = Value_category.AsVal }
       in
       value
   (* *)
@@ -465,7 +468,7 @@ let construct_term ~ctx ~env ~ll_holder ~local ll_f ll_builder term : Env.Var.t
   (* *)
   | Rir.Term.{ kind = Undef; ty; _ } ->
       let value =
-        let mem = Value_category.memory_of ~subst:ctx.subst ty in
+        let mem = Value_category.memory_of ty in
         match ll_holder with
         | Some storage ->
             Env.Var.{ ll_v = storage; ty; as_treat = Value_category.AsPtr mem }
@@ -596,7 +599,7 @@ let construct_pre_alloc ~ctx ~env ll_f ll_builder pre_alloc =
             | Rir.Func.AddressableT
                 Rir.Func.{ addressable_e_kind = Rir.Func.AddrKindStandard; _ }
               ->
-                let storage = Value_category.memory_of ~subst:ctx.subst ty in
+                let storage = Value_category.memory_of ty in
                 let v =
                   let ll_ty = to_llty ~ctx ~env term.Rir.Term.ty in
                   let ll_v = L.build_alloca ll_ty "" ll_builder in
@@ -606,7 +609,7 @@ let construct_pre_alloc ~ctx ~env ll_f ll_builder pre_alloc =
             (* *)
             | Rir.Func.AddressableT
                 Rir.Func.{ addressable_e_kind = Rir.Func.AddrKindRet; _ } ->
-                let storage = Value_category.memory_of ~subst:ctx.subst ty in
+                let storage = Value_category.memory_of ty in
                 let v =
                   match storage with
                   | Value_category.MemPrimitive ->
@@ -715,7 +718,7 @@ let define_global ~ctx ~env ll_mod g : Env.t =
         L.declare_global ll_ty extern_name ll_mod
     | _ -> failwith "[ICE]"
   in
-  let mem = Value_category.memory_of ~subst:ctx.subst ty in
+  let mem = Value_category.memory_of ty in
   let var = Env.Var.{ ll_v; ty; as_treat = Value_category.(AsPtr mem) } in
   let env = Env.set_global_var env mangled_name var in
   env

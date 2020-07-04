@@ -1,0 +1,10 @@
+import core::prelude::*;
+
+def f!(T)(v: T): unit {
+  let _ = v + 1;
+}
+
+def main(): unit {
+  f(10);
+  f("");
+}

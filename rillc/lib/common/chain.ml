@@ -15,9 +15,7 @@ module Layer = struct
 
   let to_string ~to_s l : string =
     let { name; kind; generics_vars } = l in
-    let kind_s =
-      match kind with Module -> "mod" | Type -> "ty" | Var -> "var"
-    in
+    let kind_s = match kind with Module -> "m" | Type -> "t" | Var -> "v" in
     let generics_s =
       match generics_vars with
       | [] -> ""
@@ -25,7 +23,7 @@ module Layer = struct
           Printf.sprintf "!(%s)"
             (vars |> List.map ~f:to_s |> String.concat ~sep:",")
     in
-    Printf.sprintf "%s(%s)%s" name kind_s generics_s
+    Printf.sprintf "%s:%s%s" name kind_s generics_s
 end
 
 module Nest = struct
@@ -36,8 +34,13 @@ module Nest = struct
   let join_rev nest n = n :: nest
 
   let to_string ~to_s nest =
-    nest |> List.map ~f:(Layer.to_string ~to_s) |> String.concat ~sep:"-"
+    nest |> List.map ~f:(Layer.to_string ~to_s) |> String.concat ~sep:"."
 end
 
 type 'a t = Local of 'a Layer.t | Global of 'a Nest.t
 [@@deriving show, yojson_of]
+
+let to_string ~to_s chain =
+  match chain with
+  | Local l -> Layer.to_string ~to_s l
+  | Global nest -> Nest.to_string ~to_s nest

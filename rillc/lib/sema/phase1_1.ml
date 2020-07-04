@@ -336,14 +336,18 @@ and rename_ty_sc ~span ~subst ty_sc =
 
       let vars_rels = List.zip_exn new_vars vars in
 
-      (* unify new_vars -> vars *)
+      [%loga.debug "Rename: From %s" (Typing.Type.to_string ty)];
+
+      (* unify vars -> new_vars *)
       let%bind subst =
         List.fold_result vars_rels ~init:subst ~f:(fun subst ((nv, _), v) ->
-            Typer.unify ~span subst ~from:v ~to_:nv)
+            Typer.unify_var ~span subst ~from:v ~to_:nv)
       in
       let ty = Typing.Subst.subst_type subst ty in
 
-      (* mapping from vars -> new_vars *)
+      [%loga.debug "Rename: To %s" (Typing.Type.to_string ty)];
+
+      (* mapping from new_vars -> vars *)
       let inv_subst =
         List.map vars_rels ~f:(fun ((nv, is_fresh), v) ->
             match is_fresh with true -> (v, Some nv) | false -> (v, None))
@@ -402,7 +406,7 @@ and make_inv_subst vars =
       match nv with
       | Some nv ->
           let span = Common.Span.undef in
-          Typer.unify ~span subst ~from:v ~to_:nv
+          Typer.unify_var ~span subst ~from:v ~to_:nv
           |> Result.map_error ~f:(fun _ -> "[ICE] must not failed")
           |> Result.ok_or_failwith
       | None -> subst)
