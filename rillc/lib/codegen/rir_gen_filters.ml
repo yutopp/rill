@@ -211,7 +211,7 @@ module Instantiate_pass = struct
 
   let clone_ir ~subst ~base_f f =
     let base_bbs = Rir.Func.list_reached_bbs base_f in
-    (* close bbs *)
+    (* clone bbs *)
     List.iter base_bbs ~f:(fun base_bb ->
         let bb = Rir.Term.BB.create base_bb.Rir.Term.BB.name in
 
@@ -221,7 +221,11 @@ module Instantiate_pass = struct
             Rir.Term.BB.append_inst bb inst);
 
         Rir.Func.insert_bb f bb;
-        ())
+        ());
+
+    Option.iter (Rir.Func.get_ret_term base_f) ~f:(fun base_ret_term ->
+        let ret_term = clone_term ~subst base_ret_term in
+        Rir.Func.set_ret_term f ret_term)
 
   let apply m =
     let hints = Module.hints m in

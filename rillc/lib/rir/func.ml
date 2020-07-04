@@ -46,6 +46,11 @@ and addressable_extra_kind_t = AddrKindStandard | AddrKindRet
 
 let create ~name ~ty_sc = { name; ty_sc; body = None }
 
+let failwith_nobody tag f =
+  failwith
+    (Printf.sprintf "[ICE] no body (%s): %s" tag
+       (Common.Chain.Nest.to_string ~to_s:Typing.Type.to_string f.name))
+
 let get_ret_ty f =
   let ty = Typing.Scheme.raw_ty f.ty_sc in
   let (_, ret_ty) = Typing.Type.assume_func_ty ty in
@@ -60,7 +65,7 @@ let prepare_bb_name f name =
           let fresh_suffix = Counter.fresh_string fb.fresh_id in
           Printf.sprintf "%s%s" name fresh_suffix
       | false -> name )
-  | _ -> failwith ""
+  | _ -> failwith_nobody "prepare_bb_name" f
 
 let insert_bb f bb =
   match f.body with
@@ -69,7 +74,7 @@ let insert_bb f bb =
       Hashtbl.add_exn fb.bbs ~key:name ~data:bb;
       fb.bbs_names_rev <- name :: fb.bbs_names_rev;
       ()
-  | _ -> failwith ""
+  | _ -> failwith_nobody "insert_bb" f
 
 let set_extern_form func ~extern_name =
   func.body <- Some (BodyExtern extern_name)
@@ -91,14 +96,14 @@ let gen_local_var f =
   | Some (BodyFunc fb) ->
       let s = Counter.fresh_string fb.fresh_id in
       Printf.sprintf "$_%s" s
-  | _ -> failwith ""
+  | _ -> failwith_nobody "gen_local_var" f
 
 let entry_name = "entry"
 
 let get_entry_bb f =
   match f.body with
   | Some (BodyFunc fb) -> Hashtbl.find fb.bbs entry_name
-  | _ -> failwith ""
+  | _ -> failwith_nobody "get_entry_bb" f
 
 let set_ret_term func term =
   match func.body with
@@ -106,21 +111,27 @@ let set_ret_term func term =
       match term with
       | Term.{ kind = LVal _; _ } -> fb.ret_term <- Some term
       | _ -> failwith "" )
-  | _ -> failwith ""
+  | _ -> failwith_nobody "set_ret_term" func
 
 let get_ret_term func =
-  match func.body with Some (BodyFunc fb) -> fb.ret_term | _ -> failwith ""
+  match func.body with
+  | Some (BodyFunc fb) -> fb.ret_term
+  | _ -> failwith_nobody "get_ret_term" func
 
 let set_pre_allocs func pre_allocs =
   match func.body with
   | Some (BodyFunc fb) -> fb.pre_allocs <- pre_allocs
-  | _ -> failwith ""
+  | _ -> failwith_nobody "set_pre_allocs" func
 
 let get_pre_allocs func =
-  match func.body with Some (BodyFunc fb) -> fb.pre_allocs | _ -> failwith ""
+  match func.body with
+  | Some (BodyFunc fb) -> fb.pre_allocs
+  | _ -> failwith_nobody "get_pre_allocs" func
 
 let get_bbs func =
-  match func.body with Some (BodyFunc fb) -> fb.bbs | _ -> failwith ""
+  match func.body with
+  | Some (BodyFunc fb) -> fb.bbs
+  | _ -> failwith_nobody "get_bbs" func
 
 let fold_bbs func ~init ~f =
   match get_entry_bb func with
@@ -176,20 +187,25 @@ let to_string ~indent func =
   let buf = Buffer.create 256 in
   Buffer.add_string buf (String.make indent ' ');
 
-  let { name; ty_sc; _ } = func in
+  let { name; ty_sc; body } = func in
   Buffer.add_string buf
     (Printf.sprintf "Func: name = '%s' :: %s\n"
        (Common.Chain.Nest.to_string ~to_s:Typing.Type.to_string name)
        (Typing.Scheme.to_string ty_sc));
 
-  let allocs = get_pre_allocs func in
-  List.iter allocs ~f:(fun alloc ->
-      let s = to_string_pre_alloc ~indent:(indent + 2) alloc in
-      Buffer.add_string buf s);
+  let () =
+    match body with
+    | Some (BodyExtern extern_name) -> ()
+    | Some (BodyFunc _) ->
+        let allocs = get_pre_allocs func in
+        List.iter allocs ~f:(fun alloc ->
+            let s = to_string_pre_alloc ~indent:(indent + 2) alloc in
+            Buffer.add_string buf s);
 
-  let bbs = list_reached_bbs func in
-  List.iter bbs ~f:(fun bb ->
-      let s = Term.BB.to_string ~indent:(indent + 2) bb in
-      Buffer.add_string buf s);
-
+        let bbs = list_reached_bbs func in
+        List.iter bbs ~f:(fun bb ->
+            let s = Term.BB.to_string ~indent:(indent + 2) bb in
+            Buffer.add_string buf s)
+    | None -> ()
+  in
   Buffer.contents buf

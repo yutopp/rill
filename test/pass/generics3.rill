@@ -1,0 +1,20 @@
+def f!(T)(v: T): T {
+  let a = v;
+  let mutable b = v;
+  b = a;
+  if false { a } else { b }
+}
+
+import std::stdio::*;
+
+def main(): unit {
+  let a = f(10);
+  print_int_ln(a);
+  let a = f("foo");
+  println(a);
+  let a = f(Hoge {});
+  let a = f([1, 2, 3, 4]);
+  print_int_ln(a[2]);
+}
+
+struct Hoge {}
