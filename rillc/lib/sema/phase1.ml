@@ -212,7 +212,7 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
       let pty = Typing.Pred.of_type ty in
       (* a *)
       let implicits =
-        let inner = Typing.Subst.fresh_forall_ty ~span ctx.subst in
+        let inner = Typing.Subst.fresh_forall_ty ~span ~label:"t" ctx.subst in
         [ inner ]
       in
       let ty_sc = Typing.Scheme.of_ty pty in
@@ -273,9 +273,10 @@ and preconstruct_func_ty_sc ~ctx ~span ~linkage ~ty_params ~params ~ret_ty :
   let pty = Typing.Pred.of_type ty in
 
   let vars =
-    List.map ty_params ~f:(fun _ ->
-        let span = (* TODO: fix *) span in
-        Typing.Subst.fresh_ty_generic ~span ~bound:Typing.Type.BoundForall
-          ctx.subst)
+    List.map ty_params ~f:(fun ty_param ->
+        match ty_param with
+        | Ast.{ kind = TyParamDecl { name }; span } ->
+            Typing.Subst.fresh_forall_ty ~span ~label:name ctx.subst
+        | _ -> failwith "[ICE]")
   in
   Typing.Scheme.ForAll { implicits = []; vars; ty = pty }

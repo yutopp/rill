@@ -49,8 +49,8 @@ let rec unify_elem ~span ~(subst : Typing.Subst.t) ~preconds lhs_ty rhs_ty :
   match (s_lhs_ty, s_rhs_ty) with
   (* *)
   | Typing.Type.
-      ( { ty = Var { var = a; bound = BoundWeak }; _ },
-        { ty = Var { var = b; bound = BoundWeak }; _ } )
+      ( { ty = Var { var = a; bound = BoundWeak; _ }; _ },
+        { ty = Var { var = b; bound = BoundWeak; _ }; _ } )
     when a <> b ->
       [%loga.debug "Unify var(W%d) = var(W%d)" a b];
 
@@ -61,8 +61,8 @@ let rec unify_elem ~span ~(subst : Typing.Subst.t) ~preconds lhs_ty rhs_ty :
     when a = b ->
       Ok subst
   (* *)
-  | Typing.Type.(({ ty = Var { var = v; bound = BoundWeak }; _ } as vty), ty')
-  | Typing.Type.(ty', ({ ty = Var { var = v; bound = BoundWeak }; _ } as vty))
+  | Typing.Type.(({ ty = Var { var = v; bound = BoundWeak; _ }; _ } as vty), ty')
+  | Typing.Type.(ty', ({ ty = Var { var = v; bound = BoundWeak; _ }; _ } as vty))
     ->
       [%loga.debug "Unify var(W%d) -> ty(%s)" v (Typing.Type.to_string ty')];
 
@@ -85,8 +85,8 @@ let rec unify_elem ~span ~(subst : Typing.Subst.t) ~preconds lhs_ty rhs_ty :
       let ty_subst = Map.add_exn ty_subst ~key:v ~data:ty' in
       Ok Typing.Subst.{ subst with ty_subst }
   (* *)
-  | Typing.Type.({ ty = Var { var = v; bound = BoundForall }; _ }, ty')
-  | Typing.Type.(ty', { ty = Var { var = v; bound = BoundForall }; _ }) ->
+  | Typing.Type.({ ty = Var { var = v; bound = BoundForall; _ }; _ }, ty')
+  | Typing.Type.(ty', { ty = Var { var = v; bound = BoundForall; _ }; _ }) ->
       let kind = Typer_err.ErrUnify in
       let diff = Typer_err.diff_of_types ~subst s_lhs_ty s_rhs_ty in
       let e = Typer_err.{ diff; kind; nest = None } in

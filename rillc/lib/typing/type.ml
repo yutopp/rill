@@ -16,7 +16,7 @@ type t = {
 }
 
 and ty_t =
-  | Var of { var : Common.Type_var.t; bound : bound_t }
+  | Var of { var : Common.Type_var.t; bound : bound_t; label : string }
   | Unit
   | Num of { bits : int; signed : bool }
   | Size of { signed : bool }
@@ -56,9 +56,13 @@ let of_type_ty ty =
 (* for debugging. TODO: remove *)
 let rec to_string ty : string =
   match ty with
-  | { ty = Var { var; bound }; _ } ->
-      let s = match bound with BoundForall -> "'" | BoundWeak -> "W" in
-      Printf.sprintf "%s%d" s var
+  | { ty = Var { var; bound; label }; _ } ->
+      let s =
+        match bound with
+        | BoundForall -> Printf.sprintf "%s" label
+        | BoundWeak -> Printf.sprintf "_w%d" var
+      in
+      s
   | { ty = Unit; _ } -> "unit"
   | { ty = Num { bits; signed }; _ } ->
       if signed then Printf.sprintf "i%d" bits else Printf.sprintf "u%d" bits

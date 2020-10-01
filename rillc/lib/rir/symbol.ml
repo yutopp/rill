@@ -56,7 +56,7 @@ and to_signatured_id name =
 
 and to_signatured_type ty =
   match ty with
-  | Typing.Type.{ ty = Var { var; bound }; _ } ->
+  | Typing.Type.{ ty = Var { var; bound; _ }; _ } ->
       let s =
         match bound with
         | Typing.Type.BoundForall -> "'"

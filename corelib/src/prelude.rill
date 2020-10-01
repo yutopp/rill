@@ -7,6 +7,6 @@ extern def '*'(a: i32, b: i32): i32 = "%op_bin_mul";
 
 //def f2!(T)(v: T): unit {
 //}
-
+//
 //trait Add {
 //}

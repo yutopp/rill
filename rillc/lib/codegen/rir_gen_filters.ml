@@ -147,7 +147,7 @@ module Env = struct
         Typing.Type.{ ty = Var { var = b; _ }; _ } )
       when a = b ->
         subst
-    | (Typing.Type.{ ty = Var { var = id; bound = BoundForall }; _ }, _) ->
+    | (Typing.Type.{ ty = Var { var = id; bound = BoundForall; _ }; _ }, _) ->
         let { ty_subst } = subst in
         let ty_subst = Map.set ty_subst ~key:id ~data:ty in
         { subst with ty_subst }

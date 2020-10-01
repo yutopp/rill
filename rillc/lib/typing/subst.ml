@@ -49,16 +49,16 @@ let create () =
 let fresh_var subst : Common.Type_var.t = Counter.fresh subst.fresh_counter
 
 (* has side effects *)
-let fresh_ty_generic ~span ~bound subst : Type.t =
+let fresh_ty_generic ~span ~bound ~label subst : Type.t =
   let v = fresh_var subst in
   let binding_mut = Type.MutImm in
-  Type.{ ty = Var { var = v; bound }; binding_mut; span }
+  Type.{ ty = Var { var = v; bound; label }; binding_mut; span }
 
 let fresh_ty ~span subst : Type.t =
-  fresh_ty_generic ~span ~bound:Type.BoundWeak subst
+  fresh_ty_generic ~span ~bound:Type.BoundWeak ~label:"tmp" subst
 
-let fresh_forall_ty ~span subst : Type.t =
-  fresh_ty_generic ~span ~bound:Type.BoundForall subst
+let fresh_forall_ty ~span ~label subst : Type.t =
+  fresh_ty_generic ~span ~bound:Type.BoundForall ~label subst
 
 let fresh_mut subst : Type.mutability_t =
   let v = fresh_var subst in
