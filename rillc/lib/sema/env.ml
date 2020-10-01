@@ -15,9 +15,13 @@ type t = {
   visibility : visibility_t;
   mutable scope : scope_t option;
   ty_sc : Typing.Scheme.t;
+  mutable implicits : Typing.Type.t list;
+  mutable predicates : Typing.Pred.cond_t list;
+  trans : Trans.t;
   kind : kind_t;
   lookup_space : lookup_space_t;
   mutable deps : t list;
+  mutable has_self : bool;
 }
 
 and scope_t = {
@@ -28,7 +32,7 @@ and scope_t = {
 
 and visibility_t = Public | Private
 
-and kind_t = N | Ty | Val | M | Alias of t | KindScope
+and kind_t = N | Ty | Val | M | Trait | Impl | Alias of t | KindScope
 
 and lookup_space_t = LkGlobal | LkLocal [@@deriving show]
 
@@ -43,12 +47,33 @@ let create name ~parent ~visibility ~ty_sc ~kind ~lookup_space =
     visibility;
     scope = None;
     ty_sc;
+    implicits = [];
+    predicates = [];
+    trans = ();
     kind;
     lookup_space;
     deps = [];
+    has_self = false;
   }
 
-let type_sc_of env = env.ty_sc
+let name env = env.name
+
+let type_sc_of env =
+  let (Typing.Scheme.ForAll { implicits; vars; ty }) = env.ty_sc in
+  let (Typing.Pred.Pred { ty; _ }) = ty in
+  let ty = Typing.Pred.Pred { conds = env.predicates; ty } in
+  Typing.Scheme.ForAll { implicits = env.implicits; vars; ty }
+
+let predicates env = env.predicates
+
+let append_implicits env implicits = env.implicits <- implicits @ env.implicits
+
+let append_predicates env predicates =
+  env.predicates <- predicates @ env.predicates
+
+let set_has_self env flag = env.has_self <- flag
+
+let has_self env = env.has_self
 
 let rec w_of env = match env.kind with Alias aenv -> w_of aenv | _ -> env.kind
 
@@ -91,7 +116,7 @@ let insert_meta penv tenv =
 
 let insert_impl penv w tenv =
   match w with
-  | Ty -> insert_type penv tenv
+  | Ty | Trait -> insert_type penv tenv
   | Val -> insert_value penv tenv
   | M -> insert_meta penv tenv
   | _ -> failwith "insert_impl"
@@ -166,3 +191,16 @@ let lookup_value env name = lookup_impl (find ~ns:NamespaceValue) env name
 let lookup_type env name = lookup_impl (find ~ns:NamespaceType) env name
 
 let lookup_meta env name = lookup_impl (find ~ns:NamespaceMeta) env name
+
+let lookup_self_type env =
+  let rec lookup' env history =
+    match env.parent with
+    | Some e -> (
+        let (Typing.Scheme.ForAll { implicits; vars; ty }) = type_sc_of e in
+        match e.kind with
+        | Trait -> Ok e
+        | Impl -> Ok e
+        | _ -> lookup' e (env :: history) )
+    | None -> Error (history |> List.rev)
+  in
+  lookup' env []

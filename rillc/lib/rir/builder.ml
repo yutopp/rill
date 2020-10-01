@@ -29,7 +29,11 @@ let get_current_bb ctx = Option.value_exn ctx.current_bb
 
 let get_current_state ctx = (ctx.current_func, ctx.current_bb)
 
-let declare_func b name ty_sc = Module.declare_func b.module_ name ty_sc
+let declare_func ~subst b name ty_sc =
+  Module.declare_func ~subst b.module_ name ty_sc
+
+let define_impl ~subst b trait_name for_name mapping =
+  Module.define_impl ~subst b.module_ trait_name for_name mapping
 
 let declare_instance_func b name ty_sc =
   Module.declare_instance_func b.module_ name ty_sc
@@ -42,8 +46,18 @@ let declare_global_var b name ty_sc =
 let define_type_def b name ty_sc = Module.define_type b.module_ name ty_sc
 
 (* generics *)
-let add_hint_for_specialization b name =
-  Module.add_hint_for_specialization b.module_ name
+let register_monomorphization_candidate b name =
+  Module.register_monomorphization_candidate b.module_ name
+
+let register_monomorphization_candidate b ph =
+  let open Term in
+  match ph with
+  | PlaceholderVar _ -> ()
+  | PlaceholderParam _ -> ()
+  | PlaceholderGlobal _ -> ()
+  | PlaceholderGlobal2 { name; dispatch = false } ->
+      register_monomorphization_candidate b name
+  | PlaceholderGlobal2 { name; _ } -> ()
 
 (* *)
 let build_bb b name =

@@ -149,7 +149,7 @@ module Env = struct
         subst
     | (Typing.Type.{ ty = Var { var = id; bound = BoundForall }; _ }, _) ->
         let { ty_subst } = subst in
-        let ty_subst = Map.add_exn ty_subst ~key:id ~data:ty in
+        let ty_subst = Map.set ty_subst ~key:id ~data:ty in
         { subst with ty_subst }
     | _ -> failwith "[ICE]"
 
@@ -180,6 +180,8 @@ module Env = struct
 end
 
 let ma base special =
+  let base = Common.Chain.Nest.to_list base in
+  let special = Common.Chain.Nest.to_list special in
   List.zip_exn base special
   |> List.fold ~init:(Env.create ()) ~f:(fun env (l_b, l_s) ->
          let Common.Chain.Layer.{ generics_vars = gvs_b; _ } = l_b in
@@ -190,26 +192,102 @@ let ma base special =
                 [%loga.debug "S -> %s" (Typing.Type.to_string v_s)];
                 Env.bind env v_b v_s))
 
+let to_impl name ~env ty =
+  let rec convert layers subst rev_layers =
+    match layers with
+    | [] ->
+        let name = Common.Chain.Nest.from_list (rev_layers |> List.rev) in
+        name
+    | l :: rest ->
+        (* TODO: fix *)
+        let Common.Chain.Layer.{ kind; generics_vars; _ } = l in
+        let env =
+          match generics_vars with [ v ] -> Env.bind env v ty | _ -> env
+        in
+        let generics_vars =
+          List.map generics_vars ~f:(fun v -> Env.subst_type env v)
+        in
+        let l = Common.Chain.Layer.{ l with generics_vars } in
+        let rev_layers = l :: rev_layers in
+
+        convert rest env rev_layers
+  in
+  let layers = Common.Chain.Nest.to_list name in
+  convert layers env []
+
 module Instantiate_pass = struct
   module Module = Rir.Module
 
-  let clone_term ~subst term =
-    let Rir.Term.{ ty; _ } = term in
-    let ty = Env.subst_type subst ty in
-    Rir.Term.{ term with ty }
+  let subst_placeholder ~builder ~subst ph =
+    let open Rir.Term in
+    match ph with
+    | PlaceholderVar _ -> ph
+    | PlaceholderParam _ -> ph
+    | PlaceholderGlobal _ -> ph
+    | PlaceholderGlobal2 { name; dispatch } when not dispatch ->
+        let name =
+          Common.Chain.Nest.to_list name
+          |> List.map ~f:(fun layer ->
+                 let Common.Chain.Layer.{ generics_vars; kind; _ } = layer in
+                 let generics_vars =
+                   List.map ~f:(Env.subst_type subst) generics_vars
+                 in
+                 let kind =
+                   match kind with
+                   (*| Common.Chain.Layer.Var ty ->
+                       let ty = Env.subst_type subst ty in
+                       Common.Chain.Layer.Var ty*)
+                   | _ -> kind
+                 in
+                 Common.Chain.Layer.{ layer with generics_vars })
+          |> Common.Chain.Nest.from_list
+        in
+        [%loga.debug
+          "global2: %s"
+            (Common.Chain.Nest.to_string ~to_s:Typing.Type.to_string name)];
+        PlaceholderGlobal2 { name; dispatch }
+    | PlaceholderGlobal2 { name; dispatch } ->
+        PlaceholderGlobal2 { name; dispatch }
 
-  let clone_inst ~subst inst =
+  let subst_kind ~builder ~subst kind =
+    let open Rir.Term in
+    let sp ph =
+      let ph = subst_placeholder ~builder ~subst ph in
+      Rir.Builder.register_monomorphization_candidate builder ph;
+      ph
+    in
+    match kind with
+    | Call (r, args) -> Call (r |> sp, args |> List.map ~f:sp)
+    | Cast v -> Cast (v |> sp)
+    | Index (v, index) -> Index (v |> sp, index |> sp)
+    | Ref v -> Ref (v |> sp)
+    | Deref v -> Deref (v |> sp)
+    | Construct -> kind
+    | RVal _ -> kind
+    | LVal v -> LVal (v |> sp)
+    | Undef -> kind
+
+  let clone_term ~builder ~subst term =
+    let Rir.Term.{ ty; kind; _ } = term in
+    let ty = Env.subst_type subst ty in
+    let kind = subst_kind ~builder ~subst kind in
+    let term' = Rir.Term.{ term with kind; ty } in
+    [%loga.debug
+      "-> %s :: %s" (Rir.Term.to_string_term term') (Typing.Type.to_string ty)];
+    term'
+
+  let clone_inst ~builder ~subst inst =
     match inst with
     | Rir.Term.Let (name, term, mut) ->
-        let term = clone_term ~subst term in
+        let term = clone_term ~builder ~subst term in
         Rir.Term.Let (name, term, mut)
     | Rir.Term.Assign { lhs; rhs } ->
-        let lhs = clone_term ~subst lhs in
-        let rhs = clone_term ~subst rhs in
+        let lhs = clone_term ~builder ~subst lhs in
+        let rhs = clone_term ~builder ~subst rhs in
         Rir.Term.Assign { lhs; rhs }
     | Rir.Term.TerminatorPoint termi -> Rir.Term.TerminatorPoint termi
 
-  let clone_ir ~subst ~base_f f =
+  let clone_ir ~builder ~subst ~base_f f =
     let base_bbs = Rir.Func.list_reached_bbs base_f in
     (* clone bbs *)
     List.iter base_bbs ~f:(fun base_bb ->
@@ -217,39 +295,124 @@ module Instantiate_pass = struct
 
         (* clone insts *)
         List.iter (Rir.Term.BB.get_insts base_bb) ~f:(fun base_inst ->
-            let inst = clone_inst ~subst base_inst in
+            let inst = clone_inst ~builder ~subst base_inst in
             Rir.Term.BB.append_inst bb inst);
 
         Rir.Func.insert_bb f bb;
         ());
 
     Option.iter (Rir.Func.get_ret_term base_f) ~f:(fun base_ret_term ->
-        let ret_term = clone_term ~subst base_ret_term in
+        let ret_term = clone_term ~builder ~subst base_ret_term in
         Rir.Func.set_ret_term f ret_term)
 
   let apply m =
-    let hints = Module.hints m in
-    Map.iter hints ~f:(fun name ->
-        (* TODO: support other kind of definition *)
-        let base_f = Rir.Module.find_generic_func m name in
+    let rec f () =
+      match Module.drain_monomorphization_candidates m with
+      | [] -> ()
+      | candidates ->
+          List.iter candidates ~f:(fun name ->
+              [%loga.debug
+                "cloning...: %s"
+                  (Common.Chain.Nest.to_string ~to_s:Typing.Type.to_string name)];
 
-        let s = Rir.Func.to_string ~indent:0 base_f in
+              (* TODO: support other kind of definition *)
+              let base_f = Rir.Module.find_generic_func m name in
 
-        let subst = ma base_f.Rir.Func.name name in
+              let subst = ma base_f.Rir.Func.name name in
 
-        let (Typing.Scheme.ForAll (vars, ty)) = base_f.Rir.Func.ty_sc in
-        let ty = Env.subst_type subst ty in
-        let ty_sc = Typing.Scheme.of_ty ty in
+              let (Typing.Scheme.ForAll { vars; ty; _ }) =
+                base_f.Rir.Func.ty_sc
+              in
+              let (Typing.Pred.Pred { conds; ty }) = ty in
+              let ty = Env.subst_type subst ty in
+              let ty = Typing.Pred.Pred { conds; ty } in
+              let ty_sc = Typing.Scheme.of_ty ty in
 
-        let builder = Rir.Builder.create ~m in
-        let f = Rir.Builder.declare_instance_func builder name ty_sc in
-        Rir.Func.set_body_form f;
+              let builder = Rir.Builder.create ~m in
+              let f = Rir.Builder.declare_instance_func builder name ty_sc in
+              Rir.Func.set_body_form f;
 
-        clone_ir ~subst ~base_f f;
-        ());
+              clone_ir ~builder ~subst ~base_f f;
+              ());
+          f ()
+    in
+    f ();
     m
 end
 
-let instantiate m =
-  let m = Instantiate_pass.apply m in
-  m
+module Impl_pass = struct
+  module Module = Rir.Module
+
+  let iter_placeholder ~m ph =
+    let open Rir.Term in
+    match ph with
+    | PlaceholderVar _ -> ()
+    | PlaceholderParam _ -> ()
+    | PlaceholderGlobal _ -> ()
+    | PlaceholderGlobal2 ({ name; dispatch } as r) when dispatch ->
+        [%loga.debug
+          "dispatch -> %s"
+            (Common.Chain.Nest.to_string ~to_s:Typing.Type.to_string name)];
+        let Common.Chain.Nest.{ paths; last } = name in
+
+        let trait = Rir.Module.find_trait m paths in
+        let impl = Rir.Module.Trait.find trait paths in
+        let func_name = Rir.Module.Impl.find impl last in
+
+        r.name <- func_name;
+        r.dispatch <- false
+    | PlaceholderGlobal2 _ -> ()
+
+  let iter_kind ~m kind =
+    let open Rir.Term in
+    let sp ph =
+      let () = iter_placeholder ~m ph in
+      (*Rir.Builder.register_monomorphization_candidate builder ph;*)
+      ()
+    in
+    match kind with
+    | Call (r, args) ->
+        r |> sp;
+        args |> List.iter ~f:sp
+    | Cast v -> v |> sp
+    | Index (v, index) ->
+        v |> sp;
+        index |> sp
+    | Ref v -> v |> sp
+    | Deref v -> v |> sp
+    | Construct -> ()
+    | RVal _ -> ()
+    | LVal v -> v |> sp
+    | Undef -> ()
+
+  let iter_term ~m term =
+    let Rir.Term.{ kind; _ } = term in
+    iter_kind ~m kind
+
+  let iter_inst ~m inst =
+    match inst with
+    | Rir.Term.Let (name, term, mut) -> iter_term ~m term
+    | Rir.Term.Assign { lhs; rhs } ->
+        iter_term ~m lhs;
+        iter_term ~m rhs
+    | Rir.Term.TerminatorPoint termi -> ()
+
+  let iter_ir ~m base_f =
+    let base_bbs = Rir.Func.list_reached_bbs base_f in
+    (* iter bbs *)
+    List.iter base_bbs ~f:(fun base_bb ->
+        List.iter (Rir.Term.BB.get_insts base_bb) ~f:(fun base_inst ->
+            iter_inst ~m base_inst));
+
+    Option.iter (Rir.Func.get_ret_term base_f) ~f:(fun base_ret_term ->
+        iter_term ~m base_ret_term)
+
+  let apply m =
+    let funcs = Module.defined_funcs m in
+    List.iter funcs ~f:(fun func ->
+        let Rir.Func.{ body; _ } = func in
+        match body with
+        | Some (Rir.Func.BodyFunc _) -> iter_ir ~m func
+        | _ -> ());
+    m
+end

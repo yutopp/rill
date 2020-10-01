@@ -70,11 +70,11 @@ module Phases = struct
   module Phase1_declare_toplevels = struct
     let trans ~builtin ~m ~subst p1ast =
       let open Result.Let_syntax in
-      let%bind subst =
+      let%bind ctx =
         let ctx = Sema.Phase1_1.context ~m ~subst ~builtin in
         Sema.Phase1_1.declare_toplevels ~ctx p1ast
-        |> Result.map ~f:(fun e -> Sema.Phase1_1.(ctx.subst))
       in
+      let subst = Sema.Phase1_1.(ctx.subst) in
 
       let phase = Mod_state.Phase1DeclareTopLevels p1ast in
       Ok (phase, subst)
@@ -83,6 +83,29 @@ module Phases = struct
       let Mod_state.{ m; phase_result; _ } = ms in
       match phase_result with
       | Ok (Mod_state.Phase1CollectTopLevels p1ast as prev) ->
+          let (phase_result, subst) =
+            trans ~builtin ~m ~subst p1ast |> wrap_failure' ~prev ~subst
+          in
+          (Mod_state.{ ms with phase_result }, subst)
+      | _ -> (ms, subst)
+  end
+
+  module Phase1_declare_impls = struct
+    let trans ~builtin ~m ~subst p1ast =
+      let open Result.Let_syntax in
+      let%bind (ctx, p1ast) =
+        let ctx = Sema.Phase1_2.context ~m ~subst ~builtin in
+        Sema.Phase1_2.declare_impls ~ctx p1ast
+      in
+      let subst = Sema.Phase1_2.(ctx.subst) in
+
+      let phase = Mod_state.Phase1DeclareImpls p1ast in
+      Ok (phase, subst)
+
+    let to_analyzed ~compiler ~builtin ~subst ms =
+      let Mod_state.{ m; phase_result; _ } = ms in
+      match phase_result with
+      | Ok (Mod_state.Phase1DeclareTopLevels p1ast as prev) ->
           let (phase_result, subst) =
             trans ~builtin ~m ~subst p1ast |> wrap_failure' ~prev ~subst
           in
@@ -108,7 +131,7 @@ module Phases = struct
     let to_analyzed ~compiler ~builtin ~subst ms =
       let Mod_state.{ m; phase_result; _ } = ms in
       match phase_result with
-      | Ok (Mod_state.Phase1DeclareTopLevels p1ast as prev)
+      | Ok (Mod_state.Phase1DeclareImpls p1ast as prev)
         when not (Mod_state.has_errors ms) ->
           let phase_result =
             trans ~builtin ~m ~subst p1ast |> wrap_failure ~prev

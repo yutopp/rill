@@ -36,7 +36,10 @@ let rec unify_var ~span (subst : Typing.Subst.t) ~from ~to_ =
       Ok Typing.Subst.{ subst with ty_subst }
   | _ -> failwith "[ICE]"
 
-let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
+let as_applied ty =
+  match ty with Typing.Type.{ ty = Args { recv; _ }; _ } -> recv | _ -> ty
+
+let rec unify_elem ~span ~(subst : Typing.Subst.t) ~preconds lhs_ty rhs_ty :
     (Typing.Subst.t, Typer_err.t) Result.t =
   let open Result.Let_syntax in
   let Typing.Subst.{ ty_subst; ki_subst; _ } = subst in
@@ -49,7 +52,7 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
       ( { ty = Var { var = a; bound = BoundWeak }; _ },
         { ty = Var { var = b; bound = BoundWeak }; _ } )
     when a <> b ->
-      [%loga.debug "Unify var(%d in ) = var(%d)" a b];
+      [%loga.debug "Unify var(W%d) = var(W%d)" a b];
 
       let ty_subst = Map.add_exn ty_subst ~key:a ~data:s_rhs_ty in
       Ok Typing.Subst.{ subst with ty_subst; ki_subst }
@@ -58,9 +61,26 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
     when a = b ->
       Ok subst
   (* *)
-  | Typing.Type.({ ty = Var { var = v; bound = BoundWeak }; _ }, ty')
-  | Typing.Type.(ty', { ty = Var { var = v; bound = BoundWeak }; _ }) ->
-      [%loga.debug "Unify var(%d) -> ty(%s)" v (Typing.Type.to_string ty')];
+  | Typing.Type.(({ ty = Var { var = v; bound = BoundWeak }; _ } as vty), ty')
+  | Typing.Type.(ty', ({ ty = Var { var = v; bound = BoundWeak }; _ } as vty))
+    ->
+      [%loga.debug "Unify var(W%d) -> ty(%s)" v (Typing.Type.to_string ty')];
+
+      let%bind () =
+        List.fold_result preconds ~init:() ~f:(fun _ cond ->
+            let Typing.Pred.{ cond_trait = src; cond_var = dst } = cond in
+            let dst_var_id = Typing.Type.assume_var_id dst in
+            if Poly.equal dst_var_id v then
+              let found = judge_subtype ~span ~subst ~src ~ty:ty' in
+              match found with
+              | true -> Ok ()
+              | false ->
+                  let kind = Typer_err.ErrUnify in
+                  let diff = Typer_err.diff_of_types ~subst s_lhs_ty s_rhs_ty in
+                  let e = Typer_err.{ diff; kind; nest = None } in
+                  Error e
+            else Ok ())
+      in
 
       let ty_subst = Map.add_exn ty_subst ~key:v ~data:ty' in
       Ok Typing.Subst.{ subst with ty_subst }
@@ -72,13 +92,18 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
       let e = Typer_err.{ diff; kind; nest = None } in
       Error e
   (* *)
+  | Typing.Type.(a, { ty = Args { recv = b; _ }; _ }) ->
+      unify_elem ~span ~subst ~preconds a b
+  | Typing.Type.({ ty = Args { recv = b; _ }; _ }, a) ->
+      unify_elem ~span ~subst ~preconds b a
+  (* *)
   | Typing.Type.
       ( { ty = Array { elem = a_elem; n = a_n }; _ },
         { ty = Array { elem = b_elem; n = b_n }; _ } ) ->
       [%loga.debug "Unify array() = array()"];
       let%bind subst =
         if a_n = b_n then
-          unify_elem ~span subst a_elem b_elem
+          unify_elem ~span ~subst ~preconds a_elem b_elem
           |> Result.map_error ~f:(fun d ->
                  let kind = Typer_err.ErrArrayElem in
                  let diff = Typer_err.diff_of_types ~subst a_elem b_elem in
@@ -96,7 +121,7 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
         { ty = Pointer { mut = b_mut; elem = b_elem }; _ } ) ->
       [%loga.debug "Unify pointer() = pointer()"];
       let%bind subst =
-        unify_elem ~span subst a_elem b_elem
+        unify_elem ~span ~subst ~preconds a_elem b_elem
         |> Result.map_error ~f:(fun d ->
                let kind = Typer_err.ErrPointerElem in
                let diff = Typer_err.diff_of_types ~subst a_elem b_elem in
@@ -115,7 +140,7 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
   | Typing.Type.({ ty = Type a; _ }, { ty = Type b; _ }) ->
       [%loga.debug "Unify type() = type()"];
       let%bind subst =
-        unify_elem ~span subst a b
+        unify_elem ~span ~subst ~preconds a b
         |> Result.map_error ~f:(fun d ->
                let kind = Typer_err.ErrTypeElem in
                let diff = Typer_err.diff_of_types ~subst a b in
@@ -181,7 +206,7 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
                       (Typing.Type.to_string b_param)];
 
                   let%bind subst =
-                    unify_elem ~span subst a_param b_param
+                    unify_elem ~span ~subst ~preconds a_param b_param
                     |> Result.map_error ~f:(fun d ->
                            let kind = Typer_err.ErrFuncArgs index in
                            let diff =
@@ -202,7 +227,7 @@ let rec unify_elem ~span (subst : Typing.Subst.t) lhs_ty rhs_ty :
                 (Typing.Type.to_string a_ret)
                 (Typing.Type.to_string b_ret)];
             let%bind subst =
-              unify_elem ~span subst a_ret b_ret
+              unify_elem ~span ~subst ~preconds a_ret b_ret
               |> Result.map_error ~f:(fun d ->
                      let kind = Typer_err.ErrUnify in
                      let diff = Typer_err.diff_of_types ~subst a_ret b_ret in
@@ -298,13 +323,83 @@ and unify_linkage ~span subst lhs_linkage rhs_linkage =
       let e = Typer_err.{ diff; kind; nest = None } in
       Error e
 
-let unify ~span (subst : Typing.Subst.t) ~from ~to_ :
+and judge_subtype ~span ~subst ~src ~ty =
+  let trait_id = Typing.Type.assume_trait_id src in
+  [%loga.debug
+    "Is %s a subclass of %s / %d" (Typing.Type.to_string ty)
+      (Typing.Type.to_string src)
+      trait_id];
+
+  let found =
+    let relations = Typing.Subst.find_subtype_rels subst trait_id in
+    List.exists relations ~f:(fun rel ->
+        let Typing.Subst.{ sub_target_ty; _ } = rel in
+        [%loga.debug
+          "rel? %s <= %s" (Typing.Type.to_string ty)
+            (Typing.Type.to_string sub_target_ty)];
+
+        match unify_elem ~span ~subst ~preconds:[] sub_target_ty ty with
+        | Ok _ -> true
+        | _ -> false)
+    (*
+
+    List.exists relations ~f:(fun rel ->
+        [%loga.debug
+          "rel? %s <= %s"
+            (Typing.Type.to_string rel.Typing.Subst.sub)
+            (Typing.Type.to_string rel.Typing.Subst.super)];
+        [%loga.debug
+          "rel! %s <= %s"
+            (Typing.Type.to_string sub)
+            (Typing.Type.to_string super)];
+        match unify_elem ~span ~subst ~preconds:[] sub rel.Typing.Subst.sub with
+        | Ok _ -> true
+        | Error _ -> false)*)
+  in
+
+  found
+
+let unify2 ~span (subst : Typing.Subst.t) preds ~from ~to_ :
     (Typing.Subst.t, Diagnostics.Elem.t) Result.t =
   let open Result.Let_syntax in
   let%bind subst =
-    unify_elem ~span subst from to_
+    unify_elem ~span ~subst ~preconds:preds from to_
     |> Result.map_error ~f:(fun detail ->
            let e = new Reasons.type_mismatch ~detail in
            Diagnostics.Elem.error ~span e)
   in
   Ok subst
+
+let unify ~span (subst : Typing.Subst.t) ~from ~to_ =
+  unify2 ~span subst [] ~from ~to_
+
+(*
+let relate ~span (subst : Typing.Subst.t) trait_var_id ~entry =
+  (* TODO: fix *)
+  let (super_trait_id, super_implicit) =
+    match super with
+    | Typing.Type.
+        { ty = Args { recv; args = [ { apply_dst_ty = implicit; _ } ] }; _ } ->
+        let var_id = Typing.Type.assume_var_id recv in
+        (var_id, implicit)
+    | _ -> failwith "[ICE]"
+  in
+  let (sub_trait_id, sub_implicit) =
+    match sub with
+    | Typing.Type.
+        { ty = Args { recv; args = [ { apply_dst_ty = implicit; _ } ] }; _ } ->
+        let var_id = Typing.Type.assume_var_id recv in
+        (var_id, implicit)
+    | _ -> failwith "[ICE]"
+  in
+  let var_id =
+    match (sub_trait_id, super_trait_id) with
+    | (a, b) when a = b -> a
+    | _ -> failwith "[ICE]"
+  in
+  let subst =
+    Typing.Subst.append_subtype subst var_id ~sub:sub_implicit
+      ~super:super_implicit
+  in
+  Ok subst
+ *)

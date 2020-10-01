@@ -22,6 +22,7 @@ and phase_t =
   | Parsed of Syntax.Ast.t
   | Phase1CollectTopLevels of Sema.Phase1.TopAst.t
   | Phase1DeclareTopLevels of Sema.Phase1.TopAst.t
+  | Phase1DeclareImpls of Sema.Phase1.TopAst.t
   | Phase2 of Sema.Phase2.TAst.t
   | Artifact of Emitter.Artifact.t
 

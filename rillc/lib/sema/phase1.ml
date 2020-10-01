@@ -14,8 +14,17 @@ module TopAst = struct
   type t = { kind : kind_t; span : Span.t }
 
   and kind_t =
-    | Module of { nodes : t list }
+    | Module of { stmts : t }
+    | Stmts of { nodes : t list }
     | WithEnv of { node : Ast.t; env : Env.t }
+    | WithEnvAndBody of { node : Ast.t; body : t; env : Env.t }
+    | LazyDecl of { node : Ast.t; penv : Env.t }
+    | WithEnvAndBody2 of {
+        node : Ast.t;
+        body : t;
+        env : Env.t;
+        impl_record : Impl.t;
+      }
     | PassThrough of { node : Ast.t }
   [@@deriving show]
 end
@@ -39,9 +48,10 @@ let assume_new inseted_status =
   | _ -> ()
 
 let introduce_prelude penv builtin =
-  let register name inner_ty =
-    let ty = Typing.Type.to_type_ty inner_ty in
-    let ty_sc = Typing.Scheme.of_ty ty in
+  let register name inner_ty_gen =
+    let ty = Typing.Type.to_type_ty (inner_ty_gen ~span:Span.undef) in
+    let pty = Typing.Pred.of_type ty in
+    let ty_sc = Typing.Scheme.of_ty pty in
     let env =
       Env.create name ~parent:None ~visibility:Env.Private ~ty_sc ~kind:Env.Ty
         ~lookup_space:Env.LkGlobal
@@ -63,22 +73,28 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
   let open Result.Let_syntax in
   match ast with
   (* *)
-  | Ast.{ kind = Module nodes; span } ->
+  | Ast.{ kind = Module stmts; span } ->
       (* TODO: fix *)
       let menv = ctx.parent in
       introduce_prelude menv ctx.builtin;
 
+      let%bind stmts =
+        let ctx' = { ctx with parent = menv } in
+        collect_toplevels ~ctx:ctx' stmts
+      in
+      Ok TopAst.{ kind = Module { stmts }; span }
+  (* *)
+  | Ast.{ kind = Stmts nodes; span } ->
       let%bind nodes =
         List.fold_result nodes ~init:[] ~f:(fun mapped node ->
-            let ctx' = { ctx with parent = menv } in
-            match collect_toplevels ~ctx:ctx' node with
+            match collect_toplevels ~ctx node with
             | Ok node' -> Ok (node' :: mapped)
             | Error d ->
                 Diagnostics.append ctx.ds d;
                 Ok mapped)
         |> Result.map ~f:List.rev
       in
-      Ok TopAst.{ kind = Module { nodes }; span }
+      Ok TopAst.{ kind = Stmts { nodes }; span }
   (* *)
   | Ast.{ kind = Import _; span } as i ->
       Ok TopAst.{ kind = PassThrough { node = i }; span }
@@ -89,9 +105,10 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
 
       let ty =
         let inner = Typing.Subst.fresh_ty ~span ctx.subst in
-        ctx.builtin.Builtin.type_ inner
+        ctx.builtin.Builtin.type_ ~span inner
       in
-      let ty_sc = Typing.Scheme.of_ty ty in
+      let pty = Typing.Pred.of_type ty in
+      let ty_sc = Typing.Scheme.of_ty pty in
       let visibility = Env.Public in
       let tenv =
         Env.create name ~parent:(Some penv) ~visibility ~ty_sc ~kind:Env.Ty
@@ -111,7 +128,8 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
         let ty = Typing.Subst.fresh_ty ~span ctx.subst in
         Typing.(Type.{ ty with binding_mut })
       in
-      let ty_sc = Typing.Scheme.of_ty ty in
+      let pty = Typing.Pred.of_type ty in
+      let ty_sc = Typing.Scheme.of_ty pty in
       let visibility = Env.Public in
       let fenv =
         Env.create name ~parent:(Some penv) ~visibility ~ty_sc ~kind:Env.Val
@@ -142,7 +160,9 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
 
       Ok TopAst.{ kind = WithEnv { node = decl; env = fenv }; span }
   (* *)
-  | Ast.{ kind = DefFunc { name; ty_params; params; ret_ty; _ }; span } as decl
+  | ( Ast.{ kind = DeclFunc { name; ty_params; params; ret_ty; _ }; span } as
+    decl )
+  | (Ast.{ kind = DefFunc { name; ty_params; params; ret_ty; _ }; span } as decl)
     ->
       let penv = ctx.parent in
       let%bind () = Guards.guard_dup_value ~span penv name in
@@ -167,9 +187,10 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
 
       let ty =
         let inner = Typing.Subst.fresh_ty ~span ctx.subst in
-        ctx.builtin.Builtin.type_ inner
+        ctx.builtin.Builtin.type_ ~span inner
       in
-      let ty_sc = Typing.Scheme.of_ty ty in
+      let pty = Typing.Pred.of_type ty in
+      let ty_sc = Typing.Scheme.of_ty pty in
       let visibility = Env.Public in
       let tenv =
         Env.create name ~parent:(Some penv) ~visibility ~ty_sc ~kind:Env.Ty
@@ -178,6 +199,47 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
       Env.insert penv tenv |> assume_new;
 
       Ok TopAst.{ kind = WithEnv { node = decl; env = tenv }; span }
+  (* *)
+  | Ast.{ kind = DefTrait { name; decls }; span } as decl ->
+      let penv = ctx.parent in
+      let%bind () = Guards.guard_dup_value ~span penv name in
+
+      (* T *)
+      let ty =
+        let inner = Typing.Subst.fresh_ty ~span ctx.subst in
+        ctx.builtin.Builtin.type_ ~span inner
+      in
+      let pty = Typing.Pred.of_type ty in
+      (* a *)
+      let implicits =
+        let inner = Typing.Subst.fresh_forall_ty ~span ctx.subst in
+        [ inner ]
+      in
+      let ty_sc = Typing.Scheme.of_ty pty in
+      let visibility = Env.Public (* TODO *) in
+      let tenv =
+        Env.create name ~parent:(Some penv) ~visibility ~ty_sc ~kind:Env.Trait
+          ~lookup_space:Env.LkGlobal
+      in
+      Env.append_implicits tenv implicits;
+
+      Env.insert penv tenv |> assume_new;
+
+      let%bind decls =
+        let ctx = { ctx with parent = tenv } in
+        collect_toplevels ~ctx decls
+      in
+
+      Ok
+        TopAst.
+          {
+            kind = WithEnvAndBody { node = decl; body = decls; env = tenv };
+            span;
+          }
+  (* *)
+  | Ast.{ kind = DefImplFor _; span } as decl ->
+      let penv = ctx.parent in
+      Ok TopAst.{ kind = LazyDecl { node = decl; penv }; span }
   (* *)
   | Ast.{ span; _ } ->
       let e =
@@ -208,6 +270,7 @@ and preconstruct_func_ty_sc ~ctx ~span ~linkage ~ty_params ~params ~ret_ty :
         span;
       }
   in
+  let pty = Typing.Pred.of_type ty in
 
   let vars =
     List.map ty_params ~f:(fun _ ->
@@ -215,4 +278,4 @@ and preconstruct_func_ty_sc ~ctx ~span ~linkage ~ty_params ~params ~ret_ty :
         Typing.Subst.fresh_ty_generic ~span ~bound:Typing.Type.BoundForall
           ctx.subst)
   in
-  Typing.Scheme.ForAll (vars, ty)
+  Typing.Scheme.ForAll { implicits = []; vars; ty = pty }

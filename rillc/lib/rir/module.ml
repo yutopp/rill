@@ -9,6 +9,42 @@
 open! Base
 module StringMap = Map.M (String)
 
+let to_placeholder ~subst name =
+  let rec convert layers rev_layers trait_scope_rev_layers has_self_layer =
+    match layers with
+    | [] ->
+        let name = Common.Chain.Nest.from_list (rev_layers |> List.rev) in
+        let placeholder =
+          match (trait_scope_rev_layers, has_self_layer) with
+          | (Some rev_nest, Some layer) ->
+              let nest = rev_nest |> List.rev in
+              Term.PlaceholderGlobal2 { name; dispatch = true }
+          | _ ->
+              let nest = rev_layers |> List.rev in
+              Term.PlaceholderGlobal2 { name; dispatch = false }
+        in
+        placeholder
+    | l :: rest ->
+        let Common.Chain.Layer.{ kind; generics_vars; has_self; _ } = l in
+        let generics_vars =
+          List.map generics_vars ~f:(fun v -> Typing.Subst.subst_type subst v)
+        in
+        let l = Common.Chain.Layer.{ l with generics_vars } in
+        let rev_layers = l :: rev_layers in
+
+        let trait_scope_rev_layers =
+          match kind with
+          | Common.Chain.Layer.Type -> Some rev_layers
+          | _ -> trait_scope_rev_layers
+        in
+        let has_self_layer =
+          match has_self with true -> Some l | false -> has_self_layer
+        in
+        convert rest rev_layers trait_scope_rev_layers has_self_layer
+  in
+  let layers = Common.Chain.Nest.to_list name in
+  convert layers [] None None
+
 (* TODO: fix *)
 module Func_generics = struct
   type t = {
@@ -33,10 +69,10 @@ module Func_generics = struct
   let create_overload ~f ~kind =
     { base = f; kind; instances = Map.empty (module String) }
 
-  let declare_func funcs name ty_sc =
+  let declare_func ~subst funcs name ty_sc =
     let { funcs_map; funcs_rev } = funcs in
-    let id = Symbol.to_generic_id name in
 
+    let id = Symbol.to_generic_id name in
     match Map.find funcs_map id with
     | None ->
         let f = Func.create ~name ~ty_sc in
@@ -51,7 +87,8 @@ module Func_generics = struct
         funcs.funcs_rev <- funcs_rev;
 
         f
-    | Some _ -> failwith "[ICE]"
+    | Some _ ->
+        failwith (Printf.sprintf "[ICE]: function '%s' is already declared" id)
 
   let find_generic_func funcs name =
     let { funcs_map; _ } = funcs in
@@ -94,13 +131,190 @@ module Func_generics = struct
            | Generics -> i.instances |> Map.data)
 end
 
+module Impl = struct
+  type t = {
+    name : Typing.Type.t Common.Chain.Nest.t;
+    mutable members :
+      (Typing.Type.t Common.Chain.Nest.t StringMap.t
+      [@printer fun fmt _ -> fprintf fmt ""]);
+  }
+  [@@deriving show]
+
+  let create ~name =
+    let members = Map.empty (module String) in
+    { name; members }
+
+  let add_member trait tag name =
+    let { members; _ } = trait in
+    let tag = Symbol.to_generic_layer tag in
+    let members = Map.add_exn members ~key:tag ~data:name in
+    trait.members <- members;
+
+    ()
+
+  let find impl name =
+    let { members; _ } = impl in
+    let id = Symbol.to_generic_layer name in
+    Map.find_exn members id
+
+  let to_string ~indent trait =
+    let buf = Buffer.create 256 in
+    Buffer.add_string buf (String.make indent ' ');
+
+    let { name; members; _ } = trait in
+    Buffer.add_string buf
+      (Printf.sprintf "Impl: name = '%s'\n"
+         (Common.Chain.Nest.to_string ~to_s:Typing.Type.to_string name));
+
+    Map.iteri members ~f:(fun ~key ~data ->
+        Buffer.add_string buf (String.make (indent + 2) ' ');
+        Buffer.add_string buf
+          (Printf.sprintf "%s -> '%s'\n" key
+             (Common.Chain.Nest.to_string ~to_s:Typing.Type.to_string data)));
+
+    Buffer.contents buf
+end
+
+module Trait = struct
+  type t = {
+    name : Typing.Type.t Common.Chain.Nest.t;
+    mutable impls : (Impl.t StringMap.t[@printer fun fmt _ -> fprintf fmt ""]);
+  }
+  [@@deriving show]
+
+  let create ~name =
+    let impls = Map.empty (module String) in
+    { name; impls }
+
+  let add_impl trait impl =
+    let { impls; _ } = trait in
+    let id = Symbol.to_signatured_id impl.Impl.name in
+
+    let impls = Map.add_exn impls ~key:id ~data:impl in
+    trait.impls <- impls;
+
+    ()
+
+  let find trait name =
+    let { impls; _ } = trait in
+    let id = Symbol.to_signatured_id' name in
+    Map.find_exn impls id
+
+  let to_string ~indent trait =
+    let buf = Buffer.create 256 in
+    Buffer.add_string buf (String.make indent ' ');
+
+    let { name; impls; _ } = trait in
+    Buffer.add_string buf
+      (Printf.sprintf "Trait: name = '%s'\n"
+         (Common.Chain.Nest.to_string ~to_s:Typing.Type.to_string name));
+
+    Map.iteri impls ~f:(fun ~key ~data ->
+        Buffer.add_string buf (Impl.to_string ~indent:(indent + 2) data));
+
+    Buffer.contents buf
+end
+
+module Trait_generics = struct
+  type t = {
+    mutable instances_map :
+      (instances_t StringMap.t
+      [@printer fun fmt _ -> fprintf fmt ""]);
+  }
+
+  and instances_t = {
+    base : Trait.t;
+    mutable instances :
+      (Trait.t StringMap.t
+      [@printer fun fmt _ -> fprintf fmt ""]);
+  }
+  [@@deriving show]
+
+  let create () = { instances_map = Map.empty (module String) }
+
+  let create_overload ~trait =
+    { base = trait; instances = Map.empty (module String) }
+
+  let register_dict traits name impl =
+    let { instances_map; _ } = traits in
+    (* TODO: support generics *)
+    let id = Symbol.to_generic_id name in
+    let instances =
+      match Map.find instances_map id with
+      | Some t -> t
+      | None ->
+          let trait = Trait.create ~name in
+          let instances = create_overload ~trait in
+          instances
+    in
+    let trait = instances.base in
+    Trait.add_impl trait impl;
+    let instances_map = Map.set instances_map ~key:id ~data:instances in
+    traits.instances_map <- instances_map
+
+  let find traits name =
+    let { instances_map; _ } = traits in
+    let id = Symbol.to_generic_id' name in
+
+    let set = Map.find_exn instances_map id in
+    set.base
+
+  let base traits : Trait.t list =
+    let { instances_map; _ } = traits in
+    Map.data instances_map |> List.map ~f:(fun i -> i.base)
+end
+
+module Monom = struct
+  module StringSet = Set.M (String)
+
+  type t = {
+    mutable hints : (StringSet.t[@printer fun fmt _ -> fprintf fmt ""]);
+    mutable candidates : (Symbol.t list[@printer fun fmt _ -> fprintf fmt ""]);
+  }
+  [@@deriving show]
+
+  let create () =
+    let hints = Set.empty (module String) in
+    let candidates = [] in
+    { hints; candidates }
+
+  let register_candidate m name =
+    [%loga.debug
+      "register_candidate: %s :: %b"
+        (Common.Chain.Nest.to_string ~to_s:Typing.Type.to_string name)
+        (Symbol.has_generics name)];
+
+    if Symbol.is_generics name && not (Symbol.has_generics name) then
+      let { hints; candidates; _ } = m in
+      let signature = Symbol.to_signatured_id name in
+      match Set.mem hints signature with
+      | true -> ()
+      | false ->
+          let hints = Set.add hints signature in
+          let candidates = name :: candidates in
+          [%loga.debug "candidates: %d" (List.length candidates)];
+          m.hints <- hints;
+          m.candidates <- candidates
+
+  let drain_candidates m =
+    let { candidates; _ } = m in
+    m.candidates <- [];
+    [%loga.debug "candidates: %d" (List.length candidates)];
+    candidates
+
+  let list_registerd m =
+    let { hints; _ } = m in
+    Set.to_list hints
+end
+
 type t = {
   ctx : (Context.t[@printer fun fmt _ -> fprintf fmt ""]);
   module_name : string;
   mutable global_vars : global_vars_t;
   mutable funcs : Func_generics.t;
   mutable types : types_t;
-  mutable hints : (Symbol.t StringMap.t[@printer fun fmt _ -> fprintf fmt ""]);
+  monom : Monom.t;
+  mutable global_traits : Trait_generics.t;
 }
 
 and global_vars_t = {
@@ -113,20 +327,26 @@ let create ~ctx : t =
   let global_vars = { global_vars_map = Map.empty (module String) } in
   let funcs = Func_generics.create () in
   let types = { types_rev = [] } in
-  let hints = Map.empty (module String) in
-  { ctx; module_name = ""; global_vars; funcs; types; hints }
+  let monom = Monom.create () in
+  let global_traits = Trait_generics.create () in
+  { ctx; module_name = ""; global_vars; funcs; types; monom; global_traits }
 
-let add_hint_for_specialization m name =
-  if Symbol.is_generics name then
-    let { hints; _ } = m in
-    let signature = Symbol.to_signatured_id name in
-    match Map.mem hints signature with
-    | true -> ()
-    | false ->
-        let hints = Map.add_exn hints ~key:signature ~data:name in
-        m.hints <- hints
+let declare_func ~subst m name ty_sc =
+  let f = Func_generics.declare_func ~subst m.funcs name ty_sc in
+  let placeholder = to_placeholder ~subst name in
+  let () =
+    match placeholder with
+    | Term.PlaceholderGlobal2 _ -> ()
+    | _ -> failwith "[ICE]"
+  in
+  f
 
-let declare_func m name ty_sc = Func_generics.declare_func m.funcs name ty_sc
+let define_impl ~subst m trait_name for_name mapping =
+  let impl = Impl.create ~name:for_name in
+  let () =
+    List.iter mapping ~f:(fun (key, data) -> Impl.add_member impl key data)
+  in
+  Trait_generics.register_dict m.global_traits trait_name impl
 
 let declare_instance_func m name ty_sc =
   Func_generics.declare_instance_func m.funcs name ty_sc
@@ -166,9 +386,21 @@ let all_types m : Type.t list =
   let { types_rev; _ } = m.types in
   List.rev types_rev
 
-let hints m =
-  let { hints; _ } = m in
-  hints
+let register_monomorphization_candidate m name =
+  let { monom; _ } = m in
+  Monom.register_candidate monom name
+
+let drain_monomorphization_candidates m =
+  let { monom; _ } = m in
+  Monom.drain_candidates monom
+
+let mono m =
+  let { monom; _ } = m in
+  Monom.list_registerd monom
+
+let base_traits m : Trait.t list = Trait_generics.base m.global_traits
+
+let find_trait m name = Trait_generics.find m.global_traits name
 
 let to_string m =
   let indent = 0 in
@@ -176,8 +408,8 @@ let to_string m =
 
   Buffer.add_string buf (Printf.sprintf "Module: name = '%s'\n" m.module_name);
 
-  Buffer.add_string buf "== generics\n";
-  Map.iteri m.hints ~f:(fun ~key ~data ->
+  Buffer.add_string buf "== mono\n";
+  List.iter (mono m) ~f:(fun key ->
       let indent = indent + 2 in
       Buffer.add_string buf (String.make indent ' ');
       let s = Printf.sprintf "%s\n" key in
@@ -186,6 +418,11 @@ let to_string m =
   Buffer.add_string buf "== types\n";
   List.iter (all_types m) ~f:(fun rir_ty ->
       let s = Type.to_string ~indent:(indent + 2) rir_ty in
+      Buffer.add_string buf s);
+
+  Buffer.add_string buf "== base traits\n";
+  List.iter (base_traits m) ~f:(fun trait ->
+      let s = Trait.to_string ~indent:(indent + 2) trait in
       Buffer.add_string buf s);
 
   Buffer.add_string buf "== base funcs\n";

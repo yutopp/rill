@@ -15,9 +15,11 @@ type t = {
 }
 
 and kind_t =
-  | Module of t list
+  | Module of t
+  | Stmts of t list
   (* aux *)
   | ParamDecl of { attr : t; name : string; ty_spec : t }
+  | ParamSelfDecl of { attr : t; ty_spec_opt : t option }
   | TyParamDecl of { name : string }
   | VarDecl of { attr : t; name : string; ty_spec : t option; expr : t }
   (* top levels *)
@@ -37,9 +39,15 @@ and kind_t =
       ret_ty : t;
       body : t;
     }
+  | DeclFunc of {
+      name : string;
+      ty_params : t list;
+      params : t list;
+      ret_ty : t;
+    }
   | DefStruct of { name : string }
-  | DefTrait of { name : string }
-  | DefImplFor of { name : string; for_ty : t }
+  | DefTrait of { name : string; decls : t }
+  | DefImplFor of { trait : t; for_ty : t; decls : t }
   | DefTypeAlias of { name : string; alias_ty : t }
   (* statements *)
   | StmtExpr of t
@@ -63,6 +71,7 @@ and kind_t =
   (* primitives *)
   | Path of { root : t; elems : t list }
   | ID of string
+  | IDSelf
   | IDWildcard
   | LitBool of bool
   | LitInt of int * int * bool (* value * bits * signed *)
@@ -80,3 +89,10 @@ let param_decl_name ast =
   match ast with
   | { kind = ParamDecl { name; _ }; _ } -> name
   | _ -> failwith ""
+
+let self_of ~span =
+  let id = { kind = IDSelf; span } in
+  id
+
+let type_decl_name ast =
+  match ast with { kind = ID name; _ } -> name | _ -> failwith ""

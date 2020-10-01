@@ -12,10 +12,12 @@ module Ast = Syntax.Ast
 module TopAst = Phase1.TopAst
 
 module TAst = struct
-  type t = { kind : kind_t; ty : Typing.Type.t; span : Span.t }
+  module StringMap = Map.M (String)
+
+  type t = { kind : kind_t; ty : Typing.Pred.t; span : Span.t }
 
   and kind_t =
-    | Module of { nodes : t list }
+    | Module of { stmts : t }
     | Import of { pkg : string; mods : string list }
     | DeclExternFunc of {
         name : Typing.Type.t Common.Chain.Nest.t;
@@ -33,6 +35,7 @@ module TAst = struct
       }
     | DefFunc of {
         name : Typing.Type.t Common.Chain.Nest.t;
+        has_self : bool;
         ty_sc : Typing.Scheme.t;
         body : t;
       }
@@ -40,6 +43,7 @@ module TAst = struct
         name : Typing.Type.t Common.Chain.Nest.t;
         ty_sc : Typing.Scheme.t;
       }
+    | DefSeq of t list
     (* *)
     | StmtSeq of t list
     | StmtExpr of t
@@ -62,6 +66,14 @@ module TAst = struct
     | LitString of string
     | LitUnit
     | LitArrayElem of t list
+    | StmtDispatchTable of {
+        trait_name : Typing.Type.t Common.Chain.Nest.t;
+        for_ty : Typing.Type.t;
+        mapping :
+          ( Typing.Type.t Common.Chain.Layer.t
+          * Typing.Type.t Common.Chain.Nest.t )
+          list;
+      }
 
   and ref_t = RefTypeGlobal | RefTypeLocal | RefTypeLocalArg of int
   [@@deriving show]
@@ -92,7 +104,15 @@ let rec into_typed_tree ~ctx ast : (TAst.t, Diagnostics.Elem.t) Result.t =
   let open Result.Let_syntax in
   match ast with
   (* *)
-  | TopAst.{ kind = Module { nodes }; span } ->
+  | TopAst.{ kind = Module { stmts }; span } ->
+      (* Nodes *)
+      let%bind stmts = into_typed_tree ~ctx stmts in
+
+      (* TODO: module type? *)
+      let ty = ctx.Ctx.builtin.Builtin.unit_ ~span |> Typing.Pred.of_type in
+      Ok TAst.{ kind = Module { stmts }; ty; span }
+  (* *)
+  | TopAst.{ kind = Stmts { nodes }; span } ->
       (* Nodes *)
       let%bind nodes =
         List.fold_result nodes ~init:[] ~f:(fun mapped node ->
@@ -105,14 +125,33 @@ let rec into_typed_tree ~ctx ast : (TAst.t, Diagnostics.Elem.t) Result.t =
         |> Result.map ~f:List.rev
       in
 
-      (* TODO: module type? *)
-      let binding_mut = Typing.Type.MutImm in
-      let ty = Typing.Type.{ ty = Unit; binding_mut; span } in
-      Ok TAst.{ kind = Module { nodes }; ty; span }
+      let ty = ctx.Ctx.builtin.Builtin.unit_ ~span |> Typing.Pred.of_type in
+      Ok TAst.{ kind = DefSeq nodes; ty; span }
   (* *)
   | TopAst.{ kind = WithEnv { node; env }; span } -> with_env ~ctx ~env node
   (* *)
+  | TopAst.{ kind = WithEnvAndBody { node; body; env }; span } ->
+      with_env_and_body ~ctx ~env node body
+  | TopAst.{ kind = WithEnvAndBody2 { node; body; env; impl_record }; span } ->
+      let%bind tast = with_env_and_body ~ctx ~env node body in
+
+      let ty = ctx.Ctx.builtin.Builtin.unit_ ~span |> Typing.Pred.of_type in
+      let nodes =
+        let Impl.{ trait_name; for_ty; mapping } = impl_record in
+        [
+          tast;
+          TAst.
+            {
+              kind = StmtDispatchTable { trait_name; for_ty; mapping };
+              ty;
+              span;
+            };
+        ]
+      in
+      Ok TAst.{ kind = DefSeq nodes; ty; span }
+  (* *)
   | TopAst.{ kind = PassThrough { node }; span } -> pass_through ~ctx node
+  | TopAst.{ kind = LazyDecl _; _ } -> failwith "[ICE]"
 
 and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
   let open Result.Let_syntax in
@@ -135,8 +174,8 @@ and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
             Error elm
       in
 
-      let ty = ctx.Ctx.builtin.Builtin.unit_ in
-      let name = Phase1_1.to_nested_chain env [] in
+      let ty = ctx.Ctx.builtin.Builtin.unit_ ~span |> Typing.Pred.of_type in
+      let name = Name.to_nested_chain env in
       Ok TAst.{ kind = DeclExternFunc { name; ty_sc; extern_name }; ty; span }
   (* *)
   | Ast.{ kind = DeclExternStaticVar { attr; name; _ }; span } ->
@@ -145,11 +184,19 @@ and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
 
       let extern_name = name in
 
-      let ty = ctx.Ctx.builtin.Builtin.unit_ in
-      let name = Phase1_1.to_nested_chain env [] in
+      let ty = ctx.Ctx.builtin.Builtin.unit_ ~span |> Typing.Pred.of_type in
+      let name = Name.to_nested_chain env in
       Ok
         TAst.
           { kind = DeclExternStaticVar { name; ty_sc; extern_name }; ty; span }
+  (* *)
+  | Ast.{ kind = DeclFunc { name; params; ret_ty; _ }; span } ->
+      (* TODO: check that there are no holes *)
+      let ty_sc = Env.type_sc_of env in
+
+      let ty = ctx.Ctx.builtin.Builtin.unit_ ~span |> Typing.Pred.of_type in
+      let name = Name.to_nested_chain env in
+      Ok TAst.{ kind = DeclFunc { name; ty_sc }; ty; span }
   (* *)
   | Ast.{ kind = DefFunc { name; params; ret_ty; body; _ }; span } ->
       (* TODO: check that there are no holes *)
@@ -157,29 +204,9 @@ and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       let f_ty = Typing.Scheme.raw_ty f_ty_sc in
       let (params_tys, ret_ty) = Typing.Type.assume_func_ty f_ty in
 
-      let t_param_vars_decls =
-        List.mapi params ~f:(fun index param ->
-            match param with
-            | Ast.{ kind = ParamDecl { name; ty_spec; _ }; span } ->
-                let venv =
-                  match Env.find_value env name with
-                  | Some v -> v
-                  | None -> failwith "[ICE] Maybe phase1_1 didn't run normally"
-                in
-                (* NOTE: a type is already checked at phase1_1 *)
-                (* TODO: Distinguish params and decls *)
-                let v_ty_sc = Env.type_sc_of venv in
-                let v_ty = Typing.Scheme.assume_has_no_generics v_ty_sc in
-                let ref_type = TAst.RefTypeLocalArg index in
-                let t_param =
-                  TAst.{ kind = Var { name; ref_type }; ty = v_ty; span }
-                in
-                let mut = v_ty.Typing.Type.binding_mut in
+      let t_param_vars_decls = type_params ~ctx ~env params in
 
-                let ty = ctx.Ctx.builtin.Builtin.unit_ in
-                TAst.{ kind = StmtLet { mut; name; expr = t_param }; ty; span }
-            | _ -> failwith "[ICE]")
-      in
+      let has_self = Env.has_self env in
 
       let ctx' =
         Ctx.{ ctx with exec_ctx = Some (ExecCtxFunc { return = ret_ty }) }
@@ -188,7 +215,7 @@ and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
         let env =
           (* scope *)
           let visibility = Env.Private in
-          let ty_sc = Typing.Scheme.of_ty ret_ty in
+          let ty_sc = Typing.Scheme.of_ty (ret_ty |> Typing.Pred.of_type) in
           Env.create "" ~parent:(Some env) ~visibility ~ty_sc
             ~kind:Env.KindScope ~lookup_space:Env.LkLocal
         in
@@ -198,40 +225,49 @@ and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
 
       (* TODO: check that subst has no holes *)
       let%bind subst =
-        Typer.unify ~span ctx.Ctx.subst ~from:ret_ty ~to_:t_body.TAst.ty
+        let (Typing.Pred.Pred { ty; _ }) = t_body.TAst.ty in
+        Typer.unify ~span ctx.Ctx.subst ~from:ret_ty ~to_:ty
       in
       Ctx.update_subst ctx subst;
 
       let t_seq =
         (* parameter delcs -> body *)
         let seq = t_param_vars_decls @ [ t_body ] in
-        let ty = Typing.Type.{ ctx.Ctx.builtin.Builtin.unit_ with span } in
+        let ty = ctx.Ctx.builtin.Builtin.unit_ ~span |> Typing.Pred.of_type in
         TAst.{ kind = StmtSeq seq; ty; span = t_body.span }
       in
 
-      let ty = ctx.Ctx.builtin.Builtin.unit_ in
+      let ty = ctx.Ctx.builtin.Builtin.unit_ ~span |> Typing.Pred.of_type in
       (* TODO: fix *)
       let name =
         match name with
         | "main" ->
-            let c = Common.Chain.Nest.create () in
-            let n =
+            let layer =
               Common.Chain.Layer.
-                { name = "main"; kind = Var; generics_vars = [] }
+                {
+                  name = "main";
+                  kind = Var f_ty;
+                  generics_vars = [];
+                  has_self = false;
+                }
             in
-            Common.Chain.Nest.join_rev c n
-        | _ -> Phase1_1.to_nested_chain env []
+            Common.Chain.Nest.from_list [ layer ]
+        | _ -> Name.to_nested_chain env
       in
       Ok
         TAst.
-          { kind = DefFunc { name; ty_sc = f_ty_sc; body = t_seq }; ty; span }
+          {
+            kind = DefFunc { name; has_self; ty_sc = f_ty_sc; body = t_seq };
+            ty;
+            span;
+          }
   (* *)
   | Ast.{ kind = DefStruct _; span } ->
       (* TODO: check that there are no holes *)
       let ty_sc = Env.type_sc_of env in
 
-      let ty = ctx.Ctx.builtin.Builtin.unit_ in
-      let name = Phase1_1.to_nested_chain env [] in
+      let ty = ctx.Ctx.builtin.Builtin.unit_ ~span |> Typing.Pred.of_type in
+      let name = Name.to_nested_chain env in
       Ok TAst.{ kind = DefStruct { name; ty_sc }; ty; span }
   (* *)
   | Ast.{ span; _ } ->
@@ -241,6 +277,101 @@ and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       in
       let elm = Diagnostics.Elem.error ~span e in
       Error elm
+
+and with_env_and_body ~ctx ~env node body =
+  let open Result.Let_syntax in
+  match node with
+  | Ast.{ kind = DefTrait { name; _ }; span } ->
+      let ty_sc = Env.type_sc_of env in
+
+      (* Nodes *)
+      let%bind _decls = into_typed_tree ~ctx body in
+
+      let ty = ctx.Ctx.builtin.Builtin.unit_ ~span |> Typing.Pred.of_type in
+      (* NOTE: Ignore declarations in the traits *)
+      Ok TAst.{ kind = DefSeq []; ty; span }
+  (* *)
+  | Ast.{ kind = DefImplFor { trait; for_ty; _ }; span } ->
+      (* TODO: check that there are no holes *)
+      let ty_sc = Env.type_sc_of env in
+
+      let%bind trait_ty = lookup_type ~env ~ctx trait in
+
+      (* Nodes *)
+      let%bind defs = into_typed_tree ~ctx body in
+
+      (*let%bind (defs_rev, dict) =
+          let init = ([], Map.empty (module String)) in
+          List.fold_result bodies ~init ~f:(fun (defs, dict) node ->
+              match  with
+              | Ok node' ->
+                  let dict =
+                    match node' with
+                    | TAst.{ kind = DefFunc { name; has_self; _ }; _ }
+                      when has_self ->
+                        (* TODO: disallow generics *)
+                        (* TODO: check all members are defined *)
+                        let Common.Chain.Nest.{ last; _ } = name in
+                        let Common.Chain.Layer.{ name = basic_name; _ } = last in
+                        Map.add_exn dict ~key:basic_name ~data:name
+                    | _ -> failwith "[ICE]"
+                  in
+                  let defs = node' :: defs in
+                  Ok (defs, dict)
+              | Error d ->
+                  Ctx.append_diagnostic ctx d;
+                  (* skip inserting *)
+                  Ok (defs, dict))
+        in
+        let defs = defs_rev |> List.rev in*)
+      let ty = ctx.Ctx.builtin.Builtin.unit_ ~span |> Typing.Pred.of_type in
+
+      (*let trait_dict = TAst.{ kind = DeclFunc { name; ty_sc }; ty; span } in*)
+      Ok defs
+  (* *)
+  | Ast.{ span; _ } ->
+      let e =
+        new Diagnostics.Reasons.internal_error
+          ~message:"Not supported def node (phase2, with_env_and_body)"
+      in
+      let elm = Diagnostics.Elem.error ~span e in
+      Error elm
+
+and type_params ~ctx ~env params =
+  let make_node ~span name index =
+    let venv =
+      match Env.find_value env name with
+      | Some v -> v
+      | None ->
+          failwith
+            (Printf.sprintf
+               "[ICE] Maybe phase1_1 didn't run normally: env = '%s', name = \
+                '%s'"
+               env.Env.name name)
+    in
+    (* NOTE: a type is already checked at phase1_1 *)
+    (* TODO: Distinguish params and decls *)
+    let v_ty_sc = Env.type_sc_of venv in
+    let (v_ty, mut) =
+      let ty = Typing.Scheme.raw_ty v_ty_sc in
+      (ty |> Typing.Pred.of_type, ty.Typing.Type.binding_mut)
+    in
+    let ref_type = TAst.RefTypeLocalArg index in
+    let t_param = TAst.{ kind = Var { name; ref_type }; ty = v_ty; span } in
+
+    let ty = ctx.Ctx.builtin.Builtin.unit_ ~span |> Typing.Pred.of_type in
+    TAst.{ kind = StmtLet { mut; name; expr = t_param }; ty; span }
+  in
+  List.mapi params ~f:(fun index param ->
+      match param with
+      (* normal *)
+      | Ast.{ kind = ParamDecl { name; _ }; span } -> make_node ~span name index
+      (* self *)
+      | Ast.{ kind = ParamSelfDecl _; span } ->
+          let name = "self" in
+          make_node ~span name index
+      (* *)
+      | _ -> failwith "[ICE]")
 
 and pass_through ~ctx ast =
   match ast with
@@ -255,7 +386,9 @@ and pass_through ~ctx ast =
       let pkg = stringify pkg in
       let mods = List.map mods ~f:stringify in
       let binding_mut = Typing.Type.MutImm in
-      let ty = Typing.Type.{ ty = Unit; binding_mut; span } in
+      let ty =
+        Typing.Type.{ ty = Unit; binding_mut; span } |> Typing.Pred.of_type
+      in
       Ok TAst.{ kind = Import { pkg; mods }; ty; span }
   (* *)
   | Ast.{ span; _ } ->
@@ -273,18 +406,20 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
   | Ast.{ kind = StmtExpr expr; span } ->
       let%bind t_expr = analyze ~ctx ~env expr in
 
-      let ty = Typing.Type.{ ctx.Ctx.builtin.Builtin.unit_ with span } in
+      let ty = ctx.Ctx.builtin.Builtin.unit_ ~span in
       let%bind subst =
-        Typer.unify ~span ctx.Ctx.subst ~from:ty ~to_:t_expr.TAst.ty
+        let (Typing.Pred.Pred { ty = t_expr_ty; _ }) = t_expr.TAst.ty in
+        Typer.unify ~span ctx.Ctx.subst ~from:ty ~to_:t_expr_ty
       in
       Ctx.update_subst ctx subst;
 
+      let ty = ty |> Typing.Pred.of_type in
       Ok TAst.{ kind = StmtExpr t_expr; ty; span }
   (* *)
   | Ast.{ kind = StmtExprApply expr; span } ->
       let%bind t_expr = analyze ~ctx ~env expr in
 
-      let ty = Typing.Type.{ t_expr.TAst.ty with span } in
+      let ty = Typing.Pred.with_span ~span t_expr.TAst.ty in
       Ok TAst.{ kind = StmtExprApply t_expr; ty; span }
   (* *)
   | Ast.{ kind = StmtLet decl; span } ->
@@ -307,13 +442,15 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       (* CANNOT reference self *)
       let%bind t_expr = analyze ~ctx ~env expr in
       let%bind subst =
-        Typer.unify ~span ctx.Ctx.subst ~from:var_ty ~to_:t_expr.TAst.ty
+        let (Typing.Pred.Pred { ty = t_expr_ty; _ }) = t_expr.TAst.ty in
+        Typer.unify ~span ctx.Ctx.subst ~from:var_ty ~to_:t_expr_ty
       in
       Ctx.update_subst ctx subst;
 
       let visibility = Env.Public in
       let venv =
-        let ty_sc = Typing.Scheme.of_ty var_ty in
+        let pty = Typing.Pred.of_type var_ty in
+        let ty_sc = Typing.Scheme.of_ty pty in
         Env.create name ~parent:(Some env) ~visibility ~ty_sc ~kind:Env.Val
           ~lookup_space:Env.LkLocal
       in
@@ -325,7 +462,7 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
         | _ -> ()
       in
 
-      let ty = Typing.Type.{ ctx.Ctx.builtin.Builtin.unit_ with span } in
+      let ty = ctx.Ctx.builtin.Builtin.unit_ ~span |> Typing.Pred.of_type in
       let mut = binding_mut in
       Ok TAst.{ kind = StmtLet { mut; name; expr = t_expr }; ty; span }
   (* *)
@@ -335,8 +472,8 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
   (* *)
   | Ast.{ kind = ExprBlock []; span } ->
       let ty =
-        let last_ty = ctx.Ctx.builtin.Builtin.unit_ in
-        Typing.Type.{ last_ty with span }
+        let last_ty = ctx.Ctx.builtin.Builtin.unit_ ~span in
+        Typing.Type.{ last_ty with span } |> Typing.Pred.of_type
       in
       let t_node = TAst.{ kind = LitUnit; ty; span } in
       Ok TAst.{ kind = StmtSeq [ t_node ]; ty; span }
@@ -348,7 +485,8 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
           (* scope *)
           let visibility = Env.Private in
           let ty = Typing.Subst.fresh_ty ~span ctx.Ctx.subst in
-          let ty_sc = Typing.Scheme.of_ty ty in
+          let pty = Typing.Pred.of_type ty in
+          let ty_sc = Typing.Scheme.of_ty pty in
           Env.create "" ~parent:(Some env) ~visibility ~ty_sc
             ~kind:Env.KindScope ~lookup_space:Env.LkLocal
         in
@@ -358,17 +496,20 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       in
       let ty =
         let n = List.hd_exn t_nodes_rev in
-        let last_ty = n.TAst.ty in
-        Typing.Type.{ last_ty with span }
+        Typing.Pred.with_span ~span n.TAst.ty
       in
+
       let t_nodes = List.rev t_nodes_rev in
       Ok TAst.{ kind = StmtSeq t_nodes; ty; span }
   (* *)
   | Ast.{ kind = ExprIf (cond, t, e_opt); span; _ } ->
       let%bind t_cond = analyze ~ctx ~env cond in
       let%bind subst =
-        Typer.unify ~span ctx.Ctx.subst ~from:t_cond.TAst.ty
-          ~to_:ctx.Ctx.builtin.Builtin.bool_
+        let (Typing.Pred.Pred { ty = t_cond_ty; _ }) = t_cond.TAst.ty in
+        let bool_ty =
+          ctx.Ctx.builtin.Builtin.bool_ ~span:t_cond_ty.Typing.Type.span
+        in
+        Typer.unify ~span ctx.Ctx.subst ~from:t_cond_ty ~to_:bool_ty
       in
 
       let ctx' = Ctx.{ ctx with subst } in
@@ -379,41 +520,45 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
         | Some e ->
             let%bind t_e = analyze ~ctx:ctx' ~env e in
             Ok (Some t_e, t_e.TAst.ty)
-        | None -> Ok (None, ctx.Ctx.builtin.Builtin.unit_)
+        | None ->
+            Ok (None, ctx.Ctx.builtin.Builtin.unit_ ~span |> Typing.Pred.of_type)
       in
 
       let%bind subst =
-        Typer.unify ~span ctx'.Ctx.subst ~from:t_t.TAst.ty ~to_:e_ty
+        let (Typing.Pred.Pred { ty = t_ty; _ }) = t_t.TAst.ty in
+        let (Typing.Pred.Pred { ty = e_ty; _ }) = e_ty in
+        Typer.unify ~span ctx'.Ctx.subst ~from:t_ty ~to_:e_ty
       in
       Ctx.update_subst ctx' subst;
       Ctx.merge ctx ctx';
 
-      let ty = Typing.Type.{ t_t.TAst.ty with span } in
+      let ty = Typing.Pred.with_span ~span t_t.TAst.ty in
       Ok TAst.{ kind = ExprIf (t_cond, t_t, t_e_opts); ty; span }
   (* *)
   | Ast.{ kind = ExprLoop e; span; _ } ->
       let%bind t_e = analyze ~ctx ~env e in
 
-      let ty =
-        let last_ty = ctx.Ctx.builtin.Builtin.unit_ in
-        Typing.Type.{ last_ty with span }
-      in
+      let ty = ctx.Ctx.builtin.Builtin.unit_ ~span in
+
       let%bind subst =
-        Typer.unify ~span ctx.Ctx.subst ~from:ty ~to_:t_e.TAst.ty
+        let (Typing.Pred.Pred { ty = t_e_ty; _ }) = t_e.TAst.ty in
+        Typer.unify ~span ctx.Ctx.subst ~from:ty ~to_:t_e_ty
       in
       Ctx.update_subst ctx subst;
 
+      let ty = ty |> Typing.Pred.of_type in
       Ok TAst.{ kind = ExprLoop t_e; ty; span }
   (* *)
   | Ast.{ kind = ExprBreak; span; _ } ->
-      let ty =
-        let last_ty = ctx.Ctx.builtin.Builtin.unit_ in
-        Typing.Type.{ last_ty with span }
-      in
+      let ty = ctx.Ctx.builtin.Builtin.unit_ ~span in
+
+      let ty = ty |> Typing.Pred.of_type in
       Ok TAst.{ kind = ExprBreak; ty; span }
   (* *)
   | Ast.{ kind = ExprAs { expr; ty_expr }; span; _ } ->
       let%bind ty = lookup_type ~env ~ctx ty_expr in
+      (* TODO: fix *)
+      let ty = ty |> Typing.Pred.of_type in
 
       let%bind t_expr = analyze ~ctx ~env expr in
       let%bind () =
@@ -427,8 +572,11 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       let (t_lhs, t_rhs) =
         match t_args with [ a; b ] -> (a, b) | _ -> failwith "[ICE]"
       in
+      let (Typing.Pred.Pred { ty = lhs_ty; _ }) = t_lhs.TAst.ty in
+      let (Typing.Pred.Pred { ty = rhs_ty; _ }) = t_rhs.TAst.ty in
+
       let%bind () =
-        match t_lhs.TAst.ty.Typing.Type.binding_mut with
+        match lhs_ty.Typing.Type.binding_mut with
         | Typing.Type.MutMut -> Ok ()
         | Typing.Type.MutImm ->
             let e = new Reasons.cannot_assign in
@@ -438,15 +586,12 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       in
 
       let%bind subst =
-        let lhs_ty = t_lhs.TAst.ty in
-        let rhs_ty = t_rhs.TAst.ty in
         Typer.unify ~span ctx.Ctx.subst ~from:lhs_ty ~to_:rhs_ty
       in
       Ctx.update_subst ctx subst;
 
       (* TODO: fix type? *)
-      let binding_mut = Typing.Type.MutImm in
-      let ty = Typing.Type.{ ty = Unit; binding_mut; span } in
+      let ty = ctx.Ctx.builtin.Builtin.unit_ ~span |> Typing.Pred.of_type in
       Ok TAst.{ kind = ExprAssign { lhs = t_lhs; rhs = t_rhs }; ty; span }
   (* *)
   | Ast.{ kind = ExprBinaryOp { op; lhs; rhs }; span; _ } ->
@@ -460,20 +605,26 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       let%bind t_r = analyze ~ctx ~env r in
       (* TODO: fix type inference *)
       let elem_ty =
-        match Typing.Subst.subst_type ctx.Ctx.subst t_r.TAst.ty with
+        let (Typing.Pred.Pred { ty = t_r_ty; _ }) = t_r.TAst.ty in
+        match Typing.Subst.subst_type ctx.Ctx.subst t_r_ty with
         | Typing.Type.{ ty = Array { elem; n }; _ } ->
-            let binding_mut = t_r.TAst.ty.Typing.Type.binding_mut in
+            let binding_mut = t_r_ty.Typing.Type.binding_mut in
             Typing.Type.{ elem with binding_mut }
-        | _ -> failwith "[ICE] not supported"
+        | ty ->
+            failwith
+              (Printf.sprintf "[ICE] not supported: ty = %s"
+                 (Typing.Type.to_string ty))
       in
 
-      let index_ty = ctx.Ctx.builtin.Builtin.i32_ in
+      let index_ty = ctx.Ctx.builtin.Builtin.i32_ ~span in
       let%bind t_index = analyze ~ctx ~env index in
       let%bind subst =
-        Typer.unify ~span ctx.Ctx.subst ~from:index_ty ~to_:t_index.TAst.ty
+        let (Typing.Pred.Pred { ty = t_index_ty; _ }) = t_index.TAst.ty in
+        Typer.unify ~span ctx.Ctx.subst ~from:index_ty ~to_:t_index_ty
       in
       Ctx.update_subst ctx subst;
 
+      let elem_ty = elem_ty |> Typing.Pred.of_type in
       Ok TAst.{ kind = ExprIndex (t_r, t_index); ty = elem_ty; span }
   (* *)
   | Ast.{ kind = ExprRef (attr, e); span; _ } ->
@@ -483,7 +634,8 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       (* coarsening *)
       let mut = Mut.mutability_of attr in
       let%bind () =
-        match (mut, t_r.TAst.ty.Typing.Type.binding_mut) with
+        let (Typing.Pred.Pred { ty = t_r_ty; _ }) = t_r.TAst.ty in
+        match (mut, t_r_ty.Typing.Type.binding_mut) with
         (* OK: &mutable <- mutable value *)
         | (Typing.Type.MutMut, Typing.Type.MutMut)
         (* OK: &immutable <- immutable value *)
@@ -500,8 +652,9 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       in
 
       let ty =
-        let elem_ty = t_r.TAst.ty in
-        Typing.Type.{ (ctx.Ctx.builtin.Builtin.pointer_ mut elem_ty) with span }
+        let (Typing.Pred.Pred { conds; ty = t_r_ty }) = t_r.TAst.ty in
+        let t_r_ty = ctx.Ctx.builtin.Builtin.pointer_ ~span mut t_r_ty in
+        Typing.Pred.Pred { conds; ty = t_r_ty }
       in
       Ok TAst.{ kind = ExprRef t_r; ty; span }
   (* *)
@@ -511,12 +664,10 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
 
       let elem_ty = Typing.Subst.fresh_ty ~span ctx.Ctx.subst in
       let elem_mut = Typing.Subst.fresh_mut ctx.Ctx.subst in
-      let ptr_ty =
-        Typing.Type.
-          { (ctx.Ctx.builtin.Builtin.pointer_ elem_mut elem_ty) with span }
-      in
+      let ptr_ty = ctx.Ctx.builtin.Builtin.pointer_ ~span elem_mut elem_ty in
       let%bind subst =
-        Typer.unify ~span ctx.Ctx.subst ~from:ptr_ty ~to_:t_r.TAst.ty
+        let (Typing.Pred.Pred { ty = t_r_ty; _ }) = t_r.TAst.ty in
+        Typer.unify ~span ctx.Ctx.subst ~from:ptr_ty ~to_:t_r_ty
       in
       Ctx.update_subst ctx subst;
 
@@ -524,6 +675,7 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
         let binding_mut = Typing.Subst.subst_mut subst elem_mut in
         Typing.Type.{ elem_ty with binding_mut; span }
       in
+      let ty = ty |> Typing.Pred.of_type in
       Ok TAst.{ kind = ExprDeref t_r; ty; span }
   (* *)
   | Ast.{ kind = ExprStruct { path }; span; _ } ->
@@ -539,11 +691,18 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
             let elm = Diagnostics.Elem.error ~span e in
             Error elm
       in
+      let ty = ty |> Typing.Pred.of_type in
       Ok TAst.{ kind = ExprStruct; span; ty }
   (* *)
   | Ast.{ kind = Path { root; elems }; span; _ } as p ->
-      let%bind (env, vars, ty, _) =
-        Phase1_1.lookup_path ~env ~subst:ctx.Ctx.subst p
+      let%bind (env, ty, lookup_subst, _, _) =
+        lookup_path ~env ~subst:ctx.Ctx.subst p
+      in
+      let vars =
+        let (Typing.Pred.Pred { ty; _ }) = ty in
+        match ty with
+        | Typing.Type.{ ty = Args { args; _ }; _ } -> args
+        | _ -> []
       in
       let%bind () =
         match Env.w_of env with Env.Val -> Ok () | _ -> failwith "[ICE]"
@@ -555,17 +714,20 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
           [%loga.debug
             "REV %s"
               ( vars
-              |> List.map ~f:(fun (v, nv) ->
+              |> List.map ~f:(fun apply ->
+                     let Typing.Type.{ apply_src_ty = v; apply_dst_ty = nv } =
+                       apply
+                     in
                      Printf.sprintf "%s -> %s" (Typing.Type.to_string v)
-                       ( nv
-                       |> Option.map ~f:Typing.Type.to_string
-                       |> Option.value ~default:"NONE" ))
+                       (Typing.Type.to_string nv))
               |> String.concat ~sep:"," )]
       in
 
-      let chain = Phase1_1.to_chains' env vars in
+      let chain = Phase1_1.to_chains' env lookup_subst in
       [%loga.debug
-        "chain -> %s" (Common.Chain.to_string ~to_s:Typing.Type.to_string chain)];
+        "chain -> %s :: %s"
+          (Common.Chain.to_string ~to_s:Typing.Type.to_string chain)
+          (Typing.Pred.to_string ty)];
       Ok TAst.{ kind = Var2 { chain }; span; ty }
   (* *)
   | Ast.{ kind = ID name; span; _ } as i ->
@@ -573,16 +735,16 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       analyze ~ctx ~env path
   (* *)
   | Ast.{ kind = LitBool v; span; _ } ->
-      let ty = Typing.Type.{ ctx.Ctx.builtin.Builtin.bool_ with span } in
+      let ty = ctx.Ctx.builtin.Builtin.bool_ ~span |> Typing.Pred.of_type in
       Ok TAst.{ kind = LitBool v; ty; span }
   (* *)
   | Ast.{ kind = LitInt (value, bits, signed); span; _ } ->
       (* defauled to i32 *)
-      let ty = Typing.Type.{ ctx.Ctx.builtin.Builtin.i32_ with span } in
+      let ty = ctx.Ctx.builtin.Builtin.i32_ ~span |> Typing.Pred.of_type in
       Ok TAst.{ kind = LitInt value; ty; span }
   (* *)
   | Ast.{ kind = LitString v; span; _ } ->
-      let ty = Typing.Type.{ ctx.Ctx.builtin.Builtin.string_ with span } in
+      let ty = ctx.Ctx.builtin.Builtin.string_ ~span |> Typing.Pred.of_type in
       Ok TAst.{ kind = LitString v; ty; span }
   (* *)
   | Ast.{ kind = LitArrayElems elems; span; _ } ->
@@ -598,17 +760,17 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
         List.fold_result t_elems ~init:ctx.Ctx.subst ~f:(fun subst t_elem ->
             let span = t_elem.TAst.span in
             let binding_mut = Typing.Type.MutImm in
-            let actual_elem_ty =
-              Typing.Type.{ t_elem.TAst.ty with binding_mut }
-            in
+            let (Typing.Pred.Pred { ty = t_elem_ty; _ }) = t_elem.TAst.ty in
+            let actual_elem_ty = Typing.Type.{ t_elem_ty with binding_mut } in
             Typer.unify ~span subst ~from:elem_ty ~to_:actual_elem_ty)
       in
       Ctx.update_subst ctx subst;
 
       let ty =
         let n = List.length elems in
-        Typing.Type.{ (ctx.Ctx.builtin.Builtin.array_ elem_ty n) with span }
+        ctx.Ctx.builtin.Builtin.array_ ~span elem_ty n
       in
+      let ty = ty |> Typing.Pred.of_type in
       Ok TAst.{ kind = LitArrayElem t_elems; ty; span }
   (* *)
   | Ast.{ kind; span; _ } ->
@@ -632,12 +794,15 @@ and analyze_call ~ctx ~env ~span recv args =
   let open Result.Let_syntax in
   let%bind t_recv = analyze ~ctx ~env recv in
   let%bind t_args = analyze_args ~ctx ~env args in
-  let recv_ty = t_recv.TAst.ty in
 
   let ret_ty = Typing.Subst.fresh_ty ~span ctx.Ctx.subst in
   let fn_ty =
     let linkage = Typing.Subst.fresh_linkage ctx.Ctx.subst in
-    let args_ty = List.map t_args ~f:(fun arg -> arg.TAst.ty) in
+    let args_ty =
+      List.map t_args ~f:(fun arg ->
+          let (Typing.Pred.Pred { ty = arg_ty; _ }) = arg.TAst.ty in
+          arg_ty)
+    in
     let binding_mut = Typing.Type.MutImm in
     Typing.Type.
       {
@@ -646,20 +811,81 @@ and analyze_call ~ctx ~env ~span recv args =
         span;
       }
   in
-  [%loga.debug "Func receiver ty = %s" (Typing.Type.to_string recv_ty)];
+  [%loga.debug "Func receiver ty = %s" (Typing.Pred.to_string t_recv.TAst.ty)];
   [%loga.debug "Func evaled ty = %s" (Typing.Type.to_string fn_ty)];
 
-  let%bind subst = Typer.unify ~span ctx.Ctx.subst ~from:recv_ty ~to_:fn_ty in
+  let%bind subst =
+    let (Typing.Pred.Pred { ty = recv_ty; conds }) = t_recv.TAst.ty in
+    Typer.unify2 ~span ctx.Ctx.subst conds ~from:recv_ty ~to_:fn_ty
+  in
   Ctx.update_subst ctx subst;
 
+  let ret_ty = ret_ty |> Typing.Pred.of_type in
   Ok TAst.{ kind = ExprCall (t_recv, t_args); ty = ret_ty; span }
 
 and lookup_type ~env ~ctx ast =
   let builtin = ctx.Ctx.builtin in
-  Phase1_1.lookup_type ~env builtin ast
+  Phase1_1.lookup_type_fresh ~env ~subst:ctx.Ctx.subst ~builtin ast
+
+and lookup_path ~env ~subst ast =
+  let open Result.Let_syntax in
+  match ast with
+  (* *)
+  | Ast.{ kind = Path { root; elems }; span; _ } ->
+      let rec find_elems env_aux elems =
+        match elems with
+        | [] -> Ok env_aux
+        | x :: xs ->
+            let (env, new_ty, subst, _, _) = env_aux in
+            let () =
+              match new_ty with
+              | Typing.Pred.Pred
+                  { conds = []; ty = Typing.Type.{ ty = Module; _ } } ->
+                  ()
+              | Typing.Pred.Pred
+                  {
+                    conds = [];
+                    ty =
+                      Typing.Type.{ ty = Type { ty = Trait { name; _ }; _ }; _ };
+                  } ->
+                  ()
+              | _ -> failwith "[ICE]"
+            in
+            let%bind nenv_aux = lookup_path ~env ~subst x in
+            find_elems nenv_aux xs
+      in
+      let%bind env_aux = lookup_path ~env ~subst root in
+      find_elems env_aux elems
+  (* *)
+  | Ast.{ kind = ID name; span } ->
+      let%bind (envs, _depth) =
+        Env.lookup_multi env name
+        |> Result.map_error ~f:(fun _trace ->
+               let candidates = [] (* TODO *) in
+               let e = new Diagnostics.Reasons.id_not_found ~name ~candidates in
+               let elm = Diagnostics.Elem.error ~span e in
+               elm)
+      in
+      let%bind env = match envs with [ e ] -> Ok e | _ -> failwith "TODO" in
+
+      let ty_sc = Env.type_sc_of env in
+      [%loga.debug "ID found(1): %s :: %s" name (Typing.Scheme.to_string ty_sc)];
+      let ty_sc = Typing.Subst.subst_scheme subst ty_sc in
+      [%loga.debug "ID found(2): %s :: %s" name (Typing.Scheme.to_string ty_sc)];
+      let (Typing.Scheme.ForAll { ty = new_ty; _ }, subst) =
+        Phase1_1.renamed_ty_sc ~subst ty_sc
+      in
+      [%loga.debug
+        "(upd.ty)ID found: %s :: %s" name (Typing.Pred.to_string new_ty)];
+      let l_opt = Name.to_leyer env subst in
+      Ok (env, new_ty, subst, l_opt, env.Env.lookup_space)
+  (* *)
+  | Ast.{ span; _ } -> failwith "unexpected token (lookup_path)"
 
 and can_cast_to ~subst ~src ~dst =
-  let src = Typing.Subst.subst_type subst src in
-  let dst = Typing.Subst.subst_type subst dst in
+  let (Typing.Pred.Pred { ty = src_ty; _ }) = src in
+  let src = Typing.Subst.subst_type subst src_ty in
+  let (Typing.Pred.Pred { ty = dst_ty; _ }) = dst in
+  let dst = Typing.Subst.subst_type subst dst_ty in
   (* TODO: impl *)
   Ok ()

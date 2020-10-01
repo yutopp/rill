@@ -62,6 +62,7 @@ rule token = parse
   | "import"            { KEYWORD_IMPORT }
   | "def"               { KEYWORD_DEF }
   | "type"              { KEYWORD_TYPE }
+  | "self" as id        { KEYWORD_SELF id }
   | "struct"            { KEYWORD_STRUCT }
   | "package"           { KEYWODD_PACKAGE }
   | "module"            { KEYWODD_MODULE }
