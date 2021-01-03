@@ -7,9 +7,8 @@
  *)
 
 open! Base
-module Unit = Diagnostics__Unit
 
 class virtual base =
   object (self)
-    inherit Unit.base
+    inherit Base_interface.base
   end
