@@ -6,7 +6,7 @@ file(GLOB C_SOURCE_FILES
   src_ext/*.c
   )
 add_library(std-c
-  ${C_SOURCE_FILES}
+  STATIC ${C_SOURCE_FILES}
   )
 
 install(
