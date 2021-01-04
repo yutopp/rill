@@ -6,8 +6,8 @@ jobs:
   buildAndPush:
     strategy:
       matrix:
-        host: [x86_64]
-        llvm-version: [11]
+        host: ["x86_64"]
+        llvm-version: ["11.0.0"]
     runs-on: ubuntu-20.04
     env:
       DOCKER_IMAGE_NAME: "yutopp/rill-build-env"
@@ -15,7 +15,7 @@ jobs:
     steps:
       - id: check-image-existence
         run: |
-          result="$(docker image inspect ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} 2> /dev/null)"
+          result="$(docker image inspect ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} 2> /dev/null) || true"
           if [ "$result" = "[]" ]; then
             echo "::set-output name=exists::false"
           fi
