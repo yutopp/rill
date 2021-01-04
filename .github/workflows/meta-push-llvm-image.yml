@@ -15,14 +15,11 @@ jobs:
       DOCKER_IMAGE_NAME: "yutopp/rill-build-env"
       DOCKER_IMAGE_TAG: "llvm-${{ matrix.llvm-version }}-${{ matrix.arch }}"
     steps:
-      - run: |
-          echo '{"experimental": true}' | sudo tee -a /etc/docker/daemon.json
-
       - id: check-image-existence
         run: |
           image="${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
-          DOCKER_CLI_EXPERIMENTAL=enabled docker manifest inspect "$image"          
-          if ! (docker manifest inspect "$image" &>/dev/null); then
+          DOCKER_CLI_EXPERIMENTAL=enabled docker manifest inspect "$image"
+          if ! (DOCKER_CLI_EXPERIMENTAL=enabled docker manifest inspect "$image" &>/dev/null); then
             echo "::set-output name=exists::false"
           fi
 
@@ -56,13 +53,10 @@ jobs:
       DOCKER_IMAGE_NAME: "yutopp/rill-build-env"
       DOCKER_IMAGE_TAG: "base-${{ matrix.arch }}"
     steps:
-      - run: |
-          echo '{"experimental": true}' | sudo tee -a /etc/docker/daemon.json
-
       - id: check-image-existence
         run: |
           image="${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
-          if ! (docker manifest inspect "$image" &>/dev/null); then
+          if ! (DOCKER_CLI_EXPERIMENTAL=enabled docker manifest inspect "$image" &>/dev/null); then
             echo "::set-output name=exists::false"
           fi
 
