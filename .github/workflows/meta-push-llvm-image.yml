@@ -21,7 +21,7 @@ jobs:
       - id: check-image-existence
         run: |
           image="${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
-          docker manifest inspect "$image"          
+          DOCKER_CLI_EXPERIMENTAL=enabled docker manifest inspect "$image"          
           if ! (docker manifest inspect "$image" &>/dev/null); then
             echo "::set-output name=exists::false"
           fi
