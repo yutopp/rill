@@ -1,6 +1,9 @@
 ARG OCAML_VERSION="4.10.0"
 ARG OPAM_VERSION="2.0.7"
 
+ARG HOST_ARCH="x86_64"
+ARG LLVM_VERSION="11.0.0"
+
 ######################################################################
 #
 FROM ubuntu:20.04 as builder
@@ -25,7 +28,7 @@ RUN opam init -y -a --disable-sandboxing --comp=${OCAML_VERSION}
 
 ######################################################################
 #
-FROM yutopp/rill-build-env:llvm-11.0.0-x86_64 as llvm
+FROM yutopp/rill-build-env:llvm-${LLVM_VERSION}-${HOST_ARCH} as llvm
 
 ######################################################################
 #
