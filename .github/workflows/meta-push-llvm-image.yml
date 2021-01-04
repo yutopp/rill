@@ -42,7 +42,7 @@ jobs:
           docker push "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
 
   metaBuildAndPushBuildEnvImage:
-    needs: [buildAndPush]
+    needs: [metaBuildAndPushLLVMImage]
     strategy:
       matrix:
         arch: ["x86_64"]
