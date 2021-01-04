@@ -18,3 +18,17 @@ ExternalProject_Add(
   LOG_BUILD On
   )
 
+install(
+  PROGRAMS
+  ${CMAKE_BINARY_DIR}/bin/rillc_compile
+  ${CMAKE_BINARY_DIR}/bin/rillc_build
+  TYPE BIN
+  )
+
+file(GLOB DOCS_FILES
+  ${CMAKE_BINARY_DIR}/doc/rillc/*
+  )
+install(
+  FILES ${DOCS_FILES}
+  TYPE DOC
+  )
