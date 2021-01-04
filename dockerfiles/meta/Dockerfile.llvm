@@ -38,7 +38,9 @@ RUN cmake -G 'Ninja' \
 
 #
 RUN ninja cmake/modules/all include/llvm/all lib/all bin/llvm-config
-RUN ninja cmake/modules/install include/llvm/install lib/install
+RUN ninja cmake/modules/install lib/install
+RUN mkdir "${LLVM_PREFIX}/include"
+RUN cp -r include/. "${LLVM_PREFIX}/include/."
 RUN mkdir "${LLVM_PREFIX}/bin"
 RUN cp bin/llvm-config "${LLVM_PREFIX}/bin/."
 
