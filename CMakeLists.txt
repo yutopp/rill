@@ -15,11 +15,20 @@ include(./Rillc.cmake)
 #
 # These libraries will be installed in the following directory structure.
 #
-# - ${PREFIX}/lib/rill-lib/${TARGET_TRIPLE}/
+# - ${PREFIX}/lib/rill-lib/src
+# - ${PREFIX}/lib/rill-lib/${TARGET_TRIPLE}/lib
+# - ${PREFIX}/lib/rill-lib/${TARGET_TRIPLE}/bin
 #
 set(TARGET_TRIPLE x86_64_unknown-linux-gnu)
-set(INSTALL_RILL_LIB_LINK_PATH lib/rill-lib/${TARGET_TRIPLE}/lib)
-set(INSTALL_RILL_LIB_SRC_PATH lib/rill-lib/src)
+
+set(RILL_LIB_DIR lib/rill-lib)
+set(RILL_LIB_SRC_DIR ${RILL_LIB_DIR}/src)
+set(RILL_LIB_TARGET_BIN_DIR ${RILL_LIB_DIR}/${TARGET_TRIPLE}/bin)
+set(RILL_LIB_TARGET_LIB_DIR ${RILL_LIB_DIR}/${TARGET_TRIPLE}/lib)
+
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${RILL_LIB_TARGET_BIN_DIR}) # exe
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${RILL_LIB_TARGET_LIB_DIR}) # lib (shared)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${RILL_LIB_TARGET_LIB_DIR}) # lib (static)
 
 add_subdirectory(corelib)
 add_subdirectory(stdlib)
