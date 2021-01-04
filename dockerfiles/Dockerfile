@@ -1,4 +1,5 @@
-ARG ocaml_version="4.10.0"
+ARG OCAML_VERSION="4.10.0"
+ARG OPAM_VERSION="2.0.7"
 
 ######################################################################
 #
@@ -11,22 +12,20 @@ RUN apt-get update && apt-get install -y \
  && rm -rf /var/lib/apt/lists/*
 
 # opam
-ARG opam_version="2.0.7"
 WORKDIR /tmp
-RUN curl -sSL https://github.com/ocaml/opam/releases/download/${opam_version}/opam-${opam_version}-x86_64-linux -o opam
+RUN curl -sSL https://github.com/ocaml/opam/releases/download/${OPAM_VERSION}/opam-${OPAM_VERSION}-x86_64-linux -o opam
 RUN install opam /usr/local/bin/opam
 
 # OCaml
 WORKDIR /
-ARG ocaml_version
 ENV OPAMKEEPBUILDDIR false
 ENV OPAMBUILDDOC false
 ENV OPAMDOWNLOADJOBS 1
-RUN opam init -y -a --disable-sandboxing --comp=${ocaml_version}
+RUN opam init -y -a --disable-sandboxing --comp=${OCAML_VERSION}
 
 ######################################################################
 #
-FROM yutopp/rill-build-env:llvm10.0.0 as llvm10
+FROM yutopp/rill-build-env:llvm-11.0.0-x86_64 as llvm
 
 ######################################################################
 #
@@ -43,19 +42,17 @@ RUN apt-get update && apt-get install -y \
  && rm -rf /var/lib/apt/lists/*
 
 # Copy LLVM
-COPY --from=llvm10 /usr/local/llvm/lib/* /usr/local/lib/
-COPY --from=llvm10 /usr/local/llvm/include/* /usr/local/include/
-COPY --from=llvm10 /usr/local/llvm/bin/llvm-config /usr/local/bin/.
-COPY --from=llvm10 /usr/local/llvm/bin/llc /usr/local/bin/
+COPY --from=llvm /usr/local/llvm/lib/* /usr/local/lib/
+COPY --from=llvm /usr/local/llvm/include/* /usr/local/include/
+COPY --from=llvm /usr/local/llvm/bin/llvm-config /usr/local/bin/.
 
 # Copy opam
 COPY --from=builder /tmp/opam /tmp/opam
 RUN install /tmp/opam /usr/local/bin/opam
 
 # Copy OCaml
-ARG ocaml_version
 RUN mkdir -p /root/.opam/
 COPY --from=builder /root/.opam/config /root/.opam/config
-COPY --from=builder /root/.opam/${ocaml_version} /root/.opam/${ocaml_version}
+COPY --from=builder /root/.opam/${OCAML_VERSION} /root/.opam/${OCAML_VERSION}
 COPY --from=builder /root/.opam/opam-init /root/.opam/opam-init
 COPY --from=builder /root/.opam/repo/repos-config /root/.opam/repo/repos-config
