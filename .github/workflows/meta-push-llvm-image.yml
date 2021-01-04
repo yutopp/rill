@@ -15,6 +15,9 @@ jobs:
       DOCKER_IMAGE_NAME: "yutopp/rill-build-env"
       DOCKER_IMAGE_TAG: "llvm-${{ matrix.llvm-version }}-${{ matrix.arch }}"
     steps:
+      - run: |
+          echo '{"experimental": true}' | sudo tee -a /etc/docker/daemon.json
+
       - id: check-image-existence
         run: |
           image="${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
@@ -52,6 +55,9 @@ jobs:
       DOCKER_IMAGE_NAME: "yutopp/rill-build-env"
       DOCKER_IMAGE_TAG: "base-${{ matrix.arch }}"
     steps:
+      - run: |
+          echo '{"experimental": true}' | sudo tee -a /etc/docker/daemon.json
+
       - id: check-image-existence
         run: |
           image="${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
