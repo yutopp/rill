@@ -36,7 +36,7 @@ RUN cmake -G 'Ninja' \
           -DLLVM_INCLUDE_DOCS=OFF \
           ..
 
-# 
+#
 RUN ninja cmake/modules/all include/llvm/all lib/all bin/llvm-config
 RUN ninja cmake/modules/install include/llvm/install lib/install
 RUN mkdir "${LLVM_PREFIX}/bin"
