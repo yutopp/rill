@@ -22,5 +22,11 @@ jobs:
 
       - id: build-and-push-image
         if: steps.check-image-existence.outputs.exists == 'false'
+        working-directory: dockerfiles/meta
+        env:
+          LLVM_VERSION: "${{ matrix.llvm-version }}"
         run: |
-          echo "build!"
+          docker build --rm -t "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" \
+                       --build-arg LLVM_VERSION="${LLVM_VERSION}" \
+                       -f Dockerfile.llvm .
+          docker push "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
