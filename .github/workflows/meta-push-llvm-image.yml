@@ -17,8 +17,8 @@ jobs:
     steps:
       - id: check-image-existence
         run: |
-          result="$(docker image inspect ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} 2> /dev/null || true)"
-          if [ "$result" = "[]" ]; then
+          image="${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
+          if ! (docker manifest inspect "$image" &>/dev/null); then
             echo "::set-output name=exists::false"
           fi
 
@@ -53,8 +53,8 @@ jobs:
     steps:
       - id: check-image-existence
         run: |
-          result="$(docker image inspect ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} 2> /dev/null || true)"
-          if [ "$result" = "[]" ]; then
+          image="${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
+          if ! (docker manifest inspect "$image" &>/dev/null); then
             echo "::set-output name=exists::false"
           fi
 
