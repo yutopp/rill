@@ -20,7 +20,6 @@ RUN apt-get update && apt-get install -y \
 
 # opam
 WORKDIR /tmp
-RUN echo "https://github.com/ocaml/opam/releases/download/${OPAM_VERSION}/opam-${OPAM_VERSION}-${HOST_ARCH}-linux"
 RUN curl -sSfL "https://github.com/ocaml/opam/releases/download/${OPAM_VERSION}/opam-${OPAM_VERSION}-${HOST_ARCH}-linux" -o opam
 RUN install opam /usr/local/bin/opam
 
