@@ -8,6 +8,10 @@ ARG LLVM_VERSION="11.0.0"
 #
 FROM ubuntu:20.04 as builder
 
+ARG OCAML_VERSION
+ARG OPAM_VERSION
+ARG HOST_ARCH
+
 #
 RUN apt-get update && apt-get install -y \
     curl \
@@ -36,6 +40,8 @@ FROM yutopp/rill-build-env:llvm-${LLVM_VERSION}-${HOST_ARCH} as llvm
 FROM ubuntu:20.04
 
 LABEL maintainer="yutopp@gmail.com"
+
+ARG OCAML_VERSION
 
 ENV DEBIAN_FRONTEND=noninteractive
 
