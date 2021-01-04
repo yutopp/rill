@@ -20,6 +20,8 @@ jobs:
             echo "::set-output name=exists::false"
           fi
 
+      - uses: actions/checkout@v2
+
       - id: build-and-push-image
         if: steps.check-image-existence.outputs.exists == 'false'
         working-directory: dockerfiles/meta
