@@ -18,26 +18,29 @@ WORKDIR /llvm-build/llvm-${LLVM_VERSION}.src
 RUN mkdir build
 WORKDIR /llvm-build/llvm-${LLVM_VERSION}.src/build
 
+ARG LLVM_PREFIX=/usr/local/llvm
+
 RUN cmake -G 'Ninja' \
-          -DCMAKE_INSTALL_PREFIX=/usr/local/llvm \
+          -DCMAKE_INSTALL_PREFIX="${LLVM_PREFIX}" \
           -DCMAKE_BUILD_TYPE=Release \
           -DLLVM_TARGETS_TO_BUILD="X86" \
           -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD="WebAssembly" \
           -DLLVM_ENABLE_TERMINFO=OFF \
           -DLLVM_ENABLE_ZLIB=OFF \
           -DLLVM_BUILD_TOOLS=OFF \
-          -DLLVM_INCLUDE_TOOLS=OFF \
           -DLLVM_INCLUDE_UTILS=OFF \
-          -DLLVM_BUILD_UTILS=OFF \
+          -DLLVM_INCLUDE_BENCHMARKS=OFF \
           -DLLVM_INCLUDE_EXAMPLES=OFF \
           -DLLVM_INCLUDE_TESTS=OFF \
           -DLLVM_INCLUDE_GO_TESTS=OFF \
           -DLLVM_INCLUDE_DOCS=OFF \
-          -DLLVM_BUILD_DOCS=OFF \
           ..
 
-RUN ninja
-RUN ninja install
+# 
+RUN ninja cmake/modules/all include/llvm/all lib/all bin/llvm-config
+RUN ninja cmake/modules/install include/llvm/install lib/install
+RUN mkdir "${LLVM_PREFIX}/bin"
+RUN cp bin/llvm-config "${LLVM_PREFIX}/bin/."
 
 #
 FROM ubuntu:20.04
