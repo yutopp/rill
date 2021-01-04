@@ -4,14 +4,19 @@ enable_testing()
 project(rill)
 
 set(RILLC_VERSION latest)
-set(SUPPORTED_TRIPLES x86_64_unknown-linux-gnu wasm32-wasi)
 
 set(HOST_TRIPLE x86_64_unknown-linux-gnu)
+set(TARGET_TRIPLES x86_64_unknown-linux-gnu wasm32-wasi)
 
-# Base compiler
-add_subdirectory(rillc)
+include(./Rillc.cmake)
 
+#
 # Core Libraries
+#
+# These libraries will be installed in the following directory structure.
+#
+# - ${PREFIX}/lib/rill-lib/${TARGET_TRIPLE}/
+#
 set(TARGET_TRIPLE x86_64_unknown-linux-gnu)
 set(INSTALL_RILL_LIB_LINK_PATH lib/rill-lib/${TARGET_TRIPLE}/lib)
 set(INSTALL_RILL_LIB_SRC_PATH lib/rill-lib/src)
