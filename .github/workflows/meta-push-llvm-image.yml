@@ -1,0 +1,26 @@
+name: Meta Push LLVM Image
+
+on: [push]
+
+jobs:
+  buildAndPush:
+    strategy:
+      matrix:
+        host: [x86_64]
+        llvm-version: [11]
+    runs-on: ubuntu-20.04
+    env:
+      DOCKER_IMAGE_NAME: "yutopp/rill-build-env"
+      DOCKER_IMAGE_TAG: "llvm-${{ matrix.llvm-version }}-${{ matrix.host }}"
+    steps:
+      - id: check-image-existence
+        run: |
+          result="$(docker image inspect ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} 2> /dev/null)"
+          if [ "$result" = "[]" ]; then
+            echo "::set-output name=exists::false"
+          fi
+
+      - id: build-and-push-image
+        if: steps.check-image-existence.outputs.exists == 'false'
+        run: |
+          echo "build!"
