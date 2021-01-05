@@ -1,5 +1,9 @@
 # Rillc
 
+Rillc is a compiler program and a main component for Rill programming language.
+
+Building and testing of `rillc` can be done independently under this directory.
+
 ## How to develop
 
 ### Initial setup

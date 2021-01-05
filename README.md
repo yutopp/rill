@@ -42,6 +42,10 @@ $ git clone https://github.com/yutopp/rill.git
 $ cd rill
 ```
 
+### Setup rillc (compiler only) environments
+
+See [rillc/README](./rillc/README.md).
+
 ### Generate project files by using CMake
 
 ```bash
