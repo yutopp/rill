@@ -7,7 +7,7 @@
 (generate_opam_files true)
 
 (source (github yutopp/rill))
-(license "Boost License Version 1.0")
+(license "BSL-1.0")
 (authors "yutopp")
 (maintainers "yutopp@gmail.com")
 
