@@ -1,8 +1,7 @@
-_ext_dirs/
+_opam/
+_build/
 
-/build
 .merlin
-*.install
 
 *.s
 *.ll
