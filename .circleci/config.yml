@@ -12,12 +12,13 @@ jobs:
             - opam-cache-v1-{{ arch }}-{{ checksum "rillc/rillc.opam.locked" }}
             - opam-cache-
 
-      - working_directory: rillc
-        run: |
-          opam switch create . 4.10.0
-          opam repo add rillc-deps-opam-repo https://github.com/yutopp/rillc-deps-opam-repo.git
-          opam update
-          opam install . --deps-only --with-test -y --locked
+      - run:
+          working_directory: rillc
+          command: |
+            opam switch create . 4.10.0
+            opam repo add rillc-deps-opam-repo https://github.com/yutopp/rillc-deps-opam-repo.git
+            opam update
+            opam install . --deps-only --with-test -y --locked
 
       - save_cache:
           key: opam-cache-v1-{{ arch }}-{{ checksum "rillc/rillc.opam.locked" }}
