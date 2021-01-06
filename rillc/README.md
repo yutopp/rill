@@ -20,6 +20,7 @@ opam install . --deps-only --with-test -y --locked
 ```shell
 opam update
 opam install . --deps-only --with-test -y
+opam lock .
 ```
 
 ### Build executables
