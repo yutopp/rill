@@ -41,3 +41,12 @@ jobs:
 
       - working-directory: rillc
         run: make test
+
+      - run: cmake -B build
+
+      - run: cmake --build build
+
+      - working-directory: build
+        run: ctest -V
+
+      - run: cmake --install build --prefix /usr/local/rill-ci
