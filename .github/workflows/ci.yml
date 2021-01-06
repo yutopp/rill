@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
   buildAndTest:
-    runs-on: ubuntu-latest #yutopp/rill-build-env:base-x86_64
+    runs-on: yutopp/rill-build-env:base-x86_64
     env:
       OPAMROOT: /root/.opam
 
