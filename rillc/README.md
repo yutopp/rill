@@ -9,7 +9,6 @@ Building and testing of `rillc` can be done independently under this directory.
 ### Initial setup
 
 ```shell
-opam switch create . --empty -y
 opam repo add rillc-deps-opam-repo https://github.com/yutopp/rillc-deps-opam-repo.git
 opam update
 opam install . --deps-only --with-test -y --locked
