@@ -7,6 +7,11 @@ jobs:
     steps:
       - checkout
 
+      - run:
+          working_directory: rillc
+          command: |
+            opam switch create . --empty -y
+
       - restore_cache:
           keys:
             - opam-cache-v1-{{ arch }}-{{ checksum "rillc/rillc.opam.locked" }}
@@ -15,9 +20,16 @@ jobs:
       - run:
           working_directory: rillc
           command: |
-            opam switch create . --empty -y
             opam repo add rillc-deps-opam-repo https://github.com/yutopp/rillc-deps-opam-repo.git
+
+      - run:
+          working_directory: rillc
+          command: |
             opam update
+
+      - run:
+          working_directory: rillc
+          command: |
             opam install . --deps-only --with-test -y --locked -j "$(nproc)"
 
       - save_cache:
