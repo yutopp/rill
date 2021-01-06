@@ -2,16 +2,16 @@ PREFIX?=/usr
 
 .PHONY: build
 build:
-	dune build
+	opam exec -- dune build
 
 .PHONY: test
 test:
-	dune test
+	opam exec -- dune test
 
 .PHONY: install
 install:
-	dune install --sections=bin,doc --prefix=$(PREFIX)
+	opam exec -- dune install --sections=bin,doc --prefix=$(PREFIX)
 
 .PHONY: uninstall
 uninstall:
-	dune uninstall --sections=bin,doc --prefix=$(PREFIX)
+	opam exec -- dune uninstall --sections=bin,doc --prefix=$(PREFIX)
