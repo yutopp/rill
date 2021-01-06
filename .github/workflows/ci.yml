@@ -34,7 +34,7 @@ jobs:
         run: opam update
 
       - working-directory: rillc
-        run: opam install . --deps-only --with-test -y --locked -j "$(nproc)"
+        run: opam install . --deps-only --assume-depexts --with-test -y --locked -j "$(nproc)"
 
       - working-directory: rillc
         run: make build
