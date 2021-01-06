@@ -35,3 +35,9 @@ jobs:
 
       - working-directory: rillc
         run: opam install . --deps-only --with-test -y --locked -j "$(nproc)"
+
+      - working-directory: rillc
+        run: make build
+
+      - working-directory: rillc
+        run: make test
