@@ -32,6 +32,16 @@ jobs:
           command: |
             opam install . --deps-only --with-test -y --locked -j "$(nproc)"
 
+      - run:
+          working_directory: rillc
+          command: |
+            make build
+
+      - run:
+          working_directory: rillc
+          command: |
+            make test
+
       - save_cache:
           key: opam-cache-v1-{{ arch }}-{{ checksum "rillc/rillc.opam.locked" }}
           paths:
