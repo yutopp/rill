@@ -4,7 +4,11 @@ on: [push]
 
 jobs:
   buildAndTest:
-    runs-on: yutopp/rill-build-env:base-x86_64
+    runs-on: ubuntu-latest
+
+    container:
+      image: yutopp/rill-build-env:base-x86_64
+
     env:
       OPAMROOT: /root/.opam
 
