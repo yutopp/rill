@@ -27,7 +27,7 @@ This repository contains the implementation of Rill-lang.
 ## Prerequisites
 
 * OCaml (>= 4.09.0)
-* OPAM (>= 2.0.7)
+* OPAM (>= 2.1.0~beta2)
   * dune (>= 2.5)
 * CMake (>= 3.2)
 * LLVM (>= 11.0.0)
