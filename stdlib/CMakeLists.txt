@@ -16,10 +16,13 @@ install(
 
 # rill-lib src
 # - ${PREFIX}/lib/rill-lib/src/std/src/*
-FILE(
-  COPY ${CMAKE_CURRENT_SOURCE_DIR}/src
-  DESTINATION ${RILL_LIB_SRC_DIR}/std
-  )
+add_custom_command(
+  TARGET std-c
+  POST_BUILD
+   COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_BINARY_DIR}/${RILL_LIB_SRC_DIR}/std/src
+    )
 
 install(
   DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src

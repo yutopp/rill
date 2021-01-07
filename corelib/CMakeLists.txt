@@ -16,10 +16,13 @@ install(
 
 # rill-lib src
 # - ${PREFIX}/lib/rill-lib/src/core/src/*
-FILE(
-  COPY ${CMAKE_CURRENT_SOURCE_DIR}/src
-  DESTINATION ${RILL_LIB_SRC_DIR}/core
-  )
+add_custom_command(
+  TARGET core-c
+  POST_BUILD
+   COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_BINARY_DIR}/${RILL_LIB_SRC_DIR}/core/src
+    )
 
 install(
   DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src
