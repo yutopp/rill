@@ -1,5 +1,0 @@
-1c1,2
-< opam-version: "1.2"
----
-> opam-version: "1.2.2"
-> version: "5.0.0-patched"
