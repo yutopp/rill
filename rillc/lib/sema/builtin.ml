@@ -6,59 +6,50 @@
  * http://www.boost.org/LICENSE_1_0.txt)
  *)
 
+module Span = Common.Span
+
 type t = {
-  bool_ : Typing.Type.t;
-  i8_ : Typing.Type.t;
-  i32_ : Typing.Type.t;
-  i64_ : Typing.Type.t;
-  u64_ : Typing.Type.t;
-  usize_ : Typing.Type.t;
-  isize_ : Typing.Type.t;
-  string_ : Typing.Type.t;
-  unit_ : Typing.Type.t;
-  array_ : Typing.Type.t -> int -> Typing.Type.t;
-  pointer_ : Typing.Type.mutability_t -> Typing.Type.t -> Typing.Type.t;
+  bool_ : span:Span.t -> Typing.Type.t;
+  i8_ : span:Span.t -> Typing.Type.t;
+  i32_ : span:Span.t -> Typing.Type.t;
+  i64_ : span:Span.t -> Typing.Type.t;
+  u64_ : span:Span.t -> Typing.Type.t;
+  usize_ : span:Span.t -> Typing.Type.t;
+  isize_ : span:Span.t -> Typing.Type.t;
+  string_ : span:Span.t -> Typing.Type.t;
+  unit_ : span:Span.t -> Typing.Type.t;
+  array_ : span:Span.t -> Typing.Type.t -> int -> Typing.Type.t;
+  pointer_ :
+    span:Span.t -> Typing.Type.mutability_t -> Typing.Type.t -> Typing.Type.t;
   (* meta *)
-  type_ : Typing.Type.t -> Typing.Type.t;
+  type_ : span:Span.t -> Typing.Type.t -> Typing.Type.t;
 }
 
 let create () : t =
-  let binding_mut = Typing.Type.MutMut in
-  let bool_ =
-    Typing.Type.
-      { ty = Num { bits = 1; signed = false }; binding_mut; span = Span.undef }
+  let open Typing.Type in
+  let binding_mut = MutMut in
+  let bool_ ~span =
+    { ty = Num { bits = 1; signed = false }; binding_mut; span }
   in
-  let i8_ =
-    Typing.Type.
-      { ty = Num { bits = 8; signed = true }; binding_mut; span = Span.undef }
+  let i8_ ~span = { ty = Num { bits = 8; signed = true }; binding_mut; span } in
+  let i32_ ~span =
+    { ty = Num { bits = 32; signed = true }; binding_mut; span }
   in
-  let i32_ =
-    Typing.Type.
-      { ty = Num { bits = 32; signed = true }; binding_mut; span = Span.undef }
+  let i64_ ~span =
+    { ty = Num { bits = 64; signed = true }; binding_mut; span }
   in
-  let i64_ =
-    Typing.Type.
-      { ty = Num { bits = 64; signed = true }; binding_mut; span = Span.undef }
+  let u64_ ~span =
+    { ty = Num { bits = 64; signed = false }; binding_mut; span }
   in
-  let u64_ =
-    Typing.Type.
-      { ty = Num { bits = 64; signed = false }; binding_mut; span = Span.undef }
+  let usize_ ~span = { ty = Size { signed = false }; binding_mut; span } in
+  let isize_ ~span = { ty = Size { signed = true }; binding_mut; span } in
+  let string_ ~span = { ty = String; binding_mut; span } in
+  let unit_ ~span = { ty = Unit; binding_mut; span } in
+  let array_ ~span elem n = { ty = Array { elem; n }; binding_mut; span } in
+  let pointer_ ~span mut elem =
+    { ty = Pointer { mut; elem }; binding_mut; span }
   in
-  let usize_ =
-    Typing.Type.{ ty = Size { signed = false }; binding_mut; span = Span.undef }
-  in
-  let isize_ =
-    Typing.Type.{ ty = Size { signed = true }; binding_mut; span = Span.undef }
-  in
-  let string_ = Typing.Type.{ ty = String; binding_mut; span = Span.undef } in
-  let unit_ = Typing.Type.{ ty = Unit; binding_mut; span = Span.undef } in
-  let array_ elem n =
-    Typing.Type.{ ty = Array { elem; n }; binding_mut; span = Span.undef }
-  in
-  let pointer_ mut elem =
-    Typing.Type.{ ty = Pointer { mut; elem }; binding_mut; span = Span.undef }
-  in
-  let type_ ty = Typing.Type.{ ty = Type ty; binding_mut; span = Span.undef } in
+  let type_ ~span ty = { ty = Type ty; binding_mut; span } in
   {
     bool_;
     i8_;

@@ -2,13 +2,12 @@
 
 set -eux -o pipefail
 
-CC=${RILL_CC:-gcc}
+CC="${RILL_TEST_CC:-gcc}"
 
-_=$RILLC_COMPILER
-_=$RILLC_CORELIB_SRCDIR
-_=$RILLC_CORELIB_LIBDIR
-_=$RILLC_STDLIB_SRCDIR
-_=$RILLC_STDLIB_LIBDIR
+_="$RILL_TEST_COMPILER"
+_="$RILL_TEST_CORELIB_SRCDIR"
+_="$RILL_TEST_STDLIB_SRCDIR"
+_="$RILL_TEST_TARGET_LIBDIR"
 
 SCRIPT_DIR="$(cd $(dirname $0); pwd)"
 TEST_PASS_DIR="$SCRIPT_DIR/pass"
@@ -27,9 +26,9 @@ function build_and_execute() {
     OUT_DIR=`mktemp -d '/tmp/rillc.XXXXXXXXXXXXXXXX'`
 
     # Emit an LLVM IR bitcode
-    $RILLC_COMPILER \
-        --corelib_srcdir="$RILLC_CORELIB_SRCDIR" \
-        --stdlib-srcdir="$RILLC_STDLIB_SRCDIR" \
+    $RILL_TEST_COMPILER \
+        --corelib_srcdir="$RILL_TEST_CORELIB_SRCDIR" \
+        --stdlib-srcdir="$RILL_TEST_STDLIB_SRCDIR" \
         --out_dir="$OUT_DIR" \
         --log-level=debug \
         "$FILE" || failed_to_execute "compile" "$CASENAME"
@@ -39,8 +38,7 @@ function build_and_execute() {
 
     # Emit an executable
     $CC -v -fPIE \
-        -L"$RILLC_CORELIB_LIBDIR" \
-        -L"$RILLC_STDLIB_LIBDIR" \
+        -L"$RILL_TEST_TARGET_LIBDIR" \
         "$FILE_OBJ_PATH" \
         -static \
         -lcore-c \
@@ -77,9 +75,9 @@ function build_and_check_failure() {
     # Emit an LLVM IR bitcode
     local TEST_ACTUAL_FILE="$OUT_DIR/test.buildlog"
     set +e
-    $RILLC_COMPILER \
-        --corelib_srcdir="$RILLC_CORELIB_SRCDIR" \
-        --stdlib-srcdir="$RILLC_STDLIB_SRCDIR" \
+    $RILL_TEST_COMPILER \
+        --corelib_srcdir="$RILL_TEST_CORELIB_SRCDIR" \
+        --stdlib-srcdir="$RILL_TEST_STDLIB_SRCDIR" \
         --out_dir="$OUT_DIR" \
         --emit=llvm-ir \
         "$FILE" > $TEST_ACTUAL_FILE 2>&1

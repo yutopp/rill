@@ -36,8 +36,9 @@ let rec mangle_layer l =
   in
   Printf.sprintf "%s%s" name generics_s
 
-and mangle2 nest =
-  let names = nest |> List.map ~f:(fun l -> mangle_layer l) in
+and mangle2 name =
+  let layers = Common.Chain.Nest.to_list name in
+  let names = layers |> List.map ~f:(fun l -> mangle_layer l) in
   Printf.sprintf "_Z%sRill" (nested_name names)
 
 and to_type_sig ty =
@@ -58,7 +59,10 @@ and to_type_sig ty =
   | Typing.Type.{ ty = Pointer { mut; elem }; _ } ->
       Printf.sprintf "*%s %s" (to_mut_sig mut) (to_type_sig elem)
   | Typing.Type.{ ty = Struct { name }; _ } -> (* TODO: fix *) mangle2 name
-  | _ -> failwith "[ICE] cannot encode type"
+  | _ ->
+      failwith
+        (Printf.sprintf "[ICE] cannot encode type: %s"
+           (Typing.Type.to_string ty))
 
 and to_mut_sig mut : string =
   match mut with

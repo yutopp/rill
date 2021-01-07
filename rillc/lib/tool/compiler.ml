@@ -52,7 +52,8 @@ let make_root_mod_env_for_pkg ~compiler pkg : Mod.t * Sema.Env.t =
   let visibility = Sema.Env.Public in
   let binding_mut = Typing.Type.MutImm in
   let ty = Typing.Type.{ ty = Module; binding_mut; span = Common.Span.undef } in
-  let ty_sc = Typing.Scheme.of_ty ty in
+  let pty = Typing.Pred.of_type ty in
+  let ty_sc = Typing.Scheme.of_ty pty in
   let menv =
     Sema.Env.create pkg.Package.name ~parent:None ~visibility ~ty_sc
       ~kind:Sema.Env.M ~lookup_space:Sema.Env.LkGlobal
@@ -98,7 +99,8 @@ let make_pkg_space_for_mods ~compiler proj_space builtin pkg =
         let ty =
           Typing.Type.{ ty = Module; binding_mut; span = Common.Span.undef }
         in
-        let ty_sc = Typing.Scheme.of_ty ty in
+        let pty = Typing.Pred.of_type ty in
+        let ty_sc = Typing.Scheme.of_ty pty in
         (* Per modules have a root_mod_env as a root *)
         Sema.Env.create name ~parent:(Some root_mod_env) ~visibility ~ty_sc
           ~kind:Sema.Env.M ~lookup_space:Sema.Env.LkGlobal
@@ -141,6 +143,10 @@ let cross_ref_mods ~compiler proj_space builtin pkg_space =
       let subst = compiler.toplevel_subst in
       let (ms, subst) =
         Compiler_pipelines.Phases.Phase1_declare_toplevels.to_analyzed ~compiler
+          ~builtin ~subst ms
+      in
+      let (ms, subst) =
+        Compiler_pipelines.Phases.Phase1_declare_impls.to_analyzed ~compiler
           ~builtin ~subst ms
       in
       compiler.toplevel_subst <- subst;

@@ -22,4 +22,7 @@ let linkage_of ast =
   | Ast.{ kind = DefFunc { name; params; ret_ty; _ }; span } ->
       let linkage = Typing.Type.LinkageRillc in
       linkage
+  | Ast.{ kind = DeclFunc { name; params; ret_ty; _ }; span } ->
+      let linkage = Typing.Type.LinkageRillc in
+      linkage
   | _ -> failwith "[ICE] unexpected node"

@@ -26,6 +26,7 @@
                         (*BACKQUOTE*) SINGLEQUOTE
                         FAT_ARROW SHARP
 %token                  EOF
+%token  <string>        KEYWORD_SELF
 %token                  LIT_TRUE LIT_FALSE
                         KEYWORD_DEF
                         KEYWORD_STRUCT

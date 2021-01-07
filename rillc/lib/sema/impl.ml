@@ -1,5 +1,5 @@
 (*
- * Copyright yutopp 2018 - .
+ * Copyright yutopp 2020 - .
  *
  * Distributed under the Boost Software License, Version 1.0.
  * (See accompanying file LICENSE_1_0.txt or copy at
@@ -8,7 +8,9 @@
 
 open! Base
 
-class virtual base =
-  object (self)
-    inherit Base_interface.base
-  end
+type t = {
+  trait_name : Name.t;
+  for_ty : Typing.Type.t;
+  mapping : (Typing.Type.t Common.Chain.Layer.t * Name.t) list;
+}
+[@@deriving show]

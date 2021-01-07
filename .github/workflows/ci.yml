@@ -1,0 +1,52 @@
+name: CI
+
+on: [push]
+
+jobs:
+  buildAndTest:
+    runs-on: ubuntu-latest
+
+    container:
+      image: yutopp/rill-build-env:base-x86_64
+
+    env:
+      OPAMROOT: /root/.opam
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - run: |
+          apt-get update -y -qq && apt-get install -y -qq nodejs
+
+      - name: Cache multiple paths
+        id: cache-opam
+        uses: actions/cache@v2
+        with:
+          path: |
+            /root/.opam
+          key: ${{ runner.os }}-${{ hashFiles('rillc/rillc.opam.locked') }}
+
+      - working-directory: rillc
+        run: |
+          opam repo add rillc-deps-opam-repo https://github.com/yutopp/rillc-deps-opam-repo.git
+
+      - working-directory: rillc
+        run: opam update
+
+      - working-directory: rillc
+        run: opam install . --deps-only --assume-depexts --with-test -y --locked -j "$(nproc)"
+
+      - working-directory: rillc
+        run: make build
+
+      - working-directory: rillc
+        run: make test
+
+      - run: cmake -B build
+
+      - run: cmake --build build
+
+      - working-directory: build
+        run: ctest -V
+
+      - run: cmake --install build --prefix /usr/local/rill-ci

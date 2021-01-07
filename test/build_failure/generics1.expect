@@ -1,9 +1,9 @@
 ERROR: Diff
-Type mismatch: Expect = i32, but Actual = '27
+Type mismatch: Expect = i32, but Actual = T
 Arg at (0)
-Type mismatch: Expect = i32, but Actual = '27
+Type mismatch: Expect = i32, but Actual = T
 Return
-Type mismatch: Expect = fun (i32 -> i32) -> i32, but Actual = fun ('27 -> i32) -> W31
+Type mismatch: Expect = fun((i32 -> i32) -> i32), but Actual = fun((T -> i32) -> _w31)
 File: "", line 4, charactors 10-15
 
 rillc_compile: There are warnings or errors.

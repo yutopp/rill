@@ -52,7 +52,8 @@ let failwith_nobody tag f =
        (Common.Chain.Nest.to_string ~to_s:Typing.Type.to_string f.name))
 
 let get_ret_ty f =
-  let ty = Typing.Scheme.raw_ty f.ty_sc in
+  let (Typing.Scheme.ForAll { ty; _ }) = f.ty_sc in
+  let (Typing.Pred.Pred { conds; ty }) = ty in
   let (_, ret_ty) = Typing.Type.assume_func_ty ty in
   ret_ty
 

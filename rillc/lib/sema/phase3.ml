@@ -9,16 +9,17 @@
 open! Base
 module Span = Common.Span
 module TAst = Phase2.TAst
+module StringMap = Map.M (String)
 
 module NAst = struct
   type t = {
     kind : kind_t;
-    ty : (Typing.Type.t[@printer fun fmt _ -> fprintf fmt ""]);
+    ty : (Typing.Pred.t[@printer fun fmt _ -> fprintf fmt ""]);
     span : (Span.t[@sexp.opaque] [@printer fun fmt _ -> fprintf fmt ""]);
   }
 
   and kind_t =
-    | Module of { nodes : t list }
+    | Module of { nodes : t }
     | Import of { pkg : string; mods : string list }
     | Func of {
         name : Typing.Type.t Common.Chain.Nest.t;
@@ -34,6 +35,7 @@ module NAst = struct
         name : Typing.Type.t Common.Chain.Nest.t;
         ty_sc : Typing.Scheme.t;
       }
+    | DefSeq of t list
     (* *)
     | Let of { mut : Typing.Type.mutability_t; name : string; expr : t }
     | Return of string
@@ -55,6 +57,14 @@ module NAst = struct
     | Undef
     | Var of var_ref_t
     | Seq of t list
+    | StmtDispatchTable of {
+        trait_name : Typing.Type.t Common.Chain.Nest.t;
+        for_ty : Typing.Type.t;
+        mapping :
+          ( Typing.Type.t Common.Chain.Layer.t
+          * Typing.Type.t Common.Chain.Nest.t )
+          list;
+      }
 
   and func_kind_t = FuncKindDecl | FuncKindDef of t | FuncKindExtern of string
 
@@ -151,8 +161,8 @@ let insert_let_mut ?label k_form gen =
 let rec normalize ~ctx ~env ast =
   match ast with
   (* *)
-  | TAst.{ kind = Module { nodes }; ty; span; _ } ->
-      let nodes = List.map nodes ~f:(normalize ~ctx ~env) in
+  | TAst.{ kind = Module { stmts }; ty; span; _ } ->
+      let nodes = normalize ~ctx ~env stmts in
       NAst.{ kind = Module { nodes }; ty; span }
   (* *)
   | TAst.{ kind = Import { pkg; mods }; ty; span; _ } ->
@@ -179,13 +189,17 @@ let rec normalize ~ctx ~env ast =
   | TAst.{ kind = DeclFunc { name; ty_sc }; ty; span; _ } ->
       NAst.{ kind = Func { name; kind = FuncKindDecl; ty_sc }; ty; span }
   (* *)
-  | TAst.{ kind = DefFunc { name; ty_sc; body }; ty; span; _ } ->
+  | TAst.{ kind = DefFunc { name; ty_sc; body; _ }; ty; span; _ } ->
       let env = Env.create () in
       let body' = normalize ~ctx ~env body in
       NAst.{ kind = Func { name; kind = FuncKindDef body'; ty_sc }; ty; span }
   (* *)
   | TAst.{ kind = DefStruct { name; ty_sc }; ty; span; _ } ->
       NAst.{ kind = Struct { name; ty_sc }; ty; span }
+  (* *)
+  | TAst.{ kind = DefSeq nodes; ty; span; _ } ->
+      let nodes' = List.map nodes ~f:(normalize ~ctx ~env) in
+      NAst.{ kind = DefSeq nodes'; ty; span }
   (* *)
   | TAst.{ kind = StmtSeq nodes; ty; span; _ } ->
       let node' = List.map nodes ~f:(normalize ~ctx ~env) in
@@ -337,3 +351,9 @@ let rec normalize ~ctx ~env ast =
             k' (fun id -> bind (id :: xs) es k)
       in
       bind [] elems (fun _ -> failwith "")
+  (* *)
+  | TAst.
+      { kind = StmtDispatchTable { trait_name; for_ty; mapping }; ty; span; _ }
+    ->
+      NAst.
+        { kind = StmtDispatchTable { trait_name; for_ty; mapping }; ty; span }

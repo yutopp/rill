@@ -96,8 +96,8 @@ module Env = struct
     | Rir.Term.PlaceholderParam { index; _ } ->
         Map.find_exn env.local_args index
     | Rir.Term.PlaceholderGlobal { name } -> Map.find_exn env.global_vars name
-    | Rir.Term.PlaceholderGlobal2 { nest } ->
-        let name = Mangling.mangle2 nest in
+    | Rir.Term.PlaceholderGlobal2 { name; _ } ->
+        let name = Mangling.mangle2 name in
         Map.find_exn env.global_vars name
 
   let get_bb env name = Map.find_exn env.bb name
@@ -681,6 +681,7 @@ let declare_type ~ctx ~env ll_mod type_ : Env.type_t * Env.t =
 
   (* Currently, generics is not supported *)
   let ty = Typing.Scheme.assume_has_no_generics ty_sc in
+  let (Typing.Pred.Pred { ty; _ }) = ty in
   let inner_ty = Typing.Type.of_type_ty ty in
 
   let ll_ty =
@@ -710,6 +711,7 @@ let define_global ~ctx ~env ll_mod g : Env.t =
 
   (* Currently, generics is not supported *)
   let ty = Typing.Scheme.assume_has_no_generics ty_sc in
+  let (Typing.Pred.Pred { ty; _ }) = ty in
 
   let ll_ty = to_llty ~ctx ~env ty in
   let ll_v =
@@ -731,6 +733,7 @@ let pre_construct_func ~ctx ~env ll_mod func : Env.Func.t * Env.t =
 
   (* Currently, generics is not supported *)
   let ty = Typing.Scheme.assume_has_no_generics ty_sc in
+  let (Typing.Pred.Pred { ty; _ }) = ty in
 
   let ll_ty = to_llty ~ctx ~env ty in
   let f =

@@ -1,5 +1,5 @@
 ARG OCAML_VERSION="4.10.0"
-ARG OPAM_VERSION="2.0.7"
+ARG OPAM_VERSION="2.1.0-beta2"
 
 ARG HOST_ARCH="x86_64"
 ARG LLVM_VERSION="11.0.0"
@@ -13,7 +13,9 @@ ARG OPAM_VERSION
 ARG HOST_ARCH
 
 #
-RUN apt-get update && apt-get install -y \
+ENV DEBIAN_FRONTEND noninteractive
+
+RUN apt-get update && apt-get install -qq -y \
     curl \
     cmake ninja-build gcc g++ python3 z3 m4 patch unzip \
  && rm -rf /var/lib/apt/lists/*
@@ -45,15 +47,15 @@ ARG OCAML_VERSION
 ENV DEBIAN_FRONTEND=noninteractive
 
 #
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -qq -y \
     curl \
-    cmake make gcc g++ python3 z3 m4 patch unzip pkg-config git rsync \
+    cmake make gcc g++ python3 z3 m4 patch unzip pkg-config git \
  && rm -rf /var/lib/apt/lists/*
 
 # Copy LLVM
 COPY --from=llvm /usr/local/llvm/lib/* /usr/local/lib/
 COPY --from=llvm /usr/local/llvm/include/* /usr/local/include/
-COPY --from=llvm /usr/local/llvm/bin/llvm-config /usr/local/bin/.
+COPY --from=llvm /usr/local/llvm/bin/* /usr/local/bin/
 
 # Copy opam
 COPY --from=builder /tmp/opam /tmp/opam

@@ -27,7 +27,7 @@ module_def:
     }
 
 top_levels:
-    top_level* { $1 }
+    top_level* { make (Ast.Stmts $1) ~l:$loc }
 
 top_level:
     top_level_statement { $1 }
@@ -35,7 +35,7 @@ top_level:
 let top_level_statement :=
     s=import_statement; { s }
   | s=def_type_alias_stmt; SEMICOLON; { s }
-  | s=function_def_statement; { s }
+  | s=def_function_statement(parameter_decls_list); { s }
   | s=extern_decl_statement; SEMICOLON; { s }
   | s=def_struct_stmt; { s }
   | s=def_trait_stmt; { s }
@@ -63,13 +63,13 @@ let def_type_alias_stmt :=
     KEYWORD_TYPE; name=single_id_as_str; ASSIGN; alias_ty=type_expr;
     { make (Ast.DefTypeAlias { name; alias_ty }) ~l:$loc }
 
-function_def_statement:
-    KEYWORD_DEF
-    name = single_id_as_str
-    ty_params=type_parameter_decls_list
-    params=parameter_decls_list
-    ret_ty = type_spec
-    body = expr_block
+let def_function_statement(params_list) ==
+    KEYWORD_DEF;
+    name=single_id_as_str;
+    ty_params=type_parameter_decls_list;
+    params=params_list;
+    ret_ty=type_spec;
+    body=expr_block;
     {
       make (Ast.DefFunc {
                 name;
@@ -92,6 +92,21 @@ parameter_decl:
            ~l:$loc
     }
 
+let parameter_decls_self_list ==
+    LPAREN; x=self_decl; RPAREN; { [x] }
+  | LPAREN;
+    x=self_decl; COMMA;
+    xs=separated_nonempty_list(COMMA, parameter_decl);
+    RPAREN;
+    { x :: xs }
+
+self_decl:
+    v=decl_var_self(type_spec)
+    {
+      let (attr, ty_spec_opt) = v in
+      make (Ast.ParamSelfDecl { attr; ty_spec_opt; }) ~l:$loc
+    }
+
 let type_parameter_decls_list ==
     { [] }
     | NOT; LPAREN; xs=separated_list(COMMA, type_parameter_decl); RPAREN; { xs }
@@ -104,11 +119,14 @@ let type_spec :=
     COLON; e=type_expr; { e }
 
 let type_expr :=
-    e=id_expr; { e }
+    e=type_id_expr; { e }
   | LBRACKET; e=expr; RBRACKET; t=type_expr;
     { make (Ast.TypeExprArray { elem = t; len = e }) ~l:$loc }
   | TIMES; attr=decl_attr; t=type_expr;
     { make (Ast.TypeExprPointer { attr; elem = t; }) ~l:$loc }
+
+let type_id_expr :=
+  e=id_expr; { e }
 
 extern_decl_statement:
     extern_function_decl_statement { $1 }
@@ -150,17 +168,48 @@ let def_trait_stmt :=
     KEYWORD_TRAIT;
     name=single_id_as_str;
     LBLOCK;
+    decls=trait_fields;
     RBLOCK;
-    { make (Ast.DefTrait { name }) ~l:$loc }
+    { make (Ast.DefTrait { name; decls }) ~l:$loc }
+
+let trait_fields ==
+    xs=trait_field*; { make (Ast.Stmts xs) ~l:$loc }
+
+let trait_field :=
+    s=decl_function_stmt(parameter_decls_self_list); SEMICOLON; { s }
+
+let decl_function_stmt(params_list) ==
+    KEYWORD_DEF;
+    name=single_id_as_str;
+    ty_params=type_parameter_decls_list;
+    params=params_list;
+    ret_ty = type_spec;
+    {
+      make (Ast.DeclFunc {
+                name;
+                ty_params;
+                params;
+                ret_ty;
+           })
+           ~l:$loc
+    }
 
 let def_impl_for_stmt :=
     KEYWORD_IMPL;
-    name=single_id_as_str;
+    trait=type_id_expr;
     KEYWORD_FOR;
     for_ty=type_expr;
     LBLOCK;
+    decls=impl_fields;
     RBLOCK;
-    { make (Ast.DefImplFor { name; for_ty }) ~l:$loc }
+    { make (Ast.DefImplFor { trait; for_ty; decls }) ~l:$loc }
+
+let impl_fields ==
+    xs=impl_field*; { make (Ast.Stmts xs) ~l:$loc }
+
+let impl_field :=
+    s=def_function_statement(parameter_decls_list); { s }
+  | s=def_function_statement(parameter_decls_self_list); { s }
 
 let stmts :=
     { [] }
@@ -188,6 +237,12 @@ let decl_var(type_anot) ==
     ty_spec=type_anot;
     { (attr, name, ty_spec) }
 
+let decl_var_self(type_anot) ==
+    attr=decl_attr;
+    name=KEYWORD_SELF;
+    ty_spec=type_anot?;
+    { (attr, ty_spec) }
+
 decl_var_expr:
     v=decl_var(type_spec?)
     ASSIGN
@@ -210,7 +265,7 @@ stmt_return:
     { make (Ast.StmtReturn e) ~l:$loc }
 
 id_expr:
-    single_id { $1 }
+    single_id_with_self { $1 }
 
 expr_entry:
     expr EOF { $1 }
@@ -305,7 +360,7 @@ let expr_primary :=
   | LPAREN; e=expr; RPAREN; { e }
 
 let expr_struct ==
-    path=single_id; LBLOCK; RBLOCK;
+    path=id_expr; LBLOCK; RBLOCK;
     { make (Ast.ExprStruct { path }) ~l:$loc }
 
 let value :=
@@ -319,15 +374,19 @@ argument_list:
     separated_list(COMMA, expr) { $1 }
 
 let id_path :=
-    root=single_id; elems=id_path_node;
+    root=single_id_with_self; elems=id_path_node;
     { make (Ast.Path { root; elems }) ~l:$loc }
 
 let id_path_node :=
     { [] }
-  | COLONCOLON; id=single_id; child=id_path_node; { id :: child }
+  | COLONCOLON; id=single_id_with_self; child=id_path_node; { id :: child }
 
 single_id:
     single_id_as_str { make (Ast.ID $1) ~l:$loc }
+
+single_id_with_self:
+    single_id { $1 }
+  | KEYWORD_SELF { make (Ast.ID $1) ~l:$loc }
 
 single_id_as_str:
   | ID { $1 }
