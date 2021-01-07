@@ -4,9 +4,11 @@ LABEL maintainer="yutopp@gmail.com"
 
 ARG LLVM_VERSION
 
-RUN apt-get update && apt-get install -y \
+ENV DEBIAN_FRONTEND noninteractive
+
+RUN apt-get update && apt-get install -qq -y \
     wget \
-    cmake ninja-build gcc g++ python3 z3 \
+    cmake ninja-build gcc g++ python3 z3 git patch \
  && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir /llvm-build
@@ -15,34 +17,33 @@ RUN wget -q https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLV
 
 WORKDIR /llvm-build/llvm-${LLVM_VERSION}.src
 
-RUN mkdir build
-WORKDIR /llvm-build/llvm-${LLVM_VERSION}.src/build
+ADD files/AddLLVM.cmake.patch ./AddLLVM.cmake.patch
+RUN patch cmake/modules/AddLLVM.cmake AddLLVM.cmake.patch
 
-ARG LLVM_PREFIX=/usr/local/llvm
+# RUN mkdir build
+# WORKDIR /llvm-build/llvm-${LLVM_VERSION}.src/build
 
-RUN cmake -G 'Ninja' \
+ARG LLVM_PREFIX="/usr/local/llvm"
+ARG LLVM_TARGETS_TO_BUILD="X86"
+ARG LLVM_EXPERIMENTAL_TARGETS_TO_BUILD="WebAssembly"
+
+RUN cmake -B build \
+          -G 'Ninja' \
           -DCMAKE_INSTALL_PREFIX="${LLVM_PREFIX}" \
           -DCMAKE_BUILD_TYPE=Release \
-          -DLLVM_TARGETS_TO_BUILD="X86" \
-          -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD="WebAssembly" \
+          -DLLVM_TARGETS_TO_BUILD="${LLVM_TARGETS_TO_BUILD}" \
+          -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD="${LLVM_EXPERIMENTAL_TARGETS_TO_BUILD}" \
           -DLLVM_ENABLE_TERMINFO=OFF \
           -DLLVM_ENABLE_ZLIB=OFF \
-          -DLLVM_BUILD_TOOLS=OFF \
+          -DLLVM_TOOLCHAIN_TOOLS="llvm-config" \
           -DLLVM_INCLUDE_UTILS=OFF \
           -DLLVM_INCLUDE_BENCHMARKS=OFF \
           -DLLVM_INCLUDE_EXAMPLES=OFF \
           -DLLVM_INCLUDE_TESTS=OFF \
           -DLLVM_INCLUDE_GO_TESTS=OFF \
-          -DLLVM_INCLUDE_DOCS=OFF \
-          ..
-
-#
-RUN ninja cmake/modules/all include/llvm/all lib/all bin/llvm-config
-RUN ninja cmake/modules/install lib/install
-RUN mkdir "${LLVM_PREFIX}/include"
-RUN cp -r include/. "${LLVM_PREFIX}/include/."
-RUN mkdir "${LLVM_PREFIX}/bin"
-RUN cp bin/llvm-config "${LLVM_PREFIX}/bin/."
+          -DLLVM_INCLUDE_DOCS=OFF
+RUN cd build && ninja llvm-config lib/all LTO Remarks
+RUN cmake --install build
 
 #
 FROM ubuntu:20.04

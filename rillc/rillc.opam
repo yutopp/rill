@@ -5,7 +5,7 @@ synopsis: "One-line description"
 description: "A longer description"
 maintainer: ["yutopp@gmail.com"]
 authors: ["yutopp"]
-license: "Boost License Version 1.0"
+license: "BSL-1.0"
 homepage: "https://github.com/yutopp/rill"
 bug-reports: "https://github.com/yutopp/rill/issues"
 depends: [
@@ -22,7 +22,7 @@ depends: [
   "ppx_let" {>= "v0.13.0"}
   "ppx_defer" {>= "0.4.0"}
   "cmdliner" {>= "1.0.4"}
-  "llvm" {>= "10.0.0-rillc"}
+  "llvm" {>= "11.0.0+rillc"}
   "ppx_deriving" {>= "4.5"}
   "ppx_expect" {with-test & >= "v0.13.0"}
 ]

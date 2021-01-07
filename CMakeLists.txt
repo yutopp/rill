@@ -4,22 +4,41 @@ enable_testing()
 project(rill)
 
 set(RILLC_VERSION latest)
-set(SUPPORTED_TRIPLES x86_64_unknown-linux-gnu wasm32-wasi)
 
 set(HOST_TRIPLE x86_64_unknown-linux-gnu)
+set(TARGET_TRIPLES x86_64_unknown-linux-gnu wasm32-wasi)
 
-# Base compiler
-add_subdirectory(rillc)
+#
+# Compiler
+#
+include(./Rillc.cmake)
 
+#
 # Core Libraries
+#
+# These libraries will be installed in the following directory structure.
+#
+# - ${PREFIX}/lib/rill-lib/src
+# - ${PREFIX}/lib/rill-lib/${TARGET_TRIPLE}/lib
+# - ${PREFIX}/lib/rill-lib/${TARGET_TRIPLE}/bin
+#
 set(TARGET_TRIPLE x86_64_unknown-linux-gnu)
-set(INSTALL_RILL_LIB_LINK_PATH lib/rill-lib/${TARGET_TRIPLE}/lib)
-set(INSTALL_RILL_LIB_SRC_PATH lib/rill-lib/src)
+
+set(RILL_LIB_DIR lib/rill-lib)
+set(RILL_LIB_SRC_DIR ${RILL_LIB_DIR}/src)
+set(RILL_LIB_TARGET_BIN_DIR ${RILL_LIB_DIR}/${TARGET_TRIPLE}/bin)
+set(RILL_LIB_TARGET_LIB_DIR ${RILL_LIB_DIR}/${TARGET_TRIPLE}/lib)
+
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${RILL_LIB_TARGET_BIN_DIR}) # exe
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${RILL_LIB_TARGET_LIB_DIR}) # lib (shared)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${RILL_LIB_TARGET_LIB_DIR}) # lib (static)
 
 add_subdirectory(corelib)
 add_subdirectory(stdlib)
 
-# Integration test
+#
+# Integration tests
+#
 find_program(BASH_PATH bash)
 if(NOT BASH_PATH)
   message(FATAL_ERROR "Error: bash is not found")
@@ -32,11 +51,10 @@ add_test(
     ${BASH_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/test/run.sh
 )
 foreach(EV
-  "RILLC_COMPILER=../rillc/_build/default/bin/tool/compile/main.exe"
-  "RILLC_CORELIB_SRCDIR=../corelib/src"
-  "RILLC_CORELIB_LIBDIR=./corelib"
-  "RILLC_STDLIB_SRCDIR=../stdlib/src"
-  "RILLC_STDLIB_LIBDIR=./stdlib"
+  "RILL_TEST_COMPILER=${CMAKE_BINARY_DIR}/bin/rillc_compile"
+  "RILL_TEST_CORELIB_SRCDIR=${CMAKE_BINARY_DIR}/${RILL_LIB_SRC_DIR}/core/src"
+  "RILL_TEST_STDLIB_SRCDIR=${CMAKE_BINARY_DIR}/${RILL_LIB_SRC_DIR}/std/src"
+  "RILL_TEST_TARGET_LIBDIR=${CMAKE_BINARY_DIR}/${RILL_LIB_TARGET_LIB_DIR}"
 )
   set_property(TEST rillc_integration_test
     APPEND PROPERTY
