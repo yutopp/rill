@@ -3,7 +3,6 @@
 # Rillc will be installed in the following directory structure.
 #
 # - ${PREFIX}/bin/rillc-*
-# - ${PREFIX}/doc/rillc/*
 #
 include(ExternalProject)
 ExternalProject_Add(
@@ -19,16 +18,6 @@ ExternalProject_Add(
   )
 
 install(
-  PROGRAMS
-  ${CMAKE_BINARY_DIR}/bin/rillc_compile
-  ${CMAKE_BINARY_DIR}/bin/rillc_build
-  TYPE BIN
-  )
-
-file(GLOB DOCS_FILES
-  ${CMAKE_BINARY_DIR}/doc/rillc/*
-  )
-install(
-  FILES ${DOCS_FILES}
-  TYPE DOC
+  DIRECTORY ${CMAKE_BINARY_DIR}/bin/
+  DESTINATION bin
   )
