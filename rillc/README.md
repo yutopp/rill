@@ -17,14 +17,14 @@ opam install merlin ocamlformat
 ```shell
 opam repo add rillc-deps-opam-repo https://github.com/yutopp/rillc-deps-opam-repo.git
 opam update
-opam install . --deps-only --with-test -y --locked
+opam install . --deps-only --no-depexts --with-test -y --locked
 ```
 
 ### (optional) Update packages
 
 ```shell
 opam update
-opam install . --deps-only --with-test -y
+opam install . --deps-only --no-depexts --with-test -y
 opam lock .
 ```
 
