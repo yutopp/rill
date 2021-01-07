@@ -6,6 +6,12 @@ Building and testing of `rillc` can be done independently under this directory.
 
 ## How to develop
 
+We recommend installing these packages for development.
+
+```
+opam install merlin ocamlformat
+```
+
 ### Initial setup
 
 ```shell
