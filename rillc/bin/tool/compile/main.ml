@@ -25,6 +25,11 @@ Compile rill source codes
       Term.info "rillc_compile" ~version:"%%VERSION%%" ~doc ~exits ~man
     in
 
+    let sysroot =
+      let doc = "" in
+      Arg.(value & opt (some dir) None & info [ "sysroot" ] ~docs ~doc)
+    in
+
     let output =
       let doc = "" in
       Arg.(value & opt (some string) None & info [ "output"; "o" ] ~docs ~doc)
@@ -90,8 +95,8 @@ Compile rill source codes
 
     let files = Arg.(value & (pos_all file) [] & info [] ~docv:"FILES") in
 
-    let action corelib_srcdir corelib_libdir stdlib_srcdir stdlib_libdir target
-        output out_dir emit pack log_level input_files =
+    let action sysroot corelib_srcdir corelib_libdir stdlib_srcdir stdlib_libdir
+        target output out_dir emit pack log_level input_files =
       Loga.Logger.set_severity Loga.logger log_level;
 
       let out_to =
@@ -106,6 +111,7 @@ Compile rill source codes
       let opts =
         Rillc.Tool.Compile.
           {
+            sysroot;
             corelib_srcdir;
             corelib_libdir;
             stdlib_srcdir;
@@ -123,9 +129,9 @@ Compile rill source codes
     in
     ( Term.(
         ret
-          ( const action $ corelib_srcdir $ corelib_libdir $ stdlib_srcdir
-          $ stdlib_libdir $ target $ output $ out_dir $ emit $ pack $ log_level
-          $ files )),
+          ( const action $ sysroot $ corelib_srcdir $ corelib_libdir
+          $ stdlib_srcdir $ stdlib_libdir $ target $ output $ out_dir $ emit
+          $ pack $ log_level $ files )),
       info )
 
   let entry () = Term.(exit @@ eval cmd)

@@ -38,6 +38,8 @@ module Pipe = struct
     (Fd.from in_r, Fd.from in_w)
 end
 
+let current_exe () = Unix.readlink "/proc/self/exe"
+
 let read_dir_names dir =
   let handle = Unix.opendir dir in
   Exn.protectx

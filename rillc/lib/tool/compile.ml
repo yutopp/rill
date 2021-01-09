@@ -13,6 +13,7 @@ module Triple = Common.Triple
 module Os = Common.Os
 
 type t = {
+  sysroot : string option;
   corelib_srcdir : string option;
   corelib_libdir : string option;
   stdlib_srcdir : string option;
@@ -49,11 +50,22 @@ let load_builtin_pkg workspace sysroot srcdir pkg_name =
   Package.add_src_paths pkg paths;
   pkg
 
+(* Ad-hoc impl *)
+let get_sysroot () =
+  (* e.g. /usr/bin/rillc *)
+  let path = Os.current_exe () |> String.split ~on:'/' |> List.rev in
+  (* e.g. /usr/bin *)
+  let dir = List.tl_exn path in
+  (* e.g. /usr *)
+  List.tl_exn dir |> List.rev |> String.concat ~sep:"/" |> Printf.sprintf "/%s"
+
 let entry opts =
   let open Result.Let_syntax in
   let%bind () = Result.try_with (fun () -> validate opts) in
 
-  let sysroot = "/usr/local" in
+  let sysroot =
+    match opts.sysroot with Some dir -> dir | None -> get_sysroot ()
+  in
 
   let target_triple =
     opts.target |> Option.value ~default:default_target_triple
