@@ -8,4 +8,4 @@
 (install
  (section bin)
  (files
-  (main.exe as rillc_compile)))
+  (main.exe as rillc)))
