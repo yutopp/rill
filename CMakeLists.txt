@@ -5,9 +5,12 @@ project(rill)
 
 set(RILLC_VERSION latest)
 
-set(HOST_TRIPLE x86_64-unknown-linux-gnu)
-set(TARGET_TRIPLES x86_64-unknown-linux-gnu wasm32-wasi)
+set(SUPPORTED_TRIPLES x86_64-unknown-linux-gnu wasm32-wasi)
 
+set(RILL_TARGET_TRIPLES ${SUPPORTED_TRIPLES})
+set(RILL_HOST_TRIPLE x86_64-unknown-linux-gnu)
+
+# ~/wasi-sdk/wasi-sdk-11.0/bin/clang --sysroot=$HOME/wasi-sdk/wasi-sdk-11.0/share/wasi-sysroot ../stdlib/src_ext/{entry.c,runtime.c,stdio.c,string.c} -Wl,--allow-undefined,--export-all,--relocatable,--export-dynamic,--no-entry -o stdlib.wasm
 #
 # Compiler
 #
@@ -19,19 +22,20 @@ include(./Rillc.cmake)
 # These libraries will be installed in the following directory structure.
 #
 # - ${PREFIX}/lib/rill-lib/src
-# - ${PREFIX}/lib/rill-lib/${TARGET_TRIPLE}/lib
-# - ${PREFIX}/lib/rill-lib/${TARGET_TRIPLE}/bin
+# - ${PREFIX}/lib/rill-lib/${target_triple}/lib
+# - ${PREFIX}/lib/rill-lib/${target_triple}/bin
 #
-set(TARGET_TRIPLE x86_64-unknown-linux-gnu)
-
 set(RILL_LIB_DIR lib/rill-lib)
 set(RILL_LIB_SRC_DIR ${RILL_LIB_DIR}/src)
-set(RILL_LIB_TARGET_BIN_DIR ${RILL_LIB_DIR}/${TARGET_TRIPLE}/bin)
-set(RILL_LIB_TARGET_LIB_DIR ${RILL_LIB_DIR}/${TARGET_TRIPLE}/lib)
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${RILL_LIB_TARGET_BIN_DIR}) # exe
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${RILL_LIB_TARGET_LIB_DIR}) # lib (shared)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${RILL_LIB_TARGET_LIB_DIR}) # lib (static)
+macro(rill_set_build_vars_for_target target_triple)
+  set(RILL_LIB_TARGET_BIN_DIR ${RILL_LIB_DIR}/${target_triple}/bin)
+  set(RILL_LIB_TARGET_LIB_DIR ${RILL_LIB_DIR}/${target_triple}/lib)
+
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${RILL_LIB_TARGET_BIN_DIR}) # exe
+  set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${RILL_LIB_TARGET_LIB_DIR}) # shared lib
+  set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${RILL_LIB_TARGET_LIB_DIR}) # static lib
+endmacro()
 
 add_subdirectory(corelib)
 add_subdirectory(stdlib)

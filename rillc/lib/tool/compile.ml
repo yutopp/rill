@@ -47,7 +47,8 @@ let load_builtin_pkg workspace sysroot srcdir pkg_name =
   let pkg_srcdir =
     match srcdir with
     | Some dir -> dir
-    | None -> Os.join_path [ sysroot; "lib"; "rill-lib"; "src"; pkg_name ]
+    | None ->
+        Os.join_path [ sysroot; "lib"; "rill-lib"; "src"; pkg_name; "src" ]
   in
   let pkg_id = Workspace.issue_pkg_id ~workspace in
   let pkg = Package.create ~name:pkg_name ~dir:pkg_srcdir ~id:pkg_id in
