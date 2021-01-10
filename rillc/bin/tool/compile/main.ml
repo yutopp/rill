@@ -24,7 +24,7 @@ Compile rill source codes
 |} ]
       in
       let exits = Term.default_exits in
-      Term.info "rillc_compile" ~version:"%%VERSION%%" ~doc ~exits ~man
+      Term.info "rillc" ~version:"%%VERSION%%" ~doc ~exits ~man
     in
 
     let sysroot =
