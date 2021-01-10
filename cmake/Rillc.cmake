@@ -17,6 +17,8 @@ ExternalProject_Add(
   LOG_BUILD On
   )
 
+set(RILLC_COMMAND "${CMAKE_BINARY_DIR}/bin/rillc")
+
 install(
   DIRECTORY ${CMAKE_BINARY_DIR}/bin/
   DESTINATION bin
