@@ -96,33 +96,44 @@ Compile rill source codes
         target output out_dir emit pack log_level input_files =
       Loga.Logger.set_severity Loga.logger log_level;
 
-      let out_to =
-        match (output, out_dir, pack) with
-        | (Some _, Some _, _) -> failwith ""
-        | (None, None, _) -> failwith ""
-        | (Some o, None, _) -> Rillc.Tool.Writer.OutputToFile o
-        | (None, Some o, false) -> Rillc.Tool.Writer.OutputToDir o
-        | (None, Some _, true) -> failwith ""
-      in
+      let result =
+        let open Result.Let_syntax in
+        (* *)
+        let%bind () =
+          if List.length input_files = 0 then
+            Error Errors.Flags.No_input_filenames
+          else Ok ()
+        in
 
-      let opts =
-        Rillc.Tool.Compile.
-          {
-            sysroot;
-            corelib_srcdir;
-            corelib_libdir;
-            stdlib_srcdir;
-            stdlib_libdir;
-            target;
-            out_to;
-            emit;
-            pack;
-            input_files;
-          }
+        (* *)
+        let out_to =
+          match (output, out_dir, pack) with
+          | (Some _, Some _, _) -> failwith ""
+          | (None, None, _) -> failwith ""
+          | (Some o, None, _) -> Rillc.Tool.Writer.OutputToFile o
+          | (None, Some o, false) -> Rillc.Tool.Writer.OutputToDir o
+          | (None, Some _, true) -> failwith ""
+        in
+
+        let opts =
+          Rillc.Tool.Compile.
+            {
+              sysroot;
+              corelib_srcdir;
+              corelib_libdir;
+              stdlib_srcdir;
+              stdlib_libdir;
+              target;
+              out_to;
+              emit;
+              pack;
+              input_files;
+            }
+        in
+        Rillc.Tool.Compile.entry opts
+        |> Result.map_error ~f:(fun e -> Errors.Flags.Tool_error e)
       in
-      match Rillc.Tool.Compile.entry opts with
-      | Ok _ -> `Ok ()
-      | Error e -> Errors.Flags.into_result e
+      match result with Ok _ -> `Ok () | Error e -> Errors.Flags.into_result e
     in
     ( Term.(
         ret
