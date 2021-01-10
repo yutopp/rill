@@ -11,6 +11,8 @@ open! Base
 module Flags = struct
   open Cmdliner
 
+  type t = int
+
   let cmd : unit Term.t * Term.info =
     let docs = Manpage.s_common_options in
 
@@ -62,19 +64,14 @@ Compile rill source codes
 
     let target =
       let doc = "" in
-      let l =
-        Rillc.Common.Triple.triples_map
-        |> List.map ~f:(fun (k, v) -> (k, Some v))
-      in
-      Arg.(value & opt (enum l) None & info [ "target" ] ~docs ~doc)
+      let l = Rillc.Common.Triple.triples_map in
+      Arg.(value & opt (some (enum l)) None & info [ "target" ] ~docs ~doc)
     in
 
     let emit =
       let doc = "" in
-      let l =
-        Rillc.Tool.Emitter.emit_map |> List.map ~f:(fun (k, v) -> (k, Some v))
-      in
-      Arg.(value & opt (enum l) None & info [ "emit" ] ~docs ~doc)
+      let l = Rillc.Tool.Emitter.emit_map in
+      Arg.(value & opt (some (enum l)) None & info [ "emit" ] ~docs ~doc)
     in
 
     let pack =
@@ -124,7 +121,7 @@ Compile rill source codes
           }
       in
       match Rillc.Tool.Compile.entry opts with
-      | Ok v -> `Ok v
+      | Ok _ -> `Ok ()
       | Error e -> Errors.Flags.into_result e
     in
     ( Term.(
