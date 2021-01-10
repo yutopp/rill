@@ -79,6 +79,11 @@ Compile rill source codes
       Arg.(value & flag & info [ "pack" ] ~docs ~doc)
     in
 
+    let lib =
+      let doc = "" in
+      Arg.(value & flag & info [ "lib" ] ~docs ~doc)
+    in
+
     let log_level =
       let doc = "" in
       let l =
@@ -93,7 +98,7 @@ Compile rill source codes
     let files = Arg.(value & (pos_all file) [] & info [] ~docv:"FILES") in
 
     let action sysroot corelib_srcdir corelib_libdir stdlib_srcdir stdlib_libdir
-        target output out_dir emit pack log_level input_files =
+        target output out_dir emit pack lib log_level input_files =
       Loga.Logger.set_severity Loga.logger log_level;
 
       let result =
@@ -105,14 +110,36 @@ Compile rill source codes
           else Ok ()
         in
 
-        (* *)
-        let out_to =
-          match (output, out_dir, pack) with
-          | (Some _, Some _, _) -> failwith ""
-          | (None, None, _) -> failwith ""
-          | (Some o, None, _) -> Rillc.Tool.Writer.OutputToFile o
-          | (None, Some o, false) -> Rillc.Tool.Writer.OutputToDir o
-          | (None, Some _, true) -> failwith ""
+        (*
+         * | output | our_dir |
+         * |   x    |    x    | -> FILE: Output an artifact to the generated name.
+         * |   o    |    x    | -> FILE: Output an artifact to the given name.
+         * |   x    |    o    | -> DIR: Output artifacts under the given directory.
+         * |   _    |    _    | -> ERROR
+         *)
+        let%bind out_to =
+          match (output, out_dir) with
+          | (None, None) -> Ok (Rillc.Tool.Writer.OutputToFile None)
+          | (Some o, None) -> Ok (Rillc.Tool.Writer.OutputToFile (Some o))
+          | (None, Some o) -> Ok (Rillc.Tool.Writer.OutputToDir o)
+          | _ -> Error Errors.Flags.Cannot_specify_output_and_outdir
+        in
+
+        (*
+         * | emit | pack | lib |
+         * |  o   |  _   |  x  | -> Emit artifact(s) with packed option.
+         * |  x   |  !   |  x  | -> Export an executable.
+         * |  x   |  !   |  o  | -> Export a library.
+         *)
+        let%bind export =
+          match (emit, pack, lib, out_to) with
+          | (Some e, _, false, _) ->
+              Ok (Rillc.Tool.Compile.Export.Artifact { emit; pack; out_to })
+          | (None, _, false, Rillc.Tool.Writer.OutputToFile out_path) ->
+              Ok (Rillc.Tool.Compile.Export.Executable { out_path })
+          | (None, _, true, Rillc.Tool.Writer.OutputToFile out_path) ->
+              Ok (Rillc.Tool.Compile.Export.Library { out_path })
+          | _ -> failwith "[ICE]"
         in
 
         let opts =
@@ -124,9 +151,7 @@ Compile rill source codes
               stdlib_srcdir;
               stdlib_libdir;
               target;
-              out_to;
-              emit;
-              pack;
+              export;
               input_files;
             }
         in
@@ -139,7 +164,7 @@ Compile rill source codes
         ret
           ( const action $ sysroot $ corelib_srcdir $ corelib_libdir
           $ stdlib_srcdir $ stdlib_libdir $ target $ output $ out_dir $ emit
-          $ pack $ log_level $ files )),
+          $ pack $ lib $ log_level $ files )),
       info )
 
   let entry () = Term.(exit @@ eval cmd)

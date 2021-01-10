@@ -25,6 +25,10 @@ let create ~workspace ~host ~target : t =
   let toplevel_subst = Typing.Subst.create () in
   { has_fatal = false; workspace; host; target; toplevel_subst }
 
+let target_name ~compiler =
+  let (module Target : Triple.PRESET) = compiler.target in
+  Target.name
+
 let return_if_failed ~compiler ms r =
   let open Base.With_return in
   if Mod_state.has_fatal ms then (
@@ -272,9 +276,9 @@ let compile ~compiler ~format ~printer ~pack out_to pkg =
 
   (* Build only modules depend on self package *)
   let pkg_space = Project_buildspace.get proj_space ~key:pkg in
-  let%bind () =
+  let%bind filenames =
     Writer.write_pkg_artifacts ~pkg_space ~pack ~triple:Target.name ~format
       out_to
   in
 
-  Ok ()
+  Ok filenames

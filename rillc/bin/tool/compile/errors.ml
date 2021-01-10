@@ -7,7 +7,10 @@
  *)
 
 module Flags = struct
-  type errot_t = Tool_error of exn | No_input_filenames
+  type errot_t =
+    | Tool_error of exn
+    | No_input_filenames
+    | Cannot_specify_output_and_outdir
 
   let into_result err =
     match err with
@@ -20,5 +23,7 @@ module Flags = struct
             `Error (false, "There are warnings or errors.")
         | _ -> raise e )
     | No_input_filenames -> `Error (false, "No input filenames.")
+    | Cannot_specify_output_and_outdir ->
+        `Error (false, "Cannot specify both of output and out_dir.")
 end
 [@@warning "-44"]

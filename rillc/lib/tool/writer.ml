@@ -9,7 +9,11 @@
 open! Base
 module Pkg_buildspace = Mod_dict
 
-type output_t = OutputToFile of string | OutputToDir of string
+type output_t =
+  (* can output a single file *)
+  | OutputToFile of string option
+  (* can output multiple files *)
+  | OutputToDir of string
 
 type asset_t = { art : Emitter.Artifact.t; path : string }
 
@@ -132,6 +136,11 @@ let write_pkg_artifacts ~pkg_space ~pack ~triple ~format out_to =
     | _ -> Ok ()
   in
 
+  let gen_pathname_with_ext ~path emitter =
+    let ext = Emitter.ext_of emitter in
+    Printf.sprintf "%s.%s" (Stdlib.Filename.basename path) ext
+  in
+
   let%bind filenames =
     let res =
       (* *)
@@ -146,7 +155,12 @@ let write_pkg_artifacts ~pkg_space ~pack ~triple ~format out_to =
                 r
           in
           let%bind filename =
-            write_asset ~format ~f:(fun ~path e -> out_file) asset
+            write_asset ~format
+              ~f:(fun ~path e ->
+                match out_file with
+                | Some p -> p
+                | None -> gen_pathname_with_ext ~path e)
+              asset
           in
           Ok [ filename ]
       (* *)
@@ -155,10 +169,7 @@ let write_pkg_artifacts ~pkg_space ~pack ~triple ~format out_to =
               let%bind filename =
                 write_asset ~format
                   ~f:(fun ~path e ->
-                    let ext = Emitter.ext_of e in
-                    let filename =
-                      Printf.sprintf "%s.%s" (Stdlib.Filename.basename path) ext
-                    in
+                    let filename = gen_pathname_with_ext ~path e in
                     Stdlib.Filename.concat out_dir filename)
                   asset
               in
@@ -166,4 +177,4 @@ let write_pkg_artifacts ~pkg_space ~pack ~triple ~format out_to =
     in
     res
   in
-  Ok ()
+  Ok filenames

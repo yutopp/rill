@@ -12,6 +12,17 @@ module Package = Common.Package
 module Triple = Common.Triple
 module Os = Common.Os
 
+module Export = struct
+  type t =
+    | Artifact of {
+        emit : Emitter.t option;
+        pack : bool;
+        out_to : Writer.output_t;
+      }
+    | Executable of { out_path : string option }
+    | Library of { out_path : string option }
+end
+
 type t = {
   sysroot : string option;
   corelib_srcdir : string option;
@@ -19,9 +30,7 @@ type t = {
   stdlib_srcdir : string option;
   stdlib_libdir : string option;
   target : Triple.tag_t option;
-  out_to : Writer.output_t;
-  emit : Emitter.t option;
-  pack : bool;
+  export : Export.t;
   input_files : string list;
 }
 
@@ -84,29 +93,57 @@ let entry opts =
   Package.add_src_paths pkg opts.input_files;
 
   (* TODO: fix *)
-  let () =
+  let core_lib =
     let dep_pkg =
       load_builtin_pkg workspace sysroot opts.corelib_srcdir "core"
     in
-    Package.add_dep_pkg pkg dep_pkg
+    Package.add_dep_pkg pkg dep_pkg;
+    "core-c"
   in
 
   (* TODO: fix *)
-  let () =
+  let std_lib =
     let dep_pkg = load_builtin_pkg workspace sysroot opts.stdlib_srcdir "std" in
-    Package.add_dep_pkg pkg dep_pkg
+    Package.add_dep_pkg pkg dep_pkg;
+    "std-c"
   in
 
-  let pack = false in
   let compiler =
     let host = Workspace.host ~workspace in
     let target = Workspace.target ~workspace in
     Compiler.create ~workspace ~host ~target
   in
 
+  (* adhoc-impl *)
+  let lib_dirs =
+    [
+      Os.join_path
+        [ sysroot; "lib"; "rill-lib"; Compiler.target_name ~compiler; "lib" ];
+    ]
+  in
+  let lib_names = [ core_lib; std_lib ] in
+
+  let printer = Stdio.stderr in
   let%bind () =
-    Compiler.compile ~compiler ~format:opts.emit ~printer:Stdio.stderr ~pack
-      opts.out_to pkg
+    match opts.export with
+    | Export.Artifact { emit = format; pack; out_to } ->
+        let%bind _ =
+          Compiler.compile ~compiler ~format ~printer ~pack out_to pkg
+        in
+        Ok ()
+    | Export.Executable { out_path } ->
+        let%bind tmp_dir = Os.mktemp_dir "rillc.XXXXXXXX" in
+        let format = None in
+        let pack = false in
+        let out_to = Writer.OutputToDir tmp_dir in
+        let%bind filenames =
+          Compiler.compile ~compiler ~format ~printer ~pack out_to pkg
+        in
+        [%loga.debug "outputs = %s" (String.concat ~sep:"; " filenames)];
+        let out = out_path |> Option.value ~default:"a.out" in
+        let%bind () = Os.cc_exe ~lib_dirs ~lib_names ~objs:filenames ~out in
+        Ok ()
+    | _ -> failwith ""
   in
 
   Ok ()

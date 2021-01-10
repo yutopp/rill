@@ -137,7 +137,7 @@ let cc_obj src out =
       in
       Ok ())
 
-let cc_exe lib_dirs lib_names objs out =
+let cc_exe ~lib_dirs ~lib_names ~objs ~out =
   let open Result.Let_syntax in
   let args = [ [ "gcc" ] ] in
   let args = List.map lib_dirs ~f:(Printf.sprintf "-L%s") :: args in

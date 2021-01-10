@@ -198,9 +198,9 @@ let entry opts =
 
   let obj_path = Os.join_path [ target_dir; "main.o" ] in
 
-  let%bind () =
+  let%bind _ =
     let pack = true in
-    let out_to = Writer.OutputToFile obj_path in
+    let out_to = Writer.OutputToFile (Some obj_path) in
     Compiler.compile ~compiler ~format:None ~printer:Stdio.stderr ~pack out_to
       pkg
   in
@@ -224,6 +224,8 @@ let entry opts =
   let dirs = Set.of_list (module String) dirs |> Set.to_list in
 
   let a_path = Os.join_path [ target_dir; "a.out" ] in
-  let%bind () = Os.cc_exe dirs libnames [ obj_path ] a_path in
+  let%bind () =
+    Os.cc_exe ~lib_dirs:dirs ~lib_names:libnames ~objs:[ obj_path ] ~out:a_path
+  in
 
   Ok ()
