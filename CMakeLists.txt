@@ -5,8 +5,8 @@ project(rill)
 
 set(RILLC_VERSION latest)
 
-set(HOST_TRIPLE x86_64_unknown-linux-gnu)
-set(TARGET_TRIPLES x86_64_unknown-linux-gnu wasm32-wasi)
+set(HOST_TRIPLE x86_64-unknown-linux-gnu)
+set(TARGET_TRIPLES x86_64-unknown-linux-gnu wasm32-wasi)
 
 #
 # Compiler
@@ -22,7 +22,7 @@ include(./Rillc.cmake)
 # - ${PREFIX}/lib/rill-lib/${TARGET_TRIPLE}/lib
 # - ${PREFIX}/lib/rill-lib/${TARGET_TRIPLE}/bin
 #
-set(TARGET_TRIPLE x86_64_unknown-linux-gnu)
+set(TARGET_TRIPLE x86_64-unknown-linux-gnu)
 
 set(RILL_LIB_DIR lib/rill-lib)
 set(RILL_LIB_SRC_DIR ${RILL_LIB_DIR}/src)
