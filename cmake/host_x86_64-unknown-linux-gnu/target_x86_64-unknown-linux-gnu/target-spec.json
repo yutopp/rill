@@ -1,1 +1,5 @@
-{}
+{
+  "cc": "gcc",
+  "ar": "ar",
+  "ranlib": "ranlib"
+}

@@ -8,17 +8,7 @@ file(GLOB C_SOURCE_FILES
   src_ext/*.c
   )
 function(rill_core_c_target target_triple)
-  rill_set_build_vars_for_target(${target_triple})
-
-  add_library(core-c-${target_triple}
-    STATIC ${C_SOURCE_FILES}
-    )
-  set_target_properties(core-c-${target_triple} PROPERTIES OUTPUT_NAME "core-c")
-
-  install(
-    TARGETS core-c-${target_triple}
-    DESTINATION ${RILL_LIB_TARGET_LIB_DIR}
-    )
+  rill_c_library_target(core-c ${target_triple} "${C_SOURCE_FILES}")
 endfunction()
 
 foreach(target_triple IN ITEMS ${SUPPORTED_TRIPLES})

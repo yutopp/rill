@@ -38,7 +38,10 @@ endmacro()
 function(rill_create_lib_target_sysroot target_triple)
   rill_set_build_vars_for_target(${target_triple})
 
-  file(MAKE_DIRECTORY ${RILL_LIB_TARGET_SYSROOT})
+  add_custom_command(OUTPUT ${RILL_LIB_TARGET_SYSROOT}
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+      ${RILL_LIB_TARGET_SYSROOT}
+    )
 endfunction()
 
 add_subdirectory(cmake)
