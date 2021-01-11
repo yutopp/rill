@@ -10,6 +10,7 @@ open! Base
 module Workspace = Common.Workspace
 module Package = Common.Package
 module Triple = Common.Triple
+module Target_spec = Common.Target_spec
 module Os = Common.Os
 
 module Export = struct
@@ -115,14 +116,24 @@ let entry opts =
     Compiler.create ~workspace ~host ~target
   in
 
-  (* adhoc-impl *)
-  let lib_dirs =
-    [
-      Os.join_path
-        [ sysroot; "lib"; "rill-lib"; Compiler.target_name ~compiler; "lib" ];
-    ]
+  let target_sysroot =
+    Os.join_path [ sysroot; "lib"; "rill-lib"; Compiler.target_name ~compiler ]
   in
+
+  (* adhoc-impl *)
+  let lib_dirs = [ Os.join_path [ target_sysroot; "lib" ] ] in
   let lib_names = [ core_lib; std_lib ] in
+
+  (* adhoc-impl *)
+  let target_spec_path = Os.join_path [ target_sysroot; "target-spec.json" ] in
+
+  let vars = Target_spec.Variables.{ target_sysroot } in
+  let%bind target_spec =
+    let ch = Stdlib.open_in target_spec_path in
+    Exn.protect
+      ~f:(fun () -> Target_spec.from_channel ~vars ch)
+      ~finally:(fun () -> Stdlib.close_in ch)
+  in
 
   let printer = Stdio.stderr in
   let%bind () =
@@ -142,7 +153,9 @@ let entry opts =
         in
         [%loga.debug "outputs = %s" (String.concat ~sep:"; " filenames)];
         let out = out_path |> Option.value ~default:"a.out" in
-        let%bind () = Os.cc_exe ~lib_dirs ~lib_names ~objs:filenames ~out in
+        let%bind () =
+          Os.cc_exe ~spec:target_spec ~lib_dirs ~lib_names ~objs:filenames ~out
+        in
         Ok ()
     | _ -> failwith ""
   in

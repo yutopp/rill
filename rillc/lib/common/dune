@@ -1,7 +1,8 @@
 (library
  (public_name rillc.common)
  (name common)
- (libraries base stdio str unix loga ppx_yojson_conv_lib)
+ (libraries base stdio re str unix loga ppx_yojson_conv_lib)
+ (inline_tests)
  (preprocess
   (pps ppx_let ppx_deriving.show ppx_yojson_conv ppx_sexp_conv ppx_defer
-    loga.ppx)))
+    loga.ppx ppx_expect)))

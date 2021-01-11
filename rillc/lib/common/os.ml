@@ -8,6 +8,15 @@
 
 open! Base
 
+module Option = struct
+  include Option
+
+  let map_or_else opt ~default ~f =
+    match opt with Some v -> f v | None -> default ()
+
+  let ok_or_else opt ~err = match opt with Some v -> v | None -> err ()
+end
+
 exception Unexpected_result of string
 
 exception Not_exited_with_code_zero of string * Unix.process_status
@@ -125,6 +134,18 @@ let mktemp_dir prefix =
       in
       Ok out)
 
+let cc ~spec =
+  Sys.getenv "RILL_CC"
+  |> Option.ok_or_else ~err:(fun () -> Target_spec.(spec.cc))
+
+let cc_sysroot ~spec =
+  Sys.getenv "RILL_CC_SYSROOT"
+  |> Option.bind ~f:(fun path ->
+         if String.equal path "" then None else Some path)
+  |> Option.map_or_else
+       ~default:(fun () -> Target_spec.(spec.cc_sysroot))
+       ~f:Option.return
+
 let cc_obj src out =
   let open Result.Let_syntax in
   let args = [ [ "gcc" ] ] in
@@ -137,9 +158,14 @@ let cc_obj src out =
       in
       Ok ())
 
-let cc_exe ~lib_dirs ~lib_names ~objs ~out =
+let cc_exe ~spec ~lib_dirs ~lib_names ~objs ~out =
   let open Result.Let_syntax in
-  let args = [ [ "gcc" ] ] in
+  let args = [ [ cc ~spec ] ] in
+  let args =
+    cc_sysroot ~spec
+    |> Option.value_map ~default:args ~f:(fun path ->
+           [ Printf.sprintf "--sysroot=%s" path ] :: args)
+  in
   let args = List.map lib_dirs ~f:(Printf.sprintf "-L%s") :: args in
   let args = objs :: args in
   let args = [ "-static" ] :: args in

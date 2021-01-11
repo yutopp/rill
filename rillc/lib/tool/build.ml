@@ -223,9 +223,11 @@ let entry opts =
   in
   let dirs = Set.of_list (module String) dirs |> Set.to_list in
 
+  let target_spec = Common.Target_spec.empty () in
   let a_path = Os.join_path [ target_dir; "a.out" ] in
   let%bind () =
-    Os.cc_exe ~lib_dirs:dirs ~lib_names:libnames ~objs:[ obj_path ] ~out:a_path
+    Os.cc_exe ~spec:target_spec ~lib_dirs:dirs ~lib_names:libnames
+      ~objs:[ obj_path ] ~out:a_path
   in
 
   Ok ()
