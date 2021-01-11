@@ -11,10 +11,12 @@ open! Base
 type t = {
   cc : string; [@key "cc"]
   cc_sysroot : string option; [@key "cc_sysroot"] [@yojson.option]
+  ar : string; [@key "ar"]
+  ranlib : string; [@key "ranlib"]
 }
 [@@yojson.allow_extra_fields] [@@deriving yojson]
 
-let empty () = { cc = "gcc"; cc_sysroot = None }
+let empty () = { cc = "gcc"; cc_sysroot = None; ar = "ar"; ranlib = "ranlib" }
 
 exception Failed_to_parse_json of string
 
@@ -70,7 +72,9 @@ let load ~vars ~f =
 
   let cc = spec.cc |> Variables.subst ~vars in
   let cc_sysroot = spec.cc_sysroot |> Option.map ~f:(Variables.subst ~vars) in
-  Ok { spec with cc; cc_sysroot }
+  let ar = spec.ar |> Variables.subst ~vars in
+  let ranlib = spec.ranlib |> Variables.subst ~vars in
+  Ok { spec with cc; cc_sysroot; ar; ranlib }
 
 let from_channel ~vars ch : (t, exn) Result.t =
   load ~vars ~f:(fun () -> Yojson.Safe.from_channel ch)
@@ -87,10 +91,13 @@ let%expect_test _ =
     from_string ~vars
       {|
 {
-  "cc": "${target_sysroot}1234${target_sysroot}\\${target_sysroot}"
+  "cc": "${target_sysroot}1234${target_sysroot}\\${target_sysroot}",
+  "ar": "${target_sysroot}",
+  "ranlib": "${target_sysroot}"
 }
                  |}
     |> Result.ok_exn
   in
   yojson_of_t spec |> Yojson.Safe.pretty_to_string |> Stdio.print_string;
-  [%expect {| { "cc": "hoge1234hoge\\${target_sysroot}" } |}]
+  [%expect
+    {| { "cc": "hoge1234hoge\\${target_sysroot}", "ar": "hoge", "ranlib": "hoge" } |}]

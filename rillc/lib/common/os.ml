@@ -134,17 +134,27 @@ let mktemp_dir prefix =
       in
       Ok out)
 
-let cc ~spec =
-  Sys.getenv "RILL_CC"
-  |> Option.ok_or_else ~err:(fun () -> Target_spec.(spec.cc))
+module Spec_env = struct
+  let cc ~spec =
+    Sys.getenv "RILL_CC"
+    |> Option.ok_or_else ~err:(fun () -> Target_spec.(spec.cc))
 
-let cc_sysroot ~spec =
-  Sys.getenv "RILL_CC_SYSROOT"
-  |> Option.bind ~f:(fun path ->
-         if String.equal path "" then None else Some path)
-  |> Option.map_or_else
-       ~default:(fun () -> Target_spec.(spec.cc_sysroot))
-       ~f:Option.return
+  let cc_sysroot ~spec =
+    Sys.getenv "RILL_CC_SYSROOT"
+    |> Option.bind ~f:(fun path ->
+           if String.equal path "" then None else Some path)
+    |> Option.map_or_else
+         ~default:(fun () -> Target_spec.(spec.cc_sysroot))
+         ~f:Option.return
+
+  let ar ~spec =
+    Sys.getenv "RILL_AR"
+    |> Option.ok_or_else ~err:(fun () -> Target_spec.(spec.ar))
+
+  let ranlib ~spec =
+    Sys.getenv "RILL_RANLIB"
+    |> Option.ok_or_else ~err:(fun () -> Target_spec.(spec.ranlib))
+end
 
 let cc_obj src out =
   let open Result.Let_syntax in
@@ -158,24 +168,59 @@ let cc_obj src out =
       in
       Ok ())
 
-let cc_exe ~spec ~lib_dirs ~lib_names ~objs ~out =
+let cc_exe ~spec ?(only_pp = false) ?(only_comp = false)
+    ?(only_comp_asm = false) ?(linker_flags = []) ~lib_dirs ~lib_names ~objs
+    ~out () =
   let open Result.Let_syntax in
-  let args = [ [ cc ~spec ] ] in
+  let args = [ [ Spec_env.cc ~spec ] ] in
   let args =
-    cc_sysroot ~spec
+    Spec_env.cc_sysroot ~spec
     |> Option.value_map ~default:args ~f:(fun path ->
            [ Printf.sprintf "--sysroot=%s" path ] :: args)
   in
-  let args = List.map lib_dirs ~f:(Printf.sprintf "-L%s") :: args in
   let args = objs :: args in
-  let args = [ "-static" ] :: args in
-  let args = List.map lib_names ~f:(Printf.sprintf "-l%s") :: args in
+
+  let args =
+    match (only_pp, only_comp, only_comp_asm) with
+    (* with linking *)
+    | (false, false, false) ->
+        let args = List.map lib_dirs ~f:(Printf.sprintf "-L%s") :: args in
+        let args = [ "-static" ] :: args in
+        let args = linker_flags :: args in
+        let args = List.map lib_names ~f:(Printf.sprintf "-l%s") :: args in
+        args
+    (* without linking *)
+    | (_, _, _) ->
+        let args = (if only_pp then [ "-E" ] else []) :: args in
+        let args = (if only_comp then [ "-S" ] else []) :: args in
+        let args = (if only_comp_asm then [ "-c" ] else []) :: args in
+        args
+  in
   let args = [ Printf.sprintf "-o%s" out ] :: args in
   let args = args |> List.rev |> List.concat in
   exec args ~f:(fun out_ch err_ch status args ->
       let%bind () =
         assume_exit_successfully_with_out ~status ~args ~out_ch ~err_ch
       in
+      Ok ())
+
+let ar' ~spec ~objs ~out () =
+  let open Result.Let_syntax in
+  let args = [ [ Spec_env.ar ~spec; "qc"; out ] ] in
+  let args = objs :: args in
+
+  let args = args |> List.rev |> List.concat in
+  exec args ~f:(fun _out_ch _err_ch status args ->
+      let%bind () = assume_exit_successfully ~status ~args in
+      Ok ())
+
+let ranlib ~spec ~out () =
+  let open Result.Let_syntax in
+  let args = [ [ Spec_env.ranlib ~spec; out ] ] in
+
+  let args = args |> List.rev |> List.concat in
+  exec args ~f:(fun _out_ch _err_ch status args ->
+      let%bind () = assume_exit_successfully ~status ~args in
       Ok ())
 
 let ar files out =

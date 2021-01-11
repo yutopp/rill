@@ -227,7 +227,7 @@ let entry opts =
   let a_path = Os.join_path [ target_dir; "a.out" ] in
   let%bind () =
     Os.cc_exe ~spec:target_spec ~lib_dirs:dirs ~lib_names:libnames
-      ~objs:[ obj_path ] ~out:a_path
+      ~objs:[ obj_path ] ~out:a_path ()
   in
 
   Ok ()

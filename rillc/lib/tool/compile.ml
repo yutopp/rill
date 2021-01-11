@@ -35,11 +35,6 @@ type t = {
   input_files : string list;
 }
 
-(* TODO: fix *)
-let host_triple = Triple.Tag_X86_64_unknown_linux_gnu
-
-let default_target_triple = host_triple
-
 let validate opts =
   if List.length opts.input_files < 1 then
     raise (Errors.Invalid_argument "no input file")
@@ -61,26 +56,18 @@ let load_builtin_pkg workspace sysroot srcdir pkg_name =
   Package.add_src_paths pkg paths;
   pkg
 
-(* Ad-hoc impl *)
-let get_sysroot () =
-  (* e.g. /usr/bin/rillc *)
-  let path = Os.current_exe () |> String.split ~on:'/' |> List.rev in
-  (* e.g. /usr/bin *)
-  let dir = List.tl_exn path in
-  (* e.g. /usr *)
-  List.tl_exn dir |> List.rev |> String.concat ~sep:"/" |> Printf.sprintf "/%s"
-
 let entry opts =
   let open Result.Let_syntax in
   let%bind () = Result.try_with (fun () -> validate opts) in
 
-  let sysroot =
-    match opts.sysroot with Some dir -> dir | None -> get_sysroot ()
-  in
+  let sysroot = Args.sysroot opts.sysroot in
 
-  let target_triple =
-    opts.target |> Option.value ~default:default_target_triple
-  in
+  let host_triple = Args.host_triple () in
+  let target_triple = Args.target_triple opts.target in
+
+  let target_sysroot = Args.target_sysroot ~sysroot ~triple:target_triple in
+
+  let%bind target_spec = Args.target_spec ~target_sysroot in
 
   (* TODO: *)
   let workspace = Workspace.create ~dir:"." ~host_triple ~target_triple in
@@ -116,24 +103,9 @@ let entry opts =
     Compiler.create ~workspace ~host ~target
   in
 
-  let target_sysroot =
-    Os.join_path [ sysroot; "lib"; "rill-lib"; Compiler.target_name ~compiler ]
-  in
-
   (* adhoc-impl *)
   let lib_dirs = [ Os.join_path [ target_sysroot; "lib" ] ] in
   let lib_names = [ core_lib; std_lib ] in
-
-  (* adhoc-impl *)
-  let target_spec_path = Os.join_path [ target_sysroot; "target-spec.json" ] in
-
-  let vars = Target_spec.Variables.{ target_sysroot } in
-  let%bind target_spec =
-    let ch = Stdlib.open_in target_spec_path in
-    Exn.protect
-      ~f:(fun () -> Target_spec.from_channel ~vars ch)
-      ~finally:(fun () -> Stdlib.close_in ch)
-  in
 
   let printer = Stdio.stderr in
   let%bind () =
@@ -155,6 +127,7 @@ let entry opts =
         let out = out_path |> Option.value ~default:"a.out" in
         let%bind () =
           Os.cc_exe ~spec:target_spec ~lib_dirs ~lib_names ~objs:filenames ~out
+            ()
         in
         Ok ()
     | _ -> failwith ""
