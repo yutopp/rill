@@ -119,6 +119,8 @@ let build_pkg ~workspace pkg =
   ()
 
 let build_to ~workspace ~out_dir pkg =
+  let target_spec = Common.Target_spec.empty () in
+
   let open Result.Let_syntax in
   let Package.{ c_exts; _ } = pkg in
   let%bind () =
@@ -144,7 +146,9 @@ let build_to ~workspace ~out_dir pkg =
         in
 
         let tmp_a_path = Os.join_path [ tmp_dir; lib_name ] in
-        let%bind () = Os.ar obj_paths tmp_a_path in
+        let%bind () =
+          Os.ar ~spec:target_spec ~objs:obj_paths ~out:tmp_a_path ()
+        in
 
         let a_path = Os.join_path [ out_dir; lib_name ] in
         let%bind () = Os.cp ~src:tmp_a_path ~dst:a_path in
@@ -170,6 +174,8 @@ let entry opts =
   let target_triple =
     opts.target |> Option.value ~default:default_target_triple
   in
+
+  let target_spec = Common.Target_spec.empty () in
 
   (* TODO: *)
   let workspace = Workspace.create ~dir:opts.dir ~host_triple ~target_triple in
@@ -223,7 +229,6 @@ let entry opts =
   in
   let dirs = Set.of_list (module String) dirs |> Set.to_list in
 
-  let target_spec = Common.Target_spec.empty () in
   let a_path = Os.join_path [ target_dir; "a.out" ] in
   let%bind () =
     Os.cc_exe ~spec:target_spec ~lib_dirs:dirs ~lib_names:libnames

@@ -29,7 +29,7 @@ let entry opts =
   let%bind target_spec = Args.target_spec ~target_sysroot in
 
   let%bind () =
-    Os.ar' ~spec:target_spec ~objs:opts.input_files ~out:opts.output ()
+    Os.ar ~spec:target_spec ~objs:opts.input_files ~out:opts.output ()
   in
   let%bind () = Os.ranlib ~spec:target_spec ~out:opts.output () in
 

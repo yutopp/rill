@@ -204,7 +204,7 @@ let cc_exe ~spec ?(only_pp = false) ?(only_comp = false)
       in
       Ok ())
 
-let ar' ~spec ~objs ~out () =
+let ar ~spec ~objs ~out () =
   let open Result.Let_syntax in
   let args = [ [ Spec_env.ar ~spec; "qc"; out ] ] in
   let args = objs :: args in
@@ -217,16 +217,6 @@ let ar' ~spec ~objs ~out () =
 let ranlib ~spec ~out () =
   let open Result.Let_syntax in
   let args = [ [ Spec_env.ranlib ~spec; out ] ] in
-
-  let args = args |> List.rev |> List.concat in
-  exec args ~f:(fun _out_ch _err_ch status args ->
-      let%bind () = assume_exit_successfully ~status ~args in
-      Ok ())
-
-let ar files out =
-  let open Result.Let_syntax in
-  let args = [ [ "ar"; "qc"; out ] ] in
-  let args = files :: args in
 
   let args = args |> List.rev |> List.concat in
   exec args ~f:(fun _out_ch _err_ch status args ->
