@@ -322,7 +322,7 @@ let construct_value ~ctx ~env ~ll_holder ~local ll_builder v ty : Env.Var.t =
   | Rir.Term.ValueString v ->
       (* L.const_stringz ctx.ll_ctx v *)
       L.build_global_stringptr v "" ll_builder |> into_ref
-  | Rir.Term.ValueUnit -> L.const_null (to_llty ~ctx ~env ty) |> into_ref
+  | Rir.Term.ValueUnit -> L.undef (to_llty ~ctx ~env ty) |> into_ref
   | Rir.Term.ValueArrayElem elems ->
       let storage =
         match ll_holder with Some mem -> mem | None -> failwith "[ICE]"
@@ -453,7 +453,7 @@ let construct_term ~ctx ~env ~ll_holder ~local ll_f ll_builder term : Env.Var.t
             Env.Var.{ ll_v = storage; ty; as_treat = Value_category.AsPtr mem }
         | None ->
             (* TODO: encode a struct into another primitive type *)
-            let ll_v = L.const_null ll_ty in
+            let ll_v = L.undef ll_ty in
             Env.Var.{ ll_v; ty; as_treat = Value_category.AsVal }
       in
       value
@@ -473,7 +473,7 @@ let construct_term ~ctx ~env ~ll_holder ~local ll_f ll_builder term : Env.Var.t
         | Some storage ->
             Env.Var.{ ll_v = storage; ty; as_treat = Value_category.AsPtr mem }
         | None ->
-            let ll_v = L.const_null (L.void_type ctx.ll_ctx) in
+            let ll_v = L.undef (L.void_type ctx.ll_ctx) in
             Env.Var.{ ll_v; ty; as_treat = Value_category.AsVal }
       in
       value
