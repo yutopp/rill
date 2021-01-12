@@ -29,7 +29,7 @@ This repository contains the implementation of Rill-lang.
 * OCaml (>= 4.09.0)
 * OPAM (>= 2.1.0~beta2)
   * dune (>= 2.5)
-* CMake (>= 3.2)
+* CMake (>= 3.5.1)
 * LLVM (>= 11.0.0)
 * GCC (>= 10)
 
@@ -71,7 +71,7 @@ build$ make
 
 ```bash
 rill$ cd build
-build$ ctest -V
+build$ make CTEST_OUTPUT_ON_FAILURE=1 test
 ```
 
 ### Install a toolchain
