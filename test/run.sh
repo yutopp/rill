@@ -19,7 +19,8 @@ function build_and_execute() {
     local FILE="$TEST_PASS_DIR/$CASENAME.rill"
     local TEST_EXPECT_FILE="$TEST_PASS_DIR/$CASENAME.expect"
 
-    OUT_DIR=.
+    OUT_DIR=`mktemp -d '/tmp/rillc.XXXXXXXXXXXXXXXX'`
+
     FILE_OUT_PATH="$OUT_DIR/$(basename $FILE).out"
 
     # Emit an executable
