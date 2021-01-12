@@ -42,11 +42,14 @@ jobs:
       - working-directory: rillc
         run: make test
 
-      - run: cmake -B build
-
-      - run: cmake --build build
+      - run: |
+          cmake -B build \
+                -DRILL_TARGET_TRIPLES=x86_64-unknown-linux-gnu
 
       - working-directory: build
-        run: ctest -V
+        run: make
+
+      - working-directory: build
+        run: make CTEST_OUTPUT_ON_FAILURE=1 test
 
       - run: cmake --install build --prefix /usr/local/rill-ci
