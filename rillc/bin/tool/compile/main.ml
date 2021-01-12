@@ -247,7 +247,7 @@ Compile rill source codes.
       let output =
         Arg.(value & (pos 0 (some string)) None & info [] ~docv:"OUTPUT")
       in
-      let files = Arg.(value & (pos_right 1 file) [] & info [] ~docv:"OBJS") in
+      let files = Arg.(value & (pos_right 0 file) [] & info [] ~docv:"OBJS") in
 
       let action sysroot target output input_files =
         let result =
