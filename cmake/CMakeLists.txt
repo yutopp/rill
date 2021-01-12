@@ -1,16 +1,12 @@
 function(rill_target_spec_json target_triple)
   rill_set_build_vars_for_target(${target_triple})
 
-  rill_create_lib_target_sysroot(${target_triple})
-
   set(output ${CMAKE_BINARY_DIR}/${RILL_LIB_TARGET_SYSROOT}/target-spec.json)
   add_custom_command(
     OUTPUT ${output}
     COMMAND ${CMAKE_COMMAND} -E copy
       ${CMAKE_CURRENT_SOURCE_DIR}/target-spec.json
       ${output}
-    DEPENDS
-      ${CMAKE_BINARY_DIR}/${RILL_LIB_TARGET_SYSROOT}/
       )
   add_custom_target(rill_target_spec_json-${target_triple} ALL
     DEPENDS ${output})
@@ -25,9 +21,6 @@ function(rill_c_library_target target_base_name target_triple c_source_files)
   rill_set_build_vars_for_target(${target_triple})
 
   set(target_name ${target_base_name}-${target_triple})
-
-  set(lib_prefix "${CMAKE_BINARY_DIR}/${RILL_LIB_TARGET_LIB_DIR}")
-  set(lib "${lib_prefix}/lib${target_base_name}.a")
 
   # TODO: build c files by rill-toolchains
 
@@ -48,10 +41,20 @@ function(rill_c_library_target target_base_name target_triple c_source_files)
     list(APPEND output_objs ${output_obj})
   endforeach()
 
+  set(output_lib ${output_dir}/lib${target_base_name}.a)
+  add_custom_command(
+    OUTPUT ${output_lib}
+    COMMAND ${RILLC_COMMAND} ar --target=${target_triple} ${output_lib} ${output_objs}
+    DEPENDS ${output_objs}
+    )
+
+  set(lib_prefix "${CMAKE_BINARY_DIR}/${RILL_LIB_TARGET_LIB_DIR}")
+  set(lib "${lib_prefix}/lib${target_base_name}.a")
+
   add_custom_command(
     OUTPUT ${lib}
-    COMMAND ${RILLC_COMMAND} ar --target=${target_triple} ${lib} ${output_objs}
-    DEPENDS ${output_objs}
+    COMMAND ${CMAKE_COMMAND} -E copy ${output_lib} ${lib}
+    DEPENDS ${output_lib}
     )
   add_custom_target(${target_name} ALL DEPENDS ${lib})
 

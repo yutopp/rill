@@ -10,8 +10,19 @@ set(SUPPORTED_TRIPLES
   wasm32-wasi
   )
 
+function(rill_check_supported_triple var_name triple)
+  if (NOT ${triple} IN_LIST SUPPORTED_TRIPLES)
+    message(SEND_ERROR "A triple '${triple}' in '${var_name}' is not supported. (Please select from: ${SUPPORTED_TRIPLES})")
+  endif()
+endfunction()
+
 set(RILL_TARGET_TRIPLES ${SUPPORTED_TRIPLES} CACHE STRING "Target triples")
 set(RILL_HOST_TRIPLE x86_64-unknown-linux-gnu CACHE STRING "Host triple")
+
+foreach(t IN ITEMS ${RILL_TARGET_TRIPLES})
+  rill_check_supported_triple("RILL_TARGET_TRIPLES" ${t})
+endforeach()
+rill_check_supported_triple("RILL_HOST_TRIPLE" ${RILL_HOST_TRIPLE})
 
 # Rillc spec files/libraries will be installed in the following directory structure.
 #
