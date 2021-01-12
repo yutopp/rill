@@ -2,19 +2,15 @@
 
 set -eux -o pipefail
 
-CC="${RILL_TEST_CC:-gcc}"
-
 _="$RILL_TEST_COMPILER"
-_="$RILL_TEST_CORELIB_SRCDIR"
-_="$RILL_TEST_STDLIB_SRCDIR"
-_="$RILL_TEST_TARGET_LIBDIR"
+_="$RILL_TEST_TARGET"
 
 SCRIPT_DIR="$(cd $(dirname $0); pwd)"
 TEST_PASS_DIR="$SCRIPT_DIR/pass"
 TEST_BUILD_FAILURE_DIR="$SCRIPT_DIR/build_failure"
 
 function failed_to_execute() {
-    echo "Failed to execute: $1 in case '$2'" >2
+    echo "Failed to execute: CASE='$2', MSG='$1'" >&2
     exit 1
 }
 
@@ -23,28 +19,15 @@ function build_and_execute() {
     local FILE="$TEST_PASS_DIR/$CASENAME.rill"
     local TEST_EXPECT_FILE="$TEST_PASS_DIR/$CASENAME.expect"
 
-    OUT_DIR=`mktemp -d '/tmp/rillc.XXXXXXXXXXXXXXXX'`
-
-    # Emit an LLVM IR bitcode
-    $RILL_TEST_COMPILER \
-        --corelib_srcdir="$RILL_TEST_CORELIB_SRCDIR" \
-        --stdlib-srcdir="$RILL_TEST_STDLIB_SRCDIR" \
-        --out_dir="$OUT_DIR" \
-        --log-level=debug \
-        "$FILE" || failed_to_execute "compile" "$CASENAME"
-
-    FILE_OBJ_PATH="$OUT_DIR/$(basename $FILE).o"
+    OUT_DIR=.
     FILE_OUT_PATH="$OUT_DIR/$(basename $FILE).out"
 
     # Emit an executable
-    $CC -v -fPIE \
-        -L"$RILL_TEST_TARGET_LIBDIR" \
-        "$FILE_OBJ_PATH" \
-        -static \
-        -lcore-c \
-        -lstd-c \
-        -o "$FILE_OUT_PATH" \
-        || failed_to_execute "exec: $CC" "$CASENAME"
+    $RILL_TEST_COMPILER compile \
+                        --log-level=debug \
+                        -o "$FILE_OUT_PATH" \
+                        "$FILE" \
+        || failed_to_execute "compile" "$CASENAME"
 
     # Execute
     local TEST_ACTUAL_FILE="$OUT_DIR/test.actual"
@@ -75,12 +58,7 @@ function build_and_check_failure() {
     # Emit an LLVM IR bitcode
     local TEST_ACTUAL_FILE="$OUT_DIR/test.buildlog"
     set +e
-    $RILL_TEST_COMPILER \
-        --corelib_srcdir="$RILL_TEST_CORELIB_SRCDIR" \
-        --stdlib-srcdir="$RILL_TEST_STDLIB_SRCDIR" \
-        --out_dir="$OUT_DIR" \
-        --emit=llvm-ir \
-        "$FILE" > $TEST_ACTUAL_FILE 2>&1
+    $RILL_TEST_COMPILER compile "$FILE" >& $TEST_ACTUAL_FILE
     local EXIT_CODE=$?
     set -e
     if [ $EXIT_CODE -eq 0 ]; then
@@ -91,6 +69,10 @@ function build_and_check_failure() {
     if [ ! -f "$TEST_EXPECT_FILE" ]; then
        failed_to_execute "expect: file not found ($TEST_EXPECT_FILE)" "$CASENAME"
     fi
+
+    echo ""
+    echo "=== DIFF ==="
+    echo ""
 
     diff -u "$TEST_ACTUAL_FILE" "$TEST_EXPECT_FILE" \
         || failed_to_execute "expect" "$CASENAME"

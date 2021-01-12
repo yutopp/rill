@@ -59,6 +59,7 @@ add_subdirectory(stdlib)
 
 #
 # Integration tests
+# TODO: Run tests per targets (now only for host).
 #
 find_program(BASH_PATH bash)
 if(NOT BASH_PATH)
@@ -72,11 +73,9 @@ add_test(
     ${BASH_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/test/run.sh
 )
 foreach(EV
-  "RILL_TEST_COMPILER=${CMAKE_BINARY_DIR}/bin/rillc_compile"
-  "RILL_TEST_CORELIB_SRCDIR=${CMAKE_BINARY_DIR}/${RILL_LIB_SRC_DIR}/core/src"
-  "RILL_TEST_STDLIB_SRCDIR=${CMAKE_BINARY_DIR}/${RILL_LIB_SRC_DIR}/std/src"
-  "RILL_TEST_TARGET_LIBDIR=${CMAKE_BINARY_DIR}/${RILL_LIB_TARGET_LIB_DIR}"
-)
+    "RILL_TEST_COMPILER=${RILLC_COMMAND}"
+    "RILL_TEST_TARGET=${RILL_HOST_TRIPLE}"
+    )
   set_property(TEST rillc_integration_test
     APPEND PROPERTY
     ENVIRONMENT ${EV}
