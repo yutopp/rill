@@ -4,4 +4,4 @@ PointerElem
 Type mismatch: Expect = *mutable i32, but Actual = *immutable i32
 File: "", line 3, charactors 2-9
 
-rillc_compile: There are warnings or errors.
+rillc: There are warnings or errors.

@@ -2,4 +2,4 @@ ERROR: Diff
 Type mismatch: Expect = unit, but Actual = i32
 File: "", line 2, charactors 2-3
 
-rillc_compile: There are warnings or errors.
+rillc: There are warnings or errors.
