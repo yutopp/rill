@@ -10,8 +10,8 @@ set(SUPPORTED_TRIPLES
   wasm32-wasi
   )
 
-set(RILL_TARGET_TRIPLES ${SUPPORTED_TRIPLES})
-set(RILL_HOST_TRIPLE x86_64-unknown-linux-gnu)
+set(RILL_TARGET_TRIPLES ${SUPPORTED_TRIPLES} CACHE STRING "Target triples")
+set(RILL_HOST_TRIPLE x86_64-unknown-linux-gnu CACHE STRING "Host triple")
 
 # Rillc spec files/libraries will be installed in the following directory structure.
 #
