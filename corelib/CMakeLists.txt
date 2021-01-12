@@ -1,7 +1,5 @@
 # temporal cmake file.
 
-# ~/wasi-sdk/wasi-sdk-11.0/bin/clang --sysroot=$HOME/wasi-sdk/wasi-sdk-11.0/share/wasi-sysroot ../stdlib/src_ext/{entry.c,runtime.c,stdio.c,string.c} -Wl,--allow-undefined,--export-all,--relocatable,--export-dynamic,--no-entry -o stdlib.wasm
-
 # c-srcs archives
 # - ${PREFIX}/lib/rill-lib/${TARGET_TRIPLE}/lib/libcore-c.a
 file(GLOB C_SOURCE_FILES
