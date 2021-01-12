@@ -1,0 +1,3 @@
+def main(): unit {
+    let c = if true { if true {10} else {20} } else { 20 };
+}

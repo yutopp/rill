@@ -1,0 +1,13 @@
+import core::prelude::*;
+import std::stdio::*;
+
+def main(): unit {
+    loop {
+        println("loop1");
+        break
+    }
+    loop {
+        println("loop2");
+        break;
+    }
+}

@@ -1,0 +1,6 @@
+(library
+ (public_name rillc.typing)
+ (name typing)
+ (libraries base stdio loga rillc.common)
+ (preprocess
+  (pps loga.ppx ppx_yojson_conv ppx_sexp_conv ppx_deriving.show)))

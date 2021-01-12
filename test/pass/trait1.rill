@@ -1,0 +1,24 @@
+def main(): unit {
+  A::f(10);
+  A::f("string")
+}
+
+impl A for i32 {
+  def f(self): unit {
+    let p = self + self * 2;
+    print_int_ln(p);
+  }
+}
+
+impl A for string {
+  def f(self): unit {
+    println(self);
+  }
+}
+
+trait A {
+  def f(self): unit;
+}
+
+import std::stdio::*;
+import core::prelude::*;

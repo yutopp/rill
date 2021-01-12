@@ -1,0 +1,7 @@
+(library
+ (public_name rillc.diagnostics)
+ (name diagnostics)
+ (libraries base stdio str unix loga ppx_yojson_conv_lib rillc.common)
+ (preprocess
+  (pps ppx_let ppx_deriving.show ppx_yojson_conv ppx_sexp_conv ppx_defer
+    loga.ppx)))

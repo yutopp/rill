@@ -1,0 +1,7 @@
+def main(): unit {
+  f(10)
+}
+
+import std::stdio::*;
+
+def f(i: i32): unit { println("f") }

@@ -1,0 +1,6 @@
+{
+  "cc": "${target_sysroot}/toolchains/bin/clang",
+  "cc_sysroot": "${target_sysroot}/toolchains/share/wasi-sysroot",
+  "ar": "${target_sysroot}/toolchains/bin/ar",
+  "ranlib": "${target_sysroot}/toolchains/bin/ranlib"
+}

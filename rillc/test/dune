@@ -1,0 +1,13 @@
+(library
+ (name run_unit_tests)
+ (libraries rillc)
+ (inline_tests
+  (deps
+   (glob_files *.rill)))
+ (preprocess
+  (pps ppx_sexp_conv ppx_let ppx_expect)))
+
+(env
+ (dev
+  (flags
+   (:standard -w -8-9-27-39-42-40-48))))

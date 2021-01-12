@@ -1,4 +1,0 @@
-package std;
-
-// TODO: implement by macro
-extern def assert(val :bool): void = "rill_assert";

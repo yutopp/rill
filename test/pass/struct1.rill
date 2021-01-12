@@ -1,0 +1,10 @@
+struct A {
+}
+
+def main(): unit {
+  let _ = f();
+}
+
+def f(): A {
+  A {}
+}

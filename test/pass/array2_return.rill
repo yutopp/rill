@@ -1,0 +1,17 @@
+import core::prelude::*;
+import std::stdio::*;
+
+def main(): unit {
+  let v = f(10);
+
+  print_int_ln(v[0]);
+  print_int_ln(v[1]);
+  print_int_ln(v[2]);
+  print_int_ln(v[3]);
+}
+
+def f(v: i32): [4]i32 {
+  let mutable n = 42;
+  let v = [1, v, 3+4, n];
+  v
+}

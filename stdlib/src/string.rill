@@ -1,0 +1,110 @@
+///*
+//* experimental...
+//*/
+//
+//package std;
+//
+//import std.assert;
+//
+//class string
+//{
+//    def 'a ctor(s: 'a raw_ptr!(uint8)) {
+//        val l = s.strlen();
+//        val ptr = malloc(l+1u);
+//        val ptr2 = ptr.unsafe_ptr_cast!(uint8)();
+//        memcpy(ptr2, s, l + 1u); // +1 means \0
+//
+//        this.ptr = ptr2;
+//        this.len = l+1u;
+//        this.cap = this.len;
+//    }
+//
+//    def ctor(rhs: string) {
+//        val l = rhs.size();
+//        val ptr = malloc(l+1u);
+//        val ptr2 = ptr.unsafe_ptr_cast!(uint8)();
+//        memcpy(ptr2, rhs.ptr, l + 1u); // +1 means \0
+//
+//        this.ptr = ptr2;
+//        this.len = l+1u;
+//        this.cap = this.len;
+//    }
+//
+//    def dtor() {
+//        free(this.ptr);
+//    }
+//
+//    def 'a append(s: 'a raw_ptr!(uint8)) mutable {
+//        val ext_l = s.strlen();
+//        this.expand_buffer_if_needed(ext_l);
+//        memcpy(this.ptr + this.len - 1u, s, ext_l + 1u); // +1 means \0
+//        this.len = this.len + ext_l;
+//
+//        return;
+//    }
+//
+//    def expand_buffer_if_needed(ext_size: uint32) mutable {
+//        if (this.len + ext_size > this.cap) {
+//            val new_cap = ext_size + this.cap * 2u;
+//            val ptr = malloc(new_cap);
+//            val typed_ptr = ptr.unsafe_ptr_cast!(uint8)();
+//            memcpy(typed_ptr, this.ptr, this.len);
+//            free(this.ptr);
+//
+//            this.ptr = typed_ptr;
+//            this.cap = new_cap;
+//        }
+//    }
+//
+//    def operator ==(rhs: string): bool {
+//        return this == rhs.ptr;
+//    }
+//
+//    def 'a operator ==(rhs: 'a raw_ptr!(uint8)): bool {
+//        return strcmp(this.ptr, rhs) == 0;
+//    }
+//
+///*
+//    def insert(c: uint8, index: int32): void {
+//        val ptr = malloc(this.p.strlen()+1+1).unsafe_ptr_cast!(uint8)();
+//
+//        memcpy(ptr, this.p, index);
+//        memcpy(ptr+index+1, this.p+index, this.p.strlen()-index+1);
+//        //*(ptr+index) = c;
+//        memset(ptr+index, c, 1);
+//
+//        this.p = ptr;
+//    }
+//
+//    def remove(index: int32): void {
+//        val ptr = malloc(this.p.strlen()+1-1).unsafe_ptr_cast!(uint8)();
+//        memcpy(ptr, this.p, index);
+//        memcpy(ptr+index, this.p+index+1, this.p.strlen()-index+1);
+//
+//        this.p = ptr;
+//    }
+//*/
+//    def size(): uint32 {
+//        assert(this.len > 0u);
+//        return this.len - 1u;
+//    }
+//
+//    val ptr: 'unmanaged raw_ptr!(uint8);
+//    val len: uint32;
+//    val cap: uint32;
+//}
+//
+//// TODO: fix
+//import std.stdio;
+//
+//def println(s: string): void {
+//    s.ptr.println();
+//}
+//
+//def 'a to_string(p: 'a raw_ptr!uint8) {
+//    return string(p);
+//}
+//
+//def read_string(): string => string("");
+//extern def strlen(val :raw_ptr!(uint8)): uint32 = "rill_strlen";
+//extern def strcmp(val :raw_ptr!(uint8), val :raw_ptr!(uint8)): int32 = "rill_strcmp";

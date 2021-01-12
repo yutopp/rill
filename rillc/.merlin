@@ -1,9 +1,0 @@
-S src
-B src
-PKG llvm
-PKG batteries
-PKG ctypes
-PKG stdint
-PKG oUnit
-PKG ocamlgraph
-PKG loga

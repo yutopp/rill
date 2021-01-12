@@ -1,0 +1,13 @@
+{
+  "name": "std",
+  "deps": [],
+  "lib": {
+    "flags": [
+      "-no-std"
+    ]
+  },
+  "c_ext": {
+    "dir": "./src_ext",
+    "name": "std-c"
+  }
+}

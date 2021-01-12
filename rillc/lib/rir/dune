@@ -1,0 +1,7 @@
+(library
+ (public_name rillc.rir)
+ (name rir)
+ (libraries base stdio loga rillc.common rillc.syntax rillc.typing rillc.sema
+   rillc.diagnostics)
+ (preprocess
+  (pps ppx_let ppx_deriving.show loga.ppx)))

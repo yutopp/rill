@@ -1,0 +1,19 @@
+import core::prelude::*;
+import std::stdio::*;
+
+def main(): unit {
+  f([1, 2, 3, 4]);
+  g(10);
+}
+
+def f(mutable v: [4]i32): unit {
+  print_int_ln(v[0]);
+  v[0] = 42;
+  print_int_ln(v[0]);
+}
+
+def g(mutable v: i32): unit {
+  print_int_ln(v);
+  v = 420;
+  print_int_ln(v);
+}

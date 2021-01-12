@@ -1,4 +1,0 @@
-module std.libc;
-
-extern def exit(val v: int32): void = "exit";
-extern def getchar(): int32 = "getchar";

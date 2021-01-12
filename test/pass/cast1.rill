@@ -1,0 +1,7 @@
+def main(): unit {
+  let p = 0 as *mutable i8;
+  f(p);
+}
+
+def f(p: *mutable i8): unit {
+}

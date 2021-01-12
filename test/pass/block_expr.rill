@@ -1,0 +1,16 @@
+import std::stdio::*;
+
+def main(): unit {
+  let _ = {
+  };
+  let b = {
+    let mutable a = 42;
+    a
+  };
+  print_int_ln(b);
+  let mutable c = {
+    let mutable a = 420;
+    a
+  };
+  print_int_ln(c);
+}

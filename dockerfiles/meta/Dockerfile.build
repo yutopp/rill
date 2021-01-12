@@ -1,0 +1,69 @@
+ARG OCAML_VERSION="4.10.0"
+ARG OPAM_VERSION="2.1.0-beta2"
+
+ARG HOST_ARCH="x86_64"
+ARG LLVM_VERSION="11.0.0"
+
+######################################################################
+#
+FROM ubuntu:20.04 as builder
+
+ARG OCAML_VERSION
+ARG OPAM_VERSION
+ARG HOST_ARCH
+
+#
+ENV DEBIAN_FRONTEND noninteractive
+
+RUN apt-get update && apt-get install -qq -y \
+    curl \
+    cmake ninja-build gcc g++ python3 z3 m4 patch unzip \
+ && rm -rf /var/lib/apt/lists/*
+
+# opam
+WORKDIR /tmp
+RUN curl -sSfL "https://github.com/ocaml/opam/releases/download/${OPAM_VERSION}/opam-${OPAM_VERSION}-${HOST_ARCH}-linux" -o opam
+RUN install opam /usr/local/bin/opam
+
+# OCaml
+WORKDIR /
+ENV OPAMKEEPBUILDDIR false
+ENV OPAMBUILDDOC false
+ENV OPAMDOWNLOADJOBS 1
+RUN opam init -y -a --disable-sandboxing --comp=${OCAML_VERSION}
+
+######################################################################
+#
+FROM yutopp/rill-build-env:llvm-${LLVM_VERSION}-${HOST_ARCH} as llvm
+
+######################################################################
+#
+FROM ubuntu:20.04
+
+LABEL maintainer="yutopp@gmail.com"
+
+ARG OCAML_VERSION
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+#
+RUN apt-get update && apt-get install -qq -y \
+    curl \
+    cmake make gcc g++ python3 z3 m4 patch unzip pkg-config git \
+ && rm -rf /var/lib/apt/lists/*
+
+# Copy LLVM
+COPY --from=llvm /usr/local/llvm/lib/* /usr/local/lib/
+COPY --from=llvm /usr/local/llvm/include/* /usr/local/include/
+COPY --from=llvm /usr/local/llvm/bin/* /usr/local/bin/
+
+# Copy opam
+COPY --from=builder /tmp/opam /tmp/opam
+RUN install /tmp/opam /usr/local/bin/opam
+
+# Copy OCaml
+RUN mkdir -p /root/.opam/
+COPY --from=builder /root/.opam/config /root/.opam/config
+COPY --from=builder /root/.opam/${OCAML_VERSION} /root/.opam/${OCAML_VERSION}
+COPY --from=builder /root/.opam/opam-init /root/.opam/opam-init
+COPY --from=builder /root/.opam/repo/repos-config /root/.opam/repo/repos-config

@@ -1,0 +1,12 @@
+// TODO: Assign, Eq, Add, Sub, Mul traits
+// TODO: Support mut ref
+extern def '=='(a: i32, b: i32): bool = "%op_bin_equals";
+extern def '+'(a: i32, b: i32): i32 = "%op_bin_add";
+extern def '-'(a: i32, b: i32): i32 = "%op_bin_sub";
+extern def '*'(a: i32, b: i32): i32 = "%op_bin_mul";
+
+//def f2!(T)(v: T): unit {
+//}
+//
+//trait Add {
+//}

@@ -1,0 +1,82 @@
+name: Meta Push Env Images
+
+on:
+  push:
+    branches: [ next ]
+
+jobs:
+  metaBuildAndPushLLVMImage:
+    strategy:
+      matrix:
+        arch: ["x86_64"]
+        llvm-version: ["11.0.0"]
+    runs-on: ubuntu-20.04
+    env:
+      DOCKER_IMAGE_NAME: "yutopp/rill-build-env"
+      DOCKER_IMAGE_TAG: "llvm-${{ matrix.llvm-version }}-${{ matrix.arch }}"
+    steps:
+      - id: check-image-existence
+        run: |
+          image="${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
+          if ! (DOCKER_CLI_EXPERIMENTAL=enabled docker manifest inspect "$image" &>/dev/null); then
+            echo "::set-output name=exists::false"
+          fi
+
+      - name: Login to DockerHub
+        if: ${{ success() && steps.check-image-existence.outputs.exists == 'false' }}
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - uses: actions/checkout@v2
+
+      - id: build-and-push-image
+        if: ${{ success() && steps.check-image-existence.outputs.exists == 'false' }}
+        working-directory: dockerfiles/meta
+        env:
+          LLVM_VERSION: "${{ matrix.llvm-version }}"
+        run: |
+          docker build --rm -t "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" \
+                       --build-arg LLVM_VERSION="${LLVM_VERSION}" \
+                       -f Dockerfile.llvm .
+          docker push "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
+
+  metaBuildAndPushBuildEnvImage:
+    needs: [metaBuildAndPushLLVMImage]
+    strategy:
+      matrix:
+        arch: ["x86_64"]
+    runs-on: ubuntu-20.04
+    env:
+      DOCKER_IMAGE_NAME: "yutopp/rill-build-env"
+      DOCKER_IMAGE_TAG: "base-${{ matrix.arch }}"
+    steps:
+      - id: check-image-existence
+        run: |
+          image="${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
+          if ! (DOCKER_CLI_EXPERIMENTAL=enabled docker manifest inspect "$image" &>/dev/null); then
+            echo "::set-output name=exists::false"
+          fi
+
+      - name: Login to DockerHub
+        if: ${{ success() && steps.check-image-existence.outputs.exists == 'false' }}
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - uses: actions/checkout@v2
+
+      - id: build-and-push-image
+        if: ${{ success() && steps.check-image-existence.outputs.exists == 'false' }}
+        working-directory: dockerfiles/meta
+        env:
+          HOST_ARCH: "${{ matrix.arch }}"
+          LLVM_VERSION: "11.0.0"
+        run: |
+          docker build --rm -t "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" \
+                       --build-arg HOST_ARCH="${HOST_ARCH}" \
+                       --build-arg LLVM_VERSION="${LLVM_VERSION}" \
+                       -f Dockerfile.build .
+          docker push "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"

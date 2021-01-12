@@ -1,0 +1,17 @@
+//package std;
+//
+//extern def print(val v: int32): void = "rill_print_int32";
+//extern def print(val v: uint32): void = "rill_print_uint32";
+//extern def print(val v: bool): void = "rill_print_bool";
+//extern def print(val v: uint8): void = "rill_print_char";
+//
+//extern def print(val v: 'static raw_ptr!(uint8)): void = "rill_print_string";
+//extern def println(val v: 'static raw_ptr!(uint8)): void = "rill_println_string";
+//
+//extern def print_addr!(T)(val v: raw_ptr!(T)): void = "rill_print_addr";
+//
+//extern def read_int32(): int32 = "rill_read_int32";
+//extern def read_char(): uint8 = "rill_read_char";
+
+extern def println(s: string): unit = "rill_rt_std_println";
+extern def print_int_ln(i: i32): unit = "rill_rt_std_print_int_ln";

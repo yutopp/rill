@@ -1,0 +1,117 @@
+def main(): unit {
+  A::f(10);
+  A::f("string")
+}
+
+// trait<a> Eq<a>
+// impl Eq for i32 -> <a> => Eq<i32> a = i32, sub = []
+// impl<T> Eq for T -> <T, a> => Eq<T> a = T, sub = []
+
+import core::prelude::*;
+
+// impl Eq for i32
+//// (): i32: Eq
+//// Eq i32
+// impl<A, B> Eq for (A, B) where A: Eq, B: Eq
+//// (A, B): (A, B): Eq, A: Eq, B: Eq
+//// Eq (A, B)
+//
+//// instance A i32
+impl A for i32 {
+  // self: i32
+  def f(self): unit {
+    let p = self + self * 2;
+    print_int_ln(p);
+  }
+}
+
+//// class A a
+//// A!(t)(...)
+trait A {
+  // f :: (A a). a -> unit
+  def f(self): unit;
+}
+
+//trait A!(T) {
+//}
+
+
+impl A for string {
+  def f(self): unit {
+    println(self);
+  }
+}
+
+import std::stdio::*;
+
+//def a(a: Eq) {
+//  a == a
+//}
+
+//def a!(T)(a: T) {
+//  a == a
+//}
+
+//Hash!(K, V) where K: Eq
+//let h = Hash::new ();
+//h.add(10, 20)
+
+// f(): Eq
+// let mutable a = f();
+//             a :: (Eq a) => a
+// Eq::eq(a, a);
+// a = 10;
+
+/*
+TraitA :: TraitA[a]
+
+impl TraitA for i32 {
+  def f(self) -> () {
+  }
+}
+
+////
+
+
+TraitAD ::o forall a.Trait a
+
+over TraitAD :: TraitA a;
+
+TraitAD ::i Trait i32 \ TraitAD(TraitA i32)
+inst TraitAD :: TraitA i32 = {
+  f = (i32) -> unit
+}
+
+// generic func
+def TraitA::f!(a)(_1: a) -> unit {
+  f TraitAD _1
+}
+
+
+
+def f(self) -> ()
+(TraitA a) => a => ()
+
+
+
+
+
+TraitAi32 = {
+  f: (i32) -> ()
+}
+
+
+f :: Table -> (a -> ())
+f table a ->
+  let {f; _} = table in
+  f a
+
+
+Trait::f table args... =>
+
+def(T) f(t: T) where T: Add {
+}
+
+
+
+*/

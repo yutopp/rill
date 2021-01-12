@@ -1,0 +1,21 @@
+import core::prelude::*;
+import std::stdio::*;
+
+def main(): unit {
+    println("hogehoge");
+    println("fugafuga");
+    let c = if true { println("t"); println("t2"); 10 } else { println("f"); 20 };
+    let mutable a = 10;
+    a = (1 + 2 * 3)*2;
+    let mutable b = 1 + 2 * 3;
+    print_int_ln(a);
+    print_int_ln(b);
+    let mutable a = 30;
+    print_int_ln(a);
+    print_int_ln(c);
+    print_int_ln(fib(10));
+}
+
+def fib(i: i32): i32 {
+    if i == 0 { 0 } else if i == 1 { 1 } else { fib(i-1) + fib(i-2) }
+}

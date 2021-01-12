@@ -1,0 +1,22 @@
+--- cmake/modules/AddLLVM.cmake	2021-01-06 06:06:25.540930835 +0900
++++ cmake/modules/AddLLVM.cmake.patched	2021-01-06 07:21:41.135737529 +0900
+@@ -1167,7 +1167,7 @@ macro(add_llvm_tool name)
+   endif()
+   add_llvm_executable(${name} ${ARGN})
+ 
+-  if ( ${name} IN_LIST LLVM_TOOLCHAIN_TOOLS OR NOT LLVM_INSTALL_TOOLCHAIN_ONLY)
++  if ( ${name} IN_LIST LLVM_TOOLCHAIN_TOOLS AND NOT LLVM_INSTALL_TOOLCHAIN_ONLY)
+     if( LLVM_BUILD_TOOLS )
+       set(export_to_llvmexports)
+       if(${name} IN_LIST LLVM_DISTRIBUTION_COMPONENTS OR
+@@ -1942,7 +1942,9 @@ function(add_llvm_tool_symlink link_name
+     endif()
+ 
+     if ((TOOL_IS_TOOLCHAIN OR NOT LLVM_INSTALL_TOOLCHAIN_ONLY) AND LLVM_BUILD_TOOLS)
+-      llvm_install_symlink(${link_name} ${target})
++      if ( ${target} IN_LIST LLVM_TOOLCHAIN_TOOLS )
++        llvm_install_symlink(${link_name} ${target})
++      endif()
+     endif()
+   endif()
+ endfunction()

@@ -1,0 +1,13 @@
+def main(): unit {
+  let a = &10;
+
+  let b = 20;
+  let c = &b;
+
+  let mutable d = 30;
+  let e = &mutable d;
+
+  let mutable f = &mutable 40;
+  f = &mutable 42;
+  f = f;
+}

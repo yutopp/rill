@@ -1,0 +1,11 @@
+(executables
+ (names main)
+ (libraries cmdliner rillc rillc.syntax rillc.common rillc.tool base stdio
+   str)
+ (preprocess
+  (pps ppx_let)))
+
+(install
+ (section bin)
+ (files
+  (main.exe as rillc)))

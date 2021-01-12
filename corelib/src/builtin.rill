@@ -1,0 +1,7 @@
+//// "type" and "void" classes are defined directly by compiler.
+//
+//#[no_builtin]
+//module core.builtin;
+//
+//public import core.basic_types;
+//public import core.memory;
