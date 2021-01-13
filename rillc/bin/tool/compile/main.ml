@@ -27,6 +27,7 @@ module Flags = struct
       @@ eval_choice Default.cmd
            [
              Subcommand_compile.Flags.cmd;
+             Subcommand_build.Flags.cmd;
              Subcommand_cc.Flags.cmd;
              Subcommand_ar.Flags.cmd;
            ])

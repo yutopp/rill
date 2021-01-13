@@ -20,6 +20,13 @@ module Flags = struct
     let l = Rillc.Common.Triple.triples_map in
     Arg.(value & opt (some (enum l)) None & info [ "target" ] ~doc)
 
+  let log_level =
+    let doc = "" in
+    let l =
+      [ ("debug", Loga.Severity.Debug); ("error", Loga.Severity.Error) ]
+    in
+    Arg.(value & opt (enum l) Loga.Severity.Error & info [ "log-level" ] ~doc)
+
   let output =
     let doc = "" in
     Arg.(value & opt (some string) None & info [ "output"; "o" ] ~doc)

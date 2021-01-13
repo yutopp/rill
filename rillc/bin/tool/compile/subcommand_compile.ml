@@ -64,14 +64,6 @@ Compile rill source codes.
       Arg.(value & flag & info [ "lib" ] ~doc)
     in
 
-    let log_level =
-      let doc = "" in
-      let l =
-        [ ("debug", Loga.Severity.Debug); ("error", Loga.Severity.Error) ]
-      in
-      Arg.(value & opt (enum l) Loga.Severity.Error & info [ "log-level" ] ~doc)
-    in
-
     let action sysroot corelib_srcdir corelib_libdir stdlib_srcdir stdlib_libdir
         target output out_dir emit pack lib log_level input_files =
       Loga.Logger.set_severity Loga.logger log_level;
@@ -139,8 +131,8 @@ Compile rill source codes.
         ret
           ( const action $ Shared_flags.sysroot $ corelib_srcdir
           $ corelib_libdir $ stdlib_srcdir $ stdlib_libdir $ Shared_flags.target
-          $ Shared_flags.output $ out_dir $ emit $ pack $ lib $ log_level
-          $ Shared_flags.files )),
+          $ Shared_flags.output $ out_dir $ emit $ pack $ lib
+          $ Shared_flags.log_level $ Shared_flags.files )),
       info )
 end
 [@@warning "-44"]
