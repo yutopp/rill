@@ -7,17 +7,17 @@
  *)
 
 open! Base
-module IntMap = Map.M (Int)
+module FreshMap = Map.M (Common.Fresh)
 module Counter = Common.Counter
 
 type t = {
   fresh_counter : Counter.t;
-  ty_subst : Type.t IntMap.t;
-  ki_subst : int IntMap.t;
-  mut_subst : Type.mutability_t IntMap.t;
-  ln_subst : Type.func_linkage_t IntMap.t;
+  ty_subst : Type.t FreshMap.t;
+  ki_subst : int FreshMap.t;
+  mut_subst : Type.mutability_t FreshMap.t;
+  ln_subst : Type.func_linkage_t FreshMap.t;
   struct_tags : struct_tags_t;
-  subtypes : subtypes_t IntMap.t;
+  subtypes : subtypes_t FreshMap.t;
 }
 
 and struct_tags_t = { st_fresh_counter : Counter.t }
@@ -30,11 +30,11 @@ and subtype_t = { sub_target_ty : Type.t }
 let create_struct_tags () = { st_fresh_counter = Counter.create () }
 
 let create () =
-  let ty_subst = Map.empty (module Int) in
-  let ki_subst = Map.empty (module Int) in
-  let mut_subst = Map.empty (module Int) in
-  let ln_subst = Map.empty (module Int) in
-  let subtypes = Map.empty (module Int) in
+  let ty_subst = Map.empty (module Common.Fresh) in
+  let ki_subst = Map.empty (module Common.Fresh) in
+  let mut_subst = Map.empty (module Common.Fresh) in
+  let ln_subst = Map.empty (module Common.Fresh) in
+  let subtypes = Map.empty (module Common.Fresh) in
   {
     fresh_counter = Counter.create ();
     ty_subst;
@@ -46,7 +46,7 @@ let create () =
   }
 
 (* has side effects *)
-let fresh_var subst : Common.Type_var.t = Counter.fresh subst.fresh_counter
+let fresh_var subst : Common.Type_var.t = (0, Counter.fresh subst.fresh_counter)
 
 (* has side effects *)
 let fresh_ty_generic ~span ~bound ~label subst : Type.t =

@@ -33,12 +33,14 @@ let rec to_string ty_sc : string =
       let implicits_s =
         implicits
         |> List.map ~f:Type.assume_var_id
-        |> List.map ~f:Int.to_string |> String.concat ~sep:","
+        |> List.map ~f:Common.Type_var.to_string
+        |> String.concat ~sep:","
       in
       let vars_s =
         vars
         |> List.map ~f:Type.assume_var_id
-        |> List.map ~f:Int.to_string |> String.concat ~sep:","
+        |> List.map ~f:Common.Type_var.to_string
+        |> String.concat ~sep:","
       in
       Printf.sprintf "forall <[%s], i[%s]>.%s" vars_s implicits_s
         (Pred.to_string ty)

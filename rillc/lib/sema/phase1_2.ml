@@ -9,17 +9,7 @@
 open! Base
 module Span = Common.Span
 module Ast = Syntax.Ast
-module TopAst = Phase1.TopAst
-
-(*
- * Copyright yutopp 2020 - .
- *
- * Distributed under the Boost Software License, Version 1.0.
- * (See accompanying file LICENSE_1_0.txt or copy at
- * http://www.boost.org/LICENSE_1_0.txt)
- *)
-
-open! Base
+module TopAst = Phase1_collect_toplevels.TopAst
 
 type ctx_t = {
   m : Mod.t;
@@ -102,7 +92,9 @@ and lazy_decl ~ctx ~penv ast =
       in
 
       [%loga.debug
-        "impl Trait: %s / %d" (Typing.Type.to_string trait_ty) trait_id];
+        "impl Trait: %s / %s"
+          (Typing.Type.to_string trait_ty)
+          (Common.Type_var.to_string trait_id)];
       [%loga.debug "impl For: %s" (Typing.Type.to_string for_ty)];
 
       let ty = Typing.Type.to_type_ty for_ty in
@@ -121,9 +113,12 @@ and lazy_decl ~ctx ~penv ast =
       let%bind (subst, decls) =
         let%bind p1ast =
           let ctx =
-            Phase1.context ~m:ctx.m ~subst:ctx.subst ~builtin:ctx.builtin
+            Phase1_collect_toplevels.context ~m:ctx.m ~subst:ctx.subst
+              ~builtin:ctx.builtin
           in
-          Phase1.collect_toplevels ~ctx:Phase1.{ ctx with parent = tenv } decls
+          Phase1_collect_toplevels.collect_toplevels
+            ~ctx:Phase1_collect_toplevels.{ ctx with parent = tenv }
+            decls
         in
 
         let%bind ctx =

@@ -62,7 +62,7 @@ and to_signatured_type ty =
         | Typing.Type.BoundForall -> "'"
         | Typing.Type.BoundWeak -> "W"
       in
-      Printf.sprintf "%s%d" s var
+      Printf.sprintf "%s%s" s (Common.Type_var.to_string var)
   | Typing.Type.{ ty = Unit; _ } -> "unit"
   | Typing.Type.{ ty = Num { bits; signed }; _ } ->
       if signed then Printf.sprintf "i%d" bits else Printf.sprintf "u%d" bits

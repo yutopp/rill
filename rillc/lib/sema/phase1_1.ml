@@ -9,7 +9,7 @@
 open! Base
 module Span = Common.Span
 module Ast = Syntax.Ast
-module TopAst = Phase1.TopAst
+module TopAst = Phase1_collect_toplevels.TopAst
 
 type ctx_t = {
   m : Mod.t;
@@ -90,7 +90,7 @@ and with_env ~ctx ~env ast : (ctx_t, Diagnostics.Elem.t) Result.t =
                      Env.create name ~parent:(Some env) ~visibility ~ty_sc
                        ~kind:Env.Ty ~lookup_space:Env.LkLocal
                    in
-                   Env.insert env tenv |> Phase1.assume_new;
+                   Env.insert env tenv |> Phase1_collect_toplevels.assume_new;
                    Ok ()
                | _ -> failwith "[ICE]")
       in
@@ -322,7 +322,7 @@ and pass_through ~ctx ast =
                   ~kind:(Env.Alias env) ~lookup_space:env.Env.lookup_space
               in
               (*[%loga.debug "loadable env: %s" (Env.show env)];*)
-              Env.insert penv aenv |> Phase1.assume_new));
+              Env.insert penv aenv |> Phase1_collect_toplevels.assume_new));
 
       Ok ctx
   (* *)
@@ -498,7 +498,7 @@ and decl_param_var ~env ~subst ~builtin ~attr ~name ~ty_spec =
     Env.create name ~parent:(Some env) ~visibility ~ty_sc:spec_ty_sc
       ~kind:Env.Val ~lookup_space:Env.LkLocal
   in
-  Env.insert env venv |> Phase1.assume_new;
+  Env.insert env venv |> Phase1_collect_toplevels.assume_new;
 
   [%loga.debug
     "decl_param(%s) %s :: %s" env.Env.name name (Typing.Type.to_string spec_ty)];

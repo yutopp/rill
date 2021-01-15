@@ -60,7 +60,7 @@ let rec to_string ty : string =
       let s =
         match bound with
         | BoundForall -> Printf.sprintf "%s" label
-        | BoundWeak -> Printf.sprintf "_w%d" var
+        | BoundWeak -> Printf.sprintf "_w%s" (Common.Type_var.to_string var)
       in
       s
   | { ty = Unit; _ } -> "unit"
@@ -82,9 +82,9 @@ let rec to_string ty : string =
       Printf.sprintf "struct(%s)"
         (Common.Chain.Nest.to_string ~to_s:to_string name)
   | { ty = Trait { name; initial_marker }; _ } ->
-      Printf.sprintf "trait(%s, init=%d)"
+      Printf.sprintf "trait(%s, init=%s)"
         (Common.Chain.Nest.to_string ~to_s:to_string name)
-        initial_marker
+        (Common.Type_var.to_string initial_marker)
   | { ty = Args { recv; args }; _ } ->
       Printf.sprintf "%s!(%s)" (to_string recv)
         (List.map args ~f:to_string_arg |> String.concat ~sep:",")
@@ -99,7 +99,8 @@ and to_string_mut mut : string =
   match mut with
   | MutImm -> "immutable"
   | MutMut -> "mutable"
-  | MutVar v -> Printf.sprintf "mut_not_determined: %d" v
+  | MutVar v ->
+      Printf.sprintf "mut_not_determined: %s" (Common.Type_var.to_string v)
 
 and to_string_arg arg : string =
   let { apply_src_ty = src; apply_dst_ty = dst } = arg in
@@ -109,7 +110,8 @@ let to_string_linkage mut : string =
   match mut with
   | LinkageRillc -> "rillc"
   | LinkageC sym -> Printf.sprintf "C: %s" sym
-  | LinkageVar v -> Printf.sprintf "linkage_not_determined: %d" v
+  | LinkageVar v ->
+      Printf.sprintf "linkage_not_determined: %s" (Common.Type_var.to_string v)
 
 let assume_func_ty ty =
   match ty with

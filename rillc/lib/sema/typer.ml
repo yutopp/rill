@@ -18,19 +18,25 @@ let rec unify_var ~span (subst : Typing.Subst.t) ~from ~to_ =
   match (from, to_) with
   (* *)
   | Typing.Type.({ ty = Var { var = a; _ }; _ }, { ty = Var { var = b; _ }; _ })
-    when a <> b ->
-      [%loga.debug "Unify var(%d in ) = var(%d)" a b];
+    when not (Common.Type_var.equal a b) ->
+      [%loga.debug
+        "Unify var(%s in) = var(%s)"
+          (Common.Type_var.to_string a)
+          (Common.Type_var.to_string b)];
 
       let ty_subst = Map.add_exn ty_subst ~key:a ~data:to_ in
       Ok Typing.Subst.{ subst with ty_subst }
   (* *)
   | Typing.Type.({ ty = Var { var = a; _ }; _ }, { ty = Var { var = b; _ }; _ })
-    when a = b ->
+    when Common.Type_var.equal a b ->
       Ok subst
   (* *)
   | Typing.Type.({ ty = Var { var = v; _ }; _ }, ty')
   | Typing.Type.(ty', { ty = Var { var = v; _ }; _ }) ->
-      [%loga.debug "Unify var(%d) -> ty(%s)" v (Typing.Type.to_string ty')];
+      [%loga.debug
+        "Unify var(%s) -> ty(%s)"
+          (Common.Type_var.to_string v)
+          (Typing.Type.to_string ty')];
 
       let ty_subst = Map.add_exn ty_subst ~key:v ~data:ty' in
       Ok Typing.Subst.{ subst with ty_subst }
@@ -51,20 +57,26 @@ let rec unify_elem ~span ~(subst : Typing.Subst.t) ~preconds lhs_ty rhs_ty :
   | Typing.Type.
       ( { ty = Var { var = a; bound = BoundWeak; _ }; _ },
         { ty = Var { var = b; bound = BoundWeak; _ }; _ } )
-    when a <> b ->
-      [%loga.debug "Unify var(W%d) = var(W%d)" a b];
+    when not (Common.Type_var.equal a b) ->
+      [%loga.debug
+        "Unify var(W%s) = var(W%s)"
+          (Common.Type_var.to_string a)
+          (Common.Type_var.to_string b)];
 
       let ty_subst = Map.add_exn ty_subst ~key:a ~data:s_rhs_ty in
       Ok Typing.Subst.{ subst with ty_subst; ki_subst }
   (* *)
   | Typing.Type.({ ty = Var { var = a; _ }; _ }, { ty = Var { var = b; _ }; _ })
-    when a = b ->
+    when Common.Type_var.equal a b ->
       Ok subst
   (* *)
   | Typing.Type.(({ ty = Var { var = v; bound = BoundWeak; _ }; _ } as vty), ty')
   | Typing.Type.(ty', ({ ty = Var { var = v; bound = BoundWeak; _ }; _ } as vty))
     ->
-      [%loga.debug "Unify var(W%d) -> ty(%s)" v (Typing.Type.to_string ty')];
+      [%loga.debug
+        "Unify var(W%s) -> ty(%s)"
+          (Common.Type_var.to_string v)
+          (Typing.Type.to_string ty')];
 
       let%bind () =
         List.fold_result preconds ~init:() ~f:(fun _ cond ->
@@ -282,7 +294,7 @@ and unify_mut ~span subst lhs_mut rhs_mut =
   let s_rhs_mut = Typing.Subst.subst_mut subst rhs_mut in
   match (s_lhs_mut, s_rhs_mut) with
   (* *)
-  | Typing.Type.(MutVar a, MutVar b) when a <> b ->
+  | Typing.Type.(MutVar a, MutVar b) when not (Common.Type_var.equal a b) ->
       let subst = Typing.Subst.update_mut subst a s_rhs_mut in
       Ok subst
   (* *)
@@ -305,7 +317,8 @@ and unify_linkage ~span subst lhs_linkage rhs_linkage =
   let s_rhs_linkage = Typing.Subst.subst_linkage subst rhs_linkage in
   match (s_lhs_linkage, s_rhs_linkage) with
   (* *)
-  | Typing.Type.(LinkageVar a, LinkageVar b) when a <> b ->
+  | Typing.Type.(LinkageVar a, LinkageVar b)
+    when not (Common.Type_var.equal a b) ->
       let ln_subst = Map.add_exn ln_subst ~key:a ~data:s_rhs_linkage in
       Ok Typing.Subst.{ subst with ln_subst }
   (* *)
@@ -326,9 +339,9 @@ and unify_linkage ~span subst lhs_linkage rhs_linkage =
 and judge_subtype ~span ~subst ~src ~ty =
   let trait_id = Typing.Type.assume_trait_id src in
   [%loga.debug
-    "Is %s a subclass of %s / %d" (Typing.Type.to_string ty)
+    "Is %s a subclass of %s / %s" (Typing.Type.to_string ty)
       (Typing.Type.to_string src)
-      trait_id];
+      (Common.Type_var.to_string trait_id)];
 
   let found =
     let relations = Typing.Subst.find_subtype_rels subst trait_id in

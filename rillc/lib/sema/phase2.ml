@@ -9,7 +9,7 @@
 open! Base
 module Span = Common.Span
 module Ast = Syntax.Ast
-module TopAst = Phase1.TopAst
+module TopAst = Phase1_collect_toplevels.TopAst
 
 module TAst = struct
   module StringMap = Map.M (String)

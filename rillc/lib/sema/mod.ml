@@ -13,14 +13,17 @@ type t = {
   path : string;
   menv : Env.t;
   mutable subst : (Typing.Subst.t option[@printer fun fmt _ -> fprintf fmt ""]);
-  pkg : Package.t;
   ds : (Diagnostics.t[@printer fun fmt _ -> fprintf fmt ""]);
 }
 [@@deriving show]
 
 let create ~path ~menv ~pkg =
   let ds = Diagnostics.create () in
-  { path; menv; subst = None; pkg; ds }
+  { path; menv; subst = None; ds }
+
+let path m = m.path
+
+let menv m = m.menv
 
 let has_errors m = match Diagnostics.errors m.ds with [] -> false | _ -> true
 

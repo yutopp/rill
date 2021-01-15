@@ -133,19 +133,19 @@ let finish m =
   m
 
 module Env = struct
-  module IntMap = Map.M (Int)
+  module FreshMap = Map.M (Common.Fresh)
 
-  type t = { ty_subst : Typing.Type.t IntMap.t }
+  type t = { ty_subst : Typing.Type.t FreshMap.t }
 
   let create () =
-    let ty_subst = Map.empty (module Int) in
+    let ty_subst = Map.empty (module Common.Fresh) in
     { ty_subst }
 
   let bind subst var ty =
     match (var, ty) with
     | ( Typing.Type.{ ty = Var { var = a; _ }; _ },
         Typing.Type.{ ty = Var { var = b; _ }; _ } )
-      when a = b ->
+      when Common.Type_var.equal a b ->
         subst
     | (Typing.Type.{ ty = Var { var = id; bound = BoundForall; _ }; _ }, _) ->
         let { ty_subst } = subst in
