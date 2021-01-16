@@ -43,7 +43,7 @@ function build_and_execute() {
        failed_to_execute "expect: file not found ($TEST_EXPECT_FILE)" "$CASENAME"
     fi
 
-    diff -u "$TEST_ACTUAL_FILE" "$TEST_EXPECT_FILE" \
+    diff -u "$TEST_EXPECT_FILE" "$TEST_ACTUAL_FILE" \
         || failed_to_execute "expect" "$CASENAME"
 }
 
@@ -75,7 +75,7 @@ function build_and_check_failure() {
     echo "=== DIFF ==="
     echo ""
 
-    diff -u "$TEST_ACTUAL_FILE" "$TEST_EXPECT_FILE" \
+    diff -u "$TEST_EXPECT_FILE" "$TEST_ACTUAL_FILE" \
         || failed_to_execute "expect" "$CASENAME"
 }
 
