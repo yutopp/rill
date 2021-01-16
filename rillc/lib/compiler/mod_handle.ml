@@ -31,6 +31,8 @@ and failure_t = { previous_phase : phase_t; last_error : Diagnostics.Elem.t }
 
 let create ~m = { m; phase_result = Ok NotParsed; format = None }
 
+let clone mh = { m = mh.m; phase_result = mh.phase_result; format = mh.format }
+
 let inner mh = mh.m
 
 let phase_result mh = mh.phase_result

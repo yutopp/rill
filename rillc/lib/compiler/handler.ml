@@ -93,11 +93,10 @@ let declare_module_symbols mh ~builtin ~subst =
   in
   subst
 
-let assume_no_errors ~printer ~ph =
+let assume_no_errors ~printer mhs =
   let open Result.Let_syntax in
   let has_errors = ref false in
 
-  let mhs = Package_handle.mod_handles ph in
   List.iter mhs ~f:(fun mh ->
       let Mod_handle.{ m; phase_result; _ } = mh in
       let Sema.Mod.{ ds; _ } = m in
@@ -114,11 +113,16 @@ let assume_no_errors ~printer ~ph =
 
       ());
   Diagnostic_printer.flush printer;
-
   let%bind () =
     if !has_errors then Error Errors.There_are_warnings_or_errors else Ok ()
   in
   Ok ()
+
+let assume_no_errors_in_pkg ~printer ~pkg_handle =
+  let has_errors = ref false in
+
+  let mhs = Package_handle.mod_handles pkg_handle in
+  assume_no_errors ~printer mhs
 
 let load_pkg_symbols ~ws ~pkg_handle =
   let builtin = Workspace.builtin ws in
@@ -190,40 +194,50 @@ let analyze_package ~ws ~pkg_handle =
       let () = Pipelines.Phases.Phase2.to_analyzed mh ~builtin ~subst in
       ())
 
-let generate_ir_package ~ws ~pkg_handle ~emitter =
-  let builtin = Workspace.builtin ws in
-  let subst = Package_handle.subst pkg_handle in
-
-  (* TODO: now modules can be built in parallel *)
-  let mhs = Package_handle.mod_handles pkg_handle in
-  List.iter mhs ~f:(fun mh ->
-      let open Base.With_return in
-      with_return (fun r ->
-          Pipelines.Phases.Phase3.to_normalized mh;
-          return_if_failed mh r;
-
-          (* to rill-ir *)
-          Pipelines.Phases.To_rill_ir.to_artifact mh ~builtin ~pkg_handle;
-          return_if_failed mh r;
-          let () =
-            match emitter with Emitter.Rill_ir -> r.return () | _ -> ()
-          in
-
-          (* to llvm-ir *)
-          Pipelines.Phases.To_llvm_ir.to_artifact mh ~builtin ~pkg_handle;
-          return_if_failed mh r;
-          let () =
-            match emitter with
-            | Emitter.Llvm_ir | Emitter.Llvm_bc -> r.return ()
-            | _ -> ()
-          in
-          ()))
-
-let write_artifacts_package ~ws ~pkg_handle ~pack ~triple ~emitter ~out_to =
+let pack_llvm_modules assets =
   let open Result.Let_syntax in
-  (* TODO: now modules can be built in parallel *)
-  let%bind assets =
-    let mhs = Package_handle.mod_handles pkg_handle in
+  let%bind llvm_modules =
+    List.fold_result assets ~init:[] ~f:(fun mods asset ->
+        let Asset.{ art; _ } = asset in
+        match art with
+        | Emitter.Artifact.Llvm_ir { m = llvm } -> Ok (llvm :: mods)
+        | _ ->
+            Error
+              (Errors.Failed_to_export_artifact
+                 "Cannot pack modules which are not LLVM format"))
+  in
+  let llvm = Llvm_gen.merge_modules llvm_modules in
+  let asset =
+    Asset.{ path = ""; art = Emitter.Artifact.Llvm_ir { m = llvm } }
+  in
+  Ok [ asset ]
+
+let to_natives assets ~triple ~emitter =
+  let open Result.Let_syntax in
+  let%bind backend =
+    let (module Triple : Common.Triple.PRESET) = triple in
+    let llvm_triple = Triple.name in
+    Llvm_gen.Backend.create ~triple:llvm_triple
+    |> Result.map_error ~f:(fun _e ->
+           Errors.Failed_to_export_artifact "Could not create LLVM backend")
+  in
+  let assets =
+    List.map assets ~f:(fun asset ->
+        match (asset, emitter) with
+        | (Asset.{ art = Emitter.Artifact.Llvm_ir { m = llvm }; _ }, Emitter.Asm)
+        | (Asset.{ art = Emitter.Artifact.Llvm_ir { m = llvm }; _ }, Emitter.Obj)
+          ->
+            let art = Emitter.Artifact.Native { backend; m = llvm } in
+            { asset with art }
+        | _ -> asset)
+  in
+  Ok assets
+
+let generate_assets ~ws ~pkg_handle ~printer ~emitter ~pack ~triple =
+  let to_assets mhs =
+    let open Result.Let_syntax in
+    let%bind () = assume_no_errors ~printer mhs in
+
     List.fold_result mhs ~init:[] ~f:(fun assets mh ->
         let%bind asset =
           match Mod_handle.phase_result mh with
@@ -233,42 +247,96 @@ let write_artifacts_package ~ws ~pkg_handle ~pack ~triple ~emitter ~out_to =
         in
         Ok (asset :: assets))
   in
-  Writer.write_assets ~assets ~pack ~triple ~emitter ~out_to
+
+  let builtin = Workspace.builtin ws in
+  let subst = Package_handle.subst pkg_handle in
+
+  (* TODO: now modules can be built in parallel *)
+  let mhs = Package_handle.mod_handles pkg_handle in
+
+  let open Base.With_return in
+  with_return (fun r ->
+      let open Result.Let_syntax in
+      (* to rill-ir *)
+      let mhs =
+        List.map mhs ~f:(fun mh ->
+            let mh = Mod_handle.clone mh in
+            Pipelines.Generator.To_phase3.apply mh;
+            Pipelines.Generator.To_rill_ir.to_artifact mh ~builtin ~pkg_handle;
+            mh)
+      in
+      let () =
+        match emitter with
+        | Emitter.Rill_ir -> r.return (mhs |> to_assets)
+        | _ -> ()
+      in
+
+      (* to llvm-ir *)
+      let mhs =
+        List.map mhs ~f:(fun mh ->
+            Pipelines.Generator.To_llvm_ir.to_artifact mh ~builtin ~pkg_handle;
+            mh)
+      in
+      let () =
+        match emitter with
+        | Emitter.Llvm_ir | Emitter.Llvm_bc -> r.return (to_assets mhs)
+        | _ -> ()
+      in
+
+      let%bind assets = to_assets mhs in
+
+      let%bind assets = if pack then pack_llvm_modules assets else Ok assets in
+
+      (* to native *)
+      let%bind assets = to_natives assets ~triple ~emitter in
+
+      Ok assets)
 
 let load_pkg_as_header ~ws ~printer ~pkg_handle =
   let open Result.Let_syntax in
   load_pkg_symbols ~ws ~pkg_handle;
-  let%bind () = assume_no_errors ~printer ~ph:pkg_handle in
+  let%bind () = assume_no_errors_in_pkg ~printer ~pkg_handle in
 
   declare_package_symbols ~ws ~pkg_handle;
-  let%bind () = assume_no_errors ~printer ~ph:pkg_handle in
+  let%bind () = assume_no_errors_in_pkg ~printer ~pkg_handle in
 
   decide_exported_interfaces ~ws ~pkg_handle;
 
   Ok ()
 
 let compile ~ws ~printer ~pkg_handle ~pack ~triple ~emitter ~out_to =
+  (*
+   *  src  ->  rir  ->         llvm_ir        ->  asm/obj  -> lib/bin
+   * [src] -> [rir] ->        [llvm_ir]       -> [asm/obj] -> lib/bin
+   * [src] -> [rir] -> ([llvm_ir] -> llvm_ir) ->  asm/obj  -> lib/bin
+   *)
   let open Result.Let_syntax in
   load_pkg_symbols ~ws ~pkg_handle;
-  let%bind () = assume_no_errors ~printer ~ph:pkg_handle in
+  let%bind () = assume_no_errors_in_pkg ~printer ~pkg_handle in
 
   declare_package_symbols ~ws ~pkg_handle;
-  let%bind () = assume_no_errors ~printer ~ph:pkg_handle in
+  let%bind () = assume_no_errors_in_pkg ~printer ~pkg_handle in
 
   analyze_package ~ws ~pkg_handle;
-  let%bind () = assume_no_errors ~printer ~ph:pkg_handle in
+  let%bind () = assume_no_errors_in_pkg ~printer ~pkg_handle in
 
-  generate_ir_package ~ws ~pkg_handle ~emitter;
-  let%bind () = assume_no_errors ~printer ~ph:pkg_handle in
-
-  let%bind paths =
-    write_artifacts_package ~ws ~pkg_handle ~pack ~triple ~emitter ~out_to
+  (* [rir]/[llvm_ir]/[asm]/[obj] *)
+  let%bind assets =
+    generate_assets ~ws ~pkg_handle ~printer ~emitter ~pack ~triple
   in
+  let%bind paths = Writer.write_assets ~assets ~emitter ~out_to in
 
+  (* lib/bin *)
   Ok paths
 
-let link_bin ~spec ~lib_dirs ~pkgs ~objs ~out =
+let link_bin ~spec ~lib_dirs ~pkgs ~objs ~out_to =
   let open Result.Let_syntax in
+  let out =
+    match out_to with
+    | Writer.OutputToFile out_file -> out_file |> Option.value ~default:"a.out"
+    | _ -> failwith "[ICE]"
+  in
+
   let lib_names =
     List.map pkgs ~f:(fun pkg ->
         let pkg_struct = Package_handle.structure pkg in

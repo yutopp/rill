@@ -142,8 +142,10 @@ module Phases = struct
           ()
       | _ -> ()
   end
+end
 
-  module Phase3 = struct
+module Generator = struct
+  module To_phase3 = struct
     let trans ~m p2ast =
       let Mod.{ ds; _ } = m in
       let subst = Mod.subst_of m in
@@ -155,7 +157,7 @@ module Phases = struct
       let phase = Mod_handle.Phase3 p3ast in
       Ok phase
 
-    let to_normalized mh =
+    let apply mh =
       match Mod_handle.phase_result mh with
       | Ok (Mod_handle.Phase2 p2ast as prev) ->
           let phase_result =

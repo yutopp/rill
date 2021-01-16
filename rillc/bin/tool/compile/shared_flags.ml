@@ -20,6 +20,11 @@ module Flags = struct
     let l = Rillc.Common.Triple.triples_map in
     Arg.(value & opt (some (enum l)) None & info [ "target" ] ~doc)
 
+  let emit =
+    let doc = "" in
+    let l = Rillc.Compiler.Emitter.emit_map in
+    Arg.(value & opt (some (enum l)) None & info [ "emit" ] ~doc)
+
   let log_level =
     let doc = "" in
     let l =
