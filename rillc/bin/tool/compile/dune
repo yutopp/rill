@@ -1,6 +1,6 @@
 (executables
  (names main)
- (libraries cmdliner rillc rillc.syntax rillc.common rillc.tool base stdio
+ (libraries cmdliner rillc rillc.syntax rillc.common rillc.tool rillc.compiler base stdio
    str)
  (preprocess
   (pps ppx_let)))

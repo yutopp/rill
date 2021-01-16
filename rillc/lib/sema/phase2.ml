@@ -723,7 +723,7 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
               |> String.concat ~sep:"," )]
       in
 
-      let chain = Phase1_1.to_chains' env lookup_subst in
+      let chain = Name.to_chains' env lookup_subst in
       [%loga.debug
         "chain -> %s :: %s"
           (Common.Chain.to_string ~to_s:Typing.Type.to_string chain)

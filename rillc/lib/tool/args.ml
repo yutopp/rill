@@ -12,9 +12,9 @@ module Os = Common.Os
 module Target_spec = Common.Target_spec
 
 (* TODO: fix *)
-let default_host_triple = Triple.Tag_X86_64_unknown_linux_gnu
+let default_host_triple_tag = Triple.Tag_X86_64_unknown_linux_gnu
 
-let default_target_triple = default_host_triple
+let default_target_triple_tag = default_host_triple_tag
 
 (* Ad-hoc impl *)
 let default_sysroot () =
@@ -28,12 +28,17 @@ let default_sysroot () =
 let sysroot sysroot =
   match sysroot with Some dir -> dir | None -> default_sysroot ()
 
-let host_triple () = default_host_triple
+(* TODO: support other triple variants (not for only preset) *)
+let host_triple () = default_host_triple_tag |> Triple.to_triple_preset
 
-let target_triple target = target |> Option.value ~default:default_target_triple
+(* TODO: support other triple variants (not for only preset) *)
+let target_triple target =
+  target
+  |> Option.value ~default:default_target_triple_tag
+  |> Triple.to_triple_preset
 
 let target_sysroot ~sysroot ~triple =
-  let (module Target : Triple.PRESET) = Triple.to_triple_preset triple in
+  let (module Target : Triple.PRESET) = triple in
   let triple_name = Target.name in
   Os.join_path [ sysroot; "lib"; "rill-lib"; triple_name ]
 

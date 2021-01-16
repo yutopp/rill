@@ -36,3 +36,5 @@ let subst_of m =
   | None -> failwith (Printf.sprintf "[ICE] has no subst: path = %s" m.path)
 
 let set_latest_subst m subst = m.subst <- Some subst
+
+let ds m = m.ds

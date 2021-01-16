@@ -51,7 +51,20 @@ let to_nested_chain' env subst =
   f env []
 
 let to_nested_chain env =
-  let subst = Typing.Subst.create () in
+  let subst = Typing.Subst.create_generic () in
   to_nested_chain' env subst
+
+let to_chains' env subst =
+  let module Chain = Common.Chain in
+  match env.Env.lookup_space with
+  | Env.LkLocal ->
+      let l_opt = to_leyer env subst in
+      let l = Option.value_exn ~message:"[ICE]" l_opt in
+      Chain.Local l
+  | Env.LkGlobal -> Chain.Global (to_nested_chain' env subst)
+
+let to_chains env =
+  let subst = Typing.Subst.create_generic () in
+  to_chains' env subst
 
 let to_string ~to_s nest = Common.Chain.Nest.to_string ~to_s nest

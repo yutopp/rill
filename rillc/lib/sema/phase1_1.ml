@@ -563,16 +563,3 @@ and assign_type_vars ~implicits ~implicit_args ~vars ~args =
   let%bind id_vars = assign_vars vars args in
 
   Ok (id_implicits @ id_vars)
-
-and to_chains' env subst =
-  let module Chain = Common.Chain in
-  match env.Env.lookup_space with
-  | Env.LkLocal ->
-      let l_opt = Name.to_leyer env subst in
-      let l = Option.value_exn ~message:"[ICE]" l_opt in
-      Chain.Local l
-  | Env.LkGlobal -> Chain.Global (Name.to_nested_chain' env subst)
-
-and to_chains env =
-  let subst = Typing.Subst.create () in
-  to_chains' env subst

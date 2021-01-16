@@ -14,7 +14,7 @@ type t = {
   name : string;
   visibility : visibility_t;
   mutable scope : scope_t option;
-  ty_sc : Typing.Scheme.t;
+  mutable ty_sc : Typing.Scheme.t;
   mutable implicits : Typing.Type.t list;
   mutable predicates : Typing.Pred.cond_t list;
   trans : Trans.t;
@@ -57,6 +57,8 @@ let create name ~parent ~visibility ~ty_sc ~kind ~lookup_space =
   }
 
 let name env = env.name
+
+let update_ty_sc env ~ty_sc = env.ty_sc <- ty_sc
 
 let type_sc_of env =
   let (Typing.Scheme.ForAll { implicits; vars; ty }) = env.ty_sc in

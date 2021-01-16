@@ -50,7 +50,7 @@ Compile rill source codes.
 
     let emit =
       let doc = "" in
-      let l = Rillc.Tool.Emitter.emit_map in
+      let l = Rillc.Compiler.Emitter.emit_map in
       Arg.(value & opt (some (enum l)) None & info [ "emit" ] ~doc)
     in
 
@@ -86,9 +86,9 @@ Compile rill source codes.
          *)
         let%bind out_to =
           match (output, out_dir) with
-          | (None, None) -> Ok (Rillc.Tool.Writer.OutputToFile None)
-          | (Some o, None) -> Ok (Rillc.Tool.Writer.OutputToFile (Some o))
-          | (None, Some o) -> Ok (Rillc.Tool.Writer.OutputToDir o)
+          | (None, None) -> Ok (Rillc.Compiler.Writer.OutputToFile None)
+          | (Some o, None) -> Ok (Rillc.Compiler.Writer.OutputToFile (Some o))
+          | (None, Some o) -> Ok (Rillc.Compiler.Writer.OutputToDir o)
           | _ -> Error Errors.Flags.Cannot_specify_output_and_outdir
         in
 
@@ -101,10 +101,12 @@ Compile rill source codes.
         let%bind export =
           match (emit, pack, lib, out_to) with
           | (Some e, _, false, _) ->
-              Ok (Rillc.Tool.Compile.Export.Artifact { emit; pack; out_to })
-          | (None, _, false, Rillc.Tool.Writer.OutputToFile out_path) ->
+              Ok
+                (Rillc.Tool.Compile.Export.Artifact
+                   { emitter = emit; pack; out_to })
+          | (None, _, false, Rillc.Compiler.Writer.OutputToFile out_path) ->
               Ok (Rillc.Tool.Compile.Export.Executable { out_path })
-          | (None, _, true, Rillc.Tool.Writer.OutputToFile out_path) ->
+          | (None, _, true, Rillc.Compiler.Writer.OutputToFile out_path) ->
               Ok (Rillc.Tool.Compile.Export.Library { out_path })
           | _ -> failwith "[ICE]"
         in

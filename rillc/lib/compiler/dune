@@ -1,7 +1,7 @@
 (library
- (public_name rillc.tool)
- (name tool)
- (libraries base stdio str loga rillc.common rillc.compiler rillc.sema rillc.rir
+ (public_name rillc.compiler)
+ (name compiler)
+ (libraries base stdio str loga rillc.common rillc.sema rillc.rir
    rillc.codegen rillc.codegen.llvm_gen rillc.diagnostics)
  (preprocess
   (pps ppx_let ppx_deriving.show loga.ppx ppx_defer)))

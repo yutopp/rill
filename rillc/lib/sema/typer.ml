@@ -24,7 +24,7 @@ let rec unify_var ~span (subst : Typing.Subst.t) ~from ~to_ =
           (Common.Type_var.to_string a)
           (Common.Type_var.to_string b)];
 
-      let ty_subst = Map.add_exn ty_subst ~key:a ~data:to_ in
+      let ty_subst = Typing.Subst.FreshMap.add_exn ty_subst ~key:a ~data:to_ in
       Ok Typing.Subst.{ subst with ty_subst }
   (* *)
   | Typing.Type.({ ty = Var { var = a; _ }; _ }, { ty = Var { var = b; _ }; _ })
@@ -38,7 +38,7 @@ let rec unify_var ~span (subst : Typing.Subst.t) ~from ~to_ =
           (Common.Type_var.to_string v)
           (Typing.Type.to_string ty')];
 
-      let ty_subst = Map.add_exn ty_subst ~key:v ~data:ty' in
+      let ty_subst = Typing.Subst.FreshMap.add_exn ty_subst ~key:v ~data:ty' in
       Ok Typing.Subst.{ subst with ty_subst }
   | _ -> failwith "[ICE]"
 
@@ -63,7 +63,9 @@ let rec unify_elem ~span ~(subst : Typing.Subst.t) ~preconds lhs_ty rhs_ty :
           (Common.Type_var.to_string a)
           (Common.Type_var.to_string b)];
 
-      let ty_subst = Map.add_exn ty_subst ~key:a ~data:s_rhs_ty in
+      let ty_subst =
+        Typing.Subst.FreshMap.add_exn ty_subst ~key:a ~data:s_rhs_ty
+      in
       Ok Typing.Subst.{ subst with ty_subst; ki_subst }
   (* *)
   | Typing.Type.({ ty = Var { var = a; _ }; _ }, { ty = Var { var = b; _ }; _ })
@@ -94,7 +96,7 @@ let rec unify_elem ~span ~(subst : Typing.Subst.t) ~preconds lhs_ty rhs_ty :
             else Ok ())
       in
 
-      let ty_subst = Map.add_exn ty_subst ~key:v ~data:ty' in
+      let ty_subst = Typing.Subst.FreshMap.add_exn ty_subst ~key:v ~data:ty' in
       Ok Typing.Subst.{ subst with ty_subst }
   (* *)
   | Typing.Type.({ ty = Var { var = v; bound = BoundForall; _ }; _ }, ty')
@@ -319,12 +321,16 @@ and unify_linkage ~span subst lhs_linkage rhs_linkage =
   (* *)
   | Typing.Type.(LinkageVar a, LinkageVar b)
     when not (Common.Type_var.equal a b) ->
-      let ln_subst = Map.add_exn ln_subst ~key:a ~data:s_rhs_linkage in
+      let ln_subst =
+        Typing.Subst.FreshMap.add_exn ln_subst ~key:a ~data:s_rhs_linkage
+      in
       Ok Typing.Subst.{ subst with ln_subst }
   (* *)
   | Typing.Type.(LinkageVar v, linkage') | Typing.Type.(linkage', LinkageVar v)
     ->
-      let ty_subst = Map.add_exn ln_subst ~key:v ~data:linkage' in
+      let ty_subst =
+        Typing.Subst.FreshMap.add_exn ln_subst ~key:v ~data:linkage'
+      in
       Ok Typing.Subst.{ subst with ln_subst }
   (* *)
   | (lhs_linkage, rhs_linkage) when Poly.equal lhs_linkage rhs_linkage ->

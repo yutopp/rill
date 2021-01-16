@@ -10,8 +10,8 @@ open! Base
 
 type t = {
   dir : string;
-  host_triple : Triple.tag_t;
-  target_triple : Triple.tag_t;
+  host_triple : (module Triple.PRESET);
+  target_triple : (module Triple.PRESET);
   pkgs : (Package.id_t, Package.t) Hashtbl.t;
   counter : Counter.t;
 }
@@ -25,9 +25,9 @@ let create ~dir ~host_triple ~target_triple : t =
     counter = Counter.create ();
   }
 
-let host ~workspace = Triple.to_triple_preset workspace.host_triple
+let host ~workspace = workspace.host_triple
 
-let target ~workspace = Triple.to_triple_preset workspace.target_triple
+let target ~workspace = workspace.target_triple
 
 let issue_pkg_id ~workspace : Package.id_t = Counter.fresh workspace.counter
 

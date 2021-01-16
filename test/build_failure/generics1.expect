@@ -3,7 +3,7 @@ Type mismatch: Expect = i32, but Actual = T
 Arg at (0)
 Type mismatch: Expect = i32, but Actual = T
 Return
-Type mismatch: Expect = fun((i32 -> i32) -> i32), but Actual = fun((T -> i32) -> _w0.31)
+Type mismatch: Expect = fun((i32 -> i32) -> i32), but Actual = fun((T -> i32) -> _w2.6)
 File: "", line 4, charactors 10-15
 
 rillc: There are warnings or errors.

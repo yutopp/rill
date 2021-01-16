@@ -9,12 +9,13 @@
 open! Base
 module Workspace = Common.Workspace
 module Package = Common.Package
-module ProjectFile = Common.Project
+module ProjectFile = Common.Project_file
 module Triple = Common.Triple
 module Os = Common.Os
 
 type t = { target : Triple.tag_t option; dir : string }
 
+(*
 (* TODO: fix *)
 let host_triple = Triple.Tag_X86_64_unknown_linux_gnu
 
@@ -45,10 +46,11 @@ let load_builtin_pkg workspace sysroot srcdir pkg_name =
 let rec load_project ~workspace ~pkg_id ~name base_dir =
   let open Result.Let_syntax in
   let mod_file = Os.join_path [ base_dir; "rill.mod.json" ] in
-  let ch = Stdlib.open_in mod_file in
+
   let%bind project =
+    let ch = Stdlib.open_in mod_file in
     Exn.protect
-      ~f:(fun () -> ProjectFile.from_channel ch)
+      ~f:(fun () -> Common.Project_file.from_channel ch)
       ~finally:(fun () -> Stdlib.close_in ch)
   in
 
@@ -70,7 +72,7 @@ let rec load_project ~workspace ~pkg_id ~name base_dir =
   in
 
   let pkg =
-    let Common.Project.{ name = pkg_name; c_ext; _ } = project in
+    let Common.Project_file.{ name = pkg_name; c_ext; _ } = project in
     let name = Option.value name ~default:pkg_name in
     let dir = base_dir in
     [%loga.debug "pkg : %s -> %s" name dir];
@@ -113,7 +115,7 @@ let rec load_project ~workspace ~pkg_id ~name base_dir =
 let build_pkg ~workspace pkg =
   let host = Workspace.host ~workspace in
   let target = Workspace.target ~workspace in
-  let compiler = Compiler.create ~workspace ~host ~target in
+  let compiler = Compiler_.create ~workspace ~host ~target in
 
   let format = None in
   ()
@@ -161,11 +163,13 @@ let build_to ~workspace ~out_dir pkg =
   let compiler =
     let host = Workspace.host ~workspace in
     let target = Workspace.target ~workspace in
-    Compiler.create ~workspace ~host ~target
+    Compiler_.create ~workspace ~host ~target
   in
   Ok ()
+ *)
 
 let entry opts =
+  (*
   let open Result.Let_syntax in
   let%bind () = Result.try_with (fun () -> validate opts) in
 
@@ -199,7 +203,7 @@ let entry opts =
   let compiler =
     let host = Workspace.host ~workspace in
     let target = Workspace.target ~workspace in
-    Compiler.create ~workspace ~host ~target
+    Compiler_.create ~workspace ~host ~target
   in
 
   let obj_path = Os.join_path [ target_dir; "main.o" ] in
@@ -207,7 +211,7 @@ let entry opts =
   let%bind _ =
     let pack = true in
     let out_to = Writer.OutputToFile (Some obj_path) in
-    Compiler.compile ~compiler ~format:None ~printer:Stdio.stderr ~pack out_to
+    Compiler_.compile ~compiler ~format:None ~printer:Stdio.stderr ~pack out_to
       pkg
   in
 
@@ -234,5 +238,5 @@ let entry opts =
     Os.cc_exe ~spec:target_spec ~lib_dirs:dirs ~lib_names:libnames
       ~objs:[ obj_path ] ~out:a_path ()
   in
-
+   *)
   Ok ()

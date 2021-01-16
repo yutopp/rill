@@ -19,3 +19,4 @@ module Package = Common.Package
 module Codegen = Codegen
 module Tool = Tool
 module Common = Common
+module Compiler = Compiler

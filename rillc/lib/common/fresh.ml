@@ -8,8 +8,25 @@
 
 open! Base
 
-module T = struct
-  type t = int * int [@@deriving sexp_of, ord, yojson_of, show]
+module T : sig
+  type t [@@deriving sexp_of, yojson_of, ord, show]
+
+  val create : owner:int -> fresh:Counter.Value.t -> t
+
+  val owner : t -> int
+
+  val to_string : t -> string
+end = struct
+  type t = int * Counter.Value.t [@@deriving sexp_of, ord, show]
+
+  let create ~owner ~fresh = (owner, fresh)
+
+  let owner v =
+    let (a, b) = v in
+    a
+
+  (* TODO *)
+  let yojson_of_t v : Yojson.Safe.t = `Int 10
 
   let to_string v =
     let (a, b) = v in
