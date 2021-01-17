@@ -19,7 +19,7 @@ let entry opts =
   let { sysroot; target; log_level; dir } = opts in
   Loga.Logger.set_severity Loga.logger log_level;
 
-  let opts = Rillc.Tool.Build.{ target; dir } in
+  let opts = Rillc.Tool.Build.{ sysroot; target; dir } in
   Rillc.Tool.Build.entry opts
   |> Result.map_error ~f:(fun e -> Errors.Flags.Tool_error e)
 
@@ -40,14 +40,14 @@ Build rill project.
       Arg.(required & pos ~rev:true 0 (some dir) None & info [] ~docv:"FILES")
     in
 
-    let action sysroot target log_level dir =
+    let action sysroot target _emit log_level dir =
       let result = entry { sysroot; target; log_level; dir } in
       match result with Ok _ -> `Ok () | Error e -> Errors.Flags.into_result e
     in
     ( Term.(
         ret
           ( const action $ Shared_flags.sysroot $ Shared_flags.target
-          $ Shared_flags.log_level $ dir )),
+          $ Shared_flags.emit $ Shared_flags.log_level $ dir )),
       info )
 end
 [@@warning "-44"]
