@@ -22,19 +22,16 @@ module NAst = struct
     | Module of { nodes : t }
     | Import of { pkg : string; mods : string list }
     | Func of {
-        name : Typing.Type.t Common.Chain.Nest.t;
+        name : Typing.Type.t Path.t;
         kind : func_kind_t;
         ty_sc : Typing.Scheme.t;
       }
     | Static of {
-        name : Typing.Type.t Common.Chain.Nest.t;
+        name : Typing.Type.t Path.t;
         kind : var_kind_t;
         ty_sc : Typing.Scheme.t;
       }
-    | Struct of {
-        name : Typing.Type.t Common.Chain.Nest.t;
-        ty_sc : Typing.Scheme.t;
-      }
+    | Struct of { name : Typing.Type.t Path.t; ty_sc : Typing.Scheme.t }
     | DefSeq of t list
     (* *)
     | Let of { mut : Typing.Type.mutability_t; name : string; expr : t }
@@ -58,12 +55,9 @@ module NAst = struct
     | Var of var_ref_t
     | Seq of t list
     | StmtDispatchTable of {
-        trait_name : Typing.Type.t Common.Chain.Nest.t;
+        trait_name : Typing.Type.t Path.t;
         for_ty : Typing.Type.t;
-        mapping :
-          ( Typing.Type.t Common.Chain.Layer.t
-          * Typing.Type.t Common.Chain.Nest.t )
-          list;
+        mapping : (Typing.Type.t Path.Name.t * Typing.Type.t Path.t) list;
       }
 
   and func_kind_t = FuncKindDecl | FuncKindDef of t | FuncKindExtern of string
@@ -73,7 +67,7 @@ module NAst = struct
   and var_ref_t =
     | VarLocal of { name : string; label : string }
     | VarGlobal of { name : string }
-    | VarGlobal2 of { nest : Typing.Type.t Common.Chain.Nest.t }
+    | VarGlobal2 of { nest : Typing.Type.t Path.t }
     | VarParam of { index : int; name : string }
   [@@deriving show, yojson_of]
 end
@@ -318,16 +312,18 @@ let rec normalize ~ctx ~env ast =
   | TAst.{ kind = Var2 { chain }; ty; span; _ } ->
       let nast =
         match chain with
-        | Common.Chain.Local layer ->
-            let Common.Chain.Layer.{ name; _ } = layer in
+        (* local *)
+        | Path.{ paths = []; last; _ } ->
+            let Path.Name.{ name; _ } = last in
             let r =
               match Env.find_alias_opt env name with
               | Some r -> r
               | None -> failwith (Printf.sprintf "[ICE] %s" name)
             in
             NAst.{ kind = Var r; ty; span }
-        | Common.Chain.Global nest ->
-            let r = NAst.VarGlobal2 { nest } in
+        (* global *)
+        | _ ->
+            let r = NAst.VarGlobal2 { nest = chain } in
             NAst.{ kind = Var r; ty; span }
       in
       nast

@@ -18,7 +18,7 @@ module BBs = struct
 end
 
 type t = {
-  name : Typing.Type.t Common.Chain.Nest.t;
+  name : Typing.Type.t Path.t;
   ty_sc : (Typing.Scheme.t[@printer fun fmt _ -> fprintf fmt ""]);
   mutable body : body_t option;
 }
@@ -49,7 +49,7 @@ let create ~name ~ty_sc = { name; ty_sc; body = None }
 let failwith_nobody tag f =
   failwith
     (Printf.sprintf "[ICE] no body (%s): %s" tag
-       (Common.Chain.Nest.to_string ~to_s:Typing.Type.to_string f.name))
+       (Path.to_string ~to_s:Typing.Type.to_string f.name))
 
 let get_ret_ty f =
   let (Typing.Scheme.ForAll { ty; _ }) = f.ty_sc in
@@ -191,7 +191,7 @@ let to_string ~indent func =
   let { name; ty_sc; body } = func in
   Buffer.add_string buf
     (Printf.sprintf "Func: name = '%s' :: %s\n"
-       (Common.Chain.Nest.to_string ~to_s:Typing.Type.to_string name)
+       (Path.to_string ~to_s:Typing.Type.to_string name)
        (Typing.Scheme.to_string ty_sc));
 
   let () =

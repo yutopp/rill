@@ -24,11 +24,8 @@ and ty_t =
   | Array of { elem : t; n : int }
   | Func of { params : t list; ret : t; linkage : func_linkage_t }
   | Pointer of { mut : mutability_t; elem : t }
-  | Struct of { name : t Common.Chain.Nest.t }
-  | Trait of {
-      name : t Common.Chain.Nest.t;
-      initial_marker : Common.Type_var.t;
-    }
+  | Struct of { name : t Path.t }
+  | Trait of { name : t Path.t; initial_marker : Common.Type_var.t }
   (* generics *)
   | Args of { recv : t; args : apply_t list }
   | Predicate of { conds : apply_t list; elem : t }
@@ -79,11 +76,10 @@ let rec to_string ty : string =
   | { ty = Pointer { mut; elem }; _ } ->
       Printf.sprintf "*%s %s" (to_string_mut mut) (to_string elem)
   | { ty = Struct { name }; _ } ->
-      Printf.sprintf "struct(%s)"
-        (Common.Chain.Nest.to_string ~to_s:to_string name)
+      Printf.sprintf "struct(%s)" (Path.to_string ~to_s:to_string name)
   | { ty = Trait { name; initial_marker }; _ } ->
       Printf.sprintf "trait(%s, init=%s)"
-        (Common.Chain.Nest.to_string ~to_s:to_string name)
+        (Path.to_string ~to_s:to_string name)
         (Common.Type_var.to_string initial_marker)
   | { ty = Args { recv; args }; _ } ->
       Printf.sprintf "%s!(%s)" (to_string recv)

@@ -20,29 +20,23 @@ module TAst = struct
     | Module of { stmts : t }
     | Import of { pkg : string; mods : string list }
     | DeclExternFunc of {
-        name : Typing.Type.t Common.Chain.Nest.t;
+        name : Typing.Type.t Path.t;
         ty_sc : Typing.Scheme.t;
         extern_name : string;
       }
     | DeclExternStaticVar of {
-        name : Typing.Type.t Common.Chain.Nest.t;
+        name : Typing.Type.t Path.t;
         ty_sc : Typing.Scheme.t;
         extern_name : string;
       }
-    | DeclFunc of {
-        name : Typing.Type.t Common.Chain.Nest.t;
-        ty_sc : Typing.Scheme.t;
-      }
+    | DeclFunc of { name : Typing.Type.t Path.t; ty_sc : Typing.Scheme.t }
     | DefFunc of {
-        name : Typing.Type.t Common.Chain.Nest.t;
+        name : Typing.Type.t Path.t;
         has_self : bool;
         ty_sc : Typing.Scheme.t;
         body : t;
       }
-    | DefStruct of {
-        name : Typing.Type.t Common.Chain.Nest.t;
-        ty_sc : Typing.Scheme.t;
-      }
+    | DefStruct of { name : Typing.Type.t Path.t; ty_sc : Typing.Scheme.t }
     | DefSeq of t list
     (* *)
     | StmtSeq of t list
@@ -60,19 +54,16 @@ module TAst = struct
     | ExprDeref of t
     | ExprStruct
     | Var of { name : string; ref_type : ref_t }
-    | Var2 of { chain : Typing.Type.t Common.Chain.t }
+    | Var2 of { chain : Typing.Type.t Path.t }
     | LitBool of bool
     | LitInt of int
     | LitString of string
     | LitUnit
     | LitArrayElem of t list
     | StmtDispatchTable of {
-        trait_name : Typing.Type.t Common.Chain.Nest.t;
+        trait_name : Typing.Type.t Path.t;
         for_ty : Typing.Type.t;
-        mapping :
-          ( Typing.Type.t Common.Chain.Layer.t
-          * Typing.Type.t Common.Chain.Nest.t )
-          list;
+        mapping : (Typing.Type.t Path.Name.t * Typing.Type.t Path.t) list;
       }
 
   and ref_t = RefTypeGlobal | RefTypeLocal | RefTypeLocalArg of int
@@ -242,8 +233,8 @@ and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       let name =
         match name with
         | "main" ->
-            let layer =
-              Common.Chain.Layer.
+            let name =
+              Path.Name.
                 {
                   name = "main";
                   kind = Var f_ty;
@@ -251,7 +242,11 @@ and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
                   has_self = false;
                 }
             in
-            Common.Chain.Nest.from_list [ layer ]
+            let pkg_tag =
+              (* TODO *)
+              Group.Pkg_tag.create ~name:"" ~version:""
+            in
+            Path.create ~pkg_tag [ name ]
         | _ -> Name.to_nested_chain env
       in
       Ok
@@ -726,7 +721,7 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       let chain = Name.to_chains' env lookup_subst in
       [%loga.debug
         "chain -> %s :: %s"
-          (Common.Chain.to_string ~to_s:Typing.Type.to_string chain)
+          (Path.to_string ~to_s:Typing.Type.to_string chain)
           (Typing.Pred.to_string ty)];
       Ok TAst.{ kind = Var2 { chain }; span; ty }
   (* *)

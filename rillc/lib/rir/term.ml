@@ -49,7 +49,7 @@ and placeholder_t =
   | PlaceholderParam of { index : int; name : string }
   | PlaceholderGlobal of { name : string }
   | PlaceholderGlobal2 of {
-      mutable name : Typing.Type.t Common.Chain.Nest.t;
+      mutable name : Typing.Type.t Path.t;
       mutable dispatch : bool;
     }
 [@@deriving show]
@@ -63,7 +63,7 @@ let to_string_place_holder holder =
   | PlaceholderGlobal { name } -> Printf.sprintf "Global[%s]" name
   | PlaceholderGlobal2 { name; dispatch } ->
       Printf.sprintf "Global2[%s](%b)"
-        (Common.Chain.Nest.to_string ~to_s:Typing.Type.to_string name)
+        (Path.to_string ~to_s:Typing.Type.to_string name)
         dispatch
 
 let to_string_value value =

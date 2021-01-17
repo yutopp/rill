@@ -223,6 +223,7 @@ let rec generate_stmt ~ctx ~builder ast =
   (* *)
   | NAst.{ kind = Var r; ty; span } ->
       let (Typing.Pred.Pred { ty; _ }) = ty in
+      let () = externala ~ctx r ty in
       let place = to_placeholder ~ctx ~builder r in
       let node = Rir.Term.{ kind = LVal place; ty; span } in
       (node, builder)
@@ -274,6 +275,35 @@ and to_placeholder ~ctx ~builder r =
   in
   Rir.Builder.register_monomorphization_candidate builder ph;
   ph
+
+and externala ~ctx r ty =
+  match r with
+  | NAst.VarGlobal2 { nest } ->
+      let m = ctx.m in
+      let p = Rir.Module.to_placeholder ~subst:ctx.subst nest in
+      [%loga.debug "externala = %s" (Rir.Term.to_string_place_holder p)];
+      (* if same modules are passing, result becomes false *)
+      let is_external =
+        (*
+        let rec f ~is_external layers =
+          match layers with
+          | [] -> is_external
+          | l :: rest ->
+              let Common.Chain.Layer.{ kind; _ } = l in
+              let b =
+                match kind with
+                | Common.Chain.Layer.Module -> false
+                | _ -> false
+              in
+              f rest ~is_external:b
+        in
+        let layers = Path.to_list nest in
+        f layers ~is_external:false *)
+        false
+      in
+      [%loga.debug "  -> %b" is_external];
+      ()
+  | _ -> ()
 
 let rec generate_toplevel ~ctx ~builder ast =
   match ast with

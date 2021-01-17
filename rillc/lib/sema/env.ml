@@ -7,7 +7,6 @@
  *)
 
 open! Base
-module Package = Common.Package
 
 type t = {
   parent : t option;

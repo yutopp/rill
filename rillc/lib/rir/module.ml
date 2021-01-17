@@ -10,10 +10,11 @@ open! Base
 module StringMap = Map.M (String)
 
 let to_placeholder ~subst name =
+  let Path.{ pkg_tag; _ } = name in
   let rec convert layers rev_layers trait_scope_rev_layers has_self_layer =
     match layers with
     | [] ->
-        let name = Common.Chain.Nest.from_list (rev_layers |> List.rev) in
+        let name = Path.create ~pkg_tag (rev_layers |> List.rev) in
         let placeholder =
           match (trait_scope_rev_layers, has_self_layer) with
           | (Some rev_nest, Some layer) ->
@@ -25,16 +26,16 @@ let to_placeholder ~subst name =
         in
         placeholder
     | l :: rest ->
-        let Common.Chain.Layer.{ kind; generics_vars; has_self; _ } = l in
+        let Path.Name.{ kind; generics_vars; has_self; _ } = l in
         let generics_vars =
           List.map generics_vars ~f:(fun v -> Typing.Subst.subst_type subst v)
         in
-        let l = Common.Chain.Layer.{ l with generics_vars } in
+        let l = Path.Name.{ l with generics_vars } in
         let rev_layers = l :: rev_layers in
 
         let trait_scope_rev_layers =
           match kind with
-          | Common.Chain.Layer.Type -> Some rev_layers
+          | Path.Name.Type -> Some rev_layers
           | _ -> trait_scope_rev_layers
         in
         let has_self_layer =
@@ -42,7 +43,7 @@ let to_placeholder ~subst name =
         in
         convert rest rev_layers trait_scope_rev_layers has_self_layer
   in
-  let layers = Common.Chain.Nest.to_list name in
+  let layers = Path.to_list name in
   convert layers [] None None
 
 (* TODO: fix *)
@@ -133,9 +134,9 @@ end
 
 module Impl = struct
   type t = {
-    name : Typing.Type.t Common.Chain.Nest.t;
+    name : Typing.Type.t Path.t;
     mutable members :
-      (Typing.Type.t Common.Chain.Nest.t StringMap.t
+      (Typing.Type.t Path.t StringMap.t
       [@printer fun fmt _ -> fprintf fmt ""]);
   }
   [@@deriving show]
@@ -164,20 +165,20 @@ module Impl = struct
     let { name; members; _ } = trait in
     Buffer.add_string buf
       (Printf.sprintf "Impl: name = '%s'\n"
-         (Common.Chain.Nest.to_string ~to_s:Typing.Type.to_string name));
+         (Path.to_string ~to_s:Typing.Type.to_string name));
 
     Map.iteri members ~f:(fun ~key ~data ->
         Buffer.add_string buf (String.make (indent + 2) ' ');
         Buffer.add_string buf
           (Printf.sprintf "%s -> '%s'\n" key
-             (Common.Chain.Nest.to_string ~to_s:Typing.Type.to_string data)));
+             (Path.to_string ~to_s:Typing.Type.to_string data)));
 
     Buffer.contents buf
 end
 
 module Trait = struct
   type t = {
-    name : Typing.Type.t Common.Chain.Nest.t;
+    name : Typing.Type.t Path.t;
     mutable impls : (Impl.t StringMap.t[@printer fun fmt _ -> fprintf fmt ""]);
   }
   [@@deriving show]
@@ -207,7 +208,7 @@ module Trait = struct
     let { name; impls; _ } = trait in
     Buffer.add_string buf
       (Printf.sprintf "Trait: name = '%s'\n"
-         (Common.Chain.Nest.to_string ~to_s:Typing.Type.to_string name));
+         (Path.to_string ~to_s:Typing.Type.to_string name));
 
     Map.iteri impls ~f:(fun ~key ~data ->
         Buffer.add_string buf (Impl.to_string ~indent:(indent + 2) data));
@@ -281,7 +282,7 @@ module Monom = struct
   let register_candidate m name =
     [%loga.debug
       "register_candidate: %s :: %b"
-        (Common.Chain.Nest.to_string ~to_s:Typing.Type.to_string name)
+        (Path.to_string ~to_s:Typing.Type.to_string name)
         (Symbol.has_generics name)];
 
     if Symbol.is_generics name && not (Symbol.has_generics name) then

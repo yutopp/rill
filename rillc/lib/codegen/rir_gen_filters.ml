@@ -79,8 +79,7 @@ module Collect_and_set_local_vars_in_func_pass = struct
           let Rir.Func.{ name = func_name; _ } = func in
           [%loga.debug
             "func %s / bb!: %s"
-              (Common.Chain.Nest.to_string ~to_s:Typing.Type.to_string
-                 func_name)
+              (Path.to_string ~to_s:Typing.Type.to_string func_name)
               bb_name];
 
           let insts = Term.BB.get_insts bb in
@@ -180,12 +179,12 @@ module Env = struct
 end
 
 let ma base special =
-  let base = Common.Chain.Nest.to_list base in
-  let special = Common.Chain.Nest.to_list special in
+  let base = Path.to_list base in
+  let special = Path.to_list special in
   List.zip_exn base special
   |> List.fold ~init:(Env.create ()) ~f:(fun env (l_b, l_s) ->
-         let Common.Chain.Layer.{ generics_vars = gvs_b; _ } = l_b in
-         let Common.Chain.Layer.{ generics_vars = gvs_s; _ } = l_s in
+         let Path.Name.{ generics_vars = gvs_b; _ } = l_b in
+         let Path.Name.{ generics_vars = gvs_s; _ } = l_s in
          List.zip_exn gvs_b gvs_s
          |> List.fold ~init:env ~f:(fun env (v_b, v_s) ->
                 [%loga.debug "B -> %s" (Typing.Type.to_string v_b)];
@@ -193,26 +192,27 @@ let ma base special =
                 Env.bind env v_b v_s))
 
 let to_impl name ~env ty =
+  let Path.{ pkg_tag; _ } = name in
   let rec convert layers subst rev_layers =
     match layers with
     | [] ->
-        let name = Common.Chain.Nest.from_list (rev_layers |> List.rev) in
+        let name = Path.create ~pkg_tag (rev_layers |> List.rev) in
         name
     | l :: rest ->
         (* TODO: fix *)
-        let Common.Chain.Layer.{ kind; generics_vars; _ } = l in
+        let Path.Name.{ kind; generics_vars; _ } = l in
         let env =
           match generics_vars with [ v ] -> Env.bind env v ty | _ -> env
         in
         let generics_vars =
           List.map generics_vars ~f:(fun v -> Env.subst_type env v)
         in
-        let l = Common.Chain.Layer.{ l with generics_vars } in
+        let l = Path.Name.{ l with generics_vars } in
         let rev_layers = l :: rev_layers in
 
         convert rest env rev_layers
   in
-  let layers = Common.Chain.Nest.to_list name in
+  let layers = Path.to_list name in
   convert layers env []
 
 module Instantiate_pass = struct
@@ -226,9 +226,10 @@ module Instantiate_pass = struct
     | PlaceholderGlobal _ -> ph
     | PlaceholderGlobal2 { name; dispatch } when not dispatch ->
         let name =
-          Common.Chain.Nest.to_list name
+          let Path.{ pkg_tag; _ } = name in
+          Path.to_list name
           |> List.map ~f:(fun layer ->
-                 let Common.Chain.Layer.{ generics_vars; kind; _ } = layer in
+                 let Path.Name.{ generics_vars; kind; _ } = layer in
                  let generics_vars =
                    List.map ~f:(Env.subst_type subst) generics_vars
                  in
@@ -239,12 +240,11 @@ module Instantiate_pass = struct
                        Common.Chain.Layer.Var ty*)
                    | _ -> kind
                  in
-                 Common.Chain.Layer.{ layer with generics_vars })
-          |> Common.Chain.Nest.from_list
+                 Path.Name.{ layer with generics_vars })
+          |> Path.create ~pkg_tag
         in
         [%loga.debug
-          "global2: %s"
-            (Common.Chain.Nest.to_string ~to_s:Typing.Type.to_string name)];
+          "global2: %s" (Path.to_string ~to_s:Typing.Type.to_string name)];
         PlaceholderGlobal2 { name; dispatch }
     | PlaceholderGlobal2 { name; dispatch } ->
         PlaceholderGlobal2 { name; dispatch }
@@ -313,7 +313,7 @@ module Instantiate_pass = struct
           List.iter candidates ~f:(fun name ->
               [%loga.debug
                 "cloning...: %s"
-                  (Common.Chain.Nest.to_string ~to_s:Typing.Type.to_string name)];
+                  (Path.to_string ~to_s:Typing.Type.to_string name)];
 
               (* TODO: support other kind of definition *)
               let base_f = Rir.Module.find_generic_func m name in
@@ -351,9 +351,8 @@ module Impl_pass = struct
     | PlaceholderGlobal _ -> ()
     | PlaceholderGlobal2 ({ name; dispatch } as r) when dispatch ->
         [%loga.debug
-          "dispatch -> %s"
-            (Common.Chain.Nest.to_string ~to_s:Typing.Type.to_string name)];
-        let Common.Chain.Nest.{ paths; last } = name in
+          "dispatch -> %s" (Path.to_string ~to_s:Typing.Type.to_string name)];
+        let Path.{ paths; last; _ } = name in
 
         let trait = Rir.Module.find_trait m paths in
         let impl = Rir.Module.Trait.find trait paths in

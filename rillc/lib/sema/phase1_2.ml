@@ -156,14 +156,13 @@ and lazy_decl ~ctx ~penv ast =
                   (* TODO: check that decls satisfy traits constraints *)
                   (* TODO: disallow generics *)
                   (* TODO: check all members are defined *)
-                  let nest = Name.to_nested_chain' env ctx.subst in
-                  let Common.Chain.Nest.{ last; _ } = nest in
+                  let path = Name.to_nested_chain' env ctx.subst in
+                  let Path.{ last; _ } = path in
                   [%loga.debug
                     "-> %s => %s"
-                      (Common.Chain.Layer.to_string ~to_s:Typing.Type.to_string
-                         last)
-                      (Name.to_string ~to_s:Typing.Type.to_string nest)];
-                  (last, nest) :: mapping
+                      (Path.Name.to_string ~to_s:Typing.Type.to_string last)
+                      (Name.to_string ~to_s:Typing.Type.to_string path)];
+                  (last, path) :: mapping
               | _ -> failwith "")
         in
         mapping

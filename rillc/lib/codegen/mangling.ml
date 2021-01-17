@@ -26,7 +26,7 @@ and source_name id =
   Printf.sprintf "%d%s" l id
 
 let rec mangle_layer l =
-  let Common.Chain.Layer.{ name; generics_vars; _ } = l in
+  let Path.Name.{ name; generics_vars; _ } = l in
   let generics_s =
     match generics_vars with
     | [] -> ""
@@ -37,7 +37,7 @@ let rec mangle_layer l =
   Printf.sprintf "%s%s" name generics_s
 
 and mangle2 name =
-  let layers = Common.Chain.Nest.to_list name in
+  let layers = Path.to_list name in
   let names = layers |> List.map ~f:(fun l -> mangle_layer l) in
   Printf.sprintf "_Z%sRill" (nested_name names)
 

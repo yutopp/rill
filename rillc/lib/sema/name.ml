@@ -8,10 +8,9 @@
 
 open! Base
 
-type t = Typing.Type.t Common.Chain.Nest.t [@@deriving show]
+type t = Typing.Type.t Path.t [@@deriving show]
 
-let to_leyer env inv_subst =
-  let module Chain = Common.Chain in
+let to_leyer env inv_subst : 'a Path.Name.t option =
   let (Typing.Scheme.ForAll { implicits; vars; ty }) = Env.type_sc_of env in
   let params = implicits @ vars in
   let generics_vars =
@@ -20,20 +19,19 @@ let to_leyer env inv_subst =
 
   let kind =
     match env.Env.kind with
-    | Env.M -> Some Chain.Layer.Module
-    | Env.Ty | Env.Impl | Env.Trait -> Some Chain.Layer.Type
-    | Env.Val -> Some (Chain.Layer.Var (Typing.Pred.to_type ty))
+    | Env.M -> Some Path.Name.Module
+    | Env.Ty | Env.Impl | Env.Trait -> Some Path.Name.Type
+    | Env.Val -> Some (Path.Name.Var (Typing.Pred.to_type ty))
     | Env.N | Env.KindScope | Env.Alias _ -> None
   in
   let has_self = env.Env.has_self in
   Option.map kind ~f:(fun k ->
       let l =
-        Chain.Layer.{ name = env.Env.name; kind = k; generics_vars; has_self }
+        Path.Name.{ name = env.Env.name; kind = k; generics_vars; has_self }
       in
       l)
 
-let to_nested_chain' env subst =
-  let module Chain = Common.Chain in
+let to_nested_chain' env subst : 'a Path.t =
   let rec f env leaf_layers =
     match env.Env.kind with
     | Env.Alias aenv -> f aenv leaf_layers
@@ -44,27 +42,36 @@ let to_nested_chain' env subst =
         in
         match env.Env.parent with
         (* *)
-        | None -> Chain.Nest.from_list leaf_layers
+        | None ->
+            let pkg_tag =
+              (* TODO *)
+              Group.Pkg_tag.create ~name:"" ~version:""
+            in
+            Path.create ~pkg_tag leaf_layers
         (* *)
         | Some penv -> f penv leaf_layers )
   in
   f env []
 
-let to_nested_chain env =
+let to_nested_chain env : 'a Path.t =
   let subst = Typing.Subst.create_generic () in
   to_nested_chain' env subst
 
-let to_chains' env subst =
-  let module Chain = Common.Chain in
+let to_chains' env subst : 'a Path.t =
   match env.Env.lookup_space with
   | Env.LkLocal ->
       let l_opt = to_leyer env subst in
       let l = Option.value_exn ~message:"[ICE]" l_opt in
-      Chain.Local l
-  | Env.LkGlobal -> Chain.Global (to_nested_chain' env subst)
 
-let to_chains env =
+      let pkg_tag =
+        (* TODO *)
+        Group.Pkg_tag.create ~name:"" ~version:""
+      in
+      Path.create ~pkg_tag [ l ]
+  | Env.LkGlobal -> to_nested_chain' env subst
+
+let to_chains env : 'a Path.t =
   let subst = Typing.Subst.create_generic () in
   to_chains' env subst
 
-let to_string ~to_s nest = Common.Chain.Nest.to_string ~to_s nest
+let to_string ~to_s path = Path.to_string ~to_s path

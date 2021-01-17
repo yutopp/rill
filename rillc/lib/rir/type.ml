@@ -8,7 +8,7 @@
 
 open! Base
 
-type t = { name : Typing.Type.t Common.Chain.Nest.t; ty_sc : Typing.Scheme.t }
+type t = { name : Typing.Type.t Path.t; ty_sc : Typing.Scheme.t }
 [@@deriving show]
 
 let create ~name ~ty_sc = { name; ty_sc }
@@ -20,7 +20,7 @@ let to_string ~indent r_ty =
   let { name; ty_sc } = r_ty in
   Buffer.add_string buf
     (Printf.sprintf "Type: name = '%s' :: %s\n"
-       (Common.Chain.Nest.to_string ~to_s:Typing.Type.to_string name)
+       (Path.to_string ~to_s:Typing.Type.to_string name)
        (Typing.Scheme.to_string ty_sc));
 
   Buffer.contents buf

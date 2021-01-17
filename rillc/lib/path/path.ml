@@ -8,7 +8,7 @@
 
 open! Base
 
-module Layer = struct
+module Name = struct
   type 'a t = {
     name : string;
     kind : 'a kind_t;
@@ -31,30 +31,25 @@ module Layer = struct
     Printf.sprintf "%s[%s]%s" name kind_s generics_s
 end
 
-module Nest = struct
-  type 'a t = { paths : 'a Layer.t list; last : 'a Layer.t }
-  [@@deriving show, yojson_of]
-
-  let from_list layers =
-    let rev_layers = List.rev layers in
-    let paths = List.tl_exn rev_layers |> List.rev in
-    let last = List.hd_exn rev_layers in
-    { paths; last }
-
-  let to_list nest =
-    let { paths; last } = nest in
-    let layers = last :: List.rev paths in
-    layers |> List.rev
-
-  let to_string ~to_s nest =
-    let layers = to_list nest in
-    layers |> List.map ~f:(Layer.to_string ~to_s) |> String.concat ~sep:"."
-end
-
-type 'a t = Local of 'a Layer.t | Global of 'a Nest.t
+type 'a t = {
+  pkg_tag : Group.Pkg_tag.t;
+  (* if paths is nil, that is local path *)
+  paths : 'a Name.t list;
+  last : 'a Name.t;
+}
 [@@deriving show, yojson_of]
 
-let to_string ~to_s chain =
-  match chain with
-  | Local l -> Layer.to_string ~to_s l
-  | Global nest -> Nest.to_string ~to_s nest
+let create ~pkg_tag names =
+  let rev_names = List.rev names in
+  let paths = List.tl_exn rev_names |> List.rev in
+  let last = List.hd_exn rev_names in
+  { pkg_tag; paths; last }
+
+let to_list path =
+  let { paths; last; _ } = path in
+  let names = last :: List.rev paths in
+  names |> List.rev
+
+let to_string ~to_s path =
+  let names = to_list path in
+  names |> List.map ~f:(Name.to_string ~to_s) |> String.concat ~sep:"."

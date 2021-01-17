@@ -11,6 +11,6 @@ open! Base
 type t = {
   trait_name : Name.t;
   for_ty : Typing.Type.t;
-  mapping : (Typing.Type.t Common.Chain.Layer.t * Name.t) list;
+  mapping : (Typing.Type.t Path.Name.t * Name.t) list;
 }
 [@@deriving show]
