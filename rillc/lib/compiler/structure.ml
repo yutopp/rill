@@ -9,11 +9,11 @@
 open! Base
 
 type t = {
-  tag : Package_tag.t;
+  tag : Group.Pkg_tag.t;
   base_dir : string;
   mutable src_paths_rev : string list;
   mutable lib_names_rev : string list;
-  mutable deps_rev : Package_tag.t list;
+  mutable deps_rev : Group.Pkg_tag.t list;
 }
 
 let create ~tag ~base_dir () : t =

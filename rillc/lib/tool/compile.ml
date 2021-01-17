@@ -64,7 +64,7 @@ let entry opts =
   (* target *)
   let pkg =
     let pkg_struct =
-      let tag = Compiler.Package_tag.create ~name:"main" ~version:"latest" in
+      let tag = Group.Pkg_tag.create ~name:"main" ~version:"latest" in
 
       let s = Compiler.Structure.create ~tag ~base_dir:"." () in
       Compiler.Structure.add_src_paths s ~paths:opts.input_files;

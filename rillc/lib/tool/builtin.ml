@@ -10,7 +10,7 @@ open! Base
 module Os = Common.Os
 
 let builtin_pkg_info ~sysroot ~srcdir ~lib_names ~name =
-  let tag = Compiler.Package_tag.create ~name ~version:"builtin" in
+  let tag = Group.Pkg_tag.create ~name ~version:"builtin" in
 
   let pkg_srcdir =
     match srcdir with

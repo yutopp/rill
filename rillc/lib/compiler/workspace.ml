@@ -16,12 +16,12 @@ module VersionDict = struct
   let register dict ph =
     let version =
       let tag = Package_handle.tag ph in
-      tag.Package_tag.version
+      Group.Pkg_tag.version tag
     in
     Hashtbl.add_exn dict ~key:version ~data:ph
 
   let find dict ~tag =
-    let version = tag.Package_tag.version in
+    let version = Group.Pkg_tag.version tag in
     Hashtbl.find dict version
 end
 
@@ -33,7 +33,7 @@ module PackageDict = struct
   let register dict ph =
     let name =
       let tag = Package_handle.tag ph in
-      tag.Package_tag.name
+      Group.Pkg_tag.name tag
     in
     let version_dict =
       Hashtbl.find_or_add dict name ~default:VersionDict.empty
@@ -41,7 +41,7 @@ module PackageDict = struct
     VersionDict.register version_dict ph
 
   let find dict ~tag =
-    let name = tag.Package_tag.name in
+    let name = Group.Pkg_tag.name tag in
     Hashtbl.find dict name |> Option.bind ~f:(VersionDict.find ~tag)
 end
 

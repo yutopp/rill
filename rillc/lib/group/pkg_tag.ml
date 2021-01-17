@@ -6,8 +6,10 @@
  * http://www.boost.org/LICENSE_1_0.txt)
  *)
 
-type t = { name : string; version : string }
+type t = { name : string; version : string } [@@deriving show, yojson_of]
 
 let create ~name ~version : t = { name; version }
 
 let name tag = tag.name
+
+let version tag = tag.version

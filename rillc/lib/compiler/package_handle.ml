@@ -44,7 +44,7 @@ let tag handle = Structure.tag (structure handle)
 
 let name_of handle =
   let tag = tag handle in
-  tag.Package_tag.name
+  Group.Pkg_tag.name tag
 
 let set_root_mod handle ~root_mod = handle.root_mod <- Some root_mod
 

@@ -43,7 +43,7 @@ let to_pkg ~ws ~project_layout ~deps base_dir =
   in
 
   let pkg_struct =
-    let tag = Compiler.Package_tag.create ~name ~version:"latest" in
+    let tag = Group.Pkg_tag.create ~name ~version:"latest" in
 
     let s = Compiler.Structure.create ~tag ~base_dir:"." () in
     Compiler.Structure.add_src_paths s ~paths:src_paths;

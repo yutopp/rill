@@ -21,7 +21,7 @@ module Sema_helper = struct
     let pty = Typing.Pred.of_type ty in
     let ty_sc = Typing.Scheme.of_ty pty in
     let menv =
-      let name = Structure.tag pkg_struct |> Package_tag.name in
+      let name = Structure.tag pkg_struct |> Group.Pkg_tag.name in
       Sema.Env.create name ~parent:None ~visibility ~ty_sc ~kind:Sema.Env.M
         ~lookup_space:Sema.Env.LkGlobal
     in
@@ -138,14 +138,20 @@ let load_pkg_symbols ~ws ~pkg_handle =
 
   let deps = Structure.dependencies pkg_struct in
   List.iter deps ~f:(fun dep ->
-      [%loga.debug "dep_pkg -> %s" dep.Package_tag.name];
+      [%loga.debug "dep_pkg -> %s" (Group.Pkg_tag.name dep)];
       let dep_ph =
         match Workspace.find_pkg_handle ws ~tag:dep with
         | Some v -> v
         | None -> failwith "[ICE] dep is not loaded"
       in
+      (* e.g.
+       * root_mod:foo
+       *   - mod:core (root_mod of core)
+       *   - mod:std (root_mod of std)
+       *)
       Sema_helper.insert_dep_meta ~root_mod dep_ph);
 
+  (* e.g. pkg:foo, files:a.rill, b.rill *)
   let paths = Structure.src_paths pkg_struct in
   List.iter paths ~f:(fun path ->
       (* Create a module for source *)
@@ -153,9 +159,15 @@ let load_pkg_symbols ~ws ~pkg_handle =
 
       let mh = Mod_handle.create ~m in
       load_module_symbols mh ~builtin ~subst;
-      Sema_helper.insert_source_mod ~root_mod mh;
-
       Package_handle.add_mod_handle pkg_handle ~mh;
+
+      (* add a rerefence to the root.
+       * e.g.
+       * root_mod:foo
+       *   - mod:a
+       *   - mod:b
+       *)
+      Sema_helper.insert_source_mod ~root_mod mh;
       ())
 
 let declare_package_symbols ~ws ~pkg_handle =
