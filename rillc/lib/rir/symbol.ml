@@ -123,16 +123,11 @@ and to_param_args_id name =
   Printf.sprintf "G_%s" s
 
 let to_generic_layer l =
-  let Path.Name.{ name; kind; generics_vars; _ } = l in
+  let Path.Name.{ name; kind; _ } = l in
   let kind_s =
     Path.Name.(match kind with Module -> "m" | Type -> "t" | Var _ -> "v")
   in
-  let overloads_s =
-    match generics_vars with
-    | [] -> ""
-    | vars -> vars |> List.map ~f:(fun var -> "") |> String.concat ~sep:","
-  in
-  Printf.sprintf "%s[%s]%s" name kind_s overloads_s
+  Printf.sprintf "%s[%s]" name kind_s
 
 let to_generic_id' layers =
   let s = layers |> List.map ~f:to_generic_layer |> String.concat ~sep:"::" in

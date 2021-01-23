@@ -681,16 +681,15 @@ let declare_type ~ctx ~env ll_mod type_ : Env.type_t * Env.t =
   let mangled_name = Mangling.mangle2 name in
 
   (* Currently, generics is not supported *)
-  let ty = Typing.Scheme.assume_has_no_generics ty_sc in
-  let (Typing.Pred.Pred { ty; _ }) = ty in
-  let inner_ty = Typing.Type.of_type_ty ty in
+  let ty_pred = Typing.Scheme.assume_has_no_generics ty_sc in
+  let (Typing.Pred.Pred { ty; _ }) = ty_pred in
 
   let ll_ty =
-    match inner_ty with
+    match ty with
     | Typing.Type.{ ty = Struct _; _ } ->
         let ll_ty = L.named_struct_type ctx.ll_ctx mangled_name in
         ll_ty
-    | _ -> failwith "[ICE]"
+    | _ -> failwith (Printf.sprintf "[ICE] %s" (Typing.Type.to_string ty))
   in
   let tt = Env.{ ll_ty } in
   let env = Env.set_struct env mangled_name tt in

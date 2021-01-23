@@ -10,18 +10,20 @@ open! Base
 module Package = Common.Package
 
 type t = {
-  path : string;
+  tag : Group.Mod_tag.t;
   menv : Env.t;
   mutable subst : (Typing.Subst.t option[@printer fun fmt _ -> fprintf fmt ""]);
   ds : (Diagnostics.t[@printer fun fmt _ -> fprintf fmt ""]);
 }
 [@@deriving show]
 
-let create ~path ~menv ~pkg =
+let create ~tag ~menv =
   let ds = Diagnostics.create () in
-  { path; menv; subst = None; ds }
+  { tag; menv; subst = None; ds }
 
-let path m = m.path
+let tag m = m.tag
+
+let path m = Group.Mod_tag.path m.tag
 
 let menv m = m.menv
 
@@ -33,7 +35,7 @@ let has_warnings m =
 let subst_of m =
   match m.subst with
   | Some s -> s
-  | None -> failwith (Printf.sprintf "[ICE] has no subst: path = %s" m.path)
+  | None -> failwith (Printf.sprintf "[ICE] has no subst: path = %s" (path m))
 
 let set_latest_subst m subst = m.subst <- Some subst
 

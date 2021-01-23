@@ -222,8 +222,9 @@ let rec generate_stmt ~ctx ~builder ast =
       (node, builder)
   (* *)
   | NAst.{ kind = Var r; ty; span } ->
+      let () = scan_external_symbol ~ctx ~builder r in
+
       let (Typing.Pred.Pred { ty; _ }) = ty in
-      let () = externala ~ctx r ty in
       let place = to_placeholder ~ctx ~builder r in
       let node = Rir.Term.{ kind = LVal place; ty; span } in
       (node, builder)
@@ -276,32 +277,21 @@ and to_placeholder ~ctx ~builder r =
   Rir.Builder.register_monomorphization_candidate builder ph;
   ph
 
-and externala ~ctx r ty =
+and scan_external_symbol ~ctx ~builder r =
   match r with
   | NAst.VarGlobal2 { nest } ->
-      let m = ctx.m in
+      let self_tag = ctx.m |> Sema.Mod.tag in
+      let symbol_tag = Path.tag nest in
+
       let p = Rir.Module.to_placeholder ~subst:ctx.subst nest in
       [%loga.debug "externala = %s" (Rir.Term.to_string_place_holder p)];
-      (* if same modules are passing, result becomes false *)
-      let is_external =
-        (*
-        let rec f ~is_external layers =
-          match layers with
-          | [] -> is_external
-          | l :: rest ->
-              let Common.Chain.Layer.{ kind; _ } = l in
-              let b =
-                match kind with
-                | Common.Chain.Layer.Module -> false
-                | _ -> false
-              in
-              f rest ~is_external:b
-        in
-        let layers = Path.to_list nest in
-        f layers ~is_external:false *)
-        false
-      in
-      [%loga.debug "  -> %b" is_external];
+      [%loga.debug
+        " :: = %s :: %s"
+          (Group.Mod_tag.show self_tag)
+          (Group.Mod_tag.show symbol_tag)];
+      let is_external = not (Group.Mod_tag.equal self_tag symbol_tag) in
+      [%loga.debug " -> %b" is_external];
+      if is_external then Rir.Builder.append_used_external builder ~path:nest;
       ()
   | _ -> ()
 
@@ -407,83 +397,6 @@ and declare_extern_static ~ctx ~builder ~name ~ty_sc ~extern_name =
   let (g : Rir.Global.t) = Rir.Builder.declare_global_var builder name ty_sc in
   Rir.Global.set_extern_form g ~extern_name
 
-let import_dep_value ~ctx ~builder env =
-  let module Ty = Typing.Type in
-  let name = Sema.Name.to_nested_chain env in
-  let ty_sc = Sema.Env.type_sc_of env |> Typing.Subst.subst_scheme ctx.subst in
-  match Typing.Subst.subst_type ctx.subst (Typing.Scheme.raw_ty ty_sc) with
-  (* external func *)
-  | Ty.{ ty = Func { linkage = LinkageC extern_name; _ }; span; _ } ->
-      let (_f : Rir.Func.t) =
-        declare_extern_func ~ctx ~builder ~name ~ty_sc ~extern_name
-      in
-      ()
-  | Ty.{ ty = Func { linkage = LinkageRillc; _ }; span; _ } ->
-      let (_f : Rir.Func.t) = declare_func ~ctx ~builder ~name ~ty_sc in
-      ()
-  | Ty.{ ty = Func { linkage = LinkageVar _; _ }; span; _ } ->
-      failwith "[ICE] linkage is not determined"
-  (* *)
-  | Ty.{ ty = Var _; _ } as ty ->
-      failwith
-        (Printf.sprintf "[ICE] still type variable (value): %s"
-           (Typing.Type.to_string ty))
-  (* as static variables *)
-  | _ ->
-      let extern_name = env.Sema.Env.name in
-      declare_extern_static ~ctx ~builder ~name ~ty_sc ~extern_name
-
-let import_dep_type ~ctx ~builder env =
-  let module Ty = Typing.Type in
-  let name = Sema.Name.to_nested_chain env in
-  let ty_sc = Sema.Env.type_sc_of env in
-  let outer_ty =
-    Typing.Subst.subst_type ctx.subst (Typing.Scheme.raw_ty ty_sc)
-  in
-  match Typing.Subst.subst_type ctx.subst (Typing.Type.of_type_ty outer_ty) with
-  (* import strtuct *)
-  | Ty.{ ty = Struct _; span; _ } -> define_struct ~ctx ~builder ~name ~ty_sc
-  (* *)
-  | Ty.{ ty = Var _; _ } as ty ->
-      failwith
-        (Printf.sprintf "[ICE] still type variable (type): %s"
-           (Typing.Type.to_string ty))
-  (* ignored *)
-  | _ -> ()
-
-let import_dep_env ~ctx ~builder env =
-  [%loga.debug "tE: ref -> %s" env.Sema.Env.name];
-  let env_kind = Sema.Env.w_of env in
-  match env_kind with
-  | Sema.Env.Val -> import_dep_value ~ctx ~builder env
-  | Sema.Env.Ty -> import_dep_type ~ctx ~builder env
-  | _ -> (* Ignore *) ()
-
-let rec import_deps ~ctx ~loaded ~builder env =
-  (* duplication check *)
-  let nest = Sema.Name.to_nested_chain env in
-  (* TODO: instantiage generics *)
-  let uid : string = Rir.Symbol.to_generic_id nest in
-
-  match Hash_set.mem loaded uid with
-  | true -> ()
-  | false ->
-      Hash_set.add loaded uid;
-
-      let deps = Sema.Env.list_deps env in
-      List.iter deps ~f:(import_deps ~ctx ~loaded ~builder);
-
-      let top_levels = Sema.Env.collect_substances env in
-      List.iter top_levels ~f:(fun tenv -> import_dep_env ~ctx ~builder tenv)
-
-let import_deps_xref ~ctx ~builder =
-  let { m; _ } = ctx in
-  let Sema.Mod.{ menv; _ } = m in
-
-  let loaded = Hash_set.create (module String) in
-  let deps = Sema.Env.list_deps menv in
-  List.iter deps ~f:(import_deps ~ctx ~loaded ~builder)
-
 let rec import_traits ~ctx ~builder ast =
   match ast with
   (* *)
@@ -514,10 +427,14 @@ let generate_module ~ctx ast : Rir.Module.t =
       let rir_mod = Rir.Module.create ~ctx:ctx.rir_ctx in
       let builder = Rir.Builder.create ~m:rir_mod in
 
-      import_deps_xref ~ctx ~builder;
+      (*import_deps_xref ~ctx ~builder;*)
       import_traits ~ctx ~builder nodes;
       generate_toplevel ~ctx ~builder nodes;
 
+      let rir_mod =
+        Rir_gen_filters.Import_externals_pass.apply rir_mod
+          ~root_env:ctx.root_mod_env
+      in
       let rir_mod = Rir_gen_filters.Instantiate_pass.apply rir_mod in
       let rir_mod = Rir_gen_filters.Impl_pass.apply rir_mod in
       let rir_mod = Rir_gen_filters.finish rir_mod in

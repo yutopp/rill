@@ -32,18 +32,20 @@ module Name = struct
 end
 
 type 'a t = {
-  pkg_tag : Group.Pkg_tag.t;
+  tag : Group.Mod_tag.t;
   (* if paths is nil, that is local path *)
   paths : 'a Name.t list;
   last : 'a Name.t;
 }
 [@@deriving show, yojson_of]
 
-let create ~pkg_tag names =
+let create ~tag names =
   let rev_names = List.rev names in
   let paths = List.tl_exn rev_names |> List.rev in
   let last = List.hd_exn rev_names in
-  { pkg_tag; paths; last }
+  { tag; paths; last }
+
+let tag path = path.tag
 
 let to_list path =
   let { paths; last; _ } = path in

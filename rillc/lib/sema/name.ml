@@ -19,7 +19,7 @@ let to_leyer env inv_subst : 'a Path.Name.t option =
 
   let kind =
     match env.Env.kind with
-    | Env.M -> Some Path.Name.Module
+    | Env.M _ -> Some Path.Name.Module
     | Env.Ty | Env.Impl | Env.Trait -> Some Path.Name.Type
     | Env.Val -> Some (Path.Name.Var (Typing.Pred.to_type ty))
     | Env.N | Env.KindScope | Env.Alias _ -> None
@@ -32,6 +32,8 @@ let to_leyer env inv_subst : 'a Path.Name.t option =
       l)
 
 let to_nested_chain' env subst : 'a Path.t =
+  let tag = Env.belonged_mod env in
+  [%loga.debug "tag = %s" (tag |> Group.Mod_tag.show)];
   let rec f env leaf_layers =
     match env.Env.kind with
     | Env.Alias aenv -> f aenv leaf_layers
@@ -42,12 +44,7 @@ let to_nested_chain' env subst : 'a Path.t =
         in
         match env.Env.parent with
         (* *)
-        | None ->
-            let pkg_tag =
-              (* TODO *)
-              Group.Pkg_tag.create ~name:"" ~version:""
-            in
-            Path.create ~pkg_tag leaf_layers
+        | None -> Path.create ~tag leaf_layers
         (* *)
         | Some penv -> f penv leaf_layers )
   in
@@ -57,21 +54,18 @@ let to_nested_chain env : 'a Path.t =
   let subst = Typing.Subst.create_generic () in
   to_nested_chain' env subst
 
-let to_chains' env subst : 'a Path.t =
+let to_single_path' env ~subst : 'a Path.t =
+  let tag = Env.belonged_mod env in
+  [%loga.debug "tag = %s" (tag |> Group.Mod_tag.show)];
   match env.Env.lookup_space with
   | Env.LkLocal ->
       let l_opt = to_leyer env subst in
       let l = Option.value_exn ~message:"[ICE]" l_opt in
-
-      let pkg_tag =
-        (* TODO *)
-        Group.Pkg_tag.create ~name:"" ~version:""
-      in
-      Path.create ~pkg_tag [ l ]
+      Path.create ~tag [ l ]
   | Env.LkGlobal -> to_nested_chain' env subst
 
-let to_chains env : 'a Path.t =
+let to_single_path env : 'a Path.t =
   let subst = Typing.Subst.create_generic () in
-  to_chains' env subst
+  to_single_path' env ~subst
 
 let to_string ~to_s path = Path.to_string ~to_s path

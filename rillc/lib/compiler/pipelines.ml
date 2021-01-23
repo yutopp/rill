@@ -24,10 +24,10 @@ module Phases = struct
   module Parse = struct
     let trans m =
       let open Result.Let_syntax in
-      let Mod.{ path; ds; _ } = m in
+      let Mod.{ ds; _ } = m in
 
       (* TODO: check state and ds to restrict compilaction *)
-      let%bind (_stete, parsed) = Syntax.parse_from_file ~ds path in
+      let%bind (_stete, parsed) = Syntax.parse_from_file ~ds (Mod.path m) in
       let phase = Mod_handle.Parsed parsed in
       Ok phase
 
@@ -118,10 +118,8 @@ module Phases = struct
   module Phase2 = struct
     let trans ~builtin ~m ~subst p1ast =
       let open Result.Let_syntax in
-      let Mod.{ ds; _ } = m in
-
       let%bind (p2ast, subst) =
-        let ctx = Sema.Phase2.Ctx.create ~ds ~subst ~builtin in
+        let ctx = Sema.Phase2.Ctx.create ~m ~subst ~builtin in
         Sema.Phase2.into_typed_tree ~ctx p1ast
         |> Result.map ~f:(fun n -> (n, Sema.Phase2.Ctx.(ctx.subst)))
       in

@@ -26,6 +26,13 @@ and assume_has_no_generics ty_sc =
   | ForAll { implicits = []; vars = []; ty } -> ty
   | _ -> failwith "NOTE: generics is not allowed here"
 
+let eliminate_type_of ty_sc =
+  let (ForAll { ty = pred; implicits; vars }) = ty_sc in
+  let (Pred.Pred { ty; conds }) = pred in
+  let ty = Type.of_type_ty ty in
+  let pred = Pred.Pred { ty; conds } in
+  ForAll { ty = pred; implicits; vars }
+
 let rec to_string ty_sc : string =
   match ty_sc with
   | ForAll { implicits = []; vars = []; ty } -> Pred.to_string ty

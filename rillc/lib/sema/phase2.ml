@@ -75,12 +75,15 @@ module Ctx = struct
     ds : Diagnostics.t;
     mutable subst : Typing.Subst.t;
     builtin : Builtin.t;
+    m : Mod.t;
     exec_ctx : exec_ctx_t option;
   }
 
   and exec_ctx_t = ExecCtxFunc of { return : Typing.Type.t }
 
-  let create ~ds ~subst ~builtin = { ds; subst; builtin; exec_ctx = None }
+  let create ~m ~subst ~builtin =
+    let Mod.{ ds; _ } = m in
+    { ds; subst; builtin; m; exec_ctx = None }
 
   let merge dst src = dst.subst <- src.subst
 
@@ -165,8 +168,8 @@ and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
             Error elm
       in
 
-      let ty = ctx.Ctx.builtin.Builtin.unit_ ~span |> Typing.Pred.of_type in
       let name = Name.to_nested_chain env in
+      let ty = ctx.Ctx.builtin.Builtin.unit_ ~span |> Typing.Pred.of_type in
       Ok TAst.{ kind = DeclExternFunc { name; ty_sc; extern_name }; ty; span }
   (* *)
   | Ast.{ kind = DeclExternStaticVar { attr; name; _ }; span } ->
@@ -242,11 +245,7 @@ and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
                   has_self = false;
                 }
             in
-            let pkg_tag =
-              (* TODO *)
-              Group.Pkg_tag.create ~name:"" ~version:""
-            in
-            Path.create ~pkg_tag [ name ]
+            Path.create ~tag:(Mod.tag ctx.m) [ name ]
         | _ -> Name.to_nested_chain env
       in
       Ok
@@ -259,7 +258,7 @@ and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
   (* *)
   | Ast.{ kind = DefStruct _; span } ->
       (* TODO: check that there are no holes *)
-      let ty_sc = Env.type_sc_of env in
+      let ty_sc = Env.type_sc_of env |> Typing.Scheme.eliminate_type_of in
 
       let ty = ctx.Ctx.builtin.Builtin.unit_ ~span |> Typing.Pred.of_type in
       let name = Name.to_nested_chain env in
@@ -718,7 +717,7 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
               |> String.concat ~sep:"," )]
       in
 
-      let chain = Name.to_chains' env lookup_subst in
+      let chain = Name.to_single_path' env ~subst:lookup_subst in
       [%loga.debug
         "chain -> %s :: %s"
           (Path.to_string ~to_s:Typing.Type.to_string chain)

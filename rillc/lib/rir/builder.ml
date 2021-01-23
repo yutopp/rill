@@ -101,3 +101,5 @@ let build_return b =
   let termi = Term.Ret in
   let bb = get_current_bb b in
   Term.BB.append_inst bb (Term.TerminatorPoint termi)
+
+let append_used_external b ~path = Module.append_used_external b.module_ path

@@ -47,14 +47,14 @@ let assume_new inseted_status =
   | Env.InsertedHiding -> failwith "[ICE] insertion with hiding"
   | _ -> ()
 
-let introduce_prelude penv builtin =
+let introduce_builtin penv builtin =
   let register name inner_ty_gen =
     let ty = Typing.Type.to_type_ty (inner_ty_gen ~span:Span.undef) in
     let pty = Typing.Pred.of_type ty in
     let ty_sc = Typing.Scheme.of_ty pty in
     let env =
-      Env.create name ~parent:None ~visibility:Env.Private ~ty_sc ~kind:Env.Ty
-        ~lookup_space:Env.LkGlobal
+      Env.create ~is_builtin:true name ~parent:None ~visibility:Env.Private
+        ~ty_sc ~kind:Env.Ty ~lookup_space:Env.LkGlobal
     in
     Env.insert penv env |> assume_new
   in
@@ -76,7 +76,7 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
   | Ast.{ kind = Module stmts; span } ->
       (* TODO: fix *)
       let menv = ctx.parent in
-      introduce_prelude menv ctx.builtin;
+      introduce_builtin menv ctx.builtin;
 
       let%bind stmts =
         let ctx' = { ctx with parent = menv } in

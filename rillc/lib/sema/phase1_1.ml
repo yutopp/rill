@@ -290,12 +290,9 @@ and pass_through ~ctx ast =
       in
       let rec f mods env loadable_envs =
         match mods with
-        | [] ->
-            register_deps ~ctx env;
-            Ok [ env ]
+        | [] -> Ok [ env ]
         | [ last_id ] ->
             [%loga.debug "leaf: %s" (Ast.show last_id)];
-            register_deps ~ctx env;
             let%bind envs = find_mods_with_wildcard ~env last_id in
             Ok (List.join [ envs; loadable_envs ])
         | cont :: rest ->
@@ -333,10 +330,6 @@ and pass_through ~ctx ast =
       in
       let elm = Diagnostics.Elem.error ~span e in
       Error elm
-
-and register_deps ~ctx env =
-  let Mod.{ menv; _ } = ctx.m in
-  Env.register_deps_mod menv env
 
 and find_mod ?lookup ~env ast =
   let open Result.Let_syntax in

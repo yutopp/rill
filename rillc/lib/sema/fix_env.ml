@@ -19,7 +19,7 @@ let rec fix env ~subst =
 
   (* TODO: check visibility and  lookup_space *)
   match kind with
-  | Env.M ->
+  | Env.M _ ->
       let children = Env.collect_all env in
       List.iter children ~f:(fix ~subst)
   | _ -> ()

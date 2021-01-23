@@ -124,3 +124,20 @@ let assume_trait_id ty =
   | { ty = Var { var; _ }; _ } -> var
   | { ty = Trait { initial_marker; _ }; _ } -> initial_marker
   | _ -> failwith "[ICE]"
+
+let rec iter ty ~f =
+  match ty with
+  | { ty = Var _; _ }
+  | { ty = Unit; _ }
+  | { ty = Num _; _ }
+  | { ty = Size _; _ }
+  | { ty = String; _ }
+  | { ty = Struct _; _ }
+  | { ty = Trait _; _ } ->
+      f ty
+  | { ty = Array { elem; _ }; _ } -> iter elem ~f
+  | { ty = Func { params; ret; _ }; _ } ->
+      List.iter params ~f:(iter ~f);
+      iter ret ~f
+  | { ty = Pointer { elem; _ }; _ } -> iter elem ~f
+  | _ -> failwith "[ICE] not supported"

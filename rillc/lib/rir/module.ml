@@ -9,27 +9,22 @@
 open! Base
 module StringMap = Map.M (String)
 
-let to_placeholder ~subst name =
-  let Path.{ pkg_tag; _ } = name in
+let to_placeholder_generic path ~subst_type =
+  let Path.{ tag; _ } = path in
   let rec convert layers rev_layers trait_scope_rev_layers has_self_layer =
     match layers with
     | [] ->
-        let name = Path.create ~pkg_tag (rev_layers |> List.rev) in
+        let name = Path.create ~tag (rev_layers |> List.rev) in
         let placeholder =
           match (trait_scope_rev_layers, has_self_layer) with
           | (Some rev_nest, Some layer) ->
-              let nest = rev_nest |> List.rev in
               Term.PlaceholderGlobal2 { name; dispatch = true }
-          | _ ->
-              let nest = rev_layers |> List.rev in
-              Term.PlaceholderGlobal2 { name; dispatch = false }
+          | _ -> Term.PlaceholderGlobal2 { name; dispatch = false }
         in
         placeholder
     | l :: rest ->
         let Path.Name.{ kind; generics_vars; has_self; _ } = l in
-        let generics_vars =
-          List.map generics_vars ~f:(fun v -> Typing.Subst.subst_type subst v)
-        in
+        let generics_vars = List.map generics_vars ~f:subst_type in
         let l = Path.Name.{ l with generics_vars } in
         let rev_layers = l :: rev_layers in
 
@@ -43,8 +38,12 @@ let to_placeholder ~subst name =
         in
         convert rest rev_layers trait_scope_rev_layers has_self_layer
   in
-  let layers = Path.to_list name in
+  let layers = Path.to_list path in
   convert layers [] None None
+
+let to_placeholder ~subst path =
+  to_placeholder_generic path ~subst_type:(fun v ->
+      Typing.Subst.subst_type subst v)
 
 (* TODO: fix *)
 module Func_generics = struct
@@ -70,7 +69,12 @@ module Func_generics = struct
   let create_overload ~f ~kind =
     { base = f; kind; instances = Map.empty (module String) }
 
-  let declare_func ~subst funcs name ty_sc =
+  let is_declared funcs ~path =
+    let { funcs_map; _ } = funcs in
+    let id = Symbol.to_generic_id path in
+    Map.mem funcs_map id
+
+  let declare_func funcs ~name ~ty_sc =
     let { funcs_map; funcs_rev } = funcs in
 
     let id = Symbol.to_generic_id name in
@@ -240,6 +244,8 @@ module Trait_generics = struct
     let { instances_map; _ } = traits in
     (* TODO: support generics *)
     let id = Symbol.to_generic_id name in
+    [%loga.debug "register_dict -> %s" id];
+
     let instances =
       match Map.find instances_map id with
       | Some t -> t
@@ -256,6 +262,7 @@ module Trait_generics = struct
   let find traits name =
     let { instances_map; _ } = traits in
     let id = Symbol.to_generic_id' name in
+    [%loga.debug "find_dict -> %s" id];
 
     let set = Map.find_exn instances_map id in
     set.base
@@ -316,6 +323,7 @@ type t = {
   mutable types : types_t;
   monom : Monom.t;
   mutable global_traits : Trait_generics.t;
+  mutable used_externals : Typing.Type.t Path.t list;
 }
 
 and global_vars_t = {
@@ -330,10 +338,19 @@ let create ~ctx : t =
   let types = { types_rev = [] } in
   let monom = Monom.create () in
   let global_traits = Trait_generics.create () in
-  { ctx; module_name = ""; global_vars; funcs; types; monom; global_traits }
+  {
+    ctx;
+    module_name = "";
+    global_vars;
+    funcs;
+    types;
+    monom;
+    global_traits;
+    used_externals = [];
+  }
 
 let declare_func ~subst m name ty_sc =
-  let f = Func_generics.declare_func ~subst m.funcs name ty_sc in
+  let f = Func_generics.declare_func m.funcs ~name ~ty_sc in
   let placeholder = to_placeholder ~subst name in
   let () =
     match placeholder with
@@ -402,6 +419,8 @@ let mono m =
 let base_traits m : Trait.t list = Trait_generics.base m.global_traits
 
 let find_trait m name = Trait_generics.find m.global_traits name
+
+let append_used_external m path = m.used_externals <- path :: m.used_externals
 
 let to_string m =
   let indent = 0 in

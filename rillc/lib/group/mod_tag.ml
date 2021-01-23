@@ -6,10 +6,10 @@
  * http://www.boost.org/LICENSE_1_0.txt)
  *)
 
-type t = { name : string; version : string } [@@deriving show, eq, yojson_of]
+type t = { pkg_tag : Pkg_tag.t; path : string } [@@deriving show, eq, yojson_of]
 
-let create ~name ~version : t = { name; version }
+let create ~pkg_tag ~path : t = { pkg_tag; path }
 
-let name tag = tag.name
+let with_path tag ~path = { tag with path }
 
-let version tag = tag.version
+let path tag = tag.path

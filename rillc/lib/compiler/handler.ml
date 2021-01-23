@@ -22,13 +22,20 @@ module Sema_helper = struct
     let ty_sc = Typing.Scheme.of_ty pty in
     let menv =
       let name = Structure.tag pkg_struct |> Group.Pkg_tag.name in
-      Sema.Env.create name ~parent:None ~visibility ~ty_sc ~kind:Sema.Env.M
-        ~lookup_space:Sema.Env.LkGlobal
+      let tag =
+        let path = Structure.base_dir pkg_struct in
+        Group.Mod_tag.create ~pkg_tag:(Structure.tag pkg_struct) ~path
+      in
+      Sema.Env.create name ~parent:None ~visibility ~ty_sc
+        ~kind:(Sema.Env.M tag) ~lookup_space:Sema.Env.LkGlobal
     in
 
     let root_mod =
       let path = Structure.base_dir pkg_struct in
-      Mod.create ~path ~menv ~pkg:1
+      let tag =
+        Group.Mod_tag.create ~pkg_tag:(Structure.tag pkg_struct) ~path
+      in
+      Mod.create ~tag ~menv
     in
 
     root_mod
@@ -48,22 +55,31 @@ module Sema_helper = struct
       let ty_sc = Typing.Scheme.of_ty pty in
       (* Per modules have a root_mod_env as a root *)
       let root_mod_env = Mod.menv root_mod in
+      let tag =
+        let root_mod_tag = Mod.tag root_mod in
+        Group.Mod_tag.with_path root_mod_tag ~path
+      in
       Sema.Env.create name ~parent:(Some root_mod_env) ~visibility ~ty_sc
-        ~kind:Sema.Env.M ~lookup_space:Sema.Env.LkGlobal
+        ~kind:(Sema.Env.M tag) ~lookup_space:Sema.Env.LkGlobal
     in
 
-    Mod.create ~path ~menv ~pkg:1
+    let tag =
+      let root_mod_tag = Mod.tag root_mod in
+      Group.Mod_tag.with_path root_mod_tag ~path
+    in
+    Mod.create ~tag ~menv
+
+  let insert_new_mod ~parent_mod ~child_mod =
+    Sema.Env.insert_meta (Mod.menv parent_mod) (Mod.menv child_mod)
+    |> Sema.Phase1_collect_toplevels.assume_new
 
   let insert_source_mod ~root_mod mh =
     (* TODO: open modules by root module *)
-    Sema.Env.insert_meta (Mod.menv root_mod) (mh |> Mod_handle.inner |> Mod.menv)
-    |> Sema.Phase1_collect_toplevels.assume_new
+    insert_new_mod ~parent_mod:root_mod ~child_mod:(mh |> Mod_handle.inner)
 
   let insert_dep_meta ~root_mod ph =
     let dep_root_mod = Package_handle.root_mod ph in
-
-    Sema.Env.insert_meta (Mod.menv root_mod) (Mod.menv dep_root_mod)
-    |> Sema.Phase1_collect_toplevels.assume_new
+    insert_new_mod ~parent_mod:root_mod ~child_mod:dep_root_mod
 end
 
 let return_if_failed mh r =
@@ -136,6 +152,14 @@ let load_pkg_symbols ~ws ~pkg_handle =
 
   let has_fatal = ref false in
 
+  (* Add a recursive refecence
+   * e.g.
+   * root_mod:foo <-|
+   *   - mod:foo  --|
+   *)
+  Sema_helper.insert_new_mod ~parent_mod:root_mod ~child_mod:root_mod;
+
+  (* Add dependencies *)
   let deps = Structure.dependencies pkg_struct in
   List.iter deps ~f:(fun dep ->
       [%loga.debug "dep_pkg -> %s" (Group.Pkg_tag.name dep)];
@@ -328,6 +352,8 @@ let compile ~ws ~printer ~pkg_handle ~pack ~triple ~emitter ~out_to =
 
   declare_package_symbols ~ws ~pkg_handle;
   let%bind () = assume_no_errors_in_pkg ~printer ~pkg_handle in
+
+  decide_exported_interfaces ~ws ~pkg_handle;
 
   analyze_package ~ws ~pkg_handle;
   let%bind () = assume_no_errors_in_pkg ~printer ~pkg_handle in
