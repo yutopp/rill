@@ -26,6 +26,7 @@ depends: [
   "re" {>= "1.9.0"}
   "ppx_deriving" {>= "4.5"}
   "ppx_expect" {with-test & >= "v0.13.0"}
+  "alcotest" {with-test & >= "1.2.3"}
 ]
 build: [
   ["dune" "subst"] {pinned}

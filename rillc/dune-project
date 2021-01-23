@@ -32,4 +32,6 @@
   (llvm                (>= 11.0.0+rillc))
   (re                  (>= 1.9.0))
   (ppx_deriving        (>= 4.5))
-  (ppx_expect          (and :with-test (>= v0.13.0)))))
+  (ppx_expect          (and :with-test (>= v0.13.0)))
+  (alcotest            (and :with-test (>= 1.2.3)))
+))
