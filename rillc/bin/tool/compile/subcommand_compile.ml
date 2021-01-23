@@ -48,12 +48,6 @@ Compile rill source codes.
       Arg.(value & opt (some dir) None & info [ "stdlib-libdir" ] ~doc)
     in
 
-    let emit =
-      let doc = "" in
-      let l = Rillc.Tool.Emitter.emit_map in
-      Arg.(value & opt (some (enum l)) None & info [ "emit" ] ~doc)
-    in
-
     let pack =
       let doc = "" in
       Arg.(value & flag & info [ "pack" ] ~doc)
@@ -86,9 +80,9 @@ Compile rill source codes.
          *)
         let%bind out_to =
           match (output, out_dir) with
-          | (None, None) -> Ok (Rillc.Tool.Writer.OutputToFile None)
-          | (Some o, None) -> Ok (Rillc.Tool.Writer.OutputToFile (Some o))
-          | (None, Some o) -> Ok (Rillc.Tool.Writer.OutputToDir o)
+          | (None, None) -> Ok (Rillc.Compiler.Writer.OutputToFile None)
+          | (Some o, None) -> Ok (Rillc.Compiler.Writer.OutputToFile (Some o))
+          | (None, Some o) -> Ok (Rillc.Compiler.Writer.OutputToDir o)
           | _ -> Error Errors.Flags.Cannot_specify_output_and_outdir
         in
 
@@ -99,13 +93,11 @@ Compile rill source codes.
          * |  x   |  !   |  o  | -> Export a library.
          *)
         let%bind export =
-          match (emit, pack, lib, out_to) with
-          | (Some e, _, false, _) ->
-              Ok (Rillc.Tool.Compile.Export.Artifact { emit; pack; out_to })
-          | (None, _, false, Rillc.Tool.Writer.OutputToFile out_path) ->
-              Ok (Rillc.Tool.Compile.Export.Executable { out_path })
-          | (None, _, true, Rillc.Tool.Writer.OutputToFile out_path) ->
-              Ok (Rillc.Tool.Compile.Export.Library { out_path })
+          match (emit, pack, lib) with
+          | (Some e, _, false) ->
+              Ok (Rillc.Tool.Compile.Export.Artifact { emit; pack })
+          | (None, _, false) -> Ok Rillc.Tool.Compile.Export.Executable
+          | (None, _, true) -> Ok Rillc.Tool.Compile.Export.Library
           | _ -> failwith "[ICE]"
         in
 
@@ -119,6 +111,7 @@ Compile rill source codes.
               stdlib_libdir;
               target;
               export;
+              out_to;
               input_files;
             }
         in
@@ -131,7 +124,7 @@ Compile rill source codes.
         ret
           ( const action $ Shared_flags.sysroot $ corelib_srcdir
           $ corelib_libdir $ stdlib_srcdir $ stdlib_libdir $ Shared_flags.target
-          $ Shared_flags.output $ out_dir $ emit $ pack $ lib
+          $ Shared_flags.output $ out_dir $ Shared_flags.emit $ pack $ lib
           $ Shared_flags.log_level $ Shared_flags.files )),
       info )
 end

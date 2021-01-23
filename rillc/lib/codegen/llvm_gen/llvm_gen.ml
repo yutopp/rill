@@ -88,6 +88,7 @@ module Env = struct
   let get_local_var env name = Map.find_exn env.local_vars name
 
   let set_global_var env name value =
+    [%loga.debug "set_global_var = %s" name];
     { env with global_vars = Map.set ~key:name ~data:value env.global_vars }
 
   let get_var_place env placeholder =
@@ -680,16 +681,15 @@ let declare_type ~ctx ~env ll_mod type_ : Env.type_t * Env.t =
   let mangled_name = Mangling.mangle2 name in
 
   (* Currently, generics is not supported *)
-  let ty = Typing.Scheme.assume_has_no_generics ty_sc in
-  let (Typing.Pred.Pred { ty; _ }) = ty in
-  let inner_ty = Typing.Type.of_type_ty ty in
+  let ty_pred = Typing.Scheme.assume_has_no_generics ty_sc in
+  let (Typing.Pred.Pred { ty; _ }) = ty_pred in
 
   let ll_ty =
-    match inner_ty with
+    match ty with
     | Typing.Type.{ ty = Struct _; _ } ->
         let ll_ty = L.named_struct_type ctx.ll_ctx mangled_name in
         ll_ty
-    | _ -> failwith "[ICE]"
+    | _ -> failwith (Printf.sprintf "[ICE] %s" (Typing.Type.to_string ty))
   in
   let tt = Env.{ ll_ty } in
   let env = Env.set_struct env mangled_name tt in
@@ -707,8 +707,6 @@ let define_type ~ctx ~env ll_mod ll_ty type_ : Env.t =
 let define_global ~ctx ~env ll_mod g : Env.t =
   let Rir.Global.{ name; ty_sc; _ } = g in
 
-  let mangled_name = Mangling.mangle2 name in
-
   (* Currently, generics is not supported *)
   let ty = Typing.Scheme.assume_has_no_generics ty_sc in
   let (Typing.Pred.Pred { ty; _ }) = ty in
@@ -722,6 +720,8 @@ let define_global ~ctx ~env ll_mod g : Env.t =
   in
   let mem = Value_category.memory_of ty in
   let var = Env.Var.{ ll_v; ty; as_treat = Value_category.(AsPtr mem) } in
+
+  let mangled_name = Mangling.mangle2 name in
   let env = Env.set_global_var env mangled_name var in
   env
 

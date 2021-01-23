@@ -7,7 +7,3 @@
  *)
 
 exception Invalid_argument of string
-
-exception There_are_warnings_or_errors
-
-exception Failed_to_export_artifact of string

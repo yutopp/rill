@@ -9,32 +9,28 @@
 open! Base
 module StringMap = Map.M (String)
 
-let to_placeholder ~subst name =
+let to_placeholder_generic path ~subst_type =
+  let Path.{ tag; _ } = path in
   let rec convert layers rev_layers trait_scope_rev_layers has_self_layer =
     match layers with
     | [] ->
-        let name = Common.Chain.Nest.from_list (rev_layers |> List.rev) in
+        let name = Path.create ~tag (rev_layers |> List.rev) in
         let placeholder =
           match (trait_scope_rev_layers, has_self_layer) with
           | (Some rev_nest, Some layer) ->
-              let nest = rev_nest |> List.rev in
               Term.PlaceholderGlobal2 { name; dispatch = true }
-          | _ ->
-              let nest = rev_layers |> List.rev in
-              Term.PlaceholderGlobal2 { name; dispatch = false }
+          | _ -> Term.PlaceholderGlobal2 { name; dispatch = false }
         in
         placeholder
     | l :: rest ->
-        let Common.Chain.Layer.{ kind; generics_vars; has_self; _ } = l in
-        let generics_vars =
-          List.map generics_vars ~f:(fun v -> Typing.Subst.subst_type subst v)
-        in
-        let l = Common.Chain.Layer.{ l with generics_vars } in
+        let Path.Name.{ kind; generics_vars; has_self; _ } = l in
+        let generics_vars = List.map generics_vars ~f:subst_type in
+        let l = Path.Name.{ l with generics_vars } in
         let rev_layers = l :: rev_layers in
 
         let trait_scope_rev_layers =
           match kind with
-          | Common.Chain.Layer.Type -> Some rev_layers
+          | Path.Name.Type -> Some rev_layers
           | _ -> trait_scope_rev_layers
         in
         let has_self_layer =
@@ -42,8 +38,12 @@ let to_placeholder ~subst name =
         in
         convert rest rev_layers trait_scope_rev_layers has_self_layer
   in
-  let layers = Common.Chain.Nest.to_list name in
+  let layers = Path.to_list path in
   convert layers [] None None
+
+let to_placeholder ~subst path =
+  to_placeholder_generic path ~subst_type:(fun v ->
+      Typing.Subst.subst_type subst v)
 
 (* TODO: fix *)
 module Func_generics = struct
@@ -69,7 +69,12 @@ module Func_generics = struct
   let create_overload ~f ~kind =
     { base = f; kind; instances = Map.empty (module String) }
 
-  let declare_func ~subst funcs name ty_sc =
+  let is_declared funcs ~path =
+    let { funcs_map; _ } = funcs in
+    let id = Symbol.to_generic_id path in
+    Map.mem funcs_map id
+
+  let declare_func funcs ~name ~ty_sc =
     let { funcs_map; funcs_rev } = funcs in
 
     let id = Symbol.to_generic_id name in
@@ -133,9 +138,9 @@ end
 
 module Impl = struct
   type t = {
-    name : Typing.Type.t Common.Chain.Nest.t;
+    name : Typing.Type.t Path.t;
     mutable members :
-      (Typing.Type.t Common.Chain.Nest.t StringMap.t
+      (Typing.Type.t Path.t StringMap.t
       [@printer fun fmt _ -> fprintf fmt ""]);
   }
   [@@deriving show]
@@ -164,20 +169,20 @@ module Impl = struct
     let { name; members; _ } = trait in
     Buffer.add_string buf
       (Printf.sprintf "Impl: name = '%s'\n"
-         (Common.Chain.Nest.to_string ~to_s:Typing.Type.to_string name));
+         (Path.to_string ~to_s:Typing.Type.to_string name));
 
     Map.iteri members ~f:(fun ~key ~data ->
         Buffer.add_string buf (String.make (indent + 2) ' ');
         Buffer.add_string buf
           (Printf.sprintf "%s -> '%s'\n" key
-             (Common.Chain.Nest.to_string ~to_s:Typing.Type.to_string data)));
+             (Path.to_string ~to_s:Typing.Type.to_string data)));
 
     Buffer.contents buf
 end
 
 module Trait = struct
   type t = {
-    name : Typing.Type.t Common.Chain.Nest.t;
+    name : Typing.Type.t Path.t;
     mutable impls : (Impl.t StringMap.t[@printer fun fmt _ -> fprintf fmt ""]);
   }
   [@@deriving show]
@@ -207,7 +212,7 @@ module Trait = struct
     let { name; impls; _ } = trait in
     Buffer.add_string buf
       (Printf.sprintf "Trait: name = '%s'\n"
-         (Common.Chain.Nest.to_string ~to_s:Typing.Type.to_string name));
+         (Path.to_string ~to_s:Typing.Type.to_string name));
 
     Map.iteri impls ~f:(fun ~key ~data ->
         Buffer.add_string buf (Impl.to_string ~indent:(indent + 2) data));
@@ -239,6 +244,8 @@ module Trait_generics = struct
     let { instances_map; _ } = traits in
     (* TODO: support generics *)
     let id = Symbol.to_generic_id name in
+    [%loga.debug "register_dict -> %s" id];
+
     let instances =
       match Map.find instances_map id with
       | Some t -> t
@@ -255,6 +262,7 @@ module Trait_generics = struct
   let find traits name =
     let { instances_map; _ } = traits in
     let id = Symbol.to_generic_id' name in
+    [%loga.debug "find_dict -> %s" id];
 
     let set = Map.find_exn instances_map id in
     set.base
@@ -281,7 +289,7 @@ module Monom = struct
   let register_candidate m name =
     [%loga.debug
       "register_candidate: %s :: %b"
-        (Common.Chain.Nest.to_string ~to_s:Typing.Type.to_string name)
+        (Path.to_string ~to_s:Typing.Type.to_string name)
         (Symbol.has_generics name)];
 
     if Symbol.is_generics name && not (Symbol.has_generics name) then
@@ -315,6 +323,7 @@ type t = {
   mutable types : types_t;
   monom : Monom.t;
   mutable global_traits : Trait_generics.t;
+  mutable used_externals : Typing.Type.t Path.t list;
 }
 
 and global_vars_t = {
@@ -329,10 +338,19 @@ let create ~ctx : t =
   let types = { types_rev = [] } in
   let monom = Monom.create () in
   let global_traits = Trait_generics.create () in
-  { ctx; module_name = ""; global_vars; funcs; types; monom; global_traits }
+  {
+    ctx;
+    module_name = "";
+    global_vars;
+    funcs;
+    types;
+    monom;
+    global_traits;
+    used_externals = [];
+  }
 
 let declare_func ~subst m name ty_sc =
-  let f = Func_generics.declare_func ~subst m.funcs name ty_sc in
+  let f = Func_generics.declare_func m.funcs ~name ~ty_sc in
   let placeholder = to_placeholder ~subst name in
   let () =
     match placeholder with
@@ -401,6 +419,8 @@ let mono m =
 let base_traits m : Trait.t list = Trait_generics.base m.global_traits
 
 let find_trait m name = Trait_generics.find m.global_traits name
+
+let append_used_external m path = m.used_externals <- path :: m.used_externals
 
 let to_string m =
   let indent = 0 in

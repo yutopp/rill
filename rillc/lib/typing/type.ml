@@ -24,11 +24,8 @@ and ty_t =
   | Array of { elem : t; n : int }
   | Func of { params : t list; ret : t; linkage : func_linkage_t }
   | Pointer of { mut : mutability_t; elem : t }
-  | Struct of { name : t Common.Chain.Nest.t }
-  | Trait of {
-      name : t Common.Chain.Nest.t;
-      initial_marker : Common.Type_var.t;
-    }
+  | Struct of { name : t Path.t }
+  | Trait of { name : t Path.t; initial_marker : Common.Type_var.t }
   (* generics *)
   | Args of { recv : t; args : apply_t list }
   | Predicate of { conds : apply_t list; elem : t }
@@ -60,7 +57,7 @@ let rec to_string ty : string =
       let s =
         match bound with
         | BoundForall -> Printf.sprintf "%s" label
-        | BoundWeak -> Printf.sprintf "_w%d" var
+        | BoundWeak -> Printf.sprintf "_w%s" (Common.Type_var.to_string var)
       in
       s
   | { ty = Unit; _ } -> "unit"
@@ -79,12 +76,11 @@ let rec to_string ty : string =
   | { ty = Pointer { mut; elem }; _ } ->
       Printf.sprintf "*%s %s" (to_string_mut mut) (to_string elem)
   | { ty = Struct { name }; _ } ->
-      Printf.sprintf "struct(%s)"
-        (Common.Chain.Nest.to_string ~to_s:to_string name)
+      Printf.sprintf "struct(%s)" (Path.to_string ~to_s:to_string name)
   | { ty = Trait { name; initial_marker }; _ } ->
-      Printf.sprintf "trait(%s, init=%d)"
-        (Common.Chain.Nest.to_string ~to_s:to_string name)
-        initial_marker
+      Printf.sprintf "trait(%s, init=%s)"
+        (Path.to_string ~to_s:to_string name)
+        (Common.Type_var.to_string initial_marker)
   | { ty = Args { recv; args }; _ } ->
       Printf.sprintf "%s!(%s)" (to_string recv)
         (List.map args ~f:to_string_arg |> String.concat ~sep:",")
@@ -99,7 +95,8 @@ and to_string_mut mut : string =
   match mut with
   | MutImm -> "immutable"
   | MutMut -> "mutable"
-  | MutVar v -> Printf.sprintf "mut_not_determined: %d" v
+  | MutVar v ->
+      Printf.sprintf "mut_not_determined: %s" (Common.Type_var.to_string v)
 
 and to_string_arg arg : string =
   let { apply_src_ty = src; apply_dst_ty = dst } = arg in
@@ -109,7 +106,8 @@ let to_string_linkage mut : string =
   match mut with
   | LinkageRillc -> "rillc"
   | LinkageC sym -> Printf.sprintf "C: %s" sym
-  | LinkageVar v -> Printf.sprintf "linkage_not_determined: %d" v
+  | LinkageVar v ->
+      Printf.sprintf "linkage_not_determined: %s" (Common.Type_var.to_string v)
 
 let assume_func_ty ty =
   match ty with
@@ -126,3 +124,20 @@ let assume_trait_id ty =
   | { ty = Var { var; _ }; _ } -> var
   | { ty = Trait { initial_marker; _ }; _ } -> initial_marker
   | _ -> failwith "[ICE]"
+
+let rec iter ty ~f =
+  match ty with
+  | { ty = Var _; _ }
+  | { ty = Unit; _ }
+  | { ty = Num _; _ }
+  | { ty = Size _; _ }
+  | { ty = String; _ }
+  | { ty = Struct _; _ }
+  | { ty = Trait _; _ } ->
+      f ty
+  | { ty = Array { elem; _ }; _ } -> iter elem ~f
+  | { ty = Func { params; ret; _ }; _ } ->
+      List.iter params ~f:(iter ~f);
+      iter ret ~f
+  | { ty = Pointer { elem; _ }; _ } -> iter elem ~f
+  | _ -> failwith "[ICE] not supported"

@@ -9,18 +9,61 @@
 open! Base
 module Workspace = Common.Workspace
 module Package = Common.Package
-module ProjectFile = Common.Project
+module ProjectFile = Common.Project_file
 module Triple = Common.Triple
 module Os = Common.Os
 
-type t = { target : Triple.tag_t option; dir : string }
+type t = { sysroot : string option; target : Triple.tag_t option; dir : string }
 
+let validate opts = ()
+
+let read_project_file base_dir =
+  let open Result.Let_syntax in
+  let mod_file = Os.join_path [ base_dir; "rill.mod.json" ] in
+
+  let%bind project =
+    let ch = Stdlib.open_in mod_file in
+    Exn.protect
+      ~f:(fun () -> Common.Project_file.from_channel ch)
+      ~finally:(fun () -> Stdlib.close_in ch)
+  in
+  Ok project
+
+let to_pkg ~ws ~project_layout ~deps base_dir =
+  (* TODO: support c extention *)
+  let Common.Project_file.{ name = pkg_name; _ } = project_layout in
+  let name = pkg_name in
+  let dir = base_dir in
+  [%loga.debug "pkg : %s -> %s" name dir];
+
+  let src_paths =
+    let pkg_srcdir = Os.join_path [ dir; "src" ] in
+    Os.grob_dir pkg_srcdir "^.*\\.rill$"
+    |> List.map ~f:(fun p -> Os.join_path [ pkg_srcdir; p ])
+  in
+
+  let pkg_struct =
+    let tag = Group.Pkg_tag.create ~name ~version:"latest" in
+
+    let s = Compiler.Structure.create ~tag ~base_dir:"." () in
+    Compiler.Structure.add_src_paths s ~paths:src_paths;
+
+    List.iter deps ~f:(fun dep ->
+        Compiler.Structure.add_dependency s
+          ~tag:(Compiler.Package_handle.tag dep));
+
+    s
+  in
+  let pkg = Compiler.Workspace.new_pkg ws ~pkg_struct in
+  Ok pkg
+
+(*
 (* TODO: fix *)
 let host_triple = Triple.Tag_X86_64_unknown_linux_gnu
 
 let default_target_triple = host_triple
 
-let validate opts = ()
+
 
 exception Unexpected_result of string
 
@@ -45,10 +88,11 @@ let load_builtin_pkg workspace sysroot srcdir pkg_name =
 let rec load_project ~workspace ~pkg_id ~name base_dir =
   let open Result.Let_syntax in
   let mod_file = Os.join_path [ base_dir; "rill.mod.json" ] in
-  let ch = Stdlib.open_in mod_file in
+
   let%bind project =
+    let ch = Stdlib.open_in mod_file in
     Exn.protect
-      ~f:(fun () -> ProjectFile.from_channel ch)
+      ~f:(fun () -> Common.Project_file.from_channel ch)
       ~finally:(fun () -> Stdlib.close_in ch)
   in
 
@@ -70,7 +114,7 @@ let rec load_project ~workspace ~pkg_id ~name base_dir =
   in
 
   let pkg =
-    let Common.Project.{ name = pkg_name; c_ext; _ } = project in
+    let Common.Project_file.{ name = pkg_name; c_ext; _ } = project in
     let name = Option.value name ~default:pkg_name in
     let dir = base_dir in
     [%loga.debug "pkg : %s -> %s" name dir];
@@ -113,7 +157,7 @@ let rec load_project ~workspace ~pkg_id ~name base_dir =
 let build_pkg ~workspace pkg =
   let host = Workspace.host ~workspace in
   let target = Workspace.target ~workspace in
-  let compiler = Compiler.create ~workspace ~host ~target in
+  let compiler = Compiler_.create ~workspace ~host ~target in
 
   let format = None in
   ()
@@ -161,11 +205,69 @@ let build_to ~workspace ~out_dir pkg =
   let compiler =
     let host = Workspace.host ~workspace in
     let target = Workspace.target ~workspace in
-    Compiler.create ~workspace ~host ~target
+    Compiler_.create ~workspace ~host ~target
   in
   Ok ()
+ *)
 
 let entry opts =
+  let open Result.Let_syntax in
+  let%bind () = Result.try_with (fun () -> validate opts) in
+
+  let sysroot = Args.sysroot opts.sysroot in
+
+  let host_triple = Args.host_triple () in
+  let target_triple = Args.target_triple opts.target in
+
+  let target_sysroot = Args.target_sysroot ~sysroot ~triple:target_triple in
+
+  let%bind target_spec = Args.target_spec ~target_sysroot in
+
+  let ws = Compiler.Workspace.create () in
+
+  (* core *)
+  let core_lib = Builtin.new_core_lib ~ws ~sysroot ~srcdir:None in
+
+  (* std *)
+  let std_lib = Builtin.new_std_lib ~ws ~sysroot ~srcdir:None ~core_lib in
+
+  let%bind project_layout = read_project_file opts.dir in
+
+  (* TODO: resolve dependencies *)
+  let%bind pkg =
+    to_pkg ~ws ~project_layout ~deps:[ core_lib; std_lib ] opts.dir
+  in
+
+  let target_dir = Os.join_path [ opts.dir; "_target" ] in
+  let () =
+    try Unix.mkdir target_dir 0o700
+    with Unix.Unix_error (Unix.EEXIST, _, _) -> ()
+  in
+
+  let printer = Stdio.stderr in
+
+  (* TODO: calc dependency order *)
+  let%bind () =
+    Compiler.Handler.load_pkg_as_header ~ws ~printer ~pkg_handle:core_lib
+  in
+
+  let%bind () =
+    Compiler.Handler.load_pkg_as_header ~ws ~printer ~pkg_handle:std_lib
+  in
+
+  let (module Target : Triple.PRESET) = target_triple in
+  let emitter = Compiler.Emitter.default_emitter_of Target.triple in
+
+  let obj_path = Os.join_path [ target_dir; "main.o" ] in
+
+  let%bind _ =
+    let pack = true in
+    let out_to = Compiler.Writer.OutputToFile (Some obj_path) in
+    Compiler.Handler.compile ~ws ~printer ~pkg_handle:pkg ~pack
+      ~triple:target_triple ~emitter ~out_to
+  in
+
+  (*
   let open Result.Let_syntax in
   let%bind () = Result.try_with (fun () -> validate opts) in
 
@@ -199,7 +301,7 @@ let entry opts =
   let compiler =
     let host = Workspace.host ~workspace in
     let target = Workspace.target ~workspace in
-    Compiler.create ~workspace ~host ~target
+    Compiler_.create ~workspace ~host ~target
   in
 
   let obj_path = Os.join_path [ target_dir; "main.o" ] in
@@ -207,7 +309,7 @@ let entry opts =
   let%bind _ =
     let pack = true in
     let out_to = Writer.OutputToFile (Some obj_path) in
-    Compiler.compile ~compiler ~format:None ~printer:Stdio.stderr ~pack out_to
+    Compiler_.compile ~compiler ~format:None ~printer:Stdio.stderr ~pack out_to
       pkg
   in
 
@@ -234,5 +336,5 @@ let entry opts =
     Os.cc_exe ~spec:target_spec ~lib_dirs:dirs ~lib_names:libnames
       ~objs:[ obj_path ] ~out:a_path ()
   in
-
+   *)
   Ok ()

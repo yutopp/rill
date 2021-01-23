@@ -7,20 +7,19 @@
  *)
 
 open! Base
-module Package = Common.Package
 
 type t = {
   parent : t option;
   name : string;
   visibility : visibility_t;
+  is_builtin : bool;
   mutable scope : scope_t option;
-  ty_sc : Typing.Scheme.t;
+  mutable ty_sc : Typing.Scheme.t;
   mutable implicits : Typing.Type.t list;
   mutable predicates : Typing.Pred.cond_t list;
   trans : Trans.t;
   kind : kind_t;
   lookup_space : lookup_space_t;
-  mutable deps : t list;
   mutable has_self : bool;
 }
 
@@ -32,7 +31,15 @@ and scope_t = {
 
 and visibility_t = Public | Private
 
-and kind_t = N | Ty | Val | M | Trait | Impl | Alias of t | KindScope
+and kind_t =
+  | N
+  | Ty
+  | Val
+  | M of Group.Mod_tag.t
+  | Trait
+  | Impl
+  | Alias of t
+  | KindScope
 
 and lookup_space_t = LkGlobal | LkLocal [@@deriving show]
 
@@ -40,10 +47,12 @@ type namespace_t = NamespaceValue | NamespaceType | NamespaceMeta
 
 type inserted_status_t = InsertedNew | InsertedHiding
 
-let create name ~parent ~visibility ~ty_sc ~kind ~lookup_space =
+let create ?(is_builtin = false) name ~parent ~visibility ~ty_sc ~kind
+    ~lookup_space =
   {
     parent;
     name;
+    is_builtin;
     visibility;
     scope = None;
     ty_sc;
@@ -52,11 +61,30 @@ let create name ~parent ~visibility ~ty_sc ~kind ~lookup_space =
     trans = ();
     kind;
     lookup_space;
-    deps = [];
     has_self = false;
   }
 
 let name env = env.name
+
+let rec belonged_mod env =
+  let rec lookup env =
+    [%loga.debug "lookup -> %s" env.name];
+    match env.kind with
+    | M tag -> tag
+    | Alias other -> belonged_mod other
+    | _ -> (
+        match env.parent with
+        | Some e -> belonged_mod e
+        | None -> failwith "[ICE] cannot determine belonged_mod" )
+  in
+  if env.is_builtin then
+    (* TODO: fix *)
+    Group.Mod_tag.create
+      ~pkg_tag:(Group.Pkg_tag.create ~name:"builtin" ~version:"")
+      ~path:""
+  else lookup env
+
+let update_ty_sc env ~ty_sc = env.ty_sc <- ty_sc
 
 let type_sc_of env =
   let (Typing.Scheme.ForAll { implicits; vars; ty }) = env.ty_sc in
@@ -76,10 +104,6 @@ let set_has_self env flag = env.has_self <- flag
 let has_self env = env.has_self
 
 let rec w_of env = match env.kind with Alias aenv -> w_of aenv | _ -> env.kind
-
-let register_deps_mod env dep_mod = env.deps <- dep_mod :: env.deps
-
-let list_deps env = env.deps
 
 let assume_scope env =
   match env.scope with
@@ -118,7 +142,7 @@ let insert_impl penv w tenv =
   match w with
   | Ty | Trait -> insert_type penv tenv
   | Val -> insert_value penv tenv
-  | M -> insert_meta penv tenv
+  | M _ -> insert_meta penv tenv
   | _ -> failwith "insert_impl"
 
 let insert penv tenv = insert_impl penv (w_of tenv) tenv
@@ -155,6 +179,15 @@ let find ~ns env name =
   | NamespaceValue -> find_value env name
   | NamespaceType -> find_type env name
   | NamespaceMeta -> find_meta env name
+
+let find_by_path_name env name =
+  let ns =
+    match name.Path.Name.kind with
+    | Path.Name.Module -> NamespaceMeta
+    | Path.Name.Type -> NamespaceType
+    | Path.Name.Var _ -> NamespaceValue
+  in
+  find ~ns env name.Path.Name.name
 
 let find_multi env name =
   let nss = [ NamespaceValue; NamespaceType; NamespaceMeta ] in

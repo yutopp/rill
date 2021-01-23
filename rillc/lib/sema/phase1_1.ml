@@ -9,7 +9,7 @@
 open! Base
 module Span = Common.Span
 module Ast = Syntax.Ast
-module TopAst = Phase1.TopAst
+module TopAst = Phase1_collect_toplevels.TopAst
 
 type ctx_t = {
   m : Mod.t;
@@ -90,7 +90,7 @@ and with_env ~ctx ~env ast : (ctx_t, Diagnostics.Elem.t) Result.t =
                      Env.create name ~parent:(Some env) ~visibility ~ty_sc
                        ~kind:Env.Ty ~lookup_space:Env.LkLocal
                    in
-                   Env.insert env tenv |> Phase1.assume_new;
+                   Env.insert env tenv |> Phase1_collect_toplevels.assume_new;
                    Ok ()
                | _ -> failwith "[ICE]")
       in
@@ -290,12 +290,9 @@ and pass_through ~ctx ast =
       in
       let rec f mods env loadable_envs =
         match mods with
-        | [] ->
-            register_deps ~ctx env;
-            Ok [ env ]
+        | [] -> Ok [ env ]
         | [ last_id ] ->
             [%loga.debug "leaf: %s" (Ast.show last_id)];
-            register_deps ~ctx env;
             let%bind envs = find_mods_with_wildcard ~env last_id in
             Ok (List.join [ envs; loadable_envs ])
         | cont :: rest ->
@@ -322,7 +319,7 @@ and pass_through ~ctx ast =
                   ~kind:(Env.Alias env) ~lookup_space:env.Env.lookup_space
               in
               (*[%loga.debug "loadable env: %s" (Env.show env)];*)
-              Env.insert penv aenv |> Phase1.assume_new));
+              Env.insert penv aenv |> Phase1_collect_toplevels.assume_new));
 
       Ok ctx
   (* *)
@@ -333,10 +330,6 @@ and pass_through ~ctx ast =
       in
       let elm = Diagnostics.Elem.error ~span e in
       Error elm
-
-and register_deps ~ctx env =
-  let Mod.{ menv; _ } = ctx.m in
-  Env.register_deps_mod menv env
 
 and find_mod ?lookup ~env ast =
   let open Result.Let_syntax in
@@ -498,7 +491,7 @@ and decl_param_var ~env ~subst ~builtin ~attr ~name ~ty_spec =
     Env.create name ~parent:(Some env) ~visibility ~ty_sc:spec_ty_sc
       ~kind:Env.Val ~lookup_space:Env.LkLocal
   in
-  Env.insert env venv |> Phase1.assume_new;
+  Env.insert env venv |> Phase1_collect_toplevels.assume_new;
 
   [%loga.debug
     "decl_param(%s) %s :: %s" env.Env.name name (Typing.Type.to_string spec_ty)];
@@ -563,16 +556,3 @@ and assign_type_vars ~implicits ~implicit_args ~vars ~args =
   let%bind id_vars = assign_vars vars args in
 
   Ok (id_implicits @ id_vars)
-
-and to_chains' env subst =
-  let module Chain = Common.Chain in
-  match env.Env.lookup_space with
-  | Env.LkLocal ->
-      let l_opt = Name.to_leyer env subst in
-      let l = Option.value_exn ~message:"[ICE]" l_opt in
-      Chain.Local l
-  | Env.LkGlobal -> Chain.Global (Name.to_nested_chain' env subst)
-
-and to_chains env =
-  let subst = Typing.Subst.create () in
-  to_chains' env subst

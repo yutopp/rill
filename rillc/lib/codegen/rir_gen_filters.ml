@@ -8,6 +8,101 @@
 
 open! Base
 
+module Import_externals_pass = struct
+  module Module = Rir.Module
+
+  let rec declare_type ty_pred ~ty_sc ~m =
+    let module Ty = Typing.Type in
+    Typing.Type.iter (ty_pred |> Typing.Pred.to_type) ~f:(fun ty ->
+        match ty with
+        (* import strtuct *)
+        | Ty.{ ty = Struct { name }; span; _ } ->
+            [%loga.debug
+              "external_type = %s"
+                (Path.to_string ~to_s:Typing.Type.to_string name)];
+            (* TODO: do not use internal modules directly *)
+            Rir.Module.define_type m name
+              (ty |> Typing.Pred.of_type |> Typing.Scheme.of_ty)
+        (* *)
+        | Ty.{ ty = Var _; _ } as ty ->
+            failwith
+              (Printf.sprintf "[ICE] still type variable (type): %s"
+                 (Typing.Type.to_string ty))
+        (* ignored *)
+        | _ -> ())
+
+  let declare_type_sc ty_sc ~m =
+    [%loga.debug "type = %s" (Typing.Scheme.to_string ty_sc)];
+    match ty_sc with
+    | Typing.Scheme.ForAll { implicits = []; vars = []; ty } ->
+        declare_type ty ~ty_sc ~m
+    | _ -> failwith "[ICE] not implemented"
+
+  let declare_value env ~m =
+    let module Ty = Typing.Type in
+    let ty_sc = Sema.Env.type_sc_of env in
+    declare_type_sc ty_sc ~m;
+    let path = Sema.Name.to_nested_chain env in
+    match Typing.Scheme.raw_ty ty_sc with
+    (* external func *)
+    | Ty.{ ty = Func { linkage = LinkageC extern_name; _ }; span; _ } ->
+        (* TODO: do not use internal modules directly *)
+        if not (Rir.Module.Func_generics.is_declared m.Rir.Module.funcs ~path)
+        then (
+          let (f : Rir.Func.t) =
+            Rir.Module.Func_generics.declare_func m.Rir.Module.funcs ~name:path
+              ~ty_sc
+          in
+          Rir.Func.set_extern_form f ~extern_name;
+          () )
+    | Ty.{ ty = Func { linkage = LinkageRillc; _ }; span; _ } ->
+        (* TODO: do not use internal modules directly *)
+        if not (Rir.Module.Func_generics.is_declared m.Rir.Module.funcs ~path)
+        then
+          let (_f : Rir.Func.t) =
+            Rir.Module.Func_generics.declare_func m.Rir.Module.funcs ~name:path
+              ~ty_sc
+          in
+          ()
+    | Ty.{ ty = Func { linkage = LinkageVar _; _ }; span; _ } ->
+        failwith "[ICE] linkage is not determined"
+    (* as static variables *)
+    | _ ->
+        let (g : Rir.Global.t) =
+          (* TODO: do not use internal modules directly *)
+          Rir.Module.declare_global_var m path ty_sc
+        in
+        let extern_name = env.Sema.Env.name in
+        Rir.Global.set_extern_form g ~extern_name
+
+  let import used_external ~root_env ~m =
+    [%loga.debug
+      "external = %s" (Path.to_string ~to_s:Typing.Type.to_string used_external)];
+    let rec find env names =
+      match names with
+      | [] -> env
+      | name :: rest ->
+          [%loga.debug
+            "finding = %s"
+              (Path.Name.to_string ~to_s:Typing.Type.to_string name)];
+
+          let env =
+            match Sema.Env.find_by_path_name env name with
+            | Some v -> v
+            | None -> failwith "[ICE]"
+          in
+          find env rest
+    in
+    let env = find root_env (Path.to_list used_external) in
+    declare_value env ~m;
+    ()
+
+  let apply m ~root_env =
+    let Module.{ used_externals; _ } = m in
+    List.iter used_externals ~f:(import ~root_env ~m);
+    m
+end
+
 module Collect_stack_vars_in_func_pass = struct
   module Module = Rir.Module
   module Func = Rir.Func
@@ -79,8 +174,7 @@ module Collect_and_set_local_vars_in_func_pass = struct
           let Rir.Func.{ name = func_name; _ } = func in
           [%loga.debug
             "func %s / bb!: %s"
-              (Common.Chain.Nest.to_string ~to_s:Typing.Type.to_string
-                 func_name)
+              (Path.to_string ~to_s:Typing.Type.to_string func_name)
               bb_name];
 
           let insts = Term.BB.get_insts bb in
@@ -133,19 +227,19 @@ let finish m =
   m
 
 module Env = struct
-  module IntMap = Map.M (Int)
+  module FreshMap = Map.M (Common.Fresh)
 
-  type t = { ty_subst : Typing.Type.t IntMap.t }
+  type t = { ty_subst : Typing.Type.t FreshMap.t }
 
   let create () =
-    let ty_subst = Map.empty (module Int) in
+    let ty_subst = Map.empty (module Common.Fresh) in
     { ty_subst }
 
   let bind subst var ty =
     match (var, ty) with
     | ( Typing.Type.{ ty = Var { var = a; _ }; _ },
         Typing.Type.{ ty = Var { var = b; _ }; _ } )
-      when a = b ->
+      when Common.Type_var.equal a b ->
         subst
     | (Typing.Type.{ ty = Var { var = id; bound = BoundForall; _ }; _ }, _) ->
         let { ty_subst } = subst in
@@ -180,12 +274,12 @@ module Env = struct
 end
 
 let ma base special =
-  let base = Common.Chain.Nest.to_list base in
-  let special = Common.Chain.Nest.to_list special in
+  let base = Path.to_list base in
+  let special = Path.to_list special in
   List.zip_exn base special
   |> List.fold ~init:(Env.create ()) ~f:(fun env (l_b, l_s) ->
-         let Common.Chain.Layer.{ generics_vars = gvs_b; _ } = l_b in
-         let Common.Chain.Layer.{ generics_vars = gvs_s; _ } = l_s in
+         let Path.Name.{ generics_vars = gvs_b; _ } = l_b in
+         let Path.Name.{ generics_vars = gvs_s; _ } = l_s in
          List.zip_exn gvs_b gvs_s
          |> List.fold ~init:env ~f:(fun env (v_b, v_s) ->
                 [%loga.debug "B -> %s" (Typing.Type.to_string v_b)];
@@ -193,26 +287,27 @@ let ma base special =
                 Env.bind env v_b v_s))
 
 let to_impl name ~env ty =
+  let Path.{ tag; _ } = name in
   let rec convert layers subst rev_layers =
     match layers with
     | [] ->
-        let name = Common.Chain.Nest.from_list (rev_layers |> List.rev) in
+        let name = Path.create ~tag (rev_layers |> List.rev) in
         name
     | l :: rest ->
         (* TODO: fix *)
-        let Common.Chain.Layer.{ kind; generics_vars; _ } = l in
+        let Path.Name.{ kind; generics_vars; _ } = l in
         let env =
           match generics_vars with [ v ] -> Env.bind env v ty | _ -> env
         in
         let generics_vars =
           List.map generics_vars ~f:(fun v -> Env.subst_type env v)
         in
-        let l = Common.Chain.Layer.{ l with generics_vars } in
+        let l = Path.Name.{ l with generics_vars } in
         let rev_layers = l :: rev_layers in
 
         convert rest env rev_layers
   in
-  let layers = Common.Chain.Nest.to_list name in
+  let layers = Path.to_list name in
   convert layers env []
 
 module Instantiate_pass = struct
@@ -226,9 +321,10 @@ module Instantiate_pass = struct
     | PlaceholderGlobal _ -> ph
     | PlaceholderGlobal2 { name; dispatch } when not dispatch ->
         let name =
-          Common.Chain.Nest.to_list name
+          let Path.{ tag; _ } = name in
+          Path.to_list name
           |> List.map ~f:(fun layer ->
-                 let Common.Chain.Layer.{ generics_vars; kind; _ } = layer in
+                 let Path.Name.{ generics_vars; kind; _ } = layer in
                  let generics_vars =
                    List.map ~f:(Env.subst_type subst) generics_vars
                  in
@@ -239,12 +335,11 @@ module Instantiate_pass = struct
                        Common.Chain.Layer.Var ty*)
                    | _ -> kind
                  in
-                 Common.Chain.Layer.{ layer with generics_vars })
-          |> Common.Chain.Nest.from_list
+                 Path.Name.{ layer with generics_vars })
+          |> Path.create ~tag
         in
         [%loga.debug
-          "global2: %s"
-            (Common.Chain.Nest.to_string ~to_s:Typing.Type.to_string name)];
+          "global2: %s" (Path.to_string ~to_s:Typing.Type.to_string name)];
         PlaceholderGlobal2 { name; dispatch }
     | PlaceholderGlobal2 { name; dispatch } ->
         PlaceholderGlobal2 { name; dispatch }
@@ -313,7 +408,7 @@ module Instantiate_pass = struct
           List.iter candidates ~f:(fun name ->
               [%loga.debug
                 "cloning...: %s"
-                  (Common.Chain.Nest.to_string ~to_s:Typing.Type.to_string name)];
+                  (Path.to_string ~to_s:Typing.Type.to_string name)];
 
               (* TODO: support other kind of definition *)
               let base_f = Rir.Module.find_generic_func m name in
@@ -351,9 +446,8 @@ module Impl_pass = struct
     | PlaceholderGlobal _ -> ()
     | PlaceholderGlobal2 ({ name; dispatch } as r) when dispatch ->
         [%loga.debug
-          "dispatch -> %s"
-            (Common.Chain.Nest.to_string ~to_s:Typing.Type.to_string name)];
-        let Common.Chain.Nest.{ paths; last } = name in
+          "dispatch -> %s" (Path.to_string ~to_s:Typing.Type.to_string name)];
+        let Path.{ paths; last; _ } = name in
 
         let trait = Rir.Module.find_trait m paths in
         let impl = Rir.Module.Trait.find trait paths in

@@ -15,13 +15,9 @@ module Os = Common.Os
 
 module Export = struct
   type t =
-    | Artifact of {
-        emit : Emitter.t option;
-        pack : bool;
-        out_to : Writer.output_t;
-      }
-    | Executable of { out_path : string option }
-    | Library of { out_path : string option }
+    | Artifact of { emit : Compiler.Emitter.t option; pack : bool }
+    | Executable
+    | Library
 end
 
 type t = {
@@ -32,29 +28,13 @@ type t = {
   stdlib_libdir : string option;
   target : Triple.tag_t option;
   export : Export.t;
+  out_to : Compiler.Writer.output_t;
   input_files : string list;
 }
 
 let validate opts =
   if List.length opts.input_files < 1 then
     raise (Errors.Invalid_argument "no input file")
-
-let load_builtin_pkg workspace sysroot srcdir pkg_name =
-  let pkg_srcdir =
-    match srcdir with
-    | Some dir -> dir
-    | None ->
-        Os.join_path [ sysroot; "lib"; "rill-lib"; "src"; pkg_name; "src" ]
-  in
-  let pkg_id = Workspace.issue_pkg_id ~workspace in
-  let pkg = Package.create ~name:pkg_name ~dir:pkg_srcdir ~id:pkg_id in
-  Workspace.register_pkg ~workspace pkg;
-  let paths =
-    Os.grob_dir pkg_srcdir "^.*\\.rill$"
-    |> List.map ~f:(fun n -> Stdlib.Filename.concat pkg_srcdir n)
-  in
-  Package.add_src_paths pkg paths;
-  pkg
 
 let entry opts =
   let open Result.Let_syntax in
@@ -69,68 +49,81 @@ let entry opts =
 
   let%bind target_spec = Args.target_spec ~target_sysroot in
 
-  (* TODO: *)
-  let workspace = Workspace.create ~dir:"." ~host_triple ~target_triple in
+  let ws = Compiler.Workspace.create () in
 
-  (* TODO: fix *)
-  let pkg =
-    let pkg_id = Workspace.issue_pkg_id ~workspace in
-    let pkg = Package.create ~name:"main" ~dir:"." ~id:pkg_id in
-    Workspace.register_pkg ~workspace pkg;
-    pkg
-  in
-  Package.add_src_paths pkg opts.input_files;
-
-  (* TODO: fix *)
+  (* core *)
   let core_lib =
-    let dep_pkg =
-      load_builtin_pkg workspace sysroot opts.corelib_srcdir "core"
-    in
-    Package.add_dep_pkg pkg dep_pkg;
-    "core-c"
+    Builtin.new_core_lib ~ws ~sysroot ~srcdir:opts.corelib_srcdir
   in
 
-  (* TODO: fix *)
+  (* std *)
   let std_lib =
-    let dep_pkg = load_builtin_pkg workspace sysroot opts.stdlib_srcdir "std" in
-    Package.add_dep_pkg pkg dep_pkg;
-    "std-c"
+    Builtin.new_std_lib ~ws ~sysroot ~srcdir:opts.stdlib_srcdir ~core_lib
   in
 
-  let compiler =
-    let host = Workspace.host ~workspace in
-    let target = Workspace.target ~workspace in
-    Compiler.create ~workspace ~host ~target
-  in
+  (* target *)
+  let pkg =
+    let pkg_struct =
+      let tag = Group.Pkg_tag.create ~name:"main" ~version:"latest" in
 
-  (* adhoc-impl *)
-  let lib_dirs = [ Os.join_path [ target_sysroot; "lib" ] ] in
-  let lib_names = [ core_lib; std_lib ] in
+      let s = Compiler.Structure.create ~tag ~base_dir:"." () in
+      Compiler.Structure.add_src_paths s ~paths:opts.input_files;
+
+      Compiler.Structure.add_dependency s
+        ~tag:(Compiler.Package_handle.tag core_lib);
+
+      Compiler.Structure.add_dependency s
+        ~tag:(Compiler.Package_handle.tag std_lib);
+      s
+    in
+    Compiler.Workspace.new_pkg ws ~pkg_struct
+  in
 
   let printer = Stdio.stderr in
+
+  (* TODO: calc dependency order *)
+  let%bind () =
+    Compiler.Handler.load_pkg_as_header ~ws ~printer ~pkg_handle:core_lib
+  in
+
+  let%bind () =
+    Compiler.Handler.load_pkg_as_header ~ws ~printer ~pkg_handle:std_lib
+  in
+
+  let (module Target : Triple.PRESET) = target_triple in
   let%bind () =
     match opts.export with
-    | Export.Artifact { emit = format; pack; out_to } ->
+    | Export.Artifact { emit = emitter; pack } ->
+        let emitter =
+          Option.value emitter
+            ~default:(Compiler.Emitter.default_emitter_of Target.triple)
+        in
         let%bind _ =
-          Compiler.compile ~compiler ~format ~printer ~pack out_to pkg
+          Compiler.Handler.compile ~ws ~printer ~pkg_handle:pkg ~pack
+            ~triple:target_triple ~emitter ~out_to:opts.out_to
         in
         Ok ()
-    | Export.Executable { out_path } ->
+    | Export.Executable ->
         let%bind tmp_dir = Os.mktemp_dir "rillc.XXXXXXXX" in
-        let format = None in
+        let emitter = Compiler.Emitter.default_emitter_of Target.triple in
         let pack = false in
-        let out_to = Writer.OutputToDir tmp_dir in
+        let out_to = Compiler.Writer.OutputToDir tmp_dir in
         let%bind filenames =
-          Compiler.compile ~compiler ~format ~printer ~pack out_to pkg
+          Compiler.Handler.compile ~ws ~printer ~pkg_handle:pkg ~pack
+            ~triple:target_triple ~emitter ~out_to
         in
-        [%loga.debug "outputs = %s" (String.concat ~sep:"; " filenames)];
-        let out = out_path |> Option.value ~default:"a.out" in
+        [%loga.debug "compiled = %s" (String.concat ~sep:"; " filenames)];
+
+        (* adhoc-impl *)
+        let lib_dirs = [ Os.join_path [ target_sysroot; "lib" ] ] in
+        let pkgs = [ core_lib; std_lib ] in
+
         let%bind () =
-          Os.cc_exe ~spec:target_spec ~lib_dirs ~lib_names ~objs:filenames ~out
-            ()
+          Compiler.Handler.link_bin ~spec:target_spec ~lib_dirs ~pkgs
+            ~objs:filenames ~out_to:opts.out_to
         in
         Ok ()
-    | _ -> failwith ""
+    | _ -> failwith "[ICE]"
   in
 
   Ok ()

@@ -8,21 +8,21 @@
 
 open! Base
 
-type t = Typing.Type.t Common.Chain.Nest.t
+type t = Typing.Type.t Path.t
 
 let is_generics name =
-  let layers = Common.Chain.Nest.to_list name in
+  let layers = Path.to_list name in
   layers
   |> List.fold_left ~init:false ~f:(fun has l ->
-         let Common.Chain.Layer.{ generics_vars; _ } = l in
+         let Path.Name.{ generics_vars; _ } = l in
          let has' = not (List.is_empty generics_vars) in
          has || has')
 
 let has_generics name =
-  let layers = Common.Chain.Nest.to_list name in
+  let layers = Path.to_list name in
   layers
   |> List.fold_left ~init:false ~f:(fun has l ->
-         let Common.Chain.Layer.{ generics_vars; _ } = l in
+         let Path.Name.{ generics_vars; _ } = l in
          let has' =
            List.exists generics_vars ~f:(fun v ->
                match v with Typing.Type.{ ty = Var _; _ } -> true | _ -> false)
@@ -30,9 +30,9 @@ let has_generics name =
          has || has')
 
 let rec to_signatured_layer l =
-  let Common.Chain.Layer.{ name; kind; generics_vars; _ } = l in
+  let Path.Name.{ name; kind; generics_vars; _ } = l in
   let kind_s =
-    Common.Chain.Layer.(
+    Path.Name.(
       match kind with
       | Module -> "m"
       | Type -> "t"
@@ -51,7 +51,7 @@ and to_signatured_id' layers =
   layers |> List.map ~f:to_signatured_layer |> String.concat ~sep:"."
 
 and to_signatured_id name =
-  let layers = Common.Chain.Nest.to_list name in
+  let layers = Path.to_list name in
   to_signatured_id' layers
 
 and to_signatured_type ty =
@@ -62,7 +62,7 @@ and to_signatured_type ty =
         | Typing.Type.BoundForall -> "'"
         | Typing.Type.BoundWeak -> "W"
       in
-      Printf.sprintf "%s%d" s var
+      Printf.sprintf "%s%s" s (Common.Type_var.to_string var)
   | Typing.Type.{ ty = Unit; _ } -> "unit"
   | Typing.Type.{ ty = Num { bits; signed }; _ } ->
       if signed then Printf.sprintf "i%d" bits else Printf.sprintf "u%d" bits
@@ -107,7 +107,7 @@ and to_string_arg arg : string =
   Printf.sprintf "%s:%s" (to_signatured_type src) (to_signatured_type dst)
 
 let rec to_param_args l =
-  let Common.Chain.Layer.{ generics_vars; _ } = l in
+  let Path.Name.{ generics_vars; _ } = l in
   let generics_s =
     match generics_vars with
     | [] -> ""
@@ -118,29 +118,23 @@ let rec to_param_args l =
   Printf.sprintf "!(%s)" generics_s
 
 and to_param_args_id name =
-  let layers = Common.Chain.Nest.to_list name in
+  let layers = Path.to_list name in
   let s = layers |> List.map ~f:to_param_args |> String.concat ~sep:"." in
   Printf.sprintf "G_%s" s
 
 let to_generic_layer l =
-  let Common.Chain.Layer.{ name; kind; generics_vars; _ } = l in
+  let Path.Name.{ name; kind; _ } = l in
   let kind_s =
-    Common.Chain.Layer.(
-      match kind with Module -> "m" | Type -> "t" | Var _ -> "v")
+    Path.Name.(match kind with Module -> "m" | Type -> "t" | Var _ -> "v")
   in
-  let overloads_s =
-    match generics_vars with
-    | [] -> ""
-    | vars -> vars |> List.map ~f:(fun var -> "") |> String.concat ~sep:","
-  in
-  Printf.sprintf "%s[%s]%s" name kind_s overloads_s
+  Printf.sprintf "%s[%s]" name kind_s
 
 let to_generic_id' layers =
   let s = layers |> List.map ~f:to_generic_layer |> String.concat ~sep:"::" in
   Printf.sprintf "G_%s" s
 
 let to_generic_id name =
-  let layers = Common.Chain.Nest.to_list name in
+  let layers = Path.to_list name in
   to_generic_id' layers
 
 let to_id name =

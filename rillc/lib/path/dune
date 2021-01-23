@@ -1,0 +1,7 @@
+(library
+ (public_name rillc.path)
+ (name path)
+ (libraries base stdio rillc.group)
+ (inline_tests)
+ (preprocess
+  (pps ppx_let ppx_deriving.show ppx_yojson_conv loga.ppx ppx_expect)))

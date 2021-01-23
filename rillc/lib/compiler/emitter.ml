@@ -6,6 +6,7 @@
  * http://www.boost.org/LICENSE_1_0.txt)
  *)
 
+open! Base
 module Triple = Common.Triple
 
 type t = Rill_ir | Llvm_ir | Llvm_bc | Asm | Obj

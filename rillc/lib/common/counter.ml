@@ -7,14 +7,15 @@
  *)
 
 open! Base
+module Value = Int
 
-type t = { c : int ref }
+type t = { c : Value.t ref }
 
 let create () = { c = ref 0 }
 
 let count c = !(c.c)
 
-let incr c = Int.incr c.c
+let incr c = Value.incr c.c
 
 let fresh c =
   let v = count c in
@@ -23,4 +24,4 @@ let fresh c =
 
 let fresh_string c =
   let v = fresh c in
-  Printf.sprintf "%d" v
+  Printf.sprintf "%s" (Value.to_string v)

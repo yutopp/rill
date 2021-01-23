@@ -59,3 +59,32 @@ let deps_flatten package = List.rev package.deps_rev
 let deps_flatten_with_self package = List.rev (package :: package.deps_rev)
 
 let src_paths package = List.rev package.src_paths_rev
+
+module Tag = struct
+  type t = { name : string; version : string }
+
+  let create ~name ~version : t = { name; version }
+end
+
+module New = struct
+  type t = {
+    tag : Tag.t;
+    mutable src_paths_rev : string list;
+    mutable lib_names_rev : string list;
+    mutable deps_rev : Tag.t list;
+  }
+
+  let create ~tag : t =
+    { tag; src_paths_rev = []; lib_names_rev = []; deps_rev = [] }
+
+  let add_src_paths ~info paths =
+    (* TODO: check fullpath *)
+    info.src_paths_rev <- List.append (paths |> List.rev) info.src_paths_rev
+
+  let add_lib_names ~info names =
+    info.lib_names_rev <- List.append (names |> List.rev) info.lib_names_rev
+
+  let add_dependecy ~info tag = info.deps_rev <- tag :: info.deps_rev
+
+  let tag info = info.tag
+end

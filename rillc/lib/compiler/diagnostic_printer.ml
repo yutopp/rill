@@ -13,7 +13,7 @@ let print_line ~ctx ch d =
 let print ~ctx ch ds = Diagnostics.iter ~f:(print_line ~ctx ch) ds
 
 let print_with_last_error ~ctx ch (failed, ds) =
-  let Mod_state.{ last_error; _ } = failed in
+  let Mod_handle.{ last_error; _ } = failed in
   print_line ~ctx ch last_error;
   print ~ctx ch ds
 

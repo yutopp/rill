@@ -1,6 +1,11 @@
 import core::prelude::*;
 import std::stdio::*;
 
+def f(): unit {
+}
+
 def main(): unit {
   calc::entry();
+
+  f();
 }

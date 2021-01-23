@@ -7,18 +7,79 @@
  *)
 
 open! Base
-module IntMap = Map.M (Int)
 module Counter = Common.Counter
 
+module FreshMap = struct
+  module FreshMap = Map.M (Common.Fresh)
+
+  module Redirector = struct
+    type ('subst, 'map) t = {
+      self_id : Counter.Value.t;
+      bag : 'subst Subst_bag.t;
+      extractor : 'subst -> 'map;
+    }
+
+    let create ~self_id ~bag ~e = { self_id; bag; extractor = e }
+
+    let assert_same r ~key =
+      let owner_id = Common.Fresh.owner key in
+      if owner_id <> r.self_id then
+        failwith
+          (Printf.sprintf "[ICE] id is not same: target=%d, self=%d" owner_id
+             r.self_id)
+
+    let find_alt r ~key =
+      let owner_id = Common.Fresh.owner key in
+      if owner_id <> r.self_id then
+        let alt = Subst_bag.find_subst r.bag ~owner_id |> r.extractor in
+        Some alt
+      else None
+  end
+
+  type ('a, 'b) t = {
+    redirector : ('a, ('a, 'b) t) Redirector.t option;
+    map : 'b FreshMap.t;
+  }
+
+  let create_generic () =
+    { redirector = None; map = Map.empty (module Common.Fresh) }
+
+  let create ~self_id ~bag ~e =
+    let redirector = Redirector.create ~self_id ~bag ~e in
+    let self = create_generic () in
+    { self with redirector = Some redirector }
+
+  let add_exn m ~key ~data =
+    let () = Option.iter m.redirector ~f:(Redirector.assert_same ~key) in
+    let map = Map.add_exn m.map ~key ~data in
+    { m with map }
+
+  let set m ~key ~data =
+    let () = Option.iter m.redirector ~f:(Redirector.assert_same ~key) in
+    let map = Map.set m.map ~key ~data in
+    { m with map }
+
+  let rec mem m key =
+    let alt = Option.bind m.redirector ~f:(Redirector.find_alt ~key) in
+    match alt with Some m -> mem m key | None -> Map.mem m.map key
+
+  let rec find m key =
+    let alt = Option.bind m.redirector ~f:(Redirector.find_alt ~key) in
+    match alt with Some m -> find m key | None -> Map.find m.map key
+end
+
 type t = {
+  id : Counter.Value.t;
   fresh_counter : Counter.t;
-  ty_subst : Type.t IntMap.t;
-  ki_subst : int IntMap.t;
-  mut_subst : Type.mutability_t IntMap.t;
-  ln_subst : Type.func_linkage_t IntMap.t;
+  ty_subst : (t, Type.t) FreshMap.t;
+  ki_subst : (t, int) FreshMap.t;
+  mut_subst : (t, Type.mutability_t) FreshMap.t;
+  ln_subst : (t, Type.func_linkage_t) FreshMap.t;
   struct_tags : struct_tags_t;
-  subtypes : subtypes_t IntMap.t;
+  subtypes : (t, subtypes_t) FreshMap.t;
 }
+
+and bag_t = t Subst_bag.t
 
 and struct_tags_t = { st_fresh_counter : Counter.t }
 
@@ -29,13 +90,31 @@ and subtype_t = { sub_target_ty : Type.t }
 
 let create_struct_tags () = { st_fresh_counter = Counter.create () }
 
-let create () =
-  let ty_subst = Map.empty (module Int) in
-  let ki_subst = Map.empty (module Int) in
-  let mut_subst = Map.empty (module Int) in
-  let ln_subst = Map.empty (module Int) in
-  let subtypes = Map.empty (module Int) in
+let create2 ~bag ~id : t =
+  let ty_subst = FreshMap.create ~self_id:id ~bag ~e:(fun s -> s.ty_subst) in
+  let ki_subst = FreshMap.create ~self_id:id ~bag ~e:(fun s -> s.ki_subst) in
+  let mut_subst = FreshMap.create ~self_id:id ~bag ~e:(fun s -> s.mut_subst) in
+  let ln_subst = FreshMap.create ~self_id:id ~bag ~e:(fun s -> s.ln_subst) in
+  let subtypes = FreshMap.create ~self_id:id ~bag ~e:(fun s -> s.subtypes) in
   {
+    id;
+    fresh_counter = Counter.create ();
+    ty_subst;
+    ki_subst;
+    mut_subst;
+    ln_subst;
+    struct_tags = create_struct_tags ();
+    subtypes;
+  }
+
+let create_generic () : t =
+  let ty_subst = FreshMap.create_generic () in
+  let ki_subst = FreshMap.create_generic () in
+  let mut_subst = FreshMap.create_generic () in
+  let ln_subst = FreshMap.create_generic () in
+  let subtypes = FreshMap.create_generic () in
+  {
+    id = 0 (* TODO *);
     fresh_counter = Counter.create ();
     ty_subst;
     ki_subst;
@@ -46,7 +125,10 @@ let create () =
   }
 
 (* has side effects *)
-let fresh_var subst : Common.Type_var.t = Counter.fresh subst.fresh_counter
+let fresh_var subst : Common.Type_var.t =
+  let owner = subst.id in
+  let fresh = Counter.fresh subst.fresh_counter in
+  Common.Fresh.create ~owner ~fresh
 
 (* has side effects *)
 let fresh_ty_generic ~span ~bound ~label subst : Type.t =
@@ -78,14 +160,14 @@ let get_struct_fields_from_name subst name = []
 
 let update_mut subst uni_id mut =
   let { mut_subst; _ } = subst in
-  let mut_subst = Map.add_exn mut_subst ~key:uni_id ~data:mut in
+  let mut_subst = FreshMap.add_exn mut_subst ~key:uni_id ~data:mut in
   { subst with mut_subst }
 
 let rec subst_mut (subst : t) mut =
   let { mut_subst; _ } = subst in
   match mut with
   | Type.MutVar uni_id ->
-      Map.find mut_subst uni_id
+      FreshMap.find mut_subst uni_id
       |> Option.value_map ~default:mut ~f:(subst_mut subst)
   | alt -> alt
 
@@ -93,32 +175,34 @@ let rec subst_linkage (subst : t) linkage =
   let { ln_subst; _ } = subst in
   match linkage with
   | Type.LinkageVar uni_id ->
-      Map.find ln_subst uni_id
+      FreshMap.find ln_subst uni_id
       |> Option.value_map ~default:linkage ~f:(subst_linkage subst)
   | alt -> alt
 
 let update_type subst src dst =
   let { ty_subst; _ } = subst in
   let uni_id = Type.assume_var_id src in
-  let ty_subst = Map.set ty_subst ~key:uni_id ~data:dst in
+  let ty_subst = FreshMap.set ty_subst ~key:uni_id ~data:dst in
   { subst with ty_subst }
 
 let append_impl subst trait_var_id ~relation =
   let { subtypes; _ } = subst in
-  let relations = Map.find subtypes trait_var_id |> Option.value ~default:[] in
+  let relations =
+    FreshMap.find subtypes trait_var_id |> Option.value ~default:[]
+  in
   let relations = relation :: relations in
-  let subtypes = Map.set subtypes ~key:trait_var_id ~data:relations in
+  let subtypes = FreshMap.set subtypes ~key:trait_var_id ~data:relations in
   { subst with subtypes }
 
 let find_subtype_rels subst var_id =
   let { subtypes; _ } = subst in
-  let relations = Map.find_exn subtypes var_id in
-  relations
+  let relations = FreshMap.find subtypes var_id in
+  Option.value_exn relations
 
 let is_bound subst ty =
   let { ty_subst; _ } = subst in
   let uni_id = Type.assume_var_id ty in
-  (uni_id, Map.mem ty_subst uni_id)
+  (uni_id, FreshMap.mem ty_subst uni_id)
 
 let assume_not_bound subst ty = (* TODO: implement *) ()
 
@@ -127,7 +211,7 @@ let rec subst_type' ~(subst : t) ty : Type.t =
   (* *)
   | Type.{ ty = Var { var = uni_id; _ }; binding_mut; span } -> (
       let { ty_subst; _ } = subst in
-      match Map.find ty_subst uni_id with
+      match FreshMap.find ty_subst uni_id with
       | Some ty' ->
           let ty = subst_type' ~subst ty' in
           Type.{ ty with binding_mut }

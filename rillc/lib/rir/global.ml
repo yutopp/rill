@@ -7,7 +7,7 @@
  *)
 
 type t = {
-  name : Typing.Type.t Common.Chain.Nest.t;
+  name : Typing.Type.t Path.t;
   ty_sc : (Typing.Scheme.t[@printer fun fmt _ -> fprintf fmt ""]);
   mutable body : body_t option;
 }

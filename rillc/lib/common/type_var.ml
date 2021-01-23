@@ -6,4 +6,6 @@
  * http://www.boost.org/LICENSE_1_0.txt)
  *)
 
-type t = int [@@deriving show, yojson_of]
+type t = Fresh.t [@@deriving show, yojson_of, eq]
+
+let to_string = Fresh.to_string

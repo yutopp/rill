@@ -9,7 +9,7 @@
 open! Base
 module Span = Common.Span
 module Ast = Syntax.Ast
-module TopAst = Phase1.TopAst
+module TopAst = Phase1_collect_toplevels.TopAst
 
 module TAst = struct
   module StringMap = Map.M (String)
@@ -20,29 +20,23 @@ module TAst = struct
     | Module of { stmts : t }
     | Import of { pkg : string; mods : string list }
     | DeclExternFunc of {
-        name : Typing.Type.t Common.Chain.Nest.t;
+        name : Typing.Type.t Path.t;
         ty_sc : Typing.Scheme.t;
         extern_name : string;
       }
     | DeclExternStaticVar of {
-        name : Typing.Type.t Common.Chain.Nest.t;
+        name : Typing.Type.t Path.t;
         ty_sc : Typing.Scheme.t;
         extern_name : string;
       }
-    | DeclFunc of {
-        name : Typing.Type.t Common.Chain.Nest.t;
-        ty_sc : Typing.Scheme.t;
-      }
+    | DeclFunc of { name : Typing.Type.t Path.t; ty_sc : Typing.Scheme.t }
     | DefFunc of {
-        name : Typing.Type.t Common.Chain.Nest.t;
+        name : Typing.Type.t Path.t;
         has_self : bool;
         ty_sc : Typing.Scheme.t;
         body : t;
       }
-    | DefStruct of {
-        name : Typing.Type.t Common.Chain.Nest.t;
-        ty_sc : Typing.Scheme.t;
-      }
+    | DefStruct of { name : Typing.Type.t Path.t; ty_sc : Typing.Scheme.t }
     | DefSeq of t list
     (* *)
     | StmtSeq of t list
@@ -60,19 +54,16 @@ module TAst = struct
     | ExprDeref of t
     | ExprStruct
     | Var of { name : string; ref_type : ref_t }
-    | Var2 of { chain : Typing.Type.t Common.Chain.t }
+    | Var2 of { chain : Typing.Type.t Path.t }
     | LitBool of bool
     | LitInt of int
     | LitString of string
     | LitUnit
     | LitArrayElem of t list
     | StmtDispatchTable of {
-        trait_name : Typing.Type.t Common.Chain.Nest.t;
+        trait_name : Typing.Type.t Path.t;
         for_ty : Typing.Type.t;
-        mapping :
-          ( Typing.Type.t Common.Chain.Layer.t
-          * Typing.Type.t Common.Chain.Nest.t )
-          list;
+        mapping : (Typing.Type.t Path.Name.t * Typing.Type.t Path.t) list;
       }
 
   and ref_t = RefTypeGlobal | RefTypeLocal | RefTypeLocalArg of int
@@ -84,12 +75,15 @@ module Ctx = struct
     ds : Diagnostics.t;
     mutable subst : Typing.Subst.t;
     builtin : Builtin.t;
+    m : Mod.t;
     exec_ctx : exec_ctx_t option;
   }
 
   and exec_ctx_t = ExecCtxFunc of { return : Typing.Type.t }
 
-  let create ~ds ~subst ~builtin = { ds; subst; builtin; exec_ctx = None }
+  let create ~m ~subst ~builtin =
+    let Mod.{ ds; _ } = m in
+    { ds; subst; builtin; m; exec_ctx = None }
 
   let merge dst src = dst.subst <- src.subst
 
@@ -174,8 +168,8 @@ and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
             Error elm
       in
 
-      let ty = ctx.Ctx.builtin.Builtin.unit_ ~span |> Typing.Pred.of_type in
       let name = Name.to_nested_chain env in
+      let ty = ctx.Ctx.builtin.Builtin.unit_ ~span |> Typing.Pred.of_type in
       Ok TAst.{ kind = DeclExternFunc { name; ty_sc; extern_name }; ty; span }
   (* *)
   | Ast.{ kind = DeclExternStaticVar { attr; name; _ }; span } ->
@@ -242,8 +236,8 @@ and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
       let name =
         match name with
         | "main" ->
-            let layer =
-              Common.Chain.Layer.
+            let name =
+              Path.Name.
                 {
                   name = "main";
                   kind = Var f_ty;
@@ -251,7 +245,7 @@ and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
                   has_self = false;
                 }
             in
-            Common.Chain.Nest.from_list [ layer ]
+            Path.create ~tag:(Mod.tag ctx.m) [ name ]
         | _ -> Name.to_nested_chain env
       in
       Ok
@@ -264,7 +258,7 @@ and with_env ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
   (* *)
   | Ast.{ kind = DefStruct _; span } ->
       (* TODO: check that there are no holes *)
-      let ty_sc = Env.type_sc_of env in
+      let ty_sc = Env.type_sc_of env |> Typing.Scheme.eliminate_type_of in
 
       let ty = ctx.Ctx.builtin.Builtin.unit_ ~span |> Typing.Pred.of_type in
       let name = Name.to_nested_chain env in
@@ -723,10 +717,10 @@ and analyze ~ctx ~env ast : (TAst.t, Diagnostics.Elem.t) Result.t =
               |> String.concat ~sep:"," )]
       in
 
-      let chain = Phase1_1.to_chains' env lookup_subst in
+      let chain = Name.to_single_path' env ~subst:lookup_subst in
       [%loga.debug
         "chain -> %s :: %s"
-          (Common.Chain.to_string ~to_s:Typing.Type.to_string chain)
+          (Path.to_string ~to_s:Typing.Type.to_string chain)
           (Typing.Pred.to_string ty)];
       Ok TAst.{ kind = Var2 { chain }; span; ty }
   (* *)
