@@ -1,0 +1,6 @@
+import core::prelude::*;
+
+def main(): unit {
+  let _ = 1 == 1;
+  let _ = true == true;
+}
