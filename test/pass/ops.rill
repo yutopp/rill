@@ -1,5 +1,9 @@
 import core::prelude::*;
 
+trait Add {
+  def '=='(self, b: Self): bool;
+}
+
 def main(): unit {
   let _ = 1 == 1;
   let _ = true == true;
