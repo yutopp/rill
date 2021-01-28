@@ -1,16 +1,6 @@
 import core::prelude::*;
 
-trait Add {
-  def '=='(self, b: Self): bool;
-}
-
-impl Add for bool {
-  def '=='(self, b: Self): bool {
-    return false;
-  }
-}
-
 def main(): unit {
-  let _ = 1 == 1;
+  // let _ = 1 == 1;
   let _ = true == true;
 }

@@ -1,5 +1,7 @@
 // TODO: Assign, Eq, Add, Sub, Mul traits
 // TODO: Support mut ref
+extern def eq_bool_bool(a: bool, b: bool) = "%op_bin_equals_bool_bool";
+
 extern def '=='(a: i32, b: i32): bool = "%op_bin_equals";
 extern def '+'(a: i32, b: i32): i32 = "%op_bin_add";
 extern def '-'(a: i32, b: i32): i32 = "%op_bin_sub";
@@ -10,3 +12,13 @@ extern def '*'(a: i32, b: i32): i32 = "%op_bin_mul";
 //
 //trait Add {
 //}
+
+trait Eq {
+  def '=='(self, b: Self): bool;
+}
+
+impl Eq for bool {
+  def '=='(self, b: Self): bool {
+    return eq_bool_bool(self, b);
+  }
+}
