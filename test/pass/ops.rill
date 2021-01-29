@@ -2,5 +2,6 @@ import core::prelude::*;
 
 def main(): unit {
   // let _ = 1 == 1;
-  let _ = true == true;
+  //let _ = true == true;
+  let _ = eq_bool_bool(true, true);
 }

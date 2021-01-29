@@ -207,7 +207,7 @@ let find_builtin builtin_name =
         let a = args.(0) in
         let b = args.(1) in
         L.build_mul a b "" builder
-  | "%op_bin_equals" ->
+  | "%op_bin_eq" ->
       fun args builder ->
         let a = args.(0) in
         let b = args.(1) in
