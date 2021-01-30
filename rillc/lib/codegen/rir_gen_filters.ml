@@ -450,8 +450,8 @@ module Impl_pass = struct
         let Path.{ paths; last; _ } = name in
 
         let trait = Rir.Module.find_trait m paths in
-        let impl = Rir.Module.Trait.find trait paths in
-        let func_name = Rir.Module.Impl.find impl last in
+        let impl = Rir.Traits.find trait paths in
+        let func_name = Rir.Traits.Impl.find impl last in
 
         r.name <- func_name;
         r.dispatch <- false
