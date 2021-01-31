@@ -109,7 +109,7 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
       in
       let pty = Typing.Pred.of_type ty in
       let ty_sc = Typing.Scheme.of_ty pty in
-      let visibility = Env.Public in
+      let visibility = Env.Public (* TODO: fix *) in
       let tenv =
         Env.create name ~parent:(Some penv) ~visibility ~ty_sc ~kind:Env.Ty
           ~lookup_space:Env.LkGlobal
@@ -130,7 +130,7 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
       in
       let pty = Typing.Pred.of_type ty in
       let ty_sc = Typing.Scheme.of_ty pty in
-      let visibility = Env.Public in
+      let visibility = Env.Public (* TODO: fix *) in
       let fenv =
         Env.create name ~parent:(Some penv) ~visibility ~ty_sc ~kind:Env.Val
           ~lookup_space:Env.LkGlobal
@@ -151,7 +151,7 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
       let ty_sc =
         preconstruct_func_ty_sc ~ctx ~span ~linkage ~ty_params ~params ~ret_ty
       in
-      let visibility = Env.Public in
+      let visibility = Env.Public (* TODO: fix *) in
       let fenv =
         Env.create name ~parent:(Some penv) ~visibility ~ty_sc ~kind:Env.Val
           ~lookup_space:Env.LkGlobal
@@ -172,7 +172,7 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
       let ty_sc =
         preconstruct_func_ty_sc ~ctx ~span ~linkage ~ty_params ~params ~ret_ty
       in
-      let visibility = Env.Public in
+      let visibility = Env.Public (* TODO: fix *) in
       let fenv =
         Env.create name ~parent:(Some penv) ~visibility ~ty_sc ~kind:Env.Val
           ~lookup_space:Env.LkGlobal
@@ -191,7 +191,7 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
       in
       let pty = Typing.Pred.of_type ty in
       let ty_sc = Typing.Scheme.of_ty pty in
-      let visibility = Env.Public in
+      let visibility = Env.Public (* TODO: fix *) in
       let tenv =
         Env.create name ~parent:(Some penv) ~visibility ~ty_sc ~kind:Env.Ty
           ~lookup_space:Env.LkGlobal
@@ -210,19 +210,21 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
         ctx.builtin.Builtin.type_ ~span inner
       in
       let pty = Typing.Pred.of_type ty in
-      (* a *)
-      let implicits =
-        let inner = Typing.Subst.fresh_forall_ty ~span ~label:"t" ctx.subst in
-        [ inner ]
-      in
       let ty_sc = Typing.Scheme.of_ty pty in
       let visibility = Env.Public (* TODO *) in
       let tenv =
         Env.create name ~parent:(Some penv) ~visibility ~ty_sc ~kind:Env.Trait
           ~lookup_space:Env.LkGlobal
       in
+      (* a *)
+      let implicits =
+        let inner = Typing.Subst.fresh_forall_ty ~span ~label:"t" ctx.subst in
+        [ inner ]
+      in
       Env.append_implicits tenv implicits;
 
+      (* Trait :: T!(_a)
+       *)
       Env.insert penv tenv |> assume_new;
 
       let%bind decls =
