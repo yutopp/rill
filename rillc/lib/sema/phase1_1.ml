@@ -443,7 +443,8 @@ and lookup_type' ~env ~subst builtin ast =
             sty
         | _ ->
             failwith
-              (Printf.sprintf "[ICE] not type: %s" (Typing.Pred.to_string ty))
+              (Printf.sprintf "[ICE] not type: %s (%s)"
+                 (Typing.Pred.to_string ty) name)
       in
       Ok (Typing.Type.{ ty with span }, [], implicits, vars, env)
   (* *)

@@ -223,14 +223,25 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
       in
       Env.append_implicits tenv implicits;
 
-      (* Trait :: T!(_a)
-       *)
+      (* Trait :: T!(_a) *)
       Env.insert penv tenv |> assume_new;
 
       let%bind decls =
         let ctx = { ctx with parent = tenv } in
         collect_toplevels ~ctx decls
       in
+
+      (* Add 'Self' *)
+      let self_env =
+        let name = "Self" in
+        let ty_sc =
+          List.hd_exn implicits |> Typing.Type.to_type_ty |> Typing.Pred.of_type
+          |> Typing.Scheme.of_ty
+        in
+        Env.create name ~parent:(Some tenv) ~visibility ~ty_sc ~kind:Env.Ty
+          ~lookup_space:Env.LkLocal
+      in
+      Env.insert_type tenv self_env |> assume_new;
 
       Ok
         TopAst.

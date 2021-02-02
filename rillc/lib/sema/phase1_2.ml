@@ -110,6 +110,14 @@ and lazy_decl ~ctx ~penv ast =
           ~lookup_space:Env.LkGlobal
       in
 
+      (* Add 'Self' *)
+      let self_env =
+        let name = "Self" in
+        Env.create name ~parent:(Some tenv) ~visibility ~ty_sc ~kind:Env.Ty
+          ~lookup_space:Env.LkGlobal
+      in
+      Env.insert_type tenv self_env |> Phase1_collect_toplevels.assume_new;
+
       let%bind (subst, decls) =
         let%bind p1ast =
           let ctx =
