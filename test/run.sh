@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -eux -o pipefail
+set -eu -o pipefail
 
 _="$RILL_TEST_COMPILER"
 _="$RILL_TEST_TARGET"
