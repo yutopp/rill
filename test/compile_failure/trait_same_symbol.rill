@@ -1,4 +1,7 @@
 trait A {
   def f(self): unit;
+}
+
+trait A {
   def f(self): unit;
 }

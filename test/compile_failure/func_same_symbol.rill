@@ -1,0 +1,19 @@
+def f(): unit {
+}
+
+def g(): unit {
+}
+
+// not allowed
+def f(): unit {
+}
+
+trait A {
+  def f(self): unit;
+
+  // g is allowed bacause not declated in trait A
+  def g(self): unit;
+
+  // f is not allowed because already declared in trait A
+  def f(self): unit;
+}

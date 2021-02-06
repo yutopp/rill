@@ -1,0 +1,7 @@
+ERROR: The symbol `f` is defined multiple times
+  --> File: "", line 8-9, charactors 0-1
+
+ERROR: The symbol `f` is defined multiple times
+  --> File: "", line 18, charactors 2-19
+
+rillc: There are warnings or errors.
