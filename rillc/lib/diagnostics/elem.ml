@@ -16,13 +16,18 @@ and reason_t = Error of Error_info.base | Warning of Error_info.base
 let error ~span e = { reason = Error e; span }
 
 let to_string_human ~ctx elem =
+  let buf = Buffer.create 256 in
+
   let { reason; span; _ } = elem in
   let span_s = Span.to_string span in
   let (level, inner) =
     match reason with Error e -> ("ERROR", e) | Warning w -> ("WARNING", w)
   in
   let message = inner#to_string ctx in
-  Printf.sprintf "%s: %s\n%s\n" level message span_s
+  Buffer.add_string buf (Printf.sprintf "%s: %s\n" level message);
+  Buffer.add_string buf (Printf.sprintf "  --> %s\n" span_s);
+
+  Buffer.contents buf
 
 let print_for_human ~ctx ch elem =
   Stdio.Out_channel.output_string ch (to_string_human ~ctx elem)

@@ -9,14 +9,12 @@
 open! Base
 module Span = Common.Span
 
-class defined_twice ~(other : Span.t) ~(name : string) =
+class defined_multiple_times ~(previous : Span.t) ~(name : string) =
   object (self)
     inherit Diagnostics.Error_info.base
 
     method to_string _ctx =
-      Printf.sprintf
-        "Definition which has same symbol(%s) is defined twice.\n %s\n" name
-        (Span.yojson_of_t other |> Yojson.Safe.to_string)
+      Printf.sprintf "The symbol `%s` is defined multiple times" name
   end
 
 class cannot_assign =

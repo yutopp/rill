@@ -202,7 +202,7 @@ let rec collect_toplevels ~ctx ast : (TopAst.t, Diagnostics.Elem.t) Result.t =
   (* *)
   | Ast.{ kind = DefTrait { name; decls }; span } as decl ->
       let penv = ctx.parent in
-      let%bind () = Guards.guard_dup_value ~span penv name in
+      let%bind () = Guards.guard_dup_type ~span penv name in
 
       (* T *)
       let ty =
