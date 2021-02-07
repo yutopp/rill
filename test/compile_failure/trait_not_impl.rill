@@ -1,0 +1,6 @@
+trait A {
+  def f(self): unit;
+}
+
+impl A for i32 {
+}
