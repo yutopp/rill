@@ -176,6 +176,8 @@ and lazy_decl ~ctx ~penv ast =
         mapping
       in
 
+      let%bind () = check_impl_satisfy_trait () in
+
       let impl_record = Impl.{ trait_name; for_ty; mapping } in
 
       let subst =
@@ -205,3 +207,5 @@ and lazy_decl ~ctx ~penv ast =
 and lookup_type ~env ~ctx ast =
   let builtin = ctx.builtin in
   Phase1_1.lookup_type_fresh ~env ~subst:ctx.subst ~builtin ast
+
+and check_impl_satisfy_trait () = Ok ()
