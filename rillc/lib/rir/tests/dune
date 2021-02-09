@@ -1,5 +1,4 @@
 (tests
- (names symbol)
+ (names symbol module)
  (package rillc)
  (libraries alcotest rillc.group rillc.typing rillc.rir))
-
