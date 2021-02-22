@@ -1,3 +1,5 @@
+// skip
+
 trait A {
   def f(self): unit;
 }

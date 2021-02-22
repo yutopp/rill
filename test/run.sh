@@ -15,6 +15,15 @@ function fail() {
     exit 1
 }
 
+function check_skip() {
+    hd=$(cat "$1" | head -n 1)
+    if [ "$hd" = "// skip" ]; then
+        echo 1
+    else
+        echo 0
+    fi
+}
+
 function build_and_execute() {
     local CASENAME="$1"
     local FILE="$TEST_PASS_DIR/$CASENAME.rill"
@@ -54,6 +63,11 @@ function compile_and_check_failure() {
 
     local FILE="$BASE_DIR/$CASENAME.rill"
     local TEST_EXPECT_FILE="$BASE_DIR/$CASENAME.expect"
+
+    # Check skip
+    if [ $(check_skip "$FILE") -ne 0 ]; then
+        return
+    fi
 
     OUT_DIR=`mktemp -d '/tmp/rillc.XXXXXXXXXXXXXXXX'`
 
